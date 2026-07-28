@@ -1,0 +1,1205 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>La Verde — Ficha del Lugar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:          oklch(98% 0.005 85);
+      --surface:     oklch(100% 0 0);
+      --fg:          oklch(18% 0.01 250);
+      --muted:       oklch(52% 0.01 250);
+      --border:      oklch(90% 0.004 250);
+      --accent:      oklch(62% 0.16 145);
+      --accent-soft: oklch(62% 0.16 145 / 0.10);
+      --accent-hover:oklch(54% 0.15 145);
+      --success:     oklch(70% 0.12 175);
+      --warning:     oklch(75% 0.15 75);
+      --danger:      oklch(60% 0.20 25);
+      --amber:       oklch(75% 0.15 75);
+      --info:        oklch(62% 0.14 250);
+      --scrim:       oklch(15% 0.01 250 / 0.45);
+      --font-display:'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-body:   'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-mono:   'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, monospace;
+      --fs-h2:    clamp(24px, 3vw, 36px);
+      --fs-h3:    20px;
+      --fs-body:  16px;
+      --fs-small: 14px;
+      --fs-meta:  13px;
+      --fs-xs:    11px;
+      --gap-xs:  8px;
+      --gap-sm:  12px;
+      --gap-md:  16px;
+      --gap-lg:  24px;
+      --gap-xl:  32px;
+      --radius-sm:   6px;
+      --radius:      10px;
+      --radius-lg:   14px;
+      --radius-xl:   20px;
+      --radius-full: 999px;
+      --shadow-xs:  0 1px 2px oklch(18% 0.01 250 / 0.04);
+      --shadow-sm:  0 2px 8px oklch(18% 0.01 250 / 0.06);
+      --shadow-md:  0 4px 16px oklch(18% 0.01 250 / 0.08);
+      --shadow-lg:  0 8px 32px oklch(18% 0.01 250 / 0.10);
+      --shadow-xl:  0 16px 48px oklch(18% 0.01 250 / 0.12);
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --duration-fast: 120ms;
+      --duration-normal: 200ms;
+      --duration-slow: 400ms;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: var(--font-body);
+      font-size: var(--fs-body);
+      line-height: 1.5;
+      color: var(--fg);
+      background: var(--bg);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font: inherit; cursor: pointer; border: none; background: none; }
+    a { color: inherit; text-decoration: none; }
+    img { display: block; max-width: 100%; }
+
+    /* ==================== STATE BAR (demo controls) ==================== */
+    .state-bar {
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 999;
+      background: oklch(18% 0.01 250);
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .state-bar::-webkit-scrollbar { display: none; }
+    .state-bar label {
+      font-family: var(--font-mono);
+      font-size: 11px; font-weight: 500;
+      color: oklch(70% 0.01 250);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-right: 4px;
+      flex-shrink: 0;
+    }
+    .state-btn {
+      flex-shrink: 0;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-mono);
+      font-size: 11px; font-weight: 500;
+      color: oklch(70% 0.01 250);
+      border: 1px solid oklch(35% 0.01 250);
+      transition: all var(--duration-fast);
+      white-space: nowrap;
+    }
+    .state-btn:hover { border-color: oklch(62% 0.16 145); color: var(--surface); }
+    .state-btn.active {
+      background: oklch(62% 0.16 145);
+      border-color: oklch(62% 0.16 145);
+      color: var(--surface);
+    }
+
+    /* ==================== MOBILE HEADER ==================== */
+    .lv-header {
+      position: sticky; top: 36px; z-index: 100;
+      height: 56px;
+      background: oklch(100% 0 0 / 0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: var(--gap-sm);
+      padding: 0 var(--gap-md);
+    }
+    .lv-header__back {
+      width: 40px; height: 40px;
+      border-radius: var(--radius-full);
+      display: flex; align-items: center; justify-content: center;
+      transition: background var(--duration-fast);
+    }
+    .lv-header__back:hover { background: var(--accent-soft); }
+    .lv-header__back svg { width: 20px; height: 20px; color: var(--fg); }
+    .lv-header__title {
+      font-family: var(--font-display);
+      font-size: var(--fs-small);
+      font-weight: 600;
+      color: var(--fg);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .lv-header__actions { display: flex; gap: 4px; }
+    .lv-header__btn {
+      width: 40px; height: 40px;
+      border-radius: var(--radius-full);
+      display: flex; align-items: center; justify-content: center;
+      transition: background var(--duration-fast);
+    }
+    .lv-header__btn:hover { background: var(--accent-soft); }
+    .lv-header__btn svg { width: 20px; height: 20px; color: var(--fg); }
+
+    /* ==================== PHOTO CAROUSEL ==================== */
+    .carousel {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4/3;
+      overflow: hidden;
+      background: oklch(92% 0.008 85);
+    }
+    .carousel__track {
+      display: flex;
+      height: 100%;
+      transition: transform var(--duration-slow) var(--ease-out);
+      will-change: transform;
+    }
+    .carousel__slide {
+      flex: 0 0 100%;
+      height: 100%;
+      position: relative;
+    }
+    .carousel__img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    .carousel__ph {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: var(--gap-xs);
+      color: var(--muted);
+    }
+    .carousel__ph svg { width: 40px; height: 40px; opacity: 0.4; }
+    .carousel__ph span { font-size: var(--fs-small); font-family: var(--font-mono); }
+    .carousel__dots {
+      position: absolute; bottom: 12px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; gap: 6px;
+    }
+    .carousel__dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: oklch(100% 0 0 / 0.5);
+      border: 1px solid oklch(100% 0 0 / 0.3);
+      transition: all var(--duration-normal);
+    }
+    .carousel__dot.active {
+      background: var(--surface);
+      width: 20px;
+      border-radius: var(--radius-full);
+    }
+    .carousel__counter {
+      position: absolute; top: 12px; right: 12px;
+      background: oklch(15% 0.01 250 / 0.65);
+      backdrop-filter: blur(8px);
+      color: var(--surface);
+      font-family: var(--font-mono);
+      font-size: var(--fs-xs);
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+    }
+    .carousel__nav {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 36px; height: 36px;
+      border-radius: var(--radius-full);
+      background: oklch(100% 0 0 / 0.85);
+      backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: var(--shadow-sm);
+      transition: all var(--duration-fast);
+      opacity: 0;
+    }
+    .carousel:hover .carousel__nav { opacity: 1; }
+    .carousel__nav:hover { background: var(--surface); box-shadow: var(--shadow-md); }
+    .carousel__nav svg { width: 18px; height: 18px; color: var(--fg); }
+    .carousel__nav--prev { left: 12px; }
+    .carousel__nav--next { right: 12px; }
+
+    /* ==================== PLACE INFO ==================== */
+    .place-info {
+      padding: var(--gap-lg) var(--gap-md);
+      background: var(--surface);
+    }
+    .place-info__top {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: var(--gap-sm);
+      margin-bottom: var(--gap-sm);
+    }
+    .place-info__name {
+      font-family: var(--font-display);
+      font-size: var(--fs-h2);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.015em;
+      color: var(--fg);
+      text-wrap: balance;
+    }
+    .place-info__badge {
+      flex-shrink: 0;
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-mono);
+      font-size: var(--fs-xs);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .place-info__badge--open {
+      background: oklch(70% 0.12 175 / 0.12);
+      color: oklch(45% 0.12 175);
+    }
+    .place-info__badge--closed {
+      background: oklch(60% 0.20 25 / 0.10);
+      color: oklch(50% 0.18 25);
+    }
+    .place-info__badge-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+    }
+    .place-info__badge--open .place-info__badge-dot { background: var(--success); }
+    .place-info__badge--closed .place-info__badge-dot { background: var(--danger); }
+    .place-info__meta {
+      display: flex; align-items: center; gap: var(--gap-sm);
+      flex-wrap: wrap;
+    }
+    .place-info__category {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: var(--fs-xs);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .place-info__category svg { width: 12px; height: 12px; }
+    .place-info__rating {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-family: var(--font-mono);
+      font-size: var(--fs-meta);
+      font-weight: 500;
+      color: var(--fg);
+    }
+    .place-info__rating svg { width: 14px; height: 14px; color: var(--warning); }
+    .place-info__rating-future {
+      font-size: var(--fs-xs);
+      color: var(--muted);
+      font-style: italic;
+    }
+    .place-info__dist {
+      font-family: var(--font-mono);
+      font-size: var(--fs-meta);
+      color: var(--muted);
+    }
+
+    /* ==================== QUICK INFO BAR ==================== */
+    .info-bar {
+      display: flex; gap: 1px;
+      background: var(--border);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .info-bar__item {
+      flex: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 4px;
+      padding: var(--gap-sm) var(--gap-xs);
+      background: var(--surface);
+      text-align: center;
+      min-height: 72px;
+    }
+    .info-bar__icon {
+      width: 20px; height: 20px;
+      color: var(--accent);
+    }
+    .info-bar__label {
+      font-family: var(--font-mono);
+      font-size: var(--fs-xs);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+    .info-bar__value {
+      font-family: var(--font-display);
+      font-size: var(--fs-small);
+      font-weight: 600;
+      color: var(--fg);
+      line-height: 1.2;
+    }
+    .info-bar__payments {
+      display: flex; gap: 4px; justify-content: center;
+    }
+    .info-bar__currency {
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    .info-bar__currency--mlc {
+      background: oklch(62% 0.16 145 / 0.12);
+      color: var(--accent);
+    }
+    .info-bar__currency--cup {
+      background: oklch(62% 0.14 250 / 0.10);
+      color: var(--info);
+    }
+    .info-bar__currency--usd {
+      background: oklch(70% 0.12 175 / 0.10);
+      color: oklch(50% 0.12 175);
+    }
+
+    /* ==================== ACTION BUTTONS ==================== */
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--gap-xs);
+      padding: var(--gap-md);
+      background: var(--surface);
+    }
+    .action-btn {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 6px;
+      padding: var(--gap-sm) var(--gap-xs);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      transition: all var(--duration-fast);
+      min-height: 72px;
+    }
+    .action-btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .action-btn:active { transform: scale(0.97); }
+    .action-btn__icon {
+      width: 24px; height: 24px;
+      color: var(--accent);
+    }
+    .action-btn__label {
+      font-family: var(--font-display);
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      color: var(--fg);
+      text-align: center;
+      line-height: 1.2;
+    }
+    .action-btn--primary {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .action-btn--primary .action-btn__icon { color: var(--surface); }
+    .action-btn--primary .action-btn__label { color: var(--surface); }
+    .action-btn--primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+    .action-btn--saved {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .action-btn--saved .action-btn__icon { color: var(--accent); }
+
+    /* ==================== AI RECOMMENDATION ==================== */
+    .ai-reco {
+      margin: var(--gap-md);
+      padding: var(--gap-md);
+      background: linear-gradient(135deg, oklch(62% 0.16 145 / 0.06), oklch(62% 0.16 145 / 0.02));
+      border: 1px solid oklch(62% 0.16 145 / 0.15);
+      border-radius: var(--radius-lg);
+    }
+    .ai-reco__header {
+      display: flex; align-items: center; gap: var(--gap-sm);
+      margin-bottom: var(--gap-sm);
+    }
+    .ai-reco__icon {
+      width: 36px; height: 36px;
+      border-radius: var(--radius);
+      background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .ai-reco__icon svg { width: 18px; height: 18px; color: var(--surface); }
+    .ai-reco__title {
+      font-family: var(--font-display);
+      font-size: var(--fs-small);
+      font-weight: 700;
+      color: var(--fg);
+    }
+    .ai-reco__subtitle {
+      font-size: var(--fs-xs);
+      color: var(--muted);
+    }
+    .ai-reco__body {
+      font-size: var(--fs-small);
+      line-height: 1.6;
+      color: var(--fg);
+    }
+    .ai-reco__body strong { font-weight: 600; color: var(--accent-hover); }
+    .ai-reco__tags {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin-top: var(--gap-sm);
+    }
+    .ai-reco__tag {
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      background: oklch(100% 0 0 / 0.7);
+      border: 1px solid oklch(62% 0.16 145 / 0.12);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* ==================== SECTION DIVIDER ==================== */
+    .section-divider {
+      height: 8px;
+      background: var(--bg);
+    }
+
+    /* ==================== MENU / OFFERS ==================== */
+    .menu-section {
+      padding: var(--gap-lg) var(--gap-md);
+      background: var(--surface);
+    }
+    .menu-section__header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: var(--gap-md);
+    }
+    .menu-section__title {
+      font-family: var(--font-display);
+      font-size: var(--fs-h3);
+      font-weight: 700;
+      color: var(--fg);
+    }
+    .menu-section__see-all {
+      font-family: var(--font-mono);
+      font-size: var(--fs-xs);
+      font-weight: 500;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .menu-item {
+      display: flex; gap: var(--gap-md);
+      padding: var(--gap-md) 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .menu-item:last-child { border-bottom: none; }
+    .menu-item__img {
+      width: 72px; height: 72px;
+      border-radius: var(--radius);
+      background: oklch(94% 0.01 85);
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+    .menu-item__img svg { width: 24px; height: 24px; color: var(--muted); opacity: 0.5; }
+    .menu-item__content { flex: 1; min-width: 0; }
+    .menu-item__name {
+      font-family: var(--font-display);
+      font-size: var(--fs-small);
+      font-weight: 600;
+      color: var(--fg);
+      margin-bottom: 2px;
+    }
+    .menu-item__desc {
+      font-size: var(--fs-meta);
+      color: var(--muted);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .menu-item__bottom {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 6px;
+    }
+    .menu-item__price {
+      font-family: var(--font-mono);
+      font-size: var(--fs-small);
+      font-weight: 500;
+      color: var(--fg);
+    }
+    .menu-item__price span {
+      font-size: var(--fs-xs);
+      color: var(--muted);
+      font-weight: 400;
+    }
+    .menu-item__tag {
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .menu-item__tag--popular {
+      background: oklch(75% 0.15 75 / 0.12);
+      color: oklch(55% 0.14 75);
+    }
+    .menu-item__tag--new {
+      background: oklch(62% 0.16 145 / 0.10);
+      color: var(--accent);
+    }
+    .menu-item__tag--offer {
+      background: oklch(60% 0.20 25 / 0.10);
+      color: var(--danger);
+    }
+
+    /* ==================== SPECIAL OFFER BANNER ==================== */
+    .offer-banner {
+      margin: 0 var(--gap-md) var(--gap-md);
+      padding: var(--gap-md);
+      background: linear-gradient(135deg, oklch(75% 0.15 75 / 0.10), oklch(75% 0.15 75 / 0.04));
+      border: 1px solid oklch(75% 0.15 75 / 0.20);
+      border-radius: var(--radius-lg);
+      display: none;
+    }
+    .offer-banner.visible { display: block; }
+    .offer-banner__label {
+      font-family: var(--font-mono);
+      font-size: var(--fs-xs);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--warning);
+      margin-bottom: 6px;
+    }
+    .offer-banner__text {
+      font-family: var(--font-display);
+      font-size: var(--fs-small);
+      font-weight: 600;
+      color: var(--fg);
+      line-height: 1.4;
+    }
+    .offer-banner__expiry {
+      font-size: var(--fs-xs);
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* ==================== DESCRIPTION ==================== */
+    .description {
+      padding: var(--gap-lg) var(--gap-md);
+      background: var(--surface);
+    }
+    .description__title {
+      font-family: var(--font-display);
+      font-size: var(--fs-h3);
+      font-weight: 700;
+      color: var(--fg);
+      margin-bottom: var(--gap-sm);
+    }
+    .description__text {
+      font-size: var(--fs-body);
+      line-height: 1.65;
+      color: var(--fg);
+      text-wrap: pretty;
+    }
+    .description__text.collapsed {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .description__toggle {
+      font-family: var(--font-mono);
+      font-size: var(--fs-xs);
+      font-weight: 500;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-top: var(--gap-xs);
+      padding: 4px 0;
+    }
+
+    /* ==================== REVIEWS SECTION (future) ==================== */
+    .reviews {
+      padding: var(--gap-lg) var(--gap-md);
+      background: var(--surface);
+    }
+    .reviews__header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: var(--gap-md);
+    }
+    .reviews__title {
+      font-family: var(--font-display);
+      font-size: var(--fs-h3);
+      font-weight: 700;
+      color: var(--fg);
+    }
+    .reviews__count {
+      font-family: var(--font-mono);
+      font-size: var(--fs-meta);
+      color: var(--muted);
+    }
+    .reviews__empty {
+      text-align: center;
+      padding: var(--gap-xl) var(--gap-md);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-lg);
+    }
+    .reviews__empty-icon {
+      width: 48px; height: 48px;
+      margin: 0 auto var(--gap-sm);
+      color: var(--muted);
+      opacity: 0.4;
+    }
+    .reviews__empty-text {
+      font-family: var(--font-display);
+      font-size: var(--fs-small);
+      font-weight: 600;
+      color: var(--fg);
+      margin-bottom: 4px;
+    }
+    .reviews__empty-sub {
+      font-size: var(--fs-meta);
+      color: var(--muted);
+    }
+
+    /* ==================== BOTTOM SAFE AREA ==================== */
+    .bottom-safe {
+      height: env(safe-area-inset-bottom, 20px);
+      background: var(--surface);
+    }
+
+    /* ==================== CLOSED OVERLAY ==================== */
+    .closed-overlay {
+      display: none;
+      position: relative;
+    }
+    .closed-overlay.visible { display: block; }
+    .closed-banner {
+      margin: 0 var(--gap-md) var(--gap-md);
+      padding: var(--gap-md);
+      background: oklch(60% 0.20 25 / 0.06);
+      border: 1px solid oklch(60% 0.20 25 / 0.15);
+      border-radius: var(--radius-lg);
+      display: flex; align-items: center; gap: var(--gap-sm);
+    }
+    .closed-banner__icon {
+      width: 36px; height: 36px;
+      border-radius: var(--radius);
+      background: oklch(60% 0.20 25 / 0.10);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .closed-banner__icon svg { width: 18px; height: 18px; color: var(--danger); }
+    .closed-banner__text {
+      font-size: var(--fs-small);
+      color: var(--fg);
+      line-height: 1.4;
+    }
+    .closed-banner__text strong { font-weight: 600; }
+
+    /* ==================== NO PHOTOS STATE ==================== */
+    .no-photos .carousel {
+      aspect-ratio: 16/7;
+    }
+
+    /* ==================== SKELETON LOADING ==================== */
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg, oklch(94% 0.008 85) 25%, oklch(96% 0.006 85) 50%, oklch(94% 0.008 85) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s ease-in-out infinite;
+      border-radius: var(--radius-sm);
+    }
+
+    /* ==================== DESKTOP LAYOUT ==================== */
+    @media (min-width: 1024px) {
+      .lv-header { top: 0; }
+      .page-wrapper {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: var(--gap-xl) var(--gap-lg);
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 420px;
+        gap: var(--gap-lg);
+        align-items: start;
+      }
+      .detail-left { display: flex; flex-direction: column; gap: 0; }
+      .detail-right {
+        position: sticky;
+        top: calc(56px + var(--gap-lg));
+        display: flex; flex-direction: column; gap: var(--gap-md);
+      }
+      .carousel {
+        aspect-ratio: 16/9;
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+      }
+      .place-info {
+        border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+        padding: var(--gap-xl);
+      }
+      .info-bar {
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        border: 1px solid var(--border);
+      }
+      .actions {
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        padding: var(--gap-lg);
+        background: var(--surface);
+      }
+      .ai-reco { margin: 0; }
+      .menu-section {
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        padding: var(--gap-xl);
+        background: var(--surface);
+      }
+      .description {
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        padding: var(--gap-xl);
+        background: var(--surface);
+      }
+      .reviews {
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        padding: var(--gap-xl);
+        background: var(--surface);
+      }
+      .section-divider { display: none; }
+      .detail-right .section-divider { display: block; height: 1px; background: var(--border); }
+      .detail-right .section-divider:first-child { display: none; }
+    }
+
+    /* ==================== MOBILE SMALL FIXES ==================== */
+    @media (max-width: 380px) {
+      .actions { grid-template-columns: repeat(2, 1fr); }
+      .action-btn { min-height: 64px; }
+      .info-bar { flex-wrap: wrap; }
+      .info-bar__item { min-width: calc(50% - 1px); }
+    }
+
+    /* ==================== UTILITIES ==================== */
+    .hidden { display: none !important; }
+    [data-state="closed"] .open-only { display: none !important; }
+    [data-state="closed"] .closed-overlay { display: block !important; }
+    [data-state="no-photos"] .no-photos-hidden { display: none !important; }
+    [data-state="no-photos"] .no-photos-placeholder { display: flex !important; }
+    .no-photos-placeholder { display: none; }
+    [data-state="special-offer"] .offer-banner { display: block !important; }
+  </style>
+</head>
+<body data-state="normal">
+
+  <!-- STATE BAR (demo only — not product UI) -->
+  <div class="state-bar">
+    <label>Estado:</label>
+    <button class="state-btn active" data-set-state="normal">Normal</button>
+    <button class="state-btn" data-set-state="closed">Cerrado</button>
+    <button class="state-btn" data-set-state="no-photos">Sin fotos</button>
+    <button class="state-btn" data-set-state="special-offer">Oferta especial</button>
+  </div>
+
+  <!-- HEADER -->
+  <header class="lv-header" data-od-id="header">
+    <button class="lv-header__back" aria-label="Volver al mapa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+    </button>
+    <span class="lv-header__title">La Guarida</span>
+    <div class="lv-header__actions">
+      <button class="lv-header__btn" aria-label="Compartir">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      </button>
+      <button class="lv-header__btn" aria-label="Más opciones">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- PHOTO CAROUSEL -->
+  <div class="carousel" data-od-id="carousel" id="carousel">
+    <div class="no-photos-placeholder carousel__ph" style="display:none; aspect-ratio: 16/7;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <span>Fotos próximamente</span>
+    </div>
+    <div class="carousel__track no-photos-hidden" id="carouselTrack">
+      <div class="carousel__slide">
+        <div class="carousel__ph" style="background: linear-gradient(160deg, oklch(45% 0.08 145), oklch(35% 0.06 145));">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: oklch(80% 0.10 145);"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span style="color: oklch(85% 0.06 145);">Fachada colonial</span>
+        </div>
+      </div>
+      <div class="carousel__slide">
+        <div class="carousel__ph" style="background: linear-gradient(160deg, oklch(50% 0.06 85), oklch(40% 0.05 85));">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: oklch(85% 0.05 85);"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span style="color: oklch(90% 0.04 85);">Interior art déco</span>
+        </div>
+      </div>
+      <div class="carousel__slide">
+        <div class="carousel__ph" style="background: linear-gradient(160deg, oklch(55% 0.10 75), oklch(42% 0.08 75));">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: oklch(90% 0.06 75);"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span style="color: oklch(95% 0.04 75);">Plato signature</span>
+        </div>
+      </div>
+      <div class="carousel__slide">
+        <div class="carousel__ph" style="background: linear-gradient(160deg, oklch(40% 0.04 250), oklch(30% 0.03 250));">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: oklch(75% 0.04 250);"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span style="color: oklch(80% 0.03 250);">Terraza nocturna</span>
+        </div>
+      </div>
+    </div>
+    <div class="carousel__counter no-photos-hidden" id="carouselCounter">1 / 4</div>
+    <div class="carousel__dots no-photos-hidden" id="carouselDots">
+      <span class="carousel__dot active"></span>
+      <span class="carousel__dot"></span>
+      <span class="carousel__dot"></span>
+      <span class="carousel__dot"></span>
+    </div>
+    <button class="carousel__nav carousel__nav--prev no-photos-hidden" id="carouselPrev" aria-label="Foto anterior">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <button class="carousel__nav carousel__nav--next no-photos-hidden" id="carouselNext" aria-label="Foto siguiente">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  </div>
+
+  <!-- MAIN CONTENT (scrollable) -->
+  <main id="placeContent">
+
+    <!-- PLACE INFO -->
+    <section class="place-info" data-od-id="place-info">
+      <div class="place-info__top">
+        <h1 class="place-info__name">La Guarida</h1>
+        <span class="place-info__badge place-info__badge--open open-only" id="statusBadge">
+          <span class="place-info__badge-dot"></span>
+          Abierto
+        </span>
+      </div>
+      <div class="place-info__meta">
+        <span class="place-info__category">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+          Restaurante
+        </span>
+        <span class="place-info__rating">
+          <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          4.7
+        </span>
+        <span class="place-info__rating-future">Próximamente en La Verde</span>
+        <span class="place-info__dist">1.2 km · Vedado</span>
+      </div>
+    </section>
+
+    <!-- CLOSED BANNER -->
+    <div class="closed-banner open-only">
+      <div class="closed-banner__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <div class="closed-banner__text">
+        <strong>Cerrado ahora</strong> · Abre mañana a las 12:00 PM
+      </div>
+    </div>
+
+    <!-- INFO BAR -->
+    <div class="info-bar" data-od-id="info-bar">
+      <div class="info-bar__item">
+        <svg class="info-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span class="info-bar__label">Horario</span>
+        <span class="info-bar__value open-only">12PM – 12AM</span>
+        <span class="info-bar__value" style="display:none;" id="closedHours">Cerrado</span>
+      </div>
+      <div class="info-bar__item">
+        <svg class="info-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span class="info-bar__label">Distancia</span>
+        <span class="info-bar__value">1.2 km</span>
+      </div>
+      <div class="info-bar__item">
+        <svg class="info-bar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        <span class="info-bar__label">Pagos</span>
+        <div class="info-bar__payments">
+          <span class="info-bar__currency info-bar__currency--mlc">MLC</span>
+          <span class="info-bar__currency info-bar__currency--cup">CUP</span>
+          <span class="info-bar__currency info-bar__currency--usd">USD</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACTION BUTTONS -->
+    <div class="actions" data-od-id="actions">
+      <button class="action-btn action-btn--primary">
+        <svg class="action-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+        <span class="action-btn__label">Cómo llegar</span>
+      </button>
+      <button class="action-btn action-btn--saved" id="btnSave">
+        <svg class="action-btn__icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+        <span class="action-btn__label">Guardar</span>
+      </button>
+      <button class="action-btn">
+        <svg class="action-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <span class="action-btn__label">Compartir</span>
+      </button>
+      <button class="action-btn" id="btnWannaGo">
+        <svg class="action-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        <span class="action-btn__label">Quiero ir</span>
+      </button>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- AI RECOMMENDATION -->
+    <div class="ai-reco" data-od-id="ai-recommendation">
+      <div class="ai-reco__header">
+        <div class="ai-reco__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        </div>
+        <div>
+          <div class="ai-reco__title">Por qué La Verde te lo recomienda</div>
+          <div class="ai-reco__subtitle">Basado en tu búsqueda y ubicación</div>
+        </div>
+      </div>
+      <div class="ai-reco__body">
+        Buscaste <strong>"restaurante tranquilo con comida criolla cerca de Vedado"</strong>. La Guarida está a 1.2 km de tu ubicación, tiene reputación de ambiente relajado y cocina tradicional cubana. Es ideal para una cena sin prisa — aceptan MLC y tarjeta. Los fines de semana tienen música en vivo.
+      </div>
+      <div class="ai-reco__tags">
+        <span class="ai-reco__tag">Cerca de ti</span>
+        <span class="ai-reco__tag">Comida criolla</span>
+        <span class="ai-reco__tag">Ambiente tranquilo</span>
+        <span class="ai-reco__tag">Acepta MLC</span>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- SPECIAL OFFER BANNER -->
+    <div class="offer-banner" id="offerBanner">
+      <div class="offer-banner__label">Oferta especial</div>
+      <div class="offer-banner__text">2x1 en cócteles artesanales de martes a jueves, 6PM – 9PM</div>
+      <div class="offer-banner__expiry">Válido hasta el 15 de agosto · Presentar al pedir</div>
+    </div>
+
+    <!-- MENU / OFERTAS -->
+    <section class="menu-section" data-od-id="menu">
+      <div class="menu-section__header">
+        <h2 class="menu-section__title">Menú destacado</h2>
+        <button class="menu-section__see-all">Ver todo</button>
+      </div>
+
+      <div class="menu-item">
+        <div class="menu-item__img">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+        </div>
+        <div class="menu-item__content">
+          <div class="menu-item__name">Ropa Vieja Tradicional</div>
+          <div class="menu-item__desc">Carne desmechada con sofrito cubano, arroz blanco y plátanos maduros</div>
+          <div class="menu-item__bottom">
+            <span class="menu-item__price">450 <span>CUP</span></span>
+            <span class="menu-item__tag menu-item__tag--popular">Popular</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="menu-item">
+        <div class="menu-item__img">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+        </div>
+        <div class="menu-item__content">
+          <div class="menu-item__name">Lechón Asado</div>
+          <div class="menu-item__desc">Cerdo asado lentamente con mojo criollo, yuca y ensalada de aguacate</div>
+          <div class="menu-item__bottom">
+            <span class="menu-item__price">12 <span>MLC</span></span>
+            <span class="menu-item__tag menu-item__tag--new">Nuevo</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="menu-item">
+        <div class="menu-item__img">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+        </div>
+        <div class="menu-item__content">
+          <div class="menu-item__name">Cóctel de la Casa</div>
+          <div class="menu-item__desc">Ron añejo, jugo de maracuyá, hierbabuena y un toque de miel de abeja</div>
+          <div class="menu-item__bottom">
+            <span class="menu-item__price">5 <span>MLC</span></span>
+            <span class="menu-item__tag menu-item__tag--offer">2x1</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="menu-item">
+        <div class="menu-item__img">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+        </div>
+        <div class="menu-item__content">
+          <div class="menu-item__name">Tostones con Mojo</div>
+          <div class="menu-item__desc">Plátano verde frito con ajo, naranja agria y cebolla morada</div>
+          <div class="menu-item__bottom">
+            <span class="menu-item__price">200 <span>CUP</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- DESCRIPTION -->
+    <section class="description" data-od-id="description">
+      <h2 class="description__title">Sobre este lugar</h2>
+      <p class="description__text collapsed" id="descText">
+        La Guarida es un restaurante cubano contemporáneo ubicado en el corazón de Vedado, La Habana. Ocupa un edificio art déco de los años 40 que mantiene su fachada original con columnas y balcones de hierro forjado. El interior combina la arquitectura colonial con un diseño moderno y cálido — madera oscura, iluminación tenue y arte cubano en las paredes. fundado en 2018 por un grupo de amigos chef que querían rescatar las recetas de sus abuelas con un toque contemporáneo. La cocina es 100% criolla: ropa vieja, lechón asado, picadillo habanero, tostones y yuca con mojo. Los fines de semana hay música en vivo — son cubano, jazz, o trova según el día. El lugar tiene terraza interior con plantas tropicales y una barra de cocktails con rones cubanos premium. Aceptan MLC, CUP y efectivo en USD. Reservaciones recomendadas los viernes y sábados.
+      </p>
+      <button class="description__toggle" id="descToggle">Leer más</button>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- REVIEWS (future) -->
+    <section class="reviews" data-od-id="reviews">
+      <div class="reviews__header">
+        <h2 class="reviews__title">Reseñas</h2>
+        <span class="reviews__count">Próximamente</span>
+      </div>
+      <div class="reviews__empty">
+        <svg class="reviews__empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <div class="reviews__empty-text">Las reseñas llegarán pronto</div>
+        <div class="reviews__empty-sub">Podrás calificar y dejar tu opinión tras visitar el lugar</div>
+      </div>
+    </section>
+
+    <div class="bottom-safe"></div>
+  </main>
+
+  <script>
+    // ==================== STATE MACHINE ====================
+    const body = document.body;
+    const stateButtons = document.querySelectorAll('.state-btn');
+
+    function setState(state) {
+      body.dataset.state = state;
+      stateButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.setState === state);
+      });
+
+      const closedHours = document.getElementById('closedHours');
+      const badge = document.getElementById('statusBadge');
+      if (state === 'closed') {
+        badge.className = 'place-info__badge place-info__badge--closed';
+        badge.innerHTML = '<span class="place-info__badge-dot"></span> Cerrado';
+        if (closedHours) closedHours.style.display = '';
+        document.querySelectorAll('.open-only').forEach(el => {
+          if (el !== closedHours && el !== badge) el.style.display = 'none';
+        });
+      } else {
+        badge.className = 'place-info__badge place-info__badge--open open-only';
+        badge.innerHTML = '<span class="place-info__badge-dot"></span> Abierto';
+        if (closedHours) closedHours.style.display = 'none';
+        document.querySelectorAll('.open-only').forEach(el => {
+          if (el !== closedHours && el !== badge) el.style.display = '';
+        });
+      }
+
+      const offer = document.getElementById('offerBanner');
+      if (state === 'special-offer') {
+        offer.style.display = 'block';
+      } else {
+        offer.style.display = 'none';
+      }
+    }
+
+    stateButtons.forEach(btn => {
+      btn.addEventListener('click', () => setState(btn.dataset.setState));
+    });
+
+    // ==================== CAROUSEL ====================
+    const track = document.getElementById('carouselTrack');
+    const counter = document.getElementById('carouselCounter');
+    const dots = document.querySelectorAll('.carousel__dot');
+    const slides = track ? track.querySelectorAll('.carousel__slide') : [];
+    let currentSlide = 0;
+    const totalSlides = slides.length;
+
+    function goToSlide(i) {
+      if (!track || totalSlides === 0) return;
+      currentSlide = Math.max(0, Math.min(i, totalSlides - 1));
+      track.style.transform = `translateX(-${currentSlide * 100}%)`;
+      if (counter) counter.textContent = `${currentSlide + 1} / ${totalSlides}`;
+      dots.forEach((d, idx) => d.classList.toggle('active', idx === currentSlide));
+    }
+
+    document.getElementById('carouselPrev')?.addEventListener('click', () => goToSlide(currentSlide - 1));
+    document.getElementById('carouselNext')?.addEventListener('click', () => goToSlide(currentSlide + 1));
+
+    // Touch/swipe support
+    let touchStartX = 0;
+    let touchDeltaX = 0;
+    const carouselEl = document.getElementById('carousel');
+    if (carouselEl) {
+      carouselEl.addEventListener('touchstart', e => {
+        touchStartX = e.touches[0].clientX;
+        touchDeltaX = 0;
+        if (track) track.style.transition = 'none';
+      }, { passive: true });
+      carouselEl.addEventListener('touchmove', e => {
+        touchDeltaX = e.touches[0].clientX - touchStartX;
+        if (track) track.style.transform = `translateX(calc(-${currentSlide * 100}% + ${touchDeltaX}px))`;
+      }, { passive: true });
+      carouselEl.addEventListener('touchend', () => {
+        if (track) track.style.transition = '';
+        if (Math.abs(touchDeltaX) > 50) {
+          goToSlide(touchDeltaX > 0 ? currentSlide - 1 : currentSlide + 1);
+        } else {
+          goToSlide(currentSlide);
+        }
+      });
+    }
+
+    // ==================== DESCRIPTION TOGGLE ====================
+    const descText = document.getElementById('descText');
+    const descToggle = document.getElementById('descToggle');
+    if (descToggle && descText) {
+      descToggle.addEventListener('click', () => {
+        const expanded = descText.classList.toggle('collapsed');
+        descToggle.textContent = expanded ? 'Leer más' : 'Leer menos';
+      });
+    }
+
+    // ==================== SAVE BUTTON TOGGLE ====================
+    const btnSave = document.getElementById('btnSave');
+    if (btnSave) {
+      let saved = true;
+      btnSave.addEventListener('click', () => {
+        saved = !saved;
+        btnSave.classList.toggle('action-btn--saved', saved);
+        if (saved) {
+          btnSave.querySelector('.action-btn__label').textContent = 'Guardar';
+        } else {
+          btnSave.querySelector('.action-btn__label').textContent = 'Guardado';
+        }
+      });
+    }
+
+    // Init
+    goToSlide(0);
+    setState('normal');
+  </script>
+</body>
+</html>

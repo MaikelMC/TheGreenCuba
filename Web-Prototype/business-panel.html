@@ -1,0 +1,2447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>La Verde — Panel del Negocio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================
+   LA VERDE — BUSINESS PANEL
+   Tokens from DESIGN.md
+   ============================================ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Primario */
+  --bg:          oklch(98% 0.005 85);
+  --surface:     oklch(100% 0 0);
+  --fg:          oklch(18% 0.01 250);
+  --muted:       oklch(52% 0.01 250);
+  --border:      oklch(90% 0.004 250);
+  --accent:      oklch(62% 0.16 145);
+  --accent-soft: oklch(62% 0.16 145 / 0.10);
+  --accent-hover:oklch(54% 0.15 145);
+
+  /* Superficies */
+  --surface-raised: oklch(96% 0.008 85);
+  --surface-overlay: oklch(100% 0 0 / 0.95);
+
+  /* Funcionales */
+  --success:     oklch(70% 0.12 175);
+  --warning:     oklch(75% 0.15 75);
+  --danger:      oklch(60% 0.20 25);
+  --info:        oklch(62% 0.14 250);
+
+  /* Tipografia */
+  --font-display: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-body:    'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, monospace;
+
+  /* Escala */
+  --fs-hero:   clamp(40px, 7vw, 72px);
+  --fs-h1:     clamp(32px, 5vw, 52px);
+  --fs-h2:     clamp(26px, 3.5vw, 40px);
+  --fs-h3:     22px;
+  --fs-lead:   18px;
+  --fs-body:   16px;
+  --fs-small:  14px;
+  --fs-meta:   12px;
+  --fs-xs:     11px;
+
+  /* Espaciado (8-point grid) */
+  --gap-2xs: 4px;
+  --gap-xs:  8px;
+  --gap-sm:  12px;
+  --gap-md:  16px;
+  --gap-lg:  24px;
+  --gap-xl:  32px;
+  --gap-2xl: 48px;
+  --gap-3xl: 64px;
+  --gap-4xl: 96px;
+
+  /* Layout */
+  --container:     1120px;
+  --container-sm:  640px;
+  --container-lg:  1440px;
+  --gutter:        20px;
+  --gutter-lg:     32px;
+
+  /* Radios */
+  --radius-sm:  6px;
+  --radius:     10px;
+  --radius-lg:  14px;
+  --radius-xl:  20px;
+  --radius-full: 999px;
+
+  /* Sombras */
+  --shadow-xs:  0 1px 2px oklch(18% 0.01 250 / 0.04);
+  --shadow-sm:  0 2px 8px oklch(18% 0.01 250 / 0.06);
+  --shadow-md:  0 4px 16px oklch(18% 0.01 250 / 0.08);
+  --shadow-lg:  0 8px 32px oklch(18% 0.01 250 / 0.10);
+  --shadow-xl:  0 16px 48px oklch(18% 0.01 250 / 0.12);
+
+  /* Transiciones */
+  --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 400ms;
+
+  /* Panel-specific */
+  --sidebar-w: 260px;
+}
+
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.55;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================
+   TOP BAR (mobile header + desktop)
+   ============================================ */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--surface-overlay);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--gap-md);
+  gap: var(--gap-sm);
+}
+
+.topbar-logo {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.topbar-logo span { color: var(--fg); font-weight: 500; }
+
+.topbar-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--muted);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--accent), oklch(54% 0.15 145));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-small);
+  flex-shrink: 0;
+}
+
+.topbar-badge {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid oklch(62% 0.16 145 / 0.2);
+  white-space: nowrap;
+}
+
+/* ============================================
+   LAYOUT SHELL
+   ============================================ */
+
+.shell {
+  display: flex;
+  flex: 1;
+  min-height: calc(100vh - 56px);
+}
+
+/* Sidebar (desktop) */
+.sidebar {
+  display: none;
+}
+
+/* Main content */
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================
+   BOTTOM NAV (mobile)
+   ============================================ */
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  height: 64px;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  transition: color var(--duration-fast);
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: var(--font-body);
+}
+
+.bottom-nav-item svg { width: 22px; height: 22px; }
+.bottom-nav-item.active { color: var(--accent); }
+.bottom-nav-item:hover { color: var(--fg); }
+
+/* ============================================
+   VIEW PANELS
+   ============================================ */
+
+.view { display: none; flex-direction: column; gap: var(--gap-lg); padding: var(--gap-md); padding-bottom: 80px; }
+.view.active { display: flex; }
+
+.view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-sm);
+}
+
+.view-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: var(--fg);
+}
+
+.view-subtitle {
+  font-size: var(--fs-small);
+  color: var(--muted);
+  margin-top: var(--gap-2xs);
+}
+
+/* ============================================
+   DASHBOARD — Stats Cards
+   ============================================ */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--gap-sm);
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--gap-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-xs);
+  transition: box-shadow var(--duration-normal);
+}
+
+.stat-card:hover { box-shadow: var(--shadow-sm); }
+
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 6vw, 36px);
+  font-weight: 700;
+  color: var(--fg);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.stat-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.stat-change.up {
+  color: oklch(50% 0.14 175);
+  background: oklch(70% 0.12 175 / 0.10);
+}
+
+.stat-change.down {
+  color: oklch(50% 0.18 25);
+  background: oklch(60% 0.20 25 / 0.10);
+}
+
+.stat-change.neutral {
+  color: var(--muted);
+  background: var(--surface-raised);
+}
+
+/* ============================================
+   DASHBOARD — Mini Chart
+   ============================================ */
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--gap-md);
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--gap-md);
+}
+
+.chart-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+
+.chart-period {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  padding: 3px 8px;
+  background: var(--surface-raised);
+  border-radius: var(--radius-sm);
+}
+
+.chart-area {
+  height: 120px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.chart-bar {
+  flex: 1;
+  background: var(--accent-soft);
+  border-radius: 3px 3px 0 0;
+  min-height: 4px;
+  transition: background var(--duration-fast);
+  cursor: pointer;
+  position: relative;
+}
+
+.chart-bar:hover { background: var(--accent); }
+.chart-bar:last-child { background: var(--accent); }
+
+.chart-bar-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--fg);
+  color: var(--surface);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.chart-bar:hover .chart-bar-tooltip { display: block; }
+
+.chart-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--gap-xs);
+}
+
+.chart-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* ============================================
+   DASHBOARD — AI Insights
+   ============================================ */
+
+.insight-card {
+  background: linear-gradient(135deg, oklch(62% 0.16 145 / 0.06), oklch(62% 0.16 145 / 0.02));
+  border: 1px solid oklch(62% 0.16 145 / 0.15);
+  border-radius: var(--radius-lg);
+  padding: var(--gap-md);
+  display: flex;
+  gap: var(--gap-sm);
+  align-items: flex-start;
+}
+
+.insight-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: white;
+}
+
+.insight-icon svg { width: 20px; height: 20px; }
+
+.insight-content { flex: 1; min-width: 0; }
+
+.insight-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+  margin-bottom: var(--gap-2xs);
+}
+
+.insight-text {
+  font-size: var(--fs-small);
+  line-height: 1.5;
+  color: var(--fg);
+}
+
+.insight-text strong { font-weight: 600; }
+
+/* ============================================
+   DASHBOARD — Recent Activity
+   ============================================ */
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  padding: var(--gap-sm) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.activity-item:last-child { border-bottom: none; }
+
+.activity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.activity-dot.search { background: var(--accent); }
+.activity-dot.view { background: var(--info); }
+.activity-dot.save { background: var(--warning); }
+.activity-dot.nav { background: var(--success); }
+
+.activity-text {
+  flex: 1;
+  font-size: var(--fs-small);
+  min-width: 0;
+}
+
+.activity-text strong { font-weight: 600; }
+
+.activity-time {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ============================================
+   EDIT FORM — Sections
+   ============================================ */
+
+.form-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.form-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--gap-md);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+
+.form-section-header:hover { background: var(--surface-raised); }
+
+.form-section-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-xs);
+}
+
+.form-section-title svg { width: 18px; height: 18px; color: var(--accent); }
+
+.form-section-body {
+  padding: var(--gap-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-md);
+}
+
+/* ============================================
+   FORM ELEMENTS
+   ============================================ */
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-xs);
+}
+
+.form-label {
+  font-family: var(--font-display);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.form-hint {
+  font-size: var(--fs-meta);
+  color: var(--muted);
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+  height: 48px;
+  padding: 0 var(--gap-md);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+  width: 100%;
+  outline: none;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px oklch(62% 0.16 145 / 0.12);
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--muted);
+}
+
+.form-textarea {
+  height: auto;
+  min-height: 100px;
+  padding: var(--gap-sm) var(--gap-md);
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23525252' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+/* Toggle row */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--gap-sm) 0;
+  border-bottom: 1px solid var(--border);
+  gap: var(--gap-sm);
+}
+
+.toggle-row:last-child { border-bottom: none; }
+
+.toggle-info { flex: 1; min-width: 0; }
+
+.toggle-label {
+  font-size: var(--fs-small);
+  font-weight: 500;
+}
+
+.toggle-desc {
+  font-size: var(--fs-meta);
+  color: var(--muted);
+}
+
+.toggle {
+  width: 48px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--border);
+  position: relative;
+  cursor: pointer;
+  transition: background var(--duration-normal);
+  flex-shrink: 0;
+  border: none;
+  padding: 0;
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: white;
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--duration-normal) var(--ease-out);
+}
+
+.toggle.active { background: var(--accent); }
+.toggle.active::after { transform: translateX(20px); }
+
+/* ============================================
+   PHOTO GRID (Editor)
+   ============================================ */
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--gap-xs);
+}
+
+.photo-slot {
+  aspect-ratio: 1;
+  border-radius: var(--radius);
+  border: 2px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: border-color var(--duration-fast), background var(--duration-fast);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  overflow: hidden;
+  position: relative;
+}
+
+.photo-slot:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.photo-slot svg { width: 24px; height: 24px; }
+
+.photo-slot.filled {
+  border-style: solid;
+  border-color: var(--border);
+}
+
+.photo-slot.filled .photo-placeholder-bg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-slot .photo-remove {
+  display: none;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: oklch(18% 0.01 250 / 0.7);
+  color: white;
+  border: none;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.photo-slot.filled:hover .photo-remove { display: flex; }
+.photo-slot.filled:hover .photo-label { display: none; }
+
+.photo-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.photo-slot.cover {
+  grid-column: 1 / -1;
+  aspect-ratio: 16/9;
+}
+
+/* ============================================
+   HOURS EDITOR
+   ============================================ */
+
+.hours-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-xs);
+}
+
+.hours-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  padding: var(--gap-xs) 0;
+}
+
+.hours-day {
+  width: 40px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.hours-time {
+  flex: 1;
+  height: 40px;
+  padding: 0 var(--gap-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  background: var(--surface);
+  color: var(--fg);
+  text-align: center;
+  outline: none;
+  transition: border-color var(--duration-fast);
+}
+
+.hours-time:focus { border-color: var(--accent); }
+
+.hours-time.closed {
+  background: var(--surface-raised);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.hours-separator {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+/* ============================================
+   MENU ITEM EDITOR
+   ============================================ */
+
+.menu-item-row {
+  display: flex;
+  gap: var(--gap-sm);
+  align-items: flex-start;
+  padding: var(--gap-sm) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.menu-item-row:last-child { border-bottom: none; }
+
+.menu-item-img {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius);
+  border: 2px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.menu-item-img:hover { border-color: var(--accent); color: var(--accent); }
+
+.menu-item-img svg { width: 20px; height: 20px; }
+
+.menu-item-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-xs);
+  min-width: 0;
+}
+
+.menu-item-name {
+  height: 36px;
+  padding: 0 var(--gap-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  outline: none;
+  width: 100%;
+}
+
+.menu-item-name:focus { border-color: var(--accent); }
+
+.menu-item-desc {
+  height: 36px;
+  padding: 0 var(--gap-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: var(--fs-meta);
+  color: var(--muted);
+  outline: none;
+  width: 100%;
+}
+
+.menu-item-desc:focus { border-color: var(--accent); }
+
+.menu-item-bottom {
+  display: flex;
+  gap: var(--gap-xs);
+  align-items: center;
+}
+
+.menu-price-input {
+  width: 80px;
+  height: 36px;
+  padding: 0 var(--gap-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  outline: none;
+}
+
+.menu-price-input:focus { border-color: var(--accent); }
+
+.menu-currency-select {
+  height: 36px;
+  padding: 0 var(--gap-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+  outline: none;
+}
+
+.menu-item-remove {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--duration-fast);
+}
+
+.menu-item-remove:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: oklch(60% 0.20 25 / 0.06);
+}
+
+.menu-item-remove svg { width: 16px; height: 16px; }
+
+.add-item-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap-xs);
+  padding: var(--gap-sm);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: var(--fs-small);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  width: 100%;
+}
+
+.add-item-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.add-item-btn svg { width: 18px; height: 18px; }
+
+/* ============================================
+   PAYMENT CHIPS (Editor)
+   ============================================ */
+
+.payment-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-xs);
+}
+
+.payment-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  user-select: none;
+}
+
+.payment-chip:hover { border-color: var(--accent); }
+
+.payment-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.payment-chip .chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+}
+
+.payment-chip .chip-dot.mlc { background: var(--accent); }
+.payment-chip .chip-dot.cup { background: var(--info); }
+.payment-chip .chip-dot.usd { background: var(--success); }
+.payment-chip .chip-dot.eur { background: var(--warning); }
+
+/* ============================================
+   PREVIEW PANEL
+   ============================================ */
+
+.preview-container {
+  background: var(--surface-raised);
+  border-radius: var(--radius-lg);
+  padding: var(--gap-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.preview-phone {
+  width: 100%;
+  max-width: 375px;
+  background: var(--surface);
+  border-radius: 32px;
+  border: 3px solid oklch(18% 0.01 250 / 0.15);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+}
+
+.preview-status-bar {
+  height: 44px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.preview-status-bar .time { font-weight: 700; }
+.preview-status-bar .icons { display: flex; gap: 4px; align-items: center; }
+.preview-status-bar .icons svg { width: 14px; height: 14px; }
+
+.preview-dynamic-island {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 32px;
+  background: oklch(18% 0.01 250);
+  border-radius: 20px;
+  z-index: 5;
+}
+
+/* Preview content — renders the place detail as it would appear in the app */
+.preview-content {
+  max-height: 500px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.preview-content::-webkit-scrollbar { width: 0; }
+
+.preview-photo {
+  aspect-ratio: 4/3;
+  background: linear-gradient(135deg, oklch(62% 0.16 145 / 0.12), oklch(75% 0.15 75 / 0.08));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  position: relative;
+}
+
+.preview-photo svg { width: 40px; height: 40px; opacity: 0.4; }
+
+.preview-photo-dots {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+}
+
+.preview-photo-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: oklch(18% 0.01 250 / 0.2);
+}
+
+.preview-photo-dots span:first-child {
+  width: 16px;
+  background: var(--surface);
+}
+
+.preview-place-info {
+  padding: var(--gap-md);
+}
+
+.preview-place-name {
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+
+.preview-place-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-xs);
+  margin-top: var(--gap-2xs);
+  flex-wrap: wrap;
+}
+
+.preview-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.preview-badge.open {
+  background: oklch(70% 0.12 175 / 0.12);
+  color: oklch(50% 0.14 175);
+}
+
+.preview-badge.category {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.preview-badge.distance {
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+
+.preview-actions-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 0 var(--gap-md) var(--gap-md);
+}
+
+.preview-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+
+.preview-action-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.preview-action-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.preview-action-btn svg { width: 20px; height: 20px; }
+.preview-action-btn span {
+  font-size: 10px;
+  font-weight: 500;
+  font-family: var(--font-display);
+}
+
+/* ============================================
+   SAVE TOAST
+   ============================================ */
+
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--fg);
+  color: var(--surface);
+  font-family: var(--font-display);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  padding: var(--gap-sm) var(--gap-lg);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--gap-xs);
+  opacity: 0;
+  pointer-events: none;
+  transition: all var(--duration-slow) var(--ease-out);
+  z-index: 200;
+  white-space: nowrap;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.toast svg { width: 18px; height: 18px; color: oklch(70% 0.12 175); }
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap-xs);
+  height: 44px;
+  padding: 0 20px;
+  border-radius: var(--radius);
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all var(--duration-fast);
+  white-space: nowrap;
+}
+
+.btn:active { transform: translateY(1px); }
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover { background: var(--accent-hover); }
+
+.btn-secondary {
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--fg);
+}
+
+.btn-secondary:hover { border-color: var(--fg); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--accent);
+}
+
+.btn-ghost:hover { background: var(--accent-soft); }
+
+.btn svg { width: 18px; height: 18px; }
+
+.btn-full { width: 100%; }
+
+/* ============================================
+   SAVE BAR (sticky bottom in edit view)
+   ============================================ */
+
+.save-bar {
+  position: sticky;
+  bottom: 0;
+  padding: var(--gap-md) 0;
+  display: flex;
+  gap: var(--gap-sm);
+  background: linear-gradient(transparent, var(--bg) 20%);
+  z-index: 10;
+}
+
+.save-bar .btn { flex: 1; }
+
+.save-status {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-xs);
+  font-size: var(--fs-meta);
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.save-status svg { width: 14px; height: 14px; }
+
+.save-status.saved { color: oklch(50% 0.14 175); }
+
+/* ============================================
+   EMPTY / WELCOME STATE
+   ============================================ */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--gap-3xl) var(--gap-lg);
+  gap: var(--gap-md);
+}
+
+.empty-state-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-xl);
+  background: var(--accent-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.empty-state-icon svg { width: 32px; height: 32px; }
+
+.empty-state h3 {
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+  font-weight: 700;
+}
+
+.empty-state p {
+  font-size: var(--fs-small);
+  color: var(--muted);
+  max-width: 280px;
+}
+
+/* ============================================
+   SETTINGS
+   ============================================ */
+
+.setting-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--gap-md);
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-sm);
+  padding: var(--gap-sm) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.setting-row:last-child { border-bottom: none; }
+
+.setting-info { flex: 1; }
+
+.setting-label {
+  font-size: var(--fs-small);
+  font-weight: 500;
+}
+
+.setting-desc {
+  font-size: var(--fs-meta);
+  color: var(--muted);
+}
+
+.setting-value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  padding: 4px 10px;
+  background: var(--surface-raised);
+  border-radius: var(--radius-sm);
+}
+
+/* ============================================
+   DESKTOP — Sidebar
+   ============================================ */
+
+@media (min-width: 1024px) {
+  .topbar {
+    padding-left: var(--gap-lg);
+    padding-right: var(--gap-lg);
+  }
+
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    width: var(--sidebar-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: var(--gap-lg) 0;
+    flex-shrink: 0;
+    position: sticky;
+    top: 56px;
+    height: calc(100vh - 56px);
+    overflow-y: auto;
+  }
+
+  .sidebar-section {
+    padding: 0 var(--gap-md);
+    margin-bottom: var(--gap-lg);
+  }
+
+  .sidebar-label {
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0 var(--gap-sm);
+    margin-bottom: var(--gap-xs);
+  }
+
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    padding: var(--gap-sm) var(--gap-md);
+    border-radius: var(--radius);
+    color: var(--fg);
+    text-decoration: none;
+    font-size: var(--fs-small);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--duration-fast);
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-family: var(--font-body);
+  }
+
+  .sidebar-item:hover { background: var(--surface-raised); }
+  .sidebar-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .sidebar-item svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+  .sidebar-divider {
+    height: 1px;
+    background: var(--border);
+    margin: var(--gap-sm) var(--gap-md);
+  }
+
+  .sidebar-business {
+    padding: var(--gap-md);
+    margin: auto var(--gap-md) 0;
+    background: var(--surface-raised);
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xs);
+  }
+
+  .sidebar-business-name {
+    font-family: var(--font-display);
+    font-size: var(--fs-small);
+    font-weight: 700;
+  }
+
+  .sidebar-business-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-meta);
+    color: var(--muted);
+  }
+
+  .sidebar-business-status .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-full);
+    background: oklch(70% 0.12 175);
+  }
+
+  .bottom-nav { display: none; }
+
+  .view {
+    padding: var(--gap-xl) var(--gap-2xl);
+    padding-bottom: var(--gap-xl);
+    max-width: 900px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .photo-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .preview-container {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--gap-xl);
+    padding: var(--gap-xl);
+  }
+
+  .preview-phone {
+    max-width: 340px;
+    flex-shrink: 0;
+  }
+
+  .preview-live-info {
+    flex: 1;
+    padding: var(--gap-md) 0;
+  }
+
+  .preview-live-info h3 {
+    font-family: var(--font-display);
+    font-size: var(--fs-h3);
+    font-weight: 700;
+    margin-bottom: var(--gap-sm);
+  }
+
+  .preview-live-field {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    padding: var(--gap-sm) 0;
+    border-bottom: 1px solid var(--border);
+    font-size: var(--fs-small);
+  }
+
+  .preview-live-field:last-child { border-bottom: none; }
+
+  .preview-live-label {
+    width: 120px;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .preview-live-value {
+    flex: 1;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+  }
+
+  .save-bar {
+    position: relative;
+    bottom: auto;
+    background: none;
+    padding: var(--gap-md) 0;
+  }
+}
+
+/* ============================================
+   TRANSITIONS & ANIMATIONS
+   ============================================ */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.view.active {
+  animation: fadeIn 300ms var(--ease-out);
+}
+
+/* ============================================
+   RESPONSIVE TWEAKS
+   ============================================ */
+
+@media (max-width: 380px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .photo-grid { grid-template-columns: repeat(2, 1fr); }
+  .preview-actions-row { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================
+     TOP BAR
+     ============================================ -->
+<header class="topbar" data-od-id="topbar">
+  <div class="topbar-logo">La Verde <span>Panel</span></div>
+  <div class="topbar-title" id="topbarTitle">Dashboard</div>
+  <div class="topbar-badge">Negocio verificado</div>
+  <div class="topbar-avatar">LG</div>
+</header>
+
+<!-- ============================================
+     SHELL: Sidebar + Main
+     ============================================ -->
+<div class="shell">
+
+  <!-- SIDEBAR (desktop only) -->
+  <nav class="sidebar" data-od-id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Principal</div>
+      <button class="sidebar-item active" onclick="switchView('dashboard', this)" aria-label="Dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="4" rx="1"/><rect x="14" y="10" width="7" height="11" rx="1"/><rect x="3" y="13" width="7" height="8" rx="1"/></svg>
+        Dashboard
+      </button>
+      <button class="sidebar-item" onclick="switchView('editor', this)" aria-label="Editar ficha">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Editar ficha
+      </button>
+      <button class="sidebar-item" onclick="switchView('preview', this)" aria-label="Vista previa">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Vista previa
+      </button>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Cuenta</div>
+      <button class="sidebar-item" onclick="switchView('settings', this)" aria-label="Ajustes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Ajustes
+      </button>
+    </div>
+
+    <div class="sidebar-business">
+      <div class="sidebar-business-name">La Guarida</div>
+      <div class="sidebar-business-status">
+        <span class="dot"></span>
+        Activo en La Verde
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <!-- ============================================
+         VIEW: DASHBOARD
+         ============================================ -->
+    <section class="view active" id="view-dashboard" data-od-id="dashboard">
+
+      <div class="view-header">
+        <div>
+          <h1 class="view-title">Dashboard</h1>
+          <p class="view-subtitle">Resumen de La Guarida</p>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="stats-grid" data-od-id="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">Visitas esta semana</span>
+          <span class="stat-value">342</span>
+          <span class="stat-change up">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 15-6-6-6 6"/></svg>
+            +18%
+          </span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Clics en "Cómo llegar"</span>
+          <span class="stat-value">87</span>
+          <span class="stat-change up">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 15-6-6-6 6"/></svg>
+            +24%
+          </span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Recomendaciones IA</span>
+          <span class="stat-value">156</span>
+          <span class="stat-change up">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 15-6-6-6 6"/></svg>
+            +31%
+          </span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Guardados</span>
+          <span class="stat-value">54</span>
+          <span class="stat-change neutral">= mismo</span>
+        </div>
+      </div>
+
+      <!-- Mini Chart -->
+      <div class="chart-card" data-od-id="chart-views">
+        <div class="chart-header">
+          <span class="chart-title">Visitas por día</span>
+          <span class="chart-period">Últimos 14 días</span>
+        </div>
+        <div class="chart-area" id="chartArea">
+          <!-- Bars generated by JS -->
+        </div>
+        <div class="chart-labels">
+          <span class="chart-label">11 jul</span>
+          <span class="chart-label">18 jul</span>
+          <span class="chart-label">25 jul</span>
+        </div>
+      </div>
+
+      <!-- AI Insight -->
+      <div class="insight-card" data-od-id="ai-insight">
+        <div class="insight-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4c0 1.5.8 2.8 2 3.4V10l-3 3h3v2.6c-1.2.6-2 1.9-2 3.4a4 4 0 0 0 8 0c0-1.5-.8-2.8-2-3.4V13l3-3h-3V9.4c1.2-.6 2-1.9 2-3.4a4 4 0 0 0-4-4z"/></svg>
+        </div>
+        <div class="insight-content">
+          <div class="insight-label">Insight de la IA</div>
+          <div class="insight-text">
+            Los usuarios te recomiendan más los fines de semana para <strong>"cena romántica"</strong> y entre semana para <strong>"almuerzo de negocios"</strong>. Considera publicar ofertas específicas por día.
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div data-od-id="recent-activity">
+        <h3 class="view-title" style="font-size: var(--fs-body); margin-bottom: var(--gap-sm);">Actividad reciente</h3>
+        <div class="activity-list">
+          <div class="activity-item">
+            <span class="activity-dot search"></span>
+            <span class="activity-text"><strong>Alguien te buscó:</strong> "restaurante cerca del Parque Central que acepte MLC"</span>
+            <span class="activity-time">hace 12 min</span>
+          </div>
+          <div class="activity-item">
+            <span class="activity-dot nav"></span>
+            <span class="activity-text"><strong>Navegaron a ti:</strong> 3 personas pidieron indicaciones hoy</span>
+            <span class="activity-time">hace 1 hora</span>
+          </div>
+          <div class="activity-item">
+            <span class="activity-dot save"></span>
+            <span class="activity-text"><strong>Guardaron tu lugar:</strong> "La Guarida" se añadió a 5 listas nuevas</span>
+            <span class="activity-time">hoy</span>
+          </div>
+          <div class="activity-item">
+            <span class="activity-dot view"></span>
+            <span class="activity-text"><strong>Vista de ficha:</strong> 28 personas vieron tu perfil completo</span>
+            <span class="activity-time">hoy</span>
+          </div>
+          <div class="activity-item">
+            <span class="activity-dot search"></span>
+            <span class="activity-text"><strong>Recomendación IA:</strong> Apareciste en "mejores restaurantes criollos de Vedado"</span>
+            <span class="activity-time">ayer</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================
+         VIEW: EDITOR
+         ============================================ -->
+    <section class="view" id="view-editor" data-od-id="editor">
+
+      <div class="view-header">
+        <div>
+          <h1 class="view-title">Editar ficha</h1>
+          <p class="view-subtitle">La Guarida — Vedado, La Habana</p>
+        </div>
+      </div>
+
+      <!-- Photos Section -->
+      <div class="form-section" data-od-id="editor-photos">
+        <div class="form-section-header" onclick="toggleSection(this)">
+          <div class="form-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            Fotos del lugar
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <div class="form-section-body">
+          <p class="form-hint">Sube fotos de tu negocio. La primera será la foto de portada.</p>
+          <div class="photo-grid">
+            <div class="photo-slot cover filled">
+              <div class="photo-placeholder-bg" style="background: linear-gradient(135deg, oklch(62% 0.16 145 / 0.12), oklch(75% 0.15 75 / 0.08));">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              </div>
+              <button class="photo-remove" aria-label="Eliminar foto">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+              <span class="photo-label" style="position:absolute;bottom:6px;left:6px;background:oklch(0% 0 0/0.5);color:white;padding:2px 6px;border-radius:4px;font-size:9px;">Portada</span>
+            </div>
+            <div class="photo-slot filled">
+              <div class="photo-placeholder-bg" style="background: linear-gradient(135deg, oklch(75% 0.15 75 / 0.1), oklch(62% 0.16 145 / 0.06));">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" opacity="0.4"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              </div>
+              <button class="photo-remove" aria-label="Eliminar foto">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div class="photo-slot filled">
+              <div class="photo-placeholder-bg" style="background: linear-gradient(135deg, oklch(62% 0.14 250 / 0.08), oklch(62% 0.16 145 / 0.05));">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" opacity="0.4"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              </div>
+              <button class="photo-remove" aria-label="Eliminar foto">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div class="photo-slot">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span class="photo-label">Añadir</span>
+            </div>
+            <div class="photo-slot">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span class="photo-label">Añadir</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Basic Info -->
+      <div class="form-section" data-od-id="editor-info">
+        <div class="form-section-header" onclick="toggleSection(this)">
+          <div class="form-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Información básica
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <div class="form-section-body">
+          <div class="form-group">
+            <label class="form-label" for="bizName">Nombre del negocio</label>
+            <input class="form-input" id="bizName" type="text" value="La Guarida" placeholder="Nombre que aparece en La Verde">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="bizCategory">Categoría</label>
+            <select class="form-select" id="bizCategory">
+              <option value="restaurante" selected>Restaurante</option>
+              <option value="cafeteria">Cafetería</option>
+              <option value="discoteca">Discoteca / Bar</option>
+              <option value="mercado">Mercado</option>
+              <option value="tienda">Tienda</option>
+              <option value="servicio">Servicio</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="bizDesc">Descripción</label>
+            <textarea class="form-textarea" id="bizDesc" rows="3" placeholder="Describe tu negocio para que la IA recomiende mejor...">Restaurante de cocina cubana contemporánea en el corazón de Vedado. Especializado en ropa vieja, lechón asado y cócteles tropicales. Ambiente elegante con música en vivo los fines de semana.</textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="bizAddress">Dirección</label>
+            <input class="form-input" id="bizAddress" type="text" value="Calle 21 #306, Vedado, La Habana" placeholder="Dirección completa">
+          </div>
+        </div>
+      </div>
+
+      <!-- Hours -->
+      <div class="form-section" data-od-id="editor-hours">
+        <div class="form-section-header" onclick="toggleSection(this)">
+          <div class="form-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Horarios
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <div class="form-section-body">
+          <div class="hours-grid">
+            <div class="hours-row">
+              <span class="hours-day">Lun</span>
+              <input class="hours-time" type="text" value="11:00" aria-label="Apertura lunes">
+              <span class="hours-separator">—</span>
+              <input class="hours-time" type="text" value="23:00" aria-label="Cierre lunes">
+            </div>
+            <div class="hours-row">
+              <span class="hours-day">Mar</span>
+              <input class="hours-time" type="text" value="11:00" aria-label="Apertura martes">
+              <span class="hours-separator">—</span>
+              <input class="hours-time" type="text" value="23:00" aria-label="Cierre martes">
+            </div>
+            <div class="hours-row">
+              <span class="hours-day">Mié</span>
+              <input class="hours-time" type="text" value="11:00" aria-label="Apertura miércoles">
+              <span class="hours-separator">—</span>
+              <input class="hours-time" type="text" value="23:00" aria-label="Cierre miércoles">
+            </div>
+            <div class="hours-row">
+              <span class="hours-day">Jue</span>
+              <input class="hours-time" type="text" value="11:00" aria-label="Apertura jueves">
+              <span class="hours-separator">—</span>
+              <input class="hours-time" type="text" value="00:00" aria-label="Cierre jueves">
+            </div>
+            <div class="hours-row">
+              <span class="hours-day">Vie</span>
+              <input class="hours-time" type="text" value="11:00" aria-label="Apertura viernes">
+              <span class="hours-separator">—</span>
+              <input class="hours-time" type="text" value="01:00" aria-label="Cierre viernes">
+            </div>
+            <div class="hours-row">
+              <span class="hours-day">Sáb</span>
+              <input class="hours-time" type="text" value="11:00" aria-label="Apertura sábado">
+              <span class="hours-separator">—</span>
+              <input class="hours-time" type="text" value="01:00" aria-label="Cierre sábado">
+            </div>
+            <div class="hours-row">
+              <span class="hours-day">Dom</span>
+              <input class="hours-time closed" type="text" value="Cerrado" aria-label="Domingo cerrado" readonly onclick="this.value=this.value==='Cerrado'?'12:00':'Cerrado';this.classList.toggle('closed')">
+              <span class="hours-separator">—</span>
+              <input class="hours-time closed" type="text" value="" aria-label="Domingo cerrado" readonly>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Methods -->
+      <div class="form-section" data-od-id="editor-payments">
+        <div class="form-section-header" onclick="toggleSection(this)">
+          <div class="form-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            Métodos de pago
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <div class="form-section-body">
+          <p class="form-hint">Selecciona las monedas y métodos de pago que acepta tu negocio.</p>
+          <div class="payment-chips">
+            <button class="payment-chip active" onclick="this.classList.toggle('active')">
+              <span class="chip-dot mlc"></span>
+              MLC
+            </button>
+            <button class="payment-chip active" onclick="this.classList.toggle('active')">
+              <span class="chip-dot cup"></span>
+              CUP
+            </button>
+            <button class="payment-chip" onclick="this.classList.toggle('active')">
+              <span class="chip-dot usd"></span>
+              USD (efectivo)
+            </button>
+            <button class="payment-chip" onclick="this.classList.toggle('active')">
+              <span class="chip-dot eur"></span>
+              EUR
+            </button>
+            <button class="payment-chip" onclick="this.classList.toggle('active')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+              Tarjeta
+            </button>
+            <button class="payment-chip" onclick="this.classList.toggle('active')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              Transferencia
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Menu / Offers -->
+      <div class="form-section" data-od-id="editor-menu">
+        <div class="form-section-header" onclick="toggleSection(this)">
+          <div class="form-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+            Menú / Ofertas destacadas
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <div class="form-section-body">
+          <p class="form-hint">Añade tus platos o servicios más populares. Aparecen en la ficha del lugar.</p>
+
+          <div class="menu-item-row">
+            <div class="menu-item-img" style="background: linear-gradient(135deg, oklch(75% 0.15 75 / 0.1), oklch(60% 0.20 25 / 0.06));">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </div>
+            <div class="menu-item-fields">
+              <input class="menu-item-name" type="text" value="Ropa Vieja de Res" aria-label="Nombre del plato">
+              <input class="menu-item-desc" type="text" value="Carne deshilachada con sofrito cubano, arroz y plátanos" aria-label="Descripción del plato">
+              <div class="menu-item-bottom">
+                <input class="menu-price-input" type="text" value="12" aria-label="Precio">
+                <select class="menu-currency-select" aria-label="Moneda">
+                  <option value="MLC" selected>MLC</option>
+                  <option value="CUP">CUP</option>
+                  <option value="USD">USD</option>
+                </select>
+                <span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--accent);background:var(--accent-soft);padding:2px 8px;border-radius:var(--radius-full);">Popular</span>
+              </div>
+            </div>
+            <button class="menu-item-remove" aria-label="Eliminar item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="menu-item-row">
+            <div class="menu-item-img" style="background: linear-gradient(135deg, oklch(62% 0.16 145 / 0.08), oklch(70% 0.12 175 / 0.06));">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </div>
+            <div class="menu-item-fields">
+              <input class="menu-item-name" type="text" value="Lechón Asado" aria-label="Nombre del plato">
+              <input class="menu-item-desc" type="text" value="Cerdo asado lentamente con mojo criollo, yuca y ensalada" aria-label="Descripción del plato">
+              <div class="menu-item-bottom">
+                <input class="menu-price-input" type="text" value="15" aria-label="Precio">
+                <select class="menu-currency-select" aria-label="Moneda">
+                  <option value="MLC" selected>MLC</option>
+                  <option value="CUP">CUP</option>
+                  <option value="USD">USD</option>
+                </select>
+              </div>
+            </div>
+            <button class="menu-item-remove" aria-label="Eliminar item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="menu-item-row">
+            <div class="menu-item-img" style="background: linear-gradient(135deg, oklch(62% 0.14 250 / 0.08), oklch(62% 0.16 145 / 0.05));">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </div>
+            <div class="menu-item-fields">
+              <input class="menu-item-name" type="text" value="Mojito de la Casa" aria-label="Nombre del plato">
+              <input class="menu-item-desc" type="text" value="Ron fresco, hierbabuena, lima y soda — nuestra receta secreta" aria-label="Descripción del plato">
+              <div class="menu-item-bottom">
+                <input class="menu-price-input" type="text" value="5" aria-label="Precio">
+                <select class="menu-currency-select" aria-label="Moneda">
+                  <option value="MLC" selected>MLC</option>
+                  <option value="CUP">CUP</option>
+                  <option value="USD">USD</option>
+                </select>
+                <span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:oklch(60% 0.20 25);background:oklch(60% 0.20 25 / 0.08);padding:2px 8px;border-radius:var(--radius-full);">2x1</span>
+              </div>
+            </div>
+            <button class="menu-item-remove" aria-label="Eliminar item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <button class="add-item-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Añadir plato o servicio
+          </button>
+        </div>
+      </div>
+
+      <!-- Special Offer -->
+      <div class="form-section" data-od-id="editor-offer">
+        <div class="form-section-header" onclick="toggleSection(this)">
+          <div class="form-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            Oferta especial
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <div class="form-section-body">
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Oferta activa</div>
+              <div class="toggle-desc">Muestra un banner de oferta en tu ficha</div>
+            </div>
+            <button class="toggle active" onclick="this.classList.toggle('active')" role="switch" aria-checked="true" aria-label="Activar oferta"></button>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="offerTitle">Título de la oferta</label>
+            <input class="form-input" id="offerTitle" type="text" value="2x1 en mojitos todos los jueves" placeholder="Ej: 2x1 en bebidas, Almuerzo del día...">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="offerExpiry">Válido hasta</label>
+            <input class="form-input" id="offerExpiry" type="text" value="31 de agosto, 2026" placeholder="Fecha de expiración">
+          </div>
+        </div>
+      </div>
+
+      <!-- Boost / Promotion -->
+      <div class="form-section" data-od-id="editor-boost">
+        <div class="form-section-header" onclick="toggleSection(this)">
+          <div class="form-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Destacar en La Verde
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <div class="form-section-body">
+          <div style="background: linear-gradient(135deg, oklch(75% 0.15 75 / 0.10), oklch(75% 0.15 75 / 0.04)); border: 1px solid oklch(75% 0.15 75 / 0.20); border-radius: var(--radius-lg); padding: var(--gap-md); display: flex; flex-direction: column; gap: var(--gap-sm);">
+            <div style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--warning); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500;">Plan Destacado</div>
+            <div style="font-family: var(--font-display); font-size: var(--fs-body); font-weight: 600;">Tu negocio aparece primero en búsquedas relacionadas</div>
+            <div style="font-size: var(--fs-small); color: var(--muted);">Pin amber en el mapa, prioridad en recomendaciones IA, badge "Destacado" en la ficha.</div>
+            <div style="display: flex; align-items: baseline; gap: var(--gap-xs); margin-top: var(--gap-xs);">
+              <span style="font-family: var(--font-display); font-size: var(--fs-h3); font-weight: 700; color: var(--fg);">25</span>
+              <span style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--muted);">MLC / mes</span>
+            </div>
+            <button class="btn btn-primary btn-full" style="margin-top: var(--gap-xs);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Activar destacado
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Save Bar -->
+      <div class="save-bar" data-od-id="save-bar">
+        <div class="save-status saved" id="saveStatus">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Guardado
+        </div>
+        <button class="btn btn-secondary" onclick="handleDiscard()">Descartar</button>
+        <button class="btn btn-primary" onclick="handlePublish()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Publicar cambios
+        </button>
+      </div>
+
+    </section>
+
+    <!-- ============================================
+         VIEW: PREVIEW
+         ============================================ -->
+    <section class="view" id="view-preview" data-od-id="preview">
+
+      <div class="view-header">
+        <div>
+          <h1 class="view-title">Vista previa</h1>
+          <p class="view-subtitle">Así se ve tu ficha en La Verde</p>
+        </div>
+      </div>
+
+      <div class="preview-container">
+        <!-- Phone mockup -->
+        <div class="preview-phone">
+          <div class="preview-dynamic-island"></div>
+          <div class="preview-status-bar">
+            <span class="time">9:41</span>
+            <span class="icons">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3a4.237 4.237 0 0 0-6 0zm-4-4l2 2a7.074 7.074 0 0 1 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="6" width="18" height="12" rx="2"/><rect x="20" y="9" width="2" height="6" rx="1"/></svg>
+            </span>
+          </div>
+          <div class="preview-content" id="previewContent">
+            <!-- Photo -->
+            <div class="preview-photo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <div class="preview-photo-dots">
+                <span></span><span></span><span></span><span></span>
+              </div>
+            </div>
+
+            <!-- Place Info -->
+            <div class="preview-place-info">
+              <div class="preview-place-name" id="previewName">La Guarida</div>
+              <div class="preview-place-meta">
+                <span class="preview-badge open">Abierto</span>
+                <span class="preview-badge category">Restaurante</span>
+                <span class="preview-badge distance">0.8 km</span>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="preview-actions-row">
+              <button class="preview-action-btn primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                <span>Cómo llegar</span>
+              </button>
+              <button class="preview-action-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                <span>Guardar</span>
+              </button>
+              <button class="preview-action-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                <span>Compartir</span>
+              </button>
+              <button class="preview-action-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                <span>Quiero ir</span>
+              </button>
+            </div>
+
+            <!-- AI Recommendation -->
+            <div style="margin: 0 var(--gap-md) var(--gap-md); background: linear-gradient(135deg, oklch(62% 0.16 145 / 0.06), oklch(62% 0.16 145 / 0.02)); border: 1px solid oklch(62% 0.16 145 / 0.15); border-radius: var(--radius-lg); padding: var(--gap-sm);">
+              <div style="display: flex; align-items: center; gap: var(--gap-xs); margin-bottom: var(--gap-xs);">
+                <div style="width: 28px; height: 28px; border-radius: var(--radius-sm); background: var(--accent); display: flex; align-items: center; justify-content: center;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 2a4 4 0 0 0-4 4c0 1.5.8 2.8 2 3.4V10l-3 3h3v2.6c-1.2.6-2 1.9-2 3.4a4 4 0 0 0 8 0c0-1.5-.8-2.8-2-3.4V13l3-3h-3V9.4c1.2-.6 2-1.9 2-3.4a4 4 0 0 0-4-4z"/></svg>
+                </div>
+                <span style="font-family: var(--font-mono); font-size: 10px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500;">Recomendación IA</span>
+              </div>
+              <p style="font-size: 13px; line-height: 1.5; color: var(--fg);">
+                "<strong>cena romántica en Vedado</strong>" — La Guarida tiene cocina cubana contemporánea, ambiente elegante, acepta MLC, y está a 0.8 km de ti. Los viernes tiene música en vivo.
+              </p>
+            </div>
+
+            <!-- Menu preview -->
+            <div style="padding: 0 var(--gap-md) var(--gap-md);">
+              <h3 style="font-family: var(--font-display); font-size: var(--fs-small); font-weight: 700; margin-bottom: var(--gap-sm);">Menú destacado</h3>
+              <div style="display: flex; flex-direction: column; gap: var(--gap-sm);">
+                <div style="display: flex; gap: var(--gap-sm); align-items: center;">
+                  <div style="width: 48px; height: 48px; border-radius: var(--radius-sm); background: linear-gradient(135deg, oklch(75% 0.15 75 / 0.1), oklch(60% 0.20 25 / 0.06)); flex-shrink: 0;"></div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-family: var(--font-display); font-size: 13px; font-weight: 600;">Ropa Vieja de Res</div>
+                    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--accent);">12 MLC <span style="background:var(--accent-soft);padding:1px 5px;border-radius:999px;font-size:9px;">Popular</span></div>
+                  </div>
+                </div>
+                <div style="display: flex; gap: var(--gap-sm); align-items: center;">
+                  <div style="width: 48px; height: 48px; border-radius: var(--radius-sm); background: linear-gradient(135deg, oklch(62% 0.16 145 / 0.08), oklch(70% 0.12 175 / 0.06)); flex-shrink: 0;"></div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-family: var(--font-display); font-size: 13px; font-weight: 600;">Lechón Asado</div>
+                    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--muted);">15 MLC</div>
+                  </div>
+                </div>
+                <div style="display: flex; gap: var(--gap-sm); align-items: center;">
+                  <div style="width: 48px; height: 48px; border-radius: var(--radius-sm); background: linear-gradient(135deg, oklch(62% 0.14 250 / 0.08), oklch(62% 0.16 145 / 0.05)); flex-shrink: 0;"></div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-family: var(--font-display); font-size: 13px; font-weight: 600;">Mojito de la Casa</div>
+                    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--accent);">5 MLC <span style="background:oklch(60% 0.20 25 / 0.08);color:oklch(55% 0.18 25);padding:1px 5px;border-radius:999px;font-size:9px;">2x1</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live info (desktop) -->
+        <div class="preview-live-info" id="previewLiveInfo">
+          <h3>Cómo se ve en la app</h3>
+          <div class="preview-live-field">
+            <span class="preview-live-label">Nombre</span>
+            <span class="preview-live-value" id="liveName">La Guarida</span>
+          </div>
+          <div class="preview-live-field">
+            <span class="preview-live-label">Categoría</span>
+            <span class="preview-live-value">Restaurante</span>
+          </div>
+          <div class="preview-live-field">
+            <span class="preview-live-label">Estado</span>
+            <span class="preview-live-value" style="color: oklch(50% 0.14 175);">Abierto ahora</span>
+          </div>
+          <div class="preview-live-field">
+            <span class="preview-live-label">Pagos</span>
+            <span class="preview-live-value">MLC, CUP</span>
+          </div>
+          <div class="preview-live-field">
+            <span class="preview-live-label">Oferta</span>
+            <span class="preview-live-value" style="color: oklch(55% 0.18 25);">2x1 en mojitos — jueves</span>
+          </div>
+          <div class="preview-live-field">
+            <span class="preview-live-label">Menú items</span>
+            <span class="preview-live-value">3 platos destacados</span>
+          </div>
+          <div style="margin-top: var(--gap-lg); padding: var(--gap-md); background: var(--surface-raised); border-radius: var(--radius-lg);">
+            <div style="font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: var(--gap-xs);">Consejo</div>
+            <p style="font-size: var(--fs-small); color: var(--fg); line-height: 1.5;">Edita tu ficha en la pestaña <strong>Editar ficha</strong> y los cambios se reflejan aquí en tiempo real.</p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================
+         VIEW: SETTINGS
+         ============================================ -->
+    <section class="view" id="view-settings" data-od-id="settings">
+
+      <div class="view-header">
+        <div>
+          <h1 class="view-title">Ajustes</h1>
+          <p class="view-subtitle">Configuración de tu negocio</p>
+        </div>
+      </div>
+
+      <div class="setting-card">
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Nombre del negocio</div>
+            <div class="setting-desc">Aparece en La Verde y en resultados de búsqueda</div>
+          </div>
+          <span class="setting-value">La Guarida</span>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Categoría principal</div>
+            <div class="setting-desc">Ayuda a la IA a recomendar tu negocio</div>
+          </div>
+          <span class="setting-value">Restaurante</span>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Ubicación en el mapa</div>
+            <div class="setting-desc">Coordenadas GPS del punto exacto</div>
+          </div>
+          <span class="setting-value">23.1374° N, 82.3590° O</span>
+        </div>
+      </div>
+
+      <div class="setting-card">
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Notificaciones</div>
+            <div class="setting-desc">Recibe avisos cuando alguien visita tu ficha</div>
+          </div>
+          <button class="toggle active" onclick="this.classList.toggle('active')" role="switch" aria-checked="true" aria-label="Activar notificaciones"></button>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Recomendaciones IA</div>
+            <div class="setting-desc">Permitir que la IA recomiende tu negocio</div>
+          </div>
+          <button class="toggle active" onclick="this.classList.toggle('active')" role="switch" aria-checked="true" aria-label="Activar recomendaciones IA"></button>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Mostrar horarios</div>
+            <div class="setting-desc">Visible en la ficha pública</div>
+          </div>
+          <button class="toggle active" onclick="this.classList.toggle('active')" role="switch" aria-checked="true" aria-label="Mostrar horarios"></button>
+        </div>
+      </div>
+
+      <div class="setting-card">
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Plan actual</div>
+            <div class="setting-desc">Tu nivel de servicio en La Verde</div>
+          </div>
+          <span class="setting-value" style="background: var(--accent-soft); color: var(--accent);">Básico (gratis)</span>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Contacto de soporte</div>
+            <div class="setting-desc">Ayuda con tu cuenta o ficha</div>
+          </div>
+          <span class="setting-value">soporte@laverde.cu</span>
+        </div>
+      </div>
+
+      <button class="btn btn-ghost" style="align-self: flex-start; color: var(--danger);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Cerrar sesión
+      </button>
+
+    </section>
+
+  </main>
+</div>
+
+<!-- BOTTOM NAV (mobile) -->
+<nav class="bottom-nav" data-od-id="bottom-nav">
+  <button class="bottom-nav-item active" onclick="switchView('dashboard', this)" aria-label="Dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="4" rx="1"/><rect x="14" y="10" width="7" height="11" rx="1"/><rect x="3" y="13" width="7" height="8" rx="1"/></svg>
+    Dashboard
+  </button>
+  <button class="bottom-nav-item" onclick="switchView('editor', this)" aria-label="Editar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    Editar
+  </button>
+  <button class="bottom-nav-item" onclick="switchView('preview', this)" aria-label="Vista previa">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    Vista previa
+  </button>
+  <button class="bottom-nav-item" onclick="switchView('settings', this)" aria-label="Ajustes">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    Ajustes
+  </button>
+</nav>
+
+<!-- Toast -->
+<div class="toast" id="toast" role="alert" aria-live="polite">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+  Cambios publicados
+</div>
+
+<script>
+/* ============================================
+   VIEW SWITCHING
+   ============================================ */
+
+const viewTitles = {
+  dashboard: 'Dashboard',
+  editor: 'Editar ficha',
+  preview: 'Vista previa',
+  settings: 'Ajustes'
+};
+
+function switchView(viewId, navEl) {
+  // Hide all views
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  // Show target
+  const target = document.getElementById('view-' + viewId);
+  if (target) target.classList.add('active');
+  // Update topbar title
+  document.getElementById('topbarTitle').textContent = viewTitles[viewId] || viewId;
+  // Update nav active states
+  document.querySelectorAll('.bottom-nav-item, .sidebar-item').forEach(n => n.classList.remove('active'));
+  if (navEl) navEl.classList.add('active');
+}
+
+/* ============================================
+   FORM SECTION TOGGLE
+   ============================================ */
+
+function toggleSection(header) {
+  const body = header.nextElementSibling;
+  const arrow = header.querySelector('svg:last-child');
+  if (body.style.display === 'none') {
+    body.style.display = 'flex';
+    if (arrow) arrow.style.transform = '';
+  } else {
+    body.style.display = 'none';
+    if (arrow) arrow.style.transform = 'rotate(-90deg)';
+  }
+}
+
+/* ============================================
+   PUBLISH / DISCARD
+   ============================================ */
+
+function handlePublish() {
+  const toast = document.getElementById('toast');
+  const status = document.getElementById('saveStatus');
+  toast.classList.add('show');
+  status.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Publicado';
+  status.className = 'save-status saved';
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+function handleDiscard() {
+  const status = document.getElementById('saveStatus');
+  status.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Guardado';
+  status.className = 'save-status saved';
+}
+
+/* ============================================
+   CHART — simple bar chart
+   ============================================ */
+
+function renderChart() {
+  const data = [18, 24, 32, 28, 45, 52, 38, 42, 56, 48, 62, 55, 44, 49];
+  const max = Math.max(...data);
+  const area = document.getElementById('chartArea');
+  if (!area) return;
+  area.innerHTML = '';
+  data.forEach((val, i) => {
+    const bar = document.createElement('div');
+    bar.className = 'chart-bar';
+    bar.style.height = (val / max * 100) + '%';
+    if (i === data.length - 1) bar.style.background = 'var(--accent)';
+    const tooltip = document.createElement('div');
+    tooltip.className = 'chart-bar-tooltip';
+    tooltip.textContent = val + ' visitas';
+    bar.appendChild(tooltip);
+    area.appendChild(bar);
+  });
+}
+
+/* ============================================
+   LIVE PREVIEW SYNC
+   ============================================ */
+
+function syncPreview() {
+  const name = document.getElementById('bizName');
+  const previewName = document.getElementById('previewName');
+  const liveName = document.getElementById('liveName');
+  if (name && previewName) {
+    name.addEventListener('input', () => {
+      const val = name.value || 'Tu Negocio';
+      previewName.textContent = val;
+      if (liveName) liveName.textContent = val;
+    });
+  }
+}
+
+/* ============================================
+   INIT
+   ============================================ */
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderChart();
+  syncPreview();
+});
+</script>
+
+</body>
+</html>

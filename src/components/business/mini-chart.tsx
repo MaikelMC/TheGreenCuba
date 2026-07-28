@@ -1,0 +1,64 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+
+interface MiniChartProps {
+  data: number[];
+  labels?: string[];
+  title?: string;
+  period?: string;
+  className?: string;
+}
+
+export function MiniChart({
+  data,
+  labels,
+  title = "Visitas por día",
+  period = "Últimos 14 días",
+  className,
+}: MiniChartProps) {
+  const max = Math.max(...data, 1);
+
+  return (
+    <div className={cn("bg-surface border border-border rounded-lv-lg p-gap-md", className)}>
+      <div className="flex items-center justify-between mb-gap-md">
+        <span className="font-display text-small font-semibold text-foreground">{title}</span>
+        <span className="font-mono text-xs text-muted-foreground px-[8px] py-[3px] bg-muted rounded-sm">
+          {period}
+        </span>
+      </div>
+
+      <div className="h-[120px] relative flex items-end gap-[3px]">
+        {data.map((val, i) => (
+          <div
+            key={i}
+            className="flex-1 relative group"
+            style={{ height: `${(val / max) * 100}%` }}
+          >
+            <div
+              className={cn(
+                "absolute bottom-0 inset-x-0 rounded-t-sm transition-colors duration-fast cursor-pointer",
+                i === data.length - 1 ? "bg-accent" : "bg-accent/20 hover:bg-accent",
+              )}
+              style={{ height: "100%", minHeight: "4px" }}
+            >
+              <div className="hidden group-hover:block absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-foreground text-surface font-mono text-xs px-[8px] py-[3px] rounded-sm whitespace-nowrap pointer-events-none z-10">
+                {val} visitas
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {labels && (
+        <div className="flex justify-between mt-gap-xs">
+          {labels.map((l) => (
+            <span key={l} className="font-mono text-[10px] text-muted-foreground">
+              {l}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

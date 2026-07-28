@@ -1,0 +1,1126 @@
+
+<!doctype html>
+<html lang="es-CU" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>La Verde — Onboarding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:oklch(98% 0.005 85);
+  --surface:oklch(100% 0 0);
+  --fg:oklch(18% 0.01 250);
+  --muted:oklch(52% 0.01 250);
+  --border:oklch(90% 0.004 250);
+  --accent:oklch(62% 0.16 145);
+  --accent-soft:oklch(62% 0.16 145 / 0.10);
+  --accent-hover:oklch(54% 0.15 145);
+  --surface-raised:oklch(96% 0.008 85);
+  --success:oklch(70% 0.12 175);
+  --warning:oklch(75% 0.15 75);
+  --danger:oklch(60% 0.20 25);
+  --info:oklch(62% 0.14 250);
+  --lv-amber:oklch(75% 0.15 75);
+  --lv-green-100:oklch(94% 0.04 145);
+  --lv-green-200:oklch(88% 0.07 145);
+  --lv-green-400:oklch(72% 0.14 145);
+  --lv-green-500:oklch(62% 0.16 145);
+  --lv-green-600:oklch(54% 0.15 145);
+  --lv-green-700:oklch(45% 0.13 145);
+  --lv-gray-300:oklch(82% 0.006 250);
+  --font-display:'DM Sans',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --font-body:'Source Sans 3',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --font-mono:'JetBrains Mono','SF Mono',ui-monospace,Menlo,monospace;
+  --fs-hero:clamp(34px,7vw,56px);
+  --fs-h1:clamp(28px,5vw,40px);
+  --fs-h2:clamp(22px,3.5vw,32px);
+  --fs-h3:20px;
+  --fs-body:16px;
+  --fs-small:14px;
+  --fs-meta:12px;
+  --fs-xs:11px;
+  --gap-xs:8px;
+  --gap-sm:12px;
+  --gap-md:16px;
+  --gap-lg:24px;
+  --gap-xl:32px;
+  --gap-2xl:48px;
+  --radius-sm:6px;
+  --radius:10px;
+  --radius-lg:14px;
+  --radius-xl:20px;
+  --radius-full:999px;
+  --shadow-xs:0 1px 2px oklch(18% 0.01 250 / 0.04);
+  --shadow-sm:0 2px 8px oklch(18% 0.01 250 / 0.06);
+  --shadow-md:0 4px 16px oklch(18% 0.01 250 / 0.08);
+  --shadow-lg:0 8px 32px oklch(18% 0.01 250 / 0.10);
+  --ease-out:cubic-bezier(0.16,1,0.3,1);
+}
+html,body{height:100%}
+body{
+  font-family:var(--font-body);
+  font-size:var(--fs-body);
+  color:var(--fg);
+  background:var(--bg);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  line-height:1.55;
+  overflow:hidden;
+}
+.app-shell{
+  display:flex;
+  flex-direction:column;
+  height:100%;
+  max-width:480px;
+  margin:0 auto;
+  background:var(--surface);
+  position:relative;
+  overflow:hidden;
+  box-shadow:0 0 0 1px var(--border);
+}
+@media(min-width:481px){
+  .app-shell{margin:24px auto;border-radius:var(--radius-xl);height:calc(100% - 48px);}
+}
+.status-bar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:8px 20px 4px;
+  font-family:var(--font-mono);
+  font-size:var(--fs-xs);
+  font-weight:600;
+  color:var(--fg);
+  flex-shrink:0;
+  min-height:36px;
+}
+.status-bar .time{font-weight:700}
+.status-icons{display:flex;gap:4px;align-items:center}
+.status-icons svg{width:16px;height:16px}
+.progress-bar{
+  display:flex;
+  gap:6px;
+  padding:8px 20px 16px;
+  flex-shrink:0;
+}
+.progress-step{
+  flex:1;
+  height:4px;
+  border-radius:2px;
+  background:var(--lv-gray-300);
+  transition:background 300ms var(--ease-out);
+}
+.progress-step.active{background:var(--accent)}
+.progress-step.done{background:var(--accent)}
+.skip-btn{
+  position:absolute;
+  top:48px;
+  right:16px;
+  z-index:10;
+  background:none;
+  border:none;
+  font-family:var(--font-body);
+  font-size:var(--fs-small);
+  color:var(--muted);
+  cursor:pointer;
+  padding:8px 12px;
+  border-radius:var(--radius);
+  transition:color 150ms;
+}
+.skip-btn:hover{color:var(--accent)}
+.onboarding-container{
+  flex:1;
+  position:relative;
+  overflow:hidden;
+}
+.slide-track{
+  display:flex;
+  height:100%;
+  transition:transform 400ms var(--ease-out);
+}
+.slide{
+  min-width:100%;
+  padding:0 20px;
+  display:flex;
+  flex-direction:column;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:100px;
+}
+.slide-icon{
+  width:64px;
+  height:64px;
+  border-radius:var(--radius-lg);
+  background:var(--accent-soft);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:8px 0 var(--gap-lg);
+  flex-shrink:0;
+}
+.slide-icon svg{width:32px;height:32px;color:var(--accent)}
+.slide h1{
+  font-family:var(--font-display);
+  font-size:var(--fs-h2);
+  font-weight:700;
+  line-height:1.1;
+  letter-spacing:-0.02em;
+  margin-bottom:var(--gap-xs);
+}
+.slide p{
+  color:var(--muted);
+  font-size:var(--fs-body);
+  line-height:1.6;
+  margin-bottom:var(--gap-lg);
+}
+.location-option{
+  display:flex;
+  align-items:center;
+  gap:var(--gap-md);
+  padding:16px;
+  border:1.5px solid var(--border);
+  border-radius:var(--radius-lg);
+  cursor:pointer;
+  transition:all 200ms var(--ease-out);
+  margin-bottom:var(--gap-sm);
+}
+.location-option:hover{border-color:var(--accent);background:var(--accent-soft)}
+.location-option.selected{border-color:var(--accent);background:var(--accent-soft)}
+.location-option .loc-dot{
+  width:12px;height:12px;border-radius:50%;
+  border:2px solid var(--border);
+  transition:all 200ms;
+  flex-shrink:0;
+}
+.location-option.selected .loc-dot{
+  background:var(--accent);
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px var(--accent-soft);
+}
+.location-option .loc-label{
+  flex:1;
+  font-family:var(--font-display);
+  font-size:var(--fs-body);
+  font-weight:600;
+}
+.location-option .loc-sub{
+  font-size:var(--fs-meta);
+  color:var(--muted);
+  font-family:var(--font-mono);
+}
+.use-location-btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:var(--gap-xs);
+  width:100%;
+  padding:14px;
+  border:1.5px dashed var(--border);
+  border-radius:var(--radius-lg);
+  background:none;
+  cursor:pointer;
+  font-family:var(--font-body);
+  font-size:var(--fs-small);
+  font-weight:600;
+  color:var(--muted);
+  transition:all 200ms;
+  margin-top:var(--gap-xs);
+}
+.use-location-btn:hover{border-color:var(--accent);color:var(--accent)}
+.use-location-btn svg{width:18px;height:18px}
+.chip-grid{
+  display:flex;
+  flex-wrap:wrap;
+  gap:var(--gap-xs);
+}
+.chip-option{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 18px;
+  border:1.5px solid var(--border);
+  border-radius:var(--radius-full);
+  cursor:pointer;
+  font-family:var(--font-display);
+  font-size:var(--fs-small);
+  font-weight:500;
+  color:var(--fg);
+  background:var(--surface);
+  transition:all 200ms var(--ease-out);
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+.chip-option:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.chip-option.selected{
+  border-color:var(--accent);
+  background:var(--accent);
+  color:white;
+}
+.chip-option .chip-icon{width:18px;height:18px;flex-shrink:0}
+.chip-option.selected .chip-icon{color:white}
+.currency-grid{
+  display:flex;
+  flex-direction:column;
+  gap:var(--gap-sm);
+}
+.currency-option{
+  display:flex;
+  align-items:center;
+  gap:var(--gap-md);
+  padding:16px 20px;
+  border:1.5px solid var(--border);
+  border-radius:var(--radius-lg);
+  cursor:pointer;
+  transition:all 200ms var(--ease-out);
+}
+.currency-option:hover{border-color:var(--accent)}
+.currency-option.active{
+  border-color:var(--accent);
+  background:var(--accent-soft);
+}
+.currency-option .curr-toggle{
+  width:24px;height:24px;border-radius:50%;
+  border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  transition:all 200ms;
+  flex-shrink:0;
+}
+.currency-option.active .curr-toggle{
+  background:var(--accent);
+  border-color:var(--accent);
+}
+.currency-option.active .curr-toggle::after{
+  content:'';
+  width:8px;height:4px;
+  border-left:2px solid white;
+  border-bottom:2px solid white;
+  transform:rotate(-45deg) translateY(-1px);
+}
+.currency-option .curr-code{
+  font-family:var(--font-mono);
+  font-size:var(--fs-body);
+  font-weight:600;
+  width:48px;
+  flex-shrink:0;
+}
+.currency-option .curr-name{
+  flex:1;
+  font-size:var(--fs-small);
+  color:var(--muted);
+}
+.currency-option .curr-badge{
+  font-family:var(--font-mono);
+  font-size:var(--fs-xs);
+  padding:2px 8px;
+  border-radius:var(--radius-sm);
+  font-weight:500;
+}
+.mlc-badge{background:var(--accent-soft);color:var(--accent)}
+.cup-badge{background:oklch(62% 0.14 250 / 0.10);color:var(--info)}
+.usd-badge{background:oklch(70% 0.12 175 / 0.10);color:var(--success)}
+.eur-badge{background:oklch(75% 0.15 75 / 0.10);color:var(--warning)}
+.bottom-actions{
+  position:absolute;
+  bottom:0;
+  left:0;
+  right:0;
+  padding:16px 20px;
+  padding-bottom:max(16px,env(safe-area-inset-bottom));
+  background:linear-gradient(transparent,var(--surface) 30%);
+  display:flex;
+  gap:var(--gap-sm);
+  flex-shrink:0;
+}
+.btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:var(--gap-xs);
+  padding:13px 24px;
+  border-radius:var(--radius);
+  font-family:var(--font-display);
+  font-size:var(--fs-small);
+  font-weight:600;
+  border:none;
+  cursor:pointer;
+  transition:all 200ms var(--ease-out);
+  min-height:48px;
+  -webkit-tap-highlight-color:transparent;
+  text-decoration:none;
+}
+.btn:active{transform:translateY(1px)}
+.btn-primary{
+  background:var(--accent);
+  color:white;
+  flex:1;
+}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+.btn-secondary{
+  background:var(--surface);
+  color:var(--fg);
+  border:1.5px solid var(--border);
+  flex:1;
+}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+.btn-ghost{
+  background:none;
+  color:var(--muted);
+  padding:13px 8px;
+  flex:0;
+}
+.btn-ghost:hover{color:var(--accent)}
+.screen{display:none}
+.screen.active{display:flex;flex-direction:column;height:100%}
+.preferences-header{
+  display:flex;
+  align-items:center;
+  gap:var(--gap-sm);
+  padding:16px 20px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+  min-height:56px;
+}
+.preferences-header .back-btn{
+  width:40px;height:40px;border-radius:50%;
+  border:none;background:none;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  color:var(--fg);transition:background 200ms;
+}
+.preferences-header .back-btn:hover{background:var(--accent-soft)}
+.preferences-header .back-btn svg{width:20px;height:20px}
+.preferences-header h1{
+  flex:1;
+  font-family:var(--font-display);
+  font-size:var(--fs-h3);
+  font-weight:700;
+}
+.preferences-body{
+  flex:1;
+  overflow-y:auto;
+  padding:20px;
+  padding-bottom:80px;
+}
+.pref-section{
+  margin-bottom:var(--gap-xl);
+}
+.pref-section-title{
+  font-family:var(--font-display);
+  font-size:var(--fs-small);
+  font-weight:600;
+  color:var(--muted);
+  margin-bottom:var(--gap-sm);
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+}
+.pref-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 0;
+  border-bottom:1px solid var(--border);
+}
+.pref-row:last-child{border-bottom:none}
+.pref-row-label{
+  font-size:var(--fs-body);
+  font-weight:500;
+}
+.pref-row-value{
+  font-family:var(--font-mono);
+  font-size:var(--fs-small);
+  color:var(--muted);
+  display:flex;align-items:center;gap:6px;
+}
+.pref-row-value .pill{
+  padding:2px 10px;
+  border-radius:var(--radius-full);
+  background:var(--accent-soft);
+  color:var(--accent);
+  font-family:var(--font-mono);
+  font-size:var(--fs-xs);
+  font-weight:500;
+}
+.toggle-switch{
+  width:44px;
+  height:26px;
+  border-radius:13px;
+  background:var(--lv-gray-300);
+  position:relative;
+  cursor:pointer;
+  transition:background 200ms;
+  flex-shrink:0;
+}
+.toggle-switch.active{background:var(--accent)}
+.toggle-switch .thumb{
+  width:22px;height:22px;
+  border-radius:50%;
+  background:white;
+  position:absolute;
+  top:2px;left:2px;
+  transition:transform 200ms var(--ease-out);
+  box-shadow:0 1px 4px oklch(0% 0 0 / 0.15);
+}
+.toggle-switch.active .thumb{transform:translateX(18px)}
+.complete-screen{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:40px 20px;
+  flex:1;
+}
+.complete-icon{
+  width:80px;
+  height:80px;
+  border-radius:50%;
+  background:var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:var(--gap-lg);
+}
+.complete-icon svg{width:40px;height:40px;color:white}
+.complete-screen h1{
+  font-family:var(--font-display);
+  font-size:var(--fs-h1);
+  font-weight:700;
+  margin-bottom:var(--gap-sm);
+}
+.complete-screen p{
+  color:var(--muted);
+  max-width:320px;
+  margin-bottom:var(--gap-xl);
+}
+.step-dots{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  padding:16px 20px;
+  flex-shrink:0;
+}
+.dot{
+  width:8px;height:8px;
+  border-radius:50%;
+  background:var(--lv-gray-300);
+  transition:all 300ms;
+}
+.dot.active{background:var(--accent);width:24px;border-radius:4px}
+.dot.done{background:var(--accent)}
+@keyframes fadeSlideUp{
+  from{opacity:0;transform:translateY(16px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.slide.active .slide-icon,
+.slide.active h1,
+.slide.active p,
+.slide.active .chip-grid,
+.slide.active .location-option,
+.slide.active .currency-option,
+.slide.active .use-location-btn{
+  animation:fadeSlideUp 400ms var(--ease-out) both;
+}
+.slide.active .slide-icon{animation-delay:50ms}
+.slide.active h1{animation-delay:100ms}
+.slide.active p{animation-delay:150ms}
+.slide.active .location-option:nth-child(1){animation-delay:200ms}
+.slide.active .location-option:nth-child(2){animation-delay:250ms}
+.slide.active .location-option:nth-child(3){animation-delay:300ms}
+.slide.active .use-location-btn{animation-delay:350ms}
+.slide.active .chip-option{animation:chipPop 350ms var(--ease-out) both}
+.slide.active .chip-option:nth-child(1){animation-delay:200ms}
+.slide.active .chip-option:nth-child(2){animation-delay:230ms}
+.slide.active .chip-option:nth-child(3){animation-delay:260ms}
+.slide.active .chip-option:nth-child(4){animation-delay:290ms}
+.slide.active .chip-option:nth-child(5){animation-delay:320ms}
+.slide.active .chip-option:nth-child(6){animation-delay:350ms}
+.slide.active .chip-option:nth-child(7){animation-delay:380ms}
+.slide.active .chip-option:nth-child(8){animation-delay:410ms}
+.slide.active .currency-option:nth-child(1){animation-delay:200ms}
+.slide.active .currency-option:nth-child(2){animation-delay:240ms}
+.slide.active .currency-option:nth-child(3){animation-delay:280ms}
+.slide.active .currency-option:nth-child(4){animation-delay:320ms}
+@keyframes chipPop{
+  from{opacity:0;transform:scale(0.85)}
+  to{opacity:1;transform:scale(1)}
+}
+.welcome-overlay{
+  position:absolute;
+  inset:0;
+  z-index:20;
+  background:linear-gradient(160deg, var(--accent) 0%, oklch(45% 0.13 145) 100%);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  color:white;
+  transition:transform 500ms var(--ease-out), opacity 500ms;
+}
+.welcome-overlay.hidden{transform:scale(1.1);opacity:0;pointer-events:none}
+.welcome-overlay .logo{
+  font-family:var(--font-display);
+  font-size:clamp(36px,10vw,56px);
+  font-weight:700;
+  letter-spacing:-0.03em;
+  margin-bottom:8px;
+}
+.welcome-overlay .logo-sub{
+  font-size:var(--fs-body);
+  opacity:0.8;
+  margin-bottom:var(--gap-2xl);
+}
+.welcome-overlay .welcome-icon{
+  width:72px;height:72px;
+  background:rgba(255,255,255,0.15);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:var(--gap-lg);
+  animation:pulse 2s ease-in-out infinite;
+}
+.welcome-overlay .welcome-icon svg{width:36px;height:36px;color:white}
+@keyframes pulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.08)}
+}
+@media(min-width:1024px){
+  .app-shell{max-width:560px;margin:32px auto;height:calc(100% - 64px);}
+  .slide{padding:0 32px;}
+  .bottom-actions{padding:20px 32px;}
+  .preferences-body{padding:24px 32px;}
+}
+@media(min-width:769px){
+  .app-shell{border-radius:var(--radius-xl);}
+}
+.slide::-webkit-scrollbar,.preferences-body::-webkit-scrollbar{width:4px}
+.slide::-webkit-scrollbar-track,.preferences-body::-webkit-scrollbar-track{background:transparent}
+.slide::-webkit-scrollbar-thumb,.preferences-body::-webkit-scrollbar-thumb{background:var(--lv-gray-300);border-radius:2px}
+</style>
+</head>
+<body>
+
+<div class="app-shell" id="app" data-od-id="onboarding-shell">
+  <div class="welcome-overlay" id="welcome" data-od-id="onboarding-welcome">
+    <div class="welcome-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 6v6l4 2"/><path d="M7 12h2"/><path d="M15 12h2"/><path d="M7 16h10"/></svg>
+    </div>
+    <div class="logo">La Verde</div>
+    <div class="logo-sub">Descubre Cuba, encuentra tu lugar</div>
+    <div style="font-size:var(--fs-small);opacity:0.6;margin-top:var(--gap-xl)">Comenzando...</div>
+  </div>
+
+  <div id="onboarding" style="display:none;flex-direction:column;height:100%">
+    <div class="status-bar">
+      <span class="time">9:41</span>
+      <div class="status-icons">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 10v4M15 8v6M11 12v2M7 6v8"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 9l4 4 4-4M13 9l4 4 4-4"/></svg>
+      </div>
+    </div>
+
+    <div class="progress-bar" id="progressBar">
+      <div class="progress-step active" data-step="0"></div>
+      <div class="progress-step" data-step="1"></div>
+      <div class="progress-step" data-step="2"></div>
+      <div class="progress-step" data-step="3"></div>
+    </div>
+
+    <button class="skip-btn" id="skipBtn">Saltar</button>
+
+    <div class="onboarding-container">
+      <div class="slide-track" id="slideTrack">
+
+        <div class="slide" data-step="0" data-od-id="onboarding-location">
+          <div class="slide-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a8 8 0 0 0-8 8c0 4.42 8 12 8 12s8-7.58 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <h1>¿Dónde estás?</h1>
+          <p>Para recomendarte lugares cerca de ti, cuéntanos en qué zona de Cuba te encuentras.</p>
+
+          <div class="location-option selected" data-value="la-habana">
+            <div class="loc-dot"></div>
+            <div>
+              <div class="loc-label">La Habana</div>
+              <div class="loc-sub">Vedado, Centro Habana, Miramar</div>
+            </div>
+          </div>
+          <div class="location-option" data-value="santiago">
+            <div class="loc-dot"></div>
+            <div>
+              <div class="loc-label">Santiago de Cuba</div>
+              <div class="loc-sub">Centro, Vista Alegre</div>
+            </div>
+          </div>
+          <div class="location-option" data-value="varadero">
+            <div class="loc-dot"></div>
+            <div>
+              <div class="loc-label">Varadero</div>
+              <div class="loc-sub">Península de Hicacos</div>
+            </div>
+          </div>
+          <div class="location-option" data-value="otra">
+            <div class="loc-dot"></div>
+            <div>
+              <div class="loc-label">Otra ciudad</div>
+              <div class="loc-sub">Matanzas, Trinidad, Santa Clara...</div>
+            </div>
+          </div>
+
+          <button class="use-location-btn" id="useLocation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+            Usar mi ubicación actual
+          </button>
+        </div>
+
+        <div class="slide" data-step="1" data-od-id="onboarding-interests">
+          <div class="slide-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          </div>
+          <h1>¿Qué te gusta hacer?</h1>
+          <p>Selecciona tus tipos de lugares favoritos. La IA aprenderá tus gustos.</p>
+
+          <div class="chip-grid">
+            <div class="chip-option selected" data-category="cafes">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><path d="M6 1v3M10 1v3M14 1v3"/></svg>
+              Cafeterías
+            </div>
+            <div class="chip-option selected" data-category="restaurantes">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a4 4 0 0 0-4 4v2a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z"/><path d="M6 14h12M12 14v8"/></svg>
+              Restaurantes
+            </div>
+            <div class="chip-option" data-category="discotecas">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="18" r="4"/><circle cx="18" cy="16" r="4"/><path d="M12 18V2l8 2v12"/><path d="M12 6l8 2"/></svg>
+              Discotecas
+            </div>
+            <div class="chip-option" data-category="mercados">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+              Mercados
+            </div>
+            <div class="chip-option" data-category="bares">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v4l-2 8h12l-2-8V2"/><path d="M8 14v6a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-6"/><path d="M2 8h20"/></svg>
+              Bares & Noche
+            </div>
+            <div class="chip-option" data-category="playas">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 12c0-4 4-8 4-8s4 4 4 8-4 8-4 8-4-4-4-8z"/><path d="M3.5 7.5c2.5 1 5.5 1 8.5 0s6-1 8.5 0"/><path d="M3.5 16.5c2.5-1 5.5-1 8.5 0s6 1 8.5 0"/></svg>
+              Playas
+            </div>
+            <div class="chip-option" data-category="cultura">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+              Cultura & Arte
+            </div>
+            <div class="chip-option" data-category="fitness">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6.5 6.5l11 11M6.5 17.5l11-11"/><path d="M14.5 4.5l5 5M4.5 14.5l5 5"/><path d="M9.5 2.5l12 12M2.5 9.5l12 12"/></svg>
+              Deporte & Fitness
+            </div>
+          </div>
+        </div>
+
+        <div class="slide" data-step="2" data-od-id="onboarding-currencies">
+          <div class="slide-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 8h8M8 12h6M8 16h4"/></svg>
+          </div>
+          <h1>¿Qué monedas usas?</h1>
+          <p>Selecciona las monedas con las que pagas. Filtraremos lugares según tu preferencia.</p>
+
+          <div class="currency-grid">
+            <div class="currency-option active" data-currency="mlc">
+              <div class="curr-toggle"></div>
+              <div class="curr-code">MLC</div>
+              <div class="curr-name">Moneda Libremente Convertible</div>
+              <span class="curr-badge mlc-badge">Popular</span>
+            </div>
+            <div class="currency-option active" data-currency="cup">
+              <div class="curr-toggle"></div>
+              <div class="curr-code">CUP</div>
+              <div class="curr-name">Peso Cubano</div>
+              <span class="curr-badge cup-badge">Nacional</span>
+            </div>
+            <div class="currency-option" data-currency="usd">
+              <div class="curr-toggle"></div>
+              <div class="curr-code">USD</div>
+              <div class="curr-name">Dólar estadounidense</div>
+              <span class="curr-badge usd-badge">Internacional</span>
+            </div>
+            <div class="currency-option" data-currency="eur">
+              <div class="curr-toggle"></div>
+              <div class="curr-code">EUR</div>
+              <div class="curr-name">Euro</div>
+              <span class="curr-badge eur-badge">Internacional</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide" data-step="3" data-od-id="onboarding-moods">
+          <div class="slide-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg>
+          </div>
+          <h1>¿Qué ambiente buscas?</h1>
+          <p>Cuéntanos el tipo de planes que te gustan para recomendaciones más precisas.</p>
+
+          <div class="chip-grid">
+            <div class="chip-option selected" data-mood="tranquilo">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Tranquilo
+            </div>
+            <div class="chip-option" data-mood="fiesta">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="5"/><path d="M12 13v9"/><path d="M8 22h8"/></svg>
+              Fiesta & Rumba
+            </div>
+            <div class="chip-option selected" data-mood="romantico">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              Romántico
+            </div>
+            <div class="chip-option" data-mood="familiar">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Familiar
+            </div>
+            <div class="chip-option" data-mood="cultural">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              Cultural
+            </div>
+            <div class="chip-option" data-mood="aventura">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg>
+              Aventura
+            </div>
+            <div class="chip-option" data-mood="trabajo">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+              Trabajo & Estudio
+            </div>
+            <div class="chip-option" data-mood="salud">
+              <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12h6M12 9v6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+              Salud & Bienestar
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="step-dots">
+      <div class="dot active"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+
+    <div class="bottom-actions">
+      <button class="btn btn-ghost" id="backBtn" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="18" height="18"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Atrás
+      </button>
+      <button class="btn btn-primary" id="nextBtn">Continuar</button>
+    </div>
+  </div>
+
+  <div id="preferencesScreen" class="screen" data-od-id="onboarding-preferences" style="display:none;flex-direction:column;height:100%">
+    <div class="status-bar">
+      <span class="time">9:41</span>
+      <div class="status-icons">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 10v4M15 8v6M11 12v2M7 6v8"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 9l4 4 4-4M13 9l4 4 4-4"/></svg>
+      </div>
+    </div>
+
+    <div class="preferences-header">
+      <button class="back-btn" id="prefBackBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <h1>Mis Preferencias</h1>
+      <button class="btn btn-ghost" id="editPrefsBtn" style="padding:8px;min-height:40px;font-size:var(--fs-small);color:var(--accent)">Editar</button>
+    </div>
+
+    <div class="preferences-body" id="preferencesBody">
+      <div class="pref-section">
+        <div class="pref-section-title">Ubicación</div>
+        <div class="pref-row">
+          <span class="pref-row-label">Ciudad principal</span>
+          <span class="pref-row-value" id="prefLocation">La Habana</span>
+        </div>
+        <div class="pref-row">
+          <span class="pref-row-label">Usar ubicación exacta</span>
+          <div class="toggle-switch" id="prefLocationToggle">
+            <div class="thumb"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pref-section">
+        <div class="pref-section-title">Intereses</div>
+        <div class="pref-row">
+          <span class="pref-row-label">Categorías favoritas</span>
+          <span class="pref-row-value" id="prefInterests">
+            <span class="pill">Cafeterías</span>
+            <span class="pill">Restaurantes</span>
+          </span>
+        </div>
+        <div class="pref-row">
+          <span class="pref-row-label">Ambiente preferido</span>
+          <span class="pref-row-value" id="prefMoods">
+            <span class="pill">Tranquilo</span>
+            <span class="pill">Romántico</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="pref-section">
+        <div class="pref-section-title">Monedas</div>
+        <div class="pref-row">
+          <span class="pref-row-label">Mis monedas</span>
+          <span class="pref-row-value" id="prefCurrencies">
+            <span class="pill">MLC</span>
+            <span class="pill">CUP</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="pref-section">
+        <div class="pref-section-title">Notificaciones</div>
+        <div class="pref-row">
+          <span class="pref-row-label">Recomendaciones de nuevos lugares</span>
+          <div class="toggle-switch active" id="notifRecomendaciones">
+            <div class="thumb"></div>
+          </div>
+        </div>
+        <div class="pref-row">
+          <span class="pref-row-label">Ofertas cerca de mí</span>
+          <div class="toggle-switch active" id="notifOfertas">
+            <div class="thumb"></div>
+          </div>
+        </div>
+        <div class="pref-row">
+          <span class="pref-row-label">Ofertas en mis lugares favoritos</span>
+          <div class="toggle-switch" id="notifFavoritos">
+            <div class="thumb"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pref-section">
+        <div class="pref-section-title">Tu IA</div>
+        <div class="pref-row">
+          <span class="pref-row-label">La IA aprende de tus visitas</span>
+          <div class="toggle-switch active" id="iaLearning">
+            <div class="thumb"></div>
+          </div>
+        </div>
+        <div class="pref-row">
+          <span class="pref-row-label">Recomendaciones personalizadas</span>
+          <div class="toggle-switch active" id="iaPersonal">
+            <div class="thumb"></div>
+          </div>
+        </div>
+        <div class="pref-row" style="border:none;padding-bottom:0">
+          <span class="pref-row-label" style="font-size:var(--fs-meta);color:var(--muted)">La IA mejora con cada interacción. Puedes resetear tu perfil cuando quieras.</span>
+        </div>
+      </div>
+
+      <div class="pref-section">
+        <div class="pref-section-title">Datos</div>
+        <div class="pref-row" style="border:none">
+          <span class="pref-row-label" style="color:var(--danger)">Resetear perfil de IA</span>
+          <button class="btn btn-ghost" style="padding:6px 14px;min-height:36px;border:1px solid var(--danger);color:var(--danger);border-radius:var(--radius);font-size:var(--fs-xs)">Resetear</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const onboarding = document.getElementById('onboarding');
+const welcome = document.getElementById('welcome');
+const preferencesScreen = document.getElementById('preferencesScreen');
+const track = document.getElementById('slideTrack');
+const steps = document.querySelectorAll('.slide');
+const progressSteps = document.querySelectorAll('.progress-step');
+const dots = document.querySelectorAll('.dot');
+const nextBtn = document.getElementById('nextBtn');
+const backBtn = document.getElementById('backBtn');
+const skipBtn = document.getElementById('skipBtn');
+const useLocBtn = document.getElementById('useLocation');
+
+let currentStep = 0;
+const totalSteps = 4;
+
+const state = {
+  location: 'la-habana',
+  locationName: 'La Habana',
+  interests: ['cafes', 'restaurantes'],
+  currencies: ['mlc', 'cup'],
+  moods: ['tranquilo', 'romantico']
+};
+
+setTimeout(() => {
+  welcome.classList.add('hidden');
+  setTimeout(() => {
+    welcome.style.display = 'none';
+    onboarding.style.display = 'flex';
+    requestAnimationFrame(() => {
+      steps[0].classList.add('active');
+    });
+  }, 500);
+}, 1800);
+
+function updateStep(index) {
+  currentStep = index;
+  track.style.transform = `translateX(-${index * 100}%)`;
+  progressSteps.forEach((el, i) => {
+    el.classList.toggle('active', i === index);
+    el.classList.toggle('done', i < index);
+  });
+  dots.forEach((el, i) => {
+    el.classList.toggle('active', i === index);
+    el.classList.toggle('done', i < index);
+  });
+  steps.forEach((el, i) => el.classList.toggle('active', i === index));
+  backBtn.style.display = index === 0 ? 'none' : 'flex';
+  nextBtn.textContent = index === totalSteps - 1 ? 'Comenzar' : 'Continuar';
+  skipBtn.style.display = index === totalSteps - 1 ? 'none' : 'block';
+}
+
+function getSelectedLocation() {
+  const opt = document.querySelector('.location-option.selected');
+  return opt ? opt.dataset.value : 'la-habana';
+}
+
+function getLocationName(value) {
+  const names = { 'la-habana': 'La Habana', 'santiago': 'Santiago de Cuba', 'varadero': 'Varadero', 'otra': 'Otra ciudad' };
+  return names[value] || 'La Habana';
+}
+
+function getSelectedInterests() {
+  return Array.from(document.querySelectorAll('.chip-option.selected[data-category]')).map(el => el.dataset.category);
+}
+
+function getSelectedCurrencies() {
+  return Array.from(document.querySelectorAll('.currency-option.active[data-currency]')).map(el => el.dataset.currency);
+}
+
+function getSelectedMoods() {
+  return Array.from(document.querySelectorAll('.chip-option.selected[data-mood]')).map(el => el.dataset.mood);
+}
+
+function canProceed(index) {
+  if (index === 1) return getSelectedInterests().length > 0;
+  if (index === 2) return getSelectedCurrencies().length > 0;
+  if (index === 3) return getSelectedMoods().length > 0;
+  return true;
+}
+
+document.querySelectorAll('.location-option').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.location-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+  });
+});
+
+document.querySelectorAll('.chip-grid .chip-option').forEach(el => {
+  el.addEventListener('click', () => { el.classList.toggle('selected'); });
+});
+
+document.querySelectorAll('.currency-option').forEach(el => {
+  el.addEventListener('click', () => { el.classList.toggle('active'); });
+});
+
+useLocBtn.addEventListener('click', () => {
+  state.location = 'la-habana';
+  state.locationName = 'La Habana';
+  document.querySelectorAll('.location-option').forEach(o => o.classList.remove('selected'));
+  document.querySelector('.location-option[data-value="la-habana"]').classList.add('selected');
+  useLocBtn.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>
+    Ubicación detectada — La Habana
+  `;
+  useLocBtn.style.borderColor = 'var(--accent)';
+  useLocBtn.style.color = 'var(--accent)';
+  useLocBtn.style.borderStyle = 'solid';
+});
+
+nextBtn.addEventListener('click', () => {
+  if (!canProceed(currentStep)) return;
+  if (currentStep === totalSteps - 1) { finishOnboarding(); return; }
+  state.location = getSelectedLocation();
+  state.locationName = getLocationName(state.location);
+  state.interests = getSelectedInterests();
+  state.currencies = getSelectedCurrencies();
+  state.moods = getSelectedMoods();
+  updateStep(currentStep + 1);
+});
+
+backBtn.addEventListener('click', () => {
+  if (currentStep === 0) return;
+  updateStep(currentStep - 1);
+});
+
+skipBtn.addEventListener('click', finishOnboarding);
+
+function finishOnboarding() {
+  state.location = getSelectedLocation();
+  state.locationName = getLocationName(state.location);
+  state.interests = getSelectedInterests();
+  state.currencies = getSelectedCurrencies();
+  state.moods = getSelectedMoods();
+  updatePreferencesScreen();
+  onboarding.style.display = 'none';
+  preferencesScreen.style.display = 'flex';
+  preferencesScreen.classList.add('active');
+  preferencesScreen.style.animation = 'fadeSlideUp 400ms var(--ease-out)';
+}
+
+document.querySelectorAll('.toggle-switch').forEach(el => {
+  el.addEventListener('click', () => { el.classList.toggle('active'); });
+});
+
+let editingPrefs = false;
+document.getElementById('editPrefsBtn').addEventListener('click', () => {
+  editingPrefs = !editingPrefs;
+  const btn = document.getElementById('editPrefsBtn');
+  btn.textContent = editingPrefs ? 'Listo' : 'Editar';
+  btn.style.color = editingPrefs ? 'var(--success)' : 'var(--accent)';
+});
+
+document.getElementById('prefBackBtn').addEventListener('click', () => {
+  preferencesScreen.style.display = 'none';
+  onboarding.style.display = 'flex';
+  updateStep(0);
+  skipBtn.style.display = 'block';
+  nextBtn.textContent = 'Continuar';
+});
+
+document.querySelector('#preferencesBody .btn-ghost')?.addEventListener('click', () => {
+  if (confirm('¿Resetear tu perfil de IA? La IA volverá a aprender tus gustos desde cero.')) {
+    showToast('Perfil de IA reseteado');
+  }
+});
+
+function updatePreferencesScreen() {
+  document.getElementById('prefLocation').textContent = state.locationName;
+  const interestNames = { cafes: 'Cafeterías', restaurantes: 'Restaurantes', discotecas: 'Discotecas', mercados: 'Mercados', bares: 'Bares & Noche', playas: 'Playas', cultura: 'Cultura & Arte', fitness: 'Deporte & Fitness' };
+  document.getElementById('prefInterests').innerHTML = state.interests.map(c => `<span class="pill">${interestNames[c] || c}</span>`).join('');
+  const moodNames = { tranquilo: 'Tranquilo', fiesta: 'Fiesta & Rumba', romantico: 'Romántico', familiar: 'Familiar', cultural: 'Cultural', aventura: 'Aventura', trabajo: 'Trabajo & Estudio', salud: 'Salud & Bienestar' };
+  document.getElementById('prefMoods').innerHTML = state.moods.map(m => `<span class="pill">${moodNames[m] || m}</span>`).join('');
+  const currencyNames = { mlc: 'MLC', cup: 'CUP', usd: 'USD', eur: 'EUR' };
+  document.getElementById('prefCurrencies').innerHTML = state.currencies.map(c => `<span class="pill">${currencyNames[c] || c}</span>`).join('');
+}
+
+function showToast(msg) {
+  const toast = document.createElement('div');
+  toast.textContent = msg;
+  Object.assign(toast.style, {
+    position: 'fixed', bottom: '100px', left: '50%', transform: 'translateX(-50%)',
+    background: 'var(--fg)', color: 'white', padding: '12px 24px',
+    borderRadius: 'var(--radius-full)', fontFamily: 'var(--font-display)',
+    fontSize: 'var(--fs-small)', fontWeight: 600, boxShadow: 'var(--shadow-lg)',
+    zIndex: 200, opacity: '0', transition: 'opacity 300ms var(--ease-out), transform 300ms var(--ease-out)',
+    pointerEvents: 'none'
+  });
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => { toast.style.opacity = '1'; toast.style.transform = 'translateX(-50%) translateY(0)'; });
+  setTimeout(() => {
+    toast.style.opacity = '0'; toast.style.transform = 'translateX(-50%) translateY(10px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 2500);
+}
+</script>
+
+</body>
+</html>

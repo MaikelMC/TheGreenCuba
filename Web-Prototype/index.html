@@ -1,0 +1,784 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>La Verde — Descubre lugares en Cuba con IA</title>
+  <meta name="description" content="La Verde usa inteligencia artificial para ayudarte a encontrar exactamente lo que buscas en Cuba. Escribe en lenguaje natural y encuentra tu proximo lugar favorito." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:      oklch(98% 0.005 85);
+      --surface: oklch(100% 0 0);
+      --fg:      oklch(18% 0.01 250);
+      --muted:   oklch(52% 0.01 250);
+      --border:  oklch(90% 0.004 250);
+      --accent:  oklch(62% 0.16 145);
+
+      --accent-soft: color-mix(in oklch, var(--accent) 12%, transparent);
+      --fg-soft:     color-mix(in oklch, var(--fg) 5%, transparent);
+      --accent-hover: oklch(54% 0.15 145);
+      --success:  oklch(70% 0.12 175);
+      --warning:  oklch(75% 0.15 75);
+      --amber:    oklch(75% 0.15 75);
+
+      --font-display: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-body:    'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-mono:    'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, monospace;
+
+      --fs-hero:  clamp(40px, 7vw, 72px);
+      --fs-h1:    clamp(32px, 5vw, 52px);
+      --fs-h2:    clamp(26px, 3.5vw, 40px);
+      --fs-h3:    22px;
+      --fs-lead:  18px;
+      --fs-body:  16px;
+      --fs-small: 14px;
+      --fs-meta:  13px;
+      --fs-xs:    11px;
+
+      --gap-2xs: 4px;
+      --gap-xs:  8px;
+      --gap-sm:  12px;
+      --gap-md:  16px;
+      --gap-lg:  24px;
+      --gap-xl:  32px;
+      --gap-2xl: 48px;
+      --gap-3xl: 64px;
+      --gap-4xl: 96px;
+
+      --container:  1120px;
+      --gutter:     20px;
+      --gutter-lg:  32px;
+
+      --radius-sm:   6px;
+      --radius:      10px;
+      --radius-lg:   14px;
+      --radius-xl:   20px;
+      --radius-full: 999px;
+
+      --shadow-xs:  0 1px 2px oklch(18% 0.01 250 / 0.04);
+      --shadow-sm:  0 2px 8px oklch(18% 0.01 250 / 0.06);
+      --shadow-md:  0 4px 16px oklch(18% 0.01 250 / 0.08);
+      --shadow-lg:  0 8px 32px oklch(18% 0.01 250 / 0.10);
+      --shadow-xl:  0 16px 48px oklch(18% 0.01 250 / 0.12);
+
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --duration-fast: 120ms;
+      --duration-normal: 200ms;
+      --duration-slow: 400ms;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-body);
+      font-size: var(--fs-body);
+      line-height: 1.55;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    img, svg { display: block; max-width: 100%; }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; cursor: pointer; border: none; background: none; }
+    p { text-wrap: pretty; margin: 0; }
+    h1, h2, h3, h4 { text-wrap: balance; margin: 0; }
+
+    .container {
+      max-width: var(--container);
+      margin-inline: auto;
+      padding-inline: var(--gutter);
+    }
+    @media (min-width: 768px) { .container { padding-inline: var(--gutter-lg); } }
+
+    .section {
+      padding-block: clamp(48px, 8vw, var(--gap-4xl));
+    }
+    .section + .section { border-top: 1px solid var(--border); }
+
+    .stack { display: flex; flex-direction: column; }
+    .stack > * + * { margin-top: var(--gap-md); }
+    .row { display: flex; align-items: center; gap: var(--gap-md); }
+    .row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--gap-md); }
+
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--gap-lg); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap-lg); }
+    @media (max-width: 920px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+
+    .h1, h1 { font-family: var(--font-display); font-size: var(--fs-h1); line-height: 1.08; letter-spacing: -0.025em; font-weight: 700; }
+    .h2, h2 { font-family: var(--font-display); font-size: var(--fs-h2); line-height: 1.12; letter-spacing: -0.018em; font-weight: 600; }
+    .h3, h3 { font-family: var(--font-display); font-size: var(--fs-h3); line-height: 1.3; letter-spacing: -0.005em; font-weight: 600; }
+    .lead   { font-size: var(--fs-lead); line-height: 1.6; color: var(--muted); max-width: 52ch; }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: var(--fs-xs);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 500;
+    }
+    .meta { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--muted); }
+    .num  { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+    /* ─── topnav ────────────────────────────────────────────────────── */
+    .topnav {
+      position: sticky; top: 0; z-index: 100;
+      background: color-mix(in oklch, var(--bg) 92%, transparent);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .topnav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-block: 14px;
+    }
+    .topnav .logo {
+      font-family: var(--font-display);
+      font-size: 20px; font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .topnav .logo-mark {
+      width: 28px; height: 28px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: grid; place-items: center;
+      color: white;
+      font-size: 14px;
+    }
+    .topnav nav { display: flex; gap: var(--gap-xl); }
+    .topnav nav a { font-size: 15px; color: var(--muted); transition: color var(--duration-fast); }
+    .topnav nav a:hover { color: var(--fg); }
+    .topnav .nav-mobile-toggle { display: none; width: 40px; height: 40px; place-items: center; border-radius: var(--radius-full); }
+    .topnav .nav-mobile-toggle:hover { background: var(--fg-soft); }
+    @media (max-width: 640px) {
+      .topnav nav { display: none; }
+      .topnav .nav-mobile-toggle { display: grid; }
+    }
+
+    /* ─── buttons ───────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 24px;
+      border-radius: var(--radius);
+      font-size: 15px; font-weight: 600;
+      font-family: var(--font-display);
+      letter-spacing: -0.005em;
+      transition: transform var(--duration-fast) ease, background var(--duration-normal) ease, box-shadow var(--duration-normal) ease;
+      white-space: nowrap;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 1px 3px oklch(62% 0.16 145 / 0.25);
+    }
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 4px 12px oklch(62% 0.16 145 / 0.3);
+    }
+    .btn-secondary {
+      background: transparent;
+      color: var(--fg);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--fg); }
+    .btn-ghost { background: transparent; color: var(--accent); padding-inline: 12px; }
+    .btn-ghost:hover { color: var(--accent-hover); }
+    .btn-arrow::after { content: '\2192'; transition: transform var(--duration-normal) var(--ease-out); margin-left: 2px; }
+    .btn-arrow:hover::after { transform: translateX(3px); }
+
+    /* ─── card ──────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-xs);
+      transition: box-shadow var(--duration-normal) ease, transform var(--duration-normal) ease;
+    }
+    .card:hover { box-shadow: var(--shadow-sm); }
+    .card-flat { background: transparent; border: 0; padding: 0; box-shadow: none; }
+
+    /* ─── feature cell ──────────────────────────────────────────────── */
+    .feature .feature-icon {
+      width: 44px; height: 44px;
+      display: grid; place-items: center;
+      background: var(--accent-soft);
+      border-radius: 12px;
+      margin-bottom: var(--gap-lg);
+    }
+    .feature .feature-icon svg { width: 22px; height: 22px; color: var(--accent); }
+    .feature h3 { margin-bottom: 8px; }
+    .feature p  { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.6; }
+
+    /* ─── pill / chip ───────────────────────────────────────────────── */
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-radius: var(--radius-full);
+      font-family: var(--font-mono);
+      font-size: var(--fs-xs);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .tag {
+      display: inline-flex; align-items: center;
+      padding: 5px 12px;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    /* ─── hero ──────────────────────────────────────────────────────── */
+    .hero {
+      padding-block: clamp(60px, 12vw, 140px);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -20%; right: -10%;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, oklch(62% 0.16 145 / 0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-center { text-align: center; max-width: 680px; margin-inline: auto; position: relative; }
+    .hero h1 { margin-bottom: var(--gap-lg); font-size: var(--fs-hero); }
+    .hero .lead { margin-bottom: var(--gap-xl); margin-inline: auto; font-size: 20px; }
+    .hero-cta { display: inline-flex; gap: var(--gap-sm); flex-wrap: wrap; justify-content: center; }
+
+    /* ─── search mock ───────────────────────────────────────────────── */
+    .search-mock {
+      max-width: 560px;
+      margin: var(--gap-2xl) auto 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 6px;
+      box-shadow: var(--shadow-md);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .search-mock .search-icon {
+      width: 40px; height: 40px;
+      display: grid; place-items: center;
+      color: var(--accent);
+      flex-shrink: 0;
+      margin-left: 8px;
+    }
+    .search-mock .search-text {
+      flex: 1;
+      font-size: 16px;
+      color: var(--muted);
+      padding: 10px 0;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    .search-mock .search-text .typed {
+      color: var(--fg);
+      border-right: 2px solid var(--accent);
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink { 50% { border-color: transparent; } }
+    .search-mock .search-btn {
+      padding: 10px 20px;
+      background: var(--accent);
+      color: white;
+      border-radius: var(--radius);
+      font-weight: 600;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 640px) {
+      .search-mock { flex-direction: column; padding: 12px; gap: 10px; }
+      .search-mock .search-icon { margin-left: 0; }
+      .search-mock .search-text { white-space: normal; font-size: 15px; }
+      .search-mock .search-btn { width: 100%; justify-content: center; text-align: center; }
+    }
+
+    /* ─── steps section ─────────────────────────────────────────────── */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--gap-xl);
+      counter-reset: step;
+    }
+    .step-item { counter-increment: step; }
+    .step-num {
+      font-family: var(--font-display);
+      font-size: clamp(48px, 6vw, 72px);
+      font-weight: 700;
+      line-height: 1;
+      color: var(--accent-soft);
+      letter-spacing: -0.04em;
+      margin-bottom: var(--gap-md);
+      position: relative;
+    }
+    .step-num::after {
+      content: counter(step, decimal-leading-zero);
+      position: absolute;
+      top: 0; left: 0;
+      color: var(--accent);
+      opacity: 0.18;
+    }
+    .step-item h3 { margin-bottom: 8px; font-size: 20px; }
+    .step-item p { color: var(--muted); font-size: 15px; line-height: 1.6; }
+    @media (max-width: 920px) {
+      .steps-grid { grid-template-columns: 1fr; gap: var(--gap-2xl); }
+      .step-item { display: grid; grid-template-columns: 80px 1fr; gap: var(--gap-md); align-items: start; }
+      .step-num { font-size: 48px; margin-bottom: 0; }
+    }
+    @media (max-width: 480px) {
+      .step-item { grid-template-columns: 1fr; }
+      .step-num { font-size: 40px; }
+    }
+
+    /* ─── search examples ───────────────────────────────────────────── */
+    .example-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 14px;
+      transition: border-color var(--duration-normal) ease, box-shadow var(--duration-normal) ease;
+    }
+    .example-card:hover {
+      border-color: oklch(62% 0.16 145 / 0.3);
+      box-shadow: var(--shadow-sm);
+    }
+    .example-query {
+      font-family: var(--font-body);
+      font-size: 17px;
+      font-weight: 500;
+      line-height: 1.5;
+      color: var(--fg);
+    }
+    .example-query::before {
+      content: '\201C';
+      color: var(--accent);
+      font-family: var(--font-display);
+      font-size: 24px;
+      margin-right: 2px;
+      opacity: 0.6;
+    }
+    .example-query::after {
+      content: '\201D';
+      color: var(--accent);
+      font-family: var(--font-display);
+      font-size: 24px;
+      margin-left: 2px;
+      opacity: 0.6;
+    }
+    .example-meta {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+
+    /* ─── stat row ──────────────────────────────────────────────────── */
+    .stat .stat-num {
+      font-family: var(--font-display);
+      font-size: clamp(48px, 7vw, 80px);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .stat .stat-label { color: var(--muted); font-size: 15px; margin-top: 10px; max-width: 28ch; line-height: 1.5; }
+    .stat .stat-unit  { font-size: 0.5em; opacity: 0.65; margin-left: 2px; }
+
+    /* ─── cta strip ─────────────────────────────────────────────────── */
+    .cta-strip {
+      text-align: center;
+      background: linear-gradient(180deg, var(--bg) 0%, oklch(95% 0.015 145) 100%);
+    }
+
+    /* ─── footer ────────────────────────────────────────────────────── */
+    .pagefoot {
+      padding-block: var(--gap-2xl);
+      color: var(--muted);
+      font-size: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .pagefoot .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      flex-wrap: wrap;
+      gap: var(--gap-xl);
+    }
+    .footer-brand { max-width: 280px; }
+    .footer-brand .logo {
+      font-family: var(--font-display);
+      font-size: 18px; font-weight: 700;
+      color: var(--fg);
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: var(--gap-sm);
+    }
+    .footer-brand p { font-size: 14px; line-height: 1.6; color: var(--muted); }
+    .footer-links { display: flex; gap: var(--gap-2xl); flex-wrap: wrap; }
+    .footer-col h4 {
+      font-family: var(--font-display);
+      font-size: 14px; font-weight: 600;
+      color: var(--fg);
+      margin-bottom: var(--gap-sm);
+      letter-spacing: 0;
+    }
+    .footer-col a { display: block; font-size: 14px; color: var(--muted); padding: 3px 0; }
+    .footer-col a:hover { color: var(--accent); }
+    .footer-bottom {
+      margin-top: var(--gap-2xl);
+      padding-top: var(--gap-lg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--gap-md);
+      font-size: 13px;
+    }
+
+    @media (max-width: 640px) {
+      .footer-inner { flex-direction: column; }
+      .footer-brand { max-width: none; }
+      .footer-links { gap: var(--gap-xl); }
+      .footer-bottom { flex-direction: column; text-align: center; }
+    }
+
+    /* ─── scroll reveal ─────────────────────────────────────────────── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ TOPNAV ══════════════════════════════════════════════════════ -->
+  <header class="topnav" data-od-id="topnav">
+    <div class="container topnav-inner">
+      <a href="#" class="logo">
+        <span class="logo-mark">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3c-4.97 0-9 3.58-9 8s4.03 8 9 8c.71 0 1.4-.08 2.06-.22L19 21l-.78-3.46C20.04 16.21 21 14.21 21 12c0-4.42-4.03-8-9-8z"/></svg>
+        </span>
+        La Verde
+      </a>
+      <nav>
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#ejemplos">Ejemplos</a>
+        <a href="#lugares">Lugares</a>
+      </nav>
+      <button class="btn btn-primary" style="padding: 10px 18px; font-size: 14px;">
+        Unirse a la lista
+      </button>
+      <button class="nav-mobile-toggle" aria-label="Menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="content">
+
+    <!-- ═══ HERO ═══════════════════════════════════════════════════════ -->
+    <section class="section hero" data-od-id="hero">
+      <div class="container hero-center">
+        <p class="eyebrow reveal">Descubrimiento de lugares</p>
+        <h1 class="reveal reveal-delay-1">Escribe lo que buscas.<br />La Verde te lleva.</h1>
+        <p class="lead reveal reveal-delay-2">
+          Preguntale a La Verde en lenguaje natural — como le harias a un amigo — y encuentra exactamente el lugar que necesitas en Cuba.
+        </p>
+        <div class="hero-cta reveal reveal-delay-3">
+          <a href="#ejemplos" class="btn btn-primary">Probar La Verde</a>
+          <a href="#como-funciona" class="btn btn-secondary">Como funciona</a>
+        </div>
+
+        <div class="search-mock reveal reveal-delay-3">
+          <div class="search-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9.5 3.5a6 6 0 1 0 0 12 6 6 0 0 0 0-12z"/><path d="M21 21l-4.35-4.35"/></svg>
+          </div>
+          <div class="search-text" id="typing-area">
+            <span class="typed" id="typed-text"></span>
+          </div>
+          <button class="search-btn">Buscar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ COMO FUNCIONA ══════════════════════════════════════════════ -->
+    <section class="section" data-od-id="como-funciona" id="como-funciona" style="background: var(--surface);">
+      <div class="container">
+        <div style="text-align: center; max-width: 48ch; margin: 0 auto var(--gap-3xl);">
+          <p class="eyebrow reveal">Como funciona</p>
+          <h2 class="reveal reveal-delay-1">Tres pasos. Sin registros complicados.</h2>
+        </div>
+        <div class="steps-grid">
+          <div class="step-item reveal">
+            <div class="step-num"></div>
+            <div>
+              <h3>Escribe lo que quieres</h3>
+              <p>No necesitas elegir categorias ni llenar filtros. Simplemente describe lo que buscas como lo harías con un amigo: "un cafe tranquilo cerca de mi que acepte MLC".</p>
+            </div>
+          </div>
+          <div class="step-item reveal reveal-delay-1">
+            <div class="step-num"></div>
+            <div>
+              <h3>La Verde interpreta</h3>
+              <p>Nuestra IA entiende contexto cubano — monedas, barrios, horarios, ambiente. No es un buscador generico; entiende tu vida.</p>
+            </div>
+          </div>
+          <div class="step-item reveal reveal-delay-2">
+            <div class="step-num"></div>
+            <div>
+              <h3>Encuentra tu lugar</h3>
+              <p>RESULTADOS en el mapa con direccion exacta, recomendaciones personalizadas y toda la info que necesitas para llegar.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ EJEMPLOS DE BUSQUEDA ═══════════════════════════════════════ -->
+    <section class="section" data-od-id="ejemplos" id="ejemplos">
+      <div class="container">
+        <div style="max-width: 48ch; margin-bottom: var(--gap-2xl);">
+          <p class="eyebrow reveal">Busquedas reales</p>
+          <h2 class="reveal reveal-delay-1">Asi habla Cuba con La Verde</h2>
+          <p class="lead reveal reveal-delay-2" style="margin-top: 12px;">Ejemplos de como los usuarios encuentran lugares con lenguaje natural.</p>
+        </div>
+        <div class="grid-3">
+          <div class="example-card reveal">
+            <p class="example-query">Quiero un cafe tranquilo cerca de mi que acepte MLC</p>
+            <div class="example-meta">
+              <span class="pill">cafeteria</span>
+              <span class="tag">MLC</span>
+              <span class="tag">tranquilo</span>
+            </div>
+          </div>
+          <div class="example-card reveal reveal-delay-1">
+            <p class="example-query">Restaurante con vista al mar para una cena romantica este viernes</p>
+            <div class="example-meta">
+              <span class="pill">restaurante</span>
+              <span class="tag">vista al mar</span>
+              <span class="tag">romantico</span>
+            </div>
+          </div>
+          <div class="example-card reveal reveal-delay-2">
+            <p class="example-query">Discoteca que toque reggaeton cubano y este abierta despues de la 1am</p>
+            <div class="example-meta">
+              <span class="pill">vida nocturna</span>
+              <span class="tag">reggaeton</span>
+              <span class="tag">tarde</span>
+            </div>
+          </div>
+          <div class="example-card reveal reveal-delay-1">
+            <p class="example-query">Mercado donde vendan frutas frescas baratas cerca del Vedado</p>
+            <div class="example-meta">
+              <span class="pill">mercado</span>
+              <span class="tag">frutas</span>
+              <span class="tag">barato</span>
+            </div>
+          </div>
+          <div class="example-card reveal reveal-delay-2">
+            <p class="example-query">Lugar para trabajar con wifi estable y cafe bueno en La Habana</p>
+            <div class="example-meta">
+              <span class="pill">coworking</span>
+              <span class="tag">wifi</span>
+              <span class="tag">productivo</span>
+            </div>
+          </div>
+          <div class="example-card reveal reveal-delay-3">
+            <p class="example-query">Bar de tequila con musica en vivo que no sea carisimo</p>
+            <div class="example-meta">
+              <span class="pill">bar</span>
+              <span class="tag">tequila</span>
+              <span class="tag">musica en vivo</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ FEATURES ═══════════════════════════════════════════════════ -->
+    <section class="section" data-od-id="features" style="background: var(--surface);">
+      <div class="container">
+        <div style="text-align: center; max-width: 42ch; margin: 0 auto var(--gap-3xl);">
+          <p class="eyebrow reveal">Por que La Verde</p>
+          <h2 class="reveal reveal-delay-1">No es otro buscador de Google.</h2>
+        </div>
+        <div class="grid-3">
+          <div class="feature card-flat reveal">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c-4.97 0-9 3.58-9 8s4.03 8 9 8c.71 0 1.4-.08 2.06-.22L19 21l-.78-3.46C20.04 16.21 21 14.21 21 12c0-4.42-4.03-8-9-8z"/><path d="M10 9.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5-1.5.67-1.5 1.5"/></svg>
+            </div>
+            <h3>IA que entiende Cuba</h3>
+            <p>No es un chatbot generico. La Verde conoce barrios, monedas, horarios y costumbres cubanas para darte resultados reales.</p>
+          </div>
+          <div class="feature card-flat reveal reveal-delay-1">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m10-10h-4M6 12H2m15.07-7.07l-2.83 2.83M9.76 14.24l-2.83 2.83m0-10.14l2.83 2.83m4.48 4.48l2.83 2.83"/></svg>
+            </div>
+            <h3>Recomendaciones contextualizadas</h3>
+            <p>La Verde no solo busca — recomienda segun tu ubicacion, la hora, tu humor y lo que buscas. Como un amigo que siempre sabe.</p>
+          </div>
+          <div class="feature card-flat reveal reveal-delay-2">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            </div>
+            <h3>Rapido incluso sin datos</h3>
+            <p>Funciona con conexion lenta. Tiles ligeros, cache inteligente y skeleton states para que nunca veas una pantalla en blanco.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ STATS ═══════════════════════════════════════════════════════ -->
+    <section class="section" data-od-id="stats">
+      <div class="container">
+        <div class="grid-3">
+          <div class="stat reveal">
+            <div class="stat-num num">3</div>
+            <p class="stat-label">Tipos de moneda reconocidos: CUP, MLC y USD.</p>
+          </div>
+          <div class="stat reveal reveal-delay-1">
+            <div class="stat-num num">15<span class="stat-unit">+</span></div>
+            <p class="stat-label">Categorias de lugares cubanos, de cafeteria a bodega.</p>
+          </div>
+          <div class="stat reveal reveal-delay-2">
+            <div class="stat-num num">~2<span class="stat-unit">s</span></div>
+            <p class="stat-label">Tiempo promedio de busqueda a resultado en conexion 3G.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ CTA ═════════════════════════════════════════════════════════ -->
+    <section class="section cta-strip" data-od-id="cta-strip">
+      <div class="container" style="max-width: 560px;">
+        <h2 class="reveal">Descubre Cuba como nunca.</h2>
+        <p class="lead reveal reveal-delay-1" style="margin: 16px auto 32px; text-align: center;">
+          Unete a la lista de espera y se de los primeros en probar La Verde cuando lancemos.
+        </p>
+        <div class="reveal reveal-delay-2" style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+          <a href="#" class="btn btn-primary">Unirse a la lista de espera</a>
+          <a href="#" class="btn btn-secondary">Saber mas</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══ FOOTER ═══════════════════════════════════════════════════════ -->
+  <footer class="pagefoot" data-od-id="footer">
+    <div class="container">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <div class="logo">
+            <span class="logo-mark" style="width:24px;height:24px;border-radius:6px;font-size:12px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3c-4.97 0-9 3.58-9 8s4.03 8 9 8c.71 0 1.4-.08 2.06-.22L19 21l-.78-3.46C20.04 16.21 21 14.21 21 12c0-4.42-4.03-8-9-8z"/></svg>
+            </span>
+            La Verde
+          </div>
+          <p>La plataforma de descubrimiento de lugares en Cuba. Encuentra lo que buscas hablando como hablas.</p>
+        </div>
+        <div class="footer-links">
+          <div class="footer-col">
+            <h4>Producto</h4>
+            <a href="#">Como funciona</a>
+            <a href="#">Ejemplos de busqueda</a>
+            <a href="#">Lugares destacados</a>
+            <a href="#">Para negocios</a>
+          </div>
+          <div class="footer-col">
+            <h4>Legal</h4>
+            <a href="#">Privacidad</a>
+            <a href="#">Terminos</a>
+            <a href="#">Cookies</a>
+          </div>
+          <div class="footer-col">
+            <h4>Contacto</h4>
+            <a href="#">hola@laverde.cu</a>
+            <a href="#">Instagram</a>
+            <a href="#">Telegram</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; 2026 La Verde. Hecho en Cuba.</span>
+        <span class="meta">Descubre. Explora. Vive.</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ═══ SCRIPTS ══════════════════════════════════════════════════════ -->
+  <script>
+    /* ─── Typing animation ───────────────────────────────────────────── */
+    const phrases = [
+      'Un cafe tranquilo cerca de mi que acepte MLC',
+      'Restaurante con vista al mar para hoy',
+      'Donde puedo comprar frutas baratas en Vedado',
+      'Bar que toque son cubano esta noche',
+      'Lugar con wifi para trabajar remoto'
+    ];
+    const typedEl = document.getElementById('typed-text');
+    let phraseIdx = 0, charIdx = 0, isDeleting = false;
+
+    function typeStep() {
+      const current = phrases[phraseIdx];
+      if (!isDeleting) {
+        typedEl.textContent = current.substring(0, charIdx + 1);
+        charIdx++;
+        if (charIdx === current.length) {
+          isDeleting = true;
+          setTimeout(typeStep, 2000);
+          return;
+        }
+        setTimeout(typeStep, 55 + Math.random() * 35);
+      } else {
+        typedEl.textContent = current.substring(0, charIdx - 1);
+        charIdx--;
+        if (charIdx === 0) {
+          isDeleting = false;
+          phraseIdx = (phraseIdx + 1) % phrases.length;
+          setTimeout(typeStep, 400);
+          return;
+        }
+        setTimeout(typeStep, 30);
+      }
+    }
+    typeStep();
+
+    /* ─── Scroll reveal ──────────────────────────────────────────────── */
+    const reveals = document.querySelectorAll('.reveal');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+    reveals.forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>

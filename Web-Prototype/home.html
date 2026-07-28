@@ -1,0 +1,941 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>La Verde — Home</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:      oklch(98% 0.005 85);
+      --surface: oklch(100% 0 0);
+      --fg:      oklch(18% 0.01 250);
+      --muted:   oklch(52% 0.01 250);
+      --border:  oklch(90% 0.004 250);
+      --accent:  oklch(62% 0.16 145);
+      --accent-soft: oklch(62% 0.16 145 / 0.10);
+      --accent-hover: oklch(54% 0.15 145);
+      --success:  oklch(70% 0.12 175);
+      --warning:  oklch(75% 0.15 75);
+      --danger:   oklch(60% 0.20 25);
+      --amber:    oklch(75% 0.15 75);
+      --scrim:    oklch(15% 0.01 250 / 0.45);
+
+      --font-display: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-body:    'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-mono:    'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, monospace;
+
+      --fs-h2:    clamp(24px, 3vw, 36px);
+      --fs-h3:    20px;
+      --fs-body:  16px;
+      --fs-small: 14px;
+      --fs-meta:  13px;
+      --fs-xs:    11px;
+
+      --gap-xs:  8px;
+      --gap-sm:  12px;
+      --gap-md:  16px;
+      --gap-lg:  24px;
+      --gap-xl:  32px;
+
+      --radius-sm:   6px;
+      --radius:      10px;
+      --radius-lg:   14px;
+      --radius-xl:   20px;
+      --radius-full: 999px;
+
+      --shadow-xs:  0 1px 2px oklch(18% 0.01 250 / 0.04);
+      --shadow-sm:  0 2px 8px oklch(18% 0.01 250 / 0.06);
+      --shadow-md:  0 4px 16px oklch(18% 0.01 250 / 0.08);
+      --shadow-lg:  0 8px 32px oklch(18% 0.01 250 / 0.10);
+      --shadow-xl:  0 -4px 24px oklch(18% 0.01 250 / 0.12);
+
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --duration-fast: 120ms;
+      --duration-normal: 200ms;
+      --duration-slow: 400ms;
+
+      --header-h: 60px;
+      --bottom-safe: env(safe-area-inset-bottom, 0px);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: var(--font-body);
+      font-size: var(--fs-body);
+      line-height: 1.5;
+      color: var(--fg);
+      background: #e8e4df;
+      overflow: hidden;
+      height: 100dvh;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font: inherit; cursor: pointer; border: none; background: none; }
+    a { color: inherit; text-decoration: none; }
+    img { display: block; max-width: 100%; }
+
+    /* ─── HEADER ─────────────────────────────────────────────────────── */
+    .app-header {
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 200;
+      height: var(--header-h);
+      background: oklch(100% 0 0 / 0.95);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+    }
+    .header-logo {
+      font-family: var(--font-display);
+      font-size: 18px; font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex; align-items: center; gap: 8px;
+      flex-shrink: 0;
+      color: var(--fg);
+    }
+    .header-logo .logo-mark {
+      width: 30px; height: 30px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: grid; place-items: center;
+      color: white;
+    }
+    .header-search {
+      flex: 1;
+      display: flex; align-items: center; gap: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0 14px;
+      height: 42px;
+      transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
+      cursor: text;
+    }
+    .header-search:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .header-search svg { color: var(--accent); flex-shrink: 0; }
+    .header-search input {
+      flex: 1; border: none; background: none; outline: none;
+      font: inherit; font-size: 15px; color: var(--fg);
+      min-width: 0;
+    }
+    .header-search input::placeholder { color: var(--muted); }
+    .header-avatar {
+      width: 36px; height: 36px;
+      border-radius: var(--radius-full);
+      background: var(--accent-soft);
+      border: 2px solid var(--border);
+      display: grid; place-items: center;
+      color: var(--accent);
+      font-family: var(--font-display);
+      font-weight: 700; font-size: 14px;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: border-color var(--duration-fast);
+    }
+    .header-avatar:hover { border-color: var(--accent); }
+
+    /* ─── MAP AREA ───────────────────────────────────────────────────── */
+    .map-area {
+      position: fixed;
+      top: var(--header-h); left: 0; right: 0;
+      bottom: 0;
+      background:
+        /* Streets pattern */
+        linear-gradient(90deg, oklch(88% 0.008 85 / 0.6) 1px, transparent 1px),
+        linear-gradient(0deg, oklch(88% 0.008 85 / 0.6) 1px, transparent 1px),
+        /* Major roads */
+        linear-gradient(90deg, transparent 48%, oklch(85% 0.012 85) 48%, oklch(85% 0.012 85) 52%, transparent 52%),
+        linear-gradient(0deg, transparent 30%, oklch(85% 0.012 85) 30%, oklch(85% 0.012 85) 33%, transparent 33%),
+        /* Water */
+        radial-gradient(ellipse at 85% 20%, oklch(78% 0.06 230 / 0.25) 0%, transparent 50%),
+        /* Parks */
+        radial-gradient(circle at 20% 60%, oklch(82% 0.08 145 / 0.2) 0%, transparent 15%),
+        radial-gradient(circle at 65% 75%, oklch(82% 0.08 145 / 0.15) 0%, transparent 10%),
+        /* Base */
+        oklch(92% 0.008 85);
+      background-size:
+        40px 40px,
+        40px 40px,
+        100% 100%,
+        100% 100%,
+        100% 100%,
+        100% 100%,
+        100% 100%,
+        100% 100%;
+    }
+
+    /* ─── MAP MARKERS ────────────────────────────────────────────────── */
+    .map-marker {
+      position: absolute;
+      width: 32px; height: 32px;
+      border-radius: var(--radius-full);
+      display: grid; place-items: center;
+      cursor: pointer;
+      transition: transform var(--duration-normal) var(--ease-out), box-shadow var(--duration-normal);
+      z-index: 10;
+    }
+    .map-marker:hover { transform: scale(1.15); z-index: 15; }
+    .map-marker--default {
+      background: var(--accent);
+      box-shadow: 0 2px 8px oklch(62% 0.16 145 / 0.35);
+    }
+    .map-marker--default svg { color: white; }
+    .map-marker--boosted {
+      width: 40px; height: 40px;
+      background: var(--amber);
+      box-shadow: 0 3px 12px oklch(75% 0.15 75 / 0.4);
+      border: 3px solid white;
+    }
+    .map-marker--boosted svg { color: white; }
+    .map-marker--selected {
+      width: 44px; height: 44px;
+      background: var(--accent);
+      box-shadow: 0 4px 16px oklch(62% 0.16 145 / 0.45);
+      border: 3px solid white;
+    }
+    .map-marker--selected svg { color: white; width: 20px; height: 20px; }
+    .map-marker .marker-pulse {
+      position: absolute;
+      width: 100%; height: 100%;
+      border-radius: var(--radius-full);
+      background: var(--accent);
+      opacity: 0;
+      animation: pulse 2s ease-out infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 0.4; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+
+    /* ─── MAP CONTROLS ───────────────────────────────────────────────── */
+    .map-controls {
+      position: absolute;
+      right: 16px; bottom: 180px;
+      display: flex; flex-direction: column; gap: 2px;
+      z-index: 20;
+    }
+    .map-ctrl-btn {
+      width: 40px; height: 40px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: grid; place-items: center;
+      color: var(--fg);
+      transition: background var(--duration-fast);
+    }
+    .map-ctrl-btn:first-child { border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+    .map-ctrl-btn:last-child { border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+    .map-ctrl-btn:hover { background: var(--bg); }
+    .map-ctrl-btn + .map-ctrl-btn { border-top: none; }
+
+    .map-locate-btn {
+      position: absolute;
+      right: 16px; bottom: 240px;
+      width: 44px; height: 44px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      display: grid; place-items: center;
+      color: var(--accent);
+      box-shadow: var(--shadow-sm);
+      z-index: 20;
+      transition: background var(--duration-fast), box-shadow var(--duration-fast);
+    }
+    .map-locate-btn:hover {
+      background: var(--accent-soft);
+      box-shadow: var(--shadow-md);
+    }
+
+    /* ─── CATEGORY CHIPS ─────────────────────────────────────────────── */
+    .category-bar {
+      position: absolute;
+      top: 12px; left: 0; right: 0;
+      padding: 0 16px;
+      z-index: 20;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      display: flex; gap: 8px;
+    }
+    .category-bar::-webkit-scrollbar { display: none; }
+    .chip {
+      flex-shrink: 0;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      font-family: var(--font-display);
+      font-size: 13px; font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all var(--duration-normal);
+      white-space: nowrap;
+      box-shadow: var(--shadow-xs);
+    }
+    .chip:hover { border-color: var(--accent); color: var(--accent); }
+    .chip.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+      box-shadow: 0 2px 8px oklch(62% 0.16 145 / 0.3);
+    }
+    .chip svg { width: 16px; height: 16px; }
+
+    /* ─── BOTTOM SHEET ───────────────────────────────────────────────── */
+    .bottom-sheet {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      background: var(--surface);
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+      box-shadow: var(--shadow-xl);
+      z-index: 300;
+      transition: transform var(--duration-slow) var(--ease-out);
+      max-height: 70vh;
+      display: flex; flex-direction: column;
+      padding-bottom: var(--bottom-safe);
+    }
+    .bottom-sheet.peek {
+      transform: translateY(calc(100% - 120px));
+    }
+    .bottom-sheet.half {
+      transform: translateY(calc(100% - 50vh));
+    }
+    .bottom-sheet.full {
+      transform: translateY(0);
+    }
+
+    .sheet-handle {
+      display: flex; justify-content: center;
+      padding: 10px 0 6px;
+      cursor: grab;
+      flex-shrink: 0;
+    }
+    .sheet-handle:active { cursor: grabbing; }
+    .sheet-handle-bar {
+      width: 36px; height: 4px;
+      background: var(--border);
+      border-radius: var(--radius-full);
+    }
+
+    .sheet-header {
+      padding: 0 20px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sheet-header h2 {
+      font-family: var(--font-display);
+      font-size: 18px; font-weight: 700;
+      letter-spacing: -0.01em;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .sheet-header h2 .ai-badge {
+      font-family: var(--font-mono);
+      font-size: 10px; font-weight: 500;
+      background: var(--accent-soft);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .sheet-header p {
+      font-size: 14px; color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .sheet-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 20px 20px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* ─── PLACE CARDS ────────────────────────────────────────────────── */
+    .place-list { display: flex; flex-direction: column; gap: 12px; }
+    .place-card {
+      display: flex; gap: 14px;
+      padding: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      cursor: pointer;
+      transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
+    }
+    .place-card:hover {
+      border-color: oklch(62% 0.16 145 / 0.3);
+      box-shadow: var(--shadow-sm);
+    }
+    .place-card.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+    .place-thumb {
+      width: 64px; height: 64px;
+      border-radius: var(--radius);
+      flex-shrink: 0;
+      display: grid; place-items: center;
+      font-size: 28px;
+      background: linear-gradient(135deg, var(--accent-soft), oklch(88% 0.06 145 / 0.15));
+    }
+    .place-info { flex: 1; min-width: 0; }
+    .place-name {
+      font-family: var(--font-display);
+      font-size: 16px; font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .place-category {
+      font-size: 13px; color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .place-meta {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .place-rating {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-family: var(--font-mono);
+      font-size: 12px; font-weight: 500;
+      color: var(--warning);
+    }
+    .place-distance {
+      font-family: var(--font-mono);
+      font-size: 12px; color: var(--muted);
+    }
+    .place-price {
+      font-family: var(--font-mono);
+      font-size: 12px; color: var(--muted);
+    }
+    .place-tags {
+      display: flex; gap: 4px; flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .place-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      background: var(--bg);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .place-tag--mlc {
+      background: oklch(75% 0.15 75 / 0.1);
+      color: var(--amber);
+      border-color: oklch(75% 0.15 75 / 0.2);
+    }
+    .place-tag--open {
+      background: oklch(70% 0.12 175 / 0.1);
+      color: var(--success);
+      border-color: oklch(70% 0.12 175 / 0.2);
+    }
+
+    .place-actions {
+      display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; flex-shrink: 0;
+    }
+    .place-action-btn {
+      width: 32px; height: 32px;
+      border-radius: var(--radius-full);
+      display: grid; place-items: center;
+      color: var(--muted);
+      transition: color var(--duration-fast), background var(--duration-fast);
+    }
+    .place-action-btn:hover { color: var(--accent); background: var(--accent-soft); }
+    .place-action-btn.liked { color: var(--danger); }
+
+    /* ─── AI RECOMMENDATION BANNER ───────────────────────────────────── */
+    .ai-banner {
+      display: flex; align-items: start; gap: 12px;
+      padding: 14px 16px;
+      background: linear-gradient(135deg, oklch(62% 0.16 145 / 0.06), oklch(62% 0.16 145 / 0.02));
+      border: 1px solid oklch(62% 0.16 145 / 0.15);
+      border-radius: var(--radius-lg);
+      margin-bottom: 16px;
+    }
+    .ai-banner-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: var(--accent);
+      display: grid; place-items: center;
+      color: white;
+      flex-shrink: 0;
+    }
+    .ai-banner-text {
+      font-size: 14px; line-height: 1.5; color: var(--fg);
+    }
+    .ai-banner-text strong { font-weight: 600; }
+
+    /* ─── EMPTY STATE ────────────────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .empty-icon {
+      width: 64px; height: 64px;
+      border-radius: var(--radius-full);
+      background: var(--accent-soft);
+      display: grid; place-items: center;
+      margin: 0 auto 16px;
+      color: var(--accent);
+    }
+    .empty-state h3 {
+      font-family: var(--font-display);
+      font-size: 18px; font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .empty-state p { font-size: 14px; color: var(--muted); max-width: 28ch; margin: 0 auto; }
+
+    /* ─── SKELETON LOADING ───────────────────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg) 25%, oklch(94% 0.006 85) 50%, var(--bg) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s ease-in-out infinite;
+      border-radius: var(--radius);
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .skeleton-card {
+      display: flex; gap: 14px; padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+    }
+    .skeleton-thumb { width: 64px; height: 64px; border-radius: var(--radius); flex-shrink: 0; }
+    .skeleton-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+    .skeleton-line { height: 14px; border-radius: 4px; }
+    .skeleton-line--short { width: 40%; }
+    .skeleton-line--medium { width: 65%; }
+    .skeleton-line--long { width: 85%; }
+
+    /* ─── SCROLL INDICATOR ───────────────────────────────────────────── */
+    .sheet-scroll-hint {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 40px;
+      background: linear-gradient(transparent, var(--surface));
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* ─── DESKTOP ADAPTATIONS ────────────────────────────────────────── */
+    @media (min-width: 1024px) {
+      .app-header { padding: 0 24px; }
+      .header-search { max-width: 480px; margin: 0 auto; }
+
+      .bottom-sheet {
+        left: auto;
+        right: 20px;
+        bottom: 20px;
+        width: 400px;
+        max-height: calc(100vh - var(--header-h) - 40px);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-lg);
+      }
+      .bottom-sheet.peek {
+        transform: translateY(calc(100% - 100px));
+      }
+      .bottom-sheet.half {
+        transform: translateY(calc(100% - 55vh));
+      }
+
+      .map-controls { bottom: 200px; right: 440px; }
+      .map-locate-btn { bottom: 260px; right: 440px; }
+    }
+
+    /* ─── MOBILE TWEAKS ──────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      :root { --header-h: 56px; }
+      .header-logo .logo-text { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ HEADER ══════════════════════════════════════════════════════ -->
+  <header class="app-header">
+    <a href="index.html" class="header-logo">
+      <span class="logo-mark">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3c-4.97 0-9 3.58-9 8s4.03 8 9 8c.71 0 1.4-.08 2.06-.22L19 21l-.78-3.46C20.04 16.21 21 14.21 21 12c0-4.42-4.03-8-9-8z"/></svg>
+      </span>
+      <span class="logo-text">La Verde</span>
+    </a>
+
+    <div class="header-search" id="search-bar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9.5 3.5a6 6 0 1 0 0 12 6 6 0 0 0 0-12z"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="text" placeholder="Que buscas hoy..." id="search-input" autocomplete="off" />
+    </div>
+
+    <button class="header-avatar" aria-label="Perfil">M</button>
+  </header>
+
+  <!-- ═══ MAP ═════════════════════════════════════════════════════════ -->
+  <div class="map-area" id="map-area">
+    <!-- Category chips -->
+    <div class="category-bar" id="category-bar">
+      <button class="chip active" data-cat="all">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>
+        Todo
+      </button>
+      <button class="chip" data-cat="cafe">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><path d="M6 2v3"/><path d="M10 2v3"/></svg>
+        Cafeterias
+      </button>
+      <button class="chip" data-cat="restaurante">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>
+        Restaurantes
+      </button>
+      <button class="chip" data-cat="vida">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        Vida nocturna
+      </button>
+      <button class="chip" data-cat="mercado">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        Mercados
+      </button>
+      <button class="chip" data-cat="playa">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21a1 1 0 0 0 1-1v-5.35c0-.528.224-1.034.633-1.414L20 9l-2.667-2.667a1 1 0 0 0-.707-.293H7.374a1 1 0 0 0-.707.293L4 9l1.367 3.166c.209.19.367.452.433.748"/><circle cx="12" cy="4" r="2"/><path d="M4 21h16"/><path d="M8 21V11"/><path d="M16 21V11"/></svg>
+        Playas
+      </button>
+    </div>
+
+    <!-- Map markers (simulated positions) -->
+    <div class="map-marker map-marker--default" style="top: 28%; left: 35%;" data-place="1">
+      <div class="marker-pulse"></div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/></svg>
+    </div>
+    <div class="map-marker map-marker--default" style="top: 45%; left: 55%;" data-place="2">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/></svg>
+    </div>
+    <div class="map-marker map-marker--boosted" style="top: 38%; left: 68%;" data-place="3">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+    </div>
+    <div class="map-marker map-marker--default" style="top: 60%; left: 25%;" data-place="4">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/></svg>
+    </div>
+    <div class="map-marker map-marker--default" style="top: 52%; left: 42%;" data-place="5">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+    </div>
+    <div class="map-marker map-marker--selected" style="top: 35%; left: 48%;" data-place="6">
+      <div class="marker-pulse"></div>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    </div>
+
+    <!-- Map controls -->
+    <div class="map-controls">
+      <button class="map-ctrl-btn" aria-label="Acercar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <button class="map-ctrl-btn" aria-label="Alejar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg>
+      </button>
+    </div>
+    <button class="map-locate-btn" aria-label="Mi ubicacion">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg>
+    </button>
+  </div>
+
+  <!-- ═══ BOTTOM SHEET ════════════════════════════════════════════════ -->
+  <div class="bottom-sheet peek" id="bottom-sheet">
+    <div class="sheet-handle" id="sheet-handle">
+      <div class="sheet-handle-bar"></div>
+    </div>
+
+    <div class="sheet-header">
+      <h2>
+        Recomendaciones
+        <span class="ai-badge">IA</span>
+      </h2>
+      <p>Lugares cerca de ti en La Habana</p>
+    </div>
+
+    <div class="sheet-content" id="sheet-content">
+      <!-- AI recommendation banner -->
+      <div class="ai-banner">
+        <div class="ai-banner-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3c-4.97 0-9 3.58-9 8s4.03 8 9 8c.71 0 1.4-.08 2.06-.22L19 21l-.78-3.46C20.04 16.21 21 14.21 21 12c0-4.42-4.03-8-9-8z"/></svg>
+        </div>
+        <div class="ai-banner-text">
+          Encontre <strong>6 lugares</strong> que coinciden con lo que buscas. El mejor match es <strong>Cafe El Ignoto</strong> — esta a 3 min caminando y acepta MLC.
+        </div>
+      </div>
+
+      <!-- Place list -->
+      <div class="place-list" id="place-list">
+        <div class="place-card selected" data-id="6">
+          <div class="place-thumb">☕</div>
+          <div class="place-info">
+            <div class="place-name">Cafe El Ignoto</div>
+            <div class="place-category">Cafeteria · Vedado</div>
+            <div class="place-meta">
+              <span class="place-rating">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                4.8
+              </span>
+              <span class="place-distance">350m</span>
+              <span class="place-price">$5-12 MLC</span>
+            </div>
+            <div class="place-tags">
+              <span class="place-tag place-tag--mlc">MLC</span>
+              <span class="place-tag place-tag--open">Abierto</span>
+              <span class="place-tag">Tranquilo</span>
+            </div>
+          </div>
+          <div class="place-actions">
+            <button class="place-action-btn liked" aria-label="Favorito">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </button>
+            <button class="place-action-btn" aria-label="Direccion">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="place-card" data-id="1">
+          <div class="place-thumb">🍰</div>
+          <div class="place-info">
+            <div class="place-name">Pasteleria La Habanera</div>
+            <div class="place-category">Cafeteria · Centro Habana</div>
+            <div class="place-meta">
+              <span class="place-rating">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                4.5
+              </span>
+              <span class="place-distance">800m</span>
+              <span class="place-price">$3-8 MLC</span>
+            </div>
+            <div class="place-tags">
+              <span class="place-tag place-tag--mlc">MLC</span>
+              <span class="place-tag place-tag--open">Abierto</span>
+            </div>
+          </div>
+          <div class="place-actions">
+            <button class="place-action-btn" aria-label="Favorito">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </button>
+            <button class="place-action-btn" aria-label="Direccion">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="place-card" data-id="3">
+          <div class="place-thumb">🍽️</div>
+          <div class="place-info">
+            <div class="place-name">La Guarida</div>
+            <div class="place-category">Restaurante · Centro Habana</div>
+            <div class="place-meta">
+              <span class="place-rating">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                4.9
+              </span>
+              <span class="place-distance">1.2km</span>
+              <span class="place-price">$15-35 MLC</span>
+            </div>
+            <div class="place-tags">
+              <span class="place-tag place-tag--mlc">MLC</span>
+              <span class="place-tag place-tag--open">Abierto</span>
+              <span class="place-tag">Vista al mar</span>
+            </div>
+          </div>
+          <div class="place-actions">
+            <button class="place-action-btn" aria-label="Favorito">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </button>
+            <button class="place-action-btn" aria-label="Direccion">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="place-card" data-id="5">
+          <div class="place-thumb">🎵</div>
+          <div class="place-info">
+            <div class="place-name">Fabrica de Arte</div>
+            <div class="place-category">Vida nocturna · Vedado</div>
+            <div class="place-meta">
+              <span class="place-rating">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                4.7
+              </span>
+              <span class="place-distance">650m</span>
+              <span class="place-price">$8-20 MLC</span>
+            </div>
+            <div class="place-tags">
+              <span class="place-tag place-tag--mlc">MLC</span>
+              <span class="place-tag">Musica en vivo</span>
+            </div>
+          </div>
+          <div class="place-actions">
+            <button class="place-action-btn" aria-label="Favorito">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </button>
+            <button class="place-action-btn" aria-label="Direccion">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="place-card" data-id="4">
+          <div class="place-thumb">🛍️</div>
+          <div class="place-info">
+            <div class="place-name">Mercado de San Jose</div>
+            <div class="place-category">Mercado · Habana Vieja</div>
+            <div class="place-meta">
+              <span class="place-rating">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                4.2
+              </span>
+              <span class="place-distance">2.1km</span>
+              <span class="place-price">CUP</span>
+            </div>
+            <div class="place-tags">
+              <span class="place-tag place-tag--open">Abierto</span>
+              <span class="place-tag">Frutas frescas</span>
+              <span class="place-tag">Barato</span>
+            </div>
+          </div>
+          <div class="place-actions">
+            <button class="place-action-btn" aria-label="Favorito">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </button>
+            <button class="place-action-btn" aria-label="Direccion">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sheet-scroll-hint"></div>
+  </div>
+
+  <!-- ═══ SCRIPTS ══════════════════════════════════════════════════════ -->
+  <script>
+    /* ─── Bottom sheet drag ──────────────────────────────────────────── */
+    const sheet = document.getElementById('bottom-sheet');
+    const handle = document.getElementById('sheet-handle');
+    let startY = 0, startTranslate = 0, currentPhase = 'peek';
+
+    const phases = { peek: 0, half: 1, full: 2 };
+    const phaseList = ['peek', 'half', 'full'];
+
+    function getTranslateY() {
+      const style = getComputedStyle(sheet);
+      const matrix = new DOMMatrixReadOnly(style.transform);
+      return matrix.m42;
+    }
+
+    function setPhase(phase) {
+      sheet.classList.remove('peek', 'half', 'full');
+      sheet.classList.add(phase);
+      currentPhase = phase;
+    }
+
+    handle.addEventListener('pointerdown', (e) => {
+      startY = e.clientY;
+      startTranslate = getTranslateY();
+      sheet.style.transition = 'none';
+      sheet.setPointerCapture(e.pointerId);
+
+      const onMove = (ev) => {
+        const dy = ev.clientY - startY;
+        const newY = Math.min(0, Math.max(startTranslate + dy, -(window.innerHeight * 0.7)));
+        sheet.style.transform = `translateY(${newY}px)`;
+      };
+
+      const onUp = (ev) => {
+        sheet.removeEventListener('pointermove', onMove);
+        sheet.removeEventListener('pointerup', onUp);
+        sheet.style.transition = '';
+        const finalY = getTranslateY();
+        const vh = window.innerHeight;
+        const ratio = -finalY / vh;
+
+        if (ratio < 0.2) setPhase('full');
+        else if (ratio < 0.5) setPhase('half');
+        else setPhase('peek');
+      };
+
+      sheet.addEventListener('pointermove', onMove);
+      sheet.addEventListener('pointerup', onUp);
+    });
+
+    /* tap handle to cycle */
+    handle.addEventListener('click', () => {
+      const idx = phases[currentPhase];
+      const next = phaseList[(idx + 1) % 3];
+      setPhase(next);
+    });
+
+    /* ─── Category chips ────────────────────────────────────────────── */
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+      });
+    });
+
+    /* ─── Place card selection ───────────────────────────────────────── */
+    document.querySelectorAll('.place-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.place-action-btn')) return;
+        document.querySelectorAll('.place-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        document.querySelectorAll('.map-marker').forEach(m => {
+          m.classList.remove('map-marker--selected');
+          m.classList.add('map-marker--default');
+        });
+        const placeId = card.dataset.id;
+        const marker = document.querySelector(`.map-marker[data-place="${placeId}"]`);
+        if (marker) {
+          marker.classList.remove('map-marker--default');
+          marker.classList.add('map-marker--selected');
+        }
+      });
+    });
+
+    /* ─── Marker click → select card ────────────────────────────────── */
+    document.querySelectorAll('.map-marker').forEach(marker => {
+      marker.addEventListener('click', () => {
+        const placeId = marker.dataset.place;
+        const card = document.querySelector(`.place-card[data-id="${placeId}"]`);
+        if (card) {
+          document.querySelectorAll('.place-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          if (currentPhase === 'peek') setPhase('half');
+        }
+        document.querySelectorAll('.map-marker').forEach(m => {
+          m.classList.remove('map-marker--selected');
+          m.classList.add('map-marker--default');
+        });
+        marker.classList.remove('map-marker--default');
+        marker.classList.add('map-marker--selected');
+      });
+    });
+
+    /* ─── Like button toggle ────────────────────────────────────────── */
+    document.querySelectorAll('.place-action-btn[aria-label="Favorito"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        btn.classList.toggle('liked');
+      });
+    });
+
+    /* ─── Search focus animation ────────────────────────────────────── */
+    const searchInput = document.getElementById('search-input');
+    searchInput.addEventListener('focus', () => {
+      if (currentPhase === 'peek') setPhase('half');
+    });
+  </script>
+</body>
+</html>

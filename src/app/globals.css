@@ -1,0 +1,190 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 98% 0.005 85;
+    --foreground: 18% 0.01 250;
+    --card: 100% 0 0;
+    --card-foreground: 18% 0.01 250;
+    --surface: 100% 0 0;
+    --surface-foreground: 18% 0.01 250;
+    --popover: 100% 0 0;
+    --popover-foreground: 18% 0.01 250;
+    --primary: 62% 0.16 145;
+    --primary-foreground: 100% 0 0;
+    --secondary: 96% 0.008 85;
+    --secondary-foreground: 18% 0.01 250;
+    --muted: 96% 0.008 85;
+    --muted-foreground: 52% 0.01 250;
+    --accent: 62% 0.16 145;
+    --accent-foreground: 100% 0 0;
+    --accent-hover: 54% 0.15 145;
+    --destructive: 60% 0.20 25;
+    --destructive-foreground: 100% 0 0;
+    --border: 90% 0.004 250;
+    --input: 90% 0.004 250;
+    --ring: 62% 0.16 145;
+    --radius: 10px;
+    --header-h: 56px;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --duration-fast: 120ms;
+    --duration-normal: 200ms;
+    --duration-slow: 400ms;
+  }
+
+  @media (min-width: 640px) {
+    :root {
+      --header-h: 60px;
+    }
+  }
+
+  .dark {
+    --background: 15% 0.01 250;
+    --foreground: 95% 0.005 85;
+    --card: 20% 0.01 250;
+    --card-foreground: 95% 0.005 85;
+    --surface: 20% 0.01 250;
+    --surface-foreground: 95% 0.005 85;
+    --popover: 20% 0.01 250;
+    --popover-foreground: 95% 0.005 85;
+    --primary: 70% 0.16 145;
+    --primary-foreground: 15% 0.01 250;
+    --secondary: 24% 0.01 250;
+    --secondary-foreground: 95% 0.005 85;
+    --muted: 24% 0.01 250;
+    --muted-foreground: 60% 0.01 250;
+    --accent: 70% 0.16 145;
+    --accent-foreground: 15% 0.01 250;
+    --accent-hover: 78% 0.14 145;
+    --destructive: 65% 0.20 25;
+    --destructive-foreground: 100% 0 0;
+    --border: 28% 0.01 250;
+    --input: 28% 0.01 250;
+    --ring: 70% 0.16 145;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    @apply bg-accent/20 text-accent-foreground;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+/* ─── Bottom sheet desktop override ─── */
+@media (min-width: 1024px) {
+  .bottom-sheet-desktop {
+    left: auto !important;
+    right: 20px !important;
+    bottom: 20px !important;
+    width: 400px !important;
+    max-height: calc(100vh - var(--header-h) - 40px) !important;
+    border-radius: 16px !important;
+    border: 1px solid oklch(90% 0.004 250) !important;
+    box-shadow:
+      0 0 0 1px oklch(100% 0 0 / 0.5),
+      0 8px 32px oklch(18% 0.01 250 / 0.10),
+      0 2px 8px oklch(18% 0.01 250 / 0.06) !important;
+
+  }
+  .bottom-sheet-desktop[data-state="peek"] {
+    transform: translateY(calc(100% - 100px)) !important;
+  }
+}
+
+/* ─── Map marker animations ─── */
+@keyframes markerSearch {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.map-marker-searching {
+  animation: markerSearch 1.5s ease-in-out infinite;
+}
+
+/* ─── Skeleton shimmer ─── */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, var(--background) 25%, oklch(94% 0.006 85) 50%, var(--background) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ─── Typing dots ─── */
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+.typing-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: white;
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+/* ─── Onboarding animations ─── */
+@keyframes chipPop {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-chip-pop {
+  animation: chipPop 350ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ─── Header logo hide on mobile ─── */
+@media (max-width: 640px) {
+  .header-logo-text {
+    display: none;
+  }
+}
