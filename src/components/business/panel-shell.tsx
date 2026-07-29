@@ -6,11 +6,11 @@ import {
   Edit,
   Eye,
   Settings,
-  Sparkles,
-  Store,
+  ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import Link from "next/link";
+import { UserMenu } from "@/components/layout/user-menu";
 
 export type PanelView = "dashboard" | "editor" | "preview" | "settings";
 
@@ -34,21 +34,11 @@ const NAV_ITEMS: NavItem[] = [
   { id: "settings", label: "Ajustes", icon: Settings },
 ];
 
-const SIDEBAR_SECTIONS = [
-  {
-    label: "Principal",
-    items: [
-      { id: "dashboard" as PanelView, label: "Dashboard", icon: LayoutDashboard },
-      { id: "editor" as PanelView, label: "Editar ficha", icon: Edit },
-      { id: "preview" as PanelView, label: "Vista previa", icon: Eye },
-    ],
-  },
-  {
-    label: "Cuenta",
-    items: [
-      { id: "settings" as PanelView, label: "Ajustes", icon: Settings },
-    ],
-  },
+const SIDEBAR_ITEMS: NavItem[] = [
+  { id: "dashboard" as PanelView, label: "Dashboard", icon: LayoutDashboard },
+  { id: "editor" as PanelView, label: "Editar ficha", icon: Edit },
+  { id: "preview" as PanelView, label: "Vista previa", icon: Eye },
+  { id: "settings" as PanelView, label: "Ajustes", icon: Settings },
 ];
 
 export function PanelShell({
@@ -67,56 +57,50 @@ export function PanelShell({
   };
 
   return (
-    <div className={cn("min-h-screen bg-background flex flex-col", className)}>
+    <div className={cn("h-dvh bg-background flex flex-col", className)}>
       {/* Top Bar */}
-      <header className="sticky top-0 z-50 bg-surface/95 backdrop-blur border-b border-border h-header flex items-center px-gutter gap-gap-sm">
+      <header className="sticky top-0 z-50 bg-surface/95 backdrop-blur border-b border-border h-header flex items-center px-gutter gap-gap-sm shrink-0">
+        <Link
+          href="/home"
+          className="size-8 grid place-items-center rounded-lg hover:bg-accent/10 transition-colors text-muted-foreground hover:text-foreground shrink-0"
+          aria-label="Volver al inicio"
+        >
+          <ArrowLeft size={18} strokeWidth={1.5} />
+        </Link>
         <div className="font-display font-bold text-[18px] text-accent tracking-[-0.02em] whitespace-nowrap">
           La Verde <span className="text-foreground font-medium">Panel</span>
         </div>
-        <div className="font-display text-small font-semibold text-muted-foreground flex-1 min-w-0 truncate">
-          {viewTitles[activeView]}
-        </div>
+        <div className="flex-1 min-w-0" />
         <span className="font-mono text-xs font-medium bg-accent/10 text-accent px-[8px] py-[2px] rounded-full border border-accent/20 whitespace-nowrap">
           Negocio verificado
         </span>
-        <Avatar className="size-9">
-          <AvatarFallback className="bg-gradient-to-br from-accent to-accent-hover text-white font-display font-bold text-small">
-            LG
-          </AvatarFallback>
-        </Avatar>
+        <UserMenu initial="LG" />
       </header>
 
       {/* Shell */}
-      <div className="flex flex-1">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex flex-col w-[260px] bg-surface border-r border-border sticky top-header h-[calc(100vh-var(--header-h))] overflow-y-auto">
-          {SIDEBAR_SECTIONS.map((section) => (
-            <div key={section.label} className="px-gap-md mb-gap-lg">
-              <div className="font-mono text-xs text-muted-foreground uppercase tracking-[0.04em] px-gap-sm mb-gap-xs">
-                {section.label}
-              </div>
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeView === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setActiveView(item.id)}
-                    className={cn(
-                      "flex items-center gap-gap-sm w-full px-gap-md py-gap-sm rounded-lv text-small font-medium transition-all duration-fast text-left border-none bg-transparent cursor-pointer font-body",
-                      isActive
-                        ? "bg-accent/10 text-accent font-semibold"
-                        : "text-foreground hover:bg-muted",
-                    )}
-                  >
-                    <Icon size={20} strokeWidth={1.5} className="shrink-0" />
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+        <aside className="hidden lg:flex flex-col w-[260px] bg-surface border-r border-border shrink-0 px-gap-md pt-gap-md gap-[2px]">
+          {SIDEBAR_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeView === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveView(item.id)}
+                className={cn(
+                  "flex items-center gap-gap-sm w-full px-gap-md py-gap-sm rounded-lv text-small font-medium transition-all duration-fast text-left border-none bg-transparent cursor-pointer font-body",
+                  isActive
+                    ? "bg-accent/10 text-accent font-semibold"
+                    : "text-foreground hover:bg-muted",
+                )}
+              >
+                <Icon size={20} strokeWidth={1.5} className="shrink-0" />
+                {item.label}
+              </button>
+            );
+          })}
 
           <div className="h-[1px] bg-border mx-gap-md my-gap-sm" />
 
@@ -131,8 +115,8 @@ export function PanelShell({
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 min-w-0">
-          <div className="p-gap-md pb-[80px] lg:pb-gap-xl lg:px-gap-2xl lg:py-gap-xl lg:max-w-[900px] animate-fade-in">
+        <main className="flex-1 min-w-0 overflow-y-auto">
+          <div className="p-gap-md pb-[80px] lg:pb-gap-xl lg:p-gap-xl animate-fade-in flex flex-col min-h-full">
             {children(activeView)}
           </div>
         </main>

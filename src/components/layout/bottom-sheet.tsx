@@ -90,7 +90,7 @@ export function BottomSheet({
       ref={sheetRef}
       data-state={state}
       className={cn(
-        "fixed left-0 right-0 bottom-0 z-300 bg-surface rounded-t-lv-xl shadow-[0_-4px_24px_oklch(18%_0.01_250_/_0.12)] transition-[transform] duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] max-h-[70vh] flex flex-col pb-safe-bottom",
+        "fixed left-0 right-0 bottom-0 z-300 bg-surface rounded-t-lv-xl shadow-[0_-4px_24px_oklch(18%_0.01_250_/_0.12)] transition-[transform] duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] max-h-[70vh] lg:max-h-none flex flex-col pb-safe-bottom",
         mounted && "bottom-sheet-desktop",
         isDragging && "!transition-none",
         className,

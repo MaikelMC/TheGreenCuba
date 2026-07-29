@@ -46,7 +46,7 @@ export function SaveBar({ onPublish, onDiscard, className }: SaveBarProps) {
 
   return (
     <>
-      <div className={cn("sticky bottom-0 py-gap-md flex gap-gap-sm bg-gradient-to-t from-background/80 to-transparent z-10", className)}>
+      <div className={cn("sticky bottom-0 py-gap-md px-gap-md flex gap-gap-sm bg-surface/95 backdrop-blur border-t border-border z-10 -mx-gap-md lg:-mx-gap-xl", className)}>
         <span className={cn("flex items-center gap-gap-xs font-mono text-meta", statusColor)}>
           <Check size={14} strokeWidth={2} />
           {statusLabel}

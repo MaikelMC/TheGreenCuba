@@ -1,7 +1,7 @@
 export const siteConfig = {
   name: "La Verde",
-  description: "Descubre los mejores lugares en Cuba con inteligencia artificial",
-  slogan: "Tu guía inteligente de Cuba",
+  description: "Encuentra los mejores lugares en Cuba con ayuda de inteligencia artificial",
+  slogan: "Tu guía de Cuba",
   url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
   ogImage: "/og.png",
   links: {

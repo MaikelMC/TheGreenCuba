@@ -14,13 +14,13 @@ const MOCK_PLACE: PlaceData = {
   payments: ["MLC", "CUP", "USD"],
   description: "Restaurante cubano contemporáneo en Vedado",
   longDescription:
-    "La Guarida es un restaurante cubano contemporáneo ubicado en el corazón de Vedado, La Habana. Ocupa un edificio art déco de los años 40 que mantiene su fachada original con columnas y balcones de hierro forjado. El interior combina la arquitectura colonial con un diseño moderno y cálido — madera oscura, iluminación tenue y arte cubano en las paredes. Fundado en 2018 por un grupo de amigos chefs que querían rescatar las recetas de sus abuelas con un toque contemporáneo. La cocina es 100% criolla: ropa vieja, lechón asado, picadillo habanero, tostones y yuca con mojo. Los fines de semana hay música en vivo — son cubano, jazz, o trova según el día. El lugar tiene terraza interior con plantas tropicales y una barra de cocktails con rones cubanos premium. Aceptan MLC, CUP y efectivo en USD. Reservaciones recomendadas los viernes y sábados.",
+    "La Guarida es un restaurante cubano contemporáneo en Vedado, La Habana. Ocupa un edificio art déco de los años 40 con su fachada original de columnas y balcones de hierro forjado. El interior mezcla la arquitectura colonial con diseño moderno: madera oscura, iluminación tenue y arte cubano en las paredes. Lo fundaron en 2018 un grupo de amigos chefs que querían rescatar las recetas de sus abuelas con un toque contemporáneo. La cocina es 100% criolla: ropa vieja, lechón asado, picadillo habanero, tostones y yuca con mojo. Los fines de semana hay música en vivo, son cubano, jazz o trova según el día. Tienen terraza interior con plantas tropicales y una barra de cocktails con rones cubanos premium. Aceptan MLC, CUP y efectivo en USD. Reservaciones recomendadas los viernes y sábados.",
   isOpen: true,
   closedMessage: "Abre mañana a las 12:00 PM",
   aiQuery: "restaurante tranquilo con comida criolla cerca de Vedado",
   aiReasoning:
-    "La Guarida está a 1.2 km de tu ubicación, tiene reputación de ambiente relajado y cocina tradicional cubana. Es ideal para una cena sin prisa — aceptan MLC y tarjeta. Los fines de semana tienen música en vivo.",
-  aiTags: ["Cerca de ti", "Comida criolla", "Ambiente tranquilo", "Acepta MLC"],
+    "La Guarida está a 1.2 km de tu ubicación, tiene cocina tradicional cubana y un ambiente relajado. Aceptan MLC y tarjeta. Los fines de semana tienen música en vivo.",
+  aiTags: ["Cerca de ti", "Comida criolla", "Acepta MLC"],
   slides: [
     { gradient: "linear-gradient(160deg, oklch(45% 0.08 145), oklch(35% 0.06 145))", label: "Fachada colonial" },
     { gradient: "linear-gradient(160deg, oklch(50% 0.06 85), oklch(40% 0.05 85))", label: "Interior art déco" },

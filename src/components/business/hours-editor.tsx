@@ -81,7 +81,7 @@ export function HoursEditor({
             onClick={() => item.isClosed && toggleClosed(i)}
             readOnly={item.isClosed}
             className={cn(
-              "flex-1 h-10 px-gap-sm border border-border rounded-sm font-mono text-small text-center outline-none transition-colors duration-fast focus:border-accent",
+              "flex-1 h-10 px-gap-sm border border-border rounded-sm font-mono text-small text-center bg-surface outline-none transition-colors duration-fast focus:border-accent",
               item.isClosed && "bg-muted text-muted-foreground cursor-pointer",
             )}
             aria-label={`Apertura ${item.day}`}
@@ -95,7 +95,7 @@ export function HoursEditor({
             onChange={(e) => update(i, "close", e.target.value)}
             readOnly={item.isClosed}
             className={cn(
-              "flex-1 h-10 px-gap-sm border border-border rounded-sm font-mono text-small text-center outline-none transition-colors duration-fast focus:border-accent",
+              "flex-1 h-10 px-gap-sm border border-border rounded-sm font-mono text-small text-center bg-surface outline-none transition-colors duration-fast focus:border-accent",
               item.isClosed && "bg-muted text-muted-foreground cursor-pointer",
             )}
             aria-label={`Cierre ${item.day}`}

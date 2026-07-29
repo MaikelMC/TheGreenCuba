@@ -38,7 +38,7 @@ export function WelcomeSplash({ onComplete }: WelcomeSplashProps) {
       <div className="font-display text-[clamp(36px,10vw,56px)] font-bold tracking-[-0.03em] mb-2">
         La Verde
       </div>
-      <div className="text-body opacity-80 mb-12">Descubre Cuba, encuentra tu lugar</div>
+      <div className="text-body opacity-80 mb-12">Encuentra tu lugar en Cuba</div>
       <div className="text-small opacity-60">Comenzando...</div>
     </div>
   );

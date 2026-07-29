@@ -24,11 +24,11 @@ const fontMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "La Verde — Descubre Cuba",
-    template: "%s — La Verde",
+    default: "La Verde | Encuentra tu lugar en Cuba",
+    template: "%s | La Verde",
   },
   description:
-    "Descubre los mejores lugares en Cuba con inteligencia artificial. Restaurantes, cafeterías, playas y más.",
+    "Encuentra los mejores lugares en Cuba con inteligencia artificial. Restaurantes, cafeterías, playas y más.",
   keywords: ["Cuba", "lugares", "recomendaciones", "IA", "turismo"],
 };
 

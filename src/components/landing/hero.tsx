@@ -95,8 +95,8 @@ export function Hero() {
           </h1>
 
           <p className="mx-auto mt-gap-xl max-w-[52ch] animate-fade-up text-lead text-muted-foreground text-pretty [animation-delay:200ms]">
-            Preguntale a La Verde en lenguaje natural — como le harias a un
-            amigo — y encuentra exactamente el lugar que necesitas en Cuba.
+            Preguntale a La Verde como si hablaras con un amigo,
+            y encuentra el lugar que buscas en Cuba.
           </p>
 
           <div className="mt-gap-xl flex animate-fade-up flex-wrap justify-center gap-gap-sm [animation-delay:300ms]">

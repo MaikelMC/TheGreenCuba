@@ -25,7 +25,7 @@ const FEATURES = [
   {
     title: "Recomendaciones contextualizadas",
     description:
-      "La Verde no solo busca — recomienda segun tu ubicacion, la hora, tu humor y lo que buscas. Como un amigo que siempre sabe.",
+      "La Verde te recomienda segun tu ubicacion, la hora, el momento y lo que buscas. Como un amigo que conoce bien la ciudad.",
     icon: (
       <svg
         viewBox="0 0 24 24"

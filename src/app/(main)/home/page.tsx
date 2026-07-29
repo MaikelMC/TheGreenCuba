@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Search, Star, MapPin, X, RefreshCw, WifiOff, Navigation, Heart, Share2, Crosshair, DollarSign, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CategoryBar } from "@/components/layout/category-bar";
@@ -20,7 +21,7 @@ const MOCK_PLACES = [
   { id: "3", name: "La Guarida", category: "Restaurante", barrio: "Centro Habana", rating: 4.9, distance: "1.2km", price: "$15-35 MLC", emoji: "🍽️", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Abierto", variant: "open" as const }, { label: "Vista al mar", variant: "default" as const }], boosted: true, pos: { top: "38%", left: "68%" }, desc: "El restaurante más famoso de Cuba. Cocina fusión en un palacio colonial. Reservar con anticipación." },
   { id: "4", name: "Mercado de San José", category: "Mercado", barrio: "Habana Vieja", rating: 4.2, distance: "2.1km", price: "CUP", emoji: "🛍️", tags: [{ label: "Abierto", variant: "open" as const }, { label: "Frutas frescas", variant: "default" as const }, { label: "Barato", variant: "default" as const }], boosted: false, pos: { top: "60%", left: "25%" }, desc: "Mercado artesanal con frutas tropicales, artesanías y souvenirs. Los mejores precios en fruta fresca." },
   { id: "5", name: "Fábrica de Arte Cubano", category: "Vida nocturna", barrio: "Vedado", rating: 4.7, distance: "650m", price: "$8-20 MLC", emoji: "🎵", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Música en vivo", variant: "default" as const }], boosted: false, pos: { top: "52%", left: "42%" }, desc: "El espacio cultural más vibrante de La Habana. Arte, música en vivo, cine y gastronomía." },
-  { id: "6", name: "Café El Ignoto", category: "Cafetería", barrio: "Vedado", rating: 4.8, distance: "350m", price: "$5-12 MLC", emoji: "☕", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Abierto", variant: "open" as const }, { label: "Tranquilo", variant: "default" as const }], boosted: false, pos: { top: "35%", left: "48%" }, desc: "Café de especialidad en el corazón de Vedado. Acepta MLC, ambiente tranquilo para trabajar o leer." },
+  { id: "6", name: "Café El Ignoto", category: "Cafetería", barrio: "Vedado", rating: 4.8, distance: "350m", price: "$5-12 MLC", emoji: "☕", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Abierto", variant: "open" as const }, { label: "Tranquilo", variant: "default" as const }], boosted: false, pos: { top: "35%", left: "48%" }, desc: "Café de especialidad en Vedado. Acepta MLC, ideal para trabajar o leer tranquilo." },
 ];
 
 const SHEET_TITLES: Record<SheetState, { title: string; subtitle: string }> = {
@@ -149,6 +150,7 @@ function LoadingSkeleton() {
 }
 
 export default function HomePage() {
+  const router = useRouter();
   const [sheetState, setSheetState] = useState<SheetState>("default");
   const [selectedId, setSelectedId] = useState<string>("6");
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set(["6"]));
@@ -208,13 +210,11 @@ export default function HomePage() {
   const showBadge = sheetState === "default" || sheetState === "searching" || sheetState === "results";
   const showFilters = sheetState === "default" || sheetState === "results" || sheetState === "location";
 
-  const filteredPlaces = sheetState === "results"
-    ? MOCK_PLACES.filter((p) => p.category === "Cafetería")
-    : MOCK_PLACES;
+  const filteredPlaces = MOCK_PLACES;
 
   const resultsBannerText = sheetState === "results"
-    ? `Encontré <strong>4 cafes tranquilos</strong> que aceptan MLC cerca de ti. <strong>Café El Ignoto</strong> es el más cercano — 350m, abierto hasta las 10pm.`
-    : `Según tu ubicación en <strong>Vedado</strong>, encontré <strong>${MOCK_PLACES.length} lugares</strong> que podrían gustarte. El mejor match es <strong>Café El Ignoto</strong> — está a 3 min y acepta MLC.`;
+    ? `Encontré <strong>4 cafes tranquilos</strong> que aceptan MLC cerca de ti. <strong>Café El Ignoto</strong> es el más cercano, a 350m, abierto hasta las 10pm.`
+    : `Según tu ubicación en <strong>Vedado</strong>, encontré <strong>${MOCK_PLACES.length} lugares</strong> que podrían gustarte. El mejor match es <strong>Café El Ignoto</strong>, está a 3 min y acepta MLC.`;
 
   return (
     <div className="fixed inset-0 pt-[var(--header-h)]">
@@ -280,6 +280,7 @@ export default function HomePage() {
                     liked={likedIds.has(place.id)}
                     onSelect={() => handleSelect(place.id)}
                     onLike={() => handleLike(place.id)}
+                    onDetail={() => router.push(`/place/${place.id}`)}
                   />
                 </div>
               ))}

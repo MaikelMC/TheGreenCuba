@@ -35,7 +35,7 @@ export function PreviewPanel({
   distance = "0.8 km",
   isOpen = true,
   payments = ["MLC", "CUP"],
-  offer = "2x1 en mojitos — jueves",
+  offer = "2x1 en mojitos los jueves",
   menuItems = DEFAULT_MENU,
   menuCount = 3,
   className,
@@ -110,7 +110,7 @@ export function PreviewPanel({
               <span className="font-mono text-[10px] text-accent uppercase tracking-[0.04em] font-medium">Recomendación IA</span>
             </div>
             <p className="text-[13px] leading-relaxed text-foreground">
-              &ldquo;<strong>cena romántica en Vedado</strong>&rdquo; — {businessName} tiene cocina cubana contemporánea, ambiente elegante, acepta MLC, y está a {distance} de ti.
+              &ldquo;<strong>cena romántica en Vedado</strong>&rdquo;. {businessName} tiene cocina cubana contemporánea, acepta MLC, y está a {distance} de ti.
             </p>
           </div>
 

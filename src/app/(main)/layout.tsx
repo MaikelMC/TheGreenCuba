@@ -1,12 +1,24 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import { type ReactNode } from "react";
 import { Header } from "@/components/layout/header";
 import { SearchProvider } from "@/providers/search-provider";
 
+function useShowGlobalHeader() {
+  const pathname = usePathname();
+  return pathname !== "/business" && !pathname.startsWith("/profile");
+}
+
 export default function MainLayout({ children }: { children: ReactNode }) {
+  const showHeader = useShowGlobalHeader();
+
   return (
     <SearchProvider>
-      <Header />
-      <main className="pt-[var(--header-h)] min-h-screen">{children}</main>
+      {showHeader && <Header />}
+      <main className={showHeader ? "pt-[var(--header-h)] min-h-screen" : "min-h-screen"}>
+        {children}
+      </main>
     </SearchProvider>
   );
 }

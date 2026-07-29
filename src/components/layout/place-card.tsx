@@ -15,6 +15,7 @@ interface PlaceCardProps {
   liked?: boolean;
   onSelect?: () => void;
   onLike?: () => void;
+  onDetail?: () => void;
 }
 
 const tagStyles: Record<string, string> = {
@@ -35,6 +36,7 @@ export function PlaceCard({
   liked,
   onSelect,
   onLike,
+  onDetail,
 }: PlaceCardProps) {
   return (
     <div
@@ -113,10 +115,10 @@ export function PlaceCard({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            onSelect?.();
+            onDetail?.();
           }}
           className="size-8 rounded-full grid place-items-center text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all"
-          aria-label="Dirección"
+          aria-label="Ver detalle"
         >
           <ArrowRight size={16} strokeWidth={2} />
         </button>

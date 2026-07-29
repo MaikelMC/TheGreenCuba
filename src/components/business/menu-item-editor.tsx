@@ -23,7 +23,7 @@ interface MenuItemEditorProps {
 const DEFAULT_ITEMS: MenuItemData[] = [
   { id: "1", name: "Ropa Vieja de Res", description: "Carne deshilachada con sofrito cubano, arroz y plátanos", price: "12", currency: "MLC", tag: "Popular", gradient: "linear-gradient(135deg, oklch(75% 0.15 75 / 0.1), oklch(60% 0.20 25 / 0.06))" },
   { id: "2", name: "Lechón Asado", description: "Cerdo asado lentamente con mojo criollo, yuca y ensalada", price: "15", currency: "MLC", gradient: "linear-gradient(135deg, oklch(62% 0.16 145 / 0.08), oklch(70% 0.12 175 / 0.06))" },
-  { id: "3", name: "Mojito de la Casa", description: "Ron fresco, hierbabuena, lima y soda — nuestra receta secreta", price: "5", currency: "MLC", tag: "2x1", gradient: "linear-gradient(135deg, oklch(62% 0.14 250 / 0.08), oklch(62% 0.16 145 / 0.05))" },
+  { id: "3", name: "Mojito de la Casa", description: "Ron fresco, hierbabuena, lima y soda. Receta de la casa.", price: "5", currency: "MLC", tag: "2x1", gradient: "linear-gradient(135deg, oklch(62% 0.14 250 / 0.08), oklch(62% 0.16 145 / 0.05))" },
 ];
 
 const TAG_STYLES: Record<string, string> = {
@@ -98,14 +98,14 @@ export function MenuItemEditor({
               value={item.name}
               onChange={(e) => update(item.id, "name", e.target.value)}
               placeholder="Nombre del plato"
-              className="h-9 px-gap-sm border border-border rounded-sm font-body text-small font-semibold outline-none focus:border-accent transition-colors w-full"
+              className="h-9 px-gap-sm border border-border rounded-sm font-body text-small font-semibold bg-surface outline-none focus:border-accent transition-colors w-full"
             />
             <input
               type="text"
               value={item.description}
               onChange={(e) => update(item.id, "description", e.target.value)}
               placeholder="Descripción breve"
-              className="h-9 px-gap-sm border border-border rounded-sm font-body text-meta text-muted-foreground outline-none focus:border-accent transition-colors w-full"
+              className="h-9 px-gap-sm border border-border rounded-sm font-body text-meta text-muted-foreground bg-surface outline-none focus:border-accent transition-colors w-full"
             />
             <div className="flex gap-gap-xs items-center">
               <input
@@ -113,7 +113,7 @@ export function MenuItemEditor({
                 value={item.price}
                 onChange={(e) => update(item.id, "price", e.target.value)}
                 placeholder="0"
-                className="w-[80px] h-9 px-gap-sm border border-border rounded-sm font-mono text-small outline-none focus:border-accent transition-colors"
+                className="w-[80px] h-9 px-gap-sm border border-border rounded-sm font-mono text-small bg-surface outline-none focus:border-accent transition-colors"
               />
               <select
                 value={item.currency}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Search, Mic, Sparkles, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearch } from "@/providers/search-provider";
+import { UserMenu } from "./user-menu";
 
 const SUGGESTIONS = [
   {
@@ -190,14 +191,8 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
         )}
       </div>
 
-      {/* Avatar */}
-      <Link
-        href="/login"
-        className="size-9 rounded-full bg-accent/10 border-2 border-border grid place-items-center text-accent font-display font-bold text-[14px] shrink-0 hover:border-accent transition-colors"
-        aria-label="Perfil"
-      >
-        M
-      </Link>
+      {/* Avatar dropdown */}
+      <UserMenu />
     </header>
   );
 }

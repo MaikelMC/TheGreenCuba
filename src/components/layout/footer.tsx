@@ -30,7 +30,7 @@ export function Footer() {
         </div>
         <div className="mt-gap-2xl pt-gap-lg border-t border-border flex flex-wrap justify-between items-center gap-gap-md text-[13px]">
           <span>&copy; 2026 La Verde. Hecho en Cuba.</span>
-          <span className="font-mono text-meta text-muted-foreground">Descubre. Explora. Vive.</span>
+          <span className="font-mono text-meta text-muted-foreground">Hecho con cariño desde Cuba.</span>
         </div>
       </div>
     </footer>

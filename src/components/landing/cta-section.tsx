@@ -20,7 +20,7 @@ export function CTASection() {
           )}
         >
           <h2 className="text-h2 font-display font-semibold text-foreground text-balance">
-            Descubre Cuba como nunca.
+            Cuba como nunca la habias visto.
           </h2>
           <p className="mx-auto mt-gap-md max-w-[52ch] text-lead text-muted-foreground text-pretty">
             Unete a la lista de espera y se de los primeros en probar La

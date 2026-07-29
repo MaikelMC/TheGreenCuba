@@ -74,7 +74,7 @@ export function LocationPicker({ selected, onSelect, gpsDetected, onUseGPS }: Lo
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-4">
               <path d="M20 6L9 17l-5-5" />
             </svg>
-            Ubicación detectada — La Habana
+            Ubicación detectada: La Habana
           </>
         ) : (
           <>

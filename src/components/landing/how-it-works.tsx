@@ -12,7 +12,7 @@ const STEPS = [
   {
     title: "La Verde interpreta",
     description:
-      "Nuestra IA entiende contexto cubano — monedas, barrios, horarios, ambiente. No es un buscador generico; entiende tu vida.",
+      "La app entiende el contexto cubano: monedas, barrios, horarios y costumbres. No es un buscador generico, entiende lo que necesitas.",
   },
   {
     title: "Encuentra tu lugar",
