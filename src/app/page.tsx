@@ -6,7 +6,7 @@ export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 border-b border-border bg-background/92 backdrop-blur-[16px]">
-        <div className="mx-auto flex h-14 max-w-container items-center justify-between px-gutter md:h-auto md:px-gutter-lg md:py-3.5">
+        <div className="mx-auto flex h-14 max-w-container items-center justify-between px-gutter md:px-gutter-lg">
           <Link href="/" className="flex items-center gap-2 font-display text-[20px] font-bold tracking-[-0.02em] text-foreground">
             <span className="grid size-7 place-items-center rounded-[8px] bg-accent text-[14px] text-accent-foreground">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">

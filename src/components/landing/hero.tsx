@@ -77,13 +77,13 @@ export function Hero() {
     <section className="relative overflow-hidden pb-[clamp(60px,12vw,140px)] pt-[clamp(60px,12vw,140px)]">
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-[10%] -top-[20%] size-[600px]"
+        className="pointer-events-none absolute -right-[5%] -top-[20%] size-[800px]"
       >
-        <div className="size-full rounded-full bg-[radial-gradient(circle,oklch(62%_0.16_145/0.06)_0%,transparent_70%)]" />
+        <div className="size-full rounded-full bg-[radial-gradient(circle,oklch(62%_0.16_145/0.07)_0%,transparent_70%)]" />
       </div>
 
       <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
-        <div className="relative mx-auto max-w-[680px] text-center">
+        <div className="relative mx-auto max-w-[720px] text-center">
           <p className="animate-fade-up font-mono text-xs font-medium uppercase tracking-[0.1em] text-accent">
             Descubrimiento de lugares
           </p>
@@ -114,7 +114,7 @@ export function Hero() {
             </Link>
           </div>
 
-          <div className="mx-auto mt-gap-2xl flex max-w-[560px] animate-fade-up items-center gap-2 rounded-lv-lg border border-border bg-surface p-1.5 shadow-lv-md [animation-delay:300ms] md:flex-row md:p-1.5">
+          <div className="mx-auto mt-gap-2xl flex max-w-[600px] animate-fade-up items-center gap-2 rounded-lv-lg border border-border bg-surface p-1.5 shadow-lv-md [animation-delay:300ms] md:flex-row md:p-1.5">
             <div className="ml-2 flex size-10 shrink-0 items-center justify-center text-accent">
               <svg
                 width="20"

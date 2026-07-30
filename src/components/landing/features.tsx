@@ -62,15 +62,18 @@ const FEATURES = [
 const STATS = [
   {
     value: "3",
-    label: "Tipos de moneda reconocidos: CUP, MLC y USD.",
+    label: "Tipos de moneda reconocidos",
+    desc: "CUP, MLC y USD. Paga como quieras.",
   },
   {
     value: "15+",
-    label: "Categorias de lugares cubanos, de cafeteria a bodega.",
+    label: "Categorias de lugares cubanos",
+    desc: "De cafeteria a bodega, encuentra lo que buscas.",
   },
   {
     value: "~2s",
-    label: "Tiempo promedio de busqueda a resultado en conexion 3G.",
+    label: "Tiempo promedio de busqueda",
+    desc: "De la pregunta al resultado en conexion 3G.",
   },
 ];
 
@@ -81,7 +84,7 @@ export function Features() {
 
   return (
     <>
-      <section className="border-t border-border bg-surface py-[clamp(48px,8vw,96px)]">
+      <section className="border-t border-border bg-surface py-[clamp(48px,8vw,120px)]">
         <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
           <div
             ref={featuresHeaderRef}
@@ -114,7 +117,7 @@ export function Features() {
         </div>
       </section>
 
-      <section className="py-[clamp(48px,8vw,96px)]">
+      <section className="py-[clamp(48px,8vw,120px)]">
         <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
           <div
             ref={statsRef}
@@ -144,8 +147,11 @@ export function Features() {
                       : stat.value}
                   </span>
                 </div>
-                <p className="mt-2.5 max-w-[28ch] text-[15px] leading-[1.5] text-muted-foreground">
+                <p className="mt-2.5 text-[15px] font-medium leading-[1.4] text-foreground">
                   {stat.label}
+                </p>
+                <p className="mt-1 text-[14px] leading-[1.5] text-muted-foreground">
+                  {stat.desc}
                 </p>
               </div>
             ))}

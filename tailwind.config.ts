@@ -148,7 +148,7 @@ const config: Config = {
         header: "60px",
       },
       maxWidth: {
-        container: "1120px",
+        container: "1280px",
         "container-sm": "640px",
         "container-lg": "1440px",
       },

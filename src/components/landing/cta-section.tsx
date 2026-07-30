@@ -8,8 +8,8 @@ export function CTASection() {
   const { ref, isVisible } = useScrollReveal();
 
   return (
-    <section className="border-t border-border bg-gradient-to-b from-background to-[oklch(95%_0.015_145)] py-[clamp(48px,8vw,96px)]">
-      <div className="mx-auto max-w-[560px] px-gutter text-center md:px-gutter-lg">
+    <section className="border-t border-border bg-gradient-to-b from-background to-[oklch(95%_0.015_145)] py-[clamp(48px,8vw,120px)]">
+      <div className="mx-auto max-w-[640px] px-gutter text-center md:px-gutter-lg">
         <div
           ref={ref}
           className={cn(

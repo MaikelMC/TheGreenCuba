@@ -103,7 +103,7 @@ export function SearchExamples() {
   return (
     <section
       id="ejemplos"
-      className="border-t border-border py-[clamp(48px,8vw,96px)]"
+      className="border-t border-border py-[clamp(48px,8vw,120px)]"
     >
       <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
         <div
