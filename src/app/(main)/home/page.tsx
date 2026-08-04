@@ -2,27 +2,41 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Star, MapPin, X, RefreshCw, WifiOff, Navigation, Heart, Share2, Crosshair, DollarSign, MessageCircle } from "lucide-react";
+import { Search, Star, MapPin, X, RefreshCw, WifiOff, Navigation, Heart, Share2, DollarSign, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CategoryBar } from "@/components/layout/category-bar";
 import { BottomSheet } from "@/components/layout/bottom-sheet";
 import { PlaceCard } from "@/components/layout/place-card";
-import { MapView } from "@/components/map/map-view";
-import { MapMarker } from "@/components/map/map-marker";
-import { MapControls } from "@/components/map/map-controls";
+import { MapView } from "@/components/map/MapView";
 import { PlaceFilters } from "@/components/place/place-filters";
 import { useSearch } from "@/providers/search-provider";
+import { getCurrentPosition } from "@/lib/map/geolocation";
+import { toast } from "sonner";
+import type { MapPlace } from "@/components/map/types";
 
-type SheetState = "default" | "searching" | "results" | "no-results" | "error" | "location";
+type SheetState = "default" | "searching" | "results" | "no-results" | "error";
 
 const MOCK_PLACES = [
-  { id: "1", name: "Pastelería La Habanera", category: "Cafetería", barrio: "Centro Habana", rating: 4.5, distance: "800m", price: "$3-8 MLC", emoji: "🍰", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Abierto", variant: "open" as const }], boosted: false, pos: { top: "28%", left: "35%" }, desc: "Pastelería artesanal con los mejores pasteles de nata de La Habana. Ambiente familiar, ideal para la mañana." },
-  { id: "2", name: "Restaurante El Río", category: "Restaurante", barrio: "Vedado", rating: 4.3, distance: "1.1km", price: "$12-25 MLC", emoji: "🍽️", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Vista al mar", variant: "default" as const }], boosted: false, pos: { top: "45%", left: "55%" }, desc: "Cocina cubana contemporánea con vista al Malecón. Reservaciones recomendadas para cenar." },
-  { id: "3", name: "La Guarida", category: "Restaurante", barrio: "Centro Habana", rating: 4.9, distance: "1.2km", price: "$15-35 MLC", emoji: "🍽️", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Abierto", variant: "open" as const }, { label: "Vista al mar", variant: "default" as const }], boosted: true, pos: { top: "38%", left: "68%" }, desc: "El restaurante más famoso de Cuba. Cocina fusión en un palacio colonial. Reservar con anticipación." },
-  { id: "4", name: "Mercado de San José", category: "Mercado", barrio: "Habana Vieja", rating: 4.2, distance: "2.1km", price: "CUP", emoji: "🛍️", tags: [{ label: "Abierto", variant: "open" as const }, { label: "Frutas frescas", variant: "default" as const }, { label: "Barato", variant: "default" as const }], boosted: false, pos: { top: "60%", left: "25%" }, desc: "Mercado artesanal con frutas tropicales, artesanías y souvenirs. Los mejores precios en fruta fresca." },
-  { id: "5", name: "Fábrica de Arte Cubano", category: "Vida nocturna", barrio: "Vedado", rating: 4.7, distance: "650m", price: "$8-20 MLC", emoji: "🎵", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Música en vivo", variant: "default" as const }], boosted: false, pos: { top: "52%", left: "42%" }, desc: "El espacio cultural más vibrante de La Habana. Arte, música en vivo, cine y gastronomía." },
-  { id: "6", name: "Café El Ignoto", category: "Cafetería", barrio: "Vedado", rating: 4.8, distance: "350m", price: "$5-12 MLC", emoji: "☕", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Abierto", variant: "open" as const }, { label: "Tranquilo", variant: "default" as const }], boosted: false, pos: { top: "35%", left: "48%" }, desc: "Café de especialidad en Vedado. Acepta MLC, ideal para trabajar o leer tranquilo." },
+  { id: "1", name: "Pastelería La Habanera", category: "Cafetería", barrio: "Centro Habana", rating: 4.5, distance: "800m", price: "$3-8 MLC", emoji: "🍰", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Abierto", variant: "open" as const }], boosted: false, lat: 23.1365, lng: -82.3610, desc: "Pastelería artesanal con los mejores pasteles de nata de La Habana. Ambiente familiar, ideal para la mañana." },
+  { id: "2", name: "Restaurante El Río", category: "Restaurante", barrio: "Vedado", rating: 4.3, distance: "1.1km", price: "$12-25 MLC", emoji: "🍽️", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Vista al mar", variant: "default" as const }], boosted: false, lat: 23.1467, lng: -82.3808, desc: "Cocina cubana contemporánea con vista al Malecón. Reservaciones recomendadas para cenar." },
+  { id: "3", name: "La Guarida", category: "Restaurante", barrio: "Centro Habana", rating: 4.9, distance: "1.2km", price: "$15-35 MLC", emoji: "🍽️", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Abierto", variant: "open" as const }, { label: "Vista al mar", variant: "default" as const }], boosted: true, lat: 23.1417, lng: -82.3700, desc: "El restaurante más famoso de Cuba. Cocina fusión en un palacio colonial. Reservar con anticipación." },
+  { id: "4", name: "Mercado de San José", category: "Mercado", barrio: "Habana Vieja", rating: 4.2, distance: "2.1km", price: "CUP", emoji: "🛍️", tags: [{ label: "Abierto", variant: "open" as const }, { label: "Frutas frescas", variant: "default" as const }, { label: "Barato", variant: "default" as const }], boosted: false, lat: 23.1330, lng: -82.3520, desc: "Mercado artesanal con frutas tropicales, artesanías y souvenirs. Los mejores precios en fruta fresca." },
+  { id: "5", name: "Fábrica de Arte Cubano", category: "Vida nocturna", barrio: "Vedado", rating: 4.7, distance: "650m", price: "$8-20 MLC", emoji: "🎵", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Música en vivo", variant: "default" as const }], boosted: false, lat: 23.1440, lng: -82.3900, desc: "El espacio cultural más vibrante de La Habana. Arte, música en vivo, cine y gastronomía." },
+  { id: "6", name: "Café El Ignoto", category: "Cafetería", barrio: "Vedado", rating: 4.8, distance: "350m", price: "$5-12 MLC", emoji: "☕", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Abierto", variant: "open" as const }, { label: "Tranquilo", variant: "default" as const }], boosted: false, lat: 23.1420, lng: -82.3850, desc: "Café de especialidad en Vedado. Acepta MLC, ideal para trabajar o leer tranquilo." },
 ];
+
+const mapPlaces: MapPlace[] = MOCK_PLACES.map((p) => ({
+  id: p.id,
+  name: p.name,
+  lat: p.lat,
+  lng: p.lng,
+  category: p.category,
+  barrio: p.barrio,
+  rating: p.rating,
+  distance: p.distance,
+  price: p.price,
+  tags: p.tags,
+}));
 
 const SHEET_TITLES: Record<SheetState, { title: string; subtitle: string }> = {
   default: { title: "Recomendaciones", subtitle: "Lugares cerca de ti en La Habana" },
@@ -30,7 +44,6 @@ const SHEET_TITLES: Record<SheetState, { title: string; subtitle: string }> = {
   results: { title: "Resultados", subtitle: "4 cafes tranquilos en Vedado" },
   "no-results": { title: "Sin resultados", subtitle: "Intenta con otra búsqueda" },
   error: { title: "Error de conexión", subtitle: "Verifica tu conexión a internet" },
-  location: { title: "Ubicación", subtitle: "Activa tu ubicación para mejores resultados" },
 };
 
 function DetailOverlay({ place, onClose }: { place: typeof MOCK_PLACES[number] | null; onClose: () => void }) {
@@ -156,9 +169,9 @@ export default function HomePage() {
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set(["6"]));
   const [activeCategory, setActiveCategory] = useState("all");
   const [detailPlace, setDetailPlace] = useState<typeof MOCK_PLACES[number] | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
   const searchCtx = useSearch();
-  const sheetStateRef = useRef(sheetState);
-  sheetStateRef.current = sheetState;
+  const mapRef = useRef<HTMLDivElement | null>(null);
 
   const handleLike = useCallback((id: string) => {
     setLikedIds((prev) => {
@@ -197,20 +210,88 @@ export default function HomePage() {
 
   const handleMarkerClick = useCallback((id: string) => {
     setSelectedId(id);
-    if (sheetStateRef.current === "peek") {
-      setSheetState("half");
-    }
   }, []);
 
   const handleCardDoubleClick = useCallback((place: typeof MOCK_PLACES[number]) => {
     setDetailPlace(place);
   }, []);
 
+  const handleUserLocated = useCallback((lat: number, lng: number, accuracy?: number) => {
+    setUserLocation({ lat, lng, accuracy });
+    setSheetState("default");
+  }, []);
+
+  // Request location once when the home view loads, so the first map shown is
+  // the user's local area (works on desktop and mobile). We skip the cache so
+  // the real current position is always requested. Errors produce a hint; the
+  // floating "Mi ubicación" button handles explicit requests with feedback.
+  useEffect(() => {
+    let cancelled = false;
+    getCurrentPosition({ useCache: false })
+      .then((pos) => {
+        if (cancelled) return;
+        handleUserLocated(pos.lat, pos.lng, pos.accuracy);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const code = (err as { code?: string }).code;
+        if (code === "denied") {
+          toast.error(
+            "Permiso de ubicación denegado. Habilítalo en el candado junto a la URL y recarga para centrar el mapa en tu zona.",
+          );
+        } else if (code && code !== "unsupported") {
+          toast.error(
+            "No pudimos obtener tu ubicación. Pulsa el botón 'Mi ubicación' para intentarlo de nuevo.",
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [handleUserLocated]);
+
+  // Keep the map's bottom-left controls (zoom + "Mi ubicación") visible above
+  // the bottom sheet. Measures the sheet's visible top and stores the offset in
+  // `--map-controls-bottom` on the map wrapper; the map CSS consumes it and the
+  // LocateButton listens for `lavverde:controls-offset` to re-measure.
+  useEffect(() => {
+    const wrapper = mapRef.current;
+    if (!wrapper) return;
+    const sheet = document.querySelector(".home-bottom-sheet");
+    if (!sheet) return;
+
+    let lastOffset = -1;
+    const apply = () => {
+      const top = sheet.getBoundingClientRect().top;
+      const offset = Math.max(16, Math.round(window.innerHeight - top + 12));
+      if (offset === lastOffset) return;
+      lastOffset = offset;
+      wrapper.style.setProperty("--map-controls-bottom", `${offset}px`);
+      window.dispatchEvent(new CustomEvent("lavverde:controls-offset"));
+    };
+
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(sheet);
+    const mo = new MutationObserver(apply);
+    mo.observe(sheet, {
+      attributes: true,
+      attributeFilter: ["style", "class", "data-state"],
+    });
+    window.addEventListener("resize", apply);
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      window.removeEventListener("resize", apply);
+    };
+  }, []);
+
   const sheetInfo = SHEET_TITLES[sheetState];
-  const showBadge = sheetState === "default" || sheetState === "searching" || sheetState === "results";
-  const showFilters = sheetState === "default" || sheetState === "results" || sheetState === "location";
+  const showBadge = sheetState === "default" || sheetState === "results";
+  const showFilters = sheetState === "default" || sheetState === "results";
 
   const filteredPlaces = MOCK_PLACES;
+  const recommendationCount = filteredPlaces.length;
 
   const resultsBannerText = sheetState === "results"
     ? `Encontré <strong>4 cafes tranquilos</strong> que aceptan MLC cerca de ti. <strong>Café El Ignoto</strong> es el más cercano, a 350m, abierto hasta las 10pm.`
@@ -218,34 +299,25 @@ export default function HomePage() {
 
   return (
     <div className="fixed inset-0 pt-[var(--header-h)]">
-      <MapView searching={sheetState === "searching"}>
+      <MapView
+        ref={mapRef}
+        places={mapPlaces}
+        selectedPlaceId={selectedId}
+        onPlaceSelect={(place) => handleMarkerClick(place.id)}
+        searching={sheetState === "searching"}
+        userLocation={userLocation}
+        onUserLocated={handleUserLocated}
+      >
         <CategoryBar active={activeCategory} onSelect={setActiveCategory} />
         <PlaceFilters visible={showFilters} />
-
-        {/* Map markers */}
-        {MOCK_PLACES.map((place) => (
-          <MapMarker
-            key={place.id}
-            variant={selectedId === place.id ? "selected" : place.boosted ? "boosted" : "default"}
-            style={{ top: place.pos.top, left: place.pos.left }}
-            selected={selectedId === place.id}
-            searching={sheetState === "searching"}
-            onClick={() => handleMarkerClick(place.id)}
-            data-place={place.id}
-          />
-        ))}
-
-        <MapControls
-          className="absolute right-gutter bottom-[180px] flex flex-col gap-[2px] lg:right-[440px] lg:bottom-auto lg:top-[90px]"
-          onLocate={() => setSheetState("location")}
-        />
       </MapView>
 
       {/* Bottom Sheet */}
       <BottomSheet
+        className="home-bottom-sheet"
         title={sheetInfo.title}
         subtitle={sheetInfo.subtitle}
-        badge={showBadge ? "IA" : undefined}
+        badge={showBadge ? String(recommendationCount) : undefined}
       >
         {/* Default / Results state */}
         {(sheetState === "default" || sheetState === "results") && (
@@ -355,35 +427,6 @@ export default function HomePage() {
             <div className="mt-5 p-gap-sm bg-lv-blue/6 border border-lv-blue/15 rounded-lv text-[13px] text-lv-blue text-left">
               <strong>Tip para conexiones lentas:</strong> La Verde guarda tus búsquedas recientes en caché. Puedes ver los últimos resultados sin conexión.
             </div>
-          </div>
-        )}
-
-        {/* Location state */}
-        {sheetState === "location" && (
-          <div className="text-center py-10 px-5">
-            <div className="size-16 rounded-full bg-lv-blue/8 grid place-items-center mx-auto mb-gap-md text-lv-blue relative">
-              <Crosshair size={28} strokeWidth={1.8} />
-              <span className="absolute inset-0 rounded-full border-2 border-lv-blue animate-ping opacity-50" />
-            </div>
-            <h3 className="font-display text-[18px] font-semibold text-foreground mb-2">
-              Activar ubicación
-            </h3>
-            <p className="text-[14px] text-muted-foreground max-w-[30ch] mx-auto mb-5">
-              Para encontrar los lugares más cercanos, necesitamos acceder a tu ubicación. Tus datos no se comparten.
-            </p>
-            <button
-              onClick={() => setSheetState("default")}
-              className="inline-flex items-center gap-[6px] px-5 py-[10px] bg-accent text-white rounded-lv font-display text-[14px] font-semibold hover:bg-accent-hover transition-colors"
-            >
-              <Crosshair size={16} strokeWidth={2} />
-              Permitir ubicación
-            </button>
-            <button
-              onClick={() => setSheetState("default")}
-              className="block mt-gap-sm text-[13px] text-muted-foreground mx-auto hover:text-accent transition-colors"
-            >
-              Usar sin ubicación
-            </button>
           </div>
         )}
       </BottomSheet>

@@ -1,3 +1,11 @@
-export { MapView } from "./map-view";
-export { MapMarker } from "./map-marker";
-export { MapControls } from "./map-controls";
+export { MapView } from "./MapView";
+export { MapMarkers } from "./MapMarkers";
+export { UserLocationMarker } from "./UserLocationMarker";
+export { PlacePopup } from "./PlacePopup";
+export { LocateButton } from "./LocateButton";
+export type {
+  MapPlace,
+  MapViewProps,
+  GeolocationState,
+  LocateState,
+} from "./types";

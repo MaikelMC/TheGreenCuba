@@ -7,7 +7,11 @@ import { SearchProvider } from "@/providers/search-provider";
 
 function useShowGlobalHeader() {
   const pathname = usePathname();
-  return pathname !== "/business" && !pathname.startsWith("/profile");
+  return (
+    pathname !== "/business" &&
+    !pathname.startsWith("/profile") &&
+    !pathname.startsWith("/place")
+  );
 }
 
 export default function MainLayout({ children }: { children: ReactNode }) {

@@ -188,3 +188,106 @@
     display: none;
   }
 }
+
+/* ─── Leaflet overrides ─── */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  font-family: inherit;
+  background: oklch(92% 0.008 85);
+}
+
+/* Keep bottom controls above the app's bottom sheet. Set by JS via
+   `--map-controls-bottom` on the map wrapper. */
+.leaflet-container .leaflet-bottom {
+  bottom: var(--map-controls-bottom, 0px);
+}
+
+.leaflet-control-zoom a {
+  color: oklch(18% 0.01 250);
+  background: oklch(100% 0 0);
+  border-color: oklch(90% 0.004 250);
+}
+
+.leaflet-control-zoom a:hover {
+  background: oklch(96% 0.008 85);
+}
+
+.map-markers-searching .leaflet-marker-icon {
+  animation: markerSearch 1.5s ease-in-out infinite;
+}
+
+@keyframes markerSearch {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+/* ─── Custom popup ─── */
+.custom-leaflet-popup .leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  padding: 0;
+  box-shadow: 0 4px 24px oklch(0% 0 0 / 0.12);
+  overflow: hidden;
+}
+
+.custom-leaflet-popup .leaflet-popup-content {
+  margin: 0;
+  min-width: 220px;
+}
+
+.custom-leaflet-popup .leaflet-popup-tip {
+  box-shadow: none;
+}
+
+.place-popup {
+  padding: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.place-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.place-popup-header strong {
+  font-size: 15px;
+  font-weight: 600;
+  color: oklch(18% 0.01 250);
+}
+
+.place-popup-category {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.place-popup-barrio {
+  font-size: 12px;
+  color: oklch(52% 0.01 250);
+  margin-bottom: 6px;
+}
+
+.place-popup-footer {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  color: oklch(52% 0.01 250);
+  margin-bottom: 8px;
+}
+
+.place-popup-link {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: oklch(62% 0.16 145);
+  text-decoration: none;
+}
+
+.place-popup-link:hover {
+  text-decoration: underline;
+}
