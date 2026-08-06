@@ -14,7 +14,7 @@ export const siteConfig = {
 };
 
 export const AI_CONFIG = {
-  model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+  model: process.env.MISTRAL_MODEL ?? "mistral-small-latest",
   maxTokens: 1024,
   temperature: 0.3,
   systemPrompt: `Eres un asistente de recomendación de lugares en Cuba llamado "La Verde".

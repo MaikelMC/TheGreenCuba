@@ -17,7 +17,10 @@ export type PanelView = "dashboard" | "editor" | "preview" | "settings";
 interface PanelShellProps {
   businessName?: string;
   defaultView?: PanelView;
-  children: (activeView: PanelView) => React.ReactNode;
+  children: (
+    activeView: PanelView,
+    setView: (view: PanelView) => void,
+  ) => React.ReactNode;
   className?: string;
 }
 
@@ -117,7 +120,7 @@ export function PanelShell({
         {/* Main Content */}
         <main className="flex-1 min-w-0 overflow-y-auto">
           <div className="p-gap-md pb-[80px] lg:pb-gap-xl lg:p-gap-xl animate-fade-in flex flex-col min-h-full">
-            {children(activeView)}
+            {children(activeView, setActiveView)}
           </div>
         </main>
       </div>

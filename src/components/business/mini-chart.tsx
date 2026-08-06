@@ -1,10 +1,11 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface MiniChartProps {
   data: number[];
-  labels?: string[];
+  labels?: ReactNode[];
   title?: string;
   period?: string;
   className?: string;
@@ -52,8 +53,8 @@ export function MiniChart({
 
       {labels && (
         <div className="flex justify-between mt-gap-xs">
-          {labels.map((l) => (
-            <span key={l} className="font-mono text-[10px] text-muted-foreground">
+          {labels.map((l, i) => (
+            <span key={i} className="font-mono text-[10px] text-muted-foreground">
               {l}
             </span>
           ))}

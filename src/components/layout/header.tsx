@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import Link from "next/link";
-import { Search, Mic, Sparkles, MessageCircle } from "lucide-react";
+import { Search, Mic, Sparkles, MessageCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearch } from "@/providers/search-provider";
 import { UserMenu } from "./user-menu";
@@ -93,11 +93,19 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
           )}
           onClick={() => inputRef.current?.focus()}
         >
-          <Search
-            size={18}
-            strokeWidth={1.8}
-            className="text-accent shrink-0"
-          />
+          {effectiveIsSearching ? (
+            <Loader2
+              size={18}
+              strokeWidth={1.8}
+              className="text-accent shrink-0 animate-spin"
+            />
+          ) : (
+            <Search
+              size={18}
+              strokeWidth={1.8}
+              className="text-accent shrink-0"
+            />
+          )}
           <input
             ref={inputRef}
             type="text"
@@ -121,10 +129,17 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
           </button>
           <button
             type="submit"
-            className="flex items-center gap-1 px-[14px] py-2 bg-accent text-white rounded-lv font-display text-[13px] font-semibold whitespace-nowrap shrink-0 hover:bg-accent-hover transition-colors max-sm:px-2"
+            disabled={effectiveIsSearching}
+            className="flex items-center gap-1 px-[14px] py-2 bg-accent text-white rounded-lv font-display text-[13px] font-semibold whitespace-nowrap shrink-0 hover:bg-accent-hover transition-colors max-sm:px-2 disabled:opacity-80"
           >
-            <Sparkles size={14} strokeWidth={2} />
-            <span className="max-sm:hidden">Buscar con IA</span>
+            {effectiveIsSearching ? (
+              <Loader2 size={14} strokeWidth={2} className="animate-spin" />
+            ) : (
+              <Sparkles size={14} strokeWidth={2} />
+            )}
+            <span className="max-sm:hidden">
+              {effectiveIsSearching ? "Buscando…" : "Buscar con IA"}
+            </span>
           </button>
           {effectiveIsSearching && (
             <div className="absolute inset-0 rounded-lv pointer-events-none shadow-[inset_0_0_0_1px_oklch(62%_0.16_145/0.5),0_0_16px_oklch(62%_0.16_145/0.15)]" />

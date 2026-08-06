@@ -12,6 +12,8 @@ interface BottomSheetProps {
   badge?: string;
   className?: string;
   defaultState?: SheetState;
+  /** Cuando es true, fuerza el sheet abierto (full) para revelar su contenido. */
+  forceOpen?: boolean;
 }
 
 export function BottomSheet({
@@ -21,6 +23,7 @@ export function BottomSheet({
   badge,
   className,
   defaultState = "peek",
+  forceOpen = false,
 }: BottomSheetProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -31,6 +34,12 @@ export function BottomSheet({
   const didDrag = useRef(false);
   const dragRef = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Abre el sheet automáticamente cuando se busca, para que siempre se vea la
+  // animación y luego los resultados.
+  useEffect(() => {
+    if (forceOpen) setState("full");
+  }, [forceOpen]);
 
   const translateY =
     isDragging

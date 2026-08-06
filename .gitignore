@@ -39,3 +39,6 @@ src/lib/db/migrations/meta/
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# server-side data (admin AI providers keys)
+data/

@@ -427,7 +427,7 @@ function SettingsView() {
 export default function BusinessPage() {
   return (
     <PanelShell>
-      {(view) => {
+      {(view, setView) => {
         switch (view) {
           case "dashboard":
             return <DashboardView />;

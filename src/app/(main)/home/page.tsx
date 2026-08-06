@@ -1,42 +1,66 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Star, MapPin, X, RefreshCw, WifiOff, Navigation, Heart, Share2, DollarSign, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CategoryBar } from "@/components/layout/category-bar";
 import { BottomSheet } from "@/components/layout/bottom-sheet";
 import { PlaceCard } from "@/components/layout/place-card";
+import { SearchingAnimation } from "@/components/layout/searching-animation";
 import { MapView } from "@/components/map/MapView";
 import { PlaceFilters } from "@/components/place/place-filters";
 import { useSearch } from "@/providers/search-provider";
 import { getCurrentPosition } from "@/lib/map/geolocation";
 import { toast } from "sonner";
 import type { MapPlace } from "@/components/map/types";
+import { usePlaces } from "@/providers/places-provider";
+import { categoryEmoji } from "@/lib/places";
+import type { UserPlace } from "@/lib/places-store";
 
 type SheetState = "default" | "searching" | "results" | "no-results" | "error";
 
-const MOCK_PLACES = [
-  { id: "1", name: "Pastelería La Habanera", category: "Cafetería", barrio: "Centro Habana", rating: 4.5, distance: "800m", price: "$3-8 MLC", emoji: "🍰", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Abierto", variant: "open" as const }], boosted: false, lat: 23.1365, lng: -82.3610, desc: "Pastelería artesanal con los mejores pasteles de nata de La Habana. Ambiente familiar, ideal para la mañana." },
-  { id: "2", name: "Restaurante El Río", category: "Restaurante", barrio: "Vedado", rating: 4.3, distance: "1.1km", price: "$12-25 MLC", emoji: "🍽️", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Vista al mar", variant: "default" as const }], boosted: false, lat: 23.1467, lng: -82.3808, desc: "Cocina cubana contemporánea con vista al Malecón. Reservaciones recomendadas para cenar." },
-  { id: "3", name: "La Guarida", category: "Restaurante", barrio: "Centro Habana", rating: 4.9, distance: "1.2km", price: "$15-35 MLC", emoji: "🍽️", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Abierto", variant: "open" as const }, { label: "Vista al mar", variant: "default" as const }], boosted: true, lat: 23.1417, lng: -82.3700, desc: "El restaurante más famoso de Cuba. Cocina fusión en un palacio colonial. Reservar con anticipación." },
-  { id: "4", name: "Mercado de San José", category: "Mercado", barrio: "Habana Vieja", rating: 4.2, distance: "2.1km", price: "CUP", emoji: "🛍️", tags: [{ label: "Abierto", variant: "open" as const }, { label: "Frutas frescas", variant: "default" as const }, { label: "Barato", variant: "default" as const }], boosted: false, lat: 23.1330, lng: -82.3520, desc: "Mercado artesanal con frutas tropicales, artesanías y souvenirs. Los mejores precios en fruta fresca." },
-  { id: "5", name: "Fábrica de Arte Cubano", category: "Vida nocturna", barrio: "Vedado", rating: 4.7, distance: "650m", price: "$8-20 MLC", emoji: "🎵", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Música en vivo", variant: "default" as const }], boosted: false, lat: 23.1440, lng: -82.3900, desc: "El espacio cultural más vibrante de La Habana. Arte, música en vivo, cine y gastronomía." },
-  { id: "6", name: "Café El Ignoto", category: "Cafetería", barrio: "Vedado", rating: 4.8, distance: "350m", price: "$5-12 MLC", emoji: "☕", tags: [{ label: "MLC", variant: "mlc" as const }, { label: "Abierto", variant: "open" as const }, { label: "Tranquilo", variant: "default" as const }], boosted: false, lat: 23.1420, lng: -82.3850, desc: "Café de especialidad en Vedado. Acepta MLC, ideal para trabajar o leer tranquilo." },
-];
+interface HomePlace {
+  id: string;
+  name: string;
+  category: string;
+  barrio: string;
+  rating: number;
+  distance: string;
+  price: string;
+  emoji: string;
+  tags: { label: string; variant?: "mlc" | "open" | "default" }[];
+  desc: string;
+  lat: number;
+  lng: number;
+  boosted?: boolean;
+}
 
-const mapPlaces: MapPlace[] = MOCK_PLACES.map((p) => ({
-  id: p.id,
-  name: p.name,
-  lat: p.lat,
-  lng: p.lng,
-  category: p.category,
-  barrio: p.barrio,
-  rating: p.rating,
-  distance: p.distance,
-  price: p.price,
-  tags: p.tags,
-}));
+function userPlaceToHomePlace(p: UserPlace): HomePlace {
+  const tags: HomePlace["tags"] = [
+    {
+      label: p.status === "active" ? "Abierto" : "Cerrado",
+      variant: p.status === "active" ? "open" : "default",
+    },
+  ];
+  if (p.isBoosted) tags.push({ label: "Destacado" });
+  if (p.payments.includes("MLC")) tags.push({ label: "MLC", variant: "mlc" });
+  return {
+    id: p.id,
+    name: p.name,
+    category: p.category,
+    barrio: p.barrio || "Cuba",
+    rating: p.rating ?? 0,
+    distance: p.distanceLabel || p.address || p.barrio || "Ver en el mapa",
+    price: p.priceLabel || "—",
+    emoji: categoryEmoji(p.category),
+    tags,
+    desc: p.description || "Negocio agregado por su dueño en La Verde.",
+    lat: p.lat,
+    lng: p.lng,
+    boosted: p.isBoosted,
+  };
+}
 
 const SHEET_TITLES: Record<SheetState, { title: string; subtitle: string }> = {
   default: { title: "Recomendaciones", subtitle: "Lugares cerca de ti en La Habana" },
@@ -46,7 +70,7 @@ const SHEET_TITLES: Record<SheetState, { title: string; subtitle: string }> = {
   error: { title: "Error de conexión", subtitle: "Verifica tu conexión a internet" },
 };
 
-function DetailOverlay({ place, onClose }: { place: typeof MOCK_PLACES[number] | null; onClose: () => void }) {
+function DetailOverlay({ place, onClose }: { place: HomePlace | null; onClose: () => void }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -93,10 +117,12 @@ function DetailOverlay({ place, onClose }: { place: typeof MOCK_PLACES[number] |
           </p>
 
           <div className="flex gap-gap-md flex-wrap mb-gap-md">
-            <span className="inline-flex items-center gap-[4px] font-mono text-[13px] text-muted-foreground">
-              <Star size={16} className="text-accent" fill="currentColor" />
-              {place.rating}
-            </span>
+            {place.rating > 0 && (
+              <span className="inline-flex items-center gap-[4px] font-mono text-[13px] text-muted-foreground">
+                <Star size={16} className="text-accent" fill="currentColor" />
+                {place.rating}
+              </span>
+            )}
             <span className="inline-flex items-center gap-[4px] font-mono text-[13px] text-muted-foreground">
               <MapPin size={16} className="text-accent" />
               {place.distance}
@@ -168,10 +194,43 @@ export default function HomePage() {
   const [selectedId, setSelectedId] = useState<string>("6");
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set(["6"]));
   const [activeCategory, setActiveCategory] = useState("all");
-  const [detailPlace, setDetailPlace] = useState<typeof MOCK_PLACES[number] | null>(null);
+  const [detailPlace, setDetailPlace] = useState<HomePlace | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
+  const [aiState, setAiState] = useState<{
+    matches: { id: string; reason: string }[];
+    summary: string;
+  } | null>(null);
+  const [searchingQuery, setSearchingQuery] = useState("");
+  const [focusTarget, setFocusTarget] = useState<{
+    lat: number;
+    lng: number;
+    key: number;
+  } | null>(null);
   const searchCtx = useSearch();
   const mapRef = useRef<HTMLDivElement | null>(null);
+  const { places } = usePlaces();
+
+  const mapPlaces = useMemo<MapPlace[]>(
+    () =>
+      places.map((p) => ({
+        id: p.id,
+        name: p.name,
+        lat: p.lat,
+        lng: p.lng,
+        category: p.category,
+        barrio: p.barrio,
+        rating: p.rating,
+        distance: p.distanceLabel || p.address || p.barrio,
+        price: p.priceLabel,
+        tags: [
+          ...(p.isBoosted ? [{ label: "Destacado", variant: "open" as const }] : []),
+          ...(p.payments.includes("MLC")
+            ? [{ label: "MLC", variant: "mlc" as const }]
+            : []),
+        ],
+      })),
+    [places],
+  );
 
   const handleLike = useCallback((id: string) => {
     setLikedIds((prev) => {
@@ -186,34 +245,83 @@ export default function HomePage() {
     setSelectedId(id);
   }, []);
 
-  const handleSearch = useCallback((query: string) => {
-    setSheetState("searching");
-    searchCtx.setIsSearching(true);
-    setTimeout(() => {
-      setSheetState("results");
-      searchCtx.setIsSearching(false);
-    }, 2500);
-  }, [searchCtx]);
+  const handleSearch = useCallback(
+    async (query: string) => {
+      setSearchingQuery(query);
+      setAiState(null);
+      setSheetState("searching");
+      searchCtx.setIsSearching(true);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 28000);
+      try {
+        const catalog = places.map((p) => ({
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          barrio: p.barrio,
+          payments: p.payments,
+          schedule: p.schedule,
+          description: p.description,
+        }));
+        const res = await fetch("/api/ai/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, places: catalog }),
+          signal: controller.signal,
+        });
+        const data = (await res.json().catch(() => null)) as {
+          ok?: boolean;
+          matches?: { id: string; reason: string }[];
+          summary?: string;
+        } | null;
+        if (!res.ok || !data || data.ok !== true) {
+          throw new Error(data?.summary ? "" : "Búsqueda fallida");
+        }
+        const matches = (data.matches ?? []).filter((m) => m && m.id).slice(0, 5);
+        setAiState({ matches, summary: data.summary ?? "" });
+        setSheetState(matches.length > 0 ? "results" : "no-results");
+      } catch {
+        setSheetState("error");
+      } finally {
+        clearTimeout(timeout);
+        searchCtx.setIsSearching(false);
+      }
+    },
+    [places, searchCtx],
+  );
 
   useEffect(() => {
     searchCtx.registerSearchHandler(handleSearch);
   }, [searchCtx, handleSearch]);
 
   const handleRetry = useCallback(() => {
+    if (searchingQuery) {
+      handleSearch(searchingQuery);
+      return;
+    }
     setSheetState("searching");
     searchCtx.setIsSearching(true);
     setTimeout(() => {
       setSheetState("results");
       searchCtx.setIsSearching(false);
     }, 2500);
-  }, [searchCtx]);
+  }, [searchingQuery, handleSearch, searchCtx]);
 
   const handleMarkerClick = useCallback((id: string) => {
     setSelectedId(id);
   }, []);
 
-  const handleCardDoubleClick = useCallback((place: typeof MOCK_PLACES[number]) => {
+  const handleCardDoubleClick = useCallback((place: HomePlace) => {
     setDetailPlace(place);
+  }, []);
+
+  // Vuela el mapa hasta un lugar al tocar su botón de ubicación.
+  const handleLocate = useCallback((place: HomePlace) => {
+    setFocusTarget((prev) => ({
+      lat: place.lat,
+      lng: place.lng,
+      key: (prev?.key ?? 0) + 1,
+    }));
   }, []);
 
   const handleUserLocated = useCallback((lat: number, lng: number, accuracy?: number) => {
@@ -250,52 +358,42 @@ export default function HomePage() {
     };
   }, [handleUserLocated]);
 
-  // Keep the map's bottom-left controls (zoom + "Mi ubicación") visible above
-  // the bottom sheet. Measures the sheet's visible top and stores the offset in
-  // `--map-controls-bottom` on the map wrapper; the map CSS consumes it and the
-  // LocateButton listens for `lavverde:controls-offset` to re-measure.
-  useEffect(() => {
-    const wrapper = mapRef.current;
-    if (!wrapper) return;
-    const sheet = document.querySelector(".home-bottom-sheet");
-    if (!sheet) return;
-
-    let lastOffset = -1;
-    const apply = () => {
-      const top = sheet.getBoundingClientRect().top;
-      const offset = Math.max(16, Math.round(window.innerHeight - top + 12));
-      if (offset === lastOffset) return;
-      lastOffset = offset;
-      wrapper.style.setProperty("--map-controls-bottom", `${offset}px`);
-      window.dispatchEvent(new CustomEvent("lavverde:controls-offset"));
-    };
-
-    apply();
-    const ro = new ResizeObserver(apply);
-    ro.observe(sheet);
-    const mo = new MutationObserver(apply);
-    mo.observe(sheet, {
-      attributes: true,
-      attributeFilter: ["style", "class", "data-state"],
-    });
-    window.addEventListener("resize", apply);
-    return () => {
-      ro.disconnect();
-      mo.disconnect();
-      window.removeEventListener("resize", apply);
-    };
-  }, []);
-
   const sheetInfo = SHEET_TITLES[sheetState];
   const showBadge = sheetState === "default" || sheetState === "results";
   const showFilters = sheetState === "default" || sheetState === "results";
 
-  const filteredPlaces = MOCK_PLACES;
+  const sheetSubtitle =
+    sheetState === "results" && searchingQuery
+      ? `Resultados para "${searchingQuery}"`
+      : sheetInfo.subtitle;
+
+  const filteredPlaces = useMemo<HomePlace[]>(
+    () => places.map(userPlaceToHomePlace),
+    [places],
+  );
+
+  // En resultados, muestra SOLO los lugares que la IA eligió, respetando su orden.
+  // En la vista por defecto (sin búsqueda) muestra todo el catálogo.
+  const resultPlaces = useMemo<HomePlace[]>(() => {
+    if (!aiState || aiState.matches.length === 0) return filteredPlaces;
+    const byId = new Map(filteredPlaces.map((p) => [p.id, p]));
+    const picked: HomePlace[] = [];
+    const seen = new Set<string>();
+    for (const m of aiState.matches) {
+      const place = byId.get(m.id);
+      if (place && !seen.has(place.id)) {
+        picked.push(place);
+        seen.add(place.id);
+      }
+    }
+    return picked;
+  }, [aiState, filteredPlaces]);
   const recommendationCount = filteredPlaces.length;
+  const shownCount = sheetState === "results" ? resultPlaces.length : recommendationCount;
 
   const resultsBannerText = sheetState === "results"
     ? `Encontré <strong>4 cafes tranquilos</strong> que aceptan MLC cerca de ti. <strong>Café El Ignoto</strong> es el más cercano, a 350m, abierto hasta las 10pm.`
-    : `Según tu ubicación en <strong>Vedado</strong>, encontré <strong>${MOCK_PLACES.length} lugares</strong> que podrían gustarte. El mejor match es <strong>Café El Ignoto</strong>, está a 3 min y acepta MLC.`;
+    : `Según tu ubicación en <strong>Vedado</strong>, encontré <strong>${places.length} lugares</strong> que podrían gustarte. El mejor match es <strong>Café El Ignoto</strong>, está a 3 min y acepta MLC.`;
 
   return (
     <div className="fixed inset-0 pt-[var(--header-h)]">
@@ -307,6 +405,7 @@ export default function HomePage() {
         searching={sheetState === "searching"}
         userLocation={userLocation}
         onUserLocated={handleUserLocated}
+        focusTarget={focusTarget}
       >
         <CategoryBar active={activeCategory} onSelect={setActiveCategory} />
         <PlaceFilters visible={showFilters} />
@@ -316,8 +415,9 @@ export default function HomePage() {
       <BottomSheet
         className="home-bottom-sheet"
         title={sheetInfo.title}
-        subtitle={sheetInfo.subtitle}
-        badge={showBadge ? String(recommendationCount) : undefined}
+        subtitle={sheetSubtitle}
+        badge={showBadge ? String(shownCount) : undefined}
+        forceOpen={sheetState !== "default"}
       >
         {/* Default / Results state */}
         {(sheetState === "default" || sheetState === "results") && (
@@ -327,15 +427,16 @@ export default function HomePage() {
               <div className="size-9 rounded-[10px] bg-accent grid place-items-center text-white shrink-0">
                 <MessageCircle size={18} strokeWidth={2} />
               </div>
-              <p
-                className="text-[14px] leading-[1.5] text-foreground"
-                dangerouslySetInnerHTML={{ __html: resultsBannerText }}
-              />
+              <p className="text-[14px] leading-[1.5] text-foreground">
+                {sheetState === "results" && aiState && aiState.summary
+                  ? aiState.summary
+                  : `Según tu ubicación en Vedado, encontré ${places.length} lugares que podrían gustarte. Explora el mapa o busca con lenguaje natural.`}
+              </p>
             </div>
 
             {/* Place list */}
             <div className="flex flex-col gap-gap-sm">
-              {filteredPlaces.map((place) => (
+              {resultPlaces.map((place) => (
                 <div
                   key={place.id}
                   onDoubleClick={() => handleCardDoubleClick(place)}
@@ -353,6 +454,7 @@ export default function HomePage() {
                     onSelect={() => handleSelect(place.id)}
                     onLike={() => handleLike(place.id)}
                     onDetail={() => router.push(`/place/${place.id}`)}
+                    onLocate={() => handleLocate(place)}
                   />
                 </div>
               ))}
@@ -363,18 +465,7 @@ export default function HomePage() {
         {/* Searching state */}
         {sheetState === "searching" && (
           <>
-            <div className="flex items-start gap-gap-sm p-[14px] bg-gradient-to-br from-accent/[0.06] to-accent/[0.02] border border-accent/15 rounded-lv-lg mb-gap-md opacity-60">
-              <div className="size-9 rounded-[10px] bg-accent grid place-items-center text-white shrink-0">
-                <span className="inline-flex gap-[4px] items-center">
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
-                </span>
-              </div>
-              <p className="text-[14px] leading-[1.5] text-foreground">
-                Analizando tu búsqueda en lenguaje natural...
-              </p>
-            </div>
+            <SearchingAnimation query={searchingQuery} />
             <LoadingSkeleton />
           </>
         )}

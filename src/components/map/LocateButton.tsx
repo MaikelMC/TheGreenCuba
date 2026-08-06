@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useState } from "react";
 import { useMap } from "react-leaflet";
 import { toast } from "sonner";
 import { getCurrentPosition, GEO_ERROR_MESSAGES } from "@/lib/map/geolocation";
@@ -17,37 +17,7 @@ export const LocateButton = memo(function LocateButton({
   onLocateStateChange,
 }: LocateButtonProps) {
   const map = useMap();
-  const hostRef = useRef<HTMLDivElement | null>(null);
   const [locating, setLocating] = useState(false);
-
-  // Position the button at the bottom-left corner, right above the zoom
-  // control. Leaflet corner containers disable pointer events on children,
-  // so we anchor it absolutely and offset it from the zoom control instead.
-  useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return;
-
-    const updatePosition = () => {
-      const zoomEl = document.querySelector(".leaflet-control-zoom");
-      if (!zoomEl) {
-        host.style.bottom = "88px";
-        return;
-      }
-      const zoomTop = zoomEl.getBoundingClientRect().top;
-      const offset = Math.max(12, Math.round(window.innerHeight - zoomTop + 12));
-      host.style.bottom = `${offset}px`;
-    };
-
-    updatePosition();
-    const raf = requestAnimationFrame(updatePosition);
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("lavverde:controls-offset", updatePosition);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("lavverde:controls-offset", updatePosition);
-    };
-  }, [map]);
 
   async function handleClick() {
     if (locating) return;
@@ -72,7 +42,7 @@ export const LocateButton = memo(function LocateButton({
   }
 
   return (
-    <div ref={hostRef} className="absolute left-2.5 z-[1000]">
+    <div className="absolute left-2.5 z-[1000]" style={{ bottom: 256 }}>
       <button
         type="button"
         onClick={handleClick}

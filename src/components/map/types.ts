@@ -33,6 +33,8 @@ export interface MapViewProps {
   userLocation?: { lat: number; lng: number; accuracy?: number } | null;
   onUserLocated?: (lat: number, lng: number, accuracy?: number) => void;
   onLocateStateChange?: (state: LocateState) => void;
+  /** Cuando cambia, el mapa vuela hasta esas coordenadas (útil desde las cards). */
+  focusTarget?: { lat: number; lng: number; key: number } | null;
   initialCenter?: [number, number];
   initialZoom?: number;
   maxZoom?: number;

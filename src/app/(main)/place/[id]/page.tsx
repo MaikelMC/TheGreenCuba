@@ -1,75 +1,119 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { PlaceDetail, type PlaceData } from "@/components/place/place-detail";
+import Link from "next/link";
+import { MapPin, ArrowLeft } from "lucide-react";
+import {
+  PlaceDetail,
+  type PlaceData,
+  type PlaceState,
+} from "@/components/place/place-detail";
+import { usePlaces } from "@/providers/places-provider";
+import type { UserPlace } from "@/lib/places-store";
 
-const MOCK_PLACE: PlaceData = {
-  id: "3",
-  name: "La Guarida",
-  category: "Restaurante",
-  rating: 4.7,
-  distance: "1.2 km",
-  barrio: "Vedado",
-  schedule: "12PM – 12AM",
-  payments: ["MLC", "CUP", "USD"],
-  description: "Restaurante cubano contemporáneo en Vedado",
-  longDescription:
-    "La Guarida es un restaurante cubano contemporáneo en Vedado, La Habana. Ocupa un edificio art déco de los años 40 con su fachada original de columnas y balcones de hierro forjado. El interior mezcla la arquitectura colonial con diseño moderno: madera oscura, iluminación tenue y arte cubano en las paredes. Lo fundaron en 2018 un grupo de amigos chefs que querían rescatar las recetas de sus abuelas con un toque contemporáneo. La cocina es 100% criolla: ropa vieja, lechón asado, picadillo habanero, tostones y yuca con mojo. Los fines de semana hay música en vivo, son cubano, jazz o trova según el día. Tienen terraza interior con plantas tropicales y una barra de cocktails con rones cubanos premium. Aceptan MLC, CUP y efectivo en USD. Reservaciones recomendadas los viernes y sábados.",
-  isOpen: true,
-  closedMessage: "Abre mañana a las 12:00 PM",
-  aiQuery: "restaurante tranquilo con comida criolla cerca de Vedado",
-  aiReasoning:
-    "La Guarida está a 1.2 km de tu ubicación, tiene cocina tradicional cubana y un ambiente relajado. Aceptan MLC y tarjeta. Los fines de semana tienen música en vivo.",
-  aiTags: ["Cerca de ti", "Comida criolla", "Acepta MLC"],
-  slides: [
-    { gradient: "linear-gradient(160deg, oklch(45% 0.08 145), oklch(35% 0.06 145))", label: "Fachada colonial" },
-    { gradient: "linear-gradient(160deg, oklch(50% 0.06 85), oklch(40% 0.05 85))", label: "Interior art déco" },
-    { gradient: "linear-gradient(160deg, oklch(55% 0.10 75), oklch(42% 0.08 75))", label: "Plato signature" },
-    { gradient: "linear-gradient(160deg, oklch(40% 0.04 250), oklch(30% 0.03 250))", label: "Terraza nocturna" },
-  ],
-  menu: [
-    {
-      name: "Ropa Vieja Tradicional",
-      description: "Carne desmechada con sofrito cubano, arroz blanco y plátanos maduros",
-      price: 450,
-      currency: "CUP",
-      tag: { label: "Popular", variant: "popular" },
-    },
-    {
-      name: "Lechón Asado",
-      description: "Cerdo asado lentamente con mojo criollo, yuca y ensalada de aguacate",
-      price: 12,
-      currency: "MLC",
-      tag: { label: "Nuevo", variant: "new" },
-    },
-    {
-      name: "Cóctel de la Casa",
-      description: "Ron añejo, jugo de maracuyá, hierbabuena y un toque de miel de abeja",
-      price: 5,
-      currency: "MLC",
-      tag: { label: "2x1", variant: "offer" },
-    },
-    {
-      name: "Tostones con Mojo",
-      description: "Plátano verde frito con ajo, naranja agria y cebolla morada",
-      price: 200,
-      currency: "CUP",
-    },
-  ],
-  specialOffer: {
-    label: "Oferta especial",
-    text: "2x1 en cócteles artesanales de martes a jueves, 6PM – 9PM",
-    expiry: "Válido hasta el 15 de agosto · Presentar al pedir",
+const FALLBACK_SLIDES = [
+  {
+    gradient: "linear-gradient(160deg, oklch(45% 0.08 145), oklch(35% 0.06 145))",
+    label: "El lugar",
   },
-};
+  {
+    gradient: "linear-gradient(160deg, oklch(50% 0.06 85), oklch(40% 0.05 85))",
+    label: "Ambiente",
+  },
+];
+
+function userPlaceToPlaceData(p: UserPlace): PlaceData {
+  const isOpen = p.status === "active";
+  const tags = p.aiTags ? [...p.aiTags] : [];
+  if (p.isBoosted && !tags.includes("Destacado")) tags.unshift("Destacado");
+  return {
+    id: p.id,
+    name: p.name,
+    category: p.category,
+    rating: p.rating ?? 0,
+    distance: p.distanceLabel || p.address || p.barrio || "Ver en el mapa",
+    barrio: p.barrio || "Cuba",
+    schedule: p.schedule || "Próximamente",
+    payments: p.payments,
+    description: p.description,
+    longDescription:
+      p.description ||
+      "Negocio agregado por su dueño en La Verde. Pronto tendrá más información, horarios y fotos.",
+    isOpen,
+    closedMessage:
+      p.status === "closed"
+        ? "Cerrado temporalmente."
+        : p.status === "temporary_closed"
+          ? "Temporalmente cerrado."
+          : undefined,
+    aiQuery: `buscar ${p.category.toLowerCase()} en Cuba`,
+    aiReasoning:
+      p.aiReasoning ||
+      `Este negocio está en ${p.barrio || "Cuba"}, listo para ser recomendado por La Verde.`,
+    aiTags: tags.length > 0 ? tags : ["Nuevo en La Verde"],
+    slides:
+      p.slides && p.slides.length > 0
+        ? p.slides
+        : FALLBACK_SLIDES.map((s) => ({ ...s, label: `${p.name}: ${s.label}` })),
+    menu: p.menu
+      .filter((item) => item.name.trim().length > 0)
+      .map((item) => ({
+        name: item.name,
+        description: item.description,
+        price: Number(item.price) || 0,
+        currency: item.currency || "MLC",
+      })),
+    specialOffer: p.offer
+      ? {
+          label: "Oferta especial",
+          text: p.offer.text,
+          expiry: p.offer.expiry,
+        }
+      : undefined,
+  };
+}
+
+function placeState(p: UserPlace): PlaceState {
+  if (p.offer) return "special-offer";
+  if (p.slides && p.slides.length > 0) return "normal";
+  return "no-photos";
+}
 
 export default function PlacePage() {
   const params = useParams();
   const router = useRouter();
+  const { places } = usePlaces();
+
+  const id = typeof params.id === "string" ? params.id : "";
+  const place = places.find((p) => p.id === id) ?? null;
+
+  if (!place) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-gap-md px-gutter text-center">
+        <div className="size-16 rounded-full bg-accent/10 grid place-items-center text-accent">
+          <MapPin size={26} strokeWidth={1.8} />
+        </div>
+        <h1 className="font-display text-h3 font-bold text-foreground">
+          Lugar no encontrado
+        </h1>
+        <p className="text-small text-muted-foreground max-w-[30ch]">
+          Este lugar no está en La Verde o fue eliminado.
+        </p>
+        <Link
+          href="/home"
+          className="inline-flex items-center gap-2 px-5 py-[10px] bg-accent text-white rounded-lv font-display text-[14px] font-semibold hover:bg-accent-hover transition-colors"
+        >
+          <ArrowLeft size={16} strokeWidth={2} />
+          Volver al mapa
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <PlaceDetail
-      place={MOCK_PLACE}
+      place={userPlaceToPlaceData(place)}
+      state={placeState(place)}
       onBack={() => router.back()}
       onShare={() => {}}
       onMenuSeeAll={() => {}}

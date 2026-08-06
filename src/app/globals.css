@@ -197,10 +197,12 @@
   background: oklch(92% 0.008 85);
 }
 
-/* Keep bottom controls above the app's bottom sheet. Set by JS via
-   `--map-controls-bottom` on the map wrapper. */
+/* Bottom controls (zoom + ubicación) en posición FIJA:
+   - zoom a 144px del borde inferior (queda justo encima de la bottom sheet en
+     su estado colapsado y nunca brinca al mover el mapa).
+- El botón "Mi ubicación" se posiciona en JS justo encima del zoom. */
 .leaflet-container .leaflet-bottom {
-  bottom: var(--map-controls-bottom, 0px);
+  bottom: 144px;
 }
 
 .leaflet-control-zoom a {
@@ -290,4 +292,71 @@
 
 .place-popup-link:hover {
   text-decoration: underline;
+}
+
+/* ─── Animación de búsqueda (radar + progreso) ─── */
+@keyframes searchingRing {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+.searching-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  border: 2px solid oklch(62% 0.16 145 / 0.55);
+  animation: searchingRing 1.6s ease-out infinite;
+}
+
+.searching-ring--delay {
+  animation-delay: 0.8s;
+}
+
+@keyframes searchingStatus {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  20%,
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.searching-status {
+  animation: searchingStatus 1.8s ease-in-out infinite;
+}
+
+@keyframes searchingProgress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.searching-progress {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    oklch(62% 0.16 145),
+    transparent
+  );
+  animation: searchingProgress 1.2s linear infinite;
 }

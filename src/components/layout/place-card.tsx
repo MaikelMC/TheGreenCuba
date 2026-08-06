@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, ArrowRight, Star } from "lucide-react";
+import { Heart, ArrowRight, Star, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PlaceCardProps {
@@ -16,6 +16,7 @@ interface PlaceCardProps {
   onSelect?: () => void;
   onLike?: () => void;
   onDetail?: () => void;
+  onLocate?: () => void;
 }
 
 const tagStyles: Record<string, string> = {
@@ -37,6 +38,7 @@ export function PlaceCard({
   onSelect,
   onLike,
   onDetail,
+  onLocate,
 }: PlaceCardProps) {
   return (
     <div
@@ -65,10 +67,12 @@ export function PlaceCard({
           {category}
         </div>
         <div className="flex items-center gap-gap-xs flex-wrap">
-          <span className="inline-flex items-center gap-[3px] font-mono text-[12px] font-medium text-lv-amber">
-            <Star size={12} fill="currentColor" />
-            {rating}
-          </span>
+          {rating > 0 && (
+            <span className="inline-flex items-center gap-[3px] font-mono text-[12px] font-medium text-lv-amber">
+              <Star size={12} fill="currentColor" />
+              {rating}
+            </span>
+          )}
           <span className="font-mono text-[12px] text-muted-foreground">
             {distance}
           </span>
@@ -95,6 +99,18 @@ export function PlaceCard({
 
       {/* Actions */}
       <div className="flex flex-col justify-between items-end shrink-0">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onLocate?.();
+          }}
+          className="size-8 rounded-full grid place-items-center text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all"
+          aria-label="Ver en el mapa"
+          title="Ver en el mapa"
+        >
+          <MapPin size={16} strokeWidth={2} />
+        </button>
         <button
           type="button"
           onClick={(e) => {

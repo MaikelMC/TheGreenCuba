@@ -67,6 +67,7 @@ interface PlaceDetailProps {
   onBack?: () => void;
   onShare?: () => void;
   onMenuSeeAll?: () => void;
+  footerSlot?: React.ReactNode;
   className?: string;
 }
 
@@ -82,6 +83,7 @@ export function PlaceDetail({
   onBack,
   onShare,
   onMenuSeeAll,
+  footerSlot,
   className,
 }: PlaceDetailProps) {
   const [descExpanded, setDescExpanded] = useState(false);
@@ -159,10 +161,12 @@ export function PlaceDetail({
                 />
                 {isClosed ? "Cerrado" : "Abierto"}
               </span>
-              <span className="inline-flex items-center gap-[4px] font-mono text-xs font-medium text-white/80">
-                <Star size={12} strokeWidth={2} className="text-lv-amber" fill="currentColor" />
-                {place.rating}
-              </span>
+              {place.rating > 0 && (
+                <span className="inline-flex items-center gap-[4px] font-mono text-xs font-medium text-white/80">
+                  <Star size={12} strokeWidth={2} className="text-lv-amber" fill="currentColor" />
+                  {place.rating}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -310,6 +314,8 @@ export function PlaceDetail({
                 </div>
               </div>
             </section>
+
+            {footerSlot}
           </div>
         </div>
       </div>
@@ -348,10 +354,12 @@ export function PlaceDetail({
                 <Utensils size={12} strokeWidth={2} />
                 {place.category}
               </span>
-              <span className="inline-flex items-center gap-[4px] font-mono text-meta font-medium text-foreground">
-                <Star size={14} strokeWidth={2} className="text-lv-amber" fill="currentColor" />
-                {place.rating}
-              </span>
+              {place.rating > 0 && (
+                <span className="inline-flex items-center gap-[4px] font-mono text-meta font-medium text-foreground">
+                  <Star size={14} strokeWidth={2} className="text-lv-amber" fill="currentColor" />
+                  {place.rating}
+                </span>
+              )}
               <span className="text-xs text-muted-foreground italic">Próximamente en La Verde</span>
               <span className="font-mono text-meta text-muted-foreground">
                 {place.distance} · {place.barrio}
@@ -492,6 +500,8 @@ export function PlaceDetail({
               <MenuItem key={i} {...item} />
             ))}
           </section>
+
+          {footerSlot}
         </div>
       </div>
 

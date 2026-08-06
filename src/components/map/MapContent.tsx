@@ -81,6 +81,7 @@ function MapChildren({
   userLocation,
   onUserLocated,
   onLocateStateChange,
+  focusTarget,
 }: {
   tile: ReturnType<typeof getTile>;
   places: MapPlace[];
@@ -89,6 +90,7 @@ function MapChildren({
   userLocation?: MapViewProps["userLocation"];
   onUserLocated?: MapViewProps["onUserLocated"];
   onLocateStateChange?: MapViewProps["onLocateStateChange"];
+  focusTarget?: MapViewProps["focusTarget"];
 }) {
   const [ready, setReady] = useState(false);
   const map = useMap();
@@ -112,6 +114,15 @@ function MapChildren({
     lastFlownTo.current = userLocation;
     map.flyTo([userLocation.lat, userLocation.lng], GEO_ZOOM, { duration: 0.8 });
   }, [userLocation, map]);
+
+  // Fly to a specific place when a card's location button is tapped.
+  const lastFocusKey = useRef<number | null>(null);
+  useEffect(() => {
+    if (!focusTarget) return;
+    if (lastFocusKey.current === focusTarget.key) return;
+    lastFocusKey.current = focusTarget.key;
+    map.flyTo([focusTarget.lat, focusTarget.lng], 16, { duration: 0.8 });
+  }, [focusTarget, map]);
 
   // Don't render markers/layers until the map is actually ready.
   if (!ready) return null;
@@ -156,6 +167,7 @@ export function MapContent({
   userLocation,
   onUserLocated,
   onLocateStateChange,
+  focusTarget,
   initialCenter = HAVANA_CENTER,
   initialZoom = DEFAULT_ZOOM,
   maxZoom = MAX_ZOOM,
@@ -200,6 +212,7 @@ export function MapContent({
         userLocation={userLocation}
         onUserLocated={onUserLocated}
         onLocateStateChange={onLocateStateChange}
+        focusTarget={focusTarget}
       />
     </MapContainer>
   );

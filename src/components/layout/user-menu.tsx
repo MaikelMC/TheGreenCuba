@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { User, Building2 } from "lucide-react";
+import { User, Building2, ShieldCheck } from "lucide-react";
 
 export function UserMenu({ initial }: { initial?: string }) {
   const [open, setOpen] = useState(false);
@@ -55,6 +55,15 @@ export function UserMenu({ initial }: { initial?: string }) {
           >
             <Building2 size={16} strokeWidth={2} className="text-accent shrink-0" />
             Business panel
+          </button>
+          <div className="h-[1px] bg-border mx-gap-md" />
+          <button
+            type="button"
+            onClick={() => handleSelect("/admin")}
+            className="w-full flex items-center gap-gap-sm px-gap-md py-[10px] text-small text-foreground hover:bg-accent/10 transition-colors text-left"
+          >
+            <ShieldCheck size={16} strokeWidth={2} className="text-accent shrink-0" />
+            Panel de administración
           </button>
         </div>
       )}
