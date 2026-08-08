@@ -1,7 +1,7 @@
 "use client";
 
-import { useScrollReveal } from "@/hooks/use-scroll-reveal";
-import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { fadeUp, staggerContainer } from "./anim";
 
 const EXAMPLES = [
   {
@@ -42,41 +42,27 @@ const EXAMPLES = [
 ];
 
 function ExampleCard({
-  index,
   query,
   pill,
   tags,
 }: {
-  index: number;
   query: string;
   pill: string;
   tags: string[];
 }) {
-  const { ref, isVisible } = useScrollReveal();
-
   return (
-    <div
-      ref={ref}
-      className={cn(
-        "flex flex-col gap-3.5 rounded-lv-lg border border-border bg-surface p-6 transition-all duration-[600ms] ease-out hover:border-[oklch(62%_0.16_145/0.3)] hover:shadow-lv-sm",
-        isVisible
-          ? "translate-y-0 opacity-100"
-          : "translate-y-6 opacity-0",
-      )}
-      style={{ transitionDelay: `${index * 100}ms` }}
+    <motion.div
+      variants={fadeUp}
+      whileHover={{ y: -4 }}
+      whileTap={{ scale: 0.98 }}
+      className="flex flex-col gap-3.5 rounded-lv-lg border border-border bg-surface p-6 transition-colors duration-300 hover:border-[oklch(62%_0.16_145/0.3)] hover:shadow-lv-sm"
     >
       <p className="text-[17px] font-medium leading-[1.5] text-foreground text-pretty">
-        <span
-          className="font-display text-[24px] text-accent/60"
-          aria-hidden
-        >
+        <span className="font-display text-[24px] text-accent/60" aria-hidden>
           &ldquo;
         </span>
         {query}
-        <span
-          className="font-display text-[24px] text-accent/60"
-          aria-hidden
-        >
+        <span className="font-display text-[24px] text-accent/60" aria-hidden>
           &rdquo;
         </span>
       </p>
@@ -93,51 +79,61 @@ function ExampleCard({
           </span>
         ))}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
 export function SearchExamples() {
-  const { ref: headerRef, isVisible: headerVisible } = useScrollReveal();
-
   return (
     <section
       id="ejemplos"
       className="border-t border-border py-[clamp(48px,8vw,120px)]"
     >
       <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
-        <div
-          ref={headerRef}
-          className={cn(
-            "mb-gap-2xl max-w-[48ch] transition-all duration-[600ms] ease-out",
-            headerVisible
-              ? "translate-y-0 opacity-100"
-              : "translate-y-6 opacity-0",
-          )}
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-50px" }}
+          variants={staggerContainer(0.15)}
+          className="mb-gap-2xl max-w-[48ch]"
         >
-          <p className="font-mono text-xs font-medium uppercase tracking-[0.1em] text-accent">
+          <motion.p
+            variants={fadeUp}
+            className="font-mono text-xs font-medium uppercase tracking-[0.1em] text-accent"
+          >
             Busquedas reales
-          </p>
-          <h2 className="mt-gap-xs text-h2 font-display font-semibold text-foreground text-balance">
+          </motion.p>
+          <motion.h2
+            variants={fadeUp}
+            className="mt-gap-xs text-h2 font-display font-semibold text-foreground text-balance"
+          >
             Asi habla Cuba con La Verde
-          </h2>
-          <p className="mt-gap-sm text-lead text-muted-foreground text-pretty">
+          </motion.h2>
+          <motion.p
+            variants={fadeUp}
+            className="mt-gap-sm text-lead text-muted-foreground text-pretty"
+          >
             Ejemplos de como los usuarios encuentran lugares con lenguaje
             natural.
-          </p>
-        </div>
+          </motion.p>
+        </motion.div>
 
-        <div className="grid grid-cols-1 gap-gap-lg md:grid-cols-2 lg:grid-cols-3">
-          {EXAMPLES.map((ex, i) => (
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-50px" }}
+          variants={staggerContainer(0.06, 0.05)}
+          className="grid grid-cols-1 gap-gap-lg md:grid-cols-2 lg:grid-cols-3"
+        >
+          {EXAMPLES.map((ex) => (
             <ExampleCard
               key={ex.query}
-              index={i}
               query={ex.query}
               pill={ex.pill}
               tags={ex.tags}
             />
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

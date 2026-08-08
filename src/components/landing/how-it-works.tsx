@@ -1,7 +1,7 @@
 "use client";
 
-import { useScrollReveal } from "@/hooks/use-scroll-reveal";
-import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { fadeUp, popIn, staggerContainer } from "./anim";
 
 const STEPS = [
   {
@@ -30,71 +30,69 @@ function StepCard({
   title: string;
   description: string;
 }) {
-  const { ref, isVisible } = useScrollReveal();
-
   return (
-    <div
-      ref={ref}
-      className={cn(
-        "transition-all duration-[600ms] ease-out",
-        isVisible
-          ? "translate-y-0 opacity-100"
-          : "translate-y-6 opacity-0",
-      )}
-      style={{ transitionDelay: `${index * 100}ms` }}
+    <motion.div
+      variants={fadeUp}
+      className="grid grid-cols-1 items-start gap-gap-md md:block"
     >
-      <div className="grid grid-cols-1 items-start gap-gap-md md:block">
-        <div className="relative mb-gap-md font-display text-[clamp(48px,6vw,72px)] font-bold leading-none tracking-[-0.04em] md:mb-gap-md">
-          <span className="text-accent/10" aria-hidden>
-            {String(index + 1).padStart(2, "0")}
-          </span>
-          <span
-            className="absolute inset-0 text-accent/18"
-            aria-hidden
-          >
-            {String(index + 1).padStart(2, "0")}
-          </span>
-        </div>
-        <div>
-          <h3 className="mb-2 text-[20px] font-display font-semibold text-foreground">
-            {title}
-          </h3>
-          <p className="text-[15px] leading-[1.6] text-muted-foreground text-pretty">
-            {description}
-          </p>
-        </div>
+      <motion.div
+        variants={popIn}
+        className="relative mb-gap-md font-display text-[clamp(48px,6vw,72px)] font-bold leading-none tracking-[-0.04em] md:mb-gap-md"
+      >
+        <span className="text-accent/10" aria-hidden>
+          {String(index + 1).padStart(2, "0")}
+        </span>
+        <span className="absolute inset-0 text-accent/18" aria-hidden>
+          {String(index + 1).padStart(2, "0")}
+        </span>
+      </motion.div>
+      <div>
+        <h3 className="mb-2 text-[20px] font-display font-semibold text-foreground">
+          {title}
+        </h3>
+        <p className="text-[15px] leading-[1.6] text-muted-foreground text-pretty">
+          {description}
+        </p>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
 export function HowItWorks() {
-  const { ref: headerRef, isVisible: headerVisible } = useScrollReveal();
-
   return (
     <section
       id="como-funciona"
       className="border-t border-border bg-surface py-[clamp(48px,8vw,120px)]"
     >
       <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
-        <div
-          ref={headerRef}
-          className={cn(
-            "mx-auto mb-gap-3xl max-w-[48ch] text-center transition-all duration-[600ms] ease-out",
-            headerVisible
-              ? "translate-y-0 opacity-100"
-              : "translate-y-6 opacity-0",
-          )}
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-50px" }}
+          variants={staggerContainer(0.15)}
+          className="mx-auto mb-gap-3xl max-w-[48ch] text-center"
         >
-          <p className="font-mono text-xs font-medium uppercase tracking-[0.1em] text-accent">
+          <motion.p
+            variants={fadeUp}
+            className="font-mono text-xs font-medium uppercase tracking-[0.1em] text-accent"
+          >
             Como funciona
-          </p>
-          <h2 className="mt-gap-xs text-h2 font-display font-semibold text-foreground text-balance">
+          </motion.p>
+          <motion.h2
+            variants={fadeUp}
+            className="mt-gap-xs text-h2 font-display font-semibold text-foreground text-balance"
+          >
             Tres pasos. Sin registros complicados.
-          </h2>
-        </div>
+          </motion.h2>
+        </motion.div>
 
-        <div className="grid grid-cols-1 gap-gap-xl md:grid-cols-3">
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-50px" }}
+          variants={staggerContainer(0.12)}
+          className="grid grid-cols-1 gap-gap-xl md:grid-cols-3"
+        >
           {STEPS.map((step, i) => (
             <StepCard
               key={step.title}
@@ -103,7 +101,7 @@ export function HowItWorks() {
               description={step.description}
             />
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

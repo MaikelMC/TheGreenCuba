@@ -1,7 +1,15 @@
 "use client";
 
-import { useScrollReveal } from "@/hooks/use-scroll-reveal";
+import { useEffect, useRef, useState } from "react";
+import {
+  animate,
+  motion,
+  useInView,
+  useMotionValue,
+  useTransform,
+} from "framer-motion";
 import { cn } from "@/lib/utils";
+import { EASE, fadeUp, popIn, staggerContainer } from "./anim";
 
 const FEATURES = [
   {
@@ -77,75 +85,108 @@ const STATS = [
   },
 ];
 
-export function Features() {
-  const { ref: featuresHeaderRef, isVisible: featuresHeaderVisible } =
-    useScrollReveal();
-  const { ref: statsRef, isVisible: statsVisible } = useScrollReveal();
+function StatValue({ value }: { value: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-50px" });
+  const numeric = /^\d+$/.test(value);
+  const count = useMotionValue(0);
+  const text = useTransform(count, (v) => Math.round(v).toString());
 
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    if (!inView || started) return;
+    setStarted(true);
+    if (!numeric) return;
+    const controls = animate(count, Number(value), {
+      duration: 1,
+      ease: EASE,
+    });
+    return () => controls.stop();
+  }, [inView, started, numeric, value, count]);
+
+  return (
+    <span
+      ref={ref}
+      className="font-mono font-variant-numeric-tabular"
+    >
+      {numeric ? <motion.span>{text}</motion.span> : value}
+    </span>
+  );
+}
+
+export function Features() {
   return (
     <>
       <section className="border-t border-border bg-surface py-[clamp(48px,8vw,120px)]">
         <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
-          <div
-            ref={featuresHeaderRef}
-            className={cn(
-              "mx-auto mb-gap-3xl max-w-[42ch] text-center transition-all duration-[600ms] ease-out",
-              featuresHeaderVisible
-                ? "translate-y-0 opacity-100"
-                : "translate-y-6 opacity-0",
-            )}
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-50px" }}
+            variants={staggerContainer(0.15)}
+            className="mx-auto mb-gap-3xl max-w-[42ch] text-center"
           >
-            <p className="font-mono text-xs font-medium uppercase tracking-[0.1em] text-accent">
+            <motion.p
+              variants={fadeUp}
+              className="font-mono text-xs font-medium uppercase tracking-[0.1em] text-accent"
+            >
               Por que La Verde
-            </p>
-            <h2 className="mt-gap-xs text-h2 font-display font-semibold text-foreground text-balance">
+            </motion.p>
+            <motion.h2
+              variants={fadeUp}
+              className="mt-gap-xs text-h2 font-display font-semibold text-foreground text-balance"
+            >
               No es otro buscador de Google.
-            </h2>
-          </div>
+            </motion.h2>
+          </motion.div>
 
-          <div className="grid grid-cols-1 gap-gap-lg md:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((f, i) => (
-              <FeatureCard
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-50px" }}
+            variants={staggerContainer(0.1)}
+            className="grid grid-cols-1 gap-gap-lg md:grid-cols-2 lg:grid-cols-3"
+          >
+            {FEATURES.map((f) => (
+              <motion.div
                 key={f.title}
-                index={i}
-                icon={f.icon}
-                title={f.title}
-                description={f.description}
-              />
+                variants={fadeUp}
+                whileHover={{ y: -4 }}
+                whileTap={{ scale: 0.98 }}
+                className="transition-colors duration-300"
+              >
+                <motion.div
+                  variants={popIn}
+                  className="mb-gap-lg flex size-11 items-center justify-center rounded-lv bg-accent/12"
+                >
+                  <div className={cn("size-[22px] text-accent")}>{f.icon}</div>
+                </motion.div>
+                <h3 className="mb-2 font-display text-[20px] font-semibold text-foreground">
+                  {f.title}
+                </h3>
+                <p className="text-[15px] leading-[1.6] text-muted-foreground text-pretty">
+                  {f.description}
+                </p>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       <section className="py-[clamp(48px,8vw,120px)]">
         <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
-          <div
-            ref={statsRef}
-            className={cn(
-              "grid grid-cols-1 gap-gap-lg transition-all duration-[600ms] ease-out md:grid-cols-3",
-              statsVisible
-                ? "translate-y-0 opacity-100"
-                : "translate-y-6 opacity-0",
-            )}
+          <motion.div
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-50px" }}
+            variants={staggerContainer(0.12)}
+            className="grid grid-cols-1 gap-gap-lg md:grid-cols-3"
           >
-            {STATS.map((stat, i) => (
-              <div
-                key={stat.label}
-                className="transition-all duration-[600ms] ease-out"
-                style={{
-                  transitionDelay: `${i * 100}ms`,
-                  transform: statsVisible
-                    ? "translateY(0)"
-                    : "translateY(24px)",
-                  opacity: statsVisible ? 1 : 0,
-                }}
-              >
+            {STATS.map((stat) => (
+              <motion.div key={stat.label} variants={fadeUp}>
                 <div className="font-display text-[clamp(48px,7vw,80px)] font-bold leading-[0.95] tracking-[-0.04em] text-accent">
-                  <span className="font-mono font-variant-numeric-tabular">
-                    {stat.value.includes("+") || stat.value.includes("s")
-                      ? stat.value
-                      : stat.value}
-                  </span>
+                  <StatValue value={stat.value} />
                 </div>
                 <p className="mt-2.5 text-[15px] font-medium leading-[1.4] text-foreground">
                   {stat.label}
@@ -153,48 +194,11 @@ export function Features() {
                 <p className="mt-1 text-[14px] leading-[1.5] text-muted-foreground">
                   {stat.desc}
                 </p>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
     </>
-  );
-}
-
-function FeatureCard({
-  index,
-  icon,
-  title,
-  description,
-}: {
-  index: number;
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  const { ref, isVisible } = useScrollReveal();
-
-  return (
-    <div
-      ref={ref}
-      className={cn(
-        "transition-all duration-[600ms] ease-out",
-        isVisible
-          ? "translate-y-0 opacity-100"
-          : "translate-y-6 opacity-0",
-      )}
-      style={{ transitionDelay: `${index * 100}ms` }}
-    >
-      <div className="mb-gap-lg flex size-11 items-center justify-center rounded-lv bg-accent/12">
-        <div className="size-[22px] text-accent">{icon}</div>
-      </div>
-      <h3 className="mb-2 font-display text-[20px] font-semibold text-foreground">
-        {title}
-      </h3>
-      <p className="text-[15px] leading-[1.6] text-muted-foreground text-pretty">
-        {description}
-      </p>
-    </div>
   );
 }

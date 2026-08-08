@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { fadeUp, heroContainer } from "./anim";
 
 const PHRASES = [
   "Un cafe tranquilo cerca de mi que acepte MLC",
@@ -79,27 +81,48 @@ export function Hero() {
         aria-hidden
         className="pointer-events-none absolute -right-[5%] -top-[20%] size-[800px]"
       >
-        <div className="size-full rounded-full bg-[radial-gradient(circle,oklch(62%_0.16_145/0.07)_0%,transparent_70%)]" />
+        <motion.div
+          className="size-full rounded-full bg-[radial-gradient(circle,oklch(62%_0.16_145/0.07)_0%,transparent_70%)]"
+          animate={{ scale: [1, 1.06, 1] }}
+          transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+        />
       </div>
 
       <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
-        <div className="relative mx-auto max-w-[720px] text-center">
-          <p className="animate-fade-up font-mono text-xs font-medium uppercase tracking-[0.1em] text-accent">
+        <motion.div
+          initial="hidden"
+          animate="show"
+          variants={heroContainer}
+          className="relative mx-auto max-w-[720px] text-center"
+        >
+          <motion.p
+            variants={fadeUp}
+            className="font-mono text-xs font-medium uppercase tracking-[0.1em] text-accent"
+          >
             Descubrimiento de lugares
-          </p>
+          </motion.p>
 
-          <h1 className="animate-fade-up text-hero font-display font-bold text-foreground text-balance [animation-delay:100ms]">
+          <motion.h1
+            variants={fadeUp}
+            className="text-hero font-display font-bold text-foreground text-balance"
+          >
             Escribe lo que buscas.
             <br />
             La Verde te lleva.
-          </h1>
+          </motion.h1>
 
-          <p className="mx-auto mt-gap-xl max-w-[52ch] animate-fade-up text-lead text-muted-foreground text-pretty [animation-delay:200ms]">
+          <motion.p
+            variants={fadeUp}
+            className="mx-auto mt-gap-xl max-w-[52ch] text-lead text-muted-foreground text-pretty"
+          >
             Preguntale a La Verde como si hablaras con un amigo,
             y encuentra el lugar que buscas en Cuba.
-          </p>
+          </motion.p>
 
-          <div className="mt-gap-xl flex animate-fade-up flex-wrap justify-center gap-gap-sm [animation-delay:300ms]">
+          <motion.div
+            variants={fadeUp}
+            className="mt-gap-xl flex flex-wrap justify-center gap-gap-sm"
+          >
             <Link
               href="/home"
               className="inline-flex items-center gap-2 whitespace-nowrap rounded-lv bg-accent px-6 py-3 font-display text-[15px] font-semibold leading-none text-accent-foreground shadow-[0_1px_3px_oklch(62%_0.16_145/0.25)] transition-all duration-200 active:translate-y-px hover:bg-accent-hover hover:shadow-[0_4px_12px_oklch(62%_0.16_145/0.3)]"
@@ -112,31 +135,36 @@ export function Hero() {
             >
               Como funciona
             </Link>
-          </div>
+          </motion.div>
 
-          <div className="mx-auto mt-gap-2xl flex max-w-[600px] animate-fade-up items-center gap-2 rounded-lv-lg border border-border bg-surface p-1.5 shadow-lv-md [animation-delay:300ms] md:flex-row md:p-1.5">
-            <div className="ml-2 flex size-10 shrink-0 items-center justify-center text-accent">
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              >
-                <path d="M9.5 3.5a6 6 0 1 0 0 12 6 6 0 0 0 0-12z" />
-                <path d="M21 21l-4.35-4.35" />
-              </svg>
-            </div>
-            <div className="flex-1 overflow-hidden py-2.5 text-left text-[16px] text-muted-foreground md:text-[16px]">
-              <TypingAnimation />
+          <motion.div
+            variants={fadeUp}
+            className="mx-auto mt-gap-2xl flex w-full max-w-[600px] flex-col gap-2 rounded-lv-lg border border-border bg-surface p-1.5 shadow-lv-md md:flex-row md:items-center md:gap-2 md:p-1.5"
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="ml-2 flex size-10 shrink-0 items-center justify-center text-accent">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                >
+                  <path d="M9.5 3.5a6 6 0 1 0 0 12 6 6 0 0 0 0-12z" />
+                  <path d="M21 21l-4.35-4.35" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1 truncate py-2.5 text-left text-[16px] text-muted-foreground">
+                <TypingAnimation />
+              </div>
             </div>
             <button className="shrink-0 rounded-lv bg-accent px-5 py-2.5 text-[14px] font-semibold text-accent-foreground transition-all active:translate-y-px hover:bg-accent-hover max-md:w-full max-md:text-center">
               Buscar
             </button>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </div>
     </section>
   );
