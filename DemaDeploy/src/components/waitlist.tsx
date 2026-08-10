@@ -22,11 +22,11 @@ export default function Waitlist() {
           <h2 className="mt-6 font-display text-balance text-4xl font-bold leading-tight tracking-[-0.02em] sm:text-5xl">
             Cuba se está moviendo.{" "}
             <span className="bg-gradient-to-r from-verde-200 to-emerald-400 bg-clip-text text-transparent">
-              Andá adelante.
+              Sé de los primeros.
             </span>
           </h2>
           <p className="mx-auto mt-5 max-w-md text-pretty text-base leading-relaxed text-white/65">
-            El lanzamiento en Israel abre con un cupo limitado. Sumate a la lista y entrá
+            El lanzamiento en Cuba abre con cupo limitado. Súmate a la lista y entra
             antes que el mapa público.
           </p>
         </Reveal>

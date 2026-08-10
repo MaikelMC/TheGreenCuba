@@ -42,15 +42,16 @@ export default function MapDemo() {
       <div className="container">
         <Reveal className="mx-auto max-w-2xl text-center">
           <span className="eyebrow border border-verde-200 bg-verde-50 text-verde-600">
-            El mapa con salud verde
+            El mapa que te da la verde
           </span>
           <h2 className="mt-5 font-display text-balance text-4xl font-bold tracking-[-0.02em] text-ink sm:text-5xl">
             Cuba, sin ruido.{" "}
             <span className="text-verde-600">Solo lo bueno.</span>
           </h2>
           <p className="mt-5 text-pretty text-base leading-relaxed text-ink-soft/80 sm:text-lg">
-            Nuestro equipo local camina, verifica y geolocaliza cada lugar antes de
-            publicarlo. Las opiniones no se compran: se<span className="italic"> merecen</span>.
+            Cada lugar está geolocalizado y señalado por gente local. Te decimos qué
+            hay cerca de ti y si vale la pena. Las opiniones no se compran: se
+            merecen.
           </p>
         </Reveal>
 
@@ -78,10 +79,10 @@ export default function MapDemo() {
                       </span>
                       <div>
                         <p className="font-display text-base font-bold text-ink">
-                          Lugares curados
+                          Lugares recomendados
                         </p>
                         <p className="text-xs text-ink-soft/60">
-                          tocá uno para verlo en el mapa
+                          toca uno para verlo en el mapa
                         </p>
                       </div>
                     </div>
@@ -141,7 +142,7 @@ export default function MapDemo() {
                           <span className="absolute h-full w-full animate-ping rounded-full bg-verde-400 opacity-70" />
                           <span className="relative h-2 w-2 rounded-full bg-verde-500" />
                         </span>
-                        El equipo camina Cuba esta semana
+                        Te pasamos la verde cada semana
                       </div>
                       <div className="flex items-center gap-1 text-xs text-ink-soft/60">
                         <Users className="h-3.5 w-3.5" strokeWidth={2} />
@@ -158,7 +159,7 @@ export default function MapDemo() {
         {/* Tarjeta de estado (overlay sobre el mapa, sutil) */}
         <Reveal delay={0.2} className="mt-6 text-center">
           <p className="text-xs text-ink-soft/50">
-            * Vista previa con datos de muestra. La versión uno llegará con cientos de lugares verificados.
+            * Vista previa con datos de muestra. La versión uno llegará con cientos de lugares recomendados.
           </p>
         </Reveal>
       </div>

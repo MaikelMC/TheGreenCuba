@@ -53,7 +53,7 @@ export default function Hero() {
                 <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-verde-300" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-verde-300" />
               </span>
-              Acceso anticipado · Israel (abril 2026)
+              Acceso anticipado · Cuba, 2026
             </span>
           </motion.div>
 
@@ -61,20 +61,19 @@ export default function Hero() {
             variants={fadeUp}
             className="mt-7 font-display text-balance text-[2.7rem] font-bold leading-[1.02] tracking-[-0.03em] sm:text-6xl lg:text-7xl"
           >
-            Descubre{" "}
+            Te damos{" "}
             <span className="bg-gradient-to-r from-verde-200 via-verde-300 to-emerald-400 bg-clip-text text-transparent">
-              la parte verde
-            </span>{" "}
-            de Cuba.
+              la verde
+            </span>
+            .
           </motion.h1>
 
           <motion.p
             variants={fadeUp}
             className="mt-6 max-w-xl text-pretty text-base leading-relaxed text-white/70 sm:text-lg"
           >
-            La Verde geolocaliza y cuida los mejores lugares del país: restaurantes,
-            playas, cafés y rincones que el mapa clásico nunca te muestra. Pregúntale y
-            comprueba su salud al instante.
+            La Verde te dice qué lugar necesitas para compartir, visitar o comprar, y
+            cuál te queda cerca. Pregúntale con tus palabras y llévate la mejor opción.
           </motion.p>
 
           <motion.div
@@ -113,7 +112,7 @@ export default function Hero() {
                     className="font-display text-3xl font-bold text-verde-200"
                   />
                 ),
-                label: "lugares curados"
+                label: "lugares recomendados"
               },
               {
                 value: (

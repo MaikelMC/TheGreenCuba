@@ -9,7 +9,7 @@ import {
   Sparkles,
   Star
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Reveal from "@/components/ui/reveal";
 import { PLACES, type Place } from "@/lib/places";
 import { CATEGORY_META } from "@/lib/places";
@@ -58,12 +58,7 @@ export default function AiDemo() {
   const [results, setResults] = useState<Place[] | null>(null);
   const [done, setDone] = useState(false);
   const reduce = useReducedMotion();
-  const inputRef = useRef<HTMLInputElement>(null);
   const seq = useRef(0);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
 
   const run = (q: string) => {
     if (!q.trim()) return;
@@ -106,7 +101,7 @@ export default function AiDemo() {
           <h2 className="mt-5 font-display text-balance text-4xl font-bold tracking-[-0.02em] sm:text-5xl">
             Deja de buscar.{" "}
             <span className="bg-gradient-to-r from-verde-200 to-emerald-400 bg-clip-text text-transparent">
-              Preguntá.
+              Pregunta.
             </span>
           </h2>
         </Reveal>
@@ -117,7 +112,6 @@ export default function AiDemo() {
               <div className="flex items-center gap-2 rounded-[calc(2rem-10px)] bg-white/[0.06] px-4 py-1">
                 <Sparkles className="h-5 w-5 shrink-0 text-verde-300" strokeWidth={1.8} />
                 <input
-                  ref={inputRef}
                   value={query}
                   onChange={(e) => {
                     setQuery(e.target.value);
@@ -177,7 +171,7 @@ export default function AiDemo() {
                   strokeWidth={2}
                 />
                 <span className="text-sm">
-                  La Verde recuerda y filtra los lugares en Cuba…
+                  La Verde busca el lugar correcto cerca de ti…
                 </span>
               </motion.div>
             )}
@@ -193,8 +187,8 @@ export default function AiDemo() {
               >
                 <div className="flex items-center gap-2 px-1 text-sm text-white/60">
                   <span className="h-1.5 w-1.5 rounded-full bg-verde-400" />
-                  {results.length} lugar{results.length !== 1 ? "es" : ""} curado
-                  {results.length !== 1 ? "s" : ""} para vos
+                  {results.length} lugar{results.length !== 1 ? "es" : ""} recomendado
+                  {results.length !== 1 ? "s" : ""} para ti
                 </div>
                 {results.map((p, i) => (
                   <motion.div

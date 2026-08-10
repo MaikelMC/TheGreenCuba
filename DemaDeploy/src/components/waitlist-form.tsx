@@ -57,17 +57,17 @@ export default function WaitlistForm({
               <PartyPopper className="h-6 w-6" strokeWidth={1.8} />
             </span>
             <h3 className="mt-4 font-display text-2xl font-bold text-ink">
-              Estás adentro, {email.split("@")[0] || "vecino"}
+              ¡Listo, {email.split("@")[0] || "vecino"}!
             </h3>
             {pos ? (
               <p className="mt-2 text-sm text-ink-soft/80">
-                Sos el número{" "}
+                Eres el número{" "}
                 <span className="font-display text-lg font-bold text-verde-600">{pos}</span>{" "}
-                en la lista. Te avisamos apenas abra la puerta.
+                de la lista. Te avisamos apenas abra la puerta.
               </p>
             ) : (
               <p className="mt-2 text-sm text-ink-soft/80">
-                Te avisamos apenas abra la puerta. Revisá tu bandeja.
+                Te avisamos apenas abra la puerta. Revisa tu bandeja.
               </p>
             )}
           </motion.div>
@@ -107,14 +107,14 @@ export default function WaitlistForm({
                       strokeWidth={2}
                     />
                   ) : (
-                    <span className="font-bold">Pidenme cupo →</span>
+                    <span className="font-bold">Reservar cupo →</span>
                   )}
                 </button>
               </div>
             </div>
             {status === "error" && (
               <p className="mt-3 px-2 text-center text-xs text-red-500">
-                Algo salió mal. Intentalo de nuevo en un momento.
+                Algo salió mal. Inténtalo de nuevo en un momento.
               </p>
             )}
           </motion.form>
@@ -124,11 +124,11 @@ export default function WaitlistForm({
       <div className="mt-5 flex items-center justify-center gap-6 text-xs text-ink-soft/60">
         <span className="flex items-center gap-1.5">
           <CheckCircle2 className="h-3.5 w-3.5 text-verde-500" strokeWidth={2} />
-          Sin spam, sin Vuelta
+          Sin spam, sin compromiso
         </span>
         <span className="flex items-center gap-1.5">
           <CheckCircle2 className="h-3.5 w-3.5 text-verde-500" strokeWidth={2} />
-          <Counter to={1240} format={(n) => `${n}`} /> en lista ya
+          <Counter to={1240} format={(n) => `${n}`} /> ya en la lista
         </span>
       </div>
     </div>

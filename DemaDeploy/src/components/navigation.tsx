@@ -8,7 +8,7 @@ import { easeSpring } from "@/lib/motion";
 
 const LINKS = [
   { href: "#mapa", label: "El Mapa" },
-  { href: "#busqueda", label: "La Ver(A)n", label2: "Búsqueda" },
+  { href: "#busqueda", label: "Búsqueda" },
   { href: "#como-funciona", label: "Cómo funciona" },
   { href: "#diferente", label: "Por qué La Verde" }
 ];
@@ -78,7 +78,7 @@ export default function Navigation() {
               onClick={() => go("#waitlist")}
               className="hidden rounded-full px-4 py-2 text-xs font-semibold text-white/80 transition-colors duration-300 hover:text-white sm:block"
             >
-              Unirme
+              Únete
             </button>
             <button
               aria-label={open ? "Cerrar menú" : "Abrir menú"}
@@ -138,7 +138,7 @@ export default function Navigation() {
                   onClick={() => go("#waitlist")}
                   className="rounded-full bg-verde-400 px-7 py-3 text-sm font-bold text-verde-950 shadow-soft transition-transform duration-300 active:scale-[0.98]"
                 >
-                  Únete a la espera
+                  Reservar mi cupo
                 </button>
               </motion.div>
             </nav>

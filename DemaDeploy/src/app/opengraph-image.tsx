@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "La Verde · Tu mapa verde de Cuba";
+export const alt = "La Verde · El lugar que necesitas, cerca de ti";
 
 export default function OpenGraphImage() {
   return new ImageResponse(
@@ -44,12 +44,12 @@ export default function OpenGraphImage() {
             letterSpacing: -2
           }}
         >
-          Descubrí la parte
+          Te damos
           <br />
-          <span style={{ color: "#35AF6D" }}>verde</span> de Cuba.
+          <span style={{ color: "#35AF6D" }}>la verde.</span>
         </div>
         <div style={{ marginTop: 32, fontSize: 30, opacity: 0.75 }}>
-          El mapa curado de los mejores lugares · con salud verde.
+          El lugar correcto, cerca de ti · para compartir, visitar y comprar.
         </div>
       </div>
     ),

@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     template: "%s · La Verde"
   },
   description:
-    "La Verde geolocaliza y cuida los mejores lugares de Cuba: restaurantes, playas, bares y rincones. Pregúntale a La Verde, tu mapa con salud verde.",
+    "La Verde te pasa el dato: el lugar correcto cerca de ti, para compartir, visitar o comprar, con ayuda de una asistente IA. En Cuba, cuando alguien te indica lo que necesitas, te da la verde.",
   keywords: [
     "La Verde",
     "lugares de Cuba",
@@ -39,14 +39,14 @@ export const metadata: Metadata = {
     locale: "es",
     url: SITE_URL,
     siteName: "La Verde",
-    title: "La Verde · Tu mapa verde de Cuba",
+    title: "La Verde · El lugar que necesitas, cerca de ti",
     description:
-      "Geolocaliza y cuida los mejores lugares de Cuba. Pregunta a La Verde y explora el mapa con salud verde."
+      "Encuentra el lugar correcto para compartir, visitar o comprar. La Verde te dice qué hay cerca de ti y si vale la pena."
   },
   twitter: {
     card: "summary_large_image",
-    title: "La Verde · Tu mapa verde de Cuba",
-    description: "Descubre los mejores lugares de Cuba con salud verde."
+    title: "La Verde · El lugar que necesitas, cerca de ti",
+    description: "La Verde te pasa el dato: el lugar correcto cerca de ti."
   },
   robots: {
     index: true,

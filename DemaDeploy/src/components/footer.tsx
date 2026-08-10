@@ -13,8 +13,8 @@ export default function Footer() {
               <span className="font-display text-base font-bold">La Verde</span>
             </div>
             <p className="mt-4 max-w-xs text-sm leading-relaxed">
-              El mapa con salud verde de Cuba. Curamos, geolocalizamos y cuidamos los
-              mejores lugares del país.
+              Te pasamos la verde: el lugar correcto cerca de ti, para compartir,
+              visitar o comprar. Señalado por gente local, impulsado por IA.
             </p>
           </div>
 
@@ -51,11 +51,11 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 text-xs text-white/35 sm:flex-row">
-          <p>© {new Date().getFullYear()} La Verde. Cuidando el lado verde de Cuba.</p>
+          <p>© {new Date().getFullYear()} La Verde. Pasándote la verde en Cuba.</p>
           <p className="text-center sm:text-right">
-            Lanzamiento anticipado 2026 · Estemos bueno,{" "}
+            Lanzamiento anticipado 2026 ·{" "}
             <a href="#waitlist" className="text-verde-300 hover:text-verde-200">
-              ¿andás?
+              ¿Te damos la verde?
             </a>
           </p>
         </div>

@@ -1,7 +1,9 @@
-# La Verde — Preview Experience
+# La Verde · Preview Experience
 
-Una preview premium, independiente y funcional de **La Verde**, el mapa con salud
-verde de Cuba: un encuentro **geolocaliza y cura el mejor lugar del país**.
+Una preview premium, independiente y funcional de **La Verde**, que te pasa el
+dato: el **lugar correcto cerca de ti** para compartir, visitar o comprar, con la
+ayuda de una asistente IA. El nombre viene de la frase cubana: cuando alguien te
+indica el lugar que necesitas, te **da la verde**.
 
 Proyecto **Next.js 15 (App Router) + TypeScript + Tailwind CSS**, orquestado con
 **Framer Motion** para una experiencia de alto impacto y conversión. Está pensado
@@ -15,17 +17,17 @@ plan gratuito de Vercel.
 | Sección            | Qué hace                                                                                                                  |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
 | **Hero**           | Titular cinematográfico, orbes de luz, contadores sociales animados (lugares, provincias, guardados) y CTA de doble vía.  |
-| **El Mapa**        | Demo en vivo con **Leaflet**: 14 lugares curados con pins premium, `flyTo` al seleccionar, búsqueda por la galería lateral. |
+| **El Mapa**        | Demo en vivo con **Leaflet**: 14 lugares recomendados con pins premium, `flyTo` al seleccionar, búsqueda por la galería lateral. |
 | **Búsqueda IA**    | Input natural + ejemplos clicables que responde con lugares (demo local, sin backend).                                    |
-| **Cómo funciona**  | Proceso en 3 pasos que explica el modelo de curaduría.                                                                    |
-| **Por qué La Verde** | Diseño bento asimétrico con el diferencial de la marca (precios en USD, salud verde, IA en el idioma del lugar).         |
+| **Cómo funciona**  | Proceso en 3 pasos que explica cómo La Verde te pasa el dato, con la etimología de "la verde".                          |
+| **Por qué La Verde** | Diseño bento asimétrico con el diferencial de la marca (precios en USD, recomendación que no se compra, IA en el idioma del lugar). |
 | **Waitlist**       | Formulario de alta conversión con **API Route** real de almacenamiento (Vercel Blob free o archivo local en dev).          |
 | **Footer**         | Mapa del sitio, confianza y toque de marca.                                                                               |
 
 ## 🎨 Dirección de diseño
 
-- **Vibe**: *Ethereal Green Glass* — herodark esmeralda con glassmorphism y
-  secciones claras cálidas.
+- **Vibe**: *Ethereal Green Glass* (hero oscuro esmeralda con glassmorphism y
+  secciones claras cálidas).
 - **Layout**: bento asimétrico + "double-bezel" (carcasa exterior + núcleo interior)
   para las tarjetas.
 - **Tipografía**: Space Grotesk (display) + Plus Jakarta Sans (texto), servidas por
@@ -97,7 +99,7 @@ cómodo en el plan Hobby/Vercel free.
 
 - Metadata completa en `layout.tsx` (title template, description, keywords, robots).
 - Open Graph y Twitter Card generados dinámicamente con `next/og`
-  (`src/app/opengraph-image.tsx`) — sin dependencias extra.
+  (`src/app/opengraph-image.tsx`), sin dependencias extra.
 - Favicon SVG de marca (`src/app/icon.svg`).
 
 ## 📁 Estructura principal

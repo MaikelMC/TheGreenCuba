@@ -8,18 +8,18 @@ import { cardIn } from "@/lib/motion";
 const STEPS = [
   {
     icon: MapPinned,
-    title: "Geolocaliza el paraíso",
-    desc: "Cada lugar vive en el mapa con coordenadas reales y una ficha honesta: precios en USD, horarios y ambiente."
+    title: "El lugar que buscas",
+    desc: "Restaurantes, tiendas, bares, playas, rincones para compartir. Cada uno vive en el mapa con su dato real: precio, horario y ambiente."
   },
   {
     icon: MessageCircleQuestion,
-    title: "Preguntale a La Verde",
-    desc: "Contá lo que buscás con palabras naturales. La Verde entiende el contexto cubano y te devuelve solo lo que vale."
+    title: "Pregúntale a La Verde",
+    desc: "Cuéntale con tus palabras qué necesitas. La IA entiende el contexto cubano y te dice qué tienes cerca de ti."
   },
   {
     icon: HeartHandshake,
-    title: "Comprobá su salud",
-    desc: "Nuestro equipo local verifica cada lugar antes de publicarlo. Sin reseñas compradas, sin promociones disfrazadas."
+    title: "Te damos la verde",
+    desc: "En Cuba, cuando alguien te indica el lugar correcto, te da la verde. Eso hacemos: señalarte lo que de verdad necesitas, sin rodeos."
   }
 ];
 
@@ -33,7 +33,7 @@ export default function HowItWorks() {
           </span>
           <h2 className="mt-5 font-display text-balance text-4xl font-bold tracking-[-0.02em] text-ink sm:text-5xl">
             Tres pasos,{" "}
-            <span className="text-verde-600">cero vuelta al mundo</span>
+            <span className="text-verde-600">sin dar vueltas</span>
           </h2>
         </Reveal>
 
