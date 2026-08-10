@@ -1,7 +1,8 @@
 "use client";
 
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, type LucideIcon } from "lucide-react";
 
 interface StatChange {
   value: string;
@@ -25,7 +26,7 @@ const changeStyles: Record<string, string> = {
   neutral: "text-muted-foreground bg-muted",
 };
 
-const changeIcons: Record<string, typeof TrendingUp> = {
+const changeIcons: Record<StatChange["direction"], LucideIcon> = {
   up: TrendingUp,
   down: TrendingDown,
   neutral: Minus,
@@ -34,11 +35,15 @@ const changeIcons: Record<string, typeof TrendingUp> = {
 export function DashboardStats({ stats, className }: DashboardStatsProps) {
   return (
     <div className={cn("grid grid-cols-2 lg:grid-cols-4 gap-gap-sm", className)}>
-      {stats.map((s) => {
-        const Icon = changeIcons[s.change.direction];
+      {stats.map((s, i) => {
+        const Icon = changeIcons[s.change.direction] ?? Minus;
         return (
-          <div
+          <motion.div
             key={s.label}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.06, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            whileHover={{ y: -3 }}
             className="bg-surface border border-border rounded-lv-lg p-gap-md flex flex-col gap-gap-xs transition-shadow duration-normal hover:shadow-lv-sm"
           >
             <span className="font-mono text-xs text-muted-foreground uppercase tracking-[0.04em] font-medium">
@@ -56,7 +61,7 @@ export function DashboardStats({ stats, className }: DashboardStatsProps) {
               <Icon size={12} strokeWidth={2} />
               {s.change.value}
             </span>
-          </div>
+          </motion.div>
         );
       })}
     </div>

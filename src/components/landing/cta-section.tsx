@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { fadeUp, staggerContainer } from "./anim";
+import { JoinButton } from "@/components/landing/join-button";
 
 export function CTASection() {
   return (
@@ -31,12 +32,7 @@ export function CTASection() {
             variants={fadeUp}
             className="mt-gap-xl flex flex-wrap justify-center gap-gap-sm"
           >
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-2 whitespace-nowrap rounded-lv bg-accent px-6 py-3 font-display text-[15px] font-semibold leading-none text-accent-foreground shadow-[0_1px_3px_oklch(62%_0.16_145/0.25)] transition-all duration-200 active:translate-y-px hover:bg-accent-hover hover:shadow-[0_4px_12px_oklch(62%_0.16_145/0.3)]"
-            >
-              Unirse a la lista de espera
-            </Link>
+            <JoinButton className="px-6 py-3 text-[15px]" />
             <Link
               href="#como-funciona"
               className="inline-flex items-center gap-2 whitespace-nowrap rounded-lv border border-border bg-transparent px-6 py-3 font-display text-[15px] font-semibold leading-none text-foreground transition-all duration-200 active:translate-y-px hover:border-foreground"

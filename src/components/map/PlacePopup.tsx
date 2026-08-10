@@ -1,9 +1,11 @@
 "use client";
 
+import { Navigation } from "lucide-react";
 import { type MapPlace } from "./types";
 
 interface PlacePopupProps {
   place: MapPlace;
+  onRoute?: (place: MapPlace) => void;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -13,7 +15,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   Mercado: "bg-lv-teal/10 text-lv-teal",
 };
 
-export function PlacePopup({ place }: PlacePopupProps) {
+export function PlacePopup({ place, onRoute }: PlacePopupProps) {
   return (
     <div className="place-popup">
       <div className="place-popup-header">
@@ -32,6 +34,16 @@ export function PlacePopup({ place }: PlacePopupProps) {
         {place.price && <span>{place.price}</span>}
         {place.rating && <span>★ {place.rating}</span>}
       </div>
+      {onRoute && (
+        <button
+          type="button"
+          onClick={() => onRoute(place)}
+          className="place-popup-route"
+        >
+          <Navigation size={13} strokeWidth={2} />
+          Ruta guiada
+        </button>
+      )}
       <a
         href={`/place/${place.id}`}
         className="place-popup-link"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   LayoutDashboard,
   Edit,
@@ -11,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { UserMenu } from "@/components/layout/user-menu";
+import { EASE } from "@/lib/motion";
 
 export type PanelView = "dashboard" | "editor" | "preview" | "settings";
 
@@ -93,14 +95,19 @@ export function PanelShell({
                 type="button"
                 onClick={() => setActiveView(item.id)}
                 className={cn(
-                  "flex items-center gap-gap-sm w-full px-gap-md py-gap-sm rounded-lv text-small font-medium transition-all duration-fast text-left border-none bg-transparent cursor-pointer font-body",
-                  isActive
-                    ? "bg-accent/10 text-accent font-semibold"
-                    : "text-foreground hover:bg-muted",
+                  "relative flex items-center gap-gap-sm w-full px-gap-md py-gap-sm rounded-lv text-small font-medium transition-colors duration-fast text-left border-none bg-transparent cursor-pointer font-body",
+                  isActive ? "text-accent font-semibold" : "text-foreground hover:bg-muted",
                 )}
               >
-                <Icon size={20} strokeWidth={1.5} className="shrink-0" />
-                {item.label}
+                {isActive && (
+                  <motion.span
+                    layoutId="panel-nav-side"
+                    className="absolute inset-0 rounded-lv bg-accent/10"
+                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                  />
+                )}
+                <Icon size={20} strokeWidth={1.5} className="relative shrink-0 z-10" />
+                <span className="relative z-10">{item.label}</span>
               </button>
             );
           })}
@@ -119,8 +126,19 @@ export function PanelShell({
 
         {/* Main Content */}
         <main className="flex-1 min-w-0 overflow-y-auto">
-          <div className="p-gap-md pb-[80px] lg:pb-gap-xl lg:p-gap-xl animate-fade-in flex flex-col min-h-full">
-            {children(activeView, setActiveView)}
+          <div className="p-gap-md pb-[80px] lg:pb-gap-xl lg:p-gap-xl flex flex-col min-h-full">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeView}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.25, ease: EASE }}
+                className="flex flex-col min-h-full"
+              >
+                {children(activeView, setActiveView)}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </main>
       </div>
@@ -136,12 +154,19 @@ export function PanelShell({
               type="button"
               onClick={() => setActiveView(item.id)}
               className={cn(
-                "flex-1 flex flex-col items-center justify-center gap-[2px] text-xs font-medium transition-colors duration-fast bg-transparent border-none cursor-pointer font-body",
+                "relative flex-1 flex flex-col items-center justify-center gap-[2px] text-xs font-medium transition-colors duration-fast bg-transparent border-none cursor-pointer font-body",
                 isActive ? "text-accent" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <Icon size={22} strokeWidth={1.5} />
-              {item.label}
+              {isActive && (
+                <motion.span
+                  layoutId="panel-nav-bottom"
+                  className="absolute top-0 h-[2px] w-8 rounded-full bg-accent"
+                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                />
+              )}
+              <Icon size={22} strokeWidth={1.5} className="relative z-10" />
+              <span className="relative z-10">{item.label}</span>
             </button>
           );
         })}

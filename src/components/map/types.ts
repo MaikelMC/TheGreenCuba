@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { RouteResult, RoutePoint } from "@/lib/map/routing";
 
 export interface MapPlace {
   id: string;
@@ -20,6 +21,7 @@ export interface MapViewProps {
   places: MapPlace[];
   selectedPlaceId?: string | null;
   onPlaceSelect?: (place: MapPlace) => void;
+  onPlaceRoute?: (place: MapPlace) => void;
   onMapMove?: (
     bounds: {
       north: number;
@@ -35,10 +37,15 @@ export interface MapViewProps {
   onLocateStateChange?: (state: LocateState) => void;
   /** Cuando cambia, el mapa vuela hasta esas coordenadas (útil desde las cards). */
   focusTarget?: { lat: number; lng: number; key: number } | null;
+  /** Ruta activa a dibujar entre la ubicación del usuario y un lugar. */
+  route?: RouteResult | null;
+  routeOrigin?: RoutePoint | null;
   initialCenter?: [number, number];
   initialZoom?: number;
   maxZoom?: number;
   tileKey?: string;
+  /** Evita el auto-fit de bounds al montar (útil cuando se centra en una zona elegida). */
+  disableAutoFit?: boolean;
   searching?: boolean;
   children?: ReactNode;
   className?: string;

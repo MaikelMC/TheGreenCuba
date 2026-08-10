@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import {
   Sheet,
   SheetClose,
@@ -10,6 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { JoinButton } from "@/components/landing/join-button";
 
 const NAV_LINKS = [
   { href: "#como-funciona", label: "Como funciona" },
@@ -59,12 +60,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-gap-md">
-          <Link
-            href="/register"
-            className="inline-flex items-center gap-2 whitespace-nowrap rounded-lv bg-accent px-[18px] py-2.5 font-display text-[14px] font-semibold leading-none text-accent-foreground shadow-[0_1px_3px_oklch(62%_0.16_145/0.25)] transition-all duration-200 active:translate-y-px hover:bg-accent-hover hover:shadow-[0_4px_12px_oklch(62%_0.16_145/0.3)] max-sm:hidden"
-          >
-            Unirse a la lista
-          </Link>
+          <JoinButton className="px-[18px] py-2.5 text-[14px] max-sm:hidden" />
 
           <Sheet>
             <SheetTrigger asChild>
@@ -101,12 +97,7 @@ export function Header() {
                   </SheetClose>
                 ))}
                 <SheetClose asChild>
-                  <Link
-                    href="/register"
-                    className="mt-gap-sm inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lv bg-accent px-[18px] py-3 font-display text-[15px] font-semibold leading-none text-accent-foreground shadow-[0_1px_3px_oklch(62%_0.16_145/0.25)] transition-all duration-200 active:translate-y-px hover:bg-accent-hover hover:shadow-[0_4px_12px_oklch(62%_0.16_145/0.3)]"
-                  >
-                    Unirse a la lista
-                  </Link>
+                  <JoinButton className="mt-gap-sm w-full py-3 text-[15px]" />
                 </SheetClose>
               </nav>
             </SheetContent>

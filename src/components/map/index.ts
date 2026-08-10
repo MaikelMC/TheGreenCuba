@@ -3,6 +3,7 @@ export { MapMarkers } from "./MapMarkers";
 export { UserLocationMarker } from "./UserLocationMarker";
 export { PlacePopup } from "./PlacePopup";
 export { LocateButton } from "./LocateButton";
+export { RouteLayer } from "./RouteLayer";
 export type {
   MapPlace,
   MapViewProps,

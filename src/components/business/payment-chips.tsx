@@ -19,7 +19,7 @@ interface PaymentChipsProps {
 }
 
 const DEFAULT_OPTIONS: PaymentOption[] = [
-  { id: "MLC", label: "MLC", dotColor: "bg-accent" },
+  { id: "MLC", label: "USD Clásica", dotColor: "bg-accent" },
   { id: "CUP", label: "CUP", dotColor: "bg-lv-blue" },
   { id: "USD", label: "USD (efectivo)", dotColor: "bg-lv-teal" },
   { id: "EUR", label: "EUR", dotColor: "bg-lv-amber" },

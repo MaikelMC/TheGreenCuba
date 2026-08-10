@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { fadeUp, heroContainer } from "./anim";
 
 const PHRASES = [
-  "Un cafe tranquilo cerca de mi que acepte MLC",
+  "Un cafe tranquilo cerca de mi que acepte USD Clásica",
   "Restaurante con vista al mar para hoy",
   "Donde puedo comprar frutas baratas en Vedado",
   "Bar que toque son cubano esta noche",
@@ -25,7 +25,7 @@ function TypingAnimation() {
     let timeout: ReturnType<typeof setTimeout>;
 
     function step() {
-      const current = PHRASES[phraseIdx];
+      const current = PHRASES[phraseIdx] ?? "";
       if (!isDeleting) {
         setDisplayed(current.substring(0, charIdx + 1));
         charIdx++;
@@ -124,7 +124,7 @@ export function Hero() {
             className="mt-gap-xl flex flex-wrap justify-center gap-gap-sm"
           >
             <Link
-              href="/home"
+              href="/onboarding"
               className="inline-flex items-center gap-2 whitespace-nowrap rounded-lv bg-accent px-6 py-3 font-display text-[15px] font-semibold leading-none text-accent-foreground shadow-[0_1px_3px_oklch(62%_0.16_145/0.25)] transition-all duration-200 active:translate-y-px hover:bg-accent-hover hover:shadow-[0_4px_12px_oklch(62%_0.16_145/0.3)]"
             >
               Probar La Verde

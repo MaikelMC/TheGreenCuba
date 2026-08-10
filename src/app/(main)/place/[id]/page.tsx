@@ -117,6 +117,7 @@ export default function PlacePage() {
       onBack={() => router.back()}
       onShare={() => {}}
       onMenuSeeAll={() => {}}
+      onNavigate={() => router.push(`/home?lugar=${place.id}`)}
     />
   );
 }

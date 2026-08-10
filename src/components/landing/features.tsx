@@ -7,7 +7,7 @@ import {
   useInView,
   useMotionValue,
   useTransform,
-} from "framer-motion";
+} from "motion/react";
 import { cn } from "@/lib/utils";
 import { EASE, fadeUp, popIn, staggerContainer } from "./anim";
 
@@ -71,7 +71,7 @@ const STATS = [
   {
     value: "3",
     label: "Tipos de moneda reconocidos",
-    desc: "CUP, MLC y USD. Paga como quieras.",
+    desc: "CUP, USD Clásica y USD. Paga como quieras.",
   },
   {
     value: "15+",

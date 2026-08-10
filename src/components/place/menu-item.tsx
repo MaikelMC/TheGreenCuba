@@ -1,7 +1,8 @@
 "use client";
 
+import { motion } from "motion/react";
 import { Image } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, currencyLabel } from "@/lib/utils";
 
 interface MenuItemProps {
   name: string;
@@ -14,6 +15,7 @@ interface MenuItemProps {
   };
   imageEmoji?: string;
   className?: string;
+  index?: number;
 }
 
 const tagStyles: Record<string, string> = {
@@ -30,9 +32,17 @@ export function MenuItem({
   tag,
   imageEmoji,
   className,
+  index = 0,
 }: MenuItemProps) {
   return (
-    <div className={cn("flex gap-gap-md py-gap-md border-b border-border last:border-b-0", className)}>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-32px" }}
+      transition={{ delay: index * 0.04, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ x: 4 }}
+      className={cn("flex gap-gap-md py-gap-md border-b border-border last:border-b-0", className)}
+    >
       {/* Image placeholder */}
       <div className="size-[72px] rounded-lv bg-lv-sand-200 shrink-0 grid place-items-center overflow-hidden">
         {imageEmoji ? (
@@ -53,7 +63,7 @@ export function MenuItem({
         <div className="flex items-center justify-between mt-[6px]">
           <span className="font-mono text-small font-medium text-foreground">
             {price}{" "}
-            <span className="text-xs text-muted-foreground font-normal">{currency}</span>
+            <span className="text-xs text-muted-foreground font-normal">{currencyLabel(currency)}</span>
           </span>
           {tag && (
             <span
@@ -67,6 +77,7 @@ export function MenuItem({
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
+

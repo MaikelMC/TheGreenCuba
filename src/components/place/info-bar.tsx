@@ -1,7 +1,7 @@
 "use client";
 
 import { Clock, MapPin, CreditCard } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, currencyLabel } from "@/lib/utils";
 
 interface InfoBarProps {
   schedule: string;
@@ -70,7 +70,7 @@ export function InfoBar({
                 currencyStyles[c] ?? "bg-muted text-muted-foreground",
               )}
             >
-              {c}
+              {currencyLabel(c)}
             </span>
           ))}
         </div>

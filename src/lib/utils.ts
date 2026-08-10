@@ -10,8 +10,22 @@ export function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(1)} km`;
 }
 
+/**
+ * Etiqueta visible de una moneda. MLC se muestra como "USD Clásica"
+ * (mantenemos el valor interno "MLC" para compatibilidad con datos guardados).
+ */
+export function currencyLabel(code: string): string {
+  const labels: Record<string, string> = {
+    MLC: "USD Clásica",
+    CUP: "CUP",
+    USD: "USD",
+    EUR: "EUR",
+  };
+  return labels[code] ?? code;
+}
+
 export function formatPrice(price: number, currency = "MLC"): string {
-  const symbols: Record<string, string> = { MLC: "MLC", CUP: "$", USD: "USD", EUR: "€" };
+  const symbols: Record<string, string> = { MLC: "USD", CUP: "$", USD: "USD", EUR: "€" };
   return `${price.toFixed(2)} ${symbols[currency] ?? currency}`;
 }
 

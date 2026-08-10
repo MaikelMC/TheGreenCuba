@@ -25,7 +25,7 @@ Debes devolver:
 3. Los lugares más relevantes con su distancia aproximada
 
 Contexto cubano que debes considerar:
-- Las monedas en Cuba son MLC, CUP, USD, EUR
+- Las monedas en Cuba son USD Clásica, CUP, USD, EUR
 - Las ciudades principales: La Habana, Santiago de Cuba, Varadero, Trinidad, Cienfuegos
 - Los horarios pueden ser irregulares
 - Muchos lugares aceptan múltiples monedas

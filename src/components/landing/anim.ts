@@ -1,4 +1,4 @@
-import type { Variants } from "framer-motion";
+import type { Variants } from "motion/react";
 
 export const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 

@@ -37,7 +37,9 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
   }, [current]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
+    const touch = e.touches[0];
+    if (!touch) return;
+    touchStartX.current = touch.clientX;
     touchDeltaX.current = 0;
     isDragging.current = true;
     if (trackRef.current) trackRef.current.style.transition = "none";
@@ -45,7 +47,9 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isDragging.current) return;
-    touchDeltaX.current = e.touches[0].clientX - touchStartX.current;
+    const touch = e.touches[0];
+    if (!touch) return;
+    touchDeltaX.current = touch.clientX - touchStartX.current;
     if (trackRef.current) {
       trackRef.current.style.transform = `translateX(calc(-${current * 100}% + ${touchDeltaX.current}px))`;
     }

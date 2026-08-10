@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { MapPin, Search } from "lucide-react";
 
 const MESSAGES = [
@@ -25,7 +26,12 @@ export function SearchingAnimation({ query }: { query?: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-5 text-center">
       {/* Radar */}
-      <div className="relative mb-6 flex size-24 items-center justify-center">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="relative mb-6 flex size-24 items-center justify-center"
+      >
         <span className="searching-ring" />
         <span className="searching-ring searching-ring--delay" />
         <div className="relative z-10 flex size-14 items-center justify-center rounded-full bg-accent text-white shadow-[0_6px_24px_oklch(62%_0.16_145_/_0.4)]">
@@ -34,12 +40,23 @@ export function SearchingAnimation({ query }: { query?: string }) {
         <span className="absolute -top-1 -right-1 z-20 flex size-7 items-center justify-center rounded-full bg-surface text-accent shadow-lv-sm ring-1 ring-accent/25">
           <Search size={13} strokeWidth={2.2} />
         </span>
-      </div>
+      </motion.div>
 
       {/* Status */}
-      <p key={idx} className="searching-status font-display text-[16px] font-semibold tracking-[-0.02em] text-foreground">
-        {MESSAGES[idx]}
-      </p>
+      <div className="relative h-[24px] overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={idx}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="font-display text-[16px] font-semibold tracking-[-0.02em] text-foreground"
+          >
+            {MESSAGES[idx]}
+          </motion.p>
+        </AnimatePresence>
+      </div>
       <p className="mt-1.5 max-w-[30ch] text-[13px] text-muted-foreground">
         {query ? `Busco el mejor plan para "${query}"` : "Buscando el mejor plan para ti"}
       </p>

@@ -10,6 +10,7 @@ interface MapMarkersProps {
   places: MapPlace[];
   selectedId?: string | null;
   onSelect?: (place: MapPlace) => void;
+  onRoute?: (place: MapPlace) => void;
 }
 
 function createMarkerIcon(isSelected: boolean, isBoosted: boolean) {
@@ -34,11 +35,13 @@ const MarkerItem = memo(function MarkerItem({
   isSelected,
   isBoosted,
   onSelect,
+  onRoute,
 }: {
   place: MapPlace;
   isSelected: boolean;
   isBoosted: boolean;
   onSelect?: (place: MapPlace) => void;
+  onRoute?: (place: MapPlace) => void;
 }) {
   const icon = useMemo(
     () => createMarkerIcon(isSelected, isBoosted),
@@ -56,7 +59,7 @@ const MarkerItem = memo(function MarkerItem({
       eventHandlers={{ click: handleClick }}
     >
       <Popup {...getPlacePopupOptions()}>
-        <PlacePopup place={place} />
+        <PlacePopup place={place} onRoute={onRoute} />
       </Popup>
     </Marker>
   );
@@ -66,6 +69,7 @@ export const MapMarkers = memo(function MapMarkers({
   places,
   selectedId,
   onSelect,
+  onRoute,
 }: MapMarkersProps) {
   return (
     <>
@@ -76,6 +80,7 @@ export const MapMarkers = memo(function MapMarkers({
           isSelected={place.id === selectedId}
           isBoosted={place.tags?.some((t) => t.label === "Destacado") ?? false}
           onSelect={onSelect}
+          onRoute={onRoute}
         />
       ))}
     </>

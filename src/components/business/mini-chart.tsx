@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 interface MiniChartProps {
@@ -36,17 +37,20 @@ export function MiniChart({
             className="flex-1 relative group"
             style={{ height: `${(val / max) * 100}%` }}
           >
-            <div
+            <motion.div
+              initial={{ scaleY: 0 }}
+              animate={{ scaleY: 1 }}
+              transition={{ delay: 0.1 + i * 0.03, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              style={{ transformOrigin: "bottom", height: "100%", minHeight: "4px" }}
               className={cn(
                 "absolute bottom-0 inset-x-0 rounded-t-sm transition-colors duration-fast cursor-pointer",
                 i === data.length - 1 ? "bg-accent" : "bg-accent/20 hover:bg-accent",
               )}
-              style={{ height: "100%", minHeight: "4px" }}
             >
               <div className="hidden group-hover:block absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-foreground text-surface font-mono text-xs px-[8px] py-[3px] rounded-sm whitespace-nowrap pointer-events-none z-10">
                 {val} visitas
               </div>
-            </div>
+            </motion.div>
           </div>
         ))}
       </div>

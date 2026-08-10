@@ -20,7 +20,13 @@ const fontMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
   weight: ["400", "500", "600"],
+  // El mono no es crítico para el LCP; evita precargarlo en cada ruta.
+  preload: false,
 });
+
+const devChunkScript = `(function(){window.webpackChunkLoadTimeout=300000;if(window.__laVerdeChunkReloaded)return;window.addEventListener("error",function(e){if(window.__laVerdeChunkReloaded)return;var m=(e&&e.message)||"";if(m.indexOf("ChunkLoadError")!==-1||m.indexOf("Loading chunk")!==-1||m.indexOf("webpack")!==-1){window.__laVerdeChunkReloaded=true;window.location.reload();}},true);})();`;
+
+const prodChunkScript = `(function(){if(window.__laVerdeChunkReloaded)return;window.addEventListener("error",function(e){if(window.__laVerdeChunkReloaded)return;var m=(e&&e.message)||"";if(m.indexOf("ChunkLoadError")!==-1||m.indexOf("Loading chunk")!==-1){window.__laVerdeChunkReloaded=true;window.location.reload();}},true);})();`;
 
 export const metadata: Metadata = {
   title: {
@@ -42,7 +48,15 @@ export default function RootLayout({
       <body
         className={`${fontDisplay.variable} ${fontBody.variable} ${fontMono.variable} font-body`}
       >
-          <ThemeProvider
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              process.env.NODE_ENV === "development"
+                ? devChunkScript
+                : prodChunkScript,
+          }}
+        />
+        <ThemeProvider
             attribute="data-theme"
             defaultTheme="light"
             enableSystem

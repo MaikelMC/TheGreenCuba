@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import {
   LayoutGrid,
@@ -37,32 +38,49 @@ interface CategoryBarProps {
 
 export function CategoryBar({ active = "all", onSelect }: CategoryBarProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [tapValue, setTapValue] = useState<string | null>(null);
 
   return (
-    <div
+    <motion.div
       ref={scrollRef}
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       className="absolute top-gap-sm left-0 right-0 z-20 overflow-x-auto scrollbar-hide flex gap-gap-xs px-gutter"
     >
-      {CATEGORIES.map((cat) => {
+      {CATEGORIES.map((cat, i) => {
         const Icon = cat.icon;
         const isActive = active === cat.value;
         return (
-          <button
+          <motion.button
             key={cat.value}
             type="button"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 + i * 0.03, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            whileTap={{ scale: 0.92 }}
+            onTapStart={() => setTapValue(cat.value)}
+            onTap={() => setTapValue(null)}
             onClick={() => onSelect?.(cat.value)}
             className={cn(
-              "shrink-0 inline-flex items-center gap-[6px] px-[14px] py-2 rounded-full border font-display text-[13px] font-medium whitespace-nowrap transition-all duration-normal shadow-lv-xs",
+              "shrink-0 inline-flex items-center gap-[6px] px-[14px] py-2 rounded-full border font-display text-[13px] font-medium whitespace-nowrap transition-colors duration-normal shadow-lv-xs",
               isActive
                 ? "bg-accent border-accent text-white shadow-[0_2px_8px_oklch(62%_0.16_145_/_0.3)]"
                 : "bg-surface border-border text-muted-foreground hover:border-accent hover:text-accent",
             )}
           >
-            <Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
+            <Icon
+              size={16}
+              strokeWidth={isActive ? 2.5 : 2}
+              className={cn(
+                "transition-transform duration-normal",
+                isActive && "scale-110",
+              )}
+            />
             {cat.label}
-          </button>
+          </motion.button>
         );
       })}
-    </div>
+    </motion.div>
   );
 }

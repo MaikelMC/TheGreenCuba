@@ -25,7 +25,7 @@ export const CATEGORIES = [
 ] as const;
 
 export const CURRENCIES = [
-  { value: "MLC", label: "MLC", badge: "Moneda Libremente Convertible" },
+  { value: "MLC", label: "USD Clásica", badge: "USD clásico en efectivo" },
   { value: "CUP", label: "CUP", badge: "Peso Cubano" },
   { value: "USD", label: "USD", badge: "Dólar Americano" },
   { value: "EUR", label: "EUR", badge: "Euro" },
@@ -63,7 +63,7 @@ export const DAYS_OF_WEEK = [
 
 export const FILTERS = [
   { value: "nearby", label: "Cercanos" },
-  { value: "mlc", label: "Aceptan MLC" },
+  { value: "mlc", label: "Aceptan USD Clásica" },
   { value: "open_now", label: "Abiertos ahora" },
   { value: "quiet", label: "Tranquilo" },
   { value: "music", label: "Con música" },

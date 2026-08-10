@@ -48,6 +48,7 @@ export function HoursEditor({
     (index: number) => {
       setItems((prev) => {
         const item = prev[index];
+        if (!item) return prev;
         const wasClosed = item.isClosed;
         const next = prev.map((h, i) =>
           i === index

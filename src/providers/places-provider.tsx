@@ -61,10 +61,11 @@ export function PlacesProvider({ children }: { children: ReactNode }) {
     const missing = SEED_PLACES.filter(
       (s) => !existing.some((e) => e.id === s.id),
     );
+    const seeded = missing.length > 0 ? [...missing, ...existing] : existing;
     if (missing.length > 0) {
-      writeUserPlaces([...missing, ...existing]);
+      writeUserPlaces(seeded);
     }
-    setPlaces(readUserPlaces());
+    setPlaces(seeded);
     setCategories(readCategories());
   }, []);
 

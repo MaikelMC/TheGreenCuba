@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useCallback } from "react";
 import Link from "next/link";
+import { motion } from "motion/react";
 import { toast } from "sonner";
 import { Search, Plus, Pencil, Trash2, Zap, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -148,11 +149,15 @@ export function BusinessList() {
         </div>
       ) : (
         <div className="flex flex-col gap-gap-sm">
-          {filtered.map((p) => {
+          {filtered.map((p, i) => {
             const st = statusInfo(p.status);
             return (
-              <div
+              <motion.div
                 key={p.id}
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                layout
                 className="bg-surface border border-border rounded-lv-lg p-gap-md flex items-center gap-gap-sm"
               >
                 <div className="size-11 rounded-lv bg-gradient-to-br from-accent/10 to-lv-green-200/15 grid place-items-center text-foreground/70 shrink-0">
@@ -191,8 +196,9 @@ export function BusinessList() {
                 </span>
 
                 <div className="shrink-0 flex items-center gap-[4px]">
-                  <button
+                  <motion.button
                     type="button"
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => toggleBoost(p)}
                     className={cn(
                       "size-9 rounded-lv border grid place-items-center transition-colors",
@@ -203,24 +209,27 @@ export function BusinessList() {
                     aria-label="Alternar destacado"
                   >
                     <Zap size={16} strokeWidth={2} />
-                  </button>
-                  <Link
-                    href={`/admin/negocios/${p.id}/editar`}
-                    className="size-9 rounded-lv border border-border grid place-items-center text-muted-foreground hover:border-accent hover:text-accent transition-colors"
-                    aria-label="Editar negocio"
-                  >
-                    <Pencil size={16} strokeWidth={2} />
-                  </Link>
-                  <button
+                  </motion.button>
+                  <motion.span whileTap={{ scale: 0.9 }} className="inline-block">
+                    <Link
+                      href={`/admin/negocios/${p.id}/editar`}
+                      className="size-9 rounded-lv border border-border grid place-items-center text-muted-foreground hover:border-accent hover:text-accent transition-colors"
+                      aria-label="Editar negocio"
+                    >
+                      <Pencil size={16} strokeWidth={2} />
+                    </Link>
+                  </motion.span>
+                  <motion.button
                     type="button"
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => handleDelete(p)}
                     className="size-9 rounded-lv border border-border grid place-items-center text-muted-foreground hover:border-destructive hover:text-destructive transition-colors"
                     aria-label="Eliminar negocio"
                   >
                     <Trash2 size={16} strokeWidth={2} />
-                  </button>
+                  </motion.button>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>

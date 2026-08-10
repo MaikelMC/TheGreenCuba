@@ -44,9 +44,11 @@ export function BottomSheet({
   const translateY =
     isDragging
       ? `${dragRef.current}px`
-      : state === "peek"
-        ? "calc(100% - 120px)"
-        : "0px";
+      : !mounted
+        ? "100%"
+        : state === "peek"
+          ? "calc(100% - 120px)"
+          : "0px";
 
   function cycleState() {
     setState((prev) => (prev === "peek" ? "full" : "peek"));
@@ -99,7 +101,7 @@ export function BottomSheet({
       ref={sheetRef}
       data-state={state}
       className={cn(
-        "fixed left-0 right-0 bottom-0 z-300 bg-surface rounded-t-lv-xl shadow-[0_-4px_24px_oklch(18%_0.01_250_/_0.12)] transition-[transform] duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] max-h-[70vh] lg:max-h-none flex flex-col pb-safe-bottom",
+        "fixed left-0 right-0 bottom-0 z-300 bg-surface rounded-t-lv-xl shadow-[0_-4px_24px_oklch(18%_0.01_250_/_0.12)] transition-[transform] [transition-duration:400ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] max-h-[70vh] lg:max-h-none flex flex-col pb-safe-bottom",
         mounted && "bottom-sheet-desktop",
         isDragging && "!transition-none",
         className,
@@ -111,7 +113,12 @@ export function BottomSheet({
         className="flex justify-center py-[10px] pb-[6px] cursor-grab active:cursor-grabbing shrink-0"
         onPointerDown={handlePointerDown}
       >
-        <div className="w-[36px] h-[4px] bg-border rounded-full" />
+        <div
+          className={cn(
+            "w-[36px] h-[4px] rounded-full transition-colors duration-normal",
+            isDragging ? "bg-accent w-[48px]" : "bg-border",
+          )}
+        />
       </div>
 
       {/* Header */}

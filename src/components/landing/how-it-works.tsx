@@ -1,13 +1,13 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { fadeUp, popIn, staggerContainer } from "./anim";
 
 const STEPS = [
   {
     title: "Escribe lo que quieres",
     description:
-      "No necesitas elegir categorias ni llenar filtros. Simplemente describe lo que buscas como lo harías con un amigo: \"un cafe tranquilo cerca de mi que acepte MLC\".",
+      "No necesitas elegir categorias ni llenar filtros. Simplemente describe lo que buscas como lo harías con un amigo: \"un cafe tranquilo cerca de mi que acepte USD Clásica\".",
   },
   {
     title: "La Verde interpreta",

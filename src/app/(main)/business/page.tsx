@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   Image,
   Clock,
@@ -72,7 +73,7 @@ function DashboardView() {
           <h3 className="font-display text-body font-semibold text-foreground mb-gap-sm">Actividad reciente</h3>
           <div className="bg-surface border border-border rounded-lv-lg p-gap-sm">
             <ActivityItem type="search" time="hace 12 min">
-              <strong>Alguien te buscó:</strong> &ldquo;restaurante cerca del Parque Central que acepte MLC&rdquo;
+              <strong>Alguien te buscó:</strong> &ldquo;restaurante cerca del Parque Central que acepte USD Clásica&rdquo;
             </ActivityItem>
             <ActivityItem type="nav" time="hace 1 hora">
               <strong>Navegaron a ti:</strong> 3 personas pidieron indicaciones hoy
@@ -233,26 +234,37 @@ function EditorView() {
               </button>
             </div>
             {offerEnabled && (
-              <div className="space-y-gap-xs mt-gap-sm">
-                <div className="flex flex-col gap-gap-xs">
-                  <Label htmlFor="offerTitle">Título de la oferta</Label>
-                  <Input
-                    id="offerTitle"
-                    value={offerTitle}
-                    onChange={(e) => setOfferTitle(e.target.value)}
-                    placeholder="Ej: 2x1 en bebidas, Almuerzo del día..."
-                  />
-                </div>
-                <div className="flex flex-col gap-gap-xs">
-                  <Label htmlFor="offerExpiry">Válido hasta</Label>
-                  <Input
-                    id="offerExpiry"
-                    value={offerExpiry}
-                    onChange={(e) => setOfferExpiry(e.target.value)}
-                    placeholder="Fecha de expiración"
-                  />
-                </div>
-              </div>
+              <AnimatePresence initial={false}>
+                <motion.div
+                  key="offer-fields"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-gap-xs mt-gap-sm">
+                    <div className="flex flex-col gap-gap-xs">
+                      <Label htmlFor="offerTitle">Título de la oferta</Label>
+                      <Input
+                        id="offerTitle"
+                        value={offerTitle}
+                        onChange={(e) => setOfferTitle(e.target.value)}
+                        placeholder="Ej: 2x1 en bebidas, Almuerzo del día..."
+                      />
+                    </div>
+                    <div className="flex flex-col gap-gap-xs">
+                      <Label htmlFor="offerExpiry">Válido hasta</Label>
+                      <Input
+                        id="offerExpiry"
+                        value={offerExpiry}
+                        onChange={(e) => setOfferExpiry(e.target.value)}
+                        placeholder="Fecha de expiración"
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
             )}
           </FormSection>
         </div>
@@ -274,7 +286,7 @@ function EditorView() {
             </div>
             <div className="flex items-baseline gap-gap-xs mt-gap-xs">
               <span className="font-display text-h3 font-bold text-foreground">25</span>
-              <span className="font-mono text-xs text-muted-foreground">MLC / mes</span>
+              <span className="font-mono text-xs text-muted-foreground">USD / mes</span>
             </div>
             <Button className="w-full mt-gap-xs">
               <Zap size={18} strokeWidth={1.5} />
@@ -304,48 +316,48 @@ function PreviewView() {
   );
 }
 
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onToggle,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between py-gap-sm border-b border-border last:border-b-0 gap-gap-sm">
+      <div className="flex-1 min-w-0">
+        <div className="text-small font-medium">{label}</div>
+        <div className="text-meta text-muted-foreground">{description}</div>
+      </div>
+      <button
+        type="button"
+        onClick={onToggle}
+        role="switch"
+        aria-checked={checked}
+        className={cn(
+          "w-[48px] h-[28px] rounded-full relative cursor-pointer border-none p-0 transition-colors duration-normal shrink-0",
+          checked ? "bg-accent" : "bg-border",
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-[3px] left-[3px] size-[22px] rounded-full bg-white shadow-lv-xs transition-transform duration-normal ease-out",
+            checked && "translate-x-5",
+          )}
+        />
+      </button>
+    </div>
+  );
+}
+
 function SettingsView() {
   const [notifications, setNotifications] = useState(true);
   const [aiRecommendations, setAiRecommendations] = useState(true);
   const [showHours, setShowHours] = useState(true);
-
-  function ToggleRow({
-    label,
-    description,
-    checked,
-    onToggle,
-  }: {
-    label: string;
-    description: string;
-    checked: boolean;
-    onToggle: () => void;
-  }) {
-    return (
-      <div className="flex items-center justify-between py-gap-sm border-b border-border last:border-b-0 gap-gap-sm">
-        <div className="flex-1 min-w-0">
-          <div className="text-small font-medium">{label}</div>
-          <div className="text-meta text-muted-foreground">{description}</div>
-        </div>
-        <button
-          type="button"
-          onClick={onToggle}
-          role="switch"
-          aria-checked={checked}
-          className={cn(
-            "w-[48px] h-[28px] rounded-full relative cursor-pointer border-none p-0 transition-colors duration-normal shrink-0",
-            checked ? "bg-accent" : "bg-border",
-          )}
-        >
-          <span
-            className={cn(
-              "absolute top-[3px] left-[3px] size-[22px] rounded-full bg-white shadow-lv-xs transition-transform duration-normal ease-out",
-              checked && "translate-x-5",
-            )}
-          />
-        </button>
-      </div>
-    );
-  }
 
   return (
     <>

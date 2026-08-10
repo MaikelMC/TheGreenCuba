@@ -26,7 +26,7 @@ export const SEED_PLACES: UserPlace[] = [
     rating: 4.5,
     aiTags: ["Café y dulces", "Abierto temprano"],
     distanceLabel: "800m",
-    priceLabel: "$3-8 MLC",
+    priceLabel: "$3-8 USD",
     createdAt: 1,
   },
   {
@@ -49,7 +49,7 @@ export const SEED_PLACES: UserPlace[] = [
     rating: 4.3,
     aiTags: ["Vista al mar", "Cocina criolla"],
     distanceLabel: "1.1km",
-    priceLabel: "$12-25 MLC",
+    priceLabel: "$12-25 USD",
     createdAt: 2,
   },
   {
@@ -61,7 +61,7 @@ export const SEED_PLACES: UserPlace[] = [
     address: "Calle Concordia #418, Centro Habana",
     barrio: "Centro Habana",
     description:
-      "La Guarida es un restaurante cubano contemporáneo en Centro Habana. Ocupa un edificio art déco de los años 40 con su fachada original de columnas y balcones de hierro forjado. El interior mezcla la arquitectura colonial con diseño moderno: madera oscura, iluminación tenue y arte cubano en las paredes. Lo fundaron en 2018 un grupo de amigos chefs que querían rescatar las recetas de sus abuelas con un toque contemporáneo. La cocina es 100% criolla: ropa vieja, lechón asado, picadillo habanero, tostones y yuca con mojo. Los fines de semana hay música en vivo, son cubano, jazz o trova según el día. Tienen terraza interior con plantas tropicales y una barra de cocktails con rones cubanos premium. Aceptan MLC, CUP y efectivo en USD. Reservaciones recomendadas los viernes y sábados.",
+      "La Guarida es un restaurante cubano contemporáneo en Centro Habana. Ocupa un edificio art déco de los años 40 con su fachada original de columnas y balcones de hierro forjado. El interior mezcla la arquitectura colonial con diseño moderno: madera oscura, iluminación tenue y arte cubano en las paredes. Lo fundaron en 2018 un grupo de amigos chefs que querían rescatar las recetas de sus abuelas con un toque contemporáneo. La cocina es 100% criolla: ropa vieja, lechón asado, picadillo habanero, tostones y yuca con mojo. Los fines de semana hay música en vivo, son cubano, jazz o trova según el día. Tienen terraza interior con plantas tropicales y una barra de cocktails con rones cubanos premium. Aceptan USD Clásica, CUP y efectivo en USD. Reservaciones recomendadas los viernes y sábados.",
     schedule: "12PM – 12AM",
     payments: ["MLC", "CUP", "USD"],
     menu: [
@@ -105,10 +105,10 @@ export const SEED_PLACES: UserPlace[] = [
       { gradient: "linear-gradient(160deg, oklch(40% 0.04 250), oklch(30% 0.03 250))", label: "Terraza nocturna" },
     ],
     aiReasoning:
-      "La Guarida está en Centro Habana, tiene cocina tradicional cubana y un ambiente relajado. Aceptan MLC y tarjeta. Los fines de semana tienen música en vivo.",
-    aiTags: ["Cerca de ti", "Comida criolla", "Acepta MLC"],
+      "La Guarida está en Centro Habana, tiene cocina tradicional cubana y un ambiente relajado. Aceptan USD Clásica y tarjeta. Los fines de semana tienen música en vivo.",
+    aiTags: ["Cerca de ti", "Comida criolla", "Acepta USD Clásica"],
     distanceLabel: "1.2 km",
-    priceLabel: "$15-35 MLC",
+    priceLabel: "$15-35 USD",
     createdAt: 3,
   },
   {
@@ -154,7 +154,7 @@ export const SEED_PLACES: UserPlace[] = [
     rating: 4.7,
     aiTags: ["Música en vivo", "Arte y cultura"],
     distanceLabel: "650m",
-    priceLabel: "$8-20 MLC",
+    priceLabel: "$8-20 USD",
     createdAt: 5,
   },
   {
@@ -166,7 +166,7 @@ export const SEED_PLACES: UserPlace[] = [
     address: "Calle 23 #310, Vedado",
     barrio: "Vedado",
     description:
-      "Café de especialidad en Vedado. Acepta MLC, ideal para trabajar o leer tranquilo.",
+      "Café de especialidad en Vedado. Acepta USD Clásica, ideal para trabajar o leer tranquilo.",
     schedule: "9:00 – 22:00",
     payments: ["MLC"],
     menu: [],
@@ -177,7 +177,7 @@ export const SEED_PLACES: UserPlace[] = [
     rating: 4.8,
     aiTags: ["Café de especialidad", "Tranquilo"],
     distanceLabel: "350m",
-    priceLabel: "$5-12 MLC",
+    priceLabel: "$5-12 USD",
     createdAt: 6,
   },
 ];

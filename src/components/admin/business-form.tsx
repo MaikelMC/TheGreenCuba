@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import {
   MapPin,
@@ -24,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { EASE } from "@/lib/motion";
 import { CategoryIcon } from "@/components/admin/category-icon";
 import { FormSection } from "@/components/business/form-section";
 import { PaymentChips } from "@/components/business/payment-chips";
@@ -167,7 +169,12 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
 
   return (
     <>
-      <div className="flex items-center justify-between gap-gap-sm mb-gap-lg">
+      <motion.div
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: EASE }}
+        className="flex items-center justify-between gap-gap-sm mb-gap-lg"
+      >
         <div>
           <h1 className="font-display text-h3 font-bold text-foreground">
             {initial ? "Editar negocio" : "Nuevo negocio"}
@@ -178,7 +185,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
               : "Agrega un negocio al mapa de La Verde. Funciona en toda Cuba."}
           </p>
         </div>
-      </div>
+      </motion.div>
 
       <div className="space-y-gap-md">
         <FormSection
@@ -261,19 +268,20 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
             </div>
             <div className="flex flex-wrap gap-[6px]">
               {SCHEDULE_PRESETS.map((preset) => (
-                <button
+                <motion.button
                   key={preset}
                   type="button"
+                  whileTap={{ scale: 0.94 }}
                   onClick={() => setSchedule(preset)}
                   className={cn(
-                    "px-3 py-[6px] rounded-full border text-[12px] font-medium transition-all",
+                    "px-3 py-[6px] rounded-full border text-[12px] font-medium transition-colors",
                     schedule === preset
                       ? "border-accent bg-accent/10 text-accent"
                       : "border-border text-foreground bg-background hover:border-accent hover:text-accent",
                   )}
                 >
                   {preset}
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
@@ -312,36 +320,49 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                   offerEnabled ? "bg-accent" : "bg-border",
                 )}
               >
-                <span
+                <motion.span
+                  layout
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   className={cn(
-                    "absolute top-[3px] left-[3px] size-[22px] rounded-full bg-white shadow-lv-xs transition-transform duration-normal ease-out",
+                    "absolute top-[3px] left-[3px] size-[22px] rounded-full bg-white shadow-lv-xs",
                     offerEnabled && "translate-x-5",
                   )}
                 />
               </button>
             </div>
-            {offerEnabled && (
-              <div className="space-y-gap-xs mt-gap-sm">
-                <div className="flex flex-col gap-gap-xs">
-                  <Label htmlFor="bfOfferText">Texto de la oferta</Label>
-                  <Input
-                    id="bfOfferText"
-                    value={offerText}
-                    onChange={(e) => setOfferText(e.target.value)}
-                    placeholder="Ej: 2x1 en bebidas, Almuerzo del día..."
-                  />
-                </div>
-                <div className="flex flex-col gap-gap-xs">
-                  <Label htmlFor="bfOfferExpiry">Válido hasta</Label>
-                  <Input
-                    id="bfOfferExpiry"
-                    value={offerExpiry}
-                    onChange={(e) => setOfferExpiry(e.target.value)}
-                    placeholder="Ej: Válido hasta el 30 de septiembre"
-                  />
-                </div>
-              </div>
-            )}
+            <AnimatePresence initial={false}>
+              {offerEnabled && (
+                <motion.div
+                  key="offer-fields"
+                  initial={{ opacity: 0, height: 0, y: -4 }}
+                  animate={{ opacity: 1, height: "auto", y: 0 }}
+                  exit={{ opacity: 0, height: 0, y: -4 }}
+                  transition={{ duration: 0.3, ease: EASE }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-gap-xs mt-gap-sm">
+                    <div className="flex flex-col gap-gap-xs">
+                      <Label htmlFor="bfOfferText">Texto de la oferta</Label>
+                      <Input
+                        id="bfOfferText"
+                        value={offerText}
+                        onChange={(e) => setOfferText(e.target.value)}
+                        placeholder="Ej: 2x1 en bebidas, Almuerzo del día..."
+                      />
+                    </div>
+                    <div className="flex flex-col gap-gap-xs">
+                      <Label htmlFor="bfOfferExpiry">Válido hasta</Label>
+                      <Input
+                        id="bfOfferExpiry"
+                        value={offerExpiry}
+                        onChange={(e) => setOfferExpiry(e.target.value)}
+                        placeholder="Ej: Válido hasta el 30 de septiembre"
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </FormSection>
         </div>
 
@@ -407,25 +428,38 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                   isBoosted ? "bg-lv-amber" : "bg-border",
                 )}
               >
-                <span
+                <motion.span
+                  layout
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   className={cn(
-                    "absolute top-[3px] left-[3px] size-[22px] rounded-full bg-white shadow-lv-xs transition-transform duration-normal ease-out",
+                    "absolute top-[3px] left-[3px] size-[22px] rounded-full bg-white shadow-lv-xs",
                     isBoosted && "translate-x-5",
                   )}
                 />
               </button>
             </div>
-            {isBoosted && (
-              <div className="flex flex-col gap-gap-xs mt-gap-sm">
-                <Label htmlFor="bfBoostExpiry">Vigencia del destacado</Label>
-                <Input
-                  id="bfBoostExpiry"
-                  value={boostExpiresAt}
-                  onChange={(e) => setBoostExpiresAt(e.target.value)}
-                  placeholder="Ej: 31 de agosto, 2026"
-                />
-              </div>
-            )}
+            <AnimatePresence initial={false}>
+              {isBoosted && (
+                <motion.div
+                  key="boost-expiry"
+                  initial={{ opacity: 0, height: 0, y: -4 }}
+                  animate={{ opacity: 1, height: "auto", y: 0 }}
+                  exit={{ opacity: 0, height: 0, y: -4 }}
+                  transition={{ duration: 0.3, ease: EASE }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex flex-col gap-gap-xs mt-gap-sm">
+                    <Label htmlFor="bfBoostExpiry">Vigencia del destacado</Label>
+                    <Input
+                      id="bfBoostExpiry"
+                      value={boostExpiresAt}
+                      onChange={(e) => setBoostExpiresAt(e.target.value)}
+                      placeholder="Ej: 31 de agosto, 2026"
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </FormSection>
         </div>
 
@@ -440,11 +474,20 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
           <MapLocationPicker value={location} onChange={setLocation} />
         </FormSection>
 
-        {formError && (
-          <div className="px-3 py-[7px] rounded-lv-lg bg-destructive/10 border border-destructive/25 text-[12px] text-destructive font-medium">
-            {formError}
-          </div>
-        )}
+        <AnimatePresence>
+          {formError && (
+            <motion.div
+              key="bf-error"
+              initial={{ opacity: 0, y: -8, x: -4 }}
+              animate={{ opacity: 1, y: 0, x: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: EASE }}
+              className="px-3 py-[7px] rounded-lv-lg bg-destructive/10 border border-destructive/25 text-[12px] text-destructive font-medium"
+            >
+              {formError}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="flex flex-col lg:flex-row gap-gap-sm">
           <Button

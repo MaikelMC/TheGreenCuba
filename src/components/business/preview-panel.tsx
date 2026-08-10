@@ -1,7 +1,8 @@
 "use client";
 
+import { motion } from "motion/react";
 import { Wifi, Battery, Sparkles, Image } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, currencyLabel } from "@/lib/utils";
 
 interface MenuPreviewItem {
   name: string;
@@ -43,7 +44,14 @@ export function PreviewPanel({
   return (
     <div className={cn("bg-muted rounded-lv-lg p-gap-sm flex flex-col lg:flex-row lg:items-start lg:gap-gap-xl lg:p-gap-xl", className)}>
       {/* Phone mockup */}
-      <div className="w-full max-w-[375px] lg:max-w-[340px] mx-auto bg-surface rounded-[32px] border-[3px] border-foreground/15 overflow-hidden shadow-lv-lg relative shrink-0">
+      <motion.div
+        initial={{ opacity: 0, y: 24, rotate: -1 }}
+        whileInView={{ opacity: 1, y: 0, rotate: 0 }}
+        viewport={{ once: true, margin: "-48px" }}
+        transition={{ type: "spring", stiffness: 220, damping: 26 }}
+        whileHover={{ y: -4 }}
+        className="w-full max-w-[375px] lg:max-w-[340px] mx-auto bg-surface rounded-[32px] border-[3px] border-foreground/15 overflow-hidden shadow-lv-lg relative shrink-0"
+      >
         {/* Dynamic Island */}
         <div className="absolute top-[10px] left-1/2 -translate-x-1/2 w-[120px] h-[32px] bg-foreground rounded-[20px] z-10" />
 
@@ -110,7 +118,7 @@ export function PreviewPanel({
               <span className="font-mono text-[10px] text-accent uppercase tracking-[0.04em] font-medium">Recomendación IA</span>
             </div>
             <p className="text-[13px] leading-relaxed text-foreground">
-              &ldquo;<strong>cena romántica en Vedado</strong>&rdquo;. {businessName} tiene cocina cubana contemporánea, acepta MLC, y está a {distance} de ti.
+              &ldquo;<strong>cena romántica en Vedado</strong>&rdquo;. {businessName} tiene cocina cubana contemporánea, acepta USD Clásica, y está a {distance} de ti.
             </p>
           </div>
 
@@ -124,7 +132,7 @@ export function PreviewPanel({
                   <div className="flex-1 min-w-0">
                     <div className="font-display text-[13px] font-semibold">{item.name}</div>
                     <div className="font-mono text-[11px] text-accent">
-                      {item.price} {item.currency}
+                      {item.price} {currencyLabel(item.currency)}
                       {item.tag && (
                         <span className="ml-1 bg-accent/10 text-accent px-[5px] py-[1px] rounded-full text-[9px]">
                           {item.tag}
@@ -137,7 +145,7 @@ export function PreviewPanel({
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Live info (desktop) */}
       <div className="hidden lg:block flex-1 py-gap-md">
@@ -147,7 +155,7 @@ export function PreviewPanel({
             { label: "Nombre", value: businessName },
             { label: "Categoría", value: category },
             { label: "Estado", value: isOpen ? "Abierto ahora" : "Cerrado", color: isOpen ? "text-lv-teal" : "text-destructive" },
-            { label: "Pagos", value: payments.join(", ") },
+            { label: "Pagos", value: payments.map(currencyLabel).join(", ") },
             { label: "Oferta", value: offer, color: "text-destructive" },
             { label: "Menú items", value: `${menuCount} platos destacados` },
           ].map((field) => (

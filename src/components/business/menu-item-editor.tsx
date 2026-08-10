@@ -120,7 +120,7 @@ export function MenuItemEditor({
                 onChange={(e) => update(item.id, "currency", e.target.value)}
                 className="h-9 px-gap-sm border border-border rounded-sm font-mono text-xs bg-surface text-foreground cursor-pointer outline-none focus:border-accent"
               >
-                <option value="MLC">MLC</option>
+                <option value="MLC">USD Clásica</option>
                 <option value="CUP">CUP</option>
                 <option value="USD">USD</option>
               </select>

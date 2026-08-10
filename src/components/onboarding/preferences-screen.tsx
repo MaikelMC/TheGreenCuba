@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { StatusBar } from "./onboarding-shell";
 
@@ -11,6 +12,7 @@ interface PreferencesScreenProps {
   currencies: Array<{ value: string; label: string }>;
   onBack: () => void;
   onResetAI: () => void;
+  onDone: () => void;
 }
 
 export function PreferencesScreen({
@@ -20,6 +22,7 @@ export function PreferencesScreen({
   currencies,
   onBack,
   onResetAI,
+  onDone,
 }: PreferencesScreenProps) {
   const [editing, setEditing] = useState(false);
   const [toggles, setToggles] = useState({
@@ -40,14 +43,15 @@ export function PreferencesScreen({
       <StatusBar />
 
       <div className="flex items-center gap-3 px-5 py-4 border-b border-border flex-shrink-0 min-h-[56px]">
-        <button
+        <motion.button
           onClick={onBack}
+          whileTap={{ scale: 0.9 }}
           className="size-10 rounded-full flex items-center justify-center text-foreground hover:bg-accent/10 transition-colors"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="size-5">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
-        </button>
+        </motion.button>
         <h1 className="flex-1 font-display text-h3 font-bold">Mis Preferencias</h1>
         <button
           onClick={() => setEditing((e) => !e)}
@@ -168,14 +172,28 @@ export function PreferencesScreen({
           </h2>
           <div className="flex items-center justify-between py-3 border-none">
             <span className="text-body font-medium text-destructive">Resetear perfil de IA</span>
-            <button
+            <motion.button
               onClick={onResetAI}
+              whileTap={{ scale: 0.95 }}
               className="px-3.5 py-1.5 min-h-[36px] border border-destructive text-destructive rounded-lv text-xs font-medium transition-colors hover:bg-destructive/10"
             >
               Resetear
-            </button>
+            </motion.button>
           </div>
         </section>
+      </div>
+
+      <div className="px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-4 flex-shrink-0 bg-gradient-to-t from-surface via-surface to-transparent">
+        <motion.button
+          onClick={onDone}
+          whileTap={{ scale: 0.98 }}
+          className="inline-flex w-full items-center justify-center gap-2 px-6 py-[13px] rounded-lv font-display text-small font-semibold bg-accent text-white transition-colors duration-200 min-h-[48px] active:translate-y-px hover:bg-accent-hover"
+        >
+          Empezar a explorar
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </motion.button>
       </div>
     </div>
   );
@@ -189,19 +207,21 @@ function ToggleSwitch({
   onToggle: () => void;
 }) {
   return (
-    <button
+    <motion.button
       onClick={onToggle}
+      whileTap={{ scale: 0.94 }}
+      role="switch"
+      aria-checked={active}
       className={cn(
         "w-11 h-[26px] rounded-full relative transition-colors duration-200 flex-shrink-0",
         active ? "bg-accent" : "bg-[oklch(82%_0.006_250)]",
       )}
     >
-      <span
-        className={cn(
-          "size-[22px] rounded-full bg-white absolute top-[2px] left-[2px] transition-transform duration-200 shadow-[0_1px_4px_oklch(0%_0_0_/_0.15)]",
-          active && "translate-x-[18px]",
-        )}
+      <motion.span
+        animate={{ x: active ? 18 : 0 }}
+        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        className="size-[22px] rounded-full bg-white absolute top-[2px] left-[2px] shadow-[0_1px_4px_oklch(0%_0_0_/_0.15)]"
       />
-    </button>
+    </motion.button>
   );
 }

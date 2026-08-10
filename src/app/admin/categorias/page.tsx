@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { motion } from "motion/react";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { usePlaces } from "@/providers/places-provider";
@@ -120,11 +121,15 @@ export default function CategoriasPage() {
         {/* List */}
         <div className="bg-surface border border-border rounded-lv-lg p-gap-md">
           <div className="flex flex-col">
-            {categories.map((c) => {
+            {categories.map((c, i) => {
               const used = places.filter((p) => p.category === c.label).length;
               return (
-                <div
+                <motion.div
                   key={c.value}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  layout
                   className="flex items-center gap-gap-sm py-gap-sm border-b border-border last:border-b-0"
                 >
                   <div className="size-9 rounded-lv bg-muted grid place-items-center text-foreground shrink-0">
@@ -139,24 +144,26 @@ export default function CategoriasPage() {
                     </div>
                   </div>
                   <div className="shrink-0 flex items-center gap-[4px]">
-                    <button
+                    <motion.button
                       type="button"
+                      whileTap={{ scale: 0.9 }}
                       onClick={() => startEdit(c)}
                       className="size-9 rounded-lv border border-border grid place-items-center text-muted-foreground hover:border-accent hover:text-accent transition-colors"
                       aria-label={`Editar ${c.label}`}
                     >
                       <Pencil size={15} strokeWidth={2} />
-                    </button>
-                    <button
+                    </motion.button>
+                    <motion.button
                       type="button"
+                      whileTap={{ scale: 0.9 }}
                       onClick={() => handleDelete(c)}
                       className="size-9 rounded-lv border border-border grid place-items-center text-muted-foreground hover:border-destructive hover:text-destructive transition-colors"
                       aria-label={`Eliminar ${c.label}`}
                     >
                       <Trash2 size={15} strokeWidth={2} />
-                    </button>
+                    </motion.button>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
@@ -202,23 +209,27 @@ export default function CategoriasPage() {
             <div className="flex flex-col gap-gap-xs">
               <Label>Icono</Label>
               <div className="grid grid-cols-6 gap-[6px]">
-                {CATEGORY_ICON_KEYS.map((key) => {
+                {CATEGORY_ICON_KEYS.map((key, i) => {
                   const Icon = CATEGORY_ICONS[key]!;
                   return (
-                    <button
+                    <motion.button
                       key={key}
                       type="button"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: i * 0.03, duration: 0.25 }}
+                      whileTap={{ scale: 0.9 }}
                       onClick={() => setForm((f) => ({ ...f, icon: key }))}
                       title={key}
                       className={cn(
-                        "size-10 rounded-lv border grid place-items-center transition-all",
+                        "size-10 rounded-lv border grid place-items-center transition-colors",
                         form.icon === key
                           ? "border-accent bg-accent/10 text-accent"
                           : "border-border text-muted-foreground hover:border-accent hover:text-accent",
                       )}
                     >
                       <Icon size={18} strokeWidth={1.8} />
-                    </button>
+                    </motion.button>
                   );
                 })}
               </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { Heart, ArrowRight, Star, MapPin } from "lucide-react";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 interface PlaceCardProps {
@@ -13,6 +14,7 @@ interface PlaceCardProps {
   emoji?: string;
   selected?: boolean;
   liked?: boolean;
+  index?: number;
   onSelect?: () => void;
   onLike?: () => void;
   onDetail?: () => void;
@@ -35,19 +37,25 @@ export function PlaceCard({
   emoji = "📍",
   selected,
   liked,
+  index = 0,
   onSelect,
   onLike,
   onDetail,
   onLocate,
 }: PlaceCardProps) {
   return (
-    <div
+    <motion.div
       role="button"
       tabIndex={0}
       onClick={onSelect}
       onKeyDown={(e) => e.key === "Enter" && onSelect?.()}
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.99 }}
       className={cn(
-        "flex gap-[14px] p-[14px] bg-surface border rounded-lv-lg cursor-pointer transition-all duration-normal",
+        "flex gap-[14px] p-[14px] bg-surface border rounded-lv-lg cursor-pointer transition-colors duration-normal",
         selected
           ? "border-accent shadow-[0_0_0_2px_var(--accent-soft)]"
           : "border-border hover:border-accent/30 hover:shadow-lv-sm",
@@ -99,26 +107,29 @@ export function PlaceCard({
 
       {/* Actions */}
       <div className="flex flex-col justify-between items-end shrink-0">
-        <button
+        <motion.button
           type="button"
+          whileTap={{ scale: 0.85 }}
           onClick={(e) => {
             e.stopPropagation();
             onLocate?.();
           }}
-          className="size-8 rounded-full grid place-items-center text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all"
+          className="size-8 rounded-full grid place-items-center text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors"
           aria-label="Ver en el mapa"
           title="Ver en el mapa"
         >
           <MapPin size={16} strokeWidth={2} />
-        </button>
-        <button
+        </motion.button>
+        <motion.button
           type="button"
+          whileTap={{ scale: 1.35 }}
+          transition={{ type: "spring", stiffness: 500, damping: 15 }}
           onClick={(e) => {
             e.stopPropagation();
             onLike?.();
           }}
           className={cn(
-            "size-8 rounded-full grid place-items-center transition-all",
+            "size-8 rounded-full grid place-items-center transition-colors",
             liked
               ? "text-lv-red"
               : "text-muted-foreground hover:text-accent hover:bg-accent/10",
@@ -126,19 +137,20 @@ export function PlaceCard({
           aria-label="Favorito"
         >
           <Heart size={16} fill={liked ? "currentColor" : "none"} strokeWidth={2} />
-        </button>
-        <button
+        </motion.button>
+        <motion.button
           type="button"
+          whileTap={{ scale: 0.85 }}
           onClick={(e) => {
             e.stopPropagation();
             onDetail?.();
           }}
-          className="size-8 rounded-full grid place-items-center text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all"
+          className="size-8 rounded-full grid place-items-center text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors"
           aria-label="Ver detalle"
         >
           <ArrowRight size={16} strokeWidth={2} />
-        </button>
+        </motion.button>
       </div>
-    </div>
+    </motion.div>
   );
 }

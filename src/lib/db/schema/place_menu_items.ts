@@ -14,7 +14,7 @@ export const placeMenuItems = pgTable(
     price: doublePrecision("price"),
     currency: text("currency", { enum: ["MLC", "CUP", "USD", "EUR"] }).default("MLC"),
     imageUrl: text("image_url"),
-    tag: text("tag", { enum: ["popular", "new", "offer", null] }),
+    tag: text("tag", { enum: ["popular", "new", "offer"] }),
     sortOrder: integer("sort_order").default(0).notNull(),
     isActive: boolean("is_active").default(true).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),

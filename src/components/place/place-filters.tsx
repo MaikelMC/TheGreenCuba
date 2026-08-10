@@ -6,7 +6,7 @@ import { Navigation, DollarSign, Clock, Eye, Music } from "lucide-react";
 
 const FILTERS = [
   { value: "distancia", label: "Cercanos", icon: Navigation },
-  { value: "mlc", label: "Aceptan MLC", icon: DollarSign },
+  { value: "mlc", label: "Aceptan USD Clásica", icon: DollarSign },
   { value: "abierto", label: "Abiertos ahora", icon: Clock },
   { value: "tranquilo", label: "Tranquilo", icon: Eye },
   { value: "musica", label: "Con música", icon: Music },

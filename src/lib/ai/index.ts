@@ -181,7 +181,7 @@ Reglas:
 - "matches" debe contener SOLO ids que existan en el catálogo recibido. Máximo 5, ordenados de mejor a peor ajuste.
 - Cada "reason" es breve (1 frase, español cubano natural).
 - "summary" es un párrafo corto y amable (2-3 frases, español cubano) que resuma lo que se encontró para el usuario.
-- Considera: monedas (MLC, CUP, USD, EUR), categoría, horarios, barrio/ciudad, y la descripción.
+- Considera: monedas (USD Clásica, CUP, USD, EUR), categoría, horarios, barrio/ciudad, y la descripción.
 - Si ningún lugar encaja, devuelve "matches" vacío y un "summary" que lo explique amablemente.`;
 
 export async function recommendPlaces(

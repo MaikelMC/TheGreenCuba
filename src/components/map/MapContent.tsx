@@ -13,6 +13,7 @@ import L from "leaflet";
 import { MapMarkers } from "./MapMarkers";
 import { UserLocationMarker } from "./UserLocationMarker";
 import { LocateButton } from "./LocateButton";
+import { RouteLayer } from "./RouteLayer";
 import {
   TILE_CONFIGS,
   DEFAULT_TILE,
@@ -53,12 +54,20 @@ function MapEventsHandler({
   return null;
 }
 
-function FitBoundsOnMount({ places }: { places: MapPlace[] }) {
+function FitBoundsOnMount({
+  places,
+  hasUserLocation,
+  disabled,
+}: {
+  places: MapPlace[];
+  hasUserLocation: boolean;
+  disabled?: boolean;
+}) {
   const map = useMap();
   const hasFit = useRef(false);
 
   useEffect(() => {
-    if (hasFit.current || places.length === 0) return;
+    if (hasFit.current || places.length === 0 || hasUserLocation || disabled) return;
     hasFit.current = true;
 
     const p = places;
@@ -68,7 +77,7 @@ function FitBoundsOnMount({ places }: { places: MapPlace[] }) {
       const bounds = L.latLngBounds(p.map((x) => [x.lat, x.lng]));
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
     }
-  }, [places, map]);
+  }, [places, map, hasUserLocation, disabled]);
 
   return null;
 }
@@ -78,6 +87,7 @@ function MapChildren({
   places,
   selectedPlaceId,
   onPlaceSelect,
+  onPlaceRoute,
   userLocation,
   onUserLocated,
   onLocateStateChange,
@@ -87,6 +97,7 @@ function MapChildren({
   places: MapPlace[];
   selectedPlaceId?: string | null;
   onPlaceSelect?: MapViewProps["onPlaceSelect"];
+  onPlaceRoute?: MapViewProps["onPlaceRoute"];
   userLocation?: MapViewProps["userLocation"];
   onUserLocated?: MapViewProps["onUserLocated"];
   onLocateStateChange?: MapViewProps["onLocateStateChange"];
@@ -101,7 +112,9 @@ function MapChildren({
     return () => cancelAnimationFrame(timer);
   }, [map]);
 
-  // Fly to the user location only when it changes to new coordinates.
+  // Fly to the user location when it arrives (or changes to new coordinates).
+  // `ready` is a dep so a location that resolved before the map was ready still
+  // lands at the right spot once the map is available.
   useEffect(() => {
     if (!userLocation) return;
     if (
@@ -113,7 +126,7 @@ function MapChildren({
     }
     lastFlownTo.current = userLocation;
     map.flyTo([userLocation.lat, userLocation.lng], GEO_ZOOM, { duration: 0.8 });
-  }, [userLocation, map]);
+  }, [userLocation, map, ready]);
 
   // Fly to a specific place when a card's location button is tapped.
   const lastFocusKey = useRef<number | null>(null);
@@ -139,6 +152,7 @@ function MapChildren({
         places={places}
         selectedId={selectedPlaceId}
         onSelect={onPlaceSelect}
+        onRoute={onPlaceRoute}
       />
       {userLocation && (
         <UserLocationMarker
@@ -163,18 +177,26 @@ export function MapContent({
   places,
   selectedPlaceId,
   onPlaceSelect,
+  onPlaceRoute,
   onMapMove,
   userLocation,
   onUserLocated,
   onLocateStateChange,
   focusTarget,
+  route,
+  routeOrigin,
   initialCenter = HAVANA_CENTER,
   initialZoom = DEFAULT_ZOOM,
   maxZoom = MAX_ZOOM,
   tileKey = DEFAULT_TILE,
+  disableAutoFit,
 }: MapViewProps) {
   const [mounted, setMounted] = useState(false);
   const validPlaces = useMemo(() => filterValidPlaces(places), [places]);
+  const hasUserLocation = Boolean(userLocation);
+  const effectiveInitialCenter: [number, number] = userLocation
+    ? [userLocation.lat, userLocation.lng]
+    : initialCenter ?? HAVANA_CENTER;
 
   useEffect(() => {
     setMounted(true);
@@ -191,7 +213,7 @@ export function MapContent({
 
   return (
     <MapContainer
-      center={initialCenter}
+      center={effectiveInitialCenter}
       zoom={initialZoom}
       minZoom={MIN_ZOOM}
       maxZoom={maxZoom}
@@ -202,18 +224,34 @@ export function MapContent({
     >
       <ZoomControl position="bottomleft" />
       <MapEventsHandler onMapMove={onMapMove} />
-      <FitBoundsOnMount places={validPlaces} />
+      <FitBoundsOnMount
+        places={validPlaces}
+        hasUserLocation={hasUserLocation || Boolean(route)}
+        disabled={disableAutoFit}
+      />
 
       <MapChildren
         tile={getTile(tileKey)}
         places={validPlaces}
         selectedPlaceId={selectedPlaceId}
         onPlaceSelect={onPlaceSelect}
+        onPlaceRoute={onPlaceRoute}
         userLocation={userLocation}
         onUserLocated={onUserLocated}
         onLocateStateChange={onLocateStateChange}
         focusTarget={focusTarget}
       />
+
+      {route && routeOrigin && route.coordinates.length > 0 && (
+        <RouteLayer
+          route={route}
+          origin={routeOrigin}
+          dest={{
+            lat: route.coordinates[route.coordinates.length - 1]![0],
+            lng: route.coordinates[route.coordinates.length - 1]![1],
+          }}
+        />
+      )}
     </MapContainer>
   );
 }

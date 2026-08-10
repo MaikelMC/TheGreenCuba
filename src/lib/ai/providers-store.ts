@@ -22,6 +22,9 @@ export interface AiProvider {
 const DATA_DIR = path.join(process.cwd(), "data");
 const FILE = path.join(DATA_DIR, "ai-providers.json");
 
+/** Caché en memoria (write-through): evita leer/parsear el archivo en cada request de IA. */
+let cachedProviders: AiProvider[] | null = null;
+
 /** Modelos gratuitos por defecto de cada proveedor. */
 const DEFAULT_MODELS = {
   mistral: "mistral-small-latest",
@@ -105,28 +108,38 @@ export function ensureProvidersSeeded(): void {
 }
 
 export function readProviders(): AiProvider[] {
+  if (cachedProviders) return cachedProviders;
+  let result: AiProvider[] = [];
   try {
     ensureProvidersSeeded();
-    if (!fs.existsSync(FILE)) return [];
+    if (cachedProviders) return cachedProviders;
+    if (!fs.existsSync(FILE)) {
+      cachedProviders = result;
+      return result;
+    }
     const raw = fs.readFileSync(FILE, "utf-8");
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (p) =>
-        !!p &&
-        typeof p.id === "string" &&
-        typeof p.name === "string" &&
-        typeof p.apiKey === "string" &&
-        typeof p.model === "string",
-    ) as AiProvider[];
+    if (Array.isArray(parsed)) {
+      result = parsed.filter(
+        (p) =>
+          !!p &&
+          typeof p.id === "string" &&
+          typeof p.name === "string" &&
+          typeof p.apiKey === "string" &&
+          typeof p.model === "string",
+      ) as AiProvider[];
+    }
   } catch {
-    return [];
+    result = [];
   }
+  cachedProviders = result;
+  return result;
 }
 
 export function writeProviders(providers: AiProvider[]): void {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(FILE, JSON.stringify(providers, null, 2), "utf-8");
+  cachedProviders = providers;
 }
 
 export function maskKey(key: string): string {

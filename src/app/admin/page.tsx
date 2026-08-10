@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
+import { motion } from "motion/react";
 import { Plus, AlertTriangle, Store } from "lucide-react";
 import { usePlaces } from "@/providers/places-provider";
 import { DashboardStats } from "@/components/business/dashboard-stats";
@@ -118,9 +119,12 @@ export default function AdminDashboardPage() {
               </div>
             ) : (
               <div className="flex flex-col">
-                {attention.map((p) => (
-                  <div
+                {attention.map((p, i) => (
+                  <motion.div
                     key={p.id}
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                     className="flex items-center gap-gap-sm py-gap-sm border-b border-border last:border-b-0"
                   >
                     <AlertTriangle
@@ -147,7 +151,7 @@ export default function AdminDashboardPage() {
                     >
                       Editar
                     </Link>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             )}
@@ -164,9 +168,12 @@ export default function AdminDashboardPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-gap-xs">
-              {byCategory.map((c) => (
-                <div
+              {byCategory.map((c, i) => (
+                <motion.div
                   key={c.label}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                   className="flex items-center justify-between py-gap-xs border-b border-border last:border-b-0"
                 >
                   <span className="inline-flex items-center gap-2 text-small text-foreground">
@@ -179,7 +186,7 @@ export default function AdminDashboardPage() {
                     {c.label}
                   </span>
                   <Badge variant="secondary">{c.count}</Badge>
-                </div>
+                </motion.div>
               ))}
             </div>
           )}

@@ -1,4 +1,4 @@
-import { MotionConfig } from "framer-motion";
+import { MotionConfig } from "motion/react";
 import {
   Header,
   Hero,
@@ -7,6 +7,7 @@ import {
   Features,
   CTASection,
 } from "@/components/landing";
+import { WaitlistDialog } from "@/components/landing/waitlist-dialog-lazy";
 import { Footer } from "@/components/layout/footer";
 
 export default function LandingPage() {
@@ -25,6 +26,8 @@ export default function LandingPage() {
 
         <Footer />
       </div>
+
+      <WaitlistDialog />
     </MotionConfig>
   );
 }

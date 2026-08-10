@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { motion } from "motion/react";
 import { toast } from "sonner";
 import {
   Plus,
@@ -290,9 +291,13 @@ export function ProviderManager() {
             </div>
           ) : (
             <div className="flex flex-col">
-              {providers.map((p) => (
-                <div
+              {providers.map((p, i) => (
+                <motion.div
                   key={p.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  layout
                   className="py-gap-sm border-b border-border last:border-b-0"
                 >
                   <div className="flex items-center gap-gap-sm">
@@ -379,7 +384,7 @@ export function ProviderManager() {
                       Eliminar
                     </button>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           )}
@@ -406,10 +411,15 @@ export function ProviderManager() {
           <div className="flex flex-col gap-gap-sm">
             {!editing && (
               <div className="flex flex-wrap gap-gap-2xs">
-                {PRESETS.map((preset) => (
-                  <button
+                {PRESETS.map((preset, i) => (
+                  <motion.button
                     key={preset.label}
                     type="button"
+                    initial={{ opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.05, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => applyPreset(preset)}
                     className="inline-flex flex-col items-start gap-[2px] rounded-lv-md border border-border px-[10px] py-[6px] text-left hover:border-accent/50 hover:bg-accent/5 transition-colors"
                   >
@@ -419,7 +429,7 @@ export function ProviderManager() {
                     <span className="text-[10px] text-muted-foreground">
                       {preset.model}
                     </span>
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             )}

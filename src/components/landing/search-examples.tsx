@@ -1,13 +1,13 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { fadeUp, staggerContainer } from "./anim";
 
 const EXAMPLES = [
   {
-    query: "Quiero un cafe tranquilo cerca de mi que acepte MLC",
+    query: "Quiero un cafe tranquilo cerca de mi que acepte USD Clásica",
     pill: "cafeteria",
-    tags: ["MLC", "tranquilo"],
+    tags: ["USD Clásica", "tranquilo"],
   },
   {
     query:

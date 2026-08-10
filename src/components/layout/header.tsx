@@ -2,15 +2,16 @@
 
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "motion/react";
 import { Search, Mic, Sparkles, MessageCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSearch } from "@/providers/search-provider";
+import { useSearchActions, useSearchState } from "@/providers/search-provider";
 import { UserMenu } from "./user-menu";
 
 const SUGGESTIONS = [
   {
-    query: "cafe tranquilo cerca de mi que acepte MLC",
-    label: "Café tranquilo cerca de mi que acepte MLC",
+    query: "cafe tranquilo cerca de mi que acepte USD Clásica",
+    label: "Café tranquilo cerca de mi que acepte USD Clásica",
     category: "Cafetería · Vedado",
     icon: "cafe",
   },
@@ -33,12 +34,16 @@ interface HeaderProps {
 }
 
 export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }: HeaderProps) {
-  let ctx: { onSearch: (q: string) => void; isSearching: boolean } | null = null;
+  let actions: ReturnType<typeof useSearchActions> | null = null;
   try {
-    ctx = useSearch();
+    actions = useSearchActions();
   } catch {}
-  const effectiveOnSearch = propOnSearch ?? ctx?.onSearch;
-  const effectiveIsSearching = propIsSearching ?? ctx?.isSearching;
+  let state: ReturnType<typeof useSearchState> | null = null;
+  try {
+    state = useSearchState();
+  } catch {}
+  const effectiveOnSearch = propOnSearch ?? actions?.onSearch;
+  const effectiveIsSearching = propIsSearching ?? state?.isSearching;
 
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
@@ -147,63 +152,77 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
         </form>
 
         {/* Suggestions dropdown */}
-        {showSuggestions && (
-          <div className="absolute top-[calc(100%+6px)] left-0 right-0 bg-surface border border-border rounded-lv-lg shadow-lv-lg z-250 overflow-hidden">
-            <div className="px-gap-md pt-[10px] pb-[4px] font-mono text-[10px] font-medium text-muted-foreground uppercase tracking-[0.08em]">
-              Sugerencias
-            </div>
-            {SUGGESTIONS.map((s) => (
-              <button
-                key={s.query}
-                type="button"
-                className="flex items-center gap-gap-sm w-full px-gap-md py-[10px] text-left hover:bg-background transition-colors"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleSuggestionClick(s.query);
-                }}
-              >
-                <span className="size-8 rounded-lv bg-accent/10 grid place-items-center text-accent shrink-0">
-                  <Search size={16} strokeWidth={1.8} />
-                </span>
-                <div className="min-w-0">
-                  <div className="text-[14px] text-foreground truncate">
-                    {s.label}
+        <AnimatePresence>
+          {showSuggestions && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              className="absolute top-[calc(100%+6px)] left-0 right-0 bg-surface border border-border rounded-lv-lg shadow-lv-lg z-250 overflow-hidden"
+            >
+              <div className="px-gap-md pt-[10px] pb-[4px] font-mono text-[10px] font-medium text-muted-foreground uppercase tracking-[0.08em]">
+                Sugerencias
+              </div>
+              {SUGGESTIONS.map((s, i) => (
+                <motion.button
+                  key={s.query}
+                  type="button"
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.04 + i * 0.04, duration: 0.2 }}
+                  className="flex items-center gap-gap-sm w-full px-gap-md py-[10px] text-left hover:bg-background transition-colors"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSuggestionClick(s.query);
+                  }}
+                >
+                  <span className="size-8 rounded-lv bg-accent/10 grid place-items-center text-accent shrink-0">
+                    <Search size={16} strokeWidth={1.8} />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-[14px] text-foreground truncate">
+                      {s.label}
+                    </div>
+                    <div className="text-[12px] text-muted-foreground mt-px">
+                      {s.category}
+                    </div>
                   </div>
-                  <div className="text-[12px] text-muted-foreground mt-px">
-                    {s.category}
+                </motion.button>
+              ))}
+              <div className="h-px bg-border mx-gap-md my-[4px]" />
+              <div className="px-gap-md pb-[4px] font-mono text-[10px] font-medium text-muted-foreground uppercase tracking-[0.08em]">
+                Búsquedas recientes
+              </div>
+              {RECENT_SEARCHES.map((s, i) => (
+                <motion.button
+                  key={s.query}
+                  type="button"
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.14 + i * 0.04, duration: 0.2 }}
+                  className="flex items-center gap-gap-sm w-full px-gap-md py-[10px] text-left hover:bg-background transition-colors"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSuggestionClick(s.query);
+                  }}
+                >
+                  <span className="size-8 rounded-lv bg-amber/10 grid place-items-center text-amber shrink-0">
+                    <Search size={16} strokeWidth={1.8} />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-[14px] text-foreground truncate">
+                      {s.query}
+                    </div>
+                    <div className="text-[12px] text-muted-foreground mt-px">
+                      {s.category}
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
-            <div className="h-px bg-border mx-gap-md my-[4px]" />
-            <div className="px-gap-md pb-[4px] font-mono text-[10px] font-medium text-muted-foreground uppercase tracking-[0.08em]">
-              Búsquedas recientes
-            </div>
-            {RECENT_SEARCHES.map((s) => (
-              <button
-                key={s.query}
-                type="button"
-                className="flex items-center gap-gap-sm w-full px-gap-md py-[10px] text-left hover:bg-background transition-colors"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleSuggestionClick(s.query);
-                }}
-              >
-                <span className="size-8 rounded-lv bg-amber/10 grid place-items-center text-amber shrink-0">
-                  <Search size={16} strokeWidth={1.8} />
-                </span>
-                <div className="min-w-0">
-                  <div className="text-[14px] text-foreground truncate">
-                    {s.query}
-                  </div>
-                  <div className="text-[12px] text-muted-foreground mt-px">
-                    {s.category}
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
+                </motion.button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Avatar dropdown */}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recommendPlaces, type CatalogPlace } from "@/lib/ai";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -7,6 +8,20 @@ export const maxDuration = 30;
 const MAX_PLACES = 80;
 const MAX_TEXT = 500;
 const MAX_FIELD = 2000;
+
+// Límite de peticiones de IA por IP: protege el costo del LLM frente a abuso.
+const RATE_LIMIT = 15;
+const RATE_WINDOW_MS = 60 * 1000;
+
+function tooMany(retryAfterSeconds?: number): NextResponse {
+  return NextResponse.json(
+    { ok: false, error: "Demasiadas búsquedas. Intenta en un momento." },
+    {
+      status: 429,
+      headers: { "Retry-After": String(retryAfterSeconds ?? 60) },
+    },
+  );
+}
 
 function cleanString(value: unknown): string {
   return typeof value === "string" ? value.slice(0, MAX_FIELD) : "";
@@ -40,6 +55,9 @@ function sanitizePlaces(value: unknown): CatalogPlace[] {
 }
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, RATE_LIMIT, RATE_WINDOW_MS);
+  if (!limited.ok) return tooMany(limited.retryAfterSeconds);
+
   try {
     const body = (await req.json()) as { query?: unknown; places?: unknown };
     const query = cleanString(body.query).trim();
@@ -78,6 +96,9 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("[api/ai/search]", error);
     const message = error instanceof Error ? error.message : "Error interno";
-    return NextResponse.json({ ok: false, error: message }, { status: 503 });
+    return NextResponse.json(
+      { ok: false, error: message.slice(0, 200) },
+      { status: 503 },
+    );
   }
 }

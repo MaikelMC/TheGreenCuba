@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { OnboardingShell } from "@/components/onboarding/onboarding-shell";
 import { WelcomeSplash } from "@/components/onboarding/welcome-splash";
@@ -9,7 +10,12 @@ import { PreferenceChip } from "@/components/onboarding/preference-chip";
 import { CurrencyToggle } from "@/components/onboarding/currency-toggle";
 import { StepBar, StepDots } from "@/components/onboarding/step-indicator";
 import { PreferencesScreen } from "@/components/onboarding/preferences-screen";
+import { ProvinceMap } from "@/components/onboarding/province-map";
 import { cn } from "@/lib/utils";
+import {
+  writeUserPreferences,
+  DEFAULT_USER_PREFERENCES,
+} from "@/lib/user-preferences-store";
 
 const LOCATION_NAMES: Record<string, string> = {
   "la-habana": "La Habana",
@@ -41,7 +47,7 @@ const MOOD_NAMES: Record<string, string> = {
 };
 
 const CURRENCY_NAMES: Record<string, string> = {
-  mlc: "MLC",
+  mlc: "USD Clásica",
   cup: "CUP",
   usd: "USD",
   eur: "EUR",
@@ -223,15 +229,16 @@ const moodOptions = [
 ] as const;
 
 const currencyOptions = [
-  { value: "mlc", name: "Moneda Libremente Convertible", badge: "Popular", variant: "mlc" as const },
-  { value: "cup", name: "Peso Cubano", badge: "Nacional", variant: "cup" as const },
-  { value: "usd", name: "Dólar estadounidense", badge: "Internacional", variant: "usd" as const },
-  { value: "eur", name: "Euro", badge: "Internacional", variant: "eur" as const },
+  { value: "mlc", code: "USD", name: "USD Clásica en efectivo", badge: "Popular", variant: "mlc" as const },
+  { value: "cup", code: "CUP", name: "Peso Cubano", badge: "Nacional", variant: "cup" as const },
+  { value: "usd", code: "USD", name: "Dólar estadounidense", badge: "Internacional", variant: "usd" as const },
+  { value: "eur", code: "EUR", name: "Euro", badge: "Internacional", variant: "eur" as const },
 ];
 
 const TOTAL_STEPS = 4;
 
 export default function OnboardingPage() {
+  const router = useRouter();
   const [splashDone, setSplashDone] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
@@ -313,6 +320,22 @@ export default function OnboardingPage() {
     setShowPreferences(true);
   }
 
+  // Final del flujo: persiste las preferencias y lleva al Home.
+  const handleDone = useCallback(() => {
+    writeUserPreferences({
+      onboardingCompleted: true,
+      name: DEFAULT_USER_PREFERENCES.name,
+      email: DEFAULT_USER_PREFERENCES.email,
+      phone: DEFAULT_USER_PREFERENCES.phone,
+      location,
+      locationName: LOCATION_NAMES[location] ?? location,
+      interests: Array.from(interests),
+      moods: Array.from(moods),
+      currencies: Array.from(currencies),
+    });
+    router.push("/home");
+  }, [router, location, interests, moods, currencies]);
+
   function handlePrefBack() {
     setShowPreferences(false);
     setShowOnboarding(true);
@@ -363,7 +386,7 @@ export default function OnboardingPage() {
 
           <div className="flex-1 relative overflow-hidden">
             <div
-              className="flex h-full transition-transform duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
+              className="flex h-full transition-transform [transition-duration:400ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]"
               style={{ transform: `translateX(-${currentStep * 100}%)` }}
             >
               {/* Step 0: Location */}
@@ -391,6 +414,9 @@ export default function OnboardingPage() {
                   </p>
                 </SlideContent>
                 <SlideContent delay={200}>
+                  <ProvinceMap location={location} />
+                </SlideContent>
+                <SlideContent delay={250}>
                   <LocationPicker
                     selected={location}
                     onSelect={setLocation}
@@ -482,7 +508,7 @@ export default function OnboardingPage() {
                         }}
                       >
                         <CurrencyToggle
-                          code={cur.value.toUpperCase()}
+                          code={cur.code}
                           name={cur.name}
                           badge={cur.badge}
                           badgeVariant={cur.variant}
@@ -579,6 +605,7 @@ export default function OnboardingPage() {
             currencies={Array.from(currencies).map((v) => ({ value: v, label: CURRENCY_NAMES[v] ?? v }))}
             onBack={handlePrefBack}
             onResetAI={handleResetAI}
+            onDone={handleDone}
           />
         </div>
       )}
