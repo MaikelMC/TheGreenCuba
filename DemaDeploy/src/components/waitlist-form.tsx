@@ -39,10 +39,9 @@ const OPCIONES_TIPO: {
 interface WaitlistFormProps {
   tipo: Tipo;
   onTipoChange: (tipo: Tipo) => void;
-  onReservado?: () => void;
 }
 
-export default function WaitlistForm({ tipo, onTipoChange, onReservado }: WaitlistFormProps) {
+export default function WaitlistForm({ tipo, onTipoChange }: WaitlistFormProps) {
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
   const [status, setStatus] = useState<Status>("idle");
@@ -71,7 +70,6 @@ export default function WaitlistForm({ tipo, onTipoChange, onReservado }: Waitli
       if (res.ok) {
         setPos(data?.position ?? null);
         setStatus("success");
-        onReservado?.();
       } else {
         setStatus("error");
       }
@@ -179,11 +177,6 @@ export default function WaitlistForm({ tipo, onTipoChange, onReservado }: Waitli
                     );
                   })}
                 </div>
-                {tipo === "negocio" && (
-                  <p className="mt-1.5 px-2 text-[11px] text-ink-soft/50">
-                    Solo abrimos 25 cupos para negocios en esta tanda.
-                  </p>
-                )}
 
                 {/* Nombre */}
                 <div className="mt-2 flex items-center gap-2 rounded-2xl bg-sand/60 px-3.5 transition-colors focus-within:bg-sand">
