@@ -1,11 +1,39 @@
 "use client";
 
 import { BellRing } from "lucide-react";
+import { useEffect, useState } from "react";
 import Reveal from "@/components/ui/reveal";
 import Counter from "@/components/ui/counter";
 import WaitlistForm from "@/components/waitlist-form";
 
+type Tipo = "usuario" | "negocio";
+
+const NEGOCIO_MAX = 25;
+
 export default function Waitlist() {
+  const [tipo, setTipo] = useState<Tipo>("usuario");
+  const [counts, setCounts] = useState({ usuarios: 0, negocios: 0 });
+
+  const load = async () => {
+    try {
+      const res = await fetch("/api/waitlist");
+      const data = await res.json();
+      if (data?.ok) {
+        setCounts({
+          usuarios: data.usuarios ?? 0,
+          negocios: data.negocios ?? 0
+        });
+      }
+    } catch {
+      // sin cambios
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const negociosPct = Math.min(100, (counts.negocios / NEGOCIO_MAX) * 100);
   return (
     <section id="waitlist" className="relative overflow-hidden bg-verde-950 py-24 text-white sm:py-32">
       <div className="pointer-events-none absolute inset-0">
@@ -32,29 +60,65 @@ export default function Waitlist() {
         </Reveal>
 
         <Reveal delay={0.15} className="mt-12">
-          <WaitlistForm />
+          <WaitlistForm
+            tipo={tipo}
+            onTipoChange={setTipo}
+            onReservado={load}
+          />
         </Reveal>
 
         <Reveal delay={0.25} className="mx-auto mt-10 max-w-md text-center">
-          <div className="flex items-center justify-center gap-3 text-3xl font-display font-bold">
-            <Counter
-              to={1240}
-              duration={2.2}
-              format={(n) => `${n}`}
-              className="text-verde-200"
-            />
-            <span className="text-white/40">/</span>
-            <span className="text-white">2000</span>
-          </div>
-          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-white/40">
-            cupos reservados
-          </p>
-          <div className="mx-auto mt-4 h-2 w-full max-w-sm overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-verde-500 to-verde-300"
-              style={{ width: "62%" }}
-            />
-          </div>
+          {tipo === "negocio" ? (
+            <>
+              <div className="flex items-center justify-center gap-3 text-3xl font-display font-bold">
+                <Counter
+                  to={counts.negocios}
+                  duration={1.6}
+                  format={(n) => `${n}`}
+                  className="text-verde-200"
+                />
+                <span className="text-white/40">/</span>
+                <span className="text-white">{NEGOCIO_MAX}</span>
+              </div>
+              <p className="mt-1 text-xs uppercase tracking-[0.18em] text-white/40">
+                cupos para negocios reservados
+              </p>
+              <div className="mx-auto mt-4 h-2 w-full max-w-sm overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-verde-500 to-verde-300"
+                  style={{ width: `${negociosPct}%` }}
+                />
+              </div>
+              {counts.negocios >= NEGOCIO_MAX && (
+                <p className="mt-2 text-xs font-medium text-verde-300">
+                  Lista de negocios completa por esta tanda.
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-center gap-3 text-3xl font-display font-bold">
+                <Counter
+                  to={counts.usuarios}
+                  duration={1.6}
+                  format={(n) => `${n}`}
+                  className="text-verde-200"
+                />
+                <span className="text-sm font-semibold uppercase tracking-[0.18em] text-white/40">
+                  sin límite
+                </span>
+              </div>
+              <p className="mt-1 text-xs uppercase tracking-[0.18em] text-white/40">
+                usuarios en la lista
+              </p>
+              <div className="mx-auto mt-4 h-2 w-full max-w-sm overflow-hidden rounded-full bg-white/10">
+                <div className="h-full rounded-full bg-gradient-to-r from-verde-500 to-verde-300" style={{ width: "100%" }} />
+              </div>
+              <p className="mt-2 text-xs text-white/50">
+                Cupos ilimitados para usuarios.
+              </p>
+            </>
+          )}
         </Reveal>
       </div>
     </section>

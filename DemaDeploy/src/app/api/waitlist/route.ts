@@ -1,85 +1,110 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile, writeFile } from "fs/promises";
 import { join } from "path";
+import { notificarTodo } from "@/lib/notify";
 
 // Almacenamiento de la waitlist.
 // - En Vercel: si existe VERCEL_BLOB_READ_WRITE_TOKEN, se usa Blob (free tier).
 // - Fallback local (dev): un archivo JSON dentro de .next para persistir entre reinicios.
 // Este archivo NO es la fuente de verdad de producción definitiva; buscá robustez.
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+type Tipo = "usuario" | "negocio";
+
+interface Registro {
+  nombre: string;
+  telefono: string;
+  tipo: Tipo;
+  source: string;
+  ts: number;
+}
+
+const TELEFONO_RE = /^\+?[0-9][0-9\s().-]{6,17}$/;
+const TIPOS: Tipo[] = ["usuario", "negocio"];
 const DB_PATH = join(process.cwd(), ".next", "waitlist.json");
 
-async function readLocal(): Promise<string[]> {
+async function readLocal(): Promise<Registro[]> {
   try {
     const raw = await readFile(DB_PATH, "utf8");
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (Array.isArray(parsed)) return parsed as Registro[];
   } catch {
-    return [];
+    // archivo aún no existe o corrupto
   }
+  return [];
 }
 
-async function writeLocal(emails: string[]): Promise<void> {
-  await writeFile(DB_PATH, JSON.stringify(emails, null, 2), "utf8");
+async function writeLocal(regs: Registro[]): Promise<void> {
+  await writeFile(DB_PATH, JSON.stringify(regs, null, 2), "utf8");
 }
 
 export async function POST(req: NextRequest) {
-  let body: { email?: string; source?: string };
+  let body: {
+    nombre?: string;
+    telefono?: string;
+    tipo?: string;
+    source?: string;
+  };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ ok: false, error: "invalid" }, { status: 400 });
   }
 
-  const email = (body.email || "").trim().toLowerCase();
+  const nombre = (body.nombre || "").trim();
+  const telefono = (body.telefono || "").trim();
+  const tipo = (body.tipo || "usuario") as Tipo;
   const source = (body.source || "preview").trim();
 
-  if (!EMAIL_RE.test(email)) {
+  if (nombre.length < 2 || !TELEFONO_RE.test(telefono) || !TIPOS.includes(tipo)) {
     return NextResponse.json(
-      { ok: false, error: "EMAIL_INVALIDO" },
+      { ok: false, error: "DATOS_INVALIDOS" },
       { status: 400 }
     );
   }
 
-  // Modo Blob (Vercel free)
+  const registro: Registro = { nombre, telefono, tipo, source, ts: Date.now() };
+
+  // Modo Blob (Vercel free) — mejor esfuerzo, extra de persistencia
   if (process.env.VERCEL_BLOB_READ_WRITE_TOKEN && !process.env.VERCEL) {
-    const BLOB_TOKEN = process.env.VERCEL_BLOB_READ_WRITE_TOKEN;
     try {
-      const storeUrl = "https://api.vercel.com/v1/blob/store";
-      const res = await fetch(storeUrl, {
+      const res = await fetch("https://api.vercel.com/v1/blob/store", {
         method: "POST",
-        headers: { Authorization: `Bearer ${BLOB_TOKEN}` },
+        headers: {
+          Authorization: `Bearer ${process.env.VERCEL_BLOB_READ_WRITE_TOKEN}`
+        },
         body: JSON.stringify({
           key: "waitlist",
           contentType: "application/json",
           addRandomSuffix: false,
           allowOverwrite: true,
-          data: JSON.stringify({ email, source, ts: Date.now() })
+          data: JSON.stringify(registro)
         })
       });
-      if (!res.ok) throw new Error("blob");
-      const data = await res.json();
-      return NextResponse.json({
-        ok: true,
-        position: data?.count ? Number(data.count) : null
-      });
     } catch {
-      // sigue al fallback local
+      // sigue con el contador local
     }
   }
 
-  // Fallback local (dev)
-  const emails = await readLocal();
-  if (!emails.includes(email)) {
-    emails.push(email);
-    await writeLocal(emails).catch(() => undefined);
+  // Contador local + dedupe por teléfono
+  const regs = await readLocal();
+  const duplicado = regs.some((r) => r.telefono === telefono);
+  if (!duplicado) {
+    regs.push(registro);
+    await writeLocal(regs).catch(() => undefined);
   }
-  return NextResponse.json({ ok: true, position: emails.length });
+
+  // Solo notificar cupos realmente nuevos (Telegram + Google Sheets, en paralelo)
+  if (!duplicado) {
+    await notificarTodo(registro).catch(() => undefined);
+  }
+
+  return NextResponse.json({ ok: true, position: regs.length });
 }
 
 export async function GET() {
-  const emails = await readLocal().catch(() => []);
-  const count = typeof process.env.VERCEL === "undefined" ? emails.length : null;
-  return NextResponse.json({ ok: true, position: count ?? null });
+  const regs = await readLocal().catch(() => []);
+  const total = regs.length;
+  const usuarios = regs.filter((r) => r.tipo === "usuario").length;
+  const negocios = regs.filter((r) => r.tipo === "negocio").length;
+  return NextResponse.json({ ok: true, position: total, total, usuarios, negocios });
 }

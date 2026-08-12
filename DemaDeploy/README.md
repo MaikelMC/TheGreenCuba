@@ -73,15 +73,57 @@ npm run lint        # lint (agregá tu config si querés)
 
 ## 🗄 Waitlist (almacenamiento)
 
-El formulario hace `POST /api/waitlist`. El backend guarda de forma **gratuita** en
-Vercel:
+El formulario captura **nombre**, **teléfono** (no correo, porque en Cuba casi no se
+usa Gmail) y un selector de tipo: **"Quiero usarla"** (usuario) o **"Tengo un
+negocio"** (quiere pertenecer). Hace `POST /api/waitlist` y el backend guarda de
+forma **gratuita** en Vercel:
 
 - **Opción A (recomendada)**: Vercel **Blob**. Creá un storage Blob en tu proyecto y
   seteá `VERCEL_BLOB_READ_WRITE_TOKEN` en `.env`. La ruta usa la API REST de Vercel.
 - **Opción B (dev)**: fallback a un archivo JSON local en `.next/waitlist.json`.
 
+`GET /api/waitlist` devuelve el desglose para tu control: `{ total, usuarios,
+negocios, position }` — así sabes cuántos quieren **usar** la app y cuántos son
+**negocios** interesados en pertenecer.
+
 > En producción, para tiempo real total, podés migrar a una BD serverless (Upstash
 > Redis / Turso) cambiando las llamadas al store. El contrato de la API queda igual.
+
+### 🔔 Alertas de la waitlist (Telegram + Google Sheets)
+
+Cada **cupo nuevo** dispara, en paralelo y sin bloquear la respuesta, dos avisos
+(solo si configurás las variables; si falta alguna, la app sigue funcionando normal):
+
+**Telegram** (`src/lib/notify.ts` → `notifyTelegram`): te llega un mensaje como
+
+```
+🟢 Nueva solicitud de cupo · USUARIO
+Nombre: María
+Teléfono: +53 5 1234567
+Fecha: 12/08/2026 17:40
+```
+(🔵 + "TENGO UN NEGOCIO" para negocios).
+
+1. Crea un bot con **@BotFather** y copiá el token → `TELEGRAM_BOT_TOKEN`.
+2. Abrile una conversación al bot y obtené tu id con **@userinfobot** →
+   `TELEGRAM_CHAT_ID`.
+
+**Google Sheets** (`notifySheet`): agrega una fila `[nombre, teléfono, tipo,
+origen, fecha ISO]` en la pestaña `Cupos`. Usa tu cuenta de servicio (JWT firmado
+con `node:crypto`, **sin librerías externas**):
+
+1. En [Google Cloud Console](https://console.cloud.google.com) creá un proyecto →
+   habilitá **Google Sheets API**.
+2. Creá una **cuenta de servicio**, descargá el **JSON** de credenciales y
+   **compartí tu hoja** con el email de esa cuenta (como Editor).
+3. En Vercel agregá:
+   - `GOOGLE_SERVICE_ACCOUNT_JSON` = el JSON completo en una línea.
+   - `WAITLIST_SPREADSHEET_ID` = el id del URL de la hoja.
+   - `WAITLIST_SHEET_RANGE` (opcional, por defecto `Cupos!A:E`).
+
+> Todas las llamadas salientes están envueltas en `try/catch` y se ejecutan con
+> `Promise.allSettled`: si Telegram o Sheets fallan, el cupo se guarda igual y el
+> usuario ve su confirmación.
 
 ## 📦 Desplegar en Vercel (free)
 

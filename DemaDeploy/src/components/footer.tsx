@@ -1,4 +1,4 @@
-import { Leaf } from "lucide-react";
+import { Building2, Leaf, Sparkles, UserRound } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -40,12 +40,32 @@ export default function Footer() {
 
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-white/40">
-              Demo
+              Creado por
             </h3>
             <ul className="mt-4 space-y-2 text-sm">
-              <li>Hecho con Next.js 15 + Framer Motion</li>
-              <li>Mapa Leaflet en vivo</li>
-              <li>Búsqueda con IA (demo local)</li>
+              <li className="flex items-start gap-2">
+                <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0 text-verde-300" strokeWidth={2} />
+                <span>
+                  <span className="font-semibold text-white/80">Maikel de Armas Mourlot</span>
+                  <br />
+                  creador de La Verde
+                </span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Building2 className="h-3.5 w-3.5 shrink-0 text-verde-300" strokeWidth={2} />
+                <a
+                  href="https://kynari.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-white/80 transition-colors hover:text-verde-200"
+                >
+                  Kynari
+                </a>
+              </li>
+              <li className="flex items-center gap-2">
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-verde-300" strokeWidth={2} />
+                Potencia tu vida con IA
+              </li>
             </ul>
           </div>
         </div>

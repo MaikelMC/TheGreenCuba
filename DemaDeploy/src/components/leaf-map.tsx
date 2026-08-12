@@ -65,6 +65,38 @@ function FlyToSelection({
   return null;
 }
 
+// La rueda del ratón sobre el mapa no debe secuestrar el scroll de la página.
+// El zoom con rueda se desactiva por defecto y solo se activa al hacer clic o
+// dar foco al mapa. Además se reduce su sensibilidad para que no "brinque".
+function ScrollZoomOnFocus() {
+  const map = useMap();
+
+  useEffect(() => {
+    const wheel = map.scrollWheelZoom as L.Handler & {
+      options: { wheelPxPerZoomLevel: number; wheelDebounceTime: number };
+    };
+    if (wheel?.options) {
+      wheel.options.wheelPxPerZoomLevel = 170;
+      wheel.options.wheelDebounceTime = 90;
+    }
+    map.scrollWheelZoom.disable();
+
+    const enable = () => map.scrollWheelZoom.enable();
+    const onBlur = () => map.scrollWheelZoom.disable();
+    map.on("focus", enable);
+    map.on("click", enable);
+    map.on("blur", onBlur);
+    return () => {
+      map.off("focus", enable);
+      map.off("click", enable);
+      map.off("blur", onBlur);
+      map.scrollWheelZoom.disable();
+    };
+  }, [map]);
+
+  return null;
+}
+
 // Encuadra Cuba + ajusta al tocar mapa (una vez)
 function InitialFit() {
   const map = useMap();
@@ -99,7 +131,7 @@ export default function LeafMap({ places, selectedId, onSelect }: LeafMapProps) 
       zoom={7}
       zoomControl={false}
       preferCanvas
-      scrollWheelZoom
+      scrollWheelZoom={false}
       className="z-0 h-full w-full"
       attributionControl
     >
@@ -109,6 +141,7 @@ export default function LeafMap({ places, selectedId, onSelect }: LeafMapProps) 
       />
       <InitialFit />
       <FlyToSelection places={places} selectedId={selectedId} />
+      <ScrollZoomOnFocus />
       <ZoomControl position="bottomright" />
       {places.map((p) => (
         <Marker
