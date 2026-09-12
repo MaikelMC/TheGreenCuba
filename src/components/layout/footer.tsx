@@ -1,3 +1,5 @@
+import { Logo } from "./logo";
+
 export function Footer() {
   return (
     <footer className="border-t border-border py-gap-2xl text-muted-foreground text-[14px]">
@@ -5,8 +7,8 @@ export function Footer() {
         <div className="flex flex-wrap justify-between items-start gap-gap-xl">
           <div className="max-w-[280px]">
             <div className="font-display text-[18px] font-bold text-foreground flex items-center gap-gap-xs mb-gap-sm">
-              <span className="size-6 rounded-[6px] bg-accent grid place-items-center text-white text-[12px]">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 3c-4.97 0-9 3.58-9 8s4.03 8 9 8c.71 0 1.4-.08 2.06-.22L19 21l-.78-3.46C20.04 16.21 21 14.21 21 12c0-4.42-4.03-8-9-8z" /></svg>
+              <span className="size-6 rounded-[6px] bg-accent grid place-items-center text-accent-foreground">
+                <Logo className="size-4" />
               </span>
               La Verde
             </div>

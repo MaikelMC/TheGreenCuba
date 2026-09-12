@@ -3,6 +3,7 @@ export type GeolocationErrorCode =
   | "denied"
   | "timeout"
   | "unavailable"
+  | "imprecise"
   | "unknown";
 
 export interface GeolocationError extends Error {
@@ -44,8 +45,23 @@ export const GEO_ERROR_MESSAGES: Record<GeolocationErrorCode, string> = {
     "Permiso de ubicación denegado. Actívalo en los ajustes del navegador y vuelve a intentarlo.",
   timeout: "No se pudo obtener tu ubicación. Revisa tu conexión e inténtalo de nuevo.",
   unavailable: "Tu ubicación no está disponible en este momento.",
+  imprecise:
+    "Tu ubicación aproximada es demasiado imprecisa (típico de Wi-Fi o IP). Usa el GPS del móvil o elige tu zona en el buscador.",
   unknown: "Error inesperado al obtener tu ubicación.",
 };
+
+/**
+ * Precisión máxima (en metros) que aceptamos como ubicación real.
+ * Un navegador de escritorio sin GPS resuelve por Wi-Fi/IP y puede devolver un
+ * punto a cientos de km con una precisión declarada de kilómetros. Preferimos
+ * rechazar esa lectura antes que mover el mapa a otra ciudad.
+ * ponytail: umbral fijo; súbelo si en móvil llega a rechazar fixes buenos en interiores.
+ */
+export const MAX_ACCURACY_M = 1000;
+
+function isAccurate(accuracy: number): boolean {
+  return Number.isFinite(accuracy) && accuracy <= MAX_ACCURACY_M;
+}
 
 export function isGeolocationSupported(): boolean {
   return typeof navigator !== "undefined" && "geolocation" in navigator;
@@ -88,6 +104,9 @@ export function getLastKnownPosition(): UserPosition | null {
 }
 
 function savePosition(pos: UserPosition): void {
+  // Solo guardamos fixes fiables: cachear una lectura por IP/Wi-Fi envenenaría
+  // la próxima carga y desplazaría el mapa a otra ciudad.
+  if (!isAccurate(pos.accuracy)) return;
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({ ...pos, savedAt: Date.now() }));
   } catch {
@@ -140,8 +159,19 @@ export function getCurrentPosition(
           speed: pos.coords.speed,
           timestamp: pos.timestamp,
         };
-        savePosition(position);
-        resolve(position);
+        if (isAccurate(position.accuracy)) {
+          savePosition(position);
+          resolve(position);
+          return;
+        }
+        // Lectura imprecisa: un fix bueno ya guardado es mejor que volar el mapa
+        // a un punto que puede estar a cientos de km.
+        const cached = getLastKnownPosition();
+        if (cached) {
+          resolve(cached);
+          return;
+        }
+        reject(makeError("imprecise"));
       },
       (err) => {
         reject(makeError(mapPositionError(err?.code), err?.message));
@@ -153,4 +183,55 @@ export function getCurrentPosition(
       },
     );
   });
+}
+
+export interface DetectedCity {
+  value: string;
+  label: string;
+}
+
+/** Ciudades elegibles del onboarding contra las que se compara la posición GPS. */
+const ONBOARDING_CITIES: { value: string; label: string; lat: number; lng: number }[] = [
+  { value: "la-habana", label: "La Habana", lat: 23.1374, lng: -82.359 },
+  { value: "santiago", label: "Santiago de Cuba", lat: 20.0207, lng: -75.8267 },
+  { value: "varadero", label: "Varadero", lat: 23.1547, lng: -81.2377 },
+];
+
+/** Distancia máxima (km) para considerar que el GPS cae dentro de una ciudad. */
+const DETECT_MAX_KM = 65;
+
+function haversineKm(
+  aLat: number,
+  aLng: number,
+  bLat: number,
+  bLng: number,
+): number {
+  const R = 6371;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+/**
+ * Mapea una posición GPS a la ciudad del onboarding más cercana.
+ * Si ninguna queda dentro de DETECT_MAX_KM devuelve "otra".
+ */
+export function detectNearestCity(lat: number, lng: number): DetectedCity {
+  const first = ONBOARDING_CITIES[0];
+  if (!first) return { value: "otra", label: "Otra ciudad" };
+  let best = first;
+  let bestKm = Infinity;
+  for (const city of ONBOARDING_CITIES) {
+    const km = haversineKm(lat, lng, city.lat, city.lng);
+    if (km < bestKm) {
+      bestKm = km;
+      best = city;
+    }
+  }
+  if (bestKm <= DETECT_MAX_KM) return { value: best.value, label: best.label };
+  return { value: "otra", label: "Otra ciudad" };
 }

@@ -47,7 +47,7 @@ const SIDEBAR_ITEMS: NavItem[] = [
 ];
 
 export function PanelShell({
-  businessName = "La Guarida",
+  businessName = "St. Pauli Restaurant-Bar",
   defaultView = "dashboard",
   children,
   className,
@@ -79,7 +79,7 @@ export function PanelShell({
         <span className="font-mono text-xs font-medium bg-accent/10 text-accent px-[8px] py-[2px] rounded-full border border-accent/20 whitespace-nowrap">
           Negocio verificado
         </span>
-        <UserMenu initial="LG" />
+        <UserMenu initial="SP" />
       </header>
 
       {/* Shell */}

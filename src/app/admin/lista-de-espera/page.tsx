@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StateView } from "@/components/ui/state-view";
+import { LoadingState } from "@/components/ui/loading";
 import { getAdminKey } from "@/lib/admin-auth";
 import type { WaitlistEntry, WaitlistStatus } from "@/lib/waitlist-store";
 
@@ -311,22 +313,19 @@ export default function ListaDeEsperaPage() {
       </div>
 
       {loading ? (
-        <div className="text-meta text-muted-foreground">Cargando...</div>
+        <LoadingState label="Cargando solicitudes…" />
       ) : error ? (
         <div className="rounded-lv-lg bg-destructive/10 border border-destructive/25 px-3 py-[7px] text-[12px] text-destructive font-medium">
           {error}
         </div>
       ) : entries.length === 0 ? (
-        <div className="rounded-lv-lg border border-dashed border-border p-gap-xl text-center">
-          <Store size={28} strokeWidth={1.5} className="mx-auto text-muted-foreground mb-gap-sm" />
-          <p className="font-display text-body font-semibold text-foreground">
-            Aun no hay solicitudes
-          </p>
-          <p className="text-small text-muted-foreground mt-gap-xs max-w-[40ch] mx-auto">
-            Cuando un negocio se registre desde la landing "Unirse a la lista",
-            aparecera aqui.
-          </p>
-        </div>
+        <StateView
+          size="sm"
+          icon={Store}
+          title="Aún no hay solicitudes"
+          description={'Cuando un negocio se registre desde la landing "Unirse a la lista", aparecerá aquí.'}
+          className="rounded-lv-lg border border-border bg-surface"
+        />
       ) : (
         <div className="flex flex-col gap-gap-md">
           {entries.map((entry, i) => (

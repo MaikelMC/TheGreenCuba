@@ -3,29 +3,31 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { Search, Mic, Sparkles, MessageCircle, Loader2 } from "lucide-react";
+import { Search, Mic, Sparkles, Loader2, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchActions, useSearchState } from "@/providers/search-provider";
+import { searchAddress, type GeocodeSuggestion } from "@/lib/map/geocode";
 import { UserMenu } from "./user-menu";
+import { Logo } from "./logo";
 
 const SUGGESTIONS = [
   {
     query: "cafe tranquilo cerca de mi que acepte USD Clásica",
     label: "Café tranquilo cerca de mi que acepte USD Clásica",
-    category: "Cafetería · Vedado",
+    category: "Cafetería · Enramadas",
     icon: "cafe",
   },
   {
     query: "restaurante con vista al mar para cenar",
     label: "Restaurante con vista al mar para cenar",
-    category: "Restaurante · Malecón",
+    category: "Restaurante · Bahía",
     icon: "restaurante",
   },
 ];
 
 const RECENT_SEARCHES = [
   { query: "discotecas con reggaeton cubano", category: "Vida nocturna" },
-  { query: "mercado de frutas frescas barato", category: "Mercado · Centro Habana" },
+  { query: "mercado de frutas frescas barato", category: "Mercado · Centro histórico" },
 ];
 
 interface HeaderProps {
@@ -44,10 +46,14 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
   } catch {}
   const effectiveOnSearch = propOnSearch ?? actions?.onSearch;
   const effectiveIsSearching = propIsSearching ?? state?.isSearching;
+  const effectiveLocate = actions?.onLocateAddress;
 
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [addrResults, setAddrResults] = useState<GeocodeSuggestion[]>([]);
+  const addrTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const addrSeq = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -58,7 +64,11 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      if (addrTimer.current) clearTimeout(addrTimer.current);
+      addrSeq.current++;
+    };
   }, []);
 
   function handleSubmit(e: FormEvent) {
@@ -75,12 +85,47 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
     effectiveOnSearch?.(suggestion);
   }
 
+  // Búsqueda de direcciones con Photon dentro del mismo campo.
+  function handleQueryChange(raw: string) {
+    setQuery(raw);
+    if (addrTimer.current) clearTimeout(addrTimer.current);
+    if (raw.trim().length < 3) {
+      setAddrResults([]);
+      return;
+    }
+    const seq = ++addrSeq.current;
+    addrTimer.current = setTimeout(async () => {
+      try {
+        const results = await searchAddress(raw);
+        if (seq !== addrSeq.current) return;
+        setAddrResults(results);
+      } catch {
+        if (seq !== addrSeq.current) return;
+        setAddrResults([]);
+      }
+    }, 350);
+  }
+
+  function handleAddressPick(s: GeocodeSuggestion) {
+    if (addrTimer.current) clearTimeout(addrTimer.current);
+    setShowSuggestions(false);
+    const label =
+      [s.street, s.housenumber].filter(Boolean).join(" ") +
+      (s.between ? ` e/ ${s.between}` : "");
+    setQuery(label);
+    if (effectiveLocate) {
+      effectiveLocate({ lat: s.lat, lng: s.lng, label });
+    } else {
+      handleSuggestionClick(label);
+    }
+  }
+
   return (
     <header className="fixed top-0 left-0 right-0 z-200 h-header border-b border-border bg-surface/95 backdrop-blur-[16px] flex items-center px-gap-md gap-gap-sm md:px-gap-lg min-h-[56px] md:min-h-[60px]">
       {/* Logo */}
       <Link href="/home" className="flex items-center gap-gap-xs shrink-0">
-        <span className="size-[30px] bg-accent rounded-[8px] grid place-items-center text-white shrink-0">
-          <MessageCircle size={14} strokeWidth={2.2} />
+        <span className="size-[30px] bg-accent rounded-[8px] grid place-items-center text-accent-foreground shrink-0">
+          <Logo className="size-[19px]" />
         </span>
         <span className="font-display text-[18px] font-bold tracking-[-0.02em] text-foreground max-sm:hidden">
           La Verde
@@ -92,7 +137,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
         <form
           onSubmit={handleSubmit}
           className={cn(
-            "flex items-center gap-gap-xs bg-white dark:bg-white/10 border border-border rounded-lv px-[14px] transition-all duration-normal cursor-text",
+            "flex items-center gap-gap-xs bg-white dark:bg-white/10 border border-border rounded-lv pl-[14px] pr-0 transition-all duration-normal cursor-text",
             focused && "border-accent shadow-[0_0_0_3px_var(--accent-soft)]",
             effectiveIsSearching && "border-accent",
           )}
@@ -115,10 +160,12 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => handleQueryChange(e.target.value)}
             onFocus={() => {
               setFocused(true);
               setShowSuggestions(true);
+              if (query.trim().length >= 3) handleQueryChange(query);
+              else setAddrResults([]);
             }}
             onBlur={() => setFocused(false)}
             placeholder="¿Qué buscas hoy..."
@@ -127,7 +174,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
           />
           <button
             type="button"
-            className="size-9 rounded-full grid place-items-center text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all shrink-0"
+            className="size-11 rounded-full grid place-items-center text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all shrink-0"
             aria-label="Buscar por voz"
           >
             <Mic size={18} strokeWidth={1.8} />
@@ -135,7 +182,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
           <button
             type="submit"
             disabled={effectiveIsSearching}
-            className="flex items-center gap-1 px-[14px] py-2 bg-accent text-white rounded-lv font-display text-[13px] font-semibold whitespace-nowrap shrink-0 hover:bg-accent-hover transition-colors max-sm:px-2 disabled:opacity-80"
+            className="flex min-h-11 shrink-0 items-center gap-1 self-stretch rounded-r-[9px] px-[14px] py-2 bg-accent text-white font-display text-[13px] font-semibold whitespace-nowrap transition-colors hover:bg-accent-hover max-sm:px-2 disabled:opacity-80"
           >
             {effectiveIsSearching ? (
               <Loader2 size={14} strokeWidth={2} className="animate-spin" />
@@ -161,6 +208,57 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
               transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
               className="absolute top-[calc(100%+6px)] left-0 right-0 bg-surface border border-border rounded-lv-lg shadow-lv-lg z-250 overflow-hidden"
             >
+              {addrResults.length > 0 && (
+                <>
+                  <div className="px-gap-md pt-[10px] pb-[4px] font-mono text-[10px] font-medium text-muted-foreground uppercase tracking-[0.08em]">
+                    Direcciones
+                  </div>
+                  {addrResults.map((s, i) => {
+                    const main = [s.street, s.housenumber]
+                      .filter(Boolean)
+                      .join(" ");
+                    const area =
+                      [s.district, s.city].filter(Boolean).join(" · ") ||
+                      "Cuba";
+                    return (
+                      <motion.button
+                        key={`addr-${s.lat}-${s.lng}-${i}`}
+                        type="button"
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{
+                          delay: 0.04 + i * 0.04,
+                          duration: 0.2,
+                        }}
+                        className="flex items-center gap-gap-sm w-full px-gap-md py-[10px] text-left hover:bg-background transition-colors"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleAddressPick(s);
+                        }}
+                      >
+                        <span className="size-8 rounded-lv bg-accent/10 grid place-items-center text-accent shrink-0">
+                          <MapPin size={16} strokeWidth={1.8} />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="text-[14px] text-foreground truncate">
+                            {main}
+                            {s.between && (
+                              <span className="text-muted-foreground">
+                                {" "}
+                                e/ {s.between}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[12px] text-muted-foreground mt-px truncate">
+                            {area}
+                          </div>
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                  <div className="h-px bg-border mx-gap-md my-[4px]" />
+                </>
+              )}
               <div className="px-gap-md pt-[10px] pb-[4px] font-mono text-[10px] font-medium text-muted-foreground uppercase tracking-[0.08em]">
                 Sugerencias
               </div>

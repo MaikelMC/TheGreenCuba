@@ -16,6 +16,11 @@ import {
   writeUserPreferences,
   DEFAULT_USER_PREFERENCES,
 } from "@/lib/user-preferences-store";
+import {
+  getCurrentPosition,
+  detectNearestCity,
+  GEO_ERROR_MESSAGES,
+} from "@/lib/map/geolocation";
 
 const LOCATION_NAMES: Record<string, string> = {
   "la-habana": "La Habana",
@@ -245,8 +250,9 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [animTick, setAnimTick] = useState(0);
 
-  const [location, setLocation] = useState("la-habana");
+  const [location, setLocation] = useState("santiago");
   const [gpsDetected, setGpsDetected] = useState(false);
+  const [detectedName, setDetectedName] = useState<string | null>(null);
   const [interests, setInterests] = useState<Set<string>>(new Set(["cafes", "restaurantes"]));
   const [currencies, setCurrencies] = useState<Set<string>>(new Set(["mlc", "cup"]));
   const [moods, setMoods] = useState<Set<string>>(new Set(["tranquilo", "romantico"]));
@@ -262,9 +268,22 @@ export default function OnboardingPage() {
     setAnimTick((t) => t + 1);
   }, []);
 
-  function handleUseGPS() {
-    setLocation("la-habana");
-    setGpsDetected(true);
+  async function handleUseGPS() {
+    try {
+      const pos = await getCurrentPosition({ useCache: false });
+      const detected = detectNearestCity(pos.lat, pos.lng);
+      setLocation(detected.value);
+      setDetectedName(detected.label);
+      setGpsDetected(true);
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      const messages = GEO_ERROR_MESSAGES as Record<string, string>;
+      toast.error(
+        (code && messages[code]) ||
+          "No pudimos detectar tu ubicación. Elige tu ciudad o inténtalo de nuevo.",
+      );
+      setGpsDetected(false);
+    }
   }
 
   function toggleInterest(value: string) {
@@ -421,6 +440,7 @@ export default function OnboardingPage() {
                     selected={location}
                     onSelect={setLocation}
                     gpsDetected={gpsDetected}
+                    gpsLabel={detectedName ?? undefined}
                     onUseGPS={handleUseGPS}
                   />
                 </SlideContent>

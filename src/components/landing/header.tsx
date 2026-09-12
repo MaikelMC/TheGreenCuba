@@ -11,6 +11,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { JoinButton } from "@/components/landing/join-button";
+import { Logo } from "@/components/layout/logo";
 
 const NAV_LINKS = [
   { href: "#como-funciona", label: "Como funciona" },
@@ -31,18 +32,8 @@ export function Header() {
           href="/"
           className="flex items-center gap-2 font-display text-[20px] font-bold tracking-[-0.02em] text-foreground"
         >
-          <span className="grid size-7 place-items-center rounded-[8px] bg-accent text-[14px] text-accent-foreground">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-            >
-              <path d="M12 3c-4.97 0-9 3.58-9 8s4.03 8 9 8c.71 0 1.4-.08 2.06-.22L19 21l-.78-3.46C20.04 16.21 21 14.21 21 12c0-4.42-4.03-8-9-8z" />
-            </svg>
+          <span className="grid size-7 place-items-center rounded-[8px] bg-accent text-accent-foreground">
+            <Logo className="size-[18px]" />
           </span>
           La Verde
         </Link>

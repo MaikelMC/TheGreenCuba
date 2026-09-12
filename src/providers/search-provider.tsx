@@ -15,11 +15,20 @@ interface SearchState {
   isSearching: boolean;
 }
 
+export interface LocateAddressTarget {
+  lat: number;
+  lng: number;
+  label: string;
+}
+
 interface SearchActions {
   setQuery: (q: string) => void;
   setIsSearching: (v: boolean) => void;
   onSearch: (q: string) => void;
   registerSearchHandler: (handler: (q: string) => void) => void;
+  /** Volar el mapa del home a una dirección (sin pasar por la IA). */
+  onLocateAddress: (target: LocateAddressTarget) => void;
+  registerLocateHandler: (handler: (t: LocateAddressTarget) => void) => void;
 }
 
 const SearchStateContext = createContext<SearchState | null>(null);
@@ -29,6 +38,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const handlerRef = useRef<((q: string) => void) | null>(null);
+  const locateRef = useRef<((t: LocateAddressTarget) => void) | null>(null);
 
   const onSearch = useCallback((q: string) => {
     setQuery(q);
@@ -39,12 +49,30 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     handlerRef.current = h;
   }, []);
 
+  const onLocateAddress = useCallback((target: LocateAddressTarget) => {
+    locateRef.current?.(target);
+  }, []);
+
+  const registerLocateHandler = useCallback(
+    (h: (t: LocateAddressTarget) => void) => {
+      locateRef.current = h;
+    },
+    [],
+  );
+
   // Acciones estables: los consumidores que solo llaman a la IA
   // (home) o leen isSearching (header) NO se re-renderizan cuando
   // cambia `query`.
   const actions = useMemo<SearchActions>(
-    () => ({ setQuery, setIsSearching, onSearch, registerSearchHandler }),
-    [onSearch, registerSearchHandler],
+    () => ({
+      setQuery,
+      setIsSearching,
+      onSearch,
+      registerSearchHandler,
+      onLocateAddress,
+      registerLocateHandler,
+    }),
+    [onSearch, registerSearchHandler, onLocateAddress, registerLocateHandler],
   );
 
   const state = useMemo<SearchState>(() => ({ query, isSearching }), [query, isSearching]);

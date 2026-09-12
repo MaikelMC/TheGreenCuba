@@ -13,6 +13,8 @@ import { PlaceCard } from "@/components/layout/place-card";
 import { SearchingAnimation } from "@/components/layout/searching-animation";
 import { MapView } from "@/components/map/MapView";
 import { PlaceFilters } from "@/components/place/place-filters";
+import { StateView } from "@/components/ui/state-view";
+import { Button } from "@/components/ui/button";
 import { useSearchActions } from "@/providers/search-provider";
 import { getCurrentPosition, getLastKnownPosition } from "@/lib/map/geolocation";
 import {
@@ -79,9 +81,9 @@ function userPlaceToHomePlace(p: UserPlace): HomePlace {
 }
 
 const SHEET_TITLES: Record<SheetState, { title: string; subtitle: string }> = {
-  default: { title: "Recomendaciones", subtitle: "Lugares cerca de ti en La Habana" },
+  default: { title: "Recomendaciones", subtitle: "Lugares cerca de ti" },
   searching: { title: "Buscando", subtitle: "Analizando tu consulta..." },
-  results: { title: "Resultados", subtitle: "4 cafes tranquilos en Vedado" },
+  results: { title: "Resultados", subtitle: "4 cafés tranquilos en Santiago" },
   "no-results": { title: "Sin resultados", subtitle: "Intenta con otra búsqueda" },
   error: { title: "Error de conexión", subtitle: "Verifica tu conexión a internet" },
 };
@@ -326,10 +328,17 @@ function HomePageContent() {
     lng: number;
     key: number;
   } | null>(null);
+  const [viewTarget, setViewTarget] = useState<{
+    lat: number;
+    lng: number;
+    zoom: number;
+    key: number;
+  } | null>(null);
   const [initialCenter, setInitialCenter] = useState<[number, number] | null>(null);
   const [disableAutoFit, setDisableAutoFit] = useState(false);
   const searchCtx = useSearchActions();
   const mapRef = useRef<HTMLDivElement | null>(null);
+  const viewKey = useRef(0);
   const { places } = usePlaces();
 
   const mapPlaces = useMemo<MapPlace[]>(
@@ -427,6 +436,18 @@ function HomePageContent() {
   useEffect(() => {
     searchCtx.registerSearchHandler(handleSearch);
   }, [searchCtx, handleSearch]);
+
+  // Una dirección elegida en el buscador del header vuela el mapa hasta esa calle.
+  useEffect(() => {
+    searchCtx.registerLocateHandler((target) => {
+      setViewTarget({
+        lat: target.lat,
+        lng: target.lng,
+        zoom: 17,
+        key: ++viewKey.current,
+      });
+    });
+  }, [searchCtx]);
 
   const handleRetry = useCallback(() => {
     if (searchingQuery) {
@@ -550,6 +571,12 @@ function HomePageContent() {
   // user), then request the real current position to refine it. Errors produce
   // a hint; the floating "Mi ubicación" button handles explicit requests.
   useEffect(() => {
+    // Con onboarding completado la primera vista es SIEMPRE la ciudad elegida
+    // (vuelo al mapa fijo, sin auto-GPS). La ubicación precisa se pide solo con
+    // el botón "Mi ubicación", para que un GPS errado no desplace la vista.
+    const prefs = readUserPreferences();
+    if (prefs.onboardingCompleted) return;
+
     let cancelled = false;
 
     const cached = getLastKnownPosition();
@@ -613,8 +640,8 @@ function HomePageContent() {
   const shownCount = sheetState === "results" ? resultPlaces.length : recommendationCount;
 
   const resultsBannerText = sheetState === "results"
-    ? `Encontré <strong>4 cafes tranquilos</strong> que aceptan USD Clásica cerca de ti. <strong>Café El Ignoto</strong> es el más cercano, a 350m, abierto hasta las 10pm.`
-    : `Según tu ubicación en <strong>Vedado</strong>, encontré <strong>${places.length} lugares</strong> que podrían gustarte. El mejor match es <strong>Café El Ignoto</strong>, está a 3 min y acepta USD Clásica.`;
+    ? `Encontré <strong>4 cafés tranquilos</strong> cerca de ti. <strong>Casa La Micaela</strong> es el más cercano, en Enramadas y abierto de día.`
+    : `Según tu ubicación en <strong>Santiago de Cuba</strong>, encontré <strong>${places.length} lugares</strong> que podrían gustarte. El mejor match es <strong>St. Pauli Restaurant-Bar</strong>, en plena Enramadas.`;
 
   return (
     <div className="fixed inset-0 pt-[var(--header-h)]">
@@ -634,6 +661,7 @@ function HomePageContent() {
         userLocation={userLocation}
         onUserLocated={handleUserLocated}
         focusTarget={focusTarget}
+        viewTarget={viewTarget}
         route={route}
         routeOrigin={routeOrigin}
       >
@@ -706,7 +734,7 @@ function HomePageContent() {
                 <p className="text-[14px] leading-[1.5] text-foreground">
                   {sheetState === "results" && aiState && aiState.summary
                     ? aiState.summary
-                    : `Según tu ubicación en Vedado, encontré ${places.length} lugares que podrían gustarte. Explora el mapa o busca con lenguaje natural.`}
+                    : `Según tu ubicación en Santiago de Cuba, encontré ${places.length} lugares que podrían gustarte. Explora el mapa o busca con lenguaje natural.`}
                 </p>
               </motion.div>
 
@@ -757,28 +785,24 @@ function HomePageContent() {
               animate="show"
               exit={{ opacity: 0, y: -14, transition: { duration: 0.2 } }}
             >
-              <div className="text-center py-10 px-5">
-                <div className="size-16 rounded-full bg-accent/10 grid place-items-center mx-auto mb-gap-md text-accent">
-                  <Search size={28} strokeWidth={1.8} />
-                </div>
-                <h3 className="font-display text-[18px] font-semibold text-foreground mb-2">
-                  Sin resultados
-                </h3>
-                <p className="text-[14px] text-muted-foreground max-w-[28ch] mx-auto">
-                  No encontramos lugares que coincidan con &ldquo;disco con jazz en Vedado&rdquo;. Intenta con otra búsqueda.
-                </p>
-                <div className="flex flex-wrap gap-[6px] justify-center mt-gap-md">
-                  {["Discotecas Vedado", "Bar de jazz", "Música en vivo"].map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => handleSearch(s)}
-                      className="px-3 py-[6px] rounded-full border border-border text-[13px] font-medium text-accent bg-surface hover:bg-accent/10 hover:border-accent transition-all"
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <StateView
+                icon={Search}
+                title="Sin resultados"
+                description={
+                  searchingQuery
+                    ? `No encontramos lugares que coincidan con “${searchingQuery}”. Intenta con otra búsqueda.`
+                    : "No encontramos lugares que coincidan con tu búsqueda. Intenta con otras palabras."
+                }
+                actions={["Discotecas en Santiago", "Bar de jazz", "Música en vivo"].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => handleSearch(s)}
+                    className="px-3 py-[6px] rounded-full border border-border text-[13px] font-medium text-accent bg-surface hover:bg-accent/10 hover:border-accent transition-all"
+                  >
+                    {s}
+                  </button>
+                ))}
+              />
             </motion.div>
           </AnimatePresence>
         )}
@@ -793,26 +817,21 @@ function HomePageContent() {
               animate="show"
               exit={{ opacity: 0, y: -14, transition: { duration: 0.2 } }}
             >
-              <div className="text-center py-10 px-5">
-                <div className="size-16 rounded-full bg-destructive/8 grid place-items-center mx-auto mb-gap-md text-destructive">
-                  <WifiOff size={28} strokeWidth={1.8} />
-                </div>
-                <h3 className="font-display text-[18px] font-semibold text-foreground mb-2">
-                  Sin conexión
-                </h3>
-                <p className="text-[14px] text-muted-foreground max-w-[30ch] mx-auto mb-5">
-                  No se pudo conectar con el servidor. Verifica tu conexión a internet e intenta de nuevo.
-                </p>
-                <button
-                  onClick={handleRetry}
-                  className="inline-flex items-center gap-[6px] px-5 py-[10px] bg-accent text-white rounded-lv font-display text-[14px] font-semibold hover:bg-accent-hover transition-colors"
-                >
-                  <RefreshCw size={16} strokeWidth={2} />
-                  Reintentar
-                </button>
-                <div className="mt-5 p-gap-sm bg-lv-blue/6 border border-lv-blue/15 rounded-lv text-[13px] text-lv-blue text-left">
-                  <strong>Tip para conexiones lentas:</strong> La Verde guarda tus búsquedas recientes en caché. Puedes ver los últimos resultados sin conexión.
-                </div>
+              <StateView
+                className="pb-5"
+                variant="offline"
+                icon={WifiOff}
+                title="Sin conexión"
+                description="No se pudo conectar con el servidor. Verifica tu conexión a internet e intenta de nuevo."
+                actions={
+                  <Button className="gap-[6px]" onClick={handleRetry}>
+                    <RefreshCw size={16} strokeWidth={2} />
+                    Reintentar
+                  </Button>
+                }
+              />
+              <div className="mx-5 mb-5 p-gap-sm bg-lv-blue/6 border border-lv-blue/15 rounded-lv text-[13px] text-lv-blue text-left">
+                <strong>Tip para conexiones lentas:</strong> La Verde guarda tus búsquedas recientes en caché. Puedes ver los últimos resultados sin conexión.
               </div>
             </motion.div>
           </AnimatePresence>

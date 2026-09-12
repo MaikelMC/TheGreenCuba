@@ -34,6 +34,12 @@ export function BottomSheet({
   const didDrag = useRef(false);
   const dragRef = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
+  // Posición del arrastre en estado, no solo en el ref. Mutar el ref no vuelve
+  // a renderizar, y `setIsDragging(true)` repetido con el mismo valor hace que
+  // React se salte el render: el arrastre se quedaba clavado en el primer
+  // fotograma. El ref se conserva porque `onUp` necesita leer el valor de forma
+  // síncrona, antes de que el estado se confirme.
+  const [dragY, setDragY] = useState(0);
 
   // Abre el sheet automáticamente cuando se busca, para que siempre se vea la
   // animación y luego los resultados.
@@ -43,7 +49,7 @@ export function BottomSheet({
 
   const translateY =
     isDragging
-      ? `${dragRef.current}px`
+      ? `${dragY}px`
       : !mounted
         ? "100%"
         : state === "peek"
@@ -64,15 +70,26 @@ export function BottomSheet({
       const style = getComputedStyle(sheet);
       const matrix = new DOMMatrixReadOnly(style.transform);
       startTranslate.current = matrix.m42;
-      setIsDragging(true);
       sheet.setPointerCapture(e.pointerId);
 
       const onMove = (ev: PointerEvent) => {
         const dy = ev.clientY - startY.current;
-        if (Math.abs(dy) > 5) didDrag.current = true;
-        const maxUp = -(window.innerHeight * 0.7);
-        dragRef.current = Math.min(0, Math.max(startTranslate.current + dy, maxUp));
-        setIsDragging(true);
+        // Solo se entra en modo arrastre cuando el dedo supera el umbral. El
+        // arrastre desactiva la transición CSS, así que activarlo en el
+        // pointerdown hacía que un simple toque saltara la hoja a
+        // `dragRef.current` de golpe. Ese era el arranque brusco al abrir.
+        if (!didDrag.current) {
+          if (Math.abs(dy) <= 5) return;
+          didDrag.current = true;
+          setIsDragging(true);
+        }
+        // `translateY` se mide desde la posición abierta: 0 = abierta, positivo
+        // = más abajo. El `Math.min(0, ...)` anterior recortaba a 0 todo valor
+        // positivo, así que mover el dedo 6 px hacia arriba abría la hoja de
+        // golpe. Un dedo real casi siempre supera el umbral de 5 px, de modo
+        // que un toque normal caía justo en ese salto.
+        dragRef.current = Math.max(0, startTranslate.current + dy);
+        setDragY(dragRef.current);
       };
 
       const onUp = () => {
@@ -80,12 +97,17 @@ export function BottomSheet({
         sheet.removeEventListener("pointerup", onUp);
 
         if (didDrag.current) {
-          const vh = window.innerHeight;
-          const ratio = -dragRef.current / vh;
+          // Umbral sobre la posición final, no sobre el recorrido: así da igual
+          // desde qué estado arrancó el gesto. `offsetHeight - 120` es el mismo
+          // `calc(100% - 120px)` del estado peek, porque el porcentaje de
+          // `translateY` se resuelve contra la altura del propio elemento.
+          const peekY = sheet.offsetHeight - 120;
           setIsDragging(false);
-          setState(ratio > 0.3 ? "full" : "peek");
+          setState(dragRef.current < peekY / 2 ? "full" : "peek");
         } else {
-          setIsDragging(false);
+          // Toque sin arrastre: `isDragging` nunca se tocó, la transición CSS
+          // siguió activa todo el tiempo y el cambio de estado anima igual que
+          // al cerrar.
           cycleState();
         }
       };
@@ -101,7 +123,14 @@ export function BottomSheet({
       ref={sheetRef}
       data-state={state}
       className={cn(
-        "fixed left-0 right-0 bottom-0 z-300 bg-surface rounded-t-lv-xl shadow-[0_-4px_24px_oklch(18%_0.01_250_/_0.12)] transition-[transform] [transition-duration:400ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] max-h-[70vh] lg:max-h-none flex flex-col pb-safe-bottom",
+        // `will-change-transform` promueve la sheet a su propia capa: el
+        // deslizamiento se compone en GPU en vez de repintar en cada frame, que
+        // en móvil es justo lo que se nota como tirones.
+        "fixed left-0 right-0 bottom-0 z-300 bg-surface rounded-t-lv-xl shadow-[0_-4px_24px_oklch(18%_0.01_250_/_0.12)] will-change-transform transition-[transform] [transition-duration:500ms] [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] max-h-[70vh] lg:max-h-none flex flex-col pb-safe-bottom",
+        // Al cerrar vuelve antes que al abrir: entrar despacio da sensación de
+        // continuidad, salir despacio se hace pesado. El `data-state` ya cambió
+        // cuando arranca la transición, así que cada dirección usa su duración.
+        "data-[state=peek]:[transition-duration:300ms]",
         mounted && "bottom-sheet-desktop",
         isDragging && "!transition-none",
         className,

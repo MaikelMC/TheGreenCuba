@@ -14,6 +14,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { getAdminKey } from "@/lib/admin-auth";
+import { StateView } from "@/components/ui/state-view";
+import { LoadingState } from "@/components/ui/loading";
 import type {
   AiProviderType,
   AiVendor,
@@ -277,18 +279,14 @@ export function ProviderManager() {
         {/* List */}
         <div className="bg-surface border border-border rounded-lv-lg p-gap-md">
           {loading ? (
-            <p className="text-meta text-muted-foreground py-gap-md text-center">
-              Cargando proveedores…
-            </p>
+            <LoadingState label="Cargando proveedores…" />
           ) : providers.length === 0 ? (
-            <div className="py-gap-md text-center">
-              <Server size={28} strokeWidth={1.5} className="mx-auto text-muted-foreground mb-gap-sm" />
-              <p className="text-small text-muted-foreground">
-                Aún no hay proveedores configurados.
-                <br />
-                Agrega uno para activar la búsqueda con IA.
-              </p>
-            </div>
+            <StateView
+              size="sm"
+              icon={Server}
+              title="Aún no hay proveedores configurados"
+              description="Agrega uno para activar la búsqueda con IA."
+            />
           ) : (
             <div className="flex flex-col">
               {providers.map((p, i) => (

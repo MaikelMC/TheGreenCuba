@@ -1,9 +1,9 @@
 "use client";
 
-import { memo, useCallback, useMemo } from "react";
+import { memo, useCallback } from "react";
 import { Marker, Popup } from "react-leaflet";
-import { divIcon } from "leaflet";
 import { PlacePopup, getPlacePopupOptions } from "./PlacePopup";
+import { createPlacePinIcon, type PlacePinVariant } from "./pin-icon";
 import type { MapPlace } from "./types";
 
 interface MapMarkersProps {
@@ -13,21 +13,10 @@ interface MapMarkersProps {
   onRoute?: (place: MapPlace) => void;
 }
 
-function createMarkerIcon(isSelected: boolean, isBoosted: boolean) {
-  const size = isSelected ? 44 : isBoosted ? 36 : 28;
-  const bg = isBoosted ? "#c4841d" : "oklch(62% 0.16 145)";
-  const shadow = isSelected
-    ? "0 0 0 3px oklch(62% 0.16 145 / 0.2)"
-    : isBoosted
-      ? "0 2px 8px rgb(196 132 29 / 0.35)"
-      : "0 2px 6px oklch(62% 0.16 145 / 0.25)";
-
-  return divIcon({
-    className: "",
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    html: `<div style="width:${size}px;height:${size}px;background:${bg};border:${isSelected ? "3px" : "2px"} solid white;border-radius:50%;display:grid;place-items:center;box-shadow:${shadow};transition:all 200ms ease;cursor:pointer;${isBoosted ? "animation:pulse-ring 2s ease-in-out infinite" : ""}"><svg width="${size * 0.45}" height="${size * 0.45}" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>`,
-  });
+function markerVariant(isSelected: boolean, isBoosted: boolean): PlacePinVariant {
+  if (isSelected) return "selected";
+  if (isBoosted) return "boosted";
+  return "default";
 }
 
 const MarkerItem = memo(function MarkerItem({
@@ -43,10 +32,7 @@ const MarkerItem = memo(function MarkerItem({
   onSelect?: (place: MapPlace) => void;
   onRoute?: (place: MapPlace) => void;
 }) {
-  const icon = useMemo(
-    () => createMarkerIcon(isSelected, isBoosted),
-    [isSelected, isBoosted],
-  );
+  const icon = createPlacePinIcon(markerVariant(isSelected, isBoosted));
 
   const handleClick = useCallback(() => {
     onSelect?.(place);

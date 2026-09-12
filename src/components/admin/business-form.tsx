@@ -226,7 +226,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                 id="bfBarrio"
                 value={barrio}
                 onChange={(e) => setBarrio(e.target.value)}
-                placeholder="Ej: Centro, Vedado, Trinidad..."
+                placeholder="Ej: Centro histórico, Vista Alegre..."
               />
             </div>
             <div className="flex flex-col gap-gap-xs">
@@ -468,10 +468,23 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
           icon={<MapPin size={18} strokeWidth={1.5} />}
         >
           <p className="text-meta text-muted-foreground mb-gap-sm">
-            Toca el mapa para colocar el pin, arrástralo para ajustar, o busca tu zona y usa
-            &ldquo;Mi ubicación&rdquo;. No necesitas escribir coordenadas.
+            Escribe la dirección (ej: Calle Heredia e/ San Pedro y Santo Tomás), elige la
+            coincidencia y ajusta el pin en el mapa. El punto cae sobre la calle, no al lado.
           </p>
-          <MapLocationPicker value={location} onChange={setLocation} />
+          <MapLocationPicker
+            value={location}
+            onChange={setLocation}
+            onResolved={(r) => {
+              if (!r) return;
+              // No pisa una dirección escrita con entre-calles ("e/ A y B").
+              setAddress((prev) =>
+                prev.trim() === "" || !/e\/|entre/i.test(prev)
+                  ? r.address
+                  : prev,
+              );
+              setBarrio((prev) => (prev.trim() ? prev : r.barrio));
+            }}
+          />
         </FormSection>
 
         <AnimatePresence>

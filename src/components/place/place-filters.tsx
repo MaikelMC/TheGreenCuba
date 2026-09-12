@@ -18,7 +18,9 @@ interface PlaceFiltersProps {
 }
 
 export function PlaceFilters({ visible, className }: PlaceFiltersProps) {
-  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(["distancia"]));
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(
+    new Set(["distancia"]),
+  );
 
   function toggle(value: string) {
     setActiveFilters((prev) => {
@@ -49,11 +51,15 @@ export function PlaceFilters({ visible, className }: PlaceFiltersProps) {
             className={cn(
               "shrink-0 inline-flex items-center gap-[4px] px-[10px] py-[5px] rounded-full border font-mono text-[11px] font-medium whitespace-nowrap transition-all duration-fast",
               isActive
-                ? "bg-accent/8 border-accent/30 text-accent"
-                : "bg-surface border-border text-muted-foreground hover:border-accent hover:text-accent",
+                ? "bg-accent border-accent text-white shadow-lv-sm scale-[1.02]"
+                : "bg-surface border-border text-muted-foreground hover:border-accent hover:text-accent hover:shadow-lv-xs",
             )}
           >
-            <Icon size={12} strokeWidth={2} />
+            <Icon
+              size={12}
+              strokeWidth={2}
+              className={isActive ? "text-white" : "text-current"}
+            />
             {f.label}
           </button>
         );

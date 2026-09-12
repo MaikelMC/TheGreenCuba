@@ -114,7 +114,7 @@ export function PlaceCard({
             e.stopPropagation();
             onLocate?.();
           }}
-          className="size-8 rounded-full grid place-items-center text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors"
+          className="size-10 rounded-full grid place-items-center text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors"
           aria-label="Ver en el mapa"
           title="Ver en el mapa"
         >
@@ -129,7 +129,7 @@ export function PlaceCard({
             onLike?.();
           }}
           className={cn(
-            "size-8 rounded-full grid place-items-center transition-colors",
+            "size-10 rounded-full grid place-items-center transition-colors",
             liked
               ? "text-lv-red"
               : "text-muted-foreground hover:text-accent hover:bg-accent/10",
@@ -145,7 +145,7 @@ export function PlaceCard({
             e.stopPropagation();
             onDetail?.();
           }}
-          className="size-8 rounded-full grid place-items-center text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors"
+          className="size-10 rounded-full grid place-items-center text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors"
           aria-label="Ver detalle"
         >
           <ArrowRight size={16} strokeWidth={2} />

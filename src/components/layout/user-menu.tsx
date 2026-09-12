@@ -34,7 +34,7 @@ export function UserMenu({ initial }: { initial?: string }) {
         type="button"
         whileTap={{ scale: 0.9 }}
         onClick={() => setOpen((v) => !v)}
-        className="size-9 rounded-full bg-accent/10 border-2 border-border grid place-items-center text-accent font-display font-bold text-[14px] hover:border-accent transition-colors"
+        className="size-11 rounded-full bg-accent/10 border-2 border-border grid place-items-center text-accent font-display font-bold text-[14px] hover:border-accent transition-colors"
         aria-label="Menú de usuario"
       >
         {initial ?? "M"}

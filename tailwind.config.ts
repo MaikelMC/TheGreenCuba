@@ -38,6 +38,9 @@ const config: Config = {
         accent: {
           DEFAULT: "oklch(62% 0.16 145 / <alpha-value>)",
           foreground: "oklch(100% 0 0 / <alpha-value>)",
+          // Sin esta clave `bg-accent-hover` no generaba ninguna regla, así que
+          // el hover de todos los `Button variant="default"` no hacía nada.
+          hover: "oklch(54% 0.15 145 / <alpha-value>)",
         },
         card: {
           DEFAULT: "oklch(100% 0 0)",

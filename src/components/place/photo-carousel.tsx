@@ -102,31 +102,40 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
         {current + 1} / {total}
       </div>
 
-      {/* Dots */}
-      <div className="absolute bottom-gap-xs left-1/2 -translate-x-1/2 flex gap-[6px]">
+      {/* Dots. El área táctil es 24x44 (cumple WCAG 2.5.8 AA) aunque el punto
+          visible siga siendo de 7px: el botón alinea su contenido abajo para que
+          el punto no se mueva de sitio respecto al diseño anterior. */}
+      <div className="absolute bottom-gap-xs left-1/2 -translate-x-1/2 flex">
         {slides.map((_, i) => (
           <button
             key={i}
             type="button"
             onClick={() => goTo(i)}
-            className={cn(
-              "h-[7px] rounded-full transition-all duration-normal",
-              i === current
-                ? "w-[20px] bg-white"
-                : "w-[7px] bg-white/50 border border-white/30",
-            )}
+            className="flex h-11 w-6 items-end justify-center"
             aria-label={`Ir a foto ${i + 1}`}
-          />
+            aria-current={i === current}
+          >
+            <span
+              className={cn(
+                "block h-[7px] rounded-full transition-all duration-200",
+                i === current
+                  ? "w-[20px] bg-white"
+                  : "w-[7px] bg-white/50 border border-white/30",
+              )}
+            />
+          </button>
         ))}
       </div>
 
-      {/* Nav buttons */}
+      {/* Nav buttons. En táctil van SIEMPRE visibles: `group-hover` no existe sin
+          ratón, así que con el patrón anterior las flechas eran inalcanzables en
+          teléfono. Solo se ocultan donde de verdad hay hover. */}
       {total > 1 && (
         <>
           <button
             type="button"
             onClick={() => goTo(current - 1)}
-            className="absolute top-1/2 -translate-y-1/2 left-gap-xs size-9 rounded-full bg-white/85 backdrop-blur grid place-items-center shadow-lv-sm opacity-0 group-hover:opacity-100 hover:bg-white hover:shadow-lv-md transition-all duration-fast"
+            className="absolute top-1/2 -translate-y-1/2 left-gap-xs size-11 rounded-full bg-white/85 backdrop-blur grid place-items-center shadow-lv-sm transition-all duration-200 hover:bg-white hover:shadow-lv-md [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
             aria-label="Foto anterior"
           >
             <ChevronLeft size={18} strokeWidth={2} />
@@ -134,7 +143,7 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
           <button
             type="button"
             onClick={() => goTo(current + 1)}
-            className="absolute top-1/2 -translate-y-1/2 right-gap-xs size-9 rounded-full bg-white/85 backdrop-blur grid place-items-center shadow-lv-sm opacity-0 group-hover:opacity-100 hover:bg-white hover:shadow-lv-md transition-all duration-fast"
+            className="absolute top-1/2 -translate-y-1/2 right-gap-xs size-11 rounded-full bg-white/85 backdrop-blur grid place-items-center shadow-lv-sm transition-all duration-200 hover:bg-white hover:shadow-lv-md [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
             aria-label="Foto siguiente"
           >
             <ChevronRight size={18} strokeWidth={2} />

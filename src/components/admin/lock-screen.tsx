@@ -38,7 +38,7 @@ export function LockScreen({ onSuccess }: { onSuccess: () => void }) {
   }, [key, loading, onSuccess]);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-gutter">
+    <div className="min-h-screen min-h-dvh bg-background flex flex-col items-center justify-center px-gutter">
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}

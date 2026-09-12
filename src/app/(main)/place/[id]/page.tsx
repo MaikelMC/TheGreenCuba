@@ -3,6 +3,9 @@
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { MapPin, ArrowLeft } from "lucide-react";
+import { StateView } from "@/components/ui/state-view";
+import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/ui/loading";
 import {
   PlaceDetail,
   type PlaceData,
@@ -82,30 +85,36 @@ function placeState(p: UserPlace): PlaceState {
 export default function PlacePage() {
   const params = useParams();
   const router = useRouter();
-  const { places } = usePlaces();
+  const { places, hydrated } = usePlaces();
 
   const id = typeof params.id === "string" ? params.id : "";
+
+  // `places` se llena en un useEffect del provider, así que en el primer render
+  // está vacío. Sin esta guarda no se puede distinguir "todavía no cargó" de
+  // "no existe", y la página mostraba "Lugar no encontrado" un instante antes
+  // de encontrar el lugar, al recargar o entrar por URL directa.
+  if (!hydrated) {
+    return <LoadingState className="min-h-screen min-h-dvh" />;
+  }
+
   const place = places.find((p) => p.id === id) ?? null;
 
   if (!place) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-gap-md px-gutter text-center">
-        <div className="size-16 rounded-full bg-accent/10 grid place-items-center text-accent">
-          <MapPin size={26} strokeWidth={1.8} />
-        </div>
-        <h1 className="font-display text-h3 font-bold text-foreground">
-          Lugar no encontrado
-        </h1>
-        <p className="text-small text-muted-foreground max-w-[30ch]">
-          Este lugar no está en La Verde o fue eliminado.
-        </p>
-        <Link
-          href="/home"
-          className="inline-flex items-center gap-2 px-5 py-[10px] bg-accent text-white rounded-lv font-display text-[14px] font-semibold hover:bg-accent-hover transition-colors"
-        >
-          <ArrowLeft size={16} strokeWidth={2} />
-          Volver al mapa
-        </Link>
+      <div className="grid min-h-screen min-h-dvh place-items-center bg-background px-gutter">
+        <StateView
+          icon={MapPin}
+          title="Lugar no encontrado"
+          description="Este lugar no está en La Verde o fue eliminado."
+          actions={
+            <Button asChild className="gap-2">
+              <Link href="/home">
+                <ArrowLeft size={16} strokeWidth={2} />
+                Volver al mapa
+              </Link>
+            </Button>
+          }
+        />
       </div>
     );
   }

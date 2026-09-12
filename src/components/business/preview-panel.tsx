@@ -31,11 +31,11 @@ const DEFAULT_MENU: MenuPreviewItem[] = [
 ];
 
 export function PreviewPanel({
-  businessName = "La Guarida",
+  businessName = "St. Pauli Restaurant-Bar",
   category = "Restaurante",
   distance = "0.8 km",
   isOpen = true,
-  payments = ["MLC", "CUP"],
+  payments = ["CUP"],
   offer = "2x1 en mojitos los jueves",
   menuItems = DEFAULT_MENU,
   menuCount = 3,
@@ -118,7 +118,7 @@ export function PreviewPanel({
               <span className="font-mono text-[10px] text-accent uppercase tracking-[0.04em] font-medium">Recomendación IA</span>
             </div>
             <p className="text-[13px] leading-relaxed text-foreground">
-              &ldquo;<strong>cena romántica en Vedado</strong>&rdquo;. {businessName} tiene cocina cubana contemporánea, acepta USD Clásica, y está a {distance} de ti.
+              &ldquo;<strong>cena en el centro de Santiago</strong>&rdquo;. {businessName} tiene cocina cubana y está a {distance} de ti.
             </p>
           </div>
 

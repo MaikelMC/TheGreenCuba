@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, Source_Sans_3, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { Toaster } from "sonner";
@@ -27,6 +27,25 @@ const fontMono = JetBrains_Mono({
 const devChunkScript = `(function(){window.webpackChunkLoadTimeout=300000;if(window.__laVerdeChunkReloaded)return;window.addEventListener("error",function(e){if(window.__laVerdeChunkReloaded)return;var m=(e&&e.message)||"";if(m.indexOf("ChunkLoadError")!==-1||m.indexOf("Loading chunk")!==-1||m.indexOf("webpack")!==-1){window.__laVerdeChunkReloaded=true;window.location.reload();}},true);})();`;
 
 const prodChunkScript = `(function(){if(window.__laVerdeChunkReloaded)return;window.addEventListener("error",function(e){if(window.__laVerdeChunkReloaded)return;var m=(e&&e.message)||"";if(m.indexOf("ChunkLoadError")!==-1||m.indexOf("Loading chunk")!==-1){window.__laVerdeChunkReloaded=true;window.location.reload();}},true);})();`;
+
+/**
+ * `viewportFit: "cover"` es lo que hace que `env(safe-area-inset-*)` devuelva
+ * algo distinto de 0 en iOS. Sin él, las utilidades `.pb-safe-bottom` del sitio
+ * (bottom sheet, nav del panel, ficha de lugar) no reservan hueco y el contenido
+ * queda debajo del indicador de inicio. El sitio está pensado para móvil, así que
+ * esto es requisito, no adorno.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // No se bloquea el zoom: hacerlo rompe la accesibilidad (WCAG 1.4.4).
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#1a1a1a" },
+  ],
+};
 
 export const metadata: Metadata = {
   title: {

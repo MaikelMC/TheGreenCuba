@@ -39,6 +39,11 @@ interface CategoryInput {
 interface PlacesContextValue {
   places: UserPlace[];
   categories: BusinessCategory[];
+  /**
+   * `false` hasta que se leyó localStorage. Sin esto no se puede distinguir
+   * "todavía no cargó" de "no hay nada", y los estados vacíos parpadean al montar.
+   */
+  hydrated: boolean;
   addPlace: (input: NewUserPlace) => UserPlace;
   updatePlace: (id: string, patch: UserPlacePatch) => void;
   removePlace: (id: string) => void;
@@ -55,6 +60,7 @@ const PlacesContext = createContext<PlacesContextValue | null>(null);
 export function PlacesProvider({ children }: { children: ReactNode }) {
   const [places, setPlaces] = useState<UserPlace[]>([]);
   const [categories, setCategories] = useState<BusinessCategory[]>([]);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const existing = readUserPlaces();
@@ -67,6 +73,7 @@ export function PlacesProvider({ children }: { children: ReactNode }) {
     }
     setPlaces(seeded);
     setCategories(readCategories());
+    setHydrated(true);
   }, []);
 
   const addPlace = useCallback((input: NewUserPlace): UserPlace => {
@@ -119,6 +126,7 @@ export function PlacesProvider({ children }: { children: ReactNode }) {
     () => ({
       places,
       categories,
+      hydrated,
       addPlace,
       updatePlace,
       removePlace,
@@ -126,7 +134,7 @@ export function PlacesProvider({ children }: { children: ReactNode }) {
       updateCategory,
       removeCategory,
     }),
-    [places, categories, addPlace, updatePlace, removePlace, addCategory, updateCategory, removeCategory],
+    [places, categories, hydrated, addPlace, updatePlace, removePlace, addCategory, updateCategory, removeCategory],
   );
 
   return <PlacesContext.Provider value={value}>{children}</PlacesContext.Provider>;

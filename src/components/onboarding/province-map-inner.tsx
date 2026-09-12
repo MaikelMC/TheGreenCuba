@@ -3,20 +3,11 @@
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
-import L from "leaflet";
 import { TILE_CONFIGS, DEFAULT_TILE, MIN_ZOOM, MAX_ZOOM } from "@/lib/map/map-config";
 import { locationCenter } from "@/lib/user-preferences-store";
+import { createPlacePinIcon } from "@/components/map/pin-icon";
 
-const PIN_ICON = L.divIcon({
-  className: "onboarding-pin",
-  html: `
-    <svg viewBox="0 0 24 24" width="30" height="30" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.25))">
-      <path d="M12 2C7.6 2 4 5.6 4 10c0 5.25 8 12 8 12s8-6.75 8-12c0-4.4-3.6-8-8-8z" fill="oklch(62% 0.16 145)"/>
-      <circle cx="12" cy="10" r="3.2" fill="#ffffff"/>
-    </svg>`,
-  iconSize: [30, 30],
-  iconAnchor: [15, 30],
-});
+const PIN_ICON = createPlacePinIcon("selected");
 
 function FlyTo({ location }: { location: string }) {
   const map = useMap();

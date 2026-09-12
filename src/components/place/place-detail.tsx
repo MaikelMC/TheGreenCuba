@@ -100,8 +100,10 @@ export function PlaceDetail({
     setSaved((prev) => !prev);
   }
 
+  // Aquí va `min-h-dvh` solo: `cn` usa twMerge, que colapsaría el par
+  // min-h-screen/min-h-dvh y se quedaría con el último igualmente.
   return (
-    <div className={cn("min-h-screen bg-background", className)}>
+    <div className={cn("min-h-dvh bg-background", className)}>
       {/* ─── Header ─── */}
       <header className="sticky top-0 z-50 h-header bg-surface/92 backdrop-blur border-b border-border flex items-center gap-gap-sm px-gutter">
         <button

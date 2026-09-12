@@ -1,7 +1,7 @@
 "use client";
 
 import "leaflet/dist/leaflet.css";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -14,7 +14,6 @@ import L from "leaflet";
 import {
   TILE_CONFIGS,
   DEFAULT_TILE,
-  HAVANA_CENTER,
   DEFAULT_ZOOM,
   MIN_ZOOM,
   MAX_ZOOM,
@@ -22,6 +21,8 @@ import {
   DETECT_RETINA,
 } from "@/lib/map/map-config";
 import { validatePlaceCoordinates } from "@/lib/map/coordinates";
+import { readUserPreferences, locationCenter } from "@/lib/user-preferences-store";
+import { createPlacePinIcon } from "./pin-icon";
 import type { LocationPoint } from "./MapLocationPicker";
 
 const tile = TILE_CONFIGS[DEFAULT_TILE] ?? TILE_CONFIGS.voyager!;
@@ -29,16 +30,22 @@ const tile = TILE_CONFIGS[DEFAULT_TILE] ?? TILE_CONFIGS.voyager!;
 const SEA_ERROR =
   "Ese punto está en el mar o fuera de Cuba. Mueve el pin a un punto en tierra.";
 
-function FlyController({ target }: { target: LocationPoint | null }) {
+function FlyController({
+  target,
+  zoom,
+}: {
+  target: LocationPoint | null;
+  zoom: number;
+}) {
   const map = useMap();
   const last = useRef("");
   useEffect(() => {
     if (!target) return;
-    const key = `${target.lat.toFixed(6)},${target.lng.toFixed(6)}`;
+    const key = `${target.lat.toFixed(6)},${target.lng.toFixed(6)}@${zoom}`;
     if (key === last.current) return;
     last.current = key;
-    map.flyTo([target.lat, target.lng], 13, { duration: 0.8 });
-  }, [target, map]);
+    map.flyTo([target.lat, target.lng], zoom, { duration: 0.8 });
+  }, [target, zoom, map]);
   return null;
 }
 
@@ -53,24 +60,25 @@ export function MapLocationPickerMap({
   value,
   onPointChange,
   flyTarget,
+  flyZoom = 13,
 }: {
   value: LocationPoint | null;
   onPointChange: (point: LocationPoint | null) => void;
   flyTarget: LocationPoint | null;
+  flyZoom?: number;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-
-  const pinIcon = useMemo(
-    () =>
-      L.divIcon({
-        className: "",
-        iconSize: [34, 42],
-        iconAnchor: [17, 40],
-        html: `<svg width="34" height="42" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0z" fill="oklch(62% 0.16 145)" stroke="white" stroke-width="1.5"/><circle cx="12" cy="10" r="3" fill="white"/></svg>`,
-      }),
-    [],
+  // Abre centrado en la ubicación guardada del usuario (default Santiago) o en
+  // el negocio que se está editando. Ya no arranca desde La Habana.
+  const [center] = useState<[number, number]>(() =>
+    value
+      ? [value.lat, value.lng]
+      : locationCenter(readUserPreferences().location),
   );
+  const [initialZoom] = useState(() => (value ? 16 : DEFAULT_ZOOM));
+
+  const pinIcon = createPlacePinIcon("selected");
 
   useEffect(() => {
     setMounted(true);
@@ -96,8 +104,8 @@ export function MapLocationPickerMap({
   return (
     <div className="absolute inset-0">
       <MapContainer
-        center={HAVANA_CENTER}
-        zoom={DEFAULT_ZOOM}
+        center={center}
+        zoom={initialZoom}
         minZoom={MIN_ZOOM}
         maxZoom={MAX_ZOOM}
         zoomControl={false}
@@ -113,7 +121,7 @@ export function MapLocationPickerMap({
           detectRetina={DETECT_RETINA}
         />
         <ClickCatcher onPick={handlePick} />
-        <FlyController target={flyTarget} />
+        <FlyController target={flyTarget} zoom={flyZoom} />
         {value && (
           <Marker
             position={[value.lat, value.lng]}

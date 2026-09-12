@@ -37,6 +37,8 @@ export interface MapViewProps {
   onLocateStateChange?: (state: LocateState) => void;
   /** Cuando cambia, el mapa vuela hasta esas coordenadas (útil desde las cards). */
   focusTarget?: { lat: number; lng: number; key: number } | null;
+  /** Vuelo genérico del mapa (ej: elegir dirección en el buscador geocodificador). */
+  viewTarget?: { lat: number; lng: number; zoom?: number; key: number } | null;
   /** Ruta activa a dibujar entre la ubicación del usuario y un lugar. */
   route?: RouteResult | null;
   routeOrigin?: RoutePoint | null;

@@ -47,7 +47,7 @@ function DashboardView() {
       <div className="flex items-center justify-between gap-gap-sm mb-gap-lg">
         <div>
           <h1 className="font-display text-h3 font-bold text-foreground">Dashboard</h1>
-          <p className="text-small text-muted-foreground mt-gap-2xs">Resumen de La Guarida</p>
+          <p className="text-small text-muted-foreground mt-gap-2xs">Resumen de St. Pauli</p>
         </div>
       </div>
 
@@ -73,19 +73,19 @@ function DashboardView() {
           <h3 className="font-display text-body font-semibold text-foreground mb-gap-sm">Actividad reciente</h3>
           <div className="bg-surface border border-border rounded-lv-lg p-gap-sm">
             <ActivityItem type="search" time="hace 12 min">
-              <strong>Alguien te buscó:</strong> &ldquo;restaurante cerca del Parque Central que acepte USD Clásica&rdquo;
+              <strong>Alguien te buscó:</strong> &ldquo;restaurante en el centro que acepte USD Clásica&rdquo;
             </ActivityItem>
             <ActivityItem type="nav" time="hace 1 hora">
               <strong>Navegaron a ti:</strong> 3 personas pidieron indicaciones hoy
             </ActivityItem>
             <ActivityItem type="save" time="hoy">
-              <strong>Guardaron tu lugar:</strong> &ldquo;La Guarida&rdquo; se añadió a 5 listas nuevas
+              <strong>Guardaron tu lugar:</strong> &ldquo;St. Pauli&rdquo; se añadió a 5 listas nuevas
             </ActivityItem>
             <ActivityItem type="view" time="hoy">
               <strong>Vista de ficha:</strong> 28 personas vieron tu perfil completo
             </ActivityItem>
             <ActivityItem type="search" time="ayer">
-              <strong>Recomendación IA:</strong> Apareciste en &ldquo;mejores restaurantes criollos de Vedado&rdquo;
+              <strong>Recomendación IA:</strong> Apareciste en &ldquo;mejores restaurantes criollos de Santiago&rdquo;
             </ActivityItem>
           </div>
         </div>
@@ -95,12 +95,12 @@ function DashboardView() {
 }
 
 function EditorView() {
-  const [bizName, setBizName] = useState("La Guarida");
+  const [bizName, setBizName] = useState("St. Pauli Restaurant-Bar");
   const [category, setCategory] = useState("restaurante");
   const [description, setDescription] = useState(
-    "Cocina cubana contemporánea en Vedado. Especialidad en ropa vieja, lechón asado y cócteles tropicales. Música en vivo los fines de semana.",
+    "Bar-restaurante en plena Enramadas: cocina cubana y de taberna, ambiente que va subiendo de tono a la noche.",
   );
-  const [address, setAddress] = useState("Calle 21 #306, Vedado, La Habana");
+  const [address, setAddress] = useState("Enramadas (José A. Saco) 605, e/ Barnada y Plácido, Santiago de Cuba");
   const [offerEnabled, setOfferEnabled] = useState(true);
   const [offerTitle, setOfferTitle] = useState("2x1 en mojitos todos los jueves");
   const [offerExpiry, setOfferExpiry] = useState("31 de agosto, 2026");
@@ -110,7 +110,7 @@ function EditorView() {
       <div className="flex items-center justify-between gap-gap-sm mb-gap-lg">
         <div>
           <h1 className="font-display text-h3 font-bold text-foreground">Editar ficha</h1>
-          <p className="text-small text-muted-foreground mt-gap-2xs">La Guarida, Vedado, La Habana</p>
+          <p className="text-small text-muted-foreground mt-gap-2xs">St. Pauli Restaurant-Bar, Enramadas, Santiago de Cuba</p>
         </div>
       </div>
 
@@ -372,9 +372,9 @@ function SettingsView() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-gap-md">
           <div className="bg-surface border border-border rounded-lv-lg p-gap-md">
             {[
-              { label: "Nombre del negocio", description: "Aparece en La Verde y en resultados de búsqueda", value: "La Guarida" },
+              { label: "Nombre del negocio", description: "Aparece en La Verde y en resultados de búsqueda", value: "St. Pauli Restaurant-Bar" },
               { label: "Categoría principal", description: "Ayuda a la IA a recomendar tu negocio", value: "Restaurante" },
-              { label: "Ubicación en el mapa", description: "Coordenadas GPS del punto exacto", value: "23.1374° N, 82.3590° O" },
+              { label: "Ubicación en el mapa", description: "Coordenadas GPS del punto exacto", value: "20.021° N, 75.825° O" },
             ].map((field) => (
               <div key={field.label} className="flex items-center justify-between py-gap-sm border-b border-border last:border-b-0 gap-gap-sm">
                 <div className="flex-1 min-w-0">

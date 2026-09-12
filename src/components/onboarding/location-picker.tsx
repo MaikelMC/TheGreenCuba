@@ -14,6 +14,8 @@ interface LocationPickerProps {
   selected: string;
   onSelect: (value: string) => void;
   gpsDetected?: boolean;
+  /** Nombre de la ciudad detectada por GPS (se muestra junto al check). */
+  gpsLabel?: string;
   onUseGPS: () => void;
 }
 
@@ -47,7 +49,7 @@ function LocationOption({
   );
 }
 
-export function LocationPicker({ selected, onSelect, gpsDetected, onUseGPS }: LocationPickerProps) {
+export function LocationPicker({ selected, onSelect, gpsDetected, gpsLabel, onUseGPS }: LocationPickerProps) {
   return (
     <div className="flex flex-col gap-3">
       {locations.map((loc) => (
@@ -74,7 +76,7 @@ export function LocationPicker({ selected, onSelect, gpsDetected, onUseGPS }: Lo
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-4">
               <path d="M20 6L9 17l-5-5" />
             </svg>
-            Ubicación detectada: La Habana
+            Ubicación detectada: {gpsLabel ?? "tu zona"}
           </>
         ) : (
           <>

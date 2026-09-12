@@ -12,6 +12,8 @@ import { CategoryIcon } from "@/components/admin/category-icon";
 import type { PlaceStatus, UserPlace } from "@/lib/places-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { StateView } from "@/components/ui/state-view";
+import { LoadingState } from "@/components/ui/loading";
 
 function statusInfo(status: PlaceStatus): { label: string; cls: string } {
   switch (status) {
@@ -25,7 +27,7 @@ function statusInfo(status: PlaceStatus): { label: string; cls: string } {
 }
 
 export function BusinessList() {
-  const { places, categories, removePlace, updatePlace } = usePlaces();
+  const { places, categories, hydrated, removePlace, updatePlace } = usePlaces();
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -133,20 +135,16 @@ export function BusinessList() {
       </div>
 
       {/* List */}
-      {filtered.length === 0 ? (
-        <div className="bg-surface border border-border rounded-lv-lg p-gap-xl text-center">
-          <MapPin
-            size={32}
-            strokeWidth={1.5}
-            className="mx-auto mb-gap-sm text-muted-foreground opacity-40"
-          />
-          <div className="font-display text-small font-semibold text-foreground mb-[4px]">
-            No hay negocios que coincidan
-          </div>
-          <div className="text-meta text-muted-foreground">
-            Ajusta los filtros o crea un nuevo negocio.
-          </div>
-        </div>
+      {!hydrated ? (
+        <LoadingState label="Cargando negocios…" />
+      ) : filtered.length === 0 ? (
+        <StateView
+          size="sm"
+          icon={MapPin}
+          title="No hay negocios que coincidan"
+          description="Ajusta los filtros o crea un nuevo negocio."
+          className="rounded-lv-lg border border-border bg-surface"
+        />
       ) : (
         <div className="flex flex-col gap-gap-sm">
           {filtered.map((p, i) => {

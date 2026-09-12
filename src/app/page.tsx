@@ -13,7 +13,7 @@ import { Footer } from "@/components/layout/footer";
 export default function LandingPage() {
   return (
     <MotionConfig reducedMotion="user">
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-screen min-h-dvh flex-col">
         <Header />
 
         <main id="content" className="flex-1">

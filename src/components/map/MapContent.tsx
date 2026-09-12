@@ -92,6 +92,7 @@ function MapChildren({
   onUserLocated,
   onLocateStateChange,
   focusTarget,
+  viewTarget,
 }: {
   tile: ReturnType<typeof getTile>;
   places: MapPlace[];
@@ -102,6 +103,7 @@ function MapChildren({
   onUserLocated?: MapViewProps["onUserLocated"];
   onLocateStateChange?: MapViewProps["onLocateStateChange"];
   focusTarget?: MapViewProps["focusTarget"];
+  viewTarget?: MapViewProps["viewTarget"];
 }) {
   const [ready, setReady] = useState(false);
   const map = useMap();
@@ -136,6 +138,17 @@ function MapChildren({
     lastFocusKey.current = focusTarget.key;
     map.flyTo([focusTarget.lat, focusTarget.lng], 16, { duration: 0.8 });
   }, [focusTarget, map]);
+
+  // Volar a coordenadas genéricas (ej: dirección elegida en el geocodificador).
+  const lastViewKey = useRef<number | null>(null);
+  useEffect(() => {
+    if (!viewTarget) return;
+    if (lastViewKey.current === viewTarget.key) return;
+    lastViewKey.current = viewTarget.key;
+    map.flyTo([viewTarget.lat, viewTarget.lng], viewTarget.zoom ?? 17, {
+      duration: 0.8,
+    });
+  }, [viewTarget, map]);
 
   // Don't render markers/layers until the map is actually ready.
   if (!ready) return null;
@@ -183,6 +196,7 @@ export function MapContent({
   onUserLocated,
   onLocateStateChange,
   focusTarget,
+  viewTarget,
   route,
   routeOrigin,
   initialCenter = HAVANA_CENTER,
@@ -240,6 +254,7 @@ export function MapContent({
         onUserLocated={onUserLocated}
         onLocateStateChange={onLocateStateChange}
         focusTarget={focusTarget}
+        viewTarget={viewTarget}
       />
 
       {route && routeOrigin && route.coordinates.length > 0 && (

@@ -32,7 +32,8 @@ export const TILE_CONFIGS: Record<string, TileConfig> = {
   },
 };
 
-export const DEFAULT_TILE = "voyager";
+/** Base de mapa por defecto. OpenStreetMap clásico — mismo estilo que el mapa de DemaDeploy. */
+export const DEFAULT_TILE = "osm";
 
 export const HAVANA_CENTER: [number, number] = [23.1374, -82.359];
 

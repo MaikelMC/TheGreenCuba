@@ -14,6 +14,11 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
   { value: "mercado", label: "Mercado", emoji: "🛍️", icon: "ShoppingBag" },
   { value: "tienda", label: "Tienda", emoji: "🛒", icon: "ShoppingCart" },
   { value: "servicio", label: "Servicio", emoji: "🛠️", icon: "Wrench" },
+  { value: "bar", label: "Bar", emoji: "🍻", icon: "Wine" },
+  { value: "hospedaje", label: "Hospedaje", emoji: "🏨", icon: "Hotel" },
+  { value: "cultura", label: "Cultura", emoji: "🎭", icon: "Landmark" },
+  { value: "naturaleza", label: "Naturaleza", emoji: "🌿", icon: "Leaf" },
+  { value: "playa", label: "Playa", emoji: "🏖️", icon: "Umbrella" },
   { value: "otro", label: "Otro", emoji: "📍", icon: "MapPin" },
 ];
 

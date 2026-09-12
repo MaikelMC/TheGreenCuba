@@ -25,11 +25,17 @@ const FILE = path.join(DATA_DIR, "ai-providers.json");
 /** Caché en memoria (write-through): evita leer/parsear el archivo en cada request de IA. */
 let cachedProviders: AiProvider[] | null = null;
 
-/** Modelos gratuitos por defecto de cada proveedor. */
+/**
+ * Modelos gratuitos por defecto de cada proveedor.
+ * `gemini-flash-lite-latest` es la familia vigente: los `gemini-2.5-*` ya no
+ * están disponibles para cuentas nuevas (404 "no longer available to new users")
+ * y los `gemini-3.x-flash` devuelven 503 por demanda alta.
+ */
 const DEFAULT_MODELS = {
   mistral: "mistral-small-latest",
   openrouter: "nvidia/nemotron-3-super-120b-a12b:free",
-  gemini: "gemini-flash-latest",
+  gemini: "gemini-flash-lite-latest",
+  cerebras: "gpt-oss-120b",
 } as const;
 
 function makeId(name: string): string {
@@ -65,6 +71,8 @@ function buildEnvProviders(): AiProvider[] {
       priority: 2,
     });
   }
+  // Gemini primero: es el proveedor más fiable de la cadena hoy (los planes
+  // gratis de Cerebras/OpenRouter agotan cuota con frecuencia).
   if (process.env.GEMINI_API_KEY) {
     providers.push({
       id: makeId("Gemini"),
@@ -74,8 +82,23 @@ function buildEnvProviders(): AiProvider[] {
       baseURL: "https://generativelanguage.googleapis.com/v1beta",
       apiKey: process.env.GEMINI_API_KEY,
       model: process.env.GEMINI_MODEL ?? DEFAULT_MODELS.gemini,
-      enabled: false,
+      enabled: true,
       priority: 3,
+    });
+  }
+  // Cerebras: API compatible con OpenAI (Bearer + /chat/completions) y soporta
+  // `response_format: json_object`, así que entra por el camino `openai`.
+  if (process.env.CEREBRAS_API_KEY) {
+    providers.push({
+      id: makeId("Cerebras"),
+      name: "Cerebras",
+      type: "custom",
+      vendor: "openai",
+      baseURL: "https://api.cerebras.ai/v1",
+      apiKey: process.env.CEREBRAS_API_KEY,
+      model: process.env.CEREBRAS_MODEL ?? DEFAULT_MODELS.cerebras,
+      enabled: true,
+      priority: 4,
     });
   }
   return providers;

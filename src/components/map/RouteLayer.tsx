@@ -3,6 +3,7 @@
 import { memo, useEffect, useMemo, useRef } from "react";
 import { Polyline, Marker, useMap } from "react-leaflet";
 import { divIcon } from "leaflet";
+import { createPlacePinIcon } from "./pin-icon";
 import type { RouteResult, RoutePoint } from "@/lib/map/routing";
 
 interface RouteLayerProps {
@@ -20,15 +21,6 @@ function createOriginDot() {
   });
 }
 
-function createDestPin() {
-  return divIcon({
-    className: "",
-    iconSize: [30, 30],
-    iconAnchor: [15, 27],
-    html: `<div style="width:30px;height:30px;background:oklch(62% 0.16 145);border:3px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px oklch(62% 0.16 145 / 0.4);display:grid;place-items:center"><div style="width:9px;height:9px;background:white;border-radius:50%;transform:rotate(45deg)"></div></div>`,
-  });
-}
-
 export const RouteLayer = memo(function RouteLayer({
   route,
   origin,
@@ -36,7 +28,7 @@ export const RouteLayer = memo(function RouteLayer({
 }: RouteLayerProps) {
   const map = useMap();
   const originIcon = useMemo(() => createOriginDot(), []);
-  const destIcon = useMemo(() => createDestPin(), []);
+  const destIcon = createPlacePinIcon("default");
   const lastRoute = useRef<RouteResult | null>(null);
 
   useEffect(() => {

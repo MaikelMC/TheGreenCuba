@@ -22,13 +22,14 @@ const LOCATION_META: Record<
   otra: { label: "Otra ciudad", center: [23.1374, -82.359] },
 };
 
-const FALLBACK_LOCATION = "la-habana";
+/** MVP lanzado en Santiago de Cuba: esa es la ciudad por defecto. */
+const FALLBACK_LOCATION = "santiago";
 
 export function locationLabel(value: string): string {
   return LOCATION_META[value]?.label ?? value;
 }
 
-/** Centro del mapa para una provincia seleccionada (fallback a La Habana). */
+/** Centro del mapa para una provincia seleccionada (fallback a Santiago de Cuba). */
 export function locationCenter(value: string): [number, number] {
   return LOCATION_META[value]?.center ?? LOCATION_META[FALLBACK_LOCATION]!.center;
 }

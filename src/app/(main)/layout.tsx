@@ -24,7 +24,10 @@ export default function MainLayout({ children }: { children: ReactNode }) {
       <PlacesProvider>
         <SearchProvider>
           {showHeader && <Header />}
-          <main className={showHeader ? "pt-[var(--header-h)] min-h-screen" : "min-h-screen"}>
+          {/* min-h-screen + min-h-dvh: el primero es el respaldo para navegadores
+              sin unidades de viewport dinámicas; el segundo gana donde sí las hay
+              y evita que la barra de URL del móvil descuadre el alto. */}
+          <main className={showHeader ? "pt-[var(--header-h)] min-h-screen min-h-dvh" : "min-h-screen min-h-dvh"}>
             {children}
           </main>
         </SearchProvider>
