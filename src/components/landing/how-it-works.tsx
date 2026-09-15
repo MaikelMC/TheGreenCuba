@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { fadeUp, popIn, staggerContainer } from "./anim";
+import { fadeUp, popIn, staggerContainer, VIEWPORT } from "./anim";
 
 const STEPS = [
   {
@@ -33,24 +33,24 @@ function StepCard({
   return (
     <motion.div
       variants={fadeUp}
-      className="grid grid-cols-1 items-start gap-gap-md md:block"
+      className="grid grid-cols-1 items-start gap-gap-md rounded-4xl border border-ink/5 bg-white p-7 shadow-soft transition-all duration-500 ease-outquint hover:-translate-y-1 hover:shadow-card md:block"
     >
       <motion.div
         variants={popIn}
-        className="relative mb-gap-md font-display text-[clamp(48px,6vw,72px)] font-bold leading-none tracking-[-0.04em] md:mb-gap-md"
+        className="relative mb-gap-md font-lv-display text-[clamp(48px,6vw,72px)] font-bold leading-none tracking-[-0.04em] md:mb-gap-md"
       >
-        <span className="text-accent/10" aria-hidden>
+        <span className="text-verde-600/10" aria-hidden>
           {String(index + 1).padStart(2, "0")}
         </span>
-        <span className="absolute inset-0 text-accent/18" aria-hidden>
+        <span className="absolute inset-0 text-verde-600/20" aria-hidden>
           {String(index + 1).padStart(2, "0")}
         </span>
       </motion.div>
       <div>
-        <h3 className="mb-2 text-[20px] font-display font-semibold text-foreground">
+        <h3 className="mb-2 font-lv-display text-lg font-bold text-ink">
           {title}
         </h3>
-        <p className="text-[15px] leading-[1.6] text-muted-foreground text-pretty">
+        <p className="text-sm leading-relaxed text-ink-soft/75 text-pretty">
           {description}
         </p>
       </div>
@@ -62,25 +62,25 @@ export function HowItWorks() {
   return (
     <section
       id="como-funciona"
-      className="border-t border-border bg-surface py-[clamp(48px,8vw,120px)]"
+      className="border-t border-ink/5 bg-sand py-24 sm:py-32"
     >
       <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
         <motion.div
           initial="hidden"
           whileInView="show"
-          viewport={{ once: true, margin: "-50px" }}
-          variants={staggerContainer(0.15)}
+          viewport={VIEWPORT}
+          variants={staggerContainer(0.12)}
           className="mx-auto mb-gap-3xl max-w-[48ch] text-center"
         >
           <motion.p
             variants={fadeUp}
-            className="font-mono text-xs font-medium uppercase tracking-[0.1em] text-accent"
+            className="inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-3.5 py-1.5 font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600"
           >
             Como funciona
           </motion.p>
           <motion.h2
             variants={fadeUp}
-            className="mt-gap-xs text-h2 font-display font-semibold text-foreground text-balance"
+            className="mt-5 font-lv-display text-4xl font-bold tracking-[-0.02em] text-ink text-balance sm:text-5xl"
           >
             Tres pasos. Sin registros complicados.
           </motion.h2>
@@ -89,9 +89,9 @@ export function HowItWorks() {
         <motion.div
           initial="hidden"
           whileInView="show"
-          viewport={{ once: true, margin: "-50px" }}
+          viewport={VIEWPORT}
           variants={staggerContainer(0.12)}
-          className="grid grid-cols-1 gap-gap-xl md:grid-cols-3"
+          className="grid grid-cols-1 gap-4 md:grid-cols-3"
         >
           {STEPS.map((step, i) => (
             <StepCard

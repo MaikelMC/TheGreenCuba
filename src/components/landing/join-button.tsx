@@ -16,7 +16,12 @@ export function JoinButton({ className, fullWidth }: JoinButtonProps) {
       type="button"
       onClick={openDialog}
       className={cn(
-        "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lv bg-accent px-6 py-3 font-display text-[15px] font-semibold leading-none text-accent-foreground shadow-[0_1px_3px_oklch(62%_0.16_145/0.25)] transition-all duration-200 active:translate-y-px hover:bg-accent-hover hover:shadow-[0_4px_12px_oklch(62%_0.16_145/0.3)]",
+        // `.btn-pill` del design system: pastilla, transición de 500 ms con
+        // easeOutQuint en línea, y halo del propio verde del botón.
+        "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full bg-verde-400 px-6 py-3 font-lv-display text-sm font-semibold leading-none text-verde-950",
+        "shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)]",
+        "transition-all duration-500 ease-outquint",
+        "hover:bg-verde-300 active:scale-[0.98]",
         fullWidth && "w-full",
         className,
       )}

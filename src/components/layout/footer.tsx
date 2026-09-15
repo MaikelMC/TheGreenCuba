@@ -1,38 +1,68 @@
+import { Building2, Sparkles, UserRound } from "lucide-react";
 import { Logo } from "./logo";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border py-gap-2xl text-muted-foreground text-[14px]">
+    <footer className="bg-verde-950 pt-16 pb-10 text-[14px] text-white/70">
       <div className="mx-auto max-w-container px-5 md:px-8">
         <div className="flex flex-wrap justify-between items-start gap-gap-xl">
           <div className="max-w-[280px]">
-            <div className="font-display text-[18px] font-bold text-foreground flex items-center gap-gap-xs mb-gap-sm">
-              <span className="size-6 rounded-[6px] bg-accent grid place-items-center text-accent-foreground">
+            <div className="font-lv-display text-[18px] font-bold text-white flex items-center gap-gap-xs mb-gap-sm">
+              <span className="size-6 rounded-full bg-gradient-to-br from-verde-400 to-verde-600 grid place-items-center text-white">
                 <Logo className="size-4" />
               </span>
               La Verde
             </div>
-            <p className="text-[14px] leading-[1.6] text-muted-foreground">
+            <p className="text-[14px] leading-[1.6] text-white/70">
               La plataforma de descubrimiento de lugares en Cuba. Encuentra lo que buscas hablando como hablas.
             </p>
           </div>
           <div className="flex gap-gap-2xl flex-wrap">
             <div>
-              <h4 className="font-display text-[14px] font-semibold text-foreground mb-gap-sm">Producto</h4>
-              <a href="#como-funciona" className="block text-[14px] text-muted-foreground py-[3px] hover:text-accent">Cómo funciona</a>
-              <a href="#ejemplos" className="block text-[14px] text-muted-foreground py-[3px] hover:text-accent">Ejemplos</a>
-              <a href="/business" className="block text-[14px] text-muted-foreground py-[3px] hover:text-accent">Para negocios</a>
+              <h4 className="font-lv-display text-[14px] font-semibold text-white mb-gap-sm">Producto</h4>
+              <a href="#como-funciona" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Cómo funciona</a>
+              <a href="#ejemplos" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Ejemplos</a>
+              <a href="/business" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Para negocios</a>
             </div>
             <div>
-              <h4 className="font-display text-[14px] font-semibold text-foreground mb-gap-sm">Legal</h4>
-              <a href="#" className="block text-[14px] text-muted-foreground py-[3px] hover:text-accent">Privacidad</a>
-              <a href="#" className="block text-[14px] text-muted-foreground py-[3px] hover:text-accent">Términos</a>
+              <h4 className="font-lv-display text-[14px] font-semibold text-white mb-gap-sm">Legal</h4>
+              <a href="#" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Privacidad</a>
+              <a href="#" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Términos</a>
+            </div>
+            {/* Bloque «Creado por» del sitio de La Verde. */}
+            <div>
+              <h4 className="font-lv-display text-[14px] font-semibold text-white mb-gap-sm">Creado por</h4>
+              <ul className="space-y-2 text-[14px] text-white/70">
+                <li className="flex items-start gap-2">
+                  <UserRound size={14} strokeWidth={2} className="mt-0.5 shrink-0 text-verde-300" aria-hidden />
+                  <span>
+                    <span className="font-semibold text-white">Maikel de Armas Mourlot</span>
+                    <br />
+                    creador de La Verde
+                  </span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Building2 size={14} strokeWidth={2} className="shrink-0 text-verde-300" aria-hidden />
+                  <a
+                    href="https://kynari.dev"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-white transition-colors duration-500 hover:text-verde-200"
+                  >
+                    Kynari
+                  </a>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Sparkles size={14} strokeWidth={2} className="shrink-0 text-verde-300" aria-hidden />
+                  Potencia tu vida con IA
+                </li>
+              </ul>
             </div>
           </div>
         </div>
-        <div className="mt-gap-2xl pt-gap-lg border-t border-border flex flex-wrap justify-between items-center gap-gap-md text-[13px]">
+        <div className="mt-gap-2xl pt-gap-lg border-t border-white/10 flex flex-wrap justify-between items-center gap-gap-md text-[13px]">
           <span>&copy; 2026 La Verde. Hecho en Cuba.</span>
-          <span className="font-mono text-meta text-muted-foreground">Hecho con cariño desde Cuba.</span>
+          <span className="font-lv-display text-meta text-white/50">Hecho con cariño desde Cuba.</span>
         </div>
       </div>
     </footer>

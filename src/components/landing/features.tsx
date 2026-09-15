@@ -1,15 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import {
-  animate,
-  motion,
-  useInView,
-  useMotionValue,
-  useTransform,
-} from "motion/react";
-import { cn } from "@/lib/utils";
-import { EASE, fadeUp, popIn, staggerContainer } from "./anim";
+import { motion } from "motion/react";
+import { fadeUp, popIn, staggerContainer, VIEWPORT } from "./anim";
 
 const FEATURES = [
   {
@@ -21,7 +13,7 @@ const FEATURES = [
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.6"
+        strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
@@ -39,7 +31,7 @@ const FEATURES = [
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.6"
+        strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
@@ -57,7 +49,7 @@ const FEATURES = [
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.6"
+        strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
@@ -67,75 +59,26 @@ const FEATURES = [
   },
 ];
 
-const STATS = [
-  {
-    value: "3",
-    label: "Tipos de moneda reconocidos",
-    desc: "CUP, USD Clásica y USD. Paga como quieras.",
-  },
-  {
-    value: "15+",
-    label: "Categorias de lugares cubanos",
-    desc: "De cafeteria a bodega, encuentra lo que buscas.",
-  },
-  {
-    value: "~2s",
-    label: "Tiempo promedio de busqueda",
-    desc: "De la pregunta al resultado en conexion 3G.",
-  },
-];
-
-function StatValue({ value }: { value: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-50px" });
-  const numeric = /^\d+$/.test(value);
-  const count = useMotionValue(0);
-  const text = useTransform(count, (v) => Math.round(v).toString());
-
-  const [started, setStarted] = useState(false);
-
-  useEffect(() => {
-    if (!inView || started) return;
-    setStarted(true);
-    if (!numeric) return;
-    const controls = animate(count, Number(value), {
-      duration: 1,
-      ease: EASE,
-    });
-    return () => controls.stop();
-  }, [inView, started, numeric, value, count]);
-
-  return (
-    <span
-      ref={ref}
-      className="font-mono font-variant-numeric-tabular"
-    >
-      {numeric ? <motion.span>{text}</motion.span> : value}
-    </span>
-  );
-}
-
 export function Features() {
   return (
-    <>
-      <section className="border-t border-border bg-surface py-[clamp(48px,8vw,120px)]">
+    <section className="border-t border-ink/5 bg-sand py-24 sm:py-32">
         <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
           <motion.div
             initial="hidden"
             whileInView="show"
-            viewport={{ once: true, margin: "-50px" }}
-            variants={staggerContainer(0.15)}
+            viewport={VIEWPORT}
+            variants={staggerContainer(0.12)}
             className="mx-auto mb-gap-3xl max-w-[42ch] text-center"
           >
             <motion.p
               variants={fadeUp}
-              className="font-mono text-xs font-medium uppercase tracking-[0.1em] text-accent"
+              className="inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-3.5 py-1.5 font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600"
             >
               Por que La Verde
             </motion.p>
             <motion.h2
               variants={fadeUp}
-              className="mt-gap-xs text-h2 font-display font-semibold text-foreground text-balance"
+              className="mt-5 font-lv-display text-4xl font-bold tracking-[-0.02em] text-ink text-balance sm:text-5xl"
             >
               No es otro buscador de Google.
             </motion.h2>
@@ -144,61 +87,33 @@ export function Features() {
           <motion.div
             initial="hidden"
             whileInView="show"
-            viewport={{ once: true, margin: "-50px" }}
+            viewport={VIEWPORT}
             variants={staggerContainer(0.1)}
-            className="grid grid-cols-1 gap-gap-lg md:grid-cols-2 lg:grid-cols-3"
+            className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
           >
             {FEATURES.map((f) => (
               <motion.div
                 key={f.title}
                 variants={fadeUp}
-                whileHover={{ y: -4 }}
                 whileTap={{ scale: 0.98 }}
-                className="transition-colors duration-300"
+                className="group rounded-4xl border border-ink/5 bg-white p-7 shadow-soft transition-all duration-500 ease-outquint hover:-translate-y-1 hover:shadow-card"
               >
                 <motion.div
                   variants={popIn}
-                  className="mb-gap-lg flex size-11 items-center justify-center rounded-lv bg-accent/12"
+                  className="mb-gap-lg flex size-11 items-center justify-center rounded-2xl bg-verde-50 text-verde-700 transition-colors duration-500 group-hover:bg-verde-100"
                 >
-                  <div className={cn("size-[22px] text-accent")}>{f.icon}</div>
+                  <div className="size-[22px]">{f.icon}</div>
                 </motion.div>
-                <h3 className="mb-2 font-display text-[20px] font-semibold text-foreground">
+                <h3 className="mb-2 font-lv-display text-lg font-bold text-ink">
                   {f.title}
                 </h3>
-                <p className="text-[15px] leading-[1.6] text-muted-foreground text-pretty">
+                <p className="text-sm leading-relaxed text-ink-soft/75 text-pretty">
                   {f.description}
                 </p>
               </motion.div>
             ))}
           </motion.div>
         </div>
-      </section>
-
-      <section className="py-[clamp(48px,8vw,120px)]">
-        <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
-          <motion.div
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: "-50px" }}
-            variants={staggerContainer(0.12)}
-            className="grid grid-cols-1 gap-gap-lg md:grid-cols-3"
-          >
-            {STATS.map((stat) => (
-              <motion.div key={stat.label} variants={fadeUp}>
-                <div className="font-display text-[clamp(48px,7vw,80px)] font-bold leading-[0.95] tracking-[-0.04em] text-accent">
-                  <StatValue value={stat.value} />
-                </div>
-                <p className="mt-2.5 text-[15px] font-medium leading-[1.4] text-foreground">
-                  {stat.label}
-                </p>
-                <p className="mt-1 text-[14px] leading-[1.5] text-muted-foreground">
-                  {stat.desc}
-                </p>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-    </>
+    </section>
   );
 }

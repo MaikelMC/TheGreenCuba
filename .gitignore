@@ -45,3 +45,6 @@ src/lib/db/migrations/meta/
 
 # server-side data (admin AI providers keys)
 data/
+
+# repo suelto dentro del proyecto (lleva su propio .git y su .env)
+groq-for-claude-code/

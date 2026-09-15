@@ -1,43 +1,31 @@
 "use client";
 
 import { motion } from "motion/react";
-import { fadeUp, staggerContainer } from "./anim";
+import { fadeUp, staggerContainer, VIEWPORT } from "./anim";
 
+/* La `pill` es la categoría canónica de `BUSINESS_CATEGORIES`
+   (src/lib/places.ts), en minúscula. Sirve para que el ejemplo enseñe de qué
+   categoría habla la búsqueda. */
 const EXAMPLES = [
   {
-    query: "Quiero un cafe tranquilo cerca de mi que acepte USD Clásica",
-    pill: "cafeteria",
-    tags: ["USD Clásica", "tranquilo"],
-  },
-  {
-    query:
-      "Restaurante con vista al mar para una cena romantica este viernes",
+    query: "Donde comer rico con la jeva esta noche",
     pill: "restaurante",
-    tags: ["vista al mar", "romantico"],
+    tags: ["esta noche", "con pareja"],
   },
   {
-    query:
-      "Discoteca que toque reggaeton cubano y este abierta despues de la 1am",
-    pill: "vida nocturna",
-    tags: ["reggaeton", "tarde"],
-  },
-  {
-    query:
-      "Mercado donde vendan frutas frescas baratas cerca del Vedado",
+    query: "Donde puedo comprar el carne que acepten transferencia",
     pill: "mercado",
-    tags: ["frutas", "barato"],
+    tags: ["transferencia", "carne"],
   },
   {
-    query:
-      "Lugar para trabajar con wifi estable y cafe bueno en La Habana",
-    pill: "coworking",
-    tags: ["wifi", "productivo"],
+    query: "Me apetece una hamburguesa con jamón cerca de mi",
+    pill: "restaurante",
+    tags: ["hamburguesa", "cerca de mi"],
   },
   {
-    query:
-      "Bar de tequila con musica en vivo que no sea carisimo",
-    pill: "bar",
-    tags: ["tequila", "musica en vivo"],
+    query: "Quiero tomarme un café en transferencia",
+    pill: "cafeteria",
+    tags: ["transferencia", "café"],
   },
 ];
 
@@ -53,27 +41,27 @@ function ExampleCard({
   return (
     <motion.div
       variants={fadeUp}
-      whileHover={{ y: -4 }}
       whileTap={{ scale: 0.98 }}
-      className="flex flex-col gap-3.5 rounded-lv-lg border border-border bg-surface p-6 transition-colors duration-300 hover:border-[oklch(62%_0.16_145/0.3)] hover:shadow-lv-sm"
+      className="flex flex-col gap-3.5 rounded-4xl border border-ink/5 bg-white p-7 shadow-soft transition-all duration-500 ease-outquint hover:-translate-y-1 hover:shadow-card"
     >
-      <p className="text-[17px] font-medium leading-[1.5] text-foreground text-pretty">
-        <span className="font-display text-[24px] text-accent/60" aria-hidden>
+      <p className="text-[17px] font-medium leading-[1.5] text-ink text-pretty">
+        <span className="font-lv-display text-[24px] text-verde-600/40" aria-hidden>
           &ldquo;
         </span>
         {query}
-        <span className="font-display text-[24px] text-accent/60" aria-hidden>
+        <span className="font-lv-display text-[24px] text-verde-600/40" aria-hidden>
           &rdquo;
         </span>
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/12 px-3 py-1 font-mono text-xs font-medium uppercase tracking-[0.05em] text-accent">
+        {/* El sistema no usa monoespaciadas: la etiqueta va en la display. */}
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-verde-200 bg-verde-50 px-3 py-1 font-lv-display text-[10px] font-semibold uppercase tracking-[0.18em] text-verde-600">
           {pill}
         </span>
         {tags.map((tag) => (
           <span
             key={tag}
-            className="inline-flex items-center rounded-full border border-border px-3 py-1 text-[13px] font-medium text-muted-foreground"
+            className="inline-flex items-center rounded-full border border-ink/5 px-3 py-1 text-[13px] font-medium text-ink-soft/75"
           >
             {tag}
           </span>
@@ -87,31 +75,31 @@ export function SearchExamples() {
   return (
     <section
       id="ejemplos"
-      className="border-t border-border py-[clamp(48px,8vw,120px)]"
+      className="border-t border-ink/5 bg-sand py-24 sm:py-32"
     >
       <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
         <motion.div
           initial="hidden"
           whileInView="show"
-          viewport={{ once: true, margin: "-50px" }}
-          variants={staggerContainer(0.15)}
+          viewport={VIEWPORT}
+          variants={staggerContainer(0.12)}
           className="mb-gap-2xl max-w-[48ch]"
         >
           <motion.p
             variants={fadeUp}
-            className="font-mono text-xs font-medium uppercase tracking-[0.1em] text-accent"
+            className="inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-3.5 py-1.5 font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600"
           >
             Busquedas reales
           </motion.p>
           <motion.h2
             variants={fadeUp}
-            className="mt-gap-xs text-h2 font-display font-semibold text-foreground text-balance"
+            className="mt-5 font-lv-display text-4xl font-bold tracking-[-0.02em] text-ink text-balance sm:text-5xl"
           >
             Asi habla Cuba con La Verde
           </motion.h2>
           <motion.p
             variants={fadeUp}
-            className="mt-gap-sm text-lead text-muted-foreground text-pretty"
+            className="mt-6 text-lead text-ink-soft/75 text-pretty"
           >
             Ejemplos de como los usuarios encuentran lugares con lenguaje
             natural.
@@ -121,9 +109,9 @@ export function SearchExamples() {
         <motion.div
           initial="hidden"
           whileInView="show"
-          viewport={{ once: true, margin: "-50px" }}
-          variants={staggerContainer(0.06, 0.05)}
-          className="grid grid-cols-1 gap-gap-lg md:grid-cols-2 lg:grid-cols-3"
+          viewport={VIEWPORT}
+          variants={staggerContainer(0.08, 0.05)}
+          className="grid grid-cols-1 gap-4 md:grid-cols-2"
         >
           {EXAMPLES.map((ex) => (
             <ExampleCard

@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { BUSINESS_CATEGORIES } from "@/lib/places";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { useWaitlistDialog } from "@/store/waitlist-dialog";
+import { cn } from "@/lib/utils";
 
 const SCHEDULE_PRESETS = [
   "8:00 – 16:00",
@@ -68,7 +69,9 @@ const EMPTY_FORM: FormState = {
   notes: "",
 };
 
-export function WaitlistDialog() {
+/** `className` lo usa la landing para inyectar las tipografías del sistema:
+ *  el contenido del diálogo se monta en un portal y no las hereda del árbol. */
+export function WaitlistDialog({ className }: { className?: string }) {
   const { open, closeDialog } = useWaitlistDialog();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
@@ -147,7 +150,12 @@ export function WaitlistDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(v) => (v ? closeDialog() : handleClose())}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto">
+      <DialogContent
+        className={cn(
+          "max-h-[85dvh] overflow-y-auto border-ink/5 bg-sand-warm font-lv text-ink shadow-card sm:rounded-4xl",
+          className,
+        )}
+      >
         <DialogHeader>
           <DialogTitle>Unete a la lista</DialogTitle>
           <DialogDescription>
@@ -158,11 +166,11 @@ export function WaitlistDialog() {
 
         {submitted ? (
           <div className="flex flex-col items-center gap-gap-sm py-gap-lg text-center">
-            <CheckCircle2 size={44} strokeWidth={1.5} className="text-accent" />
-            <p className="font-display text-body font-semibold text-foreground">
+            <CheckCircle2 size={44} strokeWidth={1.5} className="text-verde-600" />
+            <p className="font-lv-display text-body font-bold text-ink">
               Solicitud enviada
             </p>
-            <p className="text-small text-muted-foreground max-w-[40ch]">
+            <p className="text-small text-ink-soft/75 max-w-[40ch]">
               Gracias por registrar{" "}
               <span className="font-semibold text-foreground">
                 {form.businessName.trim() || "tu negocio"}
@@ -224,7 +232,7 @@ export function WaitlistDialog() {
               </div>
             </div>
 
-            <div className="rounded-lv-lg border border-border bg-surface p-gap-md">
+            <div className="rounded-2xl border border-ink/5 bg-white p-gap-md">
               <div className="flex items-center gap-2 text-small font-medium text-foreground mb-gap-xs">
                 <Clock size={14} strokeWidth={1.5} className="text-accent" />
                 Horario de atencion
@@ -280,7 +288,7 @@ export function WaitlistDialog() {
               </div>
             </div>
 
-            <div className="rounded-lv-lg border border-border bg-surface p-gap-md">
+            <div className="rounded-2xl border border-ink/5 bg-white p-gap-md">
               <div className="flex items-center gap-2 text-small font-medium text-foreground mb-gap-xs">
                 <CreditCard size={14} strokeWidth={1.5} className="text-accent" />
                 Monedas y metodos de pago
@@ -306,7 +314,7 @@ export function WaitlistDialog() {
               />
             </div>
 
-            <div className="rounded-lv-lg border border-border bg-surface p-gap-md">
+            <div className="rounded-2xl border border-ink/5 bg-white p-gap-md">
               <div className="flex items-center gap-2 text-small font-medium text-foreground mb-gap-xs">
                 <Tag size={14} strokeWidth={1.5} className="text-accent" />
                 Oferta especial (opcional)
@@ -388,7 +396,7 @@ export function WaitlistDialog() {
               type="button"
               onClick={handleSubmit}
               disabled={submitting}
-              className="w-full"
+              className="w-full rounded-full bg-verde-400 text-verde-950 hover:bg-verde-300"
             >
               <Send size={18} strokeWidth={1.5} />
               {submitting ? "Enviando..." : "Enviar solicitud"}

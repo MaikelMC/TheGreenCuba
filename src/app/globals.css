@@ -125,6 +125,33 @@
   .safe-top {
     padding-top: env(safe-area-inset-top, 0px);
   }
+
+  /* ─── Landing de La Verde ───
+     Utilidades del design system de La Verde. Llevan el prefijo `lv-` para no
+     chocar con nada y solo las usa la landing (src/app/page.tsx). El resto de
+     la app no las toca. */
+
+  /* Cielo del hero: dos radiales verdes sobre un degradado casi negro. Es el
+     único fondo oscuro del sistema además del footer. */
+  .lv-grid-glow {
+    background-image:
+      radial-gradient(circle at 20% 12%, rgba(53, 175, 109, 0.16), transparent 42%),
+      radial-gradient(circle at 85% 0%, rgba(15, 122, 65, 0.18), transparent 45%),
+      linear-gradient(to bottom, #06211a, #081b12);
+  }
+
+  /* Grano: quita el aspecto plano a los degradados grandes. Va en el
+     contenedor de la landing y se pinta una sola vez, fijo sobre el viewport.
+     `pointer-events: none` es obligatorio o se come todos los clics. */
+  .lv-grain::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
 }
 
 /* ─── Bottom sheet desktop override ─── */

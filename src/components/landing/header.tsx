@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { JoinButton } from "@/components/landing/join-button";
 import { Logo } from "@/components/layout/logo";
+import { EASE } from "./anim";
 
 const NAV_LINKS = [
   { href: "#como-funciona", label: "Como funciona" },
@@ -21,18 +22,23 @@ const NAV_LINKS = [
 
 export function Header() {
   return (
+    // Barra flotante del sistema: pastilla `rounded-full` de cristal verde
+    // oscuro con `ring-1 ring-white/10`. Va `fixed` porque el hero tiene que
+    // pasarle por debajo — el cielo oscuro arranca en el borde superior de la
+    // pantalla. El hero reserva el hueco con `pt-28`.
     <motion.header
-      initial={{ y: -20, opacity: 0 }}
+      initial={{ y: -80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="sticky top-0 z-50 border-b border-border bg-background/92 backdrop-blur-[16px]"
+      transition={{ duration: 0.9, ease: EASE, delay: 0.2 }}
+      className="fixed inset-x-0 top-0 z-50 px-gutter pt-3 md:px-gutter-lg"
     >
-      <div className="mx-auto flex h-14 max-w-container items-center justify-between px-gutter md:px-gutter-lg">
+      <div className="mx-auto flex h-14 max-w-3xl items-center justify-between rounded-full bg-verde-950/70 pl-4 pr-2 ring-1 ring-white/10 backdrop-blur-2xl">
         <Link
           href="/"
-          className="flex items-center gap-2 font-display text-[20px] font-bold tracking-[-0.02em] text-foreground"
+          className="flex items-center gap-2 font-lv-display text-[20px] font-bold tracking-[-0.02em] text-white"
         >
-          <span className="grid size-7 place-items-center rounded-[8px] bg-accent text-accent-foreground">
+          {/* El logo siempre va dentro de un círculo con degradado verde. */}
+          <span className="grid size-7 place-items-center rounded-full bg-gradient-to-br from-verde-400 to-verde-600 text-white">
             <Logo className="size-[18px]" />
           </span>
           La Verde
@@ -43,7 +49,7 @@ export function Header() {
             <a
               key={link.href}
               href={link.href}
-              className="text-[15px] text-muted-foreground transition-colors hover:text-foreground"
+              className="text-[15px] text-white/70 transition-colors duration-500 hover:text-white"
             >
               {link.label}
             </a>
@@ -51,12 +57,12 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-gap-md">
-          <JoinButton className="px-[18px] py-2.5 text-[14px] max-sm:hidden" />
+          <JoinButton className="px-[18px] py-2.5 max-sm:hidden" />
 
           <Sheet>
             <SheetTrigger asChild>
               <button
-                className="grid size-10 place-items-center rounded-full sm:hidden"
+                className="grid size-10 place-items-center rounded-full text-white sm:hidden"
                 aria-label="Abrir menu"
               >
                 <svg
@@ -88,7 +94,7 @@ export function Header() {
                   </SheetClose>
                 ))}
                 <SheetClose asChild>
-                  <JoinButton className="mt-gap-sm w-full py-3 text-[15px]" />
+                  <JoinButton className="mt-gap-sm w-full py-3" />
                 </SheetClose>
               </nav>
             </SheetContent>
