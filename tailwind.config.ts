@@ -10,30 +10,37 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        border: "oklch(90% 0.004 250)",
-        input: "oklch(90% 0.004 250)",
-        ring: "oklch(62% 0.16 145)",
-        background: "oklch(98% 0.005 85)",
-        foreground: "oklch(18% 0.01 250)",
+        /* Todos los colores en `oklch()` llevan `<alpha-value>` por este
+           motivo: sin el marcador Tailwind NO genera ninguna regla para el
+           modificador de opacidad. `bg-destructive/10`, `bg-surface/95`,
+           `bg-lv-amber/10`... compilaban a cero y salían sin fondo. Los colores
+           en hex (`verde`, `ink`, `sand`) sí lo aceptan sin marcador.
+           El sólido se ve igual: solo cambia a
+           `oklch(... / var(--tw-bg-opacity,1))`. */
+        border: "oklch(90% 0.004 250 / <alpha-value>)",
+        input: "oklch(90% 0.004 250 / <alpha-value>)",
+        ring: "oklch(62% 0.16 145 / <alpha-value>)",
+        background: "oklch(98% 0.005 85 / <alpha-value>)",
+        foreground: "oklch(18% 0.01 250 / <alpha-value>)",
         surface: {
-          DEFAULT: "oklch(100% 0 0)",
-          foreground: "oklch(18% 0.01 250)",
+          DEFAULT: "oklch(100% 0 0 / <alpha-value>)",
+          foreground: "oklch(18% 0.01 250 / <alpha-value>)",
         },
         primary: {
-          DEFAULT: "oklch(62% 0.16 145)",
-          foreground: "oklch(100% 0 0)",
+          DEFAULT: "oklch(62% 0.16 145 / <alpha-value>)",
+          foreground: "oklch(100% 0 0 / <alpha-value>)",
         },
         secondary: {
-          DEFAULT: "oklch(96% 0.008 85)",
-          foreground: "oklch(18% 0.01 250)",
+          DEFAULT: "oklch(96% 0.008 85 / <alpha-value>)",
+          foreground: "oklch(18% 0.01 250 / <alpha-value>)",
         },
         destructive: {
-          DEFAULT: "oklch(60% 0.20 25)",
-          foreground: "oklch(100% 0 0)",
+          DEFAULT: "oklch(60% 0.20 25 / <alpha-value>)",
+          foreground: "oklch(100% 0 0 / <alpha-value>)",
         },
         muted: {
-          DEFAULT: "oklch(96% 0.008 85)",
-          foreground: "oklch(52% 0.01 250)",
+          DEFAULT: "oklch(96% 0.008 85 / <alpha-value>)",
+          foreground: "oklch(52% 0.01 250 / <alpha-value>)",
         },
         accent: {
           DEFAULT: "oklch(62% 0.16 145 / <alpha-value>)",
@@ -43,36 +50,36 @@ const config: Config = {
           hover: "oklch(54% 0.15 145 / <alpha-value>)",
         },
         card: {
-          DEFAULT: "oklch(100% 0 0)",
-          foreground: "oklch(18% 0.01 250)",
+          DEFAULT: "oklch(100% 0 0 / <alpha-value>)",
+          foreground: "oklch(18% 0.01 250 / <alpha-value>)",
         },
         popover: {
-          DEFAULT: "oklch(100% 0 0)",
-          foreground: "oklch(18% 0.01 250)",
+          DEFAULT: "oklch(100% 0 0 / <alpha-value>)",
+          foreground: "oklch(18% 0.01 250 / <alpha-value>)",
         },
         lv: {
           green: {
-            50: "oklch(97% 0.02 145)",
-            100: "oklch(94% 0.04 145)",
-            200: "oklch(88% 0.07 145)",
-            300: "oklch(80% 0.10 145)",
-            400: "oklch(72% 0.14 145)",
-            500: "oklch(62% 0.16 145)",
-            600: "oklch(54% 0.15 145)",
-            700: "oklch(45% 0.13 145)",
-            800: "oklch(35% 0.10 145)",
-            900: "oklch(25% 0.07 145)",
+            50: "oklch(97% 0.02 145 / <alpha-value>)",
+            100: "oklch(94% 0.04 145 / <alpha-value>)",
+            200: "oklch(88% 0.07 145 / <alpha-value>)",
+            300: "oklch(80% 0.10 145 / <alpha-value>)",
+            400: "oklch(72% 0.14 145 / <alpha-value>)",
+            500: "oklch(62% 0.16 145 / <alpha-value>)",
+            600: "oklch(54% 0.15 145 / <alpha-value>)",
+            700: "oklch(45% 0.13 145 / <alpha-value>)",
+            800: "oklch(35% 0.10 145 / <alpha-value>)",
+            900: "oklch(25% 0.07 145 / <alpha-value>)",
           },
           sand: {
-            50: "oklch(98% 0.005 85)",
-            100: "oklch(96% 0.008 85)",
-            200: "oklch(92% 0.010 85)",
-            300: "oklch(85% 0.012 85)",
+            50: "oklch(98% 0.005 85 / <alpha-value>)",
+            100: "oklch(96% 0.008 85 / <alpha-value>)",
+            200: "oklch(92% 0.010 85 / <alpha-value>)",
+            300: "oklch(85% 0.012 85 / <alpha-value>)",
           },
-          amber: "oklch(75% 0.15 75)",
-          red: "oklch(60% 0.20 25)",
-          blue: "oklch(62% 0.14 250)",
-          teal: "oklch(70% 0.12 175)",
+          amber: "oklch(75% 0.15 75 / <alpha-value>)",
+          red: "oklch(60% 0.20 25 / <alpha-value>)",
+          blue: "oklch(62% 0.14 250 / <alpha-value>)",
+          teal: "oklch(70% 0.12 175 / <alpha-value>)",
         },
         /* Escala del design system de La Verde. Vive en hex, no en oklch, porque
            son los valores exactos documentados en design-system/la-verde. Ojo:

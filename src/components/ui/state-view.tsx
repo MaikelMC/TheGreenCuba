@@ -11,9 +11,12 @@ type StateSize = "sm" | "lg";
  * `sm` va dentro de tarjetas del panel; `lg` ocupa una página o una hoja.
  */
 const VARIANT_TONE: Record<StateVariant, string> = {
-  empty: "bg-accent/10 text-accent",
-  error: "bg-destructive/8 text-destructive",
-  offline: "bg-destructive/8 text-destructive",
+  empty: "bg-verde-50 text-verde-600",
+  // `/10`, no `/8`: Tailwind solo genera opacidades de su escala por defecto
+  // (5, 10, 20...), así que `bg-destructive/8` compilaba a cero reglas y la
+  // chapita del icono salía sin fondo.
+  error: "bg-destructive/10 text-destructive",
+  offline: "bg-destructive/10 text-destructive",
 };
 
 const SIZES: Record<
@@ -74,7 +77,7 @@ const StateView = React.forwardRef<HTMLDivElement, StateViewProps>(
 
         <h3
           className={cn(
-            "font-display font-semibold text-foreground mx-auto",
+            "font-lv-display font-semibold text-ink mx-auto",
             s.title,
           )}
         >
@@ -82,7 +85,7 @@ const StateView = React.forwardRef<HTMLDivElement, StateViewProps>(
         </h3>
 
         {description ? (
-          <div className={cn("text-muted-foreground mx-auto", s.desc)}>{description}</div>
+          <div className={cn("text-ink-soft/75 mx-auto", s.desc)}>{description}</div>
         ) : null}
 
         {actions ? (

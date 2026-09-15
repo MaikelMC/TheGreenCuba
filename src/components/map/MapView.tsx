@@ -10,10 +10,10 @@ const MapContent = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="absolute inset-0 flex items-center justify-center bg-[oklch(92%_0.008_85)]">
+      <div className="absolute inset-0 flex items-center justify-center bg-sand-deep">
         <div className="flex flex-col items-center gap-3">
-          <div className="size-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-          <span className="text-[13px] text-muted-foreground">Cargando mapa...</span>
+          <div className="size-8 animate-spin rounded-full border-2 border-verde-400 border-t-transparent" />
+          <span className="text-small text-ink-soft/75">Cargando mapa...</span>
         </div>
       </div>
     ),
@@ -35,12 +35,12 @@ class MapErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="absolute inset-0 flex items-center justify-center bg-[oklch(92%_0.008_85)]">
+        <div className="absolute inset-0 flex items-center justify-center bg-sand-deep">
           <div className="flex flex-col items-center gap-3 px-6 text-center">
-            <span className="text-[14px] font-semibold text-foreground">
+            <span className="font-lv-display text-body font-semibold text-ink">
               No se pudo cargar el mapa
             </span>
-            <span className="text-[13px] text-muted-foreground">
+            <span className="text-small text-ink-soft/75">
               Revisa tu conexión e inténtalo de nuevo.
             </span>
             <button
@@ -49,7 +49,7 @@ class MapErrorBoundary extends Component<
                 this.setState({ hasError: false });
                 this.props.onRetry();
               }}
-              className="rounded-lv bg-accent px-4 py-2 font-display text-[13px] font-semibold text-white transition-colors hover:bg-accent-hover"
+              className="rounded-full bg-verde-400 px-5 py-2.5 font-lv-display text-small font-semibold text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
             >
               Reintentar
             </button>

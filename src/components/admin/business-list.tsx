@@ -201,7 +201,7 @@ export function BusinessList() {
                     className={cn(
                       "size-9 rounded-lv border grid place-items-center transition-colors",
                       p.isBoosted
-                        ? "border-lv-amber/40 text-lv-amber bg-lv-amber/8"
+                        ? "border-lv-amber/40 text-lv-amber bg-lv-amber/10"
                         : "border-border text-muted-foreground hover:border-lv-amber hover:text-lv-amber",
                     )}
                     aria-label="Alternar destacado"

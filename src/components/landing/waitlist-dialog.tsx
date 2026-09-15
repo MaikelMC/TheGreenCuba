@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { BUSINESS_CATEGORIES } from "@/lib/places";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { useWaitlistDialog } from "@/store/waitlist-dialog";
-import { cn } from "@/lib/utils";
 
 const SCHEDULE_PRESETS = [
   "8:00 – 16:00",
@@ -69,9 +68,7 @@ const EMPTY_FORM: FormState = {
   notes: "",
 };
 
-/** `className` lo usa la landing para inyectar las tipografías del sistema:
- *  el contenido del diálogo se monta en un portal y no las hereda del árbol. */
-export function WaitlistDialog({ className }: { className?: string }) {
+export function WaitlistDialog() {
   const { open, closeDialog } = useWaitlistDialog();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
@@ -150,12 +147,7 @@ export function WaitlistDialog({ className }: { className?: string }) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => (v ? closeDialog() : handleClose())}>
-      <DialogContent
-        className={cn(
-          "max-h-[85dvh] overflow-y-auto border-ink/5 bg-sand-warm font-lv text-ink shadow-card sm:rounded-4xl",
-          className,
-        )}
-      >
+      <DialogContent className="max-h-[85dvh] overflow-y-auto border-ink/5 bg-sand-warm font-lv text-ink shadow-card sm:rounded-4xl">
         <DialogHeader>
           <DialogTitle>Unete a la lista</DialogTitle>
           <DialogDescription>

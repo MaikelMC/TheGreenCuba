@@ -12,12 +12,14 @@ interface RouteLayerProps {
   dest: RoutePoint;
 }
 
+/* Origen de la ruta = donde está el usuario, así que va en `ink` igual que el
+   punto "estás aquí" (UserLocationMarker), no en el verde de los lugares. */
 function createOriginDot() {
   return divIcon({
     className: "",
     iconSize: [14, 14],
     iconAnchor: [7, 7],
-    html: `<div style="width:14px;height:14px;background:oklch(62% 0.14 145);border:3px solid white;border-radius:50%;box-shadow:0 2px 8px oklch(62% 0.14 145 / 0.4)"></div>`,
+    html: `<div style="width:14px;height:14px;background:#08130D;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(8,19,13,0.4)"></div>`,
   });
 }
 
@@ -47,7 +49,7 @@ export const RouteLayer = memo(function RouteLayer({
       <Polyline
         positions={route.coordinates}
         pathOptions={{
-          color: "oklch(62% 0.16 145)",
+          color: "#35AF6D", /* verde-400, el mismo del pin de destino */
           weight: 5,
           opacity: 0.85,
           lineCap: "round",

@@ -66,7 +66,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <button
           type="button"
           onClick={handleLogout}
-          className="size-9 rounded-full border border-border grid place-items-center text-muted-foreground hover:border-destructive hover:text-destructive hover:bg-destructive/6 transition-colors"
+          className="size-9 rounded-full border border-border grid place-items-center text-muted-foreground hover:border-destructive hover:text-destructive hover:bg-destructive/5 transition-colors"
           aria-label="Cerrar sesión de administrador"
         >
           <LogOut size={16} strokeWidth={2} />

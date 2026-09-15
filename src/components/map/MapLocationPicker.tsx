@@ -22,8 +22,8 @@ const PickerMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-full w-full grid place-items-center bg-[oklch(92%_0.008_85)]">
-        <span className="text-[13px] text-muted-foreground">Cargando mapa...</span>
+      <div className="h-full w-full grid place-items-center bg-sand-deep">
+        <span className="text-small text-ink-soft/75">Cargando mapa...</span>
       </div>
     ),
   },

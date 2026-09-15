@@ -14,8 +14,12 @@ export function StepBar({ currentStep, totalSteps }: StepIndicatorProps) {
         <div
           key={i}
           className={cn(
-            "flex-1 h-1 rounded-full transition-all duration-300",
-            i <= currentStep ? "bg-accent" : "bg-[oklch(82%_0.006_250)]",
+            "flex-1 h-1 rounded-full transition-all duration-500 ease-outquint",
+            i < currentStep
+              ? "bg-verde-600"
+              : i === currentStep
+                ? "bg-verde-400"
+                : "bg-ink/10",
           )}
         />
       ))}
@@ -30,12 +34,12 @@ export function StepDots({ currentStep, totalSteps }: StepIndicatorProps) {
         <div
           key={i}
           className={cn(
-            "h-2 rounded-full transition-all duration-300",
+            "h-2 rounded-full transition-all duration-500 ease-outquint",
             i === currentStep
-              ? "bg-accent w-6 rounded-[4px]"
+              ? "bg-verde-400 w-6 rounded-[4px]"
               : i < currentStep
-                ? "bg-accent w-2"
-                : "bg-[oklch(82%_0.006_250)] w-2",
+                ? "bg-verde-600 w-2"
+                : "bg-ink/10 w-2",
           )}
         />
       ))}

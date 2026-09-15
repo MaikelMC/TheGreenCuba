@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import {
@@ -38,7 +38,6 @@ interface CategoryBarProps {
 
 export function CategoryBar({ active = "all", onSelect }: CategoryBarProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [tapValue, setTapValue] = useState<string | null>(null);
 
   return (
     <motion.div
@@ -59,21 +58,19 @@ export function CategoryBar({ active = "all", onSelect }: CategoryBarProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 + i * 0.03, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             whileTap={{ scale: 0.92 }}
-            onTapStart={() => setTapValue(cat.value)}
-            onTap={() => setTapValue(null)}
             onClick={() => onSelect?.(cat.value)}
             className={cn(
-              "shrink-0 inline-flex items-center gap-[6px] px-[14px] py-2 rounded-full border font-display text-[13px] font-medium whitespace-nowrap transition-colors duration-normal shadow-lv-xs",
+              "shrink-0 inline-flex items-center gap-[6px] px-[14px] py-2 rounded-full border font-lv-display text-small font-medium whitespace-nowrap transition-all duration-500 ease-outquint",
               isActive
-                ? "bg-accent border-accent text-white shadow-[0_2px_8px_oklch(62%_0.16_145_/_0.3)]"
-                : "bg-surface border-border text-muted-foreground hover:border-accent hover:text-accent",
+                ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
+                : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
             )}
           >
             <Icon
               size={16}
-              strokeWidth={isActive ? 2.5 : 2}
+              strokeWidth={1.8}
               className={cn(
-                "transition-transform duration-normal",
+                "transition-transform duration-500 ease-outquint",
                 isActive && "scale-110",
               )}
             />

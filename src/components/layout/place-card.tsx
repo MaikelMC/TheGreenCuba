@@ -21,10 +21,12 @@ interface PlaceCardProps {
   onLocate?: () => void;
 }
 
+/* Etiquetas del sistema: sin bordes, solo tinte de fondo. `open` es la única
+   positiva; las demás son informativas y van en la escala neutra de arena. */
 const tagStyles: Record<string, string> = {
-  mlc: "bg-amber/10 text-lv-amber border-amber/20",
-  open: "bg-lv-teal/10 text-lv-teal border-lv-teal/20",
-  default: "bg-background text-muted-foreground border-border",
+  mlc: "bg-sand-deep text-ink-soft/75",
+  open: "bg-verde-100 text-verde-700",
+  default: "bg-sand text-ink-soft/75",
 };
 
 export function PlaceCard({
@@ -55,36 +57,36 @@ export function PlaceCard({
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.99 }}
       className={cn(
-        "flex gap-[14px] p-[14px] bg-surface border rounded-lv-lg cursor-pointer transition-colors duration-normal",
+        "flex gap-[14px] p-[14px] border rounded-2xl cursor-pointer transition-all duration-500 ease-outquint",
         selected
-          ? "border-accent shadow-[0_0_0_2px_var(--accent-soft)]"
-          : "border-border hover:border-accent/30 hover:shadow-lv-sm",
+          ? "border-verde-400 bg-verde-50"
+          : "border-ink/5 bg-white hover:border-verde-300 hover:shadow-soft",
       )}
     >
       {/* Thumbnail */}
-      <div className="size-16 rounded-lv shrink-0 grid place-items-center text-[28px] bg-gradient-to-br from-accent/10 to-lv-green-200/15">
+      <div className="size-16 rounded-xl shrink-0 grid place-items-center text-[28px] bg-gradient-to-br from-verde-50 to-verde-100">
         {emoji}
       </div>
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <div className="font-display text-body font-semibold tracking-[-0.01em] truncate">
+        <div className="font-lv-display text-body font-semibold tracking-[-0.01em] text-ink truncate">
           {name}
         </div>
-        <div className="text-[13px] text-muted-foreground mb-[6px]">
+        <div className="text-small text-ink-soft/75 mb-[6px]">
           {category}
         </div>
         <div className="flex items-center gap-gap-xs flex-wrap">
           {rating > 0 && (
-            <span className="inline-flex items-center gap-[3px] font-mono text-[12px] font-medium text-lv-amber">
+            <span className="inline-flex items-center gap-[3px] font-lv-display text-meta font-semibold text-verde-600">
               <Star size={12} fill="currentColor" />
               {rating}
             </span>
           )}
-          <span className="font-mono text-[12px] text-muted-foreground">
+          <span className="font-lv-display text-meta text-ink-soft/75">
             {distance}
           </span>
-          <span className="font-mono text-[12px] text-muted-foreground">
+          <span className="font-lv-display text-meta text-ink-soft/75">
             {price}
           </span>
         </div>
@@ -94,7 +96,7 @@ export function PlaceCard({
               <span
                 key={tag.label}
                 className={cn(
-                  "text-[11px] px-2 py-[2px] rounded-full border",
+                  "font-lv-display text-[11px] font-medium px-2 py-[2px] rounded-full",
                   tagStyles[tag.variant ?? "default"],
                 )}
               >
@@ -114,11 +116,11 @@ export function PlaceCard({
             e.stopPropagation();
             onLocate?.();
           }}
-          className="size-10 rounded-full grid place-items-center text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors"
+          className="size-10 rounded-full grid place-items-center text-ink-soft/75 transition-colors duration-500 hover:bg-verde-50 hover:text-verde-600"
           aria-label="Ver en el mapa"
           title="Ver en el mapa"
         >
-          <MapPin size={16} strokeWidth={2} />
+          <MapPin size={16} strokeWidth={1.8} />
         </motion.button>
         <motion.button
           type="button"
@@ -129,14 +131,14 @@ export function PlaceCard({
             onLike?.();
           }}
           className={cn(
-            "size-10 rounded-full grid place-items-center transition-colors",
+            "size-10 rounded-full grid place-items-center transition-colors duration-500",
             liked
-              ? "text-lv-red"
-              : "text-muted-foreground hover:text-accent hover:bg-accent/10",
+              ? "text-verde-600"
+              : "text-ink-soft/75 hover:bg-verde-50 hover:text-verde-600",
           )}
           aria-label="Favorito"
         >
-          <Heart size={16} fill={liked ? "currentColor" : "none"} strokeWidth={2} />
+          <Heart size={16} fill={liked ? "currentColor" : "none"} strokeWidth={1.8} />
         </motion.button>
         <motion.button
           type="button"
@@ -145,10 +147,10 @@ export function PlaceCard({
             e.stopPropagation();
             onDetail?.();
           }}
-          className="size-10 rounded-full grid place-items-center text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors"
+          className="size-10 rounded-full grid place-items-center text-ink-soft/75 transition-colors duration-500 hover:bg-verde-50 hover:text-verde-600"
           aria-label="Ver detalle"
         >
-          <ArrowRight size={16} strokeWidth={2} />
+          <ArrowRight size={16} strokeWidth={1.8} />
         </motion.button>
       </div>
     </motion.div>

@@ -274,7 +274,7 @@ function EditorView() {
           title="Destacar en La Verde"
           icon={<Zap size={18} strokeWidth={1.5} />}
         >
-          <div className="bg-gradient-to-br from-lv-amber/10 to-lv-amber/4 border border-lv-amber/20 rounded-lv-lg p-gap-md flex flex-col gap-gap-sm">
+          <div className="bg-gradient-to-br from-lv-amber/10 to-lv-amber/5 border border-lv-amber/20 rounded-lv-lg p-gap-md flex flex-col gap-gap-sm">
             <div className="font-mono text-xs text-lv-amber uppercase tracking-[0.04em] font-medium">
               Plan Destacado
             </div>

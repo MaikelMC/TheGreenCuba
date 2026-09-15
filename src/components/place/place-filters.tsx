@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Navigation, DollarSign, Clock, Eye, Music } from "lucide-react";
+import { Navigation, Clock, Eye, Music } from "lucide-react";
 
 const FILTERS = [
   { value: "distancia", label: "Cercanos", icon: Navigation },
-  { value: "mlc", label: "Aceptan USD Clásica", icon: DollarSign },
   { value: "abierto", label: "Abiertos ahora", icon: Clock },
   { value: "tranquilo", label: "Tranquilo", icon: Eye },
   { value: "musica", label: "Con música", icon: Music },
@@ -49,17 +48,13 @@ export function PlaceFilters({ visible, className }: PlaceFiltersProps) {
             type="button"
             onClick={() => toggle(f.value)}
             className={cn(
-              "shrink-0 inline-flex items-center gap-[4px] px-[10px] py-[5px] rounded-full border font-mono text-[11px] font-medium whitespace-nowrap transition-all duration-fast",
+              "shrink-0 inline-flex items-center gap-[6px] px-3 py-1.5 rounded-full border font-lv-display text-meta font-medium whitespace-nowrap transition-all duration-500 ease-outquint",
               isActive
-                ? "bg-accent border-accent text-white shadow-lv-sm scale-[1.02]"
-                : "bg-surface border-border text-muted-foreground hover:border-accent hover:text-accent hover:shadow-lv-xs",
+                ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
+                : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
             )}
           >
-            <Icon
-              size={12}
-              strokeWidth={2}
-              className={isActive ? "text-white" : "text-current"}
-            />
+            <Icon size={13} strokeWidth={1.8} />
             {f.label}
           </button>
         );

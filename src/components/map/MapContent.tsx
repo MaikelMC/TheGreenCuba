@@ -219,7 +219,7 @@ export function MapContent({
   if (!mounted) {
     return (
       <div
-        className="h-full w-full bg-[oklch(92%_0.008_85)]"
+        className="h-full w-full bg-sand-deep"
         style={{ minHeight: "inherit" }}
       />
     );

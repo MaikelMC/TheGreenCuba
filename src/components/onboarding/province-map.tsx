@@ -9,16 +9,16 @@ const ProvinceMapInner = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-full w-full animate-pulse bg-[oklch(92%_0.008_85)]" />
+      <div className="h-full w-full animate-pulse bg-sand-deep" />
     ),
   },
 );
 
 export function ProvinceMap({ location }: { location: string }) {
   return (
-    <div className="relative h-[180px] rounded-lv-lg overflow-hidden border border-border mb-5 flex-shrink-0">
+    <div className="relative h-[180px] rounded-2xl overflow-hidden border border-ink/5 mb-5 flex-shrink-0">
       <ProvinceMapInner location={location} />
-      <span className="absolute left-2 top-2 z-[500] bg-surface/85 backdrop-blur px-2 py-1 rounded-lv font-mono text-[11px] text-foreground font-medium shadow-lv-sm">
+      <span className="absolute left-2 top-2 z-[500] bg-sand-warm/85 backdrop-blur px-2.5 py-1 rounded-full font-lv-display text-meta text-ink font-semibold shadow-soft">
         {locationLabel(location)}
       </span>
     </div>

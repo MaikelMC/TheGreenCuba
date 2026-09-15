@@ -119,15 +119,15 @@ function DetailOverlay({
       {place && (
         <div className="fixed inset-0 z-[400] flex flex-col">
           <motion.div
-            className="absolute inset-0 bg-[oklch(15%_0.01_250_/_0.45)]"
+            className="absolute inset-0 bg-ink/50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
+            transition={{ duration: 0.3 }}
             onClick={onClose}
           />
           <motion.div
-            className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-lv-xl flex flex-col max-h-[85vh]"
+            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-4xl flex flex-col max-h-[85vh]"
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
@@ -137,16 +137,16 @@ function DetailOverlay({
               initial={{ opacity: 0, scale: 0.6, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ delay: 0.12, type: "spring", stiffness: 260, damping: 22 }}
-              className="h-[200px] bg-gradient-to-br from-accent/20 to-lv-green-200/15 rounded-t-lv-xl grid place-items-center text-[64px] relative shrink-0"
+              className="h-[200px] bg-gradient-to-br from-verde-50 to-verde-100 rounded-t-4xl grid place-items-center text-[64px] relative shrink-0"
             >
               <span>{place.emoji}</span>
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={onClose}
-                className="absolute top-gap-sm right-gap-sm size-9 rounded-full bg-surface/90 backdrop-blur grid place-items-center text-foreground shadow-lv-sm z-[5]"
+                className="absolute top-gap-sm right-gap-sm size-9 rounded-full bg-white/90 backdrop-blur grid place-items-center text-ink shadow-soft z-[5]"
                 aria-label="Cerrar"
               >
-                <X size={18} strokeWidth={2} />
+                <X size={18} strokeWidth={1.8} />
               </motion.button>
             </motion.div>
 
@@ -157,40 +157,41 @@ function DetailOverlay({
               animate="show"
             >
               <motion.div variants={fadeUp}>
-                <h3 className="font-display text-h2 font-bold tracking-[-0.02em] text-foreground">
+                <h3 className="font-lv-display text-h2 font-bold tracking-[-0.02em] text-ink">
                   {place.name}
                 </h3>
-                <p className="text-[14px] text-muted-foreground mb-gap-sm">
+                <p className="text-small text-ink-soft/75 mb-gap-sm">
                   {place.category} · {place.barrio}
                 </p>
               </motion.div>
 
               <motion.div variants={fadeUp} className="flex gap-gap-md flex-wrap mb-gap-md">
                 {place.rating > 0 && (
-                  <span className="inline-flex items-center gap-[4px] font-mono text-[13px] text-muted-foreground">
-                    <Star size={16} className="text-accent" fill="currentColor" />
+                  <span className="inline-flex items-center gap-[4px] font-lv-display text-small font-semibold text-verde-600">
+                    <Star size={16} fill="currentColor" />
                     {place.rating}
                   </span>
                 )}
-                <span className="inline-flex items-center gap-[4px] font-mono text-[13px] text-muted-foreground">
-                  <MapPin size={16} className="text-accent" />
+                <span className="inline-flex items-center gap-[4px] font-lv-display text-small text-ink-soft/75">
+                  <MapPin size={16} strokeWidth={1.8} />
                   {place.distance}
                 </span>
-                <span className="inline-flex items-center gap-[4px] font-mono text-[13px] text-muted-foreground">
-                  <DollarSign size={16} className="text-accent" />
+                <span className="inline-flex items-center gap-[4px] font-lv-display text-small text-ink-soft/75">
+                  <DollarSign size={16} strokeWidth={1.8} />
                   {place.price}
                 </span>
               </motion.div>
 
+              {/* Mismas etiquetas que la tarjeta de la lista (PlaceCard). */}
               <motion.div variants={fadeUp} className="flex gap-[6px] flex-wrap mb-5">
                 {place.tags.map((tag) => (
                   <span
                     key={tag.label}
                     className={cn(
-                      "text-[11px] px-2 py-[2px] rounded-full border",
-                      tag.variant === "mlc" ? "bg-amber/10 text-lv-amber border-amber/20"
-                      : tag.variant === "open" ? "bg-lv-teal/10 text-lv-teal border-lv-teal/20"
-                      : "bg-background text-muted-foreground border-border",
+                      "font-lv-display text-[11px] font-medium px-2 py-[2px] rounded-full",
+                      tag.variant === "mlc" ? "bg-sand-deep text-ink-soft/75"
+                      : tag.variant === "open" ? "bg-verde-100 text-verde-700"
+                      : "bg-sand text-ink-soft/75",
                     )}
                   >
                     {tag.label}
@@ -198,7 +199,7 @@ function DetailOverlay({
                 ))}
               </motion.div>
 
-              <motion.p variants={fadeUp} className="text-[15px] leading-[1.6] text-foreground mb-5 text-pretty">
+              <motion.p variants={fadeUp} className="text-body leading-relaxed text-ink mb-5 text-pretty">
                 {place.desc}
               </motion.p>
 
@@ -206,33 +207,33 @@ function DetailOverlay({
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   onClick={() => onNavigate?.(place)}
-                  className="flex flex-1 items-center justify-center gap-2 py-[14px] bg-accent text-white rounded-lv font-display text-[15px] font-semibold hover:bg-accent-hover transition-colors"
+                  className="flex flex-1 items-center justify-center gap-2 min-h-12 px-6 py-3 rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
                 >
-                  <Navigation size={18} strokeWidth={2} />
+                  <Navigation size={18} strokeWidth={1.8} />
                   Cómo llegar
                 </motion.button>
                 {route && route.distanceM > 0 && (
                   <div className="flex items-center justify-between gap-[10px] px-1">
-                    <span className="font-mono text-[13px] font-medium text-foreground">
+                    <span className="font-lv-display text-small font-medium text-ink">
                       {formatDistanceM(route.distanceM)} · {formatDurationSec(route.durationSec)}
                     </span>
                     <a
                       href={googleMapsUrl(place, userLocation)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[13px] font-medium text-accent hover:text-accent-hover transition-colors"
+                      className="inline-flex items-center gap-1 font-lv-display text-small font-medium text-verde-600 transition-colors duration-500 hover:text-verde-700"
                     >
                       Abrir en Google Maps
-                      <ExternalLink size={13} strokeWidth={2} />
+                      <ExternalLink size={13} strokeWidth={1.8} />
                     </a>
                   </div>
                 )}
                 <div className="flex gap-[10px]">
-                  <motion.button whileTap={{ scale: 0.9 }} className="flex-1 size-12 rounded-lv border border-border grid place-items-center text-muted-foreground hover:border-accent hover:text-accent transition-colors" aria-label="Compartir">
-                    <Share2 size={18} strokeWidth={2} />
+                  <motion.button whileTap={{ scale: 0.9 }} className="flex-1 size-12 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 transition-colors duration-500 hover:border-verde-300 hover:text-verde-600" aria-label="Compartir">
+                    <Share2 size={18} strokeWidth={1.8} />
                   </motion.button>
-                  <motion.button whileTap={{ scale: 0.9 }} className="flex-1 size-12 rounded-lv border border-border grid place-items-center text-muted-foreground hover:border-accent hover:text-accent transition-colors" aria-label="Favorito">
-                    <Heart size={18} strokeWidth={2} />
+                  <motion.button whileTap={{ scale: 0.9 }} className="flex-1 size-12 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 transition-colors duration-500 hover:border-verde-300 hover:text-verde-600" aria-label="Favorito">
+                    <Heart size={18} strokeWidth={1.8} />
                   </motion.button>
                 </div>
               </motion.div>
@@ -248,8 +249,8 @@ function LoadingSkeleton() {
   return (
     <div className="flex flex-col gap-gap-sm">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="flex gap-[14px] p-[14px] border border-border rounded-lv-lg">
-          <div className="size-16 rounded-lv shrink-0 skeleton-shimmer" />
+        <div key={i} className="flex gap-[14px] p-[14px] border border-ink/5 rounded-2xl">
+          <div className="size-16 rounded-xl shrink-0 skeleton-shimmer" />
           <div className="flex-1 flex flex-col gap-2 pt-1">
             <div className="h-[14px] skeleton-shimmer rounded w-[65%]" />
             <div className="h-[14px] skeleton-shimmer rounded w-[40%]" />
@@ -644,7 +645,7 @@ function HomePageContent() {
     : `Según tu ubicación en <strong>Santiago de Cuba</strong>, encontré <strong>${places.length} lugares</strong> que podrían gustarte. El mejor match es <strong>St. Pauli Restaurant-Bar</strong>, en plena Enramadas.`;
 
   return (
-    <div className="fixed inset-0 pt-[var(--header-h)]">
+    <div className="fixed inset-0 pt-[var(--header-h)] font-lv text-ink">
 <MapView
           ref={mapRef}
           places={mapPlaces}
@@ -677,27 +678,27 @@ function HomePageContent() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -16, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 320, damping: 28 }}
-            className="absolute left-1/2 -translate-x-1/2 z-[300] top-gap-sm flex items-center gap-[10px] rounded-full bg-surface/95 backdrop-blur border border-border shadow-lv-sm px-4 py-[10px]"
+            className="absolute left-1/2 -translate-x-1/2 z-[300] top-gap-sm flex items-center gap-[10px] rounded-full bg-white/95 backdrop-blur border border-ink/5 shadow-soft px-4 py-[10px]"
           >
-            <span className="flex items-center gap-[6px] font-mono text-[13px] font-medium text-foreground">
-              <Navigation size={14} strokeWidth={2} className="text-accent" />
+            <span className="flex items-center gap-[6px] font-lv-display text-small font-medium text-ink">
+              <Navigation size={14} strokeWidth={1.8} className="text-verde-600" />
               {formatDistanceM(route.distanceM)} · {formatDurationSec(route.durationSec)}
             </span>
             <a
               href={googleMapsUrl(routeDest, userLocation)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[13px] font-medium text-accent hover:text-accent-hover transition-colors"
+              className="inline-flex items-center gap-1 font-lv-display text-small font-medium text-verde-600 transition-colors duration-500 hover:text-verde-700"
             >
               Google Maps
-              <ExternalLink size={13} strokeWidth={2} />
+              <ExternalLink size={13} strokeWidth={1.8} />
             </a>
             <button
               onClick={handleClearRoute}
-              className="grid place-items-center size-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
+              className="grid place-items-center size-6 rounded-full text-ink-soft/75 transition-colors duration-500 hover:bg-sand hover:text-ink"
               aria-label="Cerrar ruta"
             >
-              <X size={14} strokeWidth={2} />
+              <X size={14} strokeWidth={1.8} />
             </button>
           </motion.div>
         )}
@@ -726,12 +727,12 @@ function HomePageContent() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.08, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                className="flex items-start gap-gap-sm p-[14px] bg-gradient-to-br from-accent/[0.06] to-accent/[0.02] border border-accent/15 rounded-lv-lg mb-gap-md"
+                className="flex items-start gap-gap-sm p-[14px] bg-verde-50 border border-verde-200 rounded-2xl mb-gap-md"
               >
-                <div className="size-9 rounded-[10px] bg-accent grid place-items-center text-white shrink-0">
-                  <MessageCircle size={18} strokeWidth={2} />
+                <div className="size-9 rounded-xl bg-gradient-to-br from-verde-400 to-verde-600 grid place-items-center text-white shrink-0">
+                  <MessageCircle size={18} strokeWidth={1.8} />
                 </div>
-                <p className="text-[14px] leading-[1.5] text-foreground">
+                <p className="text-small leading-relaxed text-ink">
                   {sheetState === "results" && aiState && aiState.summary
                     ? aiState.summary
                     : `Según tu ubicación en Santiago de Cuba, encontré ${places.length} lugares que podrían gustarte. Explora el mapa o busca con lenguaje natural.`}
@@ -797,7 +798,7 @@ function HomePageContent() {
                   <button
                     key={s}
                     onClick={() => handleSearch(s)}
-                    className="px-3 py-[6px] rounded-full border border-border text-[13px] font-medium text-accent bg-surface hover:bg-accent/10 hover:border-accent transition-all"
+                    className="px-3.5 py-2 rounded-full border border-ink/10 bg-white font-lv-display text-small font-medium text-ink-soft/75 transition-all duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
                   >
                     {s}
                   </button>
@@ -830,7 +831,7 @@ function HomePageContent() {
                   </Button>
                 }
               />
-              <div className="mx-5 mb-5 p-gap-sm bg-lv-blue/6 border border-lv-blue/15 rounded-lv text-[13px] text-lv-blue text-left">
+              <div className="mx-5 mb-5 p-gap-sm bg-verde-50 border border-verde-200 rounded-2xl text-meta text-verde-700 text-left">
                 <strong>Tip para conexiones lentas:</strong> La Verde guarda tus búsquedas recientes en caché. Puedes ver los últimos resultados sin conexión.
               </div>
             </motion.div>
@@ -855,7 +856,7 @@ function HomePageContent() {
 
 export default function HomePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-background" aria-busy />}>
+    <Suspense fallback={<div className="min-h-screen bg-sand" aria-busy />}>
       <HomePageContent />
     </Suspense>
   );

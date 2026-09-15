@@ -174,7 +174,7 @@ function EntryCard({
           <Button
             size="sm"
             variant="ghost"
-            className="text-destructive hover:text-destructive hover:bg-destructive/6"
+            className="text-destructive hover:text-destructive hover:bg-destructive/5"
             onClick={() => onDelete(entry.id)}
             aria-label={`Eliminar solicitud de ${entry.businessName}`}
           >

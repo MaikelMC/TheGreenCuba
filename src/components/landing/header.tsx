@@ -37,10 +37,8 @@ export function Header() {
           href="/"
           className="flex items-center gap-2 font-lv-display text-[20px] font-bold tracking-[-0.02em] text-white"
         >
-          {/* El logo siempre va dentro de un círculo con degradado verde. */}
-          <span className="grid size-7 place-items-center rounded-full bg-gradient-to-br from-verde-400 to-verde-600 text-white">
-            <Logo className="size-[18px]" />
-          </span>
+          {/* El PNG trae su propio degradado verde: sin círculo detrás. */}
+          <Logo className="h-[26px] w-auto shrink-0" />
           La Verde
         </Link>
 

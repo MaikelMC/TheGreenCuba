@@ -3,9 +3,14 @@ import { divIcon } from "leaflet";
 /**
  * Pin "teardrop" de marca, portado del mapa de DemaDeploy (leaf-map.tsx).
  *
- * SVG con gradiente vertical, punto blanco central y, en los estados
- * destacado/seleccionado, un anillo exterior. El estado "boosted" conserva la
- * semántica ámbar del marcador destacado actual y su pulso.
+ * SVG con gradiente vertical, punto blanco central y, en el estado
+ * seleccionado, un anillo exterior.
+ *
+ * Los tres degradados salen de la escala `verde` del design system, nunca de
+ * hex sueltos: el pin normal es el mismo degradado `verde-400 → verde-600` del
+ * círculo del logo, y el destacado se separa por luminosidad con `verde-950 →
+ * verde-800` (el verde casi tinta del header y del pie de la landing) en vez
+ * del ámbar anterior, que no existía en la paleta.
  *
  * Se cachean solo 3 iconos (uno por variante) para que los ids de gradiente del
  * SVG sean únicos y no se repita DOM por cada marcador.
@@ -23,9 +28,9 @@ interface PinStyle {
 }
 
 const PIN_STYLES: Record<PlacePinVariant, PinStyle> = {
-  default: { width: 24, height: 36, dotR: 4, top: "#52D28A", bottom: "#0F7A41" },
-  boosted: { width: 30, height: 45, dotR: 5, top: "#EFAF3C", bottom: "#B07414" },
-  selected: { width: 34, height: 51, dotR: 5, ring: true, top: "#52D28A", bottom: "#0F7A41" },
+  default: { width: 24, height: 36, dotR: 4, top: "#35AF6D", bottom: "#0F7A41" },
+  boosted: { width: 30, height: 45, dotR: 5, top: "#0A4B2C", bottom: "#052017" },
+  selected: { width: 34, height: 51, dotR: 5, ring: true, top: "#35AF6D", bottom: "#0F7A41" },
 };
 
 const TEARDROP_PATH =

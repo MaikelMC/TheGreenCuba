@@ -3,7 +3,10 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { OnboardingShell } from "@/components/onboarding/onboarding-shell";
+import {
+  OnboardingShell,
+  StatusBar,
+} from "@/components/onboarding/onboarding-shell";
 import { WelcomeSplash } from "@/components/onboarding/welcome-splash";
 import { LocationPicker } from "@/components/onboarding/location-picker";
 import { PreferenceChip } from "@/components/onboarding/preference-chip";
@@ -234,10 +237,10 @@ const moodOptions = [
 ] as const;
 
 const currencyOptions = [
-  { value: "mlc", code: "USD", name: "USD Clásica en efectivo", badge: "Popular", variant: "mlc" as const },
-  { value: "cup", code: "CUP", name: "Peso Cubano", badge: "Nacional", variant: "cup" as const },
-  { value: "usd", code: "USD", name: "Dólar estadounidense", badge: "Internacional", variant: "usd" as const },
-  { value: "eur", code: "EUR", name: "Euro", badge: "Internacional", variant: "eur" as const },
+  { value: "mlc", code: "USD", name: "USD Clásica" },
+  { value: "cup", code: "CUP", name: "Efectivo y Transferencia" },
+  { value: "usd", code: "USD", name: "Dólar estadounidense" },
+  { value: "eur", code: "EUR", name: "Euro" },
 ];
 
 const TOTAL_STEPS = 4;
@@ -379,25 +382,14 @@ export default function OnboardingPage() {
 
       {showOnboarding && (
         <div className="flex flex-col h-full" style={{ display: showOnboarding ? "flex" : "none" }}>
-          <div className="flex justify-between items-center px-5 pt-2 pb-1 font-mono text-xs font-semibold text-foreground flex-shrink-0 min-h-[36px]">
-            <span className="font-bold">9:41</span>
-            <div className="flex gap-1 items-center">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-4">
-                <path d="M19 10v4M15 8v6M11 12v2M7 6v8" />
-                <rect x="2" y="4" width="20" height="16" rx="2" />
-              </svg>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-4">
-                <path d="M1 9l4 4 4-4M13 9l4 4 4-4" />
-              </svg>
-            </div>
-          </div>
+          <StatusBar />
 
           <StepBar currentStep={currentStep} totalSteps={TOTAL_STEPS} />
 
           {currentStep < TOTAL_STEPS - 1 && (
             <button
               onClick={finishOnboarding}
-              className="absolute top-[48px] right-4 z-10 bg-none border-none font-body text-small text-muted-foreground cursor-pointer px-3 py-2 rounded-lv transition-colors hover:text-accent"
+              className="absolute top-[48px] right-4 z-10 bg-none border-none font-lv-display text-small font-medium text-ink-soft/75 cursor-pointer px-3 py-2 rounded-full transition-colors duration-500 hover:text-verde-600"
             >
               Saltar
             </button>
@@ -423,12 +415,12 @@ export default function OnboardingPage() {
                   </SlideIcon>
                 </SlideContent>
                 <SlideContent delay={100}>
-                  <h1 className="font-display text-h2 font-bold leading-tight tracking-tight mb-1">
+                  <h1 className="font-lv-display text-h2 font-bold leading-tight tracking-[-0.02em] text-ink mb-1">
                     ¿Dónde estás?
                   </h1>
                 </SlideContent>
                 <SlideContent delay={150}>
-                  <p className="text-muted-foreground text-body leading-relaxed mb-6">
+                  <p className="text-ink-soft/75 text-body leading-relaxed mb-6">
                     Para recomendarte lugares cerca de ti, cuéntanos en qué zona de Cuba te encuentras.
                   </p>
                 </SlideContent>
@@ -460,12 +452,12 @@ export default function OnboardingPage() {
                   </SlideIcon>
                 </SlideContent>
                 <SlideContent delay={100}>
-                  <h1 className="font-display text-h2 font-bold leading-tight tracking-tight mb-1">
+                  <h1 className="font-lv-display text-h2 font-bold leading-tight tracking-[-0.02em] text-ink mb-1">
                     ¿Qué te gusta hacer?
                   </h1>
                 </SlideContent>
                 <SlideContent delay={150}>
-                  <p className="text-muted-foreground text-body leading-relaxed mb-6">
+                  <p className="text-ink-soft/75 text-body leading-relaxed mb-6">
                     Selecciona tus tipos de lugares favoritos. La IA aprenderá tus gustos.
                   </p>
                 </SlideContent>
@@ -507,12 +499,12 @@ export default function OnboardingPage() {
                   </SlideIcon>
                 </SlideContent>
                 <SlideContent delay={100}>
-                  <h1 className="font-display text-h2 font-bold leading-tight tracking-tight mb-1">
+                  <h1 className="font-lv-display text-h2 font-bold leading-tight tracking-[-0.02em] text-ink mb-1">
                     ¿Qué monedas usas?
                   </h1>
                 </SlideContent>
                 <SlideContent delay={150}>
-                  <p className="text-muted-foreground text-body leading-relaxed mb-6">
+                  <p className="text-ink-soft/75 text-body leading-relaxed mb-6">
                     Selecciona las monedas con las que pagas. Filtraremos lugares según tu preferencia.
                   </p>
                 </SlideContent>
@@ -530,8 +522,6 @@ export default function OnboardingPage() {
                         <CurrencyToggle
                           code={cur.code}
                           name={cur.name}
-                          badge={cur.badge}
-                          badgeVariant={cur.variant}
                           active={currencies.has(cur.value)}
                           onClick={() => toggleCurrency(cur.value)}
                         />
@@ -557,12 +547,12 @@ export default function OnboardingPage() {
                   </SlideIcon>
                 </SlideContent>
                 <SlideContent delay={100}>
-                  <h1 className="font-display text-h2 font-bold leading-tight tracking-tight mb-1">
+                  <h1 className="font-lv-display text-h2 font-bold leading-tight tracking-[-0.02em] text-ink mb-1">
                     ¿Qué ambiente buscas?
                   </h1>
                 </SlideContent>
                 <SlideContent delay={150}>
-                  <p className="text-muted-foreground text-body leading-relaxed mb-6">
+                  <p className="text-ink-soft/75 text-body leading-relaxed mb-6">
                     Cuéntanos el tipo de planes que te gustan para recomendaciones más precisas.
                   </p>
                 </SlideContent>
@@ -593,13 +583,13 @@ export default function OnboardingPage() {
 
           <StepDots currentStep={currentStep} totalSteps={TOTAL_STEPS} />
 
-          <div className="px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-4 bg-gradient-to-t from-surface via-surface to-transparent flex gap-3 flex-shrink-0">
+          <div className="px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-4 bg-gradient-to-t from-sand-warm via-sand-warm to-transparent flex gap-3 flex-shrink-0">
             {currentStep > 0 && (
               <button
                 onClick={handleBack}
-                className="inline-flex items-center justify-center gap-2 flex-1 px-6 py-[13px] rounded-lv font-display text-small font-semibold border-[1.5px] border-border bg-surface text-foreground transition-all duration-200 min-h-[48px] active:translate-y-px hover:border-accent hover:text-accent"
+                className="inline-flex items-center justify-center gap-2 flex-1 px-6 py-3 rounded-full font-lv-display text-sm font-semibold border border-ink/10 bg-white text-ink transition-all duration-500 ease-outquint min-h-12 hover:bg-verde-50 active:scale-[0.98]"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]">
                   <path d="M19 12H5M12 19l-7-7 7-7" />
                 </svg>
                 Atrás
@@ -608,7 +598,7 @@ export default function OnboardingPage() {
             <button
               onClick={handleContinue}
               disabled={!canProceed()}
-              className="inline-flex items-center justify-center gap-2 flex-1 px-6 py-[13px] rounded-lv font-display text-small font-semibold bg-accent text-white transition-all duration-200 min-h-[48px] active:translate-y-px hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
+              className="inline-flex items-center justify-center gap-2 flex-1 px-6 py-3 rounded-full font-lv-display text-sm font-semibold bg-verde-400 text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] transition-all duration-500 ease-outquint min-h-12 hover:bg-verde-300 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
             >
               {currentStep === TOTAL_STEPS - 1 ? "Comenzar" : "Continuar"}
             </button>
@@ -655,8 +645,8 @@ function Slide({
 
 function SlideIcon({ children }: { children: React.ReactNode }) {
   return (
-    <div className="size-16 rounded-lv-lg bg-accent/10 flex items-center justify-center mb-6 flex-shrink-0 mt-2">
-      <div className="size-8 text-accent">{children}</div>
+    <div className="size-16 rounded-2xl bg-verde-50 flex items-center justify-center mb-6 flex-shrink-0 mt-2">
+      <div className="size-8 text-verde-700">{children}</div>
     </div>
   );
 }

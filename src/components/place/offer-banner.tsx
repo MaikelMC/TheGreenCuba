@@ -27,7 +27,7 @@ export function OfferBanner({
       viewport={{ once: true, margin: "-32px" }}
       transition={{ type: "spring", stiffness: 320, damping: 28 }}
       className={cn(
-        "mx-gap-md mb-gap-md p-gap-md bg-gradient-to-br from-lv-amber/10 to-lv-amber/4 border border-lv-amber/20 rounded-lv-lg",
+        "mx-gap-md mb-gap-md p-gap-md bg-gradient-to-br from-lv-amber/10 to-lv-amber/5 border border-lv-amber/20 rounded-lv-lg",
         className,
       )}
     >

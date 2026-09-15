@@ -74,7 +74,7 @@ interface PlaceDetailProps {
 }
 
 const currencyStyles: Record<string, string> = {
-  MLC: "bg-accent/12 text-accent",
+  MLC: "bg-accent/10 text-accent",
   CUP: "bg-lv-blue/10 text-lv-blue",
   USD: "bg-lv-teal/10 text-lv-teal",
 };
@@ -105,7 +105,7 @@ export function PlaceDetail({
   return (
     <div className={cn("min-h-dvh bg-background", className)}>
       {/* ─── Header ─── */}
-      <header className="sticky top-0 z-50 h-header bg-surface/92 backdrop-blur border-b border-border flex items-center gap-gap-sm px-gutter">
+      <header className="sticky top-0 z-50 h-header bg-surface/90 backdrop-blur border-b border-border flex items-center gap-gap-sm px-gutter">
         <button
           type="button"
           onClick={onBack}
@@ -237,7 +237,7 @@ export function PlaceDetail({
                 {place.aiTags.map((tag) => (
                   <span
                     key={tag}
-                    className="px-[8px] py-[3px] rounded-full bg-white/70 border border-accent/12 font-mono text-[10px] font-medium text-accent uppercase tracking-[0.04em]"
+                    className="px-[8px] py-[3px] rounded-full bg-white/70 border border-accent/10 font-mono text-[10px] font-medium text-accent uppercase tracking-[0.04em]"
                   >
                     {tag}
                   </span>
@@ -351,7 +351,7 @@ export function PlaceDetail({
                   "shrink-0 inline-flex items-center gap-[4px] px-[10px] py-[4px] rounded-full font-mono text-xs font-medium uppercase tracking-[0.04em]",
                   isClosed
                     ? "bg-destructive/10 text-destructive"
-                    : "bg-lv-teal/12 text-lv-teal",
+                    : "bg-lv-teal/10 text-lv-teal",
                 )}
               >
                 <span
@@ -385,7 +385,7 @@ export function PlaceDetail({
           {/* Closed Banner */}
           {isClosed && place.closedMessage && (
             <Reveal delay={0.05}>
-              <div className="mx-gutter mb-gap-md p-gap-md bg-destructive/6 border border-destructive/15 rounded-lv-lg flex items-center gap-gap-sm">
+              <div className="mx-gutter mb-gap-md p-gap-md bg-destructive/5 border border-destructive/15 rounded-lv-lg flex items-center gap-gap-sm">
                 <div className="size-9 rounded-lv bg-destructive/10 grid place-items-center shrink-0">
                   <Clock size={18} strokeWidth={2} className="text-destructive" />
                 </div>
@@ -442,7 +442,7 @@ export function PlaceDetail({
                 {place.aiTags.map((tag) => (
                   <span
                     key={tag}
-                    className="px-[8px] py-[3px] rounded-full bg-white/70 border border-accent/12 font-mono text-[10px] font-medium text-accent uppercase tracking-[0.04em]"
+                    className="px-[8px] py-[3px] rounded-full bg-white/70 border border-accent/10 font-mono text-[10px] font-medium text-accent uppercase tracking-[0.04em]"
                   >
                     {tag}
                   </span>

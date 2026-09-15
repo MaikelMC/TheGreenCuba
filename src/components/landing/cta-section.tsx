@@ -19,14 +19,15 @@ export function CTASection() {
             variants={fadeUp}
             className="font-lv-display text-4xl font-bold tracking-[-0.02em] text-ink text-balance sm:text-5xl"
           >
-            Cuba como nunca la habias visto.
+            Deja de adivinar donde ir.
           </motion.h2>
           <motion.p
             variants={fadeUp}
             className="mx-auto mt-6 max-w-[52ch] text-lead text-ink-soft/75 text-pretty"
           >
-            Unete a la lista de espera y se de los primeros en probar La
-            Verde cuando lancemos.
+            La Verde entiende como hablas y te lleva al lugar correcto: con las
+            monedas que aceptan, abierto a la hora que buscas y cerca de donde
+            estas.
           </motion.p>
           <motion.div
             variants={fadeUp}

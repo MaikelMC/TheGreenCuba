@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Source_Sans_3, JetBrains_Mono } from "next/font/google";
+import { lvFontVars } from "@/lib/fonts";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -64,8 +65,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
+      {/* `lvFontVars` solo declara las variables del design system: las
+          consume `font-lv` / `font-lv-display`, no son las de la app. `body`
+          sigue fijando Source Sans 3. */}
       <body
-        className={`${fontDisplay.variable} ${fontBody.variable} ${fontMono.variable} font-body`}
+        className={`${fontDisplay.variable} ${fontBody.variable} ${fontMono.variable} ${lvFontVars} font-body`}
       >
         <script
           dangerouslySetInnerHTML={{

@@ -19,7 +19,7 @@ interface MenuItemProps {
 }
 
 const tagStyles: Record<string, string> = {
-  popular: "bg-lv-amber/12 text-lv-amber",
+  popular: "bg-lv-amber/10 text-lv-amber",
   new: "bg-accent/10 text-accent",
   offer: "bg-destructive/10 text-destructive",
 };

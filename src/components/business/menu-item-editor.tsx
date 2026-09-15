@@ -27,7 +27,7 @@ const DEFAULT_ITEMS: MenuItemData[] = [
 ];
 
 const TAG_STYLES: Record<string, string> = {
-  Popular: "bg-lv-amber/12 text-lv-amber",
+  Popular: "bg-lv-amber/10 text-lv-amber",
   Nuevo: "bg-accent/10 text-accent",
   "2x1": "bg-destructive/10 text-destructive",
 };
@@ -140,7 +140,7 @@ export function MenuItemEditor({
           <button
             type="button"
             onClick={() => remove(item.id)}
-            className="size-9 rounded-full border border-border grid place-items-center text-muted-foreground shrink-0 hover:border-destructive hover:text-destructive hover:bg-destructive/6 transition-all duration-fast"
+            className="size-9 rounded-full border border-border grid place-items-center text-muted-foreground shrink-0 hover:border-destructive hover:text-destructive hover:bg-destructive/5 transition-all duration-fast"
             aria-label="Eliminar item"
           >
             <X size={16} strokeWidth={2} />

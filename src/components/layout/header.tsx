@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { Search, Mic, Sparkles, Loader2, MapPin } from "lucide-react";
+import { Search, Mic, Loader2, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchActions, useSearchState } from "@/providers/search-provider";
 import { searchAddress, type GeocodeSuggestion } from "@/lib/map/geocode";
@@ -29,6 +29,14 @@ const RECENT_SEARCHES = [
   { query: "discotecas con reggaeton cubano", category: "Vida nocturna" },
   { query: "mercado de frutas frescas barato", category: "Mercado · Centro histórico" },
 ];
+
+/** Rótulo de sección del desplegable: el eyebrow del design system. */
+const EYEBROW =
+  "px-gap-md pb-[4px] font-lv-display text-[10px] font-semibold text-verde-600 uppercase tracking-[0.22em]";
+
+/** Fila del desplegable (dirección, sugerencia o búsqueda reciente). */
+const ROW =
+  "flex items-center gap-gap-sm w-full px-gap-md py-[10px] text-left hover:bg-sand transition-colors duration-500";
 
 interface HeaderProps {
   onSearch?: (query: string) => void;
@@ -121,13 +129,15 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-200 h-header border-b border-border bg-surface/95 backdrop-blur-[16px] flex items-center px-gap-md gap-gap-sm md:px-gap-lg min-h-[56px] md:min-h-[60px]">
-      {/* Logo */}
+    // En móvil el aire se recorta a 12/8 px: con los 16/12 de escritorio el
+    // campo de búsqueda se quedaba en ~88 px y el marcador no cabía.
+    <header className="fixed top-0 left-0 right-0 z-200 h-header border-b border-ink/5 bg-sand-warm/90 backdrop-blur-[16px] flex items-center px-3 gap-2 sm:px-gap-md sm:gap-gap-sm md:px-gap-lg min-h-[56px] md:min-h-[60px] font-lv text-ink">
+      {/* Logo. El PNG ya trae su propio degradado verde, así que va suelto: el
+          círculo `verde-400 → verde-600` que lo envolvía era del mismo tono y
+          se lo comía. */}
       <Link href="/home" className="flex items-center gap-gap-xs shrink-0">
-        <span className="size-[30px] bg-accent rounded-[8px] grid place-items-center text-accent-foreground shrink-0">
-          <Logo className="size-[19px]" />
-        </span>
-        <span className="font-display text-[18px] font-bold tracking-[-0.02em] text-foreground max-sm:hidden">
+        <Logo className="h-[26px] w-auto shrink-0" />
+        <span className="font-lv-display text-[19px] font-bold tracking-[-0.02em] text-ink max-sm:hidden">
           La Verde
         </span>
       </Link>
@@ -137,9 +147,9 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
         <form
           onSubmit={handleSubmit}
           className={cn(
-            "flex items-center gap-gap-xs bg-white dark:bg-white/10 border border-border rounded-lv pl-[14px] pr-0 transition-all duration-normal cursor-text",
-            focused && "border-accent shadow-[0_0_0_3px_var(--accent-soft)]",
-            effectiveIsSearching && "border-accent",
+            "flex items-center gap-2 sm:gap-gap-xs bg-white border border-ink/10 rounded-full pl-3 pr-3 sm:pl-[14px] sm:pr-2 transition-all duration-500 ease-outquint cursor-text",
+            focused && "border-verde-400 shadow-[0_0_0_3px_rgba(53,175,109,0.15)]",
+            effectiveIsSearching && "border-verde-400",
           )}
           onClick={() => inputRef.current?.focus()}
         >
@@ -147,13 +157,13 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
             <Loader2
               size={18}
               strokeWidth={1.8}
-              className="text-accent shrink-0 animate-spin"
+              className="text-verde-600 shrink-0 animate-spin"
             />
           ) : (
             <Search
               size={18}
               strokeWidth={1.8}
-              className="text-accent shrink-0"
+              className="text-verde-600 shrink-0"
             />
           )}
           <input
@@ -168,33 +178,27 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
               else setAddrResults([]);
             }}
             onBlur={() => setFocused(false)}
-            placeholder="¿Qué buscas hoy..."
-            className="flex-1 border-none bg-transparent outline-none text-[15px] text-foreground min-w-0 py-[10px] placeholder:text-muted-foreground"
+            // El placeholder es la única etiqueta visible, así que el campo
+            // lleva nombre accesible propio: sin él, un lector de pantalla solo
+            // anuncia "cuadro de edición".
+            aria-label="Buscar lugares con IA"
+            placeholder="¿Qué buscas? La IA te entiende"
+            className="flex-1 border-none bg-transparent outline-none text-[15px] text-ink min-w-0 py-[11px] placeholder:text-ink-soft/75"
             autoComplete="off"
           />
+          {/* El micrófono no tiene `onClick`: es un botón muerto de 44 px que en
+              móvil se comía el ancho del campo. Ahí se oculta. */}
           <button
             type="button"
-            className="size-11 rounded-full grid place-items-center text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all shrink-0"
+            className="size-11 shrink-0 rounded-full grid place-items-center text-ink-soft/75 transition-colors duration-500 hover:bg-verde-50 hover:text-verde-600 max-sm:hidden"
             aria-label="Buscar por voz"
           >
             <Mic size={18} strokeWidth={1.8} />
           </button>
-          <button
-            type="submit"
-            disabled={effectiveIsSearching}
-            className="flex min-h-11 shrink-0 items-center gap-1 self-stretch rounded-r-[9px] px-[14px] py-2 bg-accent text-white font-display text-[13px] font-semibold whitespace-nowrap transition-colors hover:bg-accent-hover max-sm:px-2 disabled:opacity-80"
-          >
-            {effectiveIsSearching ? (
-              <Loader2 size={14} strokeWidth={2} className="animate-spin" />
-            ) : (
-              <Sparkles size={14} strokeWidth={2} />
-            )}
-            <span className="max-sm:hidden">
-              {effectiveIsSearching ? "Buscando…" : "Buscar con IA"}
-            </span>
-          </button>
+          {/* Sin botón de enviar: el formulario ya se confirma con Enter desde
+              el propio campo, y el botón se comía el ancho útil en móvil. */}
           {effectiveIsSearching && (
-            <div className="absolute inset-0 rounded-lv pointer-events-none shadow-[inset_0_0_0_1px_oklch(62%_0.16_145/0.5),0_0_16px_oklch(62%_0.16_145/0.15)]" />
+            <div className="absolute inset-0 rounded-full pointer-events-none shadow-[inset_0_0_0_1px_rgba(53,175,109,0.5),0_0_16px_rgba(53,175,109,0.15)]" />
           )}
         </form>
 
@@ -205,12 +209,15 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
               initial={{ opacity: 0, y: -8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.98 }}
-              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute top-[calc(100%+6px)] left-0 right-0 bg-surface border border-border rounded-lv-lg shadow-lv-lg z-250 overflow-hidden"
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              // En móvil el campo se estrecha y el desplegable heredaba ese
+              // ancho (~158 px): los rótulos no caben. Ahí se despega del campo
+              // y se ancla a la barra, de borde a borde.
+              className="absolute top-[calc(100%+6px)] left-0 right-0 bg-white border border-ink/5 rounded-2xl shadow-card z-250 overflow-hidden max-sm:fixed max-sm:top-[calc(var(--header-h)+6px)] max-sm:left-3 max-sm:right-3"
             >
               {addrResults.length > 0 && (
                 <>
-                  <div className="px-gap-md pt-[10px] pb-[4px] font-mono text-[10px] font-medium text-muted-foreground uppercase tracking-[0.08em]">
+                  <div className={cn(EYEBROW, "pt-[10px]")}>
                     Direcciones
                   </div>
                   {addrResults.map((s, i) => {
@@ -228,38 +235,38 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
                         animate={{ opacity: 1, x: 0 }}
                         transition={{
                           delay: 0.04 + i * 0.04,
-                          duration: 0.2,
+                          duration: 0.3,
                         }}
-                        className="flex items-center gap-gap-sm w-full px-gap-md py-[10px] text-left hover:bg-background transition-colors"
+                        className={ROW}
                         onMouseDown={(e) => {
                           e.preventDefault();
                           handleAddressPick(s);
                         }}
                       >
-                        <span className="size-8 rounded-lv bg-accent/10 grid place-items-center text-accent shrink-0">
+                        <span className="size-8 rounded-xl bg-verde-50 grid place-items-center text-verde-700 shrink-0">
                           <MapPin size={16} strokeWidth={1.8} />
                         </span>
                         <div className="min-w-0">
-                          <div className="text-[14px] text-foreground truncate">
+                          <div className="text-small text-ink truncate">
                             {main}
                             {s.between && (
-                              <span className="text-muted-foreground">
+                              <span className="text-ink-soft/75">
                                 {" "}
                                 e/ {s.between}
                               </span>
                             )}
                           </div>
-                          <div className="text-[12px] text-muted-foreground mt-px truncate">
+                          <div className="text-meta text-ink-soft/75 mt-px truncate">
                             {area}
                           </div>
                         </div>
                       </motion.button>
                     );
                   })}
-                  <div className="h-px bg-border mx-gap-md my-[4px]" />
+                  <div className="h-px bg-ink/5 mx-gap-md my-[4px]" />
                 </>
               )}
-              <div className="px-gap-md pt-[10px] pb-[4px] font-mono text-[10px] font-medium text-muted-foreground uppercase tracking-[0.08em]">
+              <div className={cn(EYEBROW, "pt-[10px]")}>
                 Sugerencias
               </div>
               {SUGGESTIONS.map((s, i) => (
@@ -268,28 +275,28 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
                   type="button"
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.04 + i * 0.04, duration: 0.2 }}
-                  className="flex items-center gap-gap-sm w-full px-gap-md py-[10px] text-left hover:bg-background transition-colors"
+                  transition={{ delay: 0.04 + i * 0.04, duration: 0.3 }}
+                  className={ROW}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     handleSuggestionClick(s.query);
                   }}
                 >
-                  <span className="size-8 rounded-lv bg-accent/10 grid place-items-center text-accent shrink-0">
+                  <span className="size-8 rounded-xl bg-verde-50 grid place-items-center text-verde-700 shrink-0">
                     <Search size={16} strokeWidth={1.8} />
                   </span>
                   <div className="min-w-0">
-                    <div className="text-[14px] text-foreground truncate">
+                    <div className="text-small text-ink truncate">
                       {s.label}
                     </div>
-                    <div className="text-[12px] text-muted-foreground mt-px">
+                    <div className="text-meta text-ink-soft/75 mt-px">
                       {s.category}
                     </div>
                   </div>
                 </motion.button>
               ))}
-              <div className="h-px bg-border mx-gap-md my-[4px]" />
-              <div className="px-gap-md pb-[4px] font-mono text-[10px] font-medium text-muted-foreground uppercase tracking-[0.08em]">
+              <div className="h-px bg-ink/5 mx-gap-md my-[4px]" />
+              <div className={EYEBROW}>
                 Búsquedas recientes
               </div>
               {RECENT_SEARCHES.map((s, i) => (
@@ -298,21 +305,21 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
                   type="button"
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.14 + i * 0.04, duration: 0.2 }}
-                  className="flex items-center gap-gap-sm w-full px-gap-md py-[10px] text-left hover:bg-background transition-colors"
+                  transition={{ delay: 0.14 + i * 0.04, duration: 0.3 }}
+                  className={ROW}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     handleSuggestionClick(s.query);
                   }}
                 >
-                  <span className="size-8 rounded-lv bg-amber/10 grid place-items-center text-amber shrink-0">
+                  <span className="size-8 rounded-xl bg-sand-deep grid place-items-center text-ink-soft/75 shrink-0">
                     <Search size={16} strokeWidth={1.8} />
                   </span>
                   <div className="min-w-0">
-                    <div className="text-[14px] text-foreground truncate">
+                    <div className="text-small text-ink truncate">
                       {s.query}
                     </div>
-                    <div className="text-[12px] text-muted-foreground mt-px">
+                    <div className="text-meta text-ink-soft/75 mt-px">
                       {s.category}
                     </div>
                   </div>

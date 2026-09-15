@@ -126,7 +126,7 @@ export function BottomSheet({
         // `will-change-transform` promueve la sheet a su propia capa: el
         // deslizamiento se compone en GPU en vez de repintar en cada frame, que
         // en móvil es justo lo que se nota como tirones.
-        "fixed left-0 right-0 bottom-0 z-300 bg-surface rounded-t-lv-xl shadow-[0_-4px_24px_oklch(18%_0.01_250_/_0.12)] will-change-transform transition-[transform] [transition-duration:500ms] [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] max-h-[70vh] lg:max-h-none flex flex-col pb-safe-bottom",
+        "fixed left-0 right-0 bottom-0 z-300 bg-white rounded-t-4xl shadow-[0_-8px_40px_-12px_rgba(8,19,13,0.18)] will-change-transform transition-[transform] [transition-duration:500ms] [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] max-h-[70vh] lg:max-h-none flex flex-col pb-safe-bottom",
         // Al cerrar vuelve antes que al abrir: entrar despacio da sensación de
         // continuidad, salir despacio se hace pesado. El `data-state` ya cambió
         // cuando arranca la transición, así que cada dirección usa su duración.
@@ -144,24 +144,24 @@ export function BottomSheet({
       >
         <div
           className={cn(
-            "w-[36px] h-[4px] rounded-full transition-colors duration-normal",
-            isDragging ? "bg-accent w-[48px]" : "bg-border",
+            "w-[36px] h-[4px] rounded-full transition-colors duration-500 ease-outquint",
+            isDragging ? "bg-verde-400 w-[48px]" : "bg-ink/10",
           )}
         />
       </div>
 
       {/* Header */}
-      <div className="px-5 pb-gap-sm border-b border-border shrink-0">
-        <h2 className="font-display text-[18px] font-bold tracking-[-0.01em] flex items-center gap-gap-xs">
+      <div className="px-5 pb-gap-sm border-b border-ink/5 shrink-0">
+        <h2 className="font-lv-display text-h3 font-bold text-ink flex items-center gap-gap-xs">
           {title}
           {badge && (
-            <span className="font-mono text-[10px] font-medium bg-accent/10 text-accent px-2 py-[2px] rounded-full tracking-[0.06em] uppercase">
+            <span className="font-lv-display text-[10px] font-semibold bg-verde-50 text-verde-600 px-2 py-[2px] rounded-full tracking-[0.14em] uppercase">
               {badge}
             </span>
           )}
         </h2>
         {subtitle && (
-          <p className="text-[14px] text-muted-foreground mt-[4px]">{subtitle}</p>
+          <p className="text-small text-ink-soft/75 mt-[4px]">{subtitle}</p>
         )}
       </div>
 
@@ -171,7 +171,7 @@ export function BottomSheet({
       </div>
 
       {/* Scroll fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-surface to-transparent pointer-events-none z-[5]" />
+      <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white to-transparent pointer-events-none z-[5]" />
     </div>
   );
 }

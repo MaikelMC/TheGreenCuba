@@ -16,17 +16,18 @@ interface PlacePopupProps {
 // táctil: el popup es un aviso compacto y los botones a 44 px lo hacían más
 // alto que el propio contenido. Siguen por encima del mínimo AA de 24 px.
 const ACTION =
-  "flex-1 min-h-9 inline-flex items-center justify-center gap-[5px] rounded-lv px-3 " +
-  "text-[13px] font-semibold whitespace-nowrap transition-colors active:scale-[0.98] " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "flex-1 min-h-9 inline-flex items-center justify-center gap-[5px] rounded-full px-3 " +
+  "font-lv-display text-small font-semibold whitespace-nowrap " +
+  "transition-all duration-500 ease-outquint active:scale-[0.98] " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400";
 
-const META = "font-mono text-[12px] tabular-nums";
+const META = "font-lv-display text-meta tabular-nums";
 
 export function PlacePopup({ place, onRoute }: PlacePopupProps) {
   // Una sola línea de datos. El barrio se omite a propósito: el mapa ya dice
   // dónde está, y la distancia es la que aporta algo.
   const segments: ReactNode[] = [
-    <span key="cat" className="text-[12px] font-medium text-foreground">
+    <span key="cat" className={cn(META, "font-medium text-ink")}>
       <span aria-hidden className="mr-[3px]">
         {categoryEmoji(place.category)}
       </span>
@@ -36,38 +37,38 @@ export function PlacePopup({ place, onRoute }: PlacePopupProps) {
 
   if (place.rating) {
     segments.push(
-      <span key="rating" className={cn(META, "inline-flex items-center gap-[3px] font-medium text-foreground")}>
-        <Star size={11} fill="currentColor" className="shrink-0 text-lv-amber" />
+      <span key="rating" className={cn(META, "inline-flex items-center gap-[3px] font-semibold text-verde-600")}>
+        <Star size={11} fill="currentColor" className="shrink-0" />
         {place.rating}
       </span>,
     );
   }
   if (place.distance) {
     segments.push(
-      <span key="dist" className={cn(META, "text-muted-foreground")}>
+      <span key="dist" className={cn(META, "text-ink-soft/75")}>
         {place.distance}
       </span>,
     );
   }
   if (place.price) {
     segments.push(
-      <span key="price" className={cn(META, "text-muted-foreground")}>
+      <span key="price" className={cn(META, "text-ink-soft/75")}>
         {place.price}
       </span>,
     );
   }
 
   return (
-    <div className="w-[260px] font-body">
+    <div className="w-[260px] font-lv text-ink">
       {/* El `pr` deja libre el botón de cerrar de Leaflet, que va posicionado
           encima de la esquina superior derecha. */}
       <div className="px-[14px] pt-[14px] pr-[36px]">
-        <div className="font-display text-[16px] font-semibold leading-[1.25] tracking-[-0.01em] text-foreground">
+        <div className="font-lv-display text-body font-semibold leading-[1.25] tracking-[-0.01em] text-ink">
           {place.name}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-[6px] gap-y-[2px] px-[14px] pt-[6px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-[6px] gap-y-[2px] px-[14px] pt-[6px] text-ink-soft/75">
         {segments.map((segment, i) => (
           <Fragment key={i}>
             {i > 0 && (
@@ -81,7 +82,7 @@ export function PlacePopup({ place, onRoute }: PlacePopupProps) {
       </div>
 
       {/* La ruta es la acción secundaria; abrir la ficha es la principal, así que
-          va en accent y a la derecha. */}
+          va en el verde de acción y a la derecha. */}
       <div className="flex gap-gap-xs px-[14px] pt-[10px] pb-[12px]">
         {onRoute && (
           <button
@@ -89,10 +90,10 @@ export function PlacePopup({ place, onRoute }: PlacePopupProps) {
             onClick={() => onRoute(place)}
             className={cn(
               ACTION,
-              "border border-border bg-surface text-foreground hover:border-accent/40 hover:bg-accent/5",
+              "border border-ink/10 bg-white text-ink hover:border-verde-300 hover:bg-verde-50",
             )}
           >
-            <Navigation size={15} strokeWidth={2} />
+            <Navigation size={15} strokeWidth={1.8} />
             Ruta
           </button>
         )}
@@ -106,10 +107,10 @@ export function PlacePopup({ place, onRoute }: PlacePopupProps) {
         <Link
           href={`/place/${place.id}`}
           data-place-id={place.id}
-          className={cn(ACTION, "bg-accent !text-accent-foreground hover:bg-accent/90")}
+          className={cn(ACTION, "bg-verde-400 !text-verde-950 hover:bg-verde-300")}
         >
           Ver más
-          <ChevronRight size={15} strokeWidth={2} />
+          <ChevronRight size={15} strokeWidth={1.8} />
         </Link>
       </div>
     </div>

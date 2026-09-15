@@ -26,7 +26,7 @@ export function JoinButton({ className, fullWidth }: JoinButtonProps) {
         className,
       )}
     >
-      Unirse a la lista
+      Registrarse
     </button>
   );
 }

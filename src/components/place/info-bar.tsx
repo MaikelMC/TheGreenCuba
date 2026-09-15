@@ -13,7 +13,7 @@ interface InfoBarProps {
 }
 
 const currencyStyles: Record<string, string> = {
-  MLC: "bg-accent/12 text-accent",
+  MLC: "bg-accent/10 text-accent",
   CUP: "bg-lv-blue/10 text-lv-blue",
   USD: "bg-lv-teal/10 text-lv-teal",
 };

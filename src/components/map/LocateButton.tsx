@@ -68,7 +68,7 @@ export const LocateButton = memo(function LocateButton({
 
   // Misma caja y sombra que el control de zoom (ver --map-* en globals.css).
   const box =
-    "flex size-[var(--map-ctrl-size)] items-center justify-center rounded-lv border bg-surface shadow-lv-sm";
+    "flex size-[var(--map-ctrl-size)] items-center justify-center rounded-2xl border border-ink/5 bg-white shadow-soft";
 
   return (
     <div className="absolute left-2.5 z-[1000] bottom-[var(--map-locate-bottom)]">
@@ -80,17 +80,17 @@ export const LocateButton = memo(function LocateButton({
         aria-busy={locating}
         className={cn(
           box,
-          "relative cursor-pointer transition-[color,background-color,border-color,box-shadow] duration-200 hover:shadow-lv-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95 disabled:cursor-wait",
+          "relative cursor-pointer transition-all duration-500 ease-outquint hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 active:scale-95 disabled:cursor-wait",
           done
-            ? "border-accent bg-accent/[0.12] text-accent ring-4 ring-accent/20"
-            : "border-border text-foreground",
+            ? "border-verde-400 bg-verde-50 text-verde-600 ring-4 ring-verde-400/20"
+            : "text-ink",
         )}
       >
         {/* Onda de radar solo mientras busca. */}
         {locating && (
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-0 rounded-lv border border-accent motion-safe:animate-ping"
+            className="pointer-events-none absolute inset-0 rounded-2xl border border-verde-400 motion-safe:animate-ping"
           />
         )}
         {locating ? (
@@ -100,10 +100,10 @@ export const LocateButton = memo(function LocateButton({
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth="1.8"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="animate-spin text-accent"
+            className="animate-spin text-verde-600"
           >
             <line x1="12" y1="2" x2="12" y2="6" />
             <line x1="12" y1="18" x2="12" y2="22" />
@@ -118,7 +118,7 @@ export const LocateButton = memo(function LocateButton({
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth="1.8"
             strokeLinecap="round"
             strokeLinejoin="round"
           >

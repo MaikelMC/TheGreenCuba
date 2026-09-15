@@ -60,11 +60,3 @@ export const DAYS_OF_WEEK = [
   "Viernes",
   "Sábado",
 ] as const;
-
-export const FILTERS = [
-  { value: "nearby", label: "Cercanos" },
-  { value: "mlc", label: "Aceptan USD Clásica" },
-  { value: "open_now", label: "Abiertos ahora" },
-  { value: "quiet", label: "Tranquilo" },
-  { value: "music", label: "Con música" },
-] as const;

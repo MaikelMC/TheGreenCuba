@@ -8,9 +8,7 @@ export function Footer() {
         <div className="flex flex-wrap justify-between items-start gap-gap-xl">
           <div className="max-w-[280px]">
             <div className="font-lv-display text-[18px] font-bold text-white flex items-center gap-gap-xs mb-gap-sm">
-              <span className="size-6 rounded-full bg-gradient-to-br from-verde-400 to-verde-600 grid place-items-center text-white">
-                <Logo className="size-4" />
-              </span>
+              <Logo className="h-[22px] w-auto shrink-0" />
               La Verde
             </div>
             <p className="text-[14px] leading-[1.6] text-white/70">
@@ -60,10 +58,9 @@ export function Footer() {
             </div>
           </div>
         </div>
-        <div className="mt-gap-2xl pt-gap-lg border-t border-white/10 flex flex-wrap justify-between items-center gap-gap-md text-[13px]">
-          <span>&copy; 2026 La Verde. Hecho en Cuba.</span>
-          <span className="font-lv-display text-meta text-white/50">Hecho con cariño desde Cuba.</span>
-        </div>
+        <p className="mt-gap-2xl border-t border-white/10 pt-gap-lg text-[13px]">
+          &copy; 2026 La Verde. Hecho en Cuba.
+        </p>
       </div>
     </footer>
   );

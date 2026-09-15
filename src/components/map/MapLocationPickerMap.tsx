@@ -98,7 +98,7 @@ export function MapLocationPickerMap({
   );
 
   if (!mounted) {
-    return <div className="h-full w-full bg-[oklch(92%_0.008_85)]" />;
+    return <div className="h-full w-full bg-sand-deep" />;
   }
 
   return (

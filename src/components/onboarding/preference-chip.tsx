@@ -13,10 +13,10 @@ export function PreferenceChip({ selected, icon, label, className, ...props }: P
   return (
     <button
       className={cn(
-        "inline-flex items-center gap-2 px-[18px] py-2.5 rounded-full border-[1.5px] font-display text-small font-medium transition-all duration-200 select-none",
+        "inline-flex items-center gap-2 px-[18px] py-2.5 rounded-full border font-lv-display text-small font-medium transition-all duration-500 ease-outquint select-none active:scale-[0.98]",
         selected
-          ? "border-accent bg-accent text-white"
-          : "border-border bg-surface text-foreground hover:border-accent hover:bg-accent/10 hover:text-accent",
+          ? "border-verde-400 bg-verde-400 text-verde-950"
+          : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
         className,
       )}
       {...props}

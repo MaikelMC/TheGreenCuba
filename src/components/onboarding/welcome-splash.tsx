@@ -20,21 +20,22 @@ export function WelcomeSplash({ onComplete }: WelcomeSplashProps) {
   }, [onComplete]);
 
   return (
+    // `lv-grid-glow` es el cielo del hero de la landing: el único fondo oscuro
+    // del sistema. `lv-grain` le quita el aspecto plano al degradado.
     <div
       className={cn(
-        "absolute inset-0 z-20 flex flex-col items-center justify-center text-center text-white transition-all duration-500",
-        "bg-gradient-to-br from-accent to-[oklch(45%_0.13_145)]",
+        "lv-grid-glow lv-grain absolute inset-0 z-20 flex flex-col items-center justify-center text-center text-white transition-all duration-500",
         hidden ? "scale-110 opacity-0 pointer-events-none" : "",
       )}
     >
-      <div className="size-[72px] rounded-full bg-white/20 flex items-center justify-center mb-6 animate-pulse-ring">
-        <Logo className="size-10 text-white" />
-      </div>
-      <div className="font-display text-[clamp(36px,10vw,56px)] font-bold tracking-[-0.03em] mb-2">
+      <Logo className="h-[72px] w-auto mb-6 animate-pulse-ring" />
+      <div className="font-lv-display text-[clamp(36px,10vw,56px)] font-bold tracking-[-0.03em] mb-2">
         La Verde
       </div>
-      <div className="text-body opacity-80 mb-12">Encuentra tu lugar en Cuba</div>
-      <div className="text-small opacity-60">Comenzando...</div>
+      <div className="text-lead text-white/70 mb-12">
+        Encuentra tu lugar en Cuba
+      </div>
+      <div className="text-small text-white/35">Comenzando...</div>
     </div>
   );
 }

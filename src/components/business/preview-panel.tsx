@@ -67,7 +67,7 @@ export function PreviewPanel({
         {/* Content */}
         <div className="max-h-[500px] overflow-y-auto scrollbar-hide">
           {/* Photo */}
-          <div className="aspect-[4/3] bg-gradient-to-br from-accent/12 to-lv-amber/8 flex items-center justify-center text-accent relative">
+          <div className="aspect-[4/3] bg-gradient-to-br from-accent/10 to-lv-amber/10 flex items-center justify-center text-accent relative">
             <Image size={40} strokeWidth={1.5} className="opacity-40" />
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-[4px]">
               <span className="w-4 h-[6px] rounded-full bg-white" />
@@ -82,7 +82,7 @@ export function PreviewPanel({
             <div className="font-display text-h3 font-bold tracking-[-0.005em]">{businessName}</div>
             <div className="flex items-center gap-gap-xs mt-gap-2xs flex-wrap">
               {isOpen && (
-                <span className="font-mono text-[10px] font-medium px-[8px] py-[2px] rounded-full uppercase tracking-[0.04em] bg-lv-teal/12 text-lv-teal">
+                <span className="font-mono text-[10px] font-medium px-[8px] py-[2px] rounded-full uppercase tracking-[0.04em] bg-lv-teal/10 text-lv-teal">
                   Abierto
                 </span>
               )}
