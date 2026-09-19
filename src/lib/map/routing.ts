@@ -16,7 +16,8 @@ function toRad(deg: number): number {
   return (deg * Math.PI) / 180;
 }
 
-function haversineM(a: RoutePoint, b: RoutePoint): number {
+/** Distancia en metros entre dos puntos. La usan las rutas y los filtros. */
+export function haversineM(a: RoutePoint, b: RoutePoint): number {
   const R = 6371000;
   const dLat = toRad(b.lat - a.lat);
   const dLng = toRad(b.lng - a.lng);

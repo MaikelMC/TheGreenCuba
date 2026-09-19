@@ -3,6 +3,7 @@
 import { Heart, ArrowRight, Star, MapPin } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
+import { CategoryIcon } from "@/components/admin/category-icon";
 
 interface PlaceCardProps {
   name: string;
@@ -11,7 +12,8 @@ interface PlaceCardProps {
   distance: string;
   price: string;
   tags: { label: string; variant?: "mlc" | "open" | "default" }[];
-  emoji?: string;
+  /** Nombre del icono Lucide del negocio. Sin él, el genérico. */
+  icon?: string;
   selected?: boolean;
   liked?: boolean;
   index?: number;
@@ -36,7 +38,7 @@ export function PlaceCard({
   distance,
   price,
   tags,
-  emoji = "📍",
+  icon,
   selected,
   liked,
   index = 0,
@@ -63,9 +65,10 @@ export function PlaceCard({
           : "border-ink/5 bg-white hover:border-verde-300 hover:shadow-soft",
       )}
     >
-      {/* Thumbnail */}
-      <div className="size-16 rounded-xl shrink-0 grid place-items-center text-[28px] bg-gradient-to-br from-verde-50 to-verde-100">
-        {emoji}
+      {/* Thumbnail. Antes el emoji de la categoría a 28 px, que en Windows y en
+          Android se dibuja distinto; ahora el mismo icono del pin. */}
+      <div className="size-16 rounded-xl shrink-0 grid place-items-center bg-gradient-to-br from-verde-50 to-verde-100">
+        <CategoryIcon icon={icon} size={30} strokeWidth={1.6} className="text-verde-600" />
       </div>
 
       {/* Info */}

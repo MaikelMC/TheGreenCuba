@@ -18,13 +18,16 @@ interface PaymentChipsProps {
   className?: string;
 }
 
+/* Los puntos iban en lv-blue, lv-teal y lv-amber, que no son del sistema. Aquí
+   la moneda no se distingue por color — el rótulo ya la dice — así que todos
+   bajan a la paleta verde/arena. */
 const DEFAULT_OPTIONS: PaymentOption[] = [
-  { id: "MLC", label: "USD Clásica", dotColor: "bg-accent" },
-  { id: "CUP", label: "CUP", dotColor: "bg-lv-blue" },
-  { id: "USD", label: "USD (efectivo)", dotColor: "bg-lv-teal" },
-  { id: "EUR", label: "EUR", dotColor: "bg-lv-amber" },
-  { id: "card", label: "Tarjeta", dotColor: "bg-muted-foreground", icon: <CreditCard size={14} strokeWidth={2} /> },
-  { id: "transfer", label: "Transferencia", dotColor: "bg-muted-foreground", icon: <DollarSign size={14} strokeWidth={2} /> },
+  { id: "MLC", label: "USD Clásica", dotColor: "bg-verde-400" },
+  { id: "CUP", label: "CUP", dotColor: "bg-verde-300" },
+  { id: "USD", label: "USD (efectivo)", dotColor: "bg-verde-600" },
+  { id: "EUR", label: "EUR", dotColor: "bg-verde-200" },
+  { id: "card", label: "Tarjeta", dotColor: "bg-sand-deep", icon: <CreditCard size={14} strokeWidth={1.8} /> },
+  { id: "transfer", label: "Transferencia", dotColor: "bg-sand-deep", icon: <DollarSign size={14} strokeWidth={1.8} /> },
 ];
 
 export function PaymentChips({
@@ -57,11 +60,12 @@ export function PaymentChips({
             key={opt.id}
             type="button"
             onClick={() => toggle(opt.id)}
+            aria-pressed={isActive}
             className={cn(
-              "inline-flex items-center gap-[6px] px-[14px] py-[6px] rounded-full border font-mono text-xs font-medium cursor-pointer select-none transition-all duration-fast",
+              "inline-flex items-center gap-[6px] px-[14px] py-2 rounded-full border font-lv-display text-small font-medium cursor-pointer select-none transition-all duration-500 ease-outquint active:scale-[0.98]",
               isActive
-                ? "border-accent bg-accent/10 text-accent"
-                : "border-border bg-surface text-foreground hover:border-accent",
+                ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
+                : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
             )}
           >
             {opt.icon ? (

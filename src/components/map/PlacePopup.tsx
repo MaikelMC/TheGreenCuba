@@ -4,7 +4,8 @@ import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight, Navigation, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { categoryEmoji } from "@/lib/places";
+import { placeIcon } from "@/lib/places";
+import { CategoryIcon } from "@/components/admin/category-icon";
 import { type MapPlace } from "./types";
 
 interface PlacePopupProps {
@@ -27,10 +28,16 @@ export function PlacePopup({ place, onRoute }: PlacePopupProps) {
   // Una sola línea de datos. El barrio se omite a propósito: el mapa ya dice
   // dónde está, y la distancia es la que aporta algo.
   const segments: ReactNode[] = [
-    <span key="cat" className={cn(META, "font-medium text-ink")}>
-      <span aria-hidden className="mr-[3px]">
-        {categoryEmoji(place.category)}
-      </span>
+    /* El icono del negocio, el mismo que el del pin: el popup sale del pin, y
+       ver un emoji aquí después de haber tocado un icono allí era cambiar de
+       dibujo a mitad de camino. */
+    <span key="cat" className={cn(META, "inline-flex items-center gap-[3px] font-medium text-ink")}>
+      <CategoryIcon
+        icon={placeIcon(place.icon, place.category)}
+        size={12}
+        strokeWidth={2}
+        className="shrink-0"
+      />
       {place.category}
     </span>,
   ];

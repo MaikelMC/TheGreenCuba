@@ -20,10 +20,13 @@ interface DashboardStatsProps {
   className?: string;
 }
 
+/* Subir es buena noticia, así que va en verde del sistema. Bajar no es un
+   error del negocio, solo una caída: por eso el tinte apagado de arena y no
+   el rojo de destructivo, que aquí alarmaría de más. */
 const changeStyles: Record<string, string> = {
-  up: "text-lv-teal bg-lv-teal/10",
-  down: "text-destructive bg-destructive/10",
-  neutral: "text-muted-foreground bg-muted",
+  up: "text-verde-600 bg-verde-50",
+  down: "text-ink-soft/75 bg-sand-deep",
+  neutral: "text-ink-soft/75 bg-sand-deep",
 };
 
 const changeIcons: Record<StatChange["direction"], LucideIcon> = {
@@ -44,21 +47,21 @@ export function DashboardStats({ stats, className }: DashboardStatsProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.06, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
             whileHover={{ y: -3 }}
-            className="bg-surface border border-border rounded-lv-lg p-gap-md flex flex-col gap-gap-xs transition-shadow duration-normal hover:shadow-lv-sm"
+            className="bg-white border border-ink/5 rounded-2xl p-gap-md flex flex-col gap-gap-xs shadow-soft transition-shadow duration-500 ease-outquint hover:shadow-card"
           >
-            <span className="font-mono text-xs text-muted-foreground uppercase tracking-[0.04em] font-medium">
+            <span className="font-lv-display text-[10px] font-semibold text-verde-600 uppercase tracking-[0.22em]">
               {s.label}
             </span>
-            <span className="font-display text-[clamp(28px,6vw,36px)] font-bold text-foreground tracking-[-0.02em] leading-none">
+            <span className="font-lv-display text-[clamp(28px,6vw,36px)] font-bold text-ink tracking-[-0.02em] leading-none">
               {s.value}
             </span>
             <span
               className={cn(
-                "inline-flex items-center gap-[4px] font-mono text-xs font-medium px-[6px] py-[2px] rounded-sm w-fit",
+                "inline-flex items-center gap-[4px] font-lv-display text-meta font-medium px-[8px] py-[3px] rounded-full w-fit",
                 changeStyles[s.change.direction],
               )}
             >
-              <Icon size={12} strokeWidth={2} />
+              <Icon size={12} strokeWidth={1.8} />
               {s.change.value}
             </span>
           </motion.div>

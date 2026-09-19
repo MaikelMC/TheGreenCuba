@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Image, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,10 +18,12 @@ interface PhotoGridProps {
   className?: string;
 }
 
+/* Degradados de relleno mientras no hay foto real, todos dentro de la paleta
+   verde/arena. Antes eran `oklch()` crudos de acento, ámbar y azul. */
 const FILLED_SLOTS: PhotoSlot[] = [
-  { id: "1", filled: true, isCover: true, gradient: "linear-gradient(135deg, oklch(62% 0.16 145 / 0.12), oklch(75% 0.15 75 / 0.08))" },
-  { id: "2", filled: true, gradient: "linear-gradient(135deg, oklch(75% 0.15 75 / 0.10), oklch(62% 0.16 145 / 0.06))" },
-  { id: "3", filled: true, gradient: "linear-gradient(135deg, oklch(62% 0.14 250 / 0.08), oklch(62% 0.16 145 / 0.05))" },
+  { id: "1", filled: true, isCover: true, gradient: "linear-gradient(135deg, #EAF7EF, #CEEEDB)" },
+  { id: "2", filled: true, gradient: "linear-gradient(135deg, #F6F3EC, #EAE4D6)" },
+  { id: "3", filled: true, gradient: "linear-gradient(135deg, #CEEEDB, #EAF7EF)" },
 ];
 
 const EMPTY_SLOTS: PhotoSlot[] = [
@@ -38,7 +39,7 @@ export function PhotoGrid({
 }: PhotoGridProps) {
   return (
     <div>
-      <p className="form-hint text-meta text-muted-foreground mb-gap-md">
+      <p className="text-meta text-ink-soft/75 mb-gap-md">
         Sube fotos de tu negocio. La primera será la foto de portada.
       </p>
       <div className={cn("grid grid-cols-3 lg:grid-cols-4 gap-gap-xs", className)}>
@@ -49,10 +50,12 @@ export function PhotoGrid({
                 key={slot.id}
                 type="button"
                 onClick={onAdd}
-                className="aspect-square rounded-lv border-2 border-dashed border-border flex flex-col items-center justify-center gap-[4px] cursor-pointer text-muted-foreground hover:border-accent hover:bg-accent/10 hover:text-accent transition-all duration-fast"
+                className="aspect-square rounded-2xl border border-dashed border-ink/10 flex flex-col items-center justify-center gap-[6px] cursor-pointer text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 transition-all duration-500 ease-outquint"
               >
-                <Plus size={24} strokeWidth={1.5} />
-                <span className="font-mono text-[10px] uppercase tracking-[0.04em]">Añadir</span>
+                <Plus size={24} strokeWidth={1.8} />
+                <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em]">
+                  Añadir
+                </span>
               </button>
             );
           }
@@ -61,32 +64,31 @@ export function PhotoGrid({
             <div
               key={slot.id}
               className={cn(
-                "relative rounded-lv border-2 border-solid border-border overflow-hidden group",
+                "relative rounded-2xl border border-ink/5 overflow-hidden group",
                 slot.isCover && "col-span-full aspect-[16/9]",
                 !slot.isCover && "aspect-square",
               )}
             >
               <div
-                className="absolute inset-0 flex items-center justify-center"
+                className="absolute inset-0 flex items-center justify-center text-verde-400"
                 style={{ background: slot.gradient }}
               >
                 <Image
                   size={slot.isCover ? 32 : 24}
-                  strokeWidth={1.5}
+                  strokeWidth={1.8}
                   className="opacity-40"
-                  style={{ color: "var(--accent)" }}
                 />
               </div>
               <button
                 type="button"
                 onClick={() => onRemove?.(slot.id)}
-                className="absolute top-[4px] right-[4px] size-6 rounded-full bg-foreground/70 text-white grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                className="absolute top-[6px] right-[6px] size-7 rounded-full bg-ink/70 text-white grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 ease-outquint z-10"
                 aria-label="Eliminar foto"
               >
-                <X size={14} strokeWidth={2} />
+                <X size={14} strokeWidth={1.8} />
               </button>
               {slot.isCover && (
-                <span className="absolute bottom-[6px] left-[6px] bg-[oklch(0%_0_0/0.5)] text-white px-[6px] py-[2px] rounded text-[9px] font-medium">
+                <span className="absolute bottom-[8px] left-[8px] bg-ink/70 text-white px-[10px] py-[3px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em]">
                   Portada
                 </span>
               )}

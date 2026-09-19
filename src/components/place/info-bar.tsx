@@ -12,11 +12,20 @@ interface InfoBarProps {
   className?: string;
 }
 
+/* Mismo mapa que los chips de pago del panel de negocio: la moneda no se
+   distingue por color — el rótulo ya la dice — así que todas bajan a la escala
+   verde/arena. Antes eran lv-blue y lv-teal, que no son del sistema. */
 const currencyStyles: Record<string, string> = {
-  MLC: "bg-accent/10 text-accent",
-  CUP: "bg-lv-blue/10 text-lv-blue",
-  USD: "bg-lv-teal/10 text-lv-teal",
+  MLC: "bg-verde-100 text-verde-700",
+  CUP: "bg-verde-50 text-verde-600",
+  USD: "bg-sand-deep text-ink-soft/75",
+  EUR: "bg-sand-deep text-ink-soft/75",
 };
+
+/* El aire de cada celda vive aquí porque las tres lo comparten. */
+const CELL = "flex-1 flex flex-col items-center justify-center gap-[4px] py-gap-sm px-gap-xs bg-sand-warm text-center min-h-[72px]";
+const LABEL = "font-lv-display text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-soft/75";
+const VALUE = "font-lv-display text-small font-semibold text-ink leading-tight";
 
 export function InfoBar({
   schedule,
@@ -27,47 +36,34 @@ export function InfoBar({
   className,
 }: InfoBarProps) {
   return (
-    <div className={cn("flex gap-[1px] bg-border border-t border-b border-border lg:border lg:rounded-lv-lg lg:overflow-hidden", className)}>
+    <div className={cn("flex gap-[1px] bg-ink/5 border-t border-b border-ink/5 lg:border lg:rounded-2xl lg:overflow-hidden", className)}>
       {/* Horario */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-[4px] py-gap-sm px-gap-xs bg-surface text-center min-h-[72px]">
-        <Clock size={20} strokeWidth={2} className="text-accent" />
-        <span className="font-mono text-xs font-medium uppercase tracking-[0.04em] text-muted-foreground">
-          Horario
-        </span>
-        <span
-          className={cn(
-            "font-display text-small font-semibold text-foreground leading-tight",
-            !isOpen && "text-destructive",
-          )}
-        >
+      <div className={CELL}>
+        <Clock size={20} strokeWidth={1.8} className="text-verde-600" />
+        <span className={LABEL}>Horario</span>
+        <span className={cn(VALUE, !isOpen && "text-destructive")}>
           {isOpen ? schedule : closedLabel ?? "Cerrado"}
         </span>
       </div>
 
       {/* Distancia */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-[4px] py-gap-sm px-gap-xs bg-surface text-center min-h-[72px]">
-        <MapPin size={20} strokeWidth={2} className="text-accent" />
-        <span className="font-mono text-xs font-medium uppercase tracking-[0.04em] text-muted-foreground">
-          Distancia
-        </span>
-        <span className="font-display text-small font-semibold text-foreground leading-tight">
-          {distance}
-        </span>
+      <div className={CELL}>
+        <MapPin size={20} strokeWidth={1.8} className="text-verde-600" />
+        <span className={LABEL}>Distancia</span>
+        <span className={VALUE}>{distance}</span>
       </div>
 
       {/* Pagos */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-[4px] py-gap-sm px-gap-xs bg-surface text-center min-h-[72px]">
-        <CreditCard size={20} strokeWidth={2} className="text-accent" />
-        <span className="font-mono text-xs font-medium uppercase tracking-[0.04em] text-muted-foreground">
-          Pagos
-        </span>
+      <div className={CELL}>
+        <CreditCard size={20} strokeWidth={1.8} className="text-verde-600" />
+        <span className={LABEL}>Pagos</span>
         <div className="flex gap-[4px] justify-center flex-wrap">
           {payments.map((c) => (
             <span
               key={c}
               className={cn(
-                "px-[6px] py-[2px] rounded-sm font-mono text-[10px] font-medium tracking-[0.02em]",
-                currencyStyles[c] ?? "bg-muted text-muted-foreground",
+                "px-[6px] py-[2px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.08em]",
+                currencyStyles[c] ?? "bg-sand-deep text-ink-soft/75",
               )}
             >
               {currencyLabel(c)}

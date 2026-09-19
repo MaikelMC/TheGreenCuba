@@ -11,7 +11,7 @@ export default function MainError({
   reset: () => void;
 }) {
   return (
-    <div className="grid min-h-[70vh] place-items-center px-gutter">
+    <div className="grid min-h-[70vh] place-items-center bg-sand font-lv text-ink px-gutter">
       <ErrorState error={error} reset={reset} />
     </div>
   );

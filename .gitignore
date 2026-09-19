@@ -37,8 +37,14 @@ dev.log
 *.tsbuildinfo
 next-env.d.ts
 
-# drizzle
-src/lib/db/migrations/meta/
+# drizzle: NO se ignora src/lib/db/migrations/meta/. Se ignoró en su día y era un
+# error: ese directorio no lleva secretos —son instantáneas del esquema en JSON
+# más el _journal.json— y es justo lo que Drizzle necesita para dos cosas.
+# `generate` lo compara con el esquema para saber qué cambiar, así que sin él la
+# migración siguiente duplicaría los ALTER ya aplicados; y `migrate` lee
+# _journal.json para saber cuáles ya corrieron, así que sin él no corre ninguna.
+# Quien clonaba el repo veía los .sql y no podía aplicarlos ni generar el
+# siguiente.
 
 # clerk configuration (can include secrets)
 /.clerk/
@@ -48,3 +54,9 @@ data/
 
 # repo suelto dentro del proyecto (lleva su propio .git y su .env)
 groq-for-claude-code/
+
+# identificadores de la cuenta de Cloudflare
+Cloudflare/
+
+# credenciales de las cuentas demo: van en claro, no al repositorio
+CREDENCIALES-DEMO.md

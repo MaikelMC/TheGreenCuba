@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Share2,
@@ -14,12 +14,14 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { cn, currencyLabel } from "@/lib/utils";
+import { isSaved as isPlaceSaved, recordVisit, toggleSaved } from "@/lib/activity-store";
 import { PhotoCarousel } from "./photo-carousel";
 import { InfoBar } from "./info-bar";
 import { ActionButtons } from "./action-buttons";
 import { MenuItem } from "./menu-item";
 import { OfferBanner } from "./offer-banner";
 import { Reveal } from "@/components/ui/reveal";
+import { StateView } from "@/components/ui/state-view";
 
 export type PlaceState = "normal" | "closed" | "no-photos" | "special-offer";
 
@@ -73,11 +75,19 @@ interface PlaceDetailProps {
   className?: string;
 }
 
+/* Mismo mapa que los chips de pago del panel de negocio. Antes eran lv-blue y
+   lv-teal, que no son del sistema. */
 const currencyStyles: Record<string, string> = {
-  MLC: "bg-accent/10 text-accent",
-  CUP: "bg-lv-blue/10 text-lv-blue",
-  USD: "bg-lv-teal/10 text-lv-teal",
+  MLC: "bg-verde-100 text-verde-700",
+  CUP: "bg-verde-50 text-verde-600",
+  USD: "bg-sand-deep text-ink-soft/75",
+  EUR: "bg-sand-deep text-ink-soft/75",
 };
+
+const CARD = "bg-white rounded-2xl border border-ink/5 shadow-soft p-gap-xl";
+const H2 = "font-lv-display text-h3 font-bold text-ink";
+const LINK_BTN =
+  "font-lv-display text-meta font-semibold uppercase tracking-[0.08em] text-verde-600 hover:text-verde-700 transition-colors duration-500 ease-outquint";
 
 export function PlaceDetail({
   place,
@@ -90,48 +100,63 @@ export function PlaceDetail({
   className,
 }: PlaceDetailProps) {
   const [descExpanded, setDescExpanded] = useState(false);
-  const [saved, setSaved] = useState(true);
+  const [saved, setSaved] = useState(false);
+
+  /* Abrir la ficha es la visita. Se cuenta aquí y no en cada página porque por
+     este componente pasan todas: la ficha de `/place/[id]` y la que abre el
+     panel del home. El store ignora la repetición dentro de una ventana corta,
+     que es lo que evita que el doble montaje —panel y hoja— cuente doble. */
+  useEffect(() => {
+    recordVisit({ id: place.id, name: place.name, category: place.category });
+  }, [place.id, place.name, place.category]);
+
+  /* El estado de guardado se lee en efecto y no en el inicializador: en el
+     servidor no hay `localStorage`, así que arrancar de ahí daría un HTML
+     distinto al del cliente y React se quejaría al hidratar. */
+  useEffect(() => {
+    setSaved(isPlaceSaved(place.id));
+  }, [place.id]);
 
   const isClosed = state === "closed" || (!place.isOpen && state !== "special-offer");
   const hasPhotos = state !== "no-photos" && place.slides.length > 0;
   const showOffer = state === "special-offer" && place.specialOffer;
 
   function handleSave() {
-    setSaved((prev) => !prev);
+    setSaved(toggleSaved(place.id));
   }
 
   // Aquí va `min-h-dvh` solo: `cn` usa twMerge, que colapsaría el par
   // min-h-screen/min-h-dvh y se quedaría con el último igualmente.
   return (
-    <div className={cn("min-h-dvh bg-background", className)}>
+    <div className={cn("min-h-dvh bg-sand font-lv text-ink", className)}>
       {/* ─── Header ─── */}
-      <header className="sticky top-0 z-50 h-header bg-surface/90 backdrop-blur border-b border-border flex items-center gap-gap-sm px-gutter">
+      <header className="sticky top-0 z-50 h-header bg-sand-warm/90 backdrop-blur-[16px] border-b border-ink/5 flex items-center gap-gap-sm px-gutter">
         <button
           type="button"
           onClick={onBack}
-          className="size-10 rounded-full grid place-items-center hover:bg-accent/10 transition-colors duration-fast"
+          className="size-10 rounded-full grid place-items-center text-ink-soft/75 hover:bg-verde-50 hover:text-verde-600 transition-colors duration-500 ease-outquint"
           aria-label="Volver al mapa"
         >
-          <ArrowLeft size={20} strokeWidth={2} />
+          <ArrowLeft size={20} strokeWidth={1.8} />
         </button>
-        <span className="font-display text-small font-semibold text-foreground flex-1 truncate">
+        <span className="font-lv-display text-small font-semibold text-ink flex-1 truncate">
           {place.name}
         </span>
         <div className="flex gap-[4px]">
           <button
             type="button"
             onClick={onShare}
-            className="size-10 rounded-full grid place-items-center hover:bg-accent/10 transition-colors duration-fast"
+            className="size-10 rounded-full grid place-items-center text-ink-soft/75 hover:bg-verde-50 hover:text-verde-600 transition-colors duration-500 ease-outquint"
             aria-label="Compartir"
           >
-            <Share2 size={20} strokeWidth={2} />
+            <Share2 size={20} strokeWidth={1.8} />
           </button>
           <button
             type="button"
-            className="size-10 rounded-full grid place-items-center hover:bg-accent/10 transition-colors duration-fast"
+            className="size-10 rounded-full grid place-items-center text-ink-soft/75 hover:bg-verde-50 hover:text-verde-600 transition-colors duration-500 ease-outquint"
             aria-label="Más opciones"
           >
-            <MoreHorizontal size={20} strokeWidth={2} />
+            <MoreHorizontal size={20} strokeWidth={1.8} />
           </button>
         </div>
       </header>
@@ -143,32 +168,32 @@ export function PlaceDetail({
           <PhotoCarousel
             slides={place.slides}
             hasPhotos={hasPhotos}
-            className="aspect-[16/9] rounded-lv-xl overflow-hidden"
+            className="aspect-[16/9] rounded-4xl overflow-hidden"
           />
-          <div className="absolute bottom-0 left-0 right-0 p-gap-xl bg-gradient-to-t from-black/70 via-black/30 to-transparent rounded-b-lv-xl pointer-events-none">
-            <h1 className="font-display text-h1 font-bold text-white leading-tight tracking-[-0.02em] text-balance">
+          <div className="absolute bottom-0 left-0 right-0 p-gap-xl bg-gradient-to-t from-ink/85 via-ink/40 to-transparent rounded-b-4xl pointer-events-none">
+            <h1 className="font-lv-display text-h1 font-bold text-white leading-tight tracking-[-0.02em] text-balance">
               {place.name}
             </h1>
             <div className="flex items-center gap-gap-sm mt-gap-xs">
               <span
                 className={cn(
-                  "inline-flex items-center gap-[4px] px-[10px] py-[4px] rounded-full font-mono text-xs font-medium uppercase tracking-[0.04em]",
+                  "inline-flex items-center gap-[4px] px-[10px] py-[4px] rounded-full font-lv-display text-xs font-semibold uppercase tracking-[0.06em]",
                   isClosed
-                    ? "bg-destructive/20 text-destructive-foreground"
-                    : "bg-white/20 text-white",
+                    ? "bg-destructive/90 text-white"
+                    : "bg-verde-400 text-verde-950",
                 )}
               >
                 <span
                   className={cn(
                     "size-[6px] rounded-full",
-                    isClosed ? "bg-destructive" : "bg-white",
+                    isClosed ? "bg-white/80" : "bg-verde-950/60",
                   )}
                 />
                 {isClosed ? "Cerrado" : "Abierto"}
               </span>
               {place.rating > 0 && (
-                <span className="inline-flex items-center gap-[4px] font-mono text-xs font-medium text-white/80">
-                  <Star size={12} strokeWidth={2} className="text-lv-amber" fill="currentColor" />
+                <span className="inline-flex items-center gap-[4px] font-lv-display text-xs font-semibold text-white/80">
+                  <Star size={12} strokeWidth={1.8} className="text-verde-300" fill="currentColor" />
                   {place.rating}
                 </span>
               )}
@@ -178,34 +203,34 @@ export function PlaceDetail({
 
         {/* Row 2: Info Strip (compact) */}
         <Reveal delay={0.05} className="flex items-center gap-gap-lg mb-gap-lg px-gap-md">
-          <div className="flex items-center gap-gap-xs text-meta text-muted-foreground">
-            <Clock size={14} strokeWidth={2} className="text-accent" />
-            <span className="font-medium text-foreground">{place.schedule}</span>
+          <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
+            <Clock size={14} strokeWidth={1.8} className="text-verde-600" />
+            <span className="font-lv-display font-medium text-ink">{place.schedule}</span>
           </div>
-          <span className="text-border">|</span>
-          <div className="flex items-center gap-gap-xs text-meta text-muted-foreground">
-            <MapPin size={14} strokeWidth={2} className="text-accent" />
-            <span className="font-medium text-foreground">{place.distance} · {place.barrio}</span>
+          <span className="text-ink/10">|</span>
+          <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
+            <MapPin size={14} strokeWidth={1.8} className="text-verde-600" />
+            <span className="font-lv-display font-medium text-ink">{place.distance} · {place.barrio}</span>
           </div>
-          <span className="text-border">|</span>
-          <div className="flex items-center gap-[4px] text-meta text-muted-foreground">
-            <CreditCard size={14} strokeWidth={2} className="text-accent" />
+          <span className="text-ink/10">|</span>
+          <div className="flex items-center gap-[4px] text-meta text-ink-soft/75">
+            <CreditCard size={14} strokeWidth={1.8} className="text-verde-600" />
             {place.payments.map((c) => (
               <span
                 key={c}
                 className={cn(
-                  "px-[5px] py-[1px] rounded-sm font-mono text-[10px] font-medium tracking-[0.02em]",
-                  currencyStyles[c] ?? "bg-muted text-muted-foreground",
+                  "px-[6px] py-[2px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.08em]",
+                  currencyStyles[c] ?? "bg-sand-deep text-ink-soft/75",
                 )}
               >
                 {currencyLabel(c)}
               </span>
             ))}
           </div>
-          <span className="text-border">|</span>
-          <div className="flex items-center gap-gap-xs text-meta text-muted-foreground">
-            <Utensils size={14} strokeWidth={2} className="text-accent" />
-            <span className="font-medium text-foreground">{place.category}</span>
+          <span className="text-ink/10">|</span>
+          <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
+            <Utensils size={14} strokeWidth={1.8} className="text-verde-600" />
+            <span className="font-lv-display font-medium text-ink">{place.category}</span>
           </div>
         </Reveal>
 
@@ -215,35 +240,7 @@ export function PlaceDetail({
           <Reveal className="sticky top-[calc(var(--header-h)+var(--gap-lg))] flex flex-col gap-gap-md">
             <ActionButtons isSaved={saved} onSave={handleSave} onNavigate={onNavigate} />
 
-            {/* AI Recommendation */}
-            <div className="bg-gradient-to-br from-accent/[0.06] to-accent/[0.02] border border-accent/15 rounded-lv-lg p-gap-lg">
-              <div className="flex items-center gap-gap-sm mb-gap-sm">
-                <div className="size-9 rounded-lv bg-accent grid place-items-center shrink-0">
-                  <Layers size={18} strokeWidth={2} className="text-white" />
-                </div>
-                <div>
-                  <div className="font-display text-small font-bold text-foreground">
-                    Por qué La Verde te lo recomienda
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Basado en tu búsqueda y ubicación
-                  </div>
-                </div>
-              </div>
-              <div className="text-small leading-relaxed text-foreground">
-                Buscaste <strong>&ldquo;{place.aiQuery}&rdquo;</strong>. {place.aiReasoning}
-              </div>
-              <div className="flex gap-[6px] flex-wrap mt-gap-sm">
-                {place.aiTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-[8px] py-[3px] rounded-full bg-white/70 border border-accent/10 font-mono text-[10px] font-medium text-accent uppercase tracking-[0.04em]"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
+            <AiCard place={place} />
 
             {/* Special Offer */}
             {showOffer && place.specialOffer && (
@@ -260,69 +257,57 @@ export function PlaceDetail({
           <div className="flex flex-col gap-gap-lg">
             {/* Description */}
             <Reveal>
-              <section className="bg-surface rounded-lv-lg border border-border p-gap-xl">
-              <h2 className="font-display text-h3 font-bold text-foreground mb-gap-sm">
-                Sobre este lugar
-              </h2>
-              <p
-                className={cn(
-                  "text-body leading-relaxed text-foreground text-pretty",
-                  !descExpanded && "line-clamp-3",
-                )}
-              >
-                {place.longDescription}
-              </p>
-              <button
-                type="button"
-                onClick={() => setDescExpanded((prev) => !prev)}
-                className="font-mono text-xs font-medium text-accent uppercase tracking-[0.04em] mt-gap-xs py-[4px] hover:text-accent-hover transition-colors"
-              >
-                {descExpanded ? "Leer menos" : "Leer más"}
-              </button>
+              <section className={CARD}>
+                <h2 className={cn(H2, "mb-gap-sm")}>Sobre este lugar</h2>
+                <p
+                  className={cn(
+                    "text-body leading-relaxed text-ink text-pretty",
+                    !descExpanded && "line-clamp-3",
+                  )}
+                >
+                  {place.longDescription}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setDescExpanded((prev) => !prev)}
+                  className={cn(LINK_BTN, "mt-gap-xs py-[4px]")}
+                >
+                  {descExpanded ? "Leer menos" : "Leer más"}
+                </button>
               </section>
             </Reveal>
 
             {/* Menu Section (grid 2 cols on desktop) */}
             <Reveal>
-              <section className="bg-surface rounded-lv-lg border border-border p-gap-xl">
-              <div className="flex items-center justify-between mb-gap-md">
-                <h2 className="font-display text-h3 font-bold text-foreground">Menú destacado</h2>
-                <button
-                  type="button"
-                  onClick={onMenuSeeAll}
-                  className="font-mono text-xs font-medium text-accent uppercase tracking-[0.04em] hover:text-accent-hover transition-colors"
-                >
-                  Ver todo
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-x-gap-lg">
-                {place.menu.map((item, i) => (
-                  <MenuItem key={i} index={i} {...item} className="border-b border-border last:border-b-0" />
-                ))}
-              </div>
+              <section className={CARD}>
+                <div className="flex items-center justify-between mb-gap-md">
+                  <h2 className={H2}>Menú destacado</h2>
+                  <button type="button" onClick={onMenuSeeAll} className={LINK_BTN}>
+                    Ver todo
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-x-gap-lg">
+                  {place.menu.map((item, i) => (
+                    <MenuItem key={i} index={i} {...item} />
+                  ))}
+                </div>
               </section>
             </Reveal>
 
             {/* Reviews (placeholder) */}
             <Reveal>
-              <section className="bg-surface rounded-lv-lg border border-border p-gap-xl">
-              <div className="flex items-center justify-between mb-gap-md">
-                <h2 className="font-display text-h3 font-bold text-foreground">Reseñas</h2>
-                <span className="font-mono text-meta text-muted-foreground">Próximamente</span>
-              </div>
-              <div className="text-center py-gap-xl px-gap-md border border-dashed border-border rounded-lv-lg">
-                <MessageSquare
-                  size={48}
-                  strokeWidth={1.5}
-                  className="mx-auto mb-gap-sm text-muted-foreground opacity-40"
-                />
-                <div className="font-display text-small font-semibold text-foreground mb-[4px]">
-                  Las reseñas llegarán pronto
+              <section className={CARD}>
+                <div className="flex items-center justify-between mb-gap-md">
+                  <h2 className={H2}>Reseñas</h2>
+                  <span className="font-lv-display text-meta text-ink-soft/75">Próximamente</span>
                 </div>
-                <div className="text-meta text-muted-foreground">
-                  Podrás calificar y dejar tu opinión tras visitar el lugar
+                <div className="border border-dashed border-ink/10 rounded-2xl">
+                  <StateView
+                    icon={MessageSquare}
+                    title="Las reseñas llegarán pronto"
+                    description="Podrás calificar y dejar tu opinión tras visitar el lugar"
+                  />
                 </div>
-              </div>
               </section>
             </Reveal>
 
@@ -341,55 +326,55 @@ export function PlaceDetail({
 
           {/* Place Info */}
           <Reveal delay={0.05}>
-            <section className="p-gap-lg px-gutter bg-surface">
-            <div className="flex items-start justify-between gap-gap-sm mb-gap-sm">
-              <h1 className="font-display text-h2 font-bold leading-tight tracking-[-0.015em] text-foreground text-balance">
-                {place.name}
-              </h1>
-              <span
-                className={cn(
-                  "shrink-0 inline-flex items-center gap-[4px] px-[10px] py-[4px] rounded-full font-mono text-xs font-medium uppercase tracking-[0.04em]",
-                  isClosed
-                    ? "bg-destructive/10 text-destructive"
-                    : "bg-lv-teal/10 text-lv-teal",
-                )}
-              >
+            <section className="p-gap-lg px-gutter bg-sand-warm">
+              <div className="flex items-start justify-between gap-gap-sm mb-gap-sm">
+                <h1 className="font-lv-display text-h2 font-bold leading-tight tracking-[-0.015em] text-ink text-balance">
+                  {place.name}
+                </h1>
                 <span
                   className={cn(
-                    "size-[6px] rounded-full",
-                    isClosed ? "bg-destructive" : "bg-lv-teal",
+                    "shrink-0 inline-flex items-center gap-[4px] px-[10px] py-[4px] rounded-full border font-lv-display text-xs font-semibold uppercase tracking-[0.06em]",
+                    isClosed
+                      ? "border-destructive/20 bg-destructive/10 text-destructive"
+                      : "border-verde-200 bg-verde-50 text-verde-600",
                   )}
-                />
-                {isClosed ? "Cerrado" : "Abierto"}
-              </span>
-            </div>
-            <div className="flex items-center gap-gap-sm flex-wrap">
-              <span className="inline-flex items-center gap-[4px] px-[10px] py-[3px] rounded-full bg-accent/10 text-accent font-mono text-xs font-medium uppercase tracking-[0.03em]">
-                <Utensils size={12} strokeWidth={2} />
-                {place.category}
-              </span>
-              {place.rating > 0 && (
-                <span className="inline-flex items-center gap-[4px] font-mono text-meta font-medium text-foreground">
-                  <Star size={14} strokeWidth={2} className="text-lv-amber" fill="currentColor" />
-                  {place.rating}
+                >
+                  <span
+                    className={cn(
+                      "size-[6px] rounded-full",
+                      isClosed ? "bg-destructive" : "bg-verde-400",
+                    )}
+                  />
+                  {isClosed ? "Cerrado" : "Abierto"}
                 </span>
-              )}
-              <span className="text-xs text-muted-foreground italic">Próximamente en La Verde</span>
-              <span className="font-mono text-meta text-muted-foreground">
-                {place.distance} · {place.barrio}
-              </span>
-            </div>
-          </section>
+              </div>
+              <div className="flex items-center gap-gap-sm flex-wrap">
+                <span className="inline-flex items-center gap-[4px] px-[10px] py-[3px] rounded-full bg-verde-50 border border-verde-200 text-verde-600 font-lv-display text-xs font-semibold uppercase tracking-[0.06em]">
+                  <Utensils size={12} strokeWidth={1.8} />
+                  {place.category}
+                </span>
+                {place.rating > 0 && (
+                  <span className="inline-flex items-center gap-[4px] font-lv-display text-meta font-semibold text-verde-600">
+                    <Star size={14} strokeWidth={1.8} fill="currentColor" />
+                    {place.rating}
+                  </span>
+                )}
+                <span className="text-meta text-ink-soft/75 italic">Próximamente en La Verde</span>
+                <span className="font-lv-display text-meta text-ink-soft/75">
+                  {place.distance} · {place.barrio}
+                </span>
+              </div>
+            </section>
           </Reveal>
 
           {/* Closed Banner */}
           {isClosed && place.closedMessage && (
             <Reveal delay={0.05}>
-              <div className="mx-gutter mb-gap-md p-gap-md bg-destructive/5 border border-destructive/15 rounded-lv-lg flex items-center gap-gap-sm">
-                <div className="size-9 rounded-lv bg-destructive/10 grid place-items-center shrink-0">
-                  <Clock size={18} strokeWidth={2} className="text-destructive" />
+              <div className="mx-gutter mb-gap-md p-gap-md bg-destructive/5 border border-destructive/15 rounded-2xl flex items-center gap-gap-sm">
+                <div className="size-9 rounded-2xl bg-destructive/10 grid place-items-center shrink-0">
+                  <Clock size={18} strokeWidth={1.8} className="text-destructive" />
                 </div>
-                <div className="text-small text-foreground leading-snug">
+                <div className="text-small text-ink leading-snug">
                   <strong>Cerrado ahora</strong> · {place.closedMessage}
                 </div>
               </div>
@@ -417,38 +402,11 @@ export function PlaceDetail({
           </Reveal>
 
           {/* Divider */}
-          <div className="h-[8px] bg-background" />
+          <div className="h-[8px] bg-sand-deep" />
 
           {/* AI Recommendation */}
           <Reveal>
-            <div className="mx-gutter my-gap-md p-gap-md bg-gradient-to-br from-accent/[0.06] to-accent/[0.02] border border-accent/15 rounded-lv-lg">
-              <div className="flex items-center gap-gap-sm mb-gap-sm">
-                <div className="size-9 rounded-lv bg-accent grid place-items-center shrink-0">
-                  <Layers size={18} strokeWidth={2} className="text-white" />
-                </div>
-                <div>
-                  <div className="font-display text-small font-bold text-foreground">
-                    Por qué La Verde te lo recomienda
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Basado en tu búsqueda y ubicación
-                  </div>
-                </div>
-              </div>
-              <div className="text-small leading-relaxed text-foreground">
-                Buscaste <strong>&ldquo;{place.aiQuery}&rdquo;</strong>. {place.aiReasoning}
-              </div>
-              <div className="flex gap-[6px] flex-wrap mt-gap-sm">
-                {place.aiTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-[8px] py-[3px] rounded-full bg-white/70 border border-accent/10 font-mono text-[10px] font-medium text-accent uppercase tracking-[0.04em]"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
+            <AiCard place={place} className="mx-gutter my-gap-md" />
           </Reveal>
 
           {/* Special Offer Banner */}
@@ -465,13 +423,11 @@ export function PlaceDetail({
 
           {/* Description */}
           <Reveal>
-            <section className="p-gap-lg px-gutter bg-surface">
-              <h2 className="font-display text-h3 font-bold text-foreground mb-gap-sm">
-                Sobre este lugar
-              </h2>
+            <section className="p-gap-lg px-gutter bg-sand-warm">
+              <h2 className={cn(H2, "mb-gap-sm")}>Sobre este lugar</h2>
               <p
                 className={cn(
-                  "text-body leading-relaxed text-foreground text-pretty",
+                  "text-body leading-relaxed text-ink text-pretty",
                   !descExpanded && "line-clamp-3",
                 )}
               >
@@ -480,7 +436,7 @@ export function PlaceDetail({
               <button
                 type="button"
                 onClick={() => setDescExpanded((prev) => !prev)}
-                className="font-mono text-xs font-medium text-accent uppercase tracking-[0.04em] mt-gap-xs py-[4px] hover:text-accent-hover transition-colors"
+                className={cn(LINK_BTN, "mt-gap-xs py-[4px]")}
               >
                 {descExpanded ? "Leer menos" : "Leer más"}
               </button>
@@ -488,49 +444,39 @@ export function PlaceDetail({
           </Reveal>
 
           {/* Divider */}
-          <div className="h-[8px] bg-background" />
+          <div className="h-[8px] bg-sand-deep" />
 
           {/* Reviews (future) */}
           <Reveal>
-            <section className="p-gap-lg px-gutter bg-surface">
-            <div className="flex items-center justify-between mb-gap-md">
-              <h2 className="font-display text-h3 font-bold text-foreground">Reseñas</h2>
-              <span className="font-mono text-meta text-muted-foreground">Próximamente</span>
-            </div>
-            <div className="text-center py-gap-xl px-gap-md border border-dashed border-border rounded-lv-lg">
-              <MessageSquare
-                size={48}
-                strokeWidth={1.5}
-                className="mx-auto mb-gap-sm text-muted-foreground opacity-40"
-              />
-              <div className="font-display text-small font-semibold text-foreground mb-[4px]">
-                Las reseñas llegarán pronto
+            <section className="p-gap-lg px-gutter bg-sand-warm">
+              <div className="flex items-center justify-between mb-gap-md">
+                <h2 className={H2}>Reseñas</h2>
+                <span className="font-lv-display text-meta text-ink-soft/75">Próximamente</span>
               </div>
-              <div className="text-meta text-muted-foreground">
-                Podrás calificar y dejar tu opinión tras visitar el lugar
+              <div className="border border-dashed border-ink/10 rounded-2xl">
+                <StateView
+                  icon={MessageSquare}
+                  title="Las reseñas llegarán pronto"
+                  description="Podrás calificar y dejar tu opinión tras visitar el lugar"
+                />
               </div>
-            </div>
-          </section>
+            </section>
           </Reveal>
 
           {/* Mobile Menu Section */}
-          <div className="h-[8px] bg-background" />
+          <div className="h-[8px] bg-sand-deep" />
           <Reveal>
-            <section className="p-gap-lg px-gutter bg-surface">
-            <div className="flex items-center justify-between mb-gap-md">
-              <h2 className="font-display text-h3 font-bold text-foreground">Menú destacado</h2>
-              <button
-                type="button"
-                onClick={onMenuSeeAll}
-                className="font-mono text-xs font-medium text-accent uppercase tracking-[0.04em]"
-              >
-                Ver todo
-              </button>
-            </div>
-            {place.menu.map((item, i) => (
-              <MenuItem key={i} index={i} {...item} />
-            ))}
-          </section>
+            <section className="p-gap-lg px-gutter bg-sand-warm">
+              <div className="flex items-center justify-between mb-gap-md">
+                <h2 className={H2}>Menú destacado</h2>
+                <button type="button" onClick={onMenuSeeAll} className={LINK_BTN}>
+                  Ver todo
+                </button>
+              </div>
+              {place.menu.map((item, i) => (
+                <MenuItem key={i} index={i} {...item} />
+              ))}
+            </section>
           </Reveal>
 
           {footerSlot}
@@ -538,7 +484,48 @@ export function PlaceDetail({
       </div>
 
       {/* Bottom safe area */}
-      <div className="pb-safe-bottom bg-surface" />
+      <div className="pb-safe-bottom bg-sand" />
+    </div>
+  );
+}
+
+/* La recomendación de la IA sale en el escritorio (columna lateral) y en móvil
+   (a lo ancho). El marcado era idéntico en los dos sitios; solo cambiaban los
+   márgenes, que entran por `className`. */
+function AiCard({ place, className }: { place: PlaceData; className?: string }) {
+  return (
+    <div
+      className={cn(
+        "p-gap-md bg-verde-50 border border-verde-200 rounded-2xl",
+        className,
+      )}
+    >
+      <div className="flex items-center gap-gap-sm mb-gap-sm">
+        <div className="size-9 rounded-2xl bg-gradient-to-br from-verde-400 to-verde-600 grid place-items-center shrink-0">
+          <Layers size={18} strokeWidth={1.8} className="text-white" />
+        </div>
+        <div>
+          <div className="font-lv-display text-small font-bold text-ink">
+            Por qué La Verde te lo recomienda
+          </div>
+          <div className="text-meta text-ink-soft/75">
+            Basado en tu búsqueda y ubicación
+          </div>
+        </div>
+      </div>
+      <div className="text-small leading-relaxed text-ink">
+        Buscaste <strong>&ldquo;{place.aiQuery}&rdquo;</strong>. {place.aiReasoning}
+      </div>
+      <div className="flex gap-[6px] flex-wrap mt-gap-sm">
+        {place.aiTags.map((tag) => (
+          <span
+            key={tag}
+            className="px-[8px] py-[3px] rounded-full bg-white border border-verde-200 font-lv-display text-[10px] font-semibold text-verde-600 uppercase tracking-[0.08em]"
+          >
+            {tag}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

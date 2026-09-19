@@ -1,7 +1,7 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { streamText, type ModelMessage } from "ai";
 import { AI_CONFIG } from "@/config/site";
-import { resolveProviders, resolveProvider } from "./providers-store";
+import { resolveProviders } from "./providers-store";
 
 export interface ResolvedProvider {
   apiKey: string;
@@ -14,6 +14,13 @@ export interface ResolvedProvider {
 function baseUrl(provider: ResolvedProvider): string {
   return (provider.baseURL || "https://api.openai.com/v1").replace(/\/+$/, "");
 }
+
+/* Tope por proveedor. Sin él, un proveedor que se cuelga bloquea la cadena
+   entera hasta que el navegador corta a los 28 s, aunque el siguiente tuviera
+   la respuesta en un segundo. Gemini desde Cuba tarda entre 1 s y 32 s según
+   el momento, así que el tope tiene que ser holgado pero dejar sitio al
+   failover: 12 s deja el peor caso realista por debajo del corte del cliente. */
+const PROVIDER_TIMEOUT_MS = 12_000;
 
 function stripJson(text: string): string {
   const cleaned = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
@@ -47,6 +54,7 @@ async function callProviderJSON<T>(
             responseMimeType: "application/json",
           },
         }),
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       },
     );
     if (!response.ok) {
@@ -77,6 +85,7 @@ async function callProviderJSON<T>(
       max_tokens: maxTokens,
       response_format: { type: "json_object" },
     }),
+    signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
@@ -182,6 +191,10 @@ Reglas:
 - Cada "reason" es breve (1 frase, español cubano natural).
 - "summary" es un párrafo corto y amable (2-3 frases, español cubano) que resuma lo que se encontró para el usuario.
 - Considera: monedas (USD Clásica, CUP, USD, EUR), categoría, horarios, barrio/ciudad, y la descripción.
+- Los pagos del catálogo vienen en código, no con su nombre largo: MLC = USD Clásica,
+  CUP = peso cubano, USD = dólar, EUR = euro, TRANSFER = transferencia. Un lugar con
+  "MLC" SÍ cumple la condición "acepta USD Clásica"; sin esta equivalencia devolvías
+  cero resultados a la consulta de ejemplo del propio buscador.
 - Si ningún lugar encaja, devuelve "matches" vacío y un "summary" que lo explique amablemente.`;
 
 export async function recommendPlaces(
@@ -195,27 +208,6 @@ export async function recommendPlaces(
     maxTokens: 700,
     temperature: 0.3,
   });
-}
-
-export async function generateEmbedding(text: string): Promise<number[]> {
-  const provider = resolveProvider();
-  if (provider.vendor === "gemini") {
-    throw new Error("Gemini no ofrece embeddings compatibles en esta capa.");
-  }
-  const response = await fetch(`${baseUrl(provider)}/embeddings`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${provider.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "text-embedding-3-small",
-      input: text,
-    }),
-  });
-
-  const data = (await response.json()) as { data: { embedding: number[] }[] };
-  return data.data[0]!.embedding;
 }
 
 export async function parseNaturalLanguageQuery(

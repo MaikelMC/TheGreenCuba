@@ -4,6 +4,7 @@ import { memo, useCallback } from "react";
 import { Marker, Popup } from "react-leaflet";
 import { PlacePopup, getPlacePopupOptions } from "./PlacePopup";
 import { createPlacePinIcon, type PlacePinVariant } from "./pin-icon";
+import { placeIcon } from "@/lib/places";
 import type { MapPlace } from "./types";
 
 interface MapMarkersProps {
@@ -32,7 +33,10 @@ const MarkerItem = memo(function MarkerItem({
   onSelect?: (place: MapPlace) => void;
   onRoute?: (place: MapPlace) => void;
 }) {
-  const icon = createPlacePinIcon(markerVariant(isSelected, isBoosted));
+  const icon = createPlacePinIcon(
+    markerVariant(isSelected, isBoosted),
+    placeIcon(place.icon, place.category),
+  );
 
   const handleClick = useCallback(() => {
     onSelect?.(place);

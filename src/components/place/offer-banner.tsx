@@ -27,17 +27,17 @@ export function OfferBanner({
       viewport={{ once: true, margin: "-32px" }}
       transition={{ type: "spring", stiffness: 320, damping: 28 }}
       className={cn(
-        "mx-gap-md mb-gap-md p-gap-md bg-gradient-to-br from-lv-amber/10 to-lv-amber/5 border border-lv-amber/20 rounded-lv-lg",
+        "mx-gap-md mb-gap-md p-gap-md bg-verde-50 border border-verde-200 rounded-2xl",
         className,
       )}
     >
-      <div className="font-mono text-xs font-medium uppercase tracking-[0.06em] text-lv-amber mb-[6px]">
+      <div className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600 mb-[6px]">
         {label}
       </div>
-      <div className="font-display text-small font-semibold text-foreground leading-snug">
+      <div className="font-lv-display text-small font-semibold text-ink leading-snug">
         {text}
       </div>
-      <div className="text-xs text-muted-foreground mt-[6px]">{expiry}</div>
+      <div className="text-meta text-ink-soft/75 mt-[6px]">{expiry}</div>
     </motion.div>
   );
 }

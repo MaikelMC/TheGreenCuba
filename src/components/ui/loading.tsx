@@ -15,7 +15,8 @@ export interface SpinnerProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 /**
  * El spinner circular que ya se repetía en el mapa y los buscadores.
- * Por defecto hereda el color de acento; pasa `className` para otro color.
+ * Por defecto hereda el color de acción del sistema (`verde-400`); pasa
+ * `className` para otro color.
  */
 const Spinner = React.forwardRef<HTMLSpanElement, SpinnerProps>(
   ({ className, size = "md", ...props }, ref) => (
@@ -24,7 +25,7 @@ const Spinner = React.forwardRef<HTMLSpanElement, SpinnerProps>(
       role="status"
       aria-label="Cargando"
       className={cn(
-        "inline-block shrink-0 animate-spin rounded-full border-2 border-accent border-t-transparent",
+        "inline-block shrink-0 animate-spin rounded-full border-2 border-verde-400 border-t-transparent",
         SPINNER_SIZES[size],
         className,
       )}
@@ -40,7 +41,7 @@ const Skeleton = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEl
     <div
       ref={ref}
       aria-hidden
-      className={cn("animate-pulse rounded-lv bg-muted", className)}
+      className={cn("animate-pulse rounded-2xl bg-sand-deep", className)}
       {...props}
     />
   ),
@@ -67,7 +68,9 @@ const LoadingState = React.forwardRef<HTMLDivElement, LoadingStateProps>(
       {...props}
     >
       <Spinner size={size} />
-      {label ? <span className="text-meta text-muted-foreground">{label}</span> : null}
+      {label ? (
+        <span className="font-lv-display text-meta text-ink-soft/75">{label}</span>
+      ) : null}
     </div>
   ),
 );

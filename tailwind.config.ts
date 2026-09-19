@@ -206,11 +206,29 @@ const config: Config = {
       },
       padding: {
         "safe-bottom": "env(safe-area-inset-bottom, 0px)",
+        /* Hueco de abajo para las pantallas con el dock: el perfil y los dos
+           paneles. Antes esto era `nav-clear`, el alto de una barra pegada al
+           borde inferior que ya no pinta ninguna pantalla; el dock flota, así
+           que el hueco se mide desde el borde. Sin el inset del indicador de
+           inicio, en iOS el último elemento queda debajo.
+           6.5rem = 12 px de separación + 64 px de pastilla + 28 px de aire. */
+        "dock-clear": "calc(6.5rem + env(safe-area-inset-bottom, 0px))",
       },
       zIndex: {
         "200": "200",
         "250": "250",
         "300": "300",
+      },
+      /* Separación por encima de una barra inferior fija, para los avisos
+         flotantes. Con un valor fijo el aviso se posa sobre la barra en iOS,
+         donde el inset del indicador de inicio añade ~34 px. */
+      inset: {
+        /* Separación por encima del dock, para los avisos flotantes. En iOS el
+           inset del indicador de inicio añade ~34 px, así que el valor va
+           sumado y no fijo. */
+        "above-nav": "calc(5rem + env(safe-area-inset-bottom, 0px))",
+        /* Separación del dock flotante con el borde de abajo. */
+        "dock-bottom": "calc(1rem + env(safe-area-inset-bottom, 0px))",
       },
       height: {
         header: "60px",

@@ -24,8 +24,11 @@ export function Footer() {
             </div>
             <div>
               <h4 className="font-lv-display text-[14px] font-semibold text-white mb-gap-sm">Legal</h4>
-              <a href="#" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Privacidad</a>
-              <a href="#" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Términos</a>
+              {/* Antes los dos apuntaban a `#`, o sea a ninguna parte. Ahora
+                  llevan a la página de verdad, que es una sola con la
+                  privacidad anclada dentro. */}
+              <a href="/terminos#privacidad" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Privacidad</a>
+              <a href="/terminos" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Términos</a>
             </div>
             {/* Bloque «Creado por» del sitio de La Verde. */}
             <div>

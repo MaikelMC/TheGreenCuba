@@ -90,3 +90,17 @@ export function writeUserPreferences(prefs: UserPreferences): void {
     // localStorage unavailable (privacy mode / SSR) — ignore
   }
 }
+
+/**
+ * Borra las preferencias de este navegador. Lo usa «borrar mi cuenta», que no
+ * tiene nada más que borrar: las cuentas demo salen de `.env`, no de una base
+ * de datos.
+ */
+export function clearUserPreferences(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Nada que hacer: si no se puede borrar, tampoco se pudo escribir.
+  }
+}

@@ -10,7 +10,7 @@ export default function RootError({
   reset: () => void;
 }) {
   return (
-    <div className="grid min-h-screen min-h-dvh place-items-center bg-background px-gutter">
+    <div className="grid min-h-screen min-h-dvh place-items-center bg-sand font-lv text-ink px-gutter">
       <ErrorState error={error} reset={reset} />
     </div>
   );

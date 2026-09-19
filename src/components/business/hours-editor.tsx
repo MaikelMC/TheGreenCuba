@@ -26,6 +26,13 @@ const DEFAULT_HOURS: DayHours[] = [
   { day: "Dom", open: "Cerrado", close: "", isClosed: true },
 ];
 
+/* `min-w-0` es obligatorio aquí. Un `<input>` es un elemento de reemplazo, así
+   que como ítem de flex tiene `min-width: auto` y no baja de su ancho
+   intrínseco (unos 177 px por defecto). Con dos campos por fila la fila pedía
+   más de 400 px y en móvil se salía de la tarjeta. */
+const FIELD =
+  "flex-1 min-w-0 h-11 px-2 sm:px-gap-sm border rounded-xl font-lv-display text-small text-center bg-white text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
+
 export function HoursEditor({
   hours = DEFAULT_HOURS,
   onChange,
@@ -70,8 +77,8 @@ export function HoursEditor({
   return (
     <div className={cn("flex flex-col gap-gap-xs", className)}>
       {items.map((item, i) => (
-        <div key={item.day} className="flex items-center gap-gap-sm py-gap-xs">
-          <span className="w-[40px] font-mono text-xs font-medium text-muted-foreground uppercase shrink-0">
+        <div key={item.day} className="flex items-center gap-2 sm:gap-gap-sm py-gap-xs">
+          <span className="w-[34px] sm:w-[40px] font-lv-display text-meta font-semibold text-ink-soft/75 uppercase shrink-0">
             {item.day}
           </span>
 
@@ -82,22 +89,27 @@ export function HoursEditor({
             onClick={() => item.isClosed && toggleClosed(i)}
             readOnly={item.isClosed}
             className={cn(
-              "flex-1 h-10 px-gap-sm border border-border rounded-sm font-mono text-small text-center bg-surface outline-none transition-colors duration-fast focus:border-accent",
-              item.isClosed && "bg-muted text-muted-foreground cursor-pointer",
+              FIELD,
+              item.isClosed
+                ? "border-ink/5 bg-sand text-ink-soft/75 cursor-pointer"
+                : "border-ink/10",
             )}
             aria-label={`Apertura ${item.day}`}
           />
 
-          <span className="font-mono text-xs text-muted-foreground">—</span>
+          <span className="font-lv-display text-meta text-ink-soft/75">—</span>
 
           <input
             type="text"
             value={item.close}
             onChange={(e) => update(i, "close", e.target.value)}
+            onClick={() => item.isClosed && toggleClosed(i)}
             readOnly={item.isClosed}
             className={cn(
-              "flex-1 h-10 px-gap-sm border border-border rounded-sm font-mono text-small text-center bg-surface outline-none transition-colors duration-fast focus:border-accent",
-              item.isClosed && "bg-muted text-muted-foreground cursor-pointer",
+              FIELD,
+              item.isClosed
+                ? "border-ink/5 bg-sand text-ink-soft/75 cursor-pointer"
+                : "border-ink/10",
             )}
             aria-label={`Cierre ${item.day}`}
           />

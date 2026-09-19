@@ -12,7 +12,7 @@ function makeId(): string {
 }
 
 export async function GET(req: NextRequest) {
-  if (!isAdminRequest(req)) {
+  if (!(await isAdminRequest(req))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
   const providers = readProviders().map((p) => ({
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!isAdminRequest(req)) {
+  if (!(await isAdminRequest(req))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
   try {

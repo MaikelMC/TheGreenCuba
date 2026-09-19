@@ -21,16 +21,22 @@ interface MenuItemEditorProps {
 }
 
 const DEFAULT_ITEMS: MenuItemData[] = [
-  { id: "1", name: "Ropa Vieja de Res", description: "Carne deshilachada con sofrito cubano, arroz y plátanos", price: "12", currency: "MLC", tag: "Popular", gradient: "linear-gradient(135deg, oklch(75% 0.15 75 / 0.1), oklch(60% 0.20 25 / 0.06))" },
-  { id: "2", name: "Lechón Asado", description: "Cerdo asado lentamente con mojo criollo, yuca y ensalada", price: "15", currency: "MLC", gradient: "linear-gradient(135deg, oklch(62% 0.16 145 / 0.08), oklch(70% 0.12 175 / 0.06))" },
-  { id: "3", name: "Mojito de la Casa", description: "Ron fresco, hierbabuena, lima y soda. Receta de la casa.", price: "5", currency: "MLC", tag: "2x1", gradient: "linear-gradient(135deg, oklch(62% 0.14 250 / 0.08), oklch(62% 0.16 145 / 0.05))" },
+  { id: "1", name: "Ropa Vieja de Res", description: "Carne deshilachada con sofrito cubano, arroz y plátanos", price: "12", currency: "MLC", tag: "Popular", gradient: "linear-gradient(135deg, #EAF7EF, #CEEEDB)" },
+  { id: "2", name: "Lechón Asado", description: "Cerdo asado lentamente con mojo criollo, yuca y ensalada", price: "15", currency: "MLC", gradient: "linear-gradient(135deg, #CEEEDB, #EAF7EF)" },
+  { id: "3", name: "Mojito de la Casa", description: "Ron fresco, hierbabuena, lima y soda. Receta de la casa.", price: "5", currency: "MLC", tag: "2x1", gradient: "linear-gradient(135deg, #F6F3EC, #EAE4D6)" },
 ];
 
+/* Mismo mapa de etiquetas que usa la tarjeta de lugar del home: el distintivo
+   verde para lo destacado, arena para el resto. Antes eran ámbar y rojo, que no
+   existen en el sistema. */
 const TAG_STYLES: Record<string, string> = {
-  Popular: "bg-lv-amber/10 text-lv-amber",
-  Nuevo: "bg-accent/10 text-accent",
-  "2x1": "bg-destructive/10 text-destructive",
+  Popular: "bg-verde-100 text-verde-700",
+  Nuevo: "bg-verde-50 text-verde-600",
+  "2x1": "bg-sand-deep text-ink-soft/75",
 };
+
+const INPUT =
+  "px-gap-sm border rounded-xl font-lv text-small bg-white text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 
 export function MenuItemEditor({
   items = DEFAULT_ITEMS,
@@ -83,13 +89,13 @@ export function MenuItemEditor({
       {menuItems.map((item) => (
         <div
           key={item.id}
-          className="flex gap-gap-sm items-start py-gap-sm border-b border-border last:border-b-0"
+          className="flex gap-gap-sm items-start py-gap-sm border-b border-ink/5 last:border-b-0"
         >
           <div
-            className="size-16 rounded-lv border-2 border-dashed border-border flex items-center justify-center shrink-0 cursor-pointer hover:border-accent hover:text-accent transition-colors"
-            style={item.gradient ? { background: item.gradient, borderStyle: "solid", borderColor: "var(--border)" } : undefined}
+            className="size-14 sm:size-16 rounded-2xl border border-ink/5 flex items-center justify-center shrink-0 cursor-pointer text-verde-400 transition-colors duration-500 ease-outquint"
+            style={item.gradient ? { background: item.gradient } : undefined}
           >
-            <Image size={20} strokeWidth={1.5} />
+            <Image size={20} strokeWidth={1.8} />
           </div>
 
           <div className="flex-1 flex flex-col gap-gap-xs min-w-0">
@@ -98,27 +104,32 @@ export function MenuItemEditor({
               value={item.name}
               onChange={(e) => update(item.id, "name", e.target.value)}
               placeholder="Nombre del plato"
-              className="h-9 px-gap-sm border border-border rounded-sm font-body text-small font-semibold bg-surface outline-none focus:border-accent transition-colors w-full"
+              className={cn(INPUT, "h-10 border-ink/10 font-semibold w-full")}
             />
             <input
               type="text"
               value={item.description}
               onChange={(e) => update(item.id, "description", e.target.value)}
               placeholder="Descripción breve"
-              className="h-9 px-gap-sm border border-border rounded-sm font-body text-meta text-muted-foreground bg-surface outline-none focus:border-accent transition-colors w-full"
+              className={cn(INPUT, "h-10 border-ink/10 text-meta text-ink-soft/75 w-full")}
             />
-            <div className="flex gap-gap-xs items-center">
+            {/* `min-w-0` en el precio y en el select: sin él los dos se niegan a
+                bajar de su ancho intrínseco y la fila se sale de la tarjeta en
+                móvil. Con `flex-wrap` la etiqueta cae a la línea de abajo
+                cuando no cabe, en vez de empujar. */}
+            <div className="flex flex-wrap gap-gap-xs items-center">
               <input
                 type="text"
                 value={item.price}
                 onChange={(e) => update(item.id, "price", e.target.value)}
                 placeholder="0"
-                className="w-[80px] h-9 px-gap-sm border border-border rounded-sm font-mono text-small bg-surface outline-none focus:border-accent transition-colors"
+                className={cn(INPUT, "w-[64px] sm:w-[80px] min-w-0 h-10 border-ink/10 font-lv-display")}
               />
               <select
                 value={item.currency}
                 onChange={(e) => update(item.id, "currency", e.target.value)}
-                className="h-9 px-gap-sm border border-border rounded-sm font-mono text-xs bg-surface text-foreground cursor-pointer outline-none focus:border-accent"
+                className={cn(INPUT, "min-w-0 h-10 border-ink/10 font-lv-display text-meta cursor-pointer")}
+                aria-label="Moneda del plato"
               >
                 <option value="MLC">USD Clásica</option>
                 <option value="CUP">CUP</option>
@@ -127,8 +138,8 @@ export function MenuItemEditor({
               {item.tag && (
                 <span
                   className={cn(
-                    "px-[8px] py-[2px] rounded-full font-mono text-[10px] uppercase tracking-[0.03em]",
-                    TAG_STYLES[item.tag] ?? "bg-muted text-muted-foreground",
+                    "px-[10px] py-[3px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em]",
+                    TAG_STYLES[item.tag] ?? "bg-sand text-ink-soft/75",
                   )}
                 >
                   {item.tag}
@@ -140,10 +151,10 @@ export function MenuItemEditor({
           <button
             type="button"
             onClick={() => remove(item.id)}
-            className="size-9 rounded-full border border-border grid place-items-center text-muted-foreground shrink-0 hover:border-destructive hover:text-destructive hover:bg-destructive/5 transition-all duration-fast"
+            className="size-9 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 shrink-0 hover:border-destructive/30 hover:text-destructive hover:bg-destructive/10 transition-all duration-500 ease-outquint"
             aria-label="Eliminar item"
           >
-            <X size={16} strokeWidth={2} />
+            <X size={16} strokeWidth={1.8} />
           </button>
         </div>
       ))}
@@ -151,9 +162,9 @@ export function MenuItemEditor({
       <button
         type="button"
         onClick={add}
-        className="flex items-center justify-center gap-gap-xs py-gap-sm border-2 border-dashed border-border rounded-lv text-muted-foreground font-body text-small font-medium cursor-pointer hover:border-accent hover:text-accent hover:bg-accent/10 transition-all duration-fast w-full mt-gap-xs"
+        className="flex items-center justify-center gap-gap-xs py-gap-sm border border-dashed border-ink/10 rounded-2xl text-ink-soft/75 font-lv-display text-small font-medium cursor-pointer hover:border-verde-300 hover:text-verde-600 hover:bg-verde-50 transition-all duration-500 ease-outquint w-full mt-gap-xs"
       >
-        <Plus size={18} strokeWidth={1.5} />
+        <Plus size={18} strokeWidth={1.8} />
         Añadir plato o servicio
       </button>
     </div>

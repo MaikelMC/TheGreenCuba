@@ -4,7 +4,6 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { MapPin, ArrowLeft } from "lucide-react";
 import { StateView } from "@/components/ui/state-view";
-import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading";
 import {
   PlaceDetail,
@@ -14,13 +13,16 @@ import {
 import { usePlaces } from "@/providers/places-provider";
 import type { UserPlace } from "@/lib/places-store";
 
+/* Mismo par de degradados claros que usa el editor de fotos del panel de
+   negocio. Los anteriores eran verdes oscuros y el rótulo del carrusel —que va
+   en `verde-600`— no se leía encima. */
 const FALLBACK_SLIDES = [
   {
-    gradient: "linear-gradient(160deg, oklch(45% 0.08 145), oklch(35% 0.06 145))",
+    gradient: "linear-gradient(160deg, #EAF7EF, #CEEEDB)",
     label: "El lugar",
   },
   {
-    gradient: "linear-gradient(160deg, oklch(50% 0.06 85), oklch(40% 0.05 85))",
+    gradient: "linear-gradient(160deg, #F6F3EC, #EAE4D6)",
     label: "Ambiente",
   },
 ];
@@ -101,18 +103,19 @@ export default function PlacePage() {
 
   if (!place) {
     return (
-      <div className="grid min-h-screen min-h-dvh place-items-center bg-background px-gutter">
+      <div className="grid min-h-screen min-h-dvh place-items-center bg-sand font-lv text-ink px-gutter">
         <StateView
           icon={MapPin}
           title="Lugar no encontrado"
           description="Este lugar no está en La Verde o fue eliminado."
           actions={
-            <Button asChild className="gap-2">
-              <Link href="/home">
-                <ArrowLeft size={16} strokeWidth={2} />
-                Volver al mapa
-              </Link>
-            </Button>
+            <Link
+              href="/home"
+              className="inline-flex items-center gap-[6px] h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98]"
+            >
+              <ArrowLeft size={16} strokeWidth={1.8} />
+              Volver al mapa
+            </Link>
           }
         />
       </div>
