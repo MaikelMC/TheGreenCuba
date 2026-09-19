@@ -9,6 +9,9 @@ export const categories = pgTable(
     slug: text("slug").notNull().unique(),
     description: text("description"),
     icon: text("icon"),
+    /** Emoji de la categoría. El catálogo del cliente lo usa en las tarjetas
+        donde no cabe un icono de Lucide. */
+    emoji: text("emoji"),
     sortOrder: integer("sort_order").default(0).notNull(),
   },
   (table) => ({

@@ -6,6 +6,13 @@ export const siteConfig = {
   ogImage: "/og.png",
   links: {
     twitter: "https://twitter.com/laverde",
+    /* Marcadores. Son las cuentas que enseña «Configuración» en el perfil y hay
+       que sustituirlas por las de verdad: mientras tanto llevan a la portada de
+       cada red, que es honesto pero no sirve de mucho. Se cambian aquí y solo
+       aquí. */
+    instagram: "https://www.instagram.com/laverde",
+    facebook: "https://www.facebook.com/laverde",
+    whatsapp: "https://wa.me/",
   },
   mainNav: [
     { title: "Explorar", href: "/home" },

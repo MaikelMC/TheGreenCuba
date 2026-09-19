@@ -1,0 +1,24 @@
+-- pgvector. Esto es lo ÚNICO que hay que correr a mano.
+--
+-- drizzle-kit no crea extensiones, así que `npm run db:push` falla al intentar
+-- crear la columna `vector(1024)` si la extensión no existe todavía. El orden
+-- de arranque con la base vacía es:
+--
+--   psql "$DATABASE_URL" -f src/lib/db/migrations/20241201_create_embeddings.sql
+--   npm run db:push
+--   npm run db:seed
+--
+-- Todo lo demás —la columna `embedding` y el índice HNSW con su clase de
+-- operadores— lo declara el esquema en src/lib/db/schema/places.ts, que es la
+-- única fuente de verdad.
+--
+-- Este archivo hacía antes el `ALTER TABLE ... ADD COLUMN` y el `CREATE INDEX`
+-- por su cuenta. Con la base vacía ese `ALTER TABLE` fallaba, porque `places`
+-- todavía no existía; y cuando sí existía dejaba dos índices sobre la misma
+-- columna, uno llamado `places_embedding_hnsw_idx` y parcial, y otro llamado
+-- `places_embedding_idx` y completo, porque el esquema declaraba el suyo aparte.
+--
+-- Tampoco lo va a aplicar `npm run db:migrate`: es SQL escrito a mano y no
+-- tiene el `meta/_journal.json` que drizzle-kit necesita. Se pasa con `psql`.
+
+CREATE EXTENSION IF NOT EXISTS vector;

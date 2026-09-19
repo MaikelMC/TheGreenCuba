@@ -1,82 +1,17 @@
 "use client";
 
-import {
-  Utensils,
-  Coffee,
-  Music,
-  ShoppingBag,
-  ShoppingCart,
-  Wrench,
-  MapPin,
-  Sparkles,
-  Martini,
-  Cake,
-  TreePalm,
-  Car,
-  Hotel,
-  Plane,
-  Crown,
-  Star,
-  Heart,
-  Dumbbell,
-  Scissors,
-  Brush,
-  BookOpen,
-  Gamepad2,
-  Bike,
-  Bus,
-  Store,
-  Building2,
-  GraduationCap,
-  Stethoscope,
-  Droplets,
-  Wifi,
-  type LucideIcon,
-} from "lucide-react";
+import { resolveCategoryIcon } from "@/lib/category-icons";
 
-export const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  Utensils,
-  Coffee,
-  Music,
-  ShoppingBag,
-  ShoppingCart,
-  Wrench,
-  MapPin,
-  Sparkles,
-  Martini,
-  Cake,
-  TreePalm,
-  Car,
-  Hotel,
-  Plane,
-  Crown,
-  Star,
-  Heart,
-  Dumbbell,
-  Scissors,
-  Brush,
-  BookOpen,
-  Gamepad2,
-  Bike,
-  Bus,
-  Store,
-  Building2,
-  GraduationCap,
-  Stethoscope,
-  Droplets,
-  Wifi,
-};
-
-export const CATEGORY_ICON_KEYS: string[] = Object.keys(CATEGORY_ICONS);
-
-export const DEFAULT_CATEGORY_ICON = "MapPin";
-
-export function resolveCategoryIcon(icon?: string): LucideIcon {
-  return (
-    (icon && CATEGORY_ICONS[icon]) ||
-    CATEGORY_ICONS[DEFAULT_CATEGORY_ICON]!
-  );
-}
+/* El catálogo se mudó a `src/lib/category-icons.ts` —lo usa también el panel
+   del dueño, que no es admin— y aquí se reexporta para no tocar a quien ya
+   importaba desde este archivo. Este módulo se queda con lo que sí es de
+   componente: pintar el icono. */
+export {
+  CATEGORY_ICONS,
+  CATEGORY_ICON_KEYS,
+  DEFAULT_CATEGORY_ICON,
+  resolveCategoryIcon,
+} from "@/lib/category-icons";
 
 interface CategoryIconProps {
   icon?: string;

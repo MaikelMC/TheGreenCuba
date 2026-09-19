@@ -37,7 +37,12 @@ export function CurrencyToggle({
           <span className="w-2 h-1 border-l-2 border-b-2 border-verde-950 -rotate-45 translate-y-[-1px]" />
         )}
       </span>
-      <span className="font-lv-display text-body font-semibold text-ink w-12 flex-shrink-0">{code}</span>
+      {/* Ancho fijo, no `w-12`: "TRANSFER" no cabe en 48 px y se salía encima
+          del nombre. Tiene que ser fijo y no `min-w` para que las cuatro
+          tarjetas alineen la columna de códigos. */}
+      <span className="font-lv-display text-body font-semibold text-ink w-[88px] flex-shrink-0 whitespace-nowrap">
+        {code}
+      </span>
       <span className="flex-1 text-small text-ink-soft/75">{name}</span>
     </button>
   );

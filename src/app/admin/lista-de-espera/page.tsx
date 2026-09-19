@@ -17,23 +17,22 @@ import {
   Tag,
   CalendarDays,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { StateView } from "@/components/ui/state-view";
 import { LoadingState } from "@/components/ui/loading";
-import { getAdminKey } from "@/lib/admin-auth";
+import { cn } from "@/lib/utils";
 import type { WaitlistEntry, WaitlistStatus } from "@/lib/waitlist-store";
 
-const STATUS_META: Record<
-  WaitlistStatus,
-  { label: string; variant: "info" | "warning" | "success" }
-> = {
-  nuevo: { label: "Nuevo", variant: "info" },
-  contactado: { label: "Contactado", variant: "warning" },
-  agregado: { label: "Agregado", variant: "success" },
+/* El estado no se distingue por color de marca: "Agregado" en verde, el resto
+   en arena. Antes eran lv-blue y lv-amber, que no existen en el sistema. */
+const STATUS_META: Record<WaitlistStatus, { label: string; cls: string }> = {
+  nuevo: { label: "Nuevo", cls: "bg-sand-deep text-ink-soft/75" },
+  contactado: { label: "Contactado", cls: "bg-verde-100 text-verde-700" },
+  agregado: { label: "Agregado", cls: "bg-verde-50 text-verde-600" },
 };
 
 const STATUS_ORDER: WaitlistStatus[] = ["nuevo", "contactado", "agregado"];
+
+const CARD = "bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md";
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleString("es", {
@@ -63,63 +62,70 @@ function EntryCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       layout
-      className="flex flex-col gap-gap-md rounded-lv-lg border border-border bg-surface p-gap-md"
+      className={cn(CARD, "flex flex-col gap-gap-md")}
     >
       <div className="flex items-start justify-between gap-gap-sm">
         <div className="flex items-center gap-gap-sm min-w-0">
-          <div className="size-10 shrink-0 grid place-items-center rounded-lv bg-accent/10 text-accent">
-            <Store size={18} strokeWidth={1.5} />
+          <div className="size-10 shrink-0 grid place-items-center rounded-2xl bg-verde-50 text-verde-600">
+            <Store size={18} strokeWidth={1.8} />
           </div>
           <div className="min-w-0">
-            <div className="font-display text-body font-semibold truncate">
+            <div className="font-lv-display text-body font-semibold text-ink truncate">
               {entry.businessName}
             </div>
-            <div className="text-meta text-muted-foreground">
+            <div className="text-meta text-ink-soft/75">
               {entry.category || "Sin categoria"} · {entry.city || "Cuba"}
             </div>
           </div>
         </div>
-        <Badge variant={meta.variant}>{meta.label}</Badge>
+        <span
+          className={cn(
+            "shrink-0 inline-flex items-center px-[8px] py-[3px] rounded-full font-lv-display text-[11px] font-semibold",
+            meta.cls,
+          )}
+        >
+          {meta.label}
+        </span>
       </div>
 
       {entry.address && (
-        <div className="text-small text-muted-foreground">
+        <div className="text-small text-ink-soft/75">
           {entry.address}
         </div>
       )}
 
       <div className="flex flex-wrap gap-gap-xs">
         {entry.schedule && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface border border-border px-2.5 py-1 text-small text-foreground">
-            <Clock size={13} strokeWidth={1.5} className="text-accent" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-ink/10 px-2.5 py-1 text-meta text-ink">
+            <Clock size={13} strokeWidth={1.8} className="text-verde-600" />
             {entry.schedule}
           </span>
         )}
         {entry.days && entry.days.length > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-surface border border-border px-2.5 py-1 text-small text-foreground">
-            <CalendarDays size={13} strokeWidth={1.5} className="text-accent" />
+          <span className="inline-flex items-center gap-1 rounded-full bg-white border border-ink/10 px-2.5 py-1 text-meta text-ink">
+            <CalendarDays size={13} strokeWidth={1.8} className="text-verde-600" />
             {entry.days.join(" · ")}
           </span>
         )}
         {entry.payments.map((p) => (
           <span
             key={p}
-            className="inline-flex items-center gap-1 rounded-full bg-surface border border-border px-2.5 py-1 font-mono text-[11px] font-medium text-foreground"
+            className="inline-flex items-center gap-1 rounded-full bg-verde-50 border border-verde-200 px-2.5 py-1 font-lv-display text-[11px] font-semibold text-verde-600"
           >
-            <CreditCard size={12} strokeWidth={1.5} className="text-accent" />
+            <CreditCard size={12} strokeWidth={1.8} />
             {p}
           </span>
         ))}
       </div>
 
       {entry.description && (
-        <p className="text-small text-muted-foreground leading-relaxed">
+        <p className="text-small text-ink-soft/75 leading-relaxed">
           {entry.description}
         </p>
       )}
       {entry.offer && (
-        <div className="flex items-center gap-2 rounded-lv bg-lv-amber/10 border border-lv-amber/20 px-3 py-2 text-small text-foreground">
-          <Tag size={14} strokeWidth={1.5} className="text-lv-amber shrink-0" />
+        <div className="flex items-center gap-2 rounded-2xl bg-verde-50 border border-verde-200 px-3 py-2 text-small text-ink">
+          <Tag size={14} strokeWidth={1.8} className="text-verde-600 shrink-0" />
           <span>
             <strong className="font-semibold">Oferta:</strong> {entry.offer.text}
             {entry.offer.expiry ? ` · ${entry.offer.expiry}` : ""}
@@ -127,31 +133,31 @@ function EntryCard({
         </div>
       )}
       {entry.notes && (
-        <p className="text-small text-muted-foreground leading-relaxed bg-muted rounded-lv p-gap-sm">
+        <p className="text-small text-ink-soft/75 leading-relaxed bg-sand rounded-2xl p-gap-sm">
           {entry.notes}
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-gap-sm text-small text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-gap-sm text-small text-ink-soft/75">
         <span className="inline-flex items-center gap-1.5">
-          <Phone size={14} strokeWidth={1.5} />
+          <Phone size={14} strokeWidth={1.8} />
           {entry.contactName} · {entry.phone}
         </span>
         {entry.email && (
           <span className="inline-flex items-center gap-1.5">
-            <Mail size={14} strokeWidth={1.5} />
+            <Mail size={14} strokeWidth={1.8} />
             {entry.email}
           </span>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-gap-sm border-t border-border pt-gap-sm">
-        <span className="inline-flex items-center gap-1.5 text-meta text-muted-foreground">
-          <Clock3 size={13} strokeWidth={1.5} />
+      <div className="flex flex-wrap items-center justify-between gap-gap-sm border-t border-ink/5 pt-gap-sm">
+        <span className="inline-flex items-center gap-1.5 text-meta text-ink-soft/75">
+          <Clock3 size={13} strokeWidth={1.8} />
           {formatDate(entry.createdAt)}
         </span>
         <div className="flex items-center gap-gap-sm">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-[6px]">
             {STATUS_ORDER.map((status) => (
               <motion.button
                 key={status}
@@ -159,27 +165,28 @@ function EntryCard({
                 whileTap={{ scale: 0.92 }}
                 onClick={() => onStatus(entry.id, status)}
                 disabled={entry.status === status}
+                aria-pressed={entry.status === status}
                 className={cnStatusChip(entry.status === status)}
               >
                 {STATUS_META[status].label}
               </motion.button>
             ))}
           </div>
-          <Link href="/admin/negocios/nuevo">
-            <Button size="sm" variant="outline">
-              <Plus size={14} strokeWidth={2} />
-              Agregar
-            </Button>
+          <Link
+            href="/admin/negocios/nuevo"
+            className="inline-flex items-center gap-gap-xs h-11 sm:h-9 px-gap-md rounded-full border border-ink/10 bg-white text-ink font-lv-display text-meta font-semibold hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 transition-all duration-500 ease-outquint active:scale-[0.98]"
+          >
+            <Plus size={14} strokeWidth={1.8} />
+            Agregar
           </Link>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-destructive hover:text-destructive hover:bg-destructive/5"
+          <button
+            type="button"
+            className="size-11 sm:size-9 rounded-full border border-ink/10 grid place-items-center shrink-0 text-ink-soft/75 hover:border-destructive hover:text-destructive hover:bg-destructive/5 transition-colors duration-500 ease-outquint"
             onClick={() => onDelete(entry.id)}
             aria-label={`Eliminar solicitud de ${entry.businessName}`}
           >
-            <Trash2 size={14} strokeWidth={2} />
-          </Button>
+            <Trash2 size={15} strokeWidth={1.8} />
+          </button>
         </div>
       </div>
     </motion.div>
@@ -188,10 +195,10 @@ function EntryCard({
 
 function cnStatusChip(active: boolean): string {
   return [
-    "px-2.5 py-1 rounded-full font-mono text-[11px] font-medium uppercase tracking-[0.04em] border transition-colors",
+    "px-2.5 py-1 rounded-full font-lv-display text-[11px] font-semibold uppercase tracking-[0.08em] border transition-colors duration-500 ease-outquint",
     active
-      ? "bg-accent/10 text-accent border-accent/25"
-      : "border-border text-muted-foreground hover:border-accent hover:text-accent",
+      ? "bg-verde-400 text-verde-950 border-verde-400"
+      : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
   ].join(" ");
 }
 
@@ -204,9 +211,8 @@ export default function ListaDeEsperaPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/waitlist", {
-        headers: { "x-admin-key": getAdminKey() },
-      });
+      // La sesión va en la cookie: el navegador la adjunta sola al mismo origen.
+      const res = await fetch("/api/admin/waitlist");
       if (!res.ok) {
         setError("No autorizado o error del servidor.");
         return;
@@ -231,10 +237,7 @@ export default function ListaDeEsperaPage() {
       try {
         const res = await fetch(`/api/admin/waitlist/${id}`, {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            "x-admin-key": getAdminKey(),
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status }),
         });
         if (!res.ok) throw new Error();
@@ -254,10 +257,7 @@ export default function ListaDeEsperaPage() {
         return;
       setEntries((e) => e.filter((x) => x.id !== id));
       try {
-        const res = await fetch(`/api/admin/waitlist/${id}`, {
-          method: "DELETE",
-          headers: { "x-admin-key": getAdminKey() },
-        });
+        const res = await fetch(`/api/admin/waitlist/${id}`, { method: "DELETE" });
         if (!res.ok) throw new Error();
         toast.success("Solicitud eliminada");
       } catch {
@@ -276,46 +276,44 @@ export default function ListaDeEsperaPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between gap-gap-sm mb-gap-lg">
-        <div>
-          <h1 className="font-display text-h3 font-bold text-foreground">
-            Lista de espera
-          </h1>
-          <p className="text-small text-muted-foreground mt-gap-2xs">
-            Negocios interesados en aparecer en La Verde antes del lanzamiento.
-          </p>
-        </div>
-        <Button variant="outline" onClick={load} disabled={loading}>
-          <CheckCircle2 size={16} strokeWidth={1.5} />
+      <div className="flex items-center justify-between gap-gap-sm mb-gap-md">
+        <h1 className="sr-only">Lista de espera</h1>
+        <p className="text-small text-ink-soft/75">
+          Negocios interesados en aparecer en La Verde antes del lanzamiento.
+        </p>
+        <button
+          type="button"
+          onClick={load}
+          disabled={loading}
+          className="inline-flex items-center gap-gap-xs h-10 px-gap-md rounded-full border border-ink/10 bg-white text-ink font-lv-display text-meta font-semibold hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none shrink-0"
+        >
+          <CheckCircle2 size={15} strokeWidth={1.8} />
           Actualizar
-        </Button>
+        </button>
       </div>
 
       <div className="grid grid-cols-3 gap-gap-md mb-gap-lg">
-        <div className="rounded-lv-lg border border-border bg-surface p-gap-md text-center">
-          <div className="font-display text-h3 font-bold text-foreground">
-            {counts.nuevo}
+        {(
+          [
+            ["Nuevos", counts.nuevo],
+            ["Contactados", counts.contactado],
+            ["Agregados", counts.agregado],
+          ] as const
+        ).map(([label, value]) => (
+          <div key={label} className={cn(CARD, "text-center")}>
+            <div className="font-lv-display text-h3 font-bold text-ink">{value}</div>
+            <div className="text-meta text-ink-soft/75">{label}</div>
           </div>
-          <div className="text-meta text-muted-foreground">Nuevos</div>
-        </div>
-        <div className="rounded-lv-lg border border-border bg-surface p-gap-md text-center">
-          <div className="font-display text-h3 font-bold text-foreground">
-            {counts.contactado}
-          </div>
-          <div className="text-meta text-muted-foreground">Contactados</div>
-        </div>
-        <div className="rounded-lv-lg border border-border bg-surface p-gap-md text-center">
-          <div className="font-display text-h3 font-bold text-foreground">
-            {counts.agregado}
-          </div>
-          <div className="text-meta text-muted-foreground">Agregados</div>
-        </div>
+        ))}
       </div>
 
       {loading ? (
         <LoadingState label="Cargando solicitudes…" />
       ) : error ? (
-        <div className="rounded-lv-lg bg-destructive/10 border border-destructive/25 px-3 py-[7px] text-[12px] text-destructive font-medium">
+        <div
+          role="alert"
+          className="rounded-2xl bg-destructive/10 border border-destructive/25 px-3 py-[7px] text-meta text-destructive font-medium"
+        >
           {error}
         </div>
       ) : entries.length === 0 ? (
@@ -324,7 +322,7 @@ export default function ListaDeEsperaPage() {
           icon={Store}
           title="Aún no hay solicitudes"
           description={'Cuando un negocio se registre desde la landing "Unirse a la lista", aparecerá aquí.'}
-          className="rounded-lv-lg border border-border bg-surface"
+          className="rounded-2xl border border-ink/5 bg-white shadow-soft"
         />
       ) : (
         <div className="flex flex-col gap-gap-md">

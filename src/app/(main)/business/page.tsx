@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   Image,
@@ -11,12 +11,13 @@ import {
   Tag,
   Zap,
   LogOut,
+  MapPin,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { logout } from "@/lib/logout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -25,7 +26,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { PanelShell, type PanelView } from "@/components/business/panel-shell";
+import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
+import { formatCoordinates } from "@/lib/map/coordinates";
+import { BUSINESS_CATEGORIES, placeIcon } from "@/lib/places";
+import { CategoryIcon } from "@/components/admin/category-icon";
+import { IconPicker } from "@/components/ui/icon-picker";
+import { PanelShell } from "@/components/business/panel-shell";
 import { DashboardStats } from "@/components/business/dashboard-stats";
 import { MiniChart } from "@/components/business/mini-chart";
 import { AIInsightCard } from "@/components/business/ai-insight-card";
@@ -41,15 +47,38 @@ import { SaveBar } from "@/components/business/save-bar";
 const CHART_DATA = [18, 24, 32, 28, 45, 52, 38, 42, 56, 48, 62, 55, 44, 49];
 const CHART_LABELS = ["11 jul", "18 jul", "25 jul"];
 
+/* `Input`, `Button`, `Label` y `Badge` viven en `components/ui` y siguen en el
+   sistema viejo: los usan también `/admin` y `/profile`, que van en su propia
+   fase. Aquí se reajustan desde el sitio de llamada en vez de tocar el
+   primitivo, que cambiaría esas rutas sin revisarlas. */
+const INPUT =
+  "rounded-xl border-ink/10 bg-white text-ink placeholder:text-ink-soft/75 focus-visible:border-verde-400 focus-visible:ring-offset-0 focus-visible:ring-verde-400/30";
+const BTN_PRIMARY =
+  "rounded-full bg-verde-400 text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300 duration-500 ease-outquint active:scale-[0.98]";
+const BTN_OUTLINE =
+  "rounded-full border-ink/10 bg-white text-ink hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 duration-500 ease-outquint";
+
+/**
+ * Encabezado de sección del panel. El nombre ya lo dice el botón que la abre
+ * —barra lateral en escritorio, nav inferior en móvil—, así que aquí no se
+ * repite: queda solo la línea que describe la pantalla.
+ *
+ * El `h1` sigue ahí, oculto: sin él la pantalla no tendría encabezado de nivel 1
+ * y un lector de pantalla no anunciaría dónde está el usuario.
+ */
+function ViewLead({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="mb-gap-md">
+      <h1 className="sr-only">{title}</h1>
+      <p className="text-small text-ink-soft/75">{subtitle}</p>
+    </div>
+  );
+}
+
 function DashboardView() {
   return (
     <>
-      <div className="flex items-center justify-between gap-gap-sm mb-gap-lg">
-        <div>
-          <h1 className="font-display text-h3 font-bold text-foreground">Dashboard</h1>
-          <p className="text-small text-muted-foreground mt-gap-2xs">Resumen de St. Pauli</p>
-        </div>
-      </div>
+      <ViewLead title="Dashboard" subtitle="Resumen de St. Pauli" />
 
       <DashboardStats
         stats={[
@@ -70,8 +99,8 @@ function DashboardView() {
         </div>
 
         <div>
-          <h3 className="font-display text-body font-semibold text-foreground mb-gap-sm">Actividad reciente</h3>
-          <div className="bg-surface border border-border rounded-lv-lg p-gap-sm">
+          <h3 className="font-lv-display text-body font-semibold text-ink mb-gap-sm">Actividad reciente</h3>
+          <div className="bg-white border border-ink/5 rounded-2xl p-gap-sm shadow-soft">
             <ActivityItem type="search" time="hace 12 min">
               <strong>Alguien te buscó:</strong> &ldquo;restaurante en el centro que acepte USD Clásica&rdquo;
             </ActivityItem>
@@ -94,9 +123,20 @@ function DashboardView() {
   );
 }
 
-function EditorView() {
+function EditorView({
+  location,
+  onLocationChange,
+}: {
+  location: LocationPoint | null;
+  onLocationChange: (point: LocationPoint | null) => void;
+}) {
   const [bizName, setBizName] = useState("St. Pauli Restaurant-Bar");
   const [category, setCategory] = useState("restaurante");
+  /* `null` significa «el de mi categoría». Mientras el dueño no elija, el pin
+     sigue a la categoría —cámbiala y el icono cambia con ella—; en cuanto elige
+     uno, manda su elección. Por eso el estado guarda el vacío y no una copia
+     del de la categoría, que se quedaría congelada al primer render. */
+  const [icon, setIcon] = useState<string | null>(null);
   const [description, setDescription] = useState(
     "Bar-restaurante en plena Enramadas: cocina cubana y de taberna, ambiente que va subiendo de tono a la noche.",
   );
@@ -105,20 +145,25 @@ function EditorView() {
   const [offerTitle, setOfferTitle] = useState("2x1 en mojitos todos los jueves");
   const [offerExpiry, setOfferExpiry] = useState("31 de agosto, 2026");
 
+  /* El desplegable de categoría guarda el `value` ("restaurante"); el catálogo
+     de iconos va por la etiqueta ("Restaurante"). Traducir aquí, una vez, es
+     más barato que mantener dos tablas paralelas. */
+  const categoryLabel =
+    BUSINESS_CATEGORIES.find((c) => c.value === category)?.label ?? "Otro";
+  const resolvedIcon = placeIcon(icon ?? undefined, categoryLabel);
+
   return (
     <>
-      <div className="flex items-center justify-between gap-gap-sm mb-gap-lg">
-        <div>
-          <h1 className="font-display text-h3 font-bold text-foreground">Editar ficha</h1>
-          <p className="text-small text-muted-foreground mt-gap-2xs">St. Pauli Restaurant-Bar, Enramadas, Santiago de Cuba</p>
-        </div>
-      </div>
+      <ViewLead
+        title="Editar ficha"
+        subtitle="St. Pauli Restaurant-Bar, Enramadas, Santiago de Cuba"
+      />
 
       <div className="space-y-gap-md">
         {/* Photos */}
         <FormSection
           title="Fotos del lugar"
-          icon={<Image size={18} strokeWidth={1.5} />}
+          icon={<Image size={18} strokeWidth={1.8} />}
         >
           <PhotoGrid />
         </FormSection>
@@ -126,13 +171,14 @@ function EditorView() {
         {/* Basic Info */}
         <FormSection
           title="Información básica"
-          icon={<User size={18} strokeWidth={1.5} />}
+          icon={<User size={18} strokeWidth={1.8} />}
         >
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-gap-md">
             <div className="flex flex-col gap-gap-xs">
               <Label htmlFor="bizName">Nombre del negocio</Label>
               <Input
                 id="bizName"
+                className={INPUT}
                 value={bizName}
                 onChange={(e) => setBizName(e.target.value)}
                 placeholder="Nombre que aparece en La Verde"
@@ -163,13 +209,14 @@ function EditorView() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe tu negocio para que la IA recomiende mejor..."
-                className="flex h-auto min-h-[100px] w-full rounded-lv border border-input bg-surface px-4 py-3 text-body text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-y leading-relaxed"
+                className="flex h-auto min-h-[100px] w-full rounded-xl border border-ink/10 bg-white px-4 py-3 text-body text-ink placeholder:text-ink-soft/75 outline-none focus:border-verde-400 focus:ring-2 focus:ring-verde-400/30 resize-y leading-relaxed transition-colors duration-500 ease-outquint"
               />
             </div>
             <div className="flex flex-col gap-gap-xs">
               <Label htmlFor="bizAddress">Dirección</Label>
               <Input
                 id="bizAddress"
+                className={INPUT}
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="Dirección completa"
@@ -178,20 +225,74 @@ function EditorView() {
           </div>
         </FormSection>
 
+        {/* Icono. Va pegado a la información básica porque sale de ella: la
+            categoría de arriba es la que decide el icono mientras el dueño no
+            elija uno. */}
+        <FormSection
+          title="Icono del negocio"
+          icon={<CategoryIcon icon={resolvedIcon} size={18} strokeWidth={1.8} />}
+        >
+          <p className="text-meta text-ink-soft/75 mb-gap-sm">
+            Es el dibujo que llevas en el pin del mapa, en el popup y en tu
+            tarjeta. Mientras no elijas uno llevas el de tu categoría, y si
+            cambias de categoría el icono cambia contigo.
+          </p>
+          <IconPicker
+            value={resolvedIcon}
+            onChange={setIcon}
+            label="Icono del negocio"
+            preview={bizName || "Tu negocio"}
+          />
+          {icon !== null && (
+            <button
+              type="button"
+              onClick={() => setIcon(null)}
+              className="mt-gap-sm self-start font-lv-display text-meta font-semibold text-verde-600 transition-colors duration-500 ease-outquint hover:text-verde-700 cursor-pointer"
+            >
+              Usar el de mi categoría
+            </button>
+          )}
+        </FormSection>
+
+        {/* Ubicación. Va justo debajo de la información básica porque es el
+            mismo dato: la dirección de arriba es texto, y esto es el punto.
+            La dirección solo se reescribe si la que hay está vacía o no trae
+            entre-calles: quien escribió «e/ A y B» ya fue más preciso que el
+            geocodificador y no se le pisa. */}
+        <FormSection
+          title="Ubicación en el mapa"
+          icon={<MapPin size={18} strokeWidth={1.8} />}
+        >
+          <p className="text-meta text-ink-soft/75 mb-gap-sm">
+            Busca tu dirección, elige la coincidencia y ajusta el pin. Ese punto
+            es el que ven los usuarios cuando piden cómo llegar.
+          </p>
+          <MapLocationPicker
+            value={location}
+            onChange={onLocationChange}
+            onResolved={(r) => {
+              if (!r) return;
+              setAddress((prev) =>
+                prev.trim() === "" || !/e\/|entre/i.test(prev) ? r.address : prev,
+              );
+            }}
+          />
+        </FormSection>
+
         {/* Hours + Payment — side by side on desktop */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-gap-md">
           <FormSection
             title="Horarios"
-            icon={<Clock size={18} strokeWidth={1.5} />}
+            icon={<Clock size={18} strokeWidth={1.8} />}
           >
             <HoursEditor />
           </FormSection>
 
           <FormSection
             title="Métodos de pago"
-            icon={<CreditCard size={18} strokeWidth={1.5} />}
+            icon={<CreditCard size={18} strokeWidth={1.8} />}
           >
-            <p className="text-meta text-muted-foreground mb-gap-sm">Selecciona las monedas y métodos de pago que acepta tu negocio.</p>
+            <p className="text-meta text-ink-soft/75 mb-gap-sm">Selecciona las monedas y métodos de pago que acepta tu negocio.</p>
             <PaymentChips />
           </FormSection>
         </div>
@@ -200,38 +301,26 @@ function EditorView() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-gap-md">
           <FormSection
             title="Menú / Ofertas destacadas"
-            icon={<Utensils size={18} strokeWidth={1.5} />}
+            icon={<Utensils size={18} strokeWidth={1.8} />}
           >
-            <p className="text-meta text-muted-foreground mb-gap-sm">Añade tus platos o servicios más populares. Aparecen en la ficha del lugar.</p>
+            <p className="text-meta text-ink-soft/75 mb-gap-sm">Añade tus platos o servicios más populares. Aparecen en la ficha del lugar.</p>
             <MenuItemEditor />
           </FormSection>
 
           <FormSection
             title="Oferta especial"
-            icon={<Tag size={18} strokeWidth={1.5} />}
+            icon={<Tag size={18} strokeWidth={1.8} />}
           >
-            <div className="flex items-center justify-between py-gap-sm border-b border-border gap-gap-sm">
+            <div className="flex items-center justify-between py-gap-sm border-b border-ink/5 gap-gap-sm">
               <div className="flex-1 min-w-0">
-                <div className="text-small font-medium">Oferta activa</div>
-                <div className="text-meta text-muted-foreground">Muestra un banner de oferta en tu ficha</div>
+                <div className="text-small font-medium text-ink">Oferta activa</div>
+                <div className="text-meta text-ink-soft/75">Muestra un banner de oferta en tu ficha</div>
               </div>
-              <button
-                type="button"
-                onClick={() => setOfferEnabled((prev) => !prev)}
-                role="switch"
-                aria-checked={offerEnabled}
-                className={cn(
-                  "w-[48px] h-[28px] rounded-full relative cursor-pointer border-none p-0 transition-colors duration-normal shrink-0",
-                  offerEnabled ? "bg-accent" : "bg-border",
-                )}
-              >
-                <span
-                  className={cn(
-                    "absolute top-[3px] left-[3px] size-[22px] rounded-full bg-white shadow-lv-xs transition-transform duration-normal ease-out",
-                    offerEnabled && "translate-x-5",
-                  )}
-                />
-              </button>
+              <Switch
+                checked={offerEnabled}
+                onToggle={() => setOfferEnabled((prev) => !prev)}
+                label="Oferta activa"
+              />
             </div>
             {offerEnabled && (
               <AnimatePresence initial={false}>
@@ -248,6 +337,7 @@ function EditorView() {
                       <Label htmlFor="offerTitle">Título de la oferta</Label>
                       <Input
                         id="offerTitle"
+                        className={INPUT}
                         value={offerTitle}
                         onChange={(e) => setOfferTitle(e.target.value)}
                         placeholder="Ej: 2x1 en bebidas, Almuerzo del día..."
@@ -257,6 +347,7 @@ function EditorView() {
                       <Label htmlFor="offerExpiry">Válido hasta</Label>
                       <Input
                         id="offerExpiry"
+                        className={INPUT}
                         value={offerExpiry}
                         onChange={(e) => setOfferExpiry(e.target.value)}
                         placeholder="Fecha de expiración"
@@ -272,24 +363,24 @@ function EditorView() {
         {/* Boost */}
         <FormSection
           title="Destacar en La Verde"
-          icon={<Zap size={18} strokeWidth={1.5} />}
+          icon={<Zap size={18} strokeWidth={1.8} />}
         >
-          <div className="bg-gradient-to-br from-lv-amber/10 to-lv-amber/5 border border-lv-amber/20 rounded-lv-lg p-gap-md flex flex-col gap-gap-sm">
-            <div className="font-mono text-xs text-lv-amber uppercase tracking-[0.04em] font-medium">
+          <div className="bg-verde-50 border border-verde-200 rounded-2xl p-gap-md flex flex-col gap-gap-sm">
+            <div className="font-lv-display text-[10px] font-semibold text-verde-600 uppercase tracking-[0.22em]">
               Plan Destacado
             </div>
-            <div className="font-display text-body font-semibold">
+            <div className="font-lv-display text-body font-semibold text-ink">
               Tu negocio aparece primero en búsquedas relacionadas
             </div>
-            <div className="text-small text-muted-foreground">
-              Pin amber en el mapa, prioridad en recomendaciones IA, badge &ldquo;Destacado&rdquo; en la ficha.
+            <div className="text-small text-ink-soft/75">
+              Pin verde en el mapa, prioridad en recomendaciones IA, badge &ldquo;Destacado&rdquo; en la ficha.
             </div>
             <div className="flex items-baseline gap-gap-xs mt-gap-xs">
-              <span className="font-display text-h3 font-bold text-foreground">25</span>
-              <span className="font-mono text-xs text-muted-foreground">USD / mes</span>
+              <span className="font-lv-display text-h3 font-bold text-ink">25</span>
+              <span className="font-lv-display text-meta text-ink-soft/75">USD / mes</span>
             </div>
-            <Button className="w-full mt-gap-xs">
-              <Zap size={18} strokeWidth={1.5} />
+            <Button className={cn("w-full mt-gap-xs", BTN_PRIMARY)}>
+              <Zap size={18} strokeWidth={1.8} />
               Activar destacado
             </Button>
           </div>
@@ -305,14 +396,42 @@ function EditorView() {
 function PreviewView() {
   return (
     <>
-      <div className="flex items-center justify-between gap-gap-sm mb-gap-lg">
-        <div>
-          <h1 className="font-display text-h3 font-bold text-foreground">Vista previa</h1>
-          <p className="text-small text-muted-foreground mt-gap-2xs">Así se ve tu ficha en La Verde</p>
-        </div>
-      </div>
+      <ViewLead title="Vista previa" subtitle="Así se ve tu ficha en La Verde" />
       <PreviewPanel />
     </>
+  );
+}
+
+/** Interruptor del sistema. Estaba duplicado, con las mismas clases, en el
+    bloque de oferta y en `ToggleRow`. */
+function Switch({
+  checked,
+  onToggle,
+  label,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      className={cn(
+        "w-[48px] h-[28px] rounded-full relative cursor-pointer border-none p-0 transition-colors duration-500 ease-outquint shrink-0",
+        checked ? "bg-verde-400" : "bg-ink/10",
+      )}
+    >
+      <span
+        className={cn(
+          "absolute top-[3px] left-[3px] size-[22px] rounded-full bg-white shadow-soft transition-transform duration-500 ease-outquint",
+          checked && "translate-x-5",
+        )}
+      />
+    </button>
   );
 }
 
@@ -328,67 +447,48 @@ function ToggleRow({
   onToggle: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between py-gap-sm border-b border-border last:border-b-0 gap-gap-sm">
+    <div className="flex items-center justify-between py-gap-sm border-b border-ink/5 last:border-b-0 gap-gap-sm">
       <div className="flex-1 min-w-0">
-        <div className="text-small font-medium">{label}</div>
-        <div className="text-meta text-muted-foreground">{description}</div>
+        <div className="text-small font-medium text-ink">{label}</div>
+        <div className="text-meta text-ink-soft/75">{description}</div>
       </div>
-      <button
-        type="button"
-        onClick={onToggle}
-        role="switch"
-        aria-checked={checked}
-        className={cn(
-          "w-[48px] h-[28px] rounded-full relative cursor-pointer border-none p-0 transition-colors duration-normal shrink-0",
-          checked ? "bg-accent" : "bg-border",
-        )}
-      >
-        <span
-          className={cn(
-            "absolute top-[3px] left-[3px] size-[22px] rounded-full bg-white shadow-lv-xs transition-transform duration-normal ease-out",
-            checked && "translate-x-5",
-          )}
-        />
-      </button>
+      <Switch checked={checked} onToggle={onToggle} label={label} />
     </div>
   );
 }
 
-function SettingsView() {
+function SettingsView({ location }: { location: LocationPoint | null }) {
   const [notifications, setNotifications] = useState(true);
   const [aiRecommendations, setAiRecommendations] = useState(true);
   const [showHours, setShowHours] = useState(true);
 
   return (
     <>
-      <div className="flex items-center justify-between gap-gap-sm mb-gap-lg">
-        <div>
-          <h1 className="font-display text-h3 font-bold text-foreground">Ajustes</h1>
-          <p className="text-small text-muted-foreground mt-gap-2xs">Configuración de tu negocio</p>
-        </div>
-      </div>
+      <ViewLead title="Ajustes" subtitle="Configuración de tu negocio" />
 
       <div className="flex flex-col flex-1">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-gap-md">
-          <div className="bg-surface border border-border rounded-lv-lg p-gap-md">
+          <div className="bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md">
             {[
               { label: "Nombre del negocio", description: "Aparece en La Verde y en resultados de búsqueda", value: "St. Pauli Restaurant-Bar" },
               { label: "Categoría principal", description: "Ayuda a la IA a recomendar tu negocio", value: "Restaurante" },
-              { label: "Ubicación en el mapa", description: "Coordenadas GPS del punto exacto", value: "20.021° N, 75.825° O" },
+              /* Estas coordenadas ya no están escritas a mano: son las del pin
+                 que se mueve en «Editar». Se cambian allí y aquí se leen. */
+              { label: "Ubicación en el mapa", description: "Coordenadas GPS del punto exacto", value: location ? formatCoordinates(location) : "Sin punto" },
             ].map((field) => (
-              <div key={field.label} className="flex items-center justify-between py-gap-sm border-b border-border last:border-b-0 gap-gap-sm">
+              <div key={field.label} className="flex items-center justify-between py-gap-sm border-b border-ink/5 last:border-b-0 gap-gap-sm">
                 <div className="flex-1 min-w-0">
-                  <div className="text-small font-medium">{field.label}</div>
-                  <div className="text-meta text-muted-foreground">{field.description}</div>
+                  <div className="text-small font-medium text-ink">{field.label}</div>
+                  <div className="text-meta text-ink-soft/75">{field.description}</div>
                 </div>
-                <span className="font-mono text-xs text-muted-foreground px-[10px] py-[4px] bg-muted rounded-sm shrink-0">
+                <span className="font-lv-display text-meta text-ink-soft/75 px-[10px] py-[4px] bg-sand-deep rounded-full shrink-0">
                   {field.value}
                 </span>
               </div>
             ))}
           </div>
 
-          <div className="bg-surface border border-border rounded-lv-lg p-gap-md">
+          <div className="bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md">
             <ToggleRow
               label="Notificaciones"
               description="Recibe avisos cuando alguien visita tu ficha"
@@ -409,46 +509,64 @@ function SettingsView() {
             />
           </div>
 
-          <div className="bg-surface border border-border rounded-lv-lg p-gap-md">
-            <div className="flex items-center justify-between py-gap-sm border-b border-border last:border-b-0 gap-gap-sm">
+          <div className="bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md">
+            <div className="flex items-center justify-between py-gap-sm border-b border-ink/5 last:border-b-0 gap-gap-sm">
               <div className="flex-1 min-w-0">
-                <div className="text-small font-medium">Plan actual</div>
-                <div className="text-meta text-muted-foreground">Tu nivel de servicio en La Verde</div>
+                <div className="text-small font-medium text-ink">Plan actual</div>
+                <div className="text-meta text-ink-soft/75">Tu nivel de servicio en La Verde</div>
               </div>
-              <Badge variant="accent">Básico (gratis)</Badge>
+              <span className="font-lv-display text-meta font-semibold bg-verde-50 text-verde-600 px-[10px] py-[3px] rounded-full border border-verde-200 shrink-0">
+                Básico (gratis)
+              </span>
             </div>
             <div className="flex items-center justify-between py-gap-sm gap-gap-sm">
               <div className="flex-1 min-w-0">
-                <div className="text-small font-medium">Contacto de soporte</div>
-                <div className="text-meta text-muted-foreground">Ayuda con tu cuenta o ficha</div>
+                <div className="text-small font-medium text-ink">Contacto de soporte</div>
+                <div className="text-meta text-ink-soft/75">Ayuda con tu cuenta o ficha</div>
               </div>
-              <span className="font-mono text-xs text-muted-foreground">soporte@laverde.cu</span>
+              <span className="font-lv-display text-meta text-ink-soft/75 shrink-0">soporte@laverde.cu</span>
             </div>
           </div>
         </div>
 
-        <Button variant="ghost" className="mt-auto self-start text-destructive hover:text-destructive hover:bg-destructive/10">
-          <LogOut size={18} strokeWidth={1.5} />
+        {/* Este botón no hacía nada: era un `<Button>` sin `onClick`. Ahora
+            cierra la sesión, la misma que el resto del sitio. */}
+        <button
+          type="button"
+          onClick={() => void logout()}
+          className="mt-auto self-start inline-flex items-center gap-gap-xs h-11 px-gap-lg rounded-full font-lv-display text-small font-semibold text-destructive hover:bg-destructive/10 transition-colors duration-500 ease-outquint cursor-pointer"
+        >
+          <LogOut size={18} strokeWidth={1.8} />
           Cerrar sesión
-        </Button>
+        </button>
       </div>
     </>
   );
 }
 
 export default function BusinessPage() {
+  /* El punto del negocio vive aquí y no dentro de cada vista: el mismo dato se
+     pinta en el mapa de «Editar» y en el resumen de «Ajustes», y con dos estados
+     separados las dos pantallas acababan diciendo cosas distintas del mismo
+     negocio. Sembrado con el centro de Santiago, que es dónde está el negocio de
+     ejemplo; sin siembra el mapa arrancaría sin pin. */
+  const [location, setLocation] = useState<LocationPoint | null>({
+    lat: 20.021,
+    lng: -75.825,
+  });
+
   return (
     <PanelShell>
-      {(view, setView) => {
+      {(view) => {
         switch (view) {
           case "dashboard":
             return <DashboardView />;
           case "editor":
-            return <EditorView />;
+            return <EditorView location={location} onLocationChange={setLocation} />;
           case "preview":
             return <PreviewView />;
           case "settings":
-            return <SettingsView />;
+            return <SettingsView location={location} />;
         }
       }}
     </PanelShell>

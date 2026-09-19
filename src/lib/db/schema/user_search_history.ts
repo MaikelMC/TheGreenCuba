@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { users } from "./users";
 
@@ -13,7 +13,9 @@ export const userSearchHistory = pgTable(
     type: text("type", { enum: ["natural_language", "keyword", "voice"] })
       .default("natural_language")
       .notNull(),
-    resultsCount: text("results_count"),
+    /* `integer` y no `text`: cuenta resultados, y como cadena ordena y compara
+       alfabéticamente («9» > «10»). */
+    resultsCount: integer("results_count"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({

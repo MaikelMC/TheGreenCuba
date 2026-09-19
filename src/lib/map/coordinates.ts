@@ -83,6 +83,17 @@ export function validatePlaceCoordinates(
   return { valid: true };
 }
 
+/**
+ * Coordenadas para enseñar: cuatro decimales —unos 11 m, la precisión de una
+ * puerta— y la longitud en grados Oeste, que es como se lee en Cuba.
+ *
+ * Una sola definición a propósito: el mapa de «Editar» y el resumen de
+ * «Ajustes» hablan del mismo punto y tienen que decir exactamente lo mismo.
+ */
+export function formatCoordinates({ lat, lng }: LatLng): string {
+  return `${lat.toFixed(4)}° N, ${Math.abs(lng).toFixed(4)}° O`;
+}
+
 /** Filters out places with coordinates clearly outside Cuba or in the sea. */
 export function filterValidPlaces<T extends LatLng>(places: T[]): T[] {
   return places.filter((p) => isValidCubaCoordinate(p.lat, p.lng));

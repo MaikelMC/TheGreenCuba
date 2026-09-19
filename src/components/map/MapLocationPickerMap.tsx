@@ -139,7 +139,7 @@ export function MapLocationPickerMap({
 
       {error && (
         <div className="absolute bottom-gap-sm inset-x-gap-sm z-[500] pointer-events-none">
-          <div className="px-3 py-[7px] rounded-lv-lg bg-destructive/10 border border-destructive/25 text-[12px] text-destructive font-medium">
+          <div className="rounded-xl border border-destructive/25 bg-destructive/10 px-gap-sm py-[7px] text-meta font-medium text-destructive">
             {error}
           </div>
         </div>

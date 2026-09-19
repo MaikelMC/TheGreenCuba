@@ -7,8 +7,9 @@ import {
   timestamp,
   jsonb,
   index,
+  vector,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { categories } from "./categories";
 import { users } from "./users";
 
@@ -36,7 +37,10 @@ export const places = pgTable(
     phone: text("phone"),
     website: text("website"),
     // denormalized hours JSON for quick reads
-    hoursJson: jsonb("hours_json").$type<Record<string, { open: string; close: string } | null>>(),
+    hoursJson:
+      jsonb("hours_json").$type<
+        Record<string, { open: string; close: string } | null>
+      >(),
 
     paymentMethods: text("payment_methods").array(),
     currencies: text("currencies").array(),
@@ -45,16 +49,65 @@ export const places = pgTable(
     vibe: text("vibe").array(),
     tags: text("tags").array(),
 
+    features: jsonb("features").$type<{
+      wifi?: boolean;
+      terraza?: boolean;
+      petFriendly?: boolean;
+      vegetarian?: boolean;
+      enchufes?: boolean;
+      aireAcondicionado?: boolean;
+      musica?: boolean;
+      estacionamiento?: boolean;
+      [key: string]: boolean | undefined;
+    }>(),
+
+    imageUrls: text("image_urls").array(),
+
+    /* ── Campos que la UI edita y que antes no tenían dónde ir ──
+       Sin estas columnas, el formulario del admin dejaba guardar y al recargar
+       se perdía lo escrito, porque el mapeo a la base no tenía destino. */
+
+    /** Icono Lucide del pin de ESTE negocio. Vacío = el de su categoría. */
+    icon: text("icon"),
+    /** Franja horaria tal como la escribe el dueño («De noche», «Todo el día»). */
+    schedule: text("schedule"),
+    offerText: text("offer_text"),
+    /* Texto libre, no `timestamp`: el campo es un input normal con placeholder
+       «Ej: 31 de agosto, 2026». Una fecha así no entra en un `timestamp`. */
+    offerExpiry: text("offer_expiry"),
+    /** Carta del negocio. Va en jsonb y no en `place_menu_items` porque el
+        precio es texto libre («3–5 USD») y esa tabla lo tiene como `double
+        precision`: guardarlo ahí perdería lo que el dueño escribió. */
+    menu: jsonb("menu").$type<
+      { name: string; description: string; price: string; currency: string }[]
+    >(),
+    /** Valoración media. Denormalizada a propósito: las reseñas viven en
+        `reviews`, pero el catálogo se pinta sin consultarlas. */
+    rating: doublePrecision("rating"),
+    priceLabel: text("price_label"),
+    aiTags: text("ai_tags").array(),
+
+    embedding: vector("embedding", { dimensions: 1024 }),
+
     isActive: boolean("is_active").default(true).notNull(),
     isBoosted: boolean("is_boosted").default(false).notNull(),
-    boostExpiresAt: timestamp("boost_expires_at"),
+    /* `text` y no `timestamp`: el formulario recoge el texto libre que escribe
+       el dueño («31 de agosto, 2026») y nada del código calcula con esta fecha.
+       Con `timestamp` la escritura fallaba o guardaba basura. */
+    boostExpiresAt: text("boost_expires_at"),
     status: text("status", { enum: ["active", "closed", "temporary_closed"] })
       .default("active")
       .notNull(),
 
-    createdBy: text("created_by").references(() => users.id),
+    /* `set null` y no el NO ACTION por defecto: el lugar lo creó alguien que
+       puede darse de baja, y borrar esa cuenta no debe impedir el borrado ni
+       llevarse por delante el negocio. */
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
   },
   (table) => ({
     slugIdx: index("places_slug_idx").on(table.slug),
@@ -63,6 +116,16 @@ export const places = pgTable(
     coordsIdx: index("places_coords_idx").on(table.lat, table.lng),
     activeIdx: index("places_active_idx").on(table.isActive),
     boostedIdx: index("places_boosted_idx").on(table.isBoosted),
+    /* `vector_cosine_ops` explícito y no a secas. Sin clase de operadores
+       pgvector aplica su DEFAULT para hnsw, que es `vector_l2_ops` (distancia
+       L2). El índice se crea igual, sin error, pero la búsqueda ordena por `<=>`
+       (coseno): un índice L2 no sirve para eso, Postgres lo ignora y hace un
+       seq scan. El único síntoma es lo lento que va, así que se queda puesto
+       para siempre. */
+    embeddingIdx: index("places_embedding_idx").using(
+      "hnsw",
+      sql`${table.embedding} vector_cosine_ops`,
+    ),
   }),
 );
 

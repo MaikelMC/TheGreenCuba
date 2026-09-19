@@ -7,6 +7,8 @@ export interface MapPlace {
   lat: number;
   lng: number;
   category: string;
+  /** Nombre del icono Lucide del pin. Sin él, el de la categoría. */
+  icon?: string;
   barrio?: string;
   rating?: number;
   distance?: string;

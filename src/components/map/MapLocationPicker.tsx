@@ -6,7 +6,7 @@ import { Crosshair, MapPin, Search, CheckCircle2, Loader2, CornerDownLeft } from
 import { cn } from "@/lib/utils";
 import { CUBA_AREAS } from "@/lib/map/cuba-areas";
 import { getCurrentPosition, GEO_ERROR_MESSAGES, type GeolocationErrorCode } from "@/lib/map/geolocation";
-import { validatePlaceCoordinates } from "@/lib/map/coordinates";
+import { formatCoordinates, validatePlaceCoordinates } from "@/lib/map/coordinates";
 import {
   searchAddress,
   reverseGeocode,
@@ -41,6 +41,19 @@ interface MapLocationPickerProps {
   onResolved?: (resolved: ResolvedLocation | null) => void;
   className?: string;
 }
+
+/* Clases del sistema de La Verde. El selector se monta dentro de formularios ya
+   migrados —el panel de negocio y el de administración—, así que no puede
+   seguir pintándose con el gris del sistema viejo: `bg-muted`, `border-border`
+   y `text-accent` no aparecen ya en ninguna pantalla nueva, y el bloque
+   cantaba. Los 44 px de alto tampoco son decoración: es el mínimo táctil, y
+   esto se maneja con el pulgar tanto como con el ratón. */
+const FIELD =
+  "h-11 w-full rounded-xl border border-ink/10 bg-white text-small text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/30";
+const FLOAT_BTN =
+  "absolute top-gap-sm z-[500] inline-flex items-center gap-[6px] rounded-full border border-ink/5 bg-white/95 px-gap-sm py-[7px] font-lv-display text-meta font-medium text-ink shadow-soft backdrop-blur-[12px] transition-colors duration-500 ease-outquint";
+const AREA_CHIP =
+  "rounded-full border border-ink/10 bg-white px-gap-sm py-[6px] font-lv-display text-meta font-medium text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600";
 
 function normalize(value: string): string {
   return value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -211,27 +224,28 @@ export function MapLocationPicker({
         <div className="relative">
           <Search
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            strokeWidth={1.8}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft/75"
           />
           <input
             value={addressQuery}
             onChange={(e) => handleAddressInput(e.target.value)}
             onFocus={() => setShowSuggestions(true)}
             placeholder="Busca la dirección: ej. Calle Heredia e/ San Pedro y Santo Tomás..."
-            className="w-full h-[38px] pl-9 pr-9 rounded-lv bg-muted border border-transparent text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+            className={cn(FIELD, "pl-11 pr-10")}
           />
           {searchingAddr && (
             <Loader2
-              size={14}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-accent animate-spin"
+              size={15}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-verde-600 animate-spin"
             />
           )}
         </div>
 
         {showSuggestions && addressQuery.trim().length >= 3 && (
-          <div className="absolute left-0 right-0 z-[600] mt-1 bg-surface border border-border rounded-lv-lg shadow-lv-lg overflow-hidden max-h-[240px] overflow-y-auto">
+          <div className="absolute left-0 right-0 z-[600] mt-1 max-h-[240px] overflow-y-auto rounded-2xl border border-ink/5 bg-white shadow-card">
             {suggestions.length === 0 && !searchingAddr && (
-              <div className="px-3 py-2 text-[12px] text-muted-foreground">
+              <div className="px-gap-md py-gap-sm text-meta text-ink-soft/75">
                 Sin coincidencias de calle. Escribe la dirección o toca el mapa.
               </div>
             )}
@@ -243,17 +257,21 @@ export function MapLocationPicker({
                   e.preventDefault();
                   handleSelectSuggestion(s);
                 }}
-                className="flex items-start gap-2 w-full px-3 py-2 text-left hover:bg-muted transition-colors cursor-pointer"
+                className="flex w-full cursor-pointer items-start gap-gap-xs px-gap-md py-gap-sm text-left transition-colors duration-500 ease-outquint hover:bg-sand"
               >
-                <CornerDownLeft size={13} className="text-accent mt-[2px] shrink-0" />
+                <CornerDownLeft
+                  size={13}
+                  strokeWidth={1.8}
+                  className="mt-[3px] shrink-0 text-verde-600"
+                />
                 <div className="min-w-0">
-                  <div className="text-[13px] text-foreground truncate">
+                  <div className="truncate text-small text-ink">
                     {[s.street, s.housenumber].filter(Boolean).join(" ")}
                     {s.between && (
-                      <span className="text-muted-foreground"> e/ {s.between}</span>
+                      <span className="text-ink-soft/75"> e/ {s.between}</span>
                     )}
                   </div>
-                  <div className="text-[11px] text-muted-foreground truncate">
+                  <div className="truncate text-meta text-ink-soft/75">
                     {[s.district, s.city].filter(Boolean).join(" · ") || "Cuba"}
                   </div>
                 </div>
@@ -264,7 +282,7 @@ export function MapLocationPicker({
       </div>
 
       {/* Mapa */}
-      <div className="relative h-[320px] lg:h-[380px] rounded-lv-lg overflow-hidden border border-border">
+      <div className="relative h-[320px] overflow-hidden rounded-2xl border border-ink/5 lg:h-[380px]">
         <PickerMap
           value={value}
           onPointChange={handleMapPoint}
@@ -273,9 +291,9 @@ export function MapLocationPicker({
         />
 
         {/* Hint */}
-        <div className="absolute top-gap-sm left-gap-sm z-[500] pointer-events-none max-w-[70%]">
-          <div className="inline-flex items-center gap-[6px] px-3 py-[6px] rounded-full bg-surface/95 backdrop-blur border border-border shadow-lv-sm text-[12px] font-medium text-foreground">
-            <MapPin size={14} className="text-accent shrink-0" />
+        <div className="pointer-events-none absolute left-gap-sm top-gap-sm z-[500] max-w-[70%]">
+          <div className="inline-flex items-center gap-[6px] rounded-full border border-ink/5 bg-white/95 px-gap-sm py-[6px] font-lv-display text-meta font-medium text-ink shadow-soft backdrop-blur-[12px]">
+            <MapPin size={14} strokeWidth={1.8} className="shrink-0 text-verde-600" />
             Toca el mapa para colocar el pin
           </div>
         </div>
@@ -285,16 +303,19 @@ export function MapLocationPicker({
           type="button"
           onClick={handleLocate}
           disabled={locateBusy}
-          className="absolute top-gap-sm right-gap-sm z-[500] inline-flex items-center gap-[6px] px-3 py-[7px] rounded-full bg-surface/95 backdrop-blur border border-border shadow-lv-sm text-[12px] font-medium text-foreground hover:border-accent hover:text-accent transition-all disabled:opacity-60"
+          className={cn(
+            FLOAT_BTN,
+            "right-gap-sm hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 disabled:opacity-60",
+          )}
         >
-          <Crosshair size={14} className={cn(locateBusy && "animate-spin")} />
+          <Crosshair size={14} strokeWidth={1.8} className={cn(locateBusy && "animate-spin")} />
           {locateBusy ? "Ubicando..." : "Mi ubicación"}
         </button>
       </div>
 
       {/* Locate error */}
       {locateError && (
-        <div className="px-3 py-[7px] rounded-lv-lg bg-destructive/10 border border-destructive/25 text-[12px] text-destructive font-medium">
+        <div className="rounded-xl border border-destructive/25 bg-destructive/10 px-gap-sm py-[7px] text-meta font-medium text-destructive">
           {locateError}
         </div>
       )}
@@ -302,45 +323,44 @@ export function MapLocationPicker({
       {/* Dirección detectada + coordenadas */}
       <div className="flex flex-col gap-[4px] px-1">
         {resolved?.label && (
-          <span className="text-[13px] font-medium text-foreground flex items-start gap-[6px]">
-            <MapPin size={14} className="text-accent shrink-0 mt-[1px]" />
+          <span className="flex items-start gap-[6px] text-small font-medium text-ink">
+            <MapPin size={14} strokeWidth={1.8} className="mt-[3px] shrink-0 text-verde-600" />
             <span>
               {resolved.label}
-              <span className="block text-[11px] font-normal text-muted-foreground">
+              <span className="block text-meta font-normal text-ink-soft/75">
                 {resolved.address}
               </span>
             </span>
           </span>
         )}
-        <span className="text-meta text-muted-foreground flex items-center gap-[6px]">
-          {value
-            ? `${value.lat.toFixed(4)}° N, ${Math.abs(value.lng).toFixed(4)}° O`
-            : "Sin punto seleccionado"}
+        <span className="flex items-center gap-[6px] text-meta text-ink-soft/75">
+          {value ? formatCoordinates(value) : "Sin punto seleccionado"}
           {value && (
-            <CheckCircle2 size={13} className="text-lv-teal ml-auto shrink-0" />
+            <CheckCircle2 size={13} strokeWidth={1.8} className="ml-auto shrink-0 text-verde-500" />
           )}
         </span>
       </div>
 
       {/* Zone quick-jump */}
-      <div className="bg-surface border border-border rounded-lv-lg overflow-hidden">
-        <div className="p-gap-sm border-b border-border">
+      <div className="overflow-hidden rounded-2xl border border-ink/5 bg-white">
+        <div className="border-b border-ink/5 p-gap-sm">
           <div className="relative">
             <Search
               size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              strokeWidth={1.8}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft/75"
             />
             <input
               value={areaQuery}
               onChange={(e) => setAreaQuery(e.target.value)}
               placeholder="Buscar ciudad o zona de Cuba..."
-              className="w-full h-[38px] pl-9 pr-3 rounded-lv bg-muted border border-transparent text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              className={cn(FIELD, "pl-11 pr-3.5")}
             />
           </div>
         </div>
-        <div className="flex flex-wrap gap-[6px] p-gap-sm max-h-[132px] overflow-y-auto">
+        <div className="flex max-h-[132px] flex-wrap gap-[6px] overflow-y-auto p-gap-sm">
           {filteredAreas.length === 0 && (
-            <span className="text-meta text-muted-foreground px-1">
+            <span className="px-1 text-meta text-ink-soft/75">
               No se encontraron zonas.
             </span>
           )}
@@ -349,7 +369,7 @@ export function MapLocationPicker({
               key={area.id}
               type="button"
               onClick={() => handleSelectArea(area.lat, area.lng)}
-              className="px-3 py-[6px] rounded-full border border-border text-[12px] font-medium text-foreground bg-background hover:border-accent hover:text-accent transition-all"
+              className={AREA_CHIP}
             >
               {area.name}
             </button>

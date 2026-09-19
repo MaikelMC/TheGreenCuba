@@ -12,7 +12,7 @@ export default function AdminError({
 }) {
   return (
     <ErrorState
-      className="rounded-lv-lg border border-border bg-surface"
+      className="rounded-2xl border border-ink/5 bg-white shadow-soft"
       error={error}
       reset={reset}
       title="El panel encontró un error"

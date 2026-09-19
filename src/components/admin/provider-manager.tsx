@@ -13,16 +13,12 @@ import {
   Server,
   Loader2,
 } from "lucide-react";
-import { getAdminKey } from "@/lib/admin-auth";
 import { StateView } from "@/components/ui/state-view";
 import { LoadingState } from "@/components/ui/loading";
 import type {
   AiProviderType,
   AiVendor,
 } from "@/lib/ai/providers-store";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -95,11 +91,16 @@ const PRESETS: Preset[] = [
   },
 ];
 
+const INPUT =
+  "h-11 w-full rounded-xl border border-ink/10 bg-white px-3 text-small text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
+const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
+const HINT = "text-meta text-ink-soft/75";
+const CARD = "bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md";
+
+/* Ya no se manda `x-admin-key`: la sesión viaja en la cookie, que el navegador
+   adjunta sola en las peticiones al mismo origen, y el servidor la verifica. */
 function headers(): HeadersInit {
-  return {
-    "Content-Type": "application/json",
-    "x-admin-key": getAdminKey(),
-  };
+  return { "Content-Type": "application/json" };
 }
 
 export function ProviderManager() {
@@ -263,21 +264,17 @@ export function ProviderManager() {
 
   return (
     <>
-      <div className="flex items-center justify-between gap-gap-sm mb-gap-lg">
-        <div>
-          <h1 className="font-display text-h3 font-bold text-foreground">
-            Proveedores de IA
-          </h1>
-          <p className="text-small text-muted-foreground mt-gap-2xs">
-            Claves de modelos para la búsqueda inteligente y el asistente. Se
-            guardan solo en el servidor.
-          </p>
-        </div>
+      <div className="mb-gap-md">
+        <h1 className="sr-only">Proveedores de IA</h1>
+        <p className="text-small text-ink-soft/75">
+          Claves de modelos para la búsqueda inteligente y el asistente. Se
+          guardan solo en el servidor.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-gap-md">
         {/* List */}
-        <div className="bg-surface border border-border rounded-lv-lg p-gap-md">
+        <div className={CARD}>
           {loading ? (
             <LoadingState label="Cargando proveedores…" />
           ) : providers.length === 0 ? (
@@ -296,15 +293,15 @@ export function ProviderManager() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                   layout
-                  className="py-gap-sm border-b border-border last:border-b-0"
+                  className="py-gap-sm border-b border-ink/5 last:border-b-0"
                 >
                   <div className="flex items-center gap-gap-sm">
                     <div
                       className={cn(
-                        "size-9 rounded-lv grid place-items-center shrink-0",
+                        "size-9 rounded-2xl grid place-items-center shrink-0",
                         p.enabled
-                          ? "bg-accent/10 text-accent"
-                          : "bg-muted text-muted-foreground",
+                          ? "bg-verde-50 text-verde-600"
+                          : "bg-sand-deep text-ink-soft/75",
                       )}
                     >
                       {p.type === "custom" ? (
@@ -315,19 +312,19 @@ export function ProviderManager() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-[6px]">
-                        <span className="font-display text-small font-semibold text-foreground truncate">
+                        <span className="font-lv-display text-small font-semibold text-ink truncate">
                           {p.name}
                         </span>
-                        <span className="text-[10px] uppercase tracking-wide rounded-full border border-border px-1.5 py-[1px] text-muted-foreground">
+                        <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] rounded-full border border-ink/10 px-1.5 py-[1px] text-ink-soft/75">
                           {p.vendor === "gemini" ? "gemini" : p.type === "custom" ? "compatible" : "openai"}
                         </span>
                         {!p.enabled && (
-                          <span className="text-[10px] uppercase tracking-wide rounded-full border border-destructive/40 text-destructive px-1.5 py-[1px]">
+                          <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] rounded-full border border-destructive/40 text-destructive px-1.5 py-[1px]">
                             inactivo
                           </span>
                         )}
                       </div>
-                      <div className="font-mono text-[11px] text-muted-foreground truncate">
+                      <div className="font-lv-display text-[11px] text-ink-soft/75 truncate">
                         {p.model} · {p.apiKey}
                         {p.baseURL ? ` · ${p.baseURL}` : ""}
                       </div>
@@ -339,24 +336,24 @@ export function ProviderManager() {
                       aria-checked={p.enabled}
                       aria-label={`Activar ${p.name}`}
                       className={cn(
-                        "w-10 h-6 rounded-full shrink-0 transition-colors relative",
-                        p.enabled ? "bg-accent" : "bg-muted",
+                        "w-10 h-6 rounded-full shrink-0 cursor-pointer border-none p-0 transition-colors duration-500 ease-outquint relative",
+                        p.enabled ? "bg-verde-400" : "bg-ink/10",
                       )}
                     >
                       <span
                         className={cn(
-                          "absolute top-[3px] size-[18px] rounded-full bg-white transition-all",
+                          "absolute top-[3px] size-[18px] rounded-full bg-white shadow-soft transition-all duration-500 ease-outquint",
                           p.enabled ? "left-[21px]" : "left-[3px]",
                         )}
                       />
                     </button>
                   </div>
-                  <div className="flex items-center gap-[6px] mt-gap-xs ml-[44px]">
+                  <div className="flex items-center gap-gap-sm mt-gap-xs ml-[44px]">
                     <button
                       type="button"
                       onClick={() => handleTest(p.id)}
                       disabled={testingId === p.id}
-                      className="inline-flex items-center gap-1 text-[12px] font-medium text-accent hover:underline"
+                      className="inline-flex items-center gap-1 font-lv-display text-meta font-medium text-verde-600 hover:text-verde-700 transition-colors duration-500 ease-outquint disabled:opacity-60"
                     >
                       {testingId === p.id ? (
                         <Loader2 size={13} className="animate-spin" />
@@ -368,7 +365,7 @@ export function ProviderManager() {
                     <button
                       type="button"
                       onClick={() => startEdit(p)}
-                      className="inline-flex items-center gap-1 text-[12px] font-medium text-muted-foreground hover:text-foreground"
+                      className="inline-flex items-center gap-1 font-lv-display text-meta font-medium text-ink-soft/75 hover:text-verde-600 transition-colors duration-500 ease-outquint"
                     >
                       <Pencil size={13} strokeWidth={1.8} />
                       Editar
@@ -376,7 +373,7 @@ export function ProviderManager() {
                     <button
                       type="button"
                       onClick={() => handleDelete(p)}
-                      className="inline-flex items-center gap-1 text-[12px] font-medium text-muted-foreground hover:text-destructive"
+                      className="inline-flex items-center gap-1 font-lv-display text-meta font-medium text-ink-soft/75 hover:text-destructive transition-colors duration-500 ease-outquint"
                     >
                       <Trash2 size={13} strokeWidth={1.8} />
                       Eliminar
@@ -389,19 +386,19 @@ export function ProviderManager() {
         </div>
 
         {/* Form */}
-        <div className="bg-surface border border-border rounded-lv-lg p-gap-md h-fit">
+        <div className={cn(CARD, "h-fit")}>
           <div className="flex items-center justify-between mb-gap-sm">
-            <h3 className="font-display text-body font-semibold text-foreground">
+            <h3 className="font-lv-display text-body font-semibold text-ink">
               {editing ? "Editar proveedor" : "Nuevo proveedor"}
             </h3>
             {editing && (
               <button
                 type="button"
                 onClick={resetForm}
-                className="size-8 rounded-full border border-border grid place-items-center text-muted-foreground hover:border-accent hover:text-accent transition-colors"
+                className="size-11 sm:size-9 rounded-full border border-ink/10 grid place-items-center shrink-0 text-ink-soft/75 hover:border-verde-300 hover:text-verde-600 hover:bg-verde-50 transition-colors duration-500 ease-outquint"
                 aria-label="Cancelar edición"
               >
-                <X size={15} strokeWidth={2} />
+                <X size={15} strokeWidth={1.8} />
               </button>
             )}
           </div>
@@ -419,12 +416,12 @@ export function ProviderManager() {
                     whileHover={{ y: -2 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => applyPreset(preset)}
-                    className="inline-flex flex-col items-start gap-[2px] rounded-lv-md border border-border px-[10px] py-[6px] text-left hover:border-accent/50 hover:bg-accent/5 transition-colors"
+                    className="inline-flex flex-col items-start gap-[2px] rounded-2xl border border-ink/10 px-gap-sm py-[6px] text-left hover:border-verde-300 hover:bg-verde-50 transition-colors duration-500 ease-outquint cursor-pointer"
                   >
-                    <span className="text-[12px] font-semibold text-foreground">
+                    <span className="font-lv-display text-meta font-semibold text-ink">
                       {preset.label}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="font-lv-display text-[10px] text-ink-soft/75">
                       {preset.model}
                     </span>
                   </motion.button>
@@ -433,17 +430,18 @@ export function ProviderManager() {
             )}
 
             <div className="flex flex-col gap-gap-xs">
-              <Label htmlFor="pName">Nombre</Label>
-              <Input
+              <label htmlFor="pName" className={LABEL}>Nombre</label>
+              <input
                 id="pName"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder="Ej: OpenAI principal"
+                className={INPUT}
               />
             </div>
 
             <div className="flex flex-col gap-gap-xs">
-              <Label htmlFor="pType">Tipo</Label>
+              <label htmlFor="pType" className={LABEL}>Tipo</label>
               <Select
                 value={form.type}
                 onValueChange={(v) =>
@@ -462,7 +460,7 @@ export function ProviderManager() {
             </div>
 
             <div className="flex flex-col gap-gap-xs">
-              <Label htmlFor="pVendor">Estilo de API</Label>
+              <label htmlFor="pVendor" className={LABEL}>Estilo de API</label>
               <Select
                 value={form.vendor ?? "openai"}
                 onValueChange={(v) =>
@@ -481,23 +479,24 @@ export function ProviderManager() {
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-muted-foreground">
+              <p className={HINT}>
                 Elige según el proveedor. Los presets lo configuran automáticamente.
               </p>
             </div>
 
             {(form.type === "custom" || form.vendor === "gemini") && (
               <div className="flex flex-col gap-gap-xs">
-                <Label htmlFor="pBase">Base URL</Label>
-                <Input
+                <label htmlFor="pBase" className={LABEL}>Base URL</label>
+                <input
                   id="pBase"
                   value={form.baseURL}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, baseURL: e.target.value }))
                   }
                   placeholder="https://api.ejemplo.com/v1"
+                  className={INPUT}
                 />
-                <p className="text-[11px] text-muted-foreground">
+                <p className={HINT}>
                   {form.vendor === "gemini"
                     ? "Base URL de Gemini (p. ej. .../v1beta)."
                     : "Endpoint compatible con OpenAI (debe terminar en /v1)."}
@@ -506,8 +505,8 @@ export function ProviderManager() {
             )}
 
             <div className="flex flex-col gap-gap-xs">
-              <Label htmlFor="pKey">API key</Label>
-              <Input
+              <label htmlFor="pKey" className={LABEL}>API key</label>
+              <input
                 id="pKey"
                 type="password"
                 autoComplete="new-password"
@@ -516,25 +515,27 @@ export function ProviderManager() {
                   setForm((f) => ({ ...f, apiKey: e.target.value }))
                 }
                 placeholder={editing ? "Dejar en blanco para conservar" : "sk-..."}
+                className={INPUT}
               />
             </div>
 
             <div className="flex flex-col gap-gap-xs">
-              <Label htmlFor="pModel">Modelo</Label>
-              <Input
+              <label htmlFor="pModel" className={LABEL}>Modelo</label>
+              <input
                 id="pModel"
                 value={form.model}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, model: e.target.value }))
                 }
                 placeholder="Ej: mistral-small-latest"
+                className={INPUT}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-gap-sm">
               <div className="flex flex-col gap-gap-xs">
-                <Label htmlFor="pPriority">Prioridad</Label>
-                <Input
+                <label htmlFor="pPriority" className={LABEL}>Prioridad</label>
+                <input
                   id="pPriority"
                   type="number"
                   min={1}
@@ -545,17 +546,18 @@ export function ProviderManager() {
                       priority: Number(e.target.value) || 1,
                     }))
                   }
+                  className={INPUT}
                 />
               </div>
               <div className="flex flex-col gap-gap-xs justify-end">
-                <label className="inline-flex items-center gap-2 text-small text-foreground cursor-pointer">
+                <label className="inline-flex items-start gap-gap-xs text-small text-ink cursor-pointer">
                   <input
                     type="checkbox"
                     checked={form.enabled}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, enabled: e.target.checked }))
                     }
-                    className="size-4 accent-accent"
+                    className="size-4 mt-[2px] accent-verde-400 shrink-0"
                   />
                   Activo (primer proveedor activo con menor prioridad se usa)
                 </label>
@@ -563,22 +565,22 @@ export function ProviderManager() {
             </div>
 
             {formError && (
-              <p className="text-[12px] text-destructive font-medium">{formError}</p>
+              <p role="alert" className="text-meta text-destructive font-medium">{formError}</p>
             )}
 
-            <Button
+            <button
               type="button"
               onClick={handleSubmit}
               disabled={saving}
-              className="w-full mt-gap-xs"
+              className="w-full h-11 mt-gap-xs rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none inline-flex items-center justify-center gap-gap-xs"
             >
               {saving ? (
                 <Loader2 size={18} className="animate-spin" />
               ) : (
-                <Plus size={18} strokeWidth={1.5} />
+                <Plus size={18} strokeWidth={1.8} />
               )}
               {editing ? "Guardar cambios" : "Agregar proveedor"}
-            </Button>
+            </button>
           </div>
         </div>
       </div>

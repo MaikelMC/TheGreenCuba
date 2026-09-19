@@ -8,8 +8,6 @@ import { usePlaces } from "@/providers/places-provider";
 import { DashboardStats } from "@/components/business/dashboard-stats";
 import { MiniChart } from "@/components/business/mini-chart";
 import { CategoryIcon } from "@/components/admin/category-icon";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 export default function AdminDashboardPage() {
   const { places, categories } = usePlaces();
@@ -45,20 +43,21 @@ export default function AdminDashboardPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between gap-gap-sm mb-gap-lg">
-        <div>
-          <h1 className="font-display text-h3 font-bold text-foreground">
-            Dashboard
-          </h1>
-          <p className="text-small text-muted-foreground mt-gap-2xs">
-            Resumen de toda la plataforma La Verde
-          </p>
-        </div>
-        <Link href="/admin/negocios/nuevo">
-          <Button>
-            <Plus size={18} strokeWidth={1.5} />
-            Nuevo negocio
-          </Button>
+      <div className="flex items-center justify-between gap-gap-sm mb-gap-md">
+        <h1 className="sr-only">Dashboard</h1>
+        <p className="text-small text-ink-soft/75">
+          Resumen de toda la plataforma La Verde
+        </p>
+        {/* En móvil el rótulo se oculta y queda solo el icono. Sin el
+            `aria-label` el enlace se quedaría sin nombre accesible: `hidden`
+            saca el `<span>` del árbol de accesibilidad. */}
+        <Link
+          href="/admin/negocios/nuevo"
+          aria-label="Nuevo negocio"
+          className="inline-flex items-center gap-gap-xs h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] shrink-0"
+        >
+          <Plus size={18} strokeWidth={1.8} />
+          <span className="max-sm:hidden">Nuevo negocio</span>
         </Link>
       </div>
 
@@ -109,12 +108,12 @@ export default function AdminDashboardPage() {
             period={categories.length === byCategory.length ? "Todas las categorías" : "Con negocios"}
           />
 
-          <div className="bg-surface border border-border rounded-lv-lg p-gap-md">
-            <h3 className="font-display text-body font-semibold text-foreground mb-gap-sm">
+          <div className="bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md">
+            <h3 className="font-lv-display text-body font-semibold text-ink mb-gap-sm">
               Negocios que requieren atención
             </h3>
             {attention.length === 0 ? (
-              <div className="text-meta text-muted-foreground py-gap-sm">
+              <div className="text-meta text-ink-soft/75 py-gap-sm">
                 Todo en orden. No hay negocios cerrados ni sin descripción.
               </div>
             ) : (
@@ -125,18 +124,18 @@ export default function AdminDashboardPage() {
                     initial={{ opacity: 0, x: -12 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.05, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                    className="flex items-center gap-gap-sm py-gap-sm border-b border-border last:border-b-0"
+                    className="flex items-center gap-gap-sm py-gap-sm border-b border-ink/5 last:border-b-0"
                   >
                     <AlertTriangle
                       size={16}
-                      strokeWidth={2}
-                      className="text-lv-amber shrink-0"
+                      strokeWidth={1.8}
+                      className="text-verde-600 shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="font-display text-small font-semibold truncate">
+                      <div className="font-lv-display text-small font-semibold text-ink truncate">
                         {p.name}
                       </div>
-                      <div className="text-meta text-muted-foreground truncate">
+                      <div className="text-meta text-ink-soft/75 truncate">
                         {p.status !== "active"
                           ? p.status === "closed"
                             ? "Cerrado"
@@ -147,7 +146,7 @@ export default function AdminDashboardPage() {
                     </div>
                     <Link
                       href={`/admin/negocios/${p.id}/editar`}
-                      className="font-mono text-xs font-medium text-accent uppercase tracking-[0.04em] hover:text-accent-hover transition-colors shrink-0"
+                      className="font-lv-display text-meta font-semibold uppercase tracking-[0.08em] text-verde-600 hover:text-verde-700 transition-colors duration-500 ease-outquint shrink-0"
                     >
                       Editar
                     </Link>
@@ -158,12 +157,12 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="bg-surface border border-border rounded-lv-lg p-gap-md h-fit">
-          <h3 className="font-display text-body font-semibold text-foreground mb-gap-sm">
+        <div className="bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md h-fit">
+          <h3 className="font-lv-display text-body font-semibold text-ink mb-gap-sm">
             Distribución por categoría
           </h3>
           {byCategory.length === 0 ? (
-            <div className="text-meta text-muted-foreground py-gap-sm">
+            <div className="text-meta text-ink-soft/75 py-gap-sm">
               Aún no hay negocios.
             </div>
           ) : (
@@ -174,27 +173,29 @@ export default function AdminDashboardPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.05, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                  className="flex items-center justify-between py-gap-xs border-b border-border last:border-b-0"
+                  className="flex items-center justify-between py-gap-xs border-b border-ink/5 last:border-b-0"
                 >
-                  <span className="inline-flex items-center gap-2 text-small text-foreground">
+                  <span className="inline-flex items-center gap-2 text-small text-ink">
                     <CategoryIcon
                       icon={c.icon}
                       size={16}
                       strokeWidth={1.8}
-                      className="text-muted-foreground"
+                      className="text-verde-600"
                     />
                     {c.label}
                   </span>
-                  <Badge variant="secondary">{c.count}</Badge>
+                  <span className="inline-flex items-center px-[8px] py-[2px] rounded-full bg-verde-50 text-verde-600 border border-verde-200 font-lv-display text-meta font-semibold">
+                    {c.count}
+                  </span>
                 </motion.div>
               ))}
             </div>
           )}
-          <div className="mt-gap-md p-gap-md bg-muted rounded-lv-lg">
-            <Store size={18} strokeWidth={1.5} className="text-accent mb-gap-xs" />
-            <p className="text-small text-muted-foreground leading-relaxed">
+          <div className="mt-gap-md p-gap-md bg-sand border border-ink/5 rounded-2xl">
+            <Store size={18} strokeWidth={1.8} className="text-verde-600 mb-gap-xs" />
+            <p className="text-small text-ink-soft/75 leading-relaxed">
               Gestiona los negocios de La Verde en{" "}
-              <Link href="/admin/negocios" className="text-accent font-medium hover:underline">
+              <Link href="/admin/negocios" className="text-verde-600 font-semibold hover:text-verde-700">
                 Negocios
               </Link>
               . Puedes agregar, editar, eliminar, destacar y cambiar el estado de cada uno.

@@ -65,10 +65,10 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
 
   if (!hasPhotos) {
     return (
-      <div className={cn("relative w-full aspect-[4/3] lg:aspect-[16/9] overflow-hidden bg-lv-sand-200", className)}>
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-gap-xs text-muted-foreground">
+      <div className={cn("relative w-full aspect-[4/3] lg:aspect-[16/9] overflow-hidden bg-sand-deep", className)}>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-gap-xs text-ink-soft/75">
           <Image size={40} strokeWidth={1.5} className="opacity-40" />
-          <span className="text-small font-mono">Fotos próximamente</span>
+          <span className="text-small font-lv-display">Fotos próximamente</span>
         </div>
       </div>
     );
@@ -76,29 +76,29 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
 
   return (
     <div
-      className={cn("group relative w-full aspect-[4/3] lg:aspect-[16/9] overflow-hidden bg-lv-sand-200 lg:rounded-lv-xl", className)}
+      className={cn("group relative w-full aspect-[4/3] lg:aspect-[16/9] overflow-hidden bg-sand-deep lg:rounded-4xl", className)}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      <div ref={trackRef} className="flex h-full transition-transform duration-slow ease-out will-change-transform">
+      {/* `duration-slow` no existe en la escala de Tailwind: compilaba a cero y
+          el carril saltaba de golpe en vez de deslizar. */}
+      <div ref={trackRef} className="flex h-full transition-transform duration-500 ease-outquint will-change-transform">
         {slides.map((slide, i) => (
           <div key={i} className="flex-[0_0_100%] h-full relative">
             <div
-              className="w-full h-full flex flex-col items-center justify-center gap-gap-xs text-muted-foreground"
+              className="w-full h-full flex flex-col items-center justify-center gap-gap-xs text-verde-600"
               style={{ background: slide.gradient }}
             >
-              <Image size={40} strokeWidth={1.5} className="opacity-40" style={{ color: "oklch(80% 0.10 145)" }} />
-              <span className="text-small font-mono" style={{ color: "oklch(85% 0.06 145)" }}>
-                {slide.label}
-              </span>
+              <Image size={40} strokeWidth={1.5} className="opacity-40" />
+              <span className="text-small font-lv-display">{slide.label}</span>
             </div>
           </div>
         ))}
       </div>
 
       {/* Counter */}
-      <div className="absolute top-gap-xs right-gap-xs bg-[oklch(15%_0.01_250_/_0.65)] backdrop-blur-sm text-white font-mono text-xs font-medium px-[10px] py-[4px] rounded-full">
+      <div className="absolute top-gap-xs right-gap-xs bg-ink/70 backdrop-blur-sm text-white font-lv-display text-meta font-semibold px-[10px] py-[4px] rounded-full">
         {current + 1} / {total}
       </div>
 
@@ -117,7 +117,7 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
           >
             <span
               className={cn(
-                "block h-[7px] rounded-full transition-all duration-200",
+                "block h-[7px] rounded-full transition-all duration-500 ease-outquint",
                 i === current
                   ? "w-[20px] bg-white"
                   : "w-[7px] bg-white/50 border border-white/30",
@@ -135,18 +135,18 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
           <button
             type="button"
             onClick={() => goTo(current - 1)}
-            className="absolute top-1/2 -translate-y-1/2 left-gap-xs size-11 rounded-full bg-white/85 backdrop-blur grid place-items-center shadow-lv-sm transition-all duration-200 hover:bg-white hover:shadow-lv-md [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
+            className="absolute top-1/2 -translate-y-1/2 left-gap-xs size-11 rounded-full bg-white/85 backdrop-blur grid place-items-center shadow-soft text-ink transition-all duration-500 ease-outquint hover:bg-white hover:shadow-card [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
             aria-label="Foto anterior"
           >
-            <ChevronLeft size={18} strokeWidth={2} />
+            <ChevronLeft size={18} strokeWidth={1.8} />
           </button>
           <button
             type="button"
             onClick={() => goTo(current + 1)}
-            className="absolute top-1/2 -translate-y-1/2 right-gap-xs size-11 rounded-full bg-white/85 backdrop-blur grid place-items-center shadow-lv-sm transition-all duration-200 hover:bg-white hover:shadow-lv-md [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
+            className="absolute top-1/2 -translate-y-1/2 right-gap-xs size-11 rounded-full bg-white/85 backdrop-blur grid place-items-center shadow-soft text-ink transition-all duration-500 ease-outquint hover:bg-white hover:shadow-card [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
             aria-label="Foto siguiente"
           >
-            <ChevronRight size={18} strokeWidth={2} />
+            <ChevronRight size={18} strokeWidth={1.8} />
           </button>
         </>
       )}

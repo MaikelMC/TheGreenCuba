@@ -2,8 +2,17 @@
 
 import { useEffect } from "react";
 import { RefreshCw, RotateCw, TriangleAlert } from "lucide-react";
-import { Button } from "./button";
 import { StateView } from "./state-view";
+
+/* Botones a pastilla del design system, escritos enteros y no con el
+   `Button` primitivo: `twMerge` no conoce las claves propias del tema
+   (`rounded-lv`, `font-lv-display`), así que un `className` de fuera no
+   siempre gana sobre la base de `cva` y acaba decidiendo el orden de la
+   hoja de estilos. */
+const BTN =
+  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full font-lv-display text-small font-semibold whitespace-nowrap cursor-pointer transition-all duration-500 ease-outquint active:scale-[0.98]";
+const BTN_PRIMARY = `${BTN} bg-verde-400 text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300`;
+const BTN_OUTLINE = `${BTN} border border-ink/10 bg-white text-ink hover:border-verde-300 hover:bg-verde-50`;
 
 export interface ErrorStateProps {
   error: Error & { digest?: string };
@@ -38,7 +47,7 @@ export function ErrorState({
         <>
           {description}
           {error.digest ? (
-            <span className="mt-gap-xs block font-mono text-[11px] text-muted-foreground/70">
+            <span className="mt-gap-xs block font-lv-display text-[11px] tracking-[0.04em] text-ink-soft/50">
               Ref: {error.digest}
             </span>
           ) : null}
@@ -46,18 +55,18 @@ export function ErrorState({
       }
       actions={
         <>
-          <Button className="gap-[6px]" onClick={reset}>
-            <RefreshCw size={16} strokeWidth={2} />
+          <button type="button" className={BTN_PRIMARY} onClick={reset}>
+            <RefreshCw size={16} strokeWidth={1.8} />
             Reintentar
-          </Button>
-          <Button
-            className="gap-[6px]"
-            variant="outline"
+          </button>
+          <button
+            type="button"
+            className={BTN_OUTLINE}
             onClick={() => window.location.reload()}
           >
-            <RotateCw size={16} strokeWidth={2} />
+            <RotateCw size={16} strokeWidth={1.8} />
             Recargar
-          </Button>
+          </button>
         </>
       }
     />

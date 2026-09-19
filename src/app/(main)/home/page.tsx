@@ -14,6 +14,7 @@ import { SearchingAnimation } from "@/components/layout/searching-animation";
 import { MapView } from "@/components/map/MapView";
 import { PlaceFilters } from "@/components/place/place-filters";
 import { StateView } from "@/components/ui/state-view";
+import { CategoryIcon } from "@/components/admin/category-icon";
 import { Button } from "@/components/ui/button";
 import { useSearchActions } from "@/providers/search-provider";
 import { getCurrentPosition, getLastKnownPosition } from "@/lib/map/geolocation";
@@ -29,7 +30,8 @@ import {
 import { toast } from "sonner";
 import type { MapPlace } from "@/components/map/types";
 import { usePlaces } from "@/providers/places-provider";
-import { categoryEmoji } from "@/lib/places";
+import { placeIcon, type BusinessCategory } from "@/lib/places";
+import { matchesPlaceFilters } from "@/lib/place-filters";
 import type { UserPlace } from "@/lib/places-store";
 import {
   readUserPreferences,
@@ -46,7 +48,8 @@ interface HomePlace {
   rating: number;
   distance: string;
   price: string;
-  emoji: string;
+  /** Nombre del icono Lucide, ya resuelto con la reserva de la categoría. */
+  icon: string;
   tags: { label: string; variant?: "mlc" | "open" | "default" }[];
   desc: string;
   lat: number;
@@ -54,7 +57,12 @@ interface HomePlace {
   boosted?: boolean;
 }
 
-function userPlaceToHomePlace(p: UserPlace): HomePlace {
+function userPlaceToHomePlace(
+  p: UserPlace,
+  /** Catálogo del almacén, para que el icono que el admin cambia a una
+      categoría llegue también a las tarjetas y no solo al pin. */
+  categories: BusinessCategory[],
+): HomePlace {
   const tags: HomePlace["tags"] = [
     {
       label: p.status === "active" ? "Abierto" : "Cerrado",
@@ -71,7 +79,7 @@ function userPlaceToHomePlace(p: UserPlace): HomePlace {
     rating: p.rating ?? 0,
     distance: p.distanceLabel || p.address || p.barrio || "Ver en el mapa",
     price: p.priceLabel || "—",
-    emoji: categoryEmoji(p.category),
+    icon: placeIcon(p.icon, p.category, categories),
     tags,
     desc: p.description || "Negocio agregado por su dueño en La Verde.",
     lat: p.lat,
@@ -139,7 +147,12 @@ function DetailOverlay({
               transition={{ delay: 0.12, type: "spring", stiffness: 260, damping: 22 }}
               className="h-[200px] bg-gradient-to-br from-verde-50 to-verde-100 rounded-t-4xl grid place-items-center text-[64px] relative shrink-0"
             >
-              <span>{place.emoji}</span>
+              <CategoryIcon
+                icon={place.icon}
+                size={72}
+                strokeWidth={1.4}
+                className="text-verde-600"
+              />
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={onClose}
@@ -294,7 +307,7 @@ const PlaceCardRow = memo(function PlaceCardRow({
         rating={place.rating}
         distance={place.distance}
         price={place.price}
-        emoji={place.emoji}
+        icon={place.icon}
         tags={place.tags}
         selected={selected}
         liked={liked}
@@ -314,6 +327,10 @@ function HomePageContent() {
   const [selectedId, setSelectedId] = useState<string>("6");
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set(["6"]));
   const [activeCategory, setActiveCategory] = useState("all");
+  /* Filtros acumulables del mapa. Viven aquí y no dentro de `PlaceFilters`
+     porque es esta pantalla la que filtra: allí se encendían y no salían de
+     casa. */
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [detailPlace, setDetailPlace] = useState<HomePlace | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
   const [route, setRoute] = useState<RouteResult | null>(null);
@@ -340,16 +357,54 @@ function HomePageContent() {
   const searchCtx = useSearchActions();
   const mapRef = useRef<HTMLDivElement | null>(null);
   const viewKey = useRef(0);
-  const { places } = usePlaces();
+  /* Las categorías las sirve el provider, que las trae de la base. Antes se
+     leían de `localStorage` aquí aparte, así que la pantalla podía estar
+     pintando un catálogo y el panel de admin editando otro: cambiar el icono
+     de una categoría no movía ni un pin del mapa. */
+  const { places, categories } = usePlaces();
+
+  const toggleFilter = useCallback((value: string) => {
+    setActiveFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+  }, []);
+
+  /* Un solo filtrado para los dos sitios que pintan el catálogo —los pines del
+     mapa y la lista del panel inferior—, para que no puedan discrepar. El chip
+     de categoría se encendía y no filtraba nada: `activeCategory` no lo leía
+     nadie. */
+  const filterContext = useMemo(
+    () => ({
+      categoryLabel:
+        activeCategory === "all"
+          ? null
+          : (categories.find((c) => c.value === activeCategory)?.label ?? null),
+      filters: activeFilters,
+      origin: userLocation,
+      /* Se evalúa al filtrar, no en cada render: «Abiertos ahora» cambia con la
+         hora, pero no hace falta recalcularlo cada segundo. */
+      now: new Date(),
+    }),
+    [activeCategory, categories, activeFilters, userLocation],
+  );
+
+  const visiblePlaces = useMemo(
+    () => places.filter((p) => matchesPlaceFilters(p, filterContext)),
+    [places, filterContext],
+  );
 
   const mapPlaces = useMemo<MapPlace[]>(
     () =>
-      places.map((p) => ({
+      visiblePlaces.map((p) => ({
         id: p.id,
         name: p.name,
         lat: p.lat,
         lng: p.lng,
         category: p.category,
+        icon: placeIcon(p.icon, p.category, categories),
         barrio: p.barrio,
         rating: p.rating,
         distance: p.distanceLabel || p.address || p.barrio,
@@ -361,12 +416,12 @@ function HomePageContent() {
             : []),
         ],
       })),
-    [places],
+    [visiblePlaces, categories],
   );
 
   const filteredPlaces = useMemo<HomePlace[]>(
-    () => places.map(userPlaceToHomePlace),
-    [places],
+    () => visiblePlaces.map((p) => userPlaceToHomePlace(p, categories)),
+    [visiblePlaces, categories],
   );
 
   const handleLike = useCallback((id: string) => {
@@ -666,8 +721,17 @@ function HomePageContent() {
         route={route}
         routeOrigin={routeOrigin}
       >
-        <CategoryBar active={activeCategory} onSelect={setActiveCategory} />
-        <PlaceFilters visible={showFilters} />
+        <CategoryBar
+          categories={categories}
+          active={activeCategory}
+          onSelect={setActiveCategory}
+        />
+        <PlaceFilters
+          visible={showFilters}
+          active={activeFilters}
+          onToggle={toggleFilter}
+          hasLocation={userLocation !== null}
+        />
       </MapView>
 
       {/* Chip de ruta activa (sin ficha abierta) */}

@@ -17,7 +17,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-foreground/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-ink/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
     )}
     {...props}
@@ -34,15 +34,21 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border border-border bg-surface p-6 shadow-lv-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lv-lg",
+        /* `w-[calc(100%_-_32px)]`, no `w-full`: a 360 px el diálogo tocaba los
+           dos bordes de la pantalla y las esquinas quedaban fuera. Los guiones
+           bajos son obligatorios, `calc()` necesita espacios alrededor del
+           signo menos y Tailwind no los admite si no se escriben así. */
+        "fixed left-1/2 top-1/2 z-50 w-[calc(100%_-_32px)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-gap-md rounded-4xl border border-ink/5 bg-white p-gap-lg shadow-card duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
         className,
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full p-2 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
-        <X className="size-4" />
-        <span className="sr-only">Close</span>
+      {/* El rótulo accesible va en español: la app entera lo está y lo único
+          que oía un lector de pantalla era "Close". */}
+      <DialogPrimitive.Close className="absolute right-gap-sm top-gap-sm grid place-items-center size-9 rounded-full text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-sand-deep hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/30">
+        <X size={18} strokeWidth={1.8} />
+        <span className="sr-only">Cerrar</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
@@ -68,7 +74,10 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("font-display text-h3 font-semibold leading-none tracking-[-0.005em]", className)}
+    className={cn(
+      "font-lv-display text-h3 font-semibold text-ink leading-none tracking-[-0.005em]",
+      className,
+    )}
     {...props}
   />
 ));
@@ -80,7 +89,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-small text-muted-foreground", className)}
+    className={cn("text-small text-ink-soft/75", className)}
     {...props}
   />
 ));

@@ -24,23 +24,23 @@ export function FormSection({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className={cn("bg-surface border border-border rounded-lv-lg overflow-hidden", className)}>
+    <div className={cn("bg-white border border-ink/5 rounded-2xl overflow-hidden shadow-soft", className)}>
       <motion.button
         type="button"
         whileTap={{ scale: 0.995 }}
         onClick={() => setOpen((prev) => !prev)}
-        className="flex items-center justify-between w-full p-gap-md border-b border-border hover:bg-muted/50 transition-colors duration-fast"
+        className="flex items-center justify-between w-full p-gap-md border-b border-ink/5 hover:bg-sand transition-colors duration-500 ease-outquint"
       >
-        <span className="font-display text-body font-semibold flex items-center gap-gap-xs">
-          {icon && <span className="text-accent">{icon}</span>}
+        <span className="font-lv-display text-body font-semibold text-ink flex items-center gap-gap-xs">
+          {icon && <span className="text-verde-600">{icon}</span>}
           {title}
         </span>
         <motion.span
           animate={{ rotate: open ? 0 : -90 }}
-          transition={{ duration: 0.25, ease: EASE }}
+          transition={{ duration: 0.3, ease: EASE }}
           className="grid place-items-center"
         >
-          <ChevronDown size={18} strokeWidth={1.5} className="text-muted-foreground" />
+          <ChevronDown size={18} strokeWidth={1.8} className="text-ink-soft/75" />
         </motion.span>
       </motion.button>
       <AnimatePresence initial={false}>

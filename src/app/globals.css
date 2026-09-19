@@ -483,3 +483,53 @@
   );
   animation: searchingProgress 1.2s linear infinite;
 }
+
+/* ─── Marca de las pantallas de acceso ───
+   El logo respira: la marca flota unos píxeles y el halo verde de detrás late
+   a la vez. Va en CSS y no en `motion` porque `(auth)/layout.tsx` es un
+   componente de servidor, y animarlo con JavaScript obligaría a un límite de
+   cliente por algo puramente decorativo.
+
+   Las dos duran lo mismo y comparten la curva, así que suben y bajan juntas en
+   vez de pelearse: el halo se abre justo cuando la marca llega arriba. */
+
+@keyframes logoFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes logoBreath {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.12);
+  }
+}
+
+.logo-float {
+  animation: logoFloat 7s ease-in-out infinite;
+}
+
+/* La opacidad de aquí es la que se ve si la animación está apagada, no un
+   sobrante: sin ella el halo quedaría invisible al reducir el movimiento. */
+.logo-breath {
+  opacity: 0.5;
+  animation: logoBreath 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-float,
+  .logo-breath {
+    animation: none;
+    transform: none;
+  }
+}

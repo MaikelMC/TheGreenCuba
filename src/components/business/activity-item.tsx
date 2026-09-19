@@ -13,11 +13,14 @@ interface ActivityItemProps {
   index?: number;
 }
 
+/* Cuatro tonos dentro de la paleta verde/arena. Antes eran lv-blue, lv-amber y
+   lv-teal, que no existen en el sistema. El punto es decorativo: el tipo de
+   evento lo dice el texto, no el color. */
 const dotStyles: Record<ActivityType, string> = {
-  search: "bg-accent",
-  view: "bg-lv-blue",
-  save: "bg-lv-amber",
-  nav: "bg-lv-teal",
+  search: "bg-verde-400",
+  view: "bg-verde-600",
+  save: "bg-verde-300",
+  nav: "bg-ink/20",
 };
 
 export function ActivityItem({ type, children, time, className, index = 0 }: ActivityItemProps) {
@@ -28,17 +31,17 @@ export function ActivityItem({ type, children, time, className, index = 0 }: Act
       viewport={{ once: true, margin: "-24px" }}
       transition={{ delay: index * 0.04, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
       whileHover={{ x: 4 }}
-      className={cn("flex items-center gap-gap-sm py-gap-sm border-b border-border last:border-b-0", className)}
+      className={cn("flex items-center gap-gap-sm py-gap-sm border-b border-ink/5 last:border-b-0", className)}
     >
       <motion.span
         className={cn("size-2 rounded-full shrink-0", dotStyles[type])}
         animate={{ scale: [1, 1.35, 1] }}
         transition={{ repeat: Infinity, duration: 3, ease: "easeInOut", delay: index * 0.2 }}
       />
-      <span className="flex-1 text-small min-w-0 [&_strong]:font-semibold">
+      <span className="flex-1 text-small text-ink min-w-0 [&_strong]:font-semibold">
         {children}
       </span>
-      <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">{time}</span>
+      <span className="font-lv-display text-meta text-ink-soft/75 whitespace-nowrap">{time}</span>
     </motion.div>
   );
 }

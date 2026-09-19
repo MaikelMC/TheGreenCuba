@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { MapPin, ArrowLeft } from "lucide-react";
 import { BusinessForm } from "@/components/admin/business-form";
+import { StateView } from "@/components/ui/state-view";
 import { LoadingState } from "@/components/ui/loading";
 import { usePlaces } from "@/providers/places-provider";
 
@@ -24,24 +25,21 @@ export default function EditarNegocioPage() {
 
   if (!place) {
     return (
-      <div className="flex flex-col items-center justify-center gap-gap-md text-center py-20">
-        <div className="size-16 rounded-full bg-accent/10 grid place-items-center text-accent">
-          <MapPin size={26} strokeWidth={1.8} />
-        </div>
-        <h1 className="font-display text-h3 font-bold text-foreground">
-          Negocio no encontrado
-        </h1>
-        <p className="text-small text-muted-foreground max-w-[30ch]">
-          Este negocio no existe o fue eliminado.
-        </p>
-        <Link
-          href="/admin/negocios"
-          className="inline-flex items-center gap-2 px-5 py-[10px] bg-accent text-white rounded-lv font-display text-[14px] font-semibold hover:bg-accent-hover transition-colors"
-        >
-          <ArrowLeft size={16} strokeWidth={2} />
-          Volver a negocios
-        </Link>
-      </div>
+      <StateView
+        icon={MapPin}
+        title="Negocio no encontrado"
+        description="Este negocio no existe o fue eliminado."
+        className="py-20"
+        actions={
+          <Link
+            href="/admin/negocios"
+            className="inline-flex items-center gap-[6px] h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98]"
+          >
+            <ArrowLeft size={16} strokeWidth={1.8} />
+            Volver a negocios
+          </Link>
+        }
+      />
     );
   }
 

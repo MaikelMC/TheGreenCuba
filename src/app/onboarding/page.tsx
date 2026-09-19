@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -59,6 +59,7 @@ const CURRENCY_NAMES: Record<string, string> = {
   cup: "CUP",
   usd: "USD",
   eur: "EUR",
+  transfer: "Transferencia",
 };
 
 const categories = [
@@ -241,12 +242,17 @@ const currencyOptions = [
   { value: "cup", code: "CUP", name: "Efectivo y Transferencia" },
   { value: "usd", code: "USD", name: "Dólar estadounidense" },
   { value: "eur", code: "EUR", name: "Euro" },
+  { value: "transfer", code: "TRANSFER", name: "Transferencia" },
 ];
 
 const TOTAL_STEPS = 4;
 
 export default function OnboardingPage() {
   const router = useRouter();
+  /* Nombre y correo de la sesión. Antes se guardaban los de
+     `DEFAULT_USER_PREFERENCES` —"Martín", "martin@email.com"—, que son valores
+     de relleno del prototipo: el perfil acababa mostrando a otra persona. */
+  const [identity, setIdentity] = useState<{ name: string; email: string } | null>(null);
   const [splashDone, setSplashDone] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
@@ -264,6 +270,21 @@ export default function OnboardingPage() {
     setCurrentStep(step);
     setAnimTick((t) => t + 1);
   }
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/me")
+      .then((res) => res.json())
+      .then((data: { authenticated: boolean; user: { name: string; email: string } | null }) => {
+        if (alive && data.authenticated && data.user) {
+          setIdentity({ name: data.user.name, email: data.user.email });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const handleSplashDone = useCallback(() => {
     setSplashDone(true);
@@ -346,8 +367,10 @@ export default function OnboardingPage() {
   const handleDone = useCallback(() => {
     writeUserPreferences({
       onboardingCompleted: true,
-      name: DEFAULT_USER_PREFERENCES.name,
-      email: DEFAULT_USER_PREFERENCES.email,
+      // La identidad viene de la sesión. El teléfono sigue siendo el de relleno:
+      // el onboarding no lo pide en ningún paso y el perfil lo deja editar.
+      name: identity?.name ?? DEFAULT_USER_PREFERENCES.name,
+      email: identity?.email ?? DEFAULT_USER_PREFERENCES.email,
       phone: DEFAULT_USER_PREFERENCES.phone,
       location,
       locationName: LOCATION_NAMES[location] ?? location,
@@ -356,7 +379,7 @@ export default function OnboardingPage() {
       currencies: Array.from(currencies),
     });
     router.push("/home");
-  }, [router, location, interests, moods, currencies]);
+  }, [router, identity, location, interests, moods, currencies]);
 
   function handlePrefBack() {
     setShowPreferences(false);
@@ -365,15 +388,10 @@ export default function OnboardingPage() {
   }
 
   function handleResetAI() {
-    toast("Perfil de IA reseteado", {
-      style: {
-        background: "var(--foreground)",
-        color: "var(--background)",
-        borderRadius: "999px",
-        fontSize: "14px",
-        fontWeight: 600,
-      },
-    });
+    // Sin `style`: la pastilla ya la pone el `Toaster` del layout raíz con los
+    // tokens del sistema. Aquí vivía una copia con `var(--foreground)`, que era
+    // el lenguaje viejo y encima pisaba la del tema.
+    toast("Perfil de IA reseteado");
   }
 
   return (
