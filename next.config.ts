@@ -2,21 +2,29 @@ import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
 
-/* El cliente de Neon Auth (`src/lib/auth/client.ts`) llama a su propio origen
-   desde el navegador, y ese origen no es el nuestro. Con `connect-src 'self'` a
-   secas, el CSP de producción bloquea el inicio de sesión y el error que se ve
-   en pantalla es un "no se pudo conectar" que no dice por qué. Se lee de la
-   misma variable `NEXT_PUBLIC_` que usa el cliente, para que no puedan
-   desincronizarse. */
-const NEON_AUTH_ORIGIN = process.env.NEXT_PUBLIC_NEON_AUTH_URL ?? "";
+/* `connect-src 'self'` se queda como estaba, y conviene dejar dicho por qué,
+   porque es contraintuitivo.
 
+   Aquí hubo un añadido que abría el connect-src al origen de Neon Auth. Estaba
+   mal y se quitó: el cliente del navegador (`src/lib/auth/client.ts`) no habla
+   con Neon. `createAuthClient()` se construye sin URL, el adaptador acaba
+   pasando `baseURL: undefined` a Better Auth, y Better Auth, sin baseURL, usa
+   el **origen actual**. Todas sus llamadas van a `/api/auth/*` en este mismo
+   dominio, y quien habla con Neon es nuestro catch-all `[...path]`, en el
+   servidor, que es justo lo que significa "proxy them to the Neon Auth" en su
+   documentación.
+
+   Si algún día alguien añade algo que sí llame a Neon desde el navegador —los
+   componentes de `@neondatabase/auth-ui`, por ejemplo, que aquí no se usan—,
+   esto es lo primero que hay que tocar, o el navegador lo bloqueará en
+   producción con un error que no menciona el CSP por ninguna parte. */
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  ["connect-src 'self'", NEON_AUTH_ORIGIN].filter(Boolean).join(" "),
+  "connect-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
