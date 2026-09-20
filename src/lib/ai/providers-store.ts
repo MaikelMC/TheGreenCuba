@@ -55,7 +55,7 @@ function buildEnvProviders(): AiProvider[] {
       apiKey: process.env.MISTRAL_API_KEY,
       model: process.env.MISTRAL_MODEL ?? DEFAULT_MODELS.mistral,
       enabled: true,
-      priority: 1,
+      priority: 2,
     });
   }
   if (process.env.OPENROUTER_API_KEY) {
@@ -68,7 +68,7 @@ function buildEnvProviders(): AiProvider[] {
       apiKey: process.env.OPENROUTER_API_KEY,
       model: process.env.OPENROUTER_MODEL ?? DEFAULT_MODELS.openrouter,
       enabled: false,
-      priority: 2,
+      priority: 3,
     });
   }
   // Gemini primero: es el proveedor más fiable de la cadena hoy (los planes
@@ -83,7 +83,7 @@ function buildEnvProviders(): AiProvider[] {
       apiKey: process.env.GEMINI_API_KEY,
       model: process.env.GEMINI_MODEL ?? DEFAULT_MODELS.gemini,
       enabled: true,
-      priority: 3,
+      priority: 1,
     });
   }
   // Cerebras: API compatible con OpenAI (Bearer + /chat/completions) y soporta
@@ -137,8 +137,18 @@ export function readProviders(): AiProvider[] {
     ensureProvidersSeeded();
     if (cachedProviders) return cachedProviders;
     if (!fs.existsSync(FILE)) {
-      cachedProviders = result;
-      return result;
+      /* Sin archivo no hay proveedores **editables**, pero eso no significa que
+         no haya proveedores: los del entorno están ahí. Devolver la lista vacía
+         dejaba la IA muerta en todo despliegue, porque `data/` está en el
+         `.gitignore` y el disco de una función serverless es de solo lectura
+         —`ensureProvidersSeeded()` no puede escribir el archivo, y de rebote
+         tampoco valía leerlo—. En local el archivo existe y manda él.
+
+         El efecto era el peor de los posibles: en la máquina de desarrollo todo
+         funcionaba y en producción la búsqueda devolvía 503 sin más pista que
+         «Todos los proveedores fallaron», con las claves puestas y correctas. */
+      cachedProviders = buildEnvProviders();
+      return cachedProviders;
     }
     const raw = fs.readFileSync(FILE, "utf-8");
     const parsed = JSON.parse(raw) as unknown;

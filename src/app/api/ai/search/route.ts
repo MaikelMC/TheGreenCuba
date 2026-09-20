@@ -41,6 +41,11 @@ function sanitizePlaces(value: unknown): CatalogPlace[] {
           .filter((x): x is string => typeof x === "string")
           .slice(0, 8)
       : undefined;
+    /* La distancia la calcula el navegador, que es quien tiene la ubicación del
+       usuario. Se acepta tal cual y se acota: es una pista de ordenación, no un
+       dato que se enseñe, así que lo peor que puede hacer un valor inventado es
+       desordenar la lista. */
+    const distance = Number(p.distanceM);
     out.push({
       id,
       name,
@@ -49,6 +54,10 @@ function sanitizePlaces(value: unknown): CatalogPlace[] {
       payments,
       schedule: cleanString(p.schedule) || undefined,
       description: cleanString(p.description) || undefined,
+      distanceM:
+        Number.isFinite(distance) && distance >= 0
+          ? Math.min(Math.round(distance), 20_000_000)
+          : undefined,
     });
   }
   return out;

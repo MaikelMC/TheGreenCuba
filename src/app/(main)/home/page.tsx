@@ -24,6 +24,7 @@ import {
   fetchDrivingRoute,
   formatDistanceM,
   formatDurationSec,
+  haversineM,
   type RouteResult,
   type RoutePoint,
 } from "@/lib/map/routing";
@@ -453,15 +454,30 @@ function HomePageContent() {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 28000);
       try {
-        const catalog = places.map((p) => ({
-          id: p.id,
-          name: p.name,
-          category: p.category,
-          barrio: p.barrio,
-          payments: p.payments,
-          schedule: p.schedule,
-          description: p.description,
-        }));
+        /* La ubicación entra en la búsqueda: sin ella el modelo elige por
+           parecido y no hay forma de cumplir «lo más cercano a mí». Se usa la
+           misma que ya usan las rutas —la del estado y, si todavía no llegó, la
+           última conocida—.
+
+           El catálogo va ordenado por cercanía, y no solo con el número dentro:
+           un orden es mucho más difícil de ignorar que un campo suelto. */
+        const origin = userLocation ?? getLastKnownPosition();
+        const catalog = places
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            barrio: p.barrio,
+            payments: p.payments,
+            schedule: p.schedule,
+            description: p.description,
+            /* Sin ubicación el campo no viaja, y el modelo lo lee como
+               «distancia desconocida», que es exactamente la verdad. */
+            distanceM: origin
+              ? Math.round(haversineM(origin, { lat: p.lat, lng: p.lng }))
+              : undefined,
+          }))
+          .sort((a, b) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity));
         const res = await fetch("/api/ai/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -486,7 +502,7 @@ function HomePageContent() {
         searchCtx.setIsSearching(false);
       }
     },
-    [places, searchCtx],
+    [places, searchCtx, userLocation],
   );
 
   useEffect(() => {
