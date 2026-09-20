@@ -17,14 +17,27 @@ const isProd = process.env.NODE_ENV === "production";
    Si algún día alguien añade algo que sí llame a Neon desde el navegador —los
    componentes de `@neondatabase/auth-ui`, por ejemplo, que aquí no se usan—,
    esto es lo primero que hay que tocar, o el navegador lo bloqueará en
-   producción con un error que no menciona el CSP por ninguna parte. */
+   producción con un error que no menciona el CSP por ninguna parte.
+
+   Los dos geocoders sí van aparte, y aquí está el motivo. `src/lib/map/geocode.ts`
+   se escribió para llamarse desde el navegador —lo dice su cabecera— y así lo
+   usa el buscador del header en cada tecla. El CSP se quedó en `'self'` y el
+   navegador los bloqueaba en producción con exactamente el error que avisa el
+   párrafo de arriba. Van por `connect-src` y no por un proxy propio porque el
+   código ya estaba escrito así y son best-effort: si fallan o están bloqueados
+   por la red, el pin manual del mapa sigue funcionando.
+
+   Consecuencia que conviene tener presente: la consulta del usuario —incluida
+   la que va al buscador de IA— sale del navegador a Photon en cada pulsación.
+   Si algún día eso importa, el arreglo es mover `searchAddress` a una ruta
+   propia y quitar estos dos orígenes de aquí. */
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self'",
+  "connect-src 'self' https://photon.komoot.io https://nominatim.openstreetmap.org",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -56,18 +69,20 @@ if (isProd) {
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**.r2.cloudflarestorage.com",
-      },
-      /* Es el dominio desde el que se sirven las fotos de los negocios:
-         `R2_PUBLIC_URL` apunta a un `pub-<hash>.r2.dev`. Sin esta línea
+      /* De aquí salen las fotos de los negocios: Neon sirve los objetos de un
+         bucket `public_read` desde el endpoint de la rama. Sin esta línea
          `next/image` se niega a optimizarlas y la ficha pública se queda sin
-         fotos. El endpoint de la API (`*.r2.cloudflarestorage.com`, arriba) no
-         sirve para esto: no es público. */
+         fotos.
+
+         El comodín es ancho a propósito. Antes había dos entradas —el endpoint
+         de la API y el de lectura— y con Neon son el mismo servidor, así que
+         sobra una. Y el nombre lleva dentro el id de la rama, la celda y la
+         región, que cambian entre entornos: fijarlo obligaría a tocar esto cada
+         vez que se mueve una rama, y no compra nada, porque las URL no las
+         elige nadie de fuera — las escribe `publicUrl()` en el servidor. */
       {
         protocol: "https",
-        hostname: "**.r2.dev",
+        hostname: "**.neon.tech",
       },
       {
         protocol: "https",
