@@ -1,12 +1,24 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import NextImage from "next/image";
 import { ChevronLeft, ChevronRight, Image } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface Slide {
-  gradient: string;
-  label: string;
+/**
+ * Una diapositiva del carrusel.
+ *
+ * `url` a `null` es un negocio sin fotos subidas: se pinta el degradado de
+ * relleno del design system, con su rótulo. El hueco se ve como el diseño, no
+ * como un error. Antes esto era siempre un degradado: las fotos no existían.
+ */
+export interface Slide {
+  url: string | null;
+  alt: string;
+  /** Solo cuando no hay foto. */
+  gradient?: string;
+  /** Solo cuando no hay foto. */
+  label?: string;
 }
 
 interface PhotoCarouselProps {
@@ -86,13 +98,27 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
       <div ref={trackRef} className="flex h-full transition-transform duration-500 ease-outquint will-change-transform">
         {slides.map((slide, i) => (
           <div key={i} className="flex-[0_0_100%] h-full relative">
-            <div
-              className="w-full h-full flex flex-col items-center justify-center gap-gap-xs text-verde-600"
-              style={{ background: slide.gradient }}
-            >
-              <Image size={40} strokeWidth={1.5} className="opacity-40" />
-              <span className="text-small font-lv-display">{slide.label}</span>
-            </div>
+            {slide.url ? (
+              <NextImage
+                src={slide.url}
+                alt={slide.alt}
+                fill
+                /* El carrusel ocupa la ficha entera en móvil y la columna de
+                   contenido en escritorio. `priority` solo en la primera: es la
+                   que decide el LCP de la página. */
+                sizes="(min-width: 1024px) 1200px, 100vw"
+                priority={i === 0}
+                className="object-cover"
+              />
+            ) : (
+              <div
+                className="w-full h-full flex flex-col items-center justify-center gap-gap-xs text-verde-600"
+                style={{ background: slide.gradient }}
+              >
+                <Image size={40} strokeWidth={1.5} className="opacity-40" />
+                <span className="text-small font-lv-display">{slide.label}</span>
+              </div>
+            )}
           </div>
         ))}
       </div>

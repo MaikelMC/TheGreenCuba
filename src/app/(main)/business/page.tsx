@@ -165,7 +165,11 @@ function EditorView({
           title="Fotos del lugar"
           icon={<Image size={18} strokeWidth={1.8} />}
         >
-          <PhotoGrid />
+          {/* ponytail: el id va a fuego porque este panel entero lo está —el
+              nombre, los horarios y las métricas también—, y es el negocio que
+              siembra `db:seed`. El día que `/business` deje de ser un prototipo,
+              el id sale de `business_owners` para el usuario de la sesión. */}
+          <PhotoGrid placeId="st-pauli" placeName={bizName} />
         </FormSection>
 
         {/* Basic Info */}

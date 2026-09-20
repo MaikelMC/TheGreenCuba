@@ -60,6 +60,15 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "**.r2.cloudflarestorage.com",
       },
+      /* Es el dominio desde el que se sirven las fotos de los negocios:
+         `R2_PUBLIC_URL` apunta a un `pub-<hash>.r2.dev`. Sin esta línea
+         `next/image` se niega a optimizarlas y la ficha pública se queda sin
+         fotos. El endpoint de la API (`*.r2.cloudflarestorage.com`, arriba) no
+         sirve para esto: no es público. */
+      {
+        protocol: "https",
+        hostname: "**.r2.dev",
+      },
       {
         protocol: "https",
         hostname: "images.unsplash.com",
