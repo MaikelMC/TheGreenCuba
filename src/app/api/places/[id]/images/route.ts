@@ -4,7 +4,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { placeImages, places } from "@/lib/db/schema";
-import { R2_BUCKET, R2_PUBLIC_URL, r2Client, r2ConfigProblem } from "@/lib/storage/r2";
+import { S3_BUCKET, S3_PUBLIC_URL, s3Client, s3ConfigProblem } from "@/lib/storage/s3";
 import { EXTENSION, MAX_UPLOAD_BYTES, sniffImageType } from "@/lib/storage/image";
 import { generateId } from "@/lib/utils";
 
@@ -12,7 +12,7 @@ import { generateId } from "@/lib/utils";
  * Fotos de un negocio: listar, subir y borrar.
  *
  * La subida pasa por aquí, no por una URL firmada que el navegador use para
- * hablar con Cloudflare directo. No es solo comodidad: el CSP del sitio lleva
+ * hablar con el bucket directo. No es solo comodidad: el CSP del sitio lleva
  * `connect-src 'self'`, así que una subida desde el navegador la bloquearía en
  * producción con un error que no menciona el CSP por ninguna parte. Además
  * haría falta `@aws-sdk/s3-request-presigner`, que no está instalado.
@@ -51,12 +51,12 @@ function optionalInt(value: FormDataEntryValue | null): number | null {
 }
 
 function publicUrl(key: string): string {
-  return `${R2_PUBLIC_URL.replace(/\/+$/, "")}/${key}`;
+  return `${S3_PUBLIC_URL}/${key}`;
 }
 
 /** Clave del objeto a partir de su URL pública. `null` si no es de este bucket. */
 function keyFromUrl(url: string): string | null {
-  const base = R2_PUBLIC_URL.replace(/\/+$/, "");
+  const base = S3_PUBLIC_URL;
   if (!base || !url.startsWith(`${base}/`)) return null;
   return url.slice(base.length + 1);
 }
@@ -96,9 +96,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   /* Antes de tocar el bucket. Un endpoint o unas claves a medio poner no dan un
-     error de configuración: dan un fallo de TLS o un 403 opaco, y el sitio
-     donde se busca eso no es donde está el problema. */
-  const configProblem = r2ConfigProblem();
+     error de configuración: dan un ENOTFOUND, un fallo de TLS o un 403 opaco,
+     y el sitio donde se busca eso no es donde está el problema. */
+  const configProblem = s3ConfigProblem();
   if (configProblem) {
     return NextResponse.json({ error: configProblem }, { status: 500 });
   }
@@ -135,9 +135,9 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const key = `places/${place.id}/${generateId()}.${EXTENSION[contentType]}`;
 
-  await r2Client.send(
+  await s3Client.send(
     new PutObjectCommand({
-      Bucket: R2_BUCKET,
+      Bucket: S3_BUCKET,
       Key: key,
       Body: bytes,
       ContentType: contentType,
@@ -204,9 +204,9 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   const key = keyFromUrl(row.url);
   if (key) {
     try {
-      await r2Client.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key }));
+      await s3Client.send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: key }));
     } catch (error) {
-      console.error(`No se pudo borrar el objeto ${key} de R2:`, error);
+      console.error(`No se pudo borrar el objeto ${key} del bucket:`, error);
     }
   }
 
