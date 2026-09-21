@@ -46,6 +46,16 @@ export interface MapViewProps {
   /** Ruta activa a dibujar entre la ubicación del usuario y un lugar. */
   route?: RouteResult | null;
   routeOrigin?: RoutePoint | null;
+  /* Estos dos van sin `?` a propósito. Son opcionales en el destino —el popup
+     solo los usa si el lugar es el destino de la ruta—, y con `?` en toda la
+     cadena una parada que se olvide de pasarlos no da error: el popup se queda
+     sin la función y el botón deja de quitar la ruta, en silencio. Así el
+     compilador obliga a que lleguen. Fue justo el fallo que tuvo. */
+
+  /** Lugar que es destino de la ruta activa: su popup muestra la ruta fijada. */
+  routePlaceId: string | null;
+  /** Quita la ruta del mapa, desde el popup del destino. */
+  onRouteClear: () => void;
   initialCenter?: [number, number];
   initialZoom?: number;
   maxZoom?: number;

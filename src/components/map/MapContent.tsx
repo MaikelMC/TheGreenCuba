@@ -93,6 +93,8 @@ function MapChildren({
   selectedPlaceId,
   onPlaceSelect,
   onPlaceRoute,
+  routePlaceId,
+  onRouteClear,
   userLocation,
   onUserLocated,
   onLocateStateChange,
@@ -104,6 +106,8 @@ function MapChildren({
   selectedPlaceId?: string | null;
   onPlaceSelect?: MapViewProps["onPlaceSelect"];
   onPlaceRoute?: MapViewProps["onPlaceRoute"];
+  routePlaceId: MapViewProps["routePlaceId"];
+  onRouteClear: MapViewProps["onRouteClear"];
   userLocation?: MapViewProps["userLocation"];
   onUserLocated?: MapViewProps["onUserLocated"];
   onLocateStateChange?: MapViewProps["onLocateStateChange"];
@@ -171,6 +175,8 @@ function MapChildren({
         selectedId={selectedPlaceId}
         onSelect={onPlaceSelect}
         onRoute={onPlaceRoute}
+        routePlaceId={routePlaceId}
+        onRouteClear={onRouteClear}
       />
       {userLocation && (
         <UserLocationMarker
@@ -205,6 +211,8 @@ export function MapContent({
   viewTarget,
   route,
   routeOrigin,
+  routePlaceId,
+  onRouteClear,
   initialCenter = HAVANA_CENTER,
   initialZoom = DEFAULT_ZOOM,
   maxZoom = MAX_ZOOM,
@@ -256,6 +264,8 @@ export function MapContent({
         selectedPlaceId={selectedPlaceId}
         onPlaceSelect={onPlaceSelect}
         onPlaceRoute={onPlaceRoute}
+        routePlaceId={routePlaceId}
+        onRouteClear={onRouteClear}
         userLocation={userLocation}
         onUserLocated={onUserLocated}
         onLocateStateChange={onLocateStateChange}
@@ -264,14 +274,7 @@ export function MapContent({
       />
 
       {route && routeOrigin && route.coordinates.length > 0 && (
-        <RouteLayer
-          route={route}
-          origin={routeOrigin}
-          dest={{
-            lat: route.coordinates[route.coordinates.length - 1]![0],
-            lng: route.coordinates[route.coordinates.length - 1]![1],
-          }}
-        />
+        <RouteLayer route={route} origin={routeOrigin} />
       )}
     </MapContainer>
   );

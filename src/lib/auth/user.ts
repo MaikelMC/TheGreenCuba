@@ -1,9 +1,10 @@
+import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { generateId } from "@/lib/utils";
-import type { Role } from "@/lib/session";
+import { AUTH_USER_HEADER, type Role } from "@/lib/session";
 
 /**
  * Puente entre la cuenta de Neon y el perfil del proyecto.
@@ -17,10 +18,14 @@ import type { Role } from "@/lib/session";
  * rutas de API, componentes de servidor— pregunta aquí y recibe un `AppUser`
  * con el vocabulario de la app.
  *
- * Nota que `auth.getSession()` lee la cookie, así que esto solo funciona en el
- * servidor: layouts, componentes de servidor y rutas de API. En el navegador el
- * estado de sesión se lee con `authClient.useSession()`, que no sabe nada del
- * rol (por eso existe `/api/me`).
+ * La identidad llega del proxy, no de preguntarle a Neon desde aquí. El motivo
+ * está entero en `AUTH_USER_HEADER` (`src/lib/session.ts`): dentro del render
+ * `auth.getSession()` revienta en cuanto el paquete tiene que devolverle una
+ * cookie a Neon, y eso pasa cada vez que falla su caché de sesión. El proxy sí
+ * puede escribir cookies, así que resuelve la sesión allí y aquí se lee.
+ *
+ * En el navegador el estado de sesión se lee con `authClient.useSession()`, que
+ * no sabe nada del rol (por eso existe `/api/me`).
  */
 
 export interface AppUser {
@@ -68,6 +73,40 @@ function bootstrapRole(email: string): Role {
   return "user";
 }
 
+interface NeonIdentity {
+  id: string;
+  email: string;
+  name: string;
+}
+
+/**
+ * Quién dice Neon que eres, o `null`.
+ *
+ * La cabecera la pone el proxy y siempre está en las rutas que pasan por él
+ * —vacía cuando no hay sesión, que es distinto de que no haya cabecera—. Si no
+ * está, la petición no pasó por el proxy: son las rutas de API, excluidas del
+ * matcher, y esas sí pueden llamar a `auth.getSession()` porque corren en fase
+ * `action`.
+ */
+async function readNeonIdentity(): Promise<NeonIdentity | null> {
+  const fromProxy = (await headers()).get(AUTH_USER_HEADER);
+  if (fromProxy !== null) {
+    if (!fromProxy) return null;
+    try {
+      return JSON.parse(decodeURIComponent(fromProxy)) as NeonIdentity;
+    } catch {
+      /* Cabecera ilegible. Mejor quedarse sin sesión que fiarse de un valor
+         a medio parsear. */
+      return null;
+    }
+  }
+
+  const { data: session } = await auth.getSession();
+  const user = session?.user;
+  if (!user) return null;
+  return { id: user.id, email: user.email ?? "", name: user.name ?? "" };
+}
+
 function toAppUser(row: typeof users.$inferSelect): AppUser {
   return {
     id: row.id,
@@ -98,9 +137,8 @@ function toAppUser(row: typeof users.$inferSelect): AppUser {
  * administración a la vez, que pasan por `isAdminRequest`.
  */
 export async function getAppUser(): Promise<AppUser | null> {
-  const { data: session } = await auth.getSession();
-  const neonUser = session?.user;
-  if (!neonUser?.id) return null;
+  const neonUser = await readNeonIdentity();
+  if (!neonUser) return null;
 
   const [existing] = await db
     .select()
@@ -110,14 +148,14 @@ export async function getAppUser(): Promise<AppUser | null> {
 
   if (existing) return toAppUser(existing);
 
-  const email = neonUser.email ?? "";
+  const email = neonUser.email;
   const [created] = await db
     .insert(users)
     .values({
       id: generateId(),
       authUserId: neonUser.id,
       email,
-      name: neonUser.name ?? null,
+      name: neonUser.name || null,
       role: bootstrapRole(email),
     })
     .onConflictDoNothing()

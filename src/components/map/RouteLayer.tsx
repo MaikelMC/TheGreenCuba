@@ -3,13 +3,11 @@
 import { memo, useEffect, useMemo, useRef } from "react";
 import { Polyline, Marker, useMap } from "react-leaflet";
 import { divIcon } from "leaflet";
-import { createPlacePinIcon } from "./pin-icon";
 import type { RouteResult, RoutePoint } from "@/lib/map/routing";
 
 interface RouteLayerProps {
   route: RouteResult | null;
   origin: RoutePoint;
-  dest: RoutePoint;
 }
 
 /* Origen de la ruta = donde está el usuario, así que va en `ink` igual que el
@@ -52,14 +50,16 @@ const ROUTE_CLICK_GUARD = {
   eventHandlers: { click: () => {} },
 };
 
+/* El destino no lleva pin propio: lo pone el marcador del lugar, que ya está en
+   esa misma coordenada y, al quedar seleccionado, sale en la variante `selected`
+   —más grande—. El pin extra que había aquí se dibujaba encima del suyo, sin
+   popup ni handler, y se comía el click: el destino dejaba de ser tocable. */
 export const RouteLayer = memo(function RouteLayer({
   route,
   origin,
-  dest,
 }: RouteLayerProps) {
   const map = useMap();
   const originIcon = useMemo(() => createOriginDot(), []);
-  const destIcon = createPlacePinIcon("default");
   const lastRoute = useRef<RouteResult | null>(null);
 
   useEffect(() => {
@@ -86,7 +86,6 @@ export const RouteLayer = memo(function RouteLayer({
         {...ROUTE_CLICK_GUARD}
       />
       <Marker position={[origin.lat, origin.lng]} icon={originIcon} />
-      <Marker position={[dest.lat, dest.lng]} icon={destIcon} />
     </>
   );
 });

@@ -2,7 +2,7 @@
 
 import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
-import { ChevronRight, Navigation, Star } from "lucide-react";
+import { Check, ChevronRight, Navigation, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { placeIcon } from "@/lib/places";
 import { CategoryIcon } from "@/components/admin/category-icon";
@@ -11,6 +11,9 @@ import { type MapPlace } from "./types";
 interface PlacePopupProps {
   place: MapPlace;
   onRoute?: (place: MapPlace) => void;
+  /** Este lugar es el destino de la ruta pintada: el botón la muestra fijada. */
+  routeFixed?: boolean;
+  onRouteClear?: () => void;
 }
 
 // Caja común de las dos acciones. 36 px de alto en vez de los 44 de la guía
@@ -24,7 +27,12 @@ const ACTION =
 
 const META = "font-lv-display text-meta tabular-nums";
 
-export function PlacePopup({ place, onRoute }: PlacePopupProps) {
+export function PlacePopup({
+  place,
+  onRoute,
+  routeFixed,
+  onRouteClear,
+}: PlacePopupProps) {
   // Una sola línea de datos. El barrio se omite a propósito: el mapa ya dice
   // dónde está, y la distancia es la que aporta algo.
   const segments: ReactNode[] = [
@@ -89,20 +97,40 @@ export function PlacePopup({ place, onRoute }: PlacePopupProps) {
       </div>
 
       {/* La ruta es la acción secundaria; abrir la ficha es la principal, así que
-          va en el verde de acción y a la derecha. */}
+          va en el verde de acción y a la derecha.
+
+          El botón ocupa el mismo hueco en los dos estados: con la ruta puesta
+          dice que está fijada y al tocarlo la quita, así que el mismo gesto que
+          la pone la deshace, en el mismo sitio. */}
       <div className="flex gap-gap-xs px-[14px] pt-[10px] pb-[12px]">
-        {onRoute && (
+        {routeFixed && onRouteClear ? (
           <button
             type="button"
-            onClick={() => onRoute(place)}
+            onClick={onRouteClear}
+            aria-label="Quitar la ruta fijada"
+            title="Quitar la ruta fijada"
             className={cn(
               ACTION,
-              "border border-ink/10 bg-white text-ink hover:border-verde-300 hover:bg-verde-50",
+              "border border-verde-300 bg-verde-50 text-verde-700 hover:bg-verde-100",
             )}
           >
-            <Navigation size={15} strokeWidth={1.8} />
-            Ruta
+            <Check size={15} strokeWidth={2.2} />
+            Ruta fijada
           </button>
+        ) : (
+          onRoute && (
+            <button
+              type="button"
+              onClick={() => onRoute(place)}
+              className={cn(
+                ACTION,
+                "border border-ink/10 bg-white text-ink hover:border-verde-300 hover:bg-verde-50",
+              )}
+            >
+              <Navigation size={15} strokeWidth={1.8} />
+              Ruta
+            </button>
+          )
         )}
         {/* `Link` y no `<a>`: con un enlace normal la navegación recargaba la
             app entera, el PlacesProvider se volvía a montar y la ficha del
@@ -133,5 +161,10 @@ export function getPlacePopupOptions() {
     // Sin margen el popup quedaba pegado al borde superior, por debajo del
     // header fijo, y el botón de cerrar caía fuera de la zona alcanzable.
     autoPanPadding: [16, 20] as [number, number],
+    // La hoja de recomendaciones recogida sigue tapando los últimos 120 px del
+    // mapa. Sin este margen Leaflet daba por bueno un popup pegado al borde
+    // inferior y el pin —que cuelga justo debajo de él— quedaba detrás de la
+    // hoja, que es justo lo que se acaba de pedir que no pase.
+    autoPanPaddingBottomRight: [16, 150] as [number, number],
   };
 }

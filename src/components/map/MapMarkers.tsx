@@ -12,6 +12,8 @@ interface MapMarkersProps {
   selectedId?: string | null;
   onSelect?: (place: MapPlace) => void;
   onRoute?: (place: MapPlace) => void;
+  routePlaceId: string | null;
+  onRouteClear: () => void;
 }
 
 function markerVariant(isSelected: boolean, isBoosted: boolean): PlacePinVariant {
@@ -26,12 +28,16 @@ const MarkerItem = memo(function MarkerItem({
   isBoosted,
   onSelect,
   onRoute,
+  routeFixed,
+  onRouteClear,
 }: {
   place: MapPlace;
   isSelected: boolean;
   isBoosted: boolean;
   onSelect?: (place: MapPlace) => void;
   onRoute?: (place: MapPlace) => void;
+  routeFixed: boolean;
+  onRouteClear: () => void;
 }) {
   const icon = createPlacePinIcon(
     markerVariant(isSelected, isBoosted),
@@ -49,7 +55,12 @@ const MarkerItem = memo(function MarkerItem({
       eventHandlers={{ click: handleClick }}
     >
       <Popup {...getPlacePopupOptions()}>
-        <PlacePopup place={place} onRoute={onRoute} />
+        <PlacePopup
+          place={place}
+          onRoute={onRoute}
+          routeFixed={routeFixed}
+          onRouteClear={onRouteClear}
+        />
       </Popup>
     </Marker>
   );
@@ -60,6 +71,8 @@ export const MapMarkers = memo(function MapMarkers({
   selectedId,
   onSelect,
   onRoute,
+  routePlaceId,
+  onRouteClear,
 }: MapMarkersProps) {
   return (
     <>
@@ -71,6 +84,8 @@ export const MapMarkers = memo(function MapMarkers({
           isBoosted={place.tags?.some((t) => t.label === "Destacado") ?? false}
           onSelect={onSelect}
           onRoute={onRoute}
+          routeFixed={place.id === routePlaceId}
+          onRouteClear={onRouteClear}
         />
       ))}
     </>

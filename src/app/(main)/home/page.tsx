@@ -326,6 +326,8 @@ function HomePageContent() {
   const searchParams = useSearchParams();
   const [sheetState, setSheetState] = useState<SheetState>("default");
   const [selectedId, setSelectedId] = useState<string>("6");
+  /* Contador, no booleano: cada pin tocado pide otra vez recoger la hoja. */
+  const [collapseKey, setCollapseKey] = useState(0);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set(["6"]));
   const [activeCategory, setActiveCategory] = useState("all");
   /* Filtros acumulables del mapa. Viven aquí y no dentro de `PlaceFilters`
@@ -434,8 +436,11 @@ function HomePageContent() {
     });
   }, []);
 
+  /* Tocar una card de recomendaciones recoge la hoja hasta dejar el asa: el
+     negocio se queda resaltado en el mapa, y con la lista delante no se veía. */
   const handleSelect = useCallback((id: string) => {
     setSelectedId(id);
+    setCollapseKey((k) => k + 1);
   }, []);
 
   // Tocar el fondo del mapa quita la selección, como en cualquier mapa.
@@ -539,6 +544,8 @@ function HomePageContent() {
     }, 2500);
   }, [searchingQuery, handleSearch, searchCtx]);
 
+  /* Tocar un pin del mapa solo selecciona: la hoja no se toca. El popup sale
+     del propio pin y ya se abre solo. */
   const handleMarkerClick = useCallback((id: string) => {
     setSelectedId(id);
   }, []);
@@ -547,13 +554,18 @@ function HomePageContent() {
     setDetailPlace(place);
   }, []);
 
-  // Vuela el mapa hasta un lugar al tocar su botón de ubicación.
+  /* Vuela el mapa hasta un lugar al tocar su botón de ubicación —el 📍 "Ver en
+     el mapa" de la card—, lo resalta y recoge la hoja. Las tres cosas van
+     juntas: sin vuelo no se llega, sin resaltado el pin se pierde entre los
+     demás, y sin recogerla el negocio queda justo detrás de la lista. */
   const handleLocate = useCallback((place: HomePlace) => {
+    setSelectedId(place.id);
     setFocusTarget((prev) => ({
       lat: place.lat,
       lng: place.lng,
       key: (prev?.key ?? 0) + 1,
     }));
+    setCollapseKey((k) => k + 1);
   }, []);
 
   const handleUserLocated = useCallback((lat: number, lng: number, accuracy?: number) => {
@@ -742,6 +754,8 @@ function HomePageContent() {
         viewTarget={viewTarget}
         route={route}
         routeOrigin={routeOrigin}
+        routePlaceId={routeDest?.id ?? null}
+        onRouteClear={handleClearRoute}
       >
         <CategoryBar
           categories={categories}
@@ -797,6 +811,7 @@ function HomePageContent() {
         subtitle={sheetSubtitle}
         badge={showBadge ? String(shownCount) : undefined}
         forceOpen={sheetState !== "default"}
+        collapseSignal={collapseKey}
       >
         {/* Default / Results state */}
         {(sheetState === "default" || sheetState === "results") && (
