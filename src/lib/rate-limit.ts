@@ -19,7 +19,11 @@ export function rateLimit(req: NextRequest, limit: number, windowMs: number): {
   ok: boolean;
   retryAfterSeconds?: number;
 } {
-  const key = `${clientIp(req)}:${windowMs}`;
+  /* La ruta entra en la clave. Sin ella, dos endpoints con la misma ventana
+     —`/api/ai`, `/api/ai/search` y `/api/route` usan los tres 60 s— compartían
+     cubo: veinte búsquedas de IA gastaban el presupuesto de las rutas y al
+     revés, cada uno cortado por el límite del otro. */
+  const key = `${clientIp(req)}:${req.nextUrl.pathname}:${windowMs}`;
   const now = Date.now();
 
   const bucket = store.get(key);
