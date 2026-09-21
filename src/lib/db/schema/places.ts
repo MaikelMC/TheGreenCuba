@@ -79,7 +79,17 @@ export const places = pgTable(
         precio es texto libre («3–5 USD») y esa tabla lo tiene como `double
         precision`: guardarlo ahí perdería lo que el dueño escribió. */
     menu: jsonb("menu").$type<
-      { name: string; description: string; price: string; currency: string }[]
+      {
+        name: string;
+        description: string;
+        price: string;
+        currency: string;
+        /** Chapita del producto («Popular», «Nuevo», «2x1»). El panel ya la
+            guardaba y el tipo no la declaraba, así que quien lo leyera con
+            TypeScript no podía saber que estaba ahí. `$type` no genera
+            migración: es solo el tipo del jsonb. */
+        tag?: string;
+      }[]
     >(),
     /** Valoración media. Denormalizada a propósito: las reseñas viven en
         `reviews`, pero el catálogo se pinta sin consultarlas. */

@@ -428,11 +428,11 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
         </div>
 
         <FormSection
-          title="Menú / Servicios destacados"
+          title="Lo que ofrece"
           icon={<Utensils size={18} strokeWidth={1.8} />}
         >
           <p className="text-meta text-ink-soft/75 mb-gap-sm">
-            Añade los platos o servicios más populares. Aparecen en la ficha del lugar.
+            Añade los productos o servicios más populares. Aparecen en la ficha del lugar.
           </p>
           <MenuItemEditor
             items={(initial?.menu ?? []).map((m, i) => ({

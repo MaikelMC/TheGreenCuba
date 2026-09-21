@@ -28,9 +28,10 @@ export type PlaceState = "normal" | "closed" | "no-photos" | "special-offer";
 interface PlaceMenu {
   name: string;
   description: string;
-  price: number;
+  /** Texto libre. Ver `UserPlaceMenuItem`: no es un número. */
+  price: string;
   currency: string;
-  tag?: { label: string; variant: "popular" | "new" | "offer" };
+  tag?: string;
   imageEmoji?: string;
 }
 
@@ -47,9 +48,12 @@ export interface PlaceData {
   longDescription: string;
   isOpen: boolean;
   closedMessage?: string;
-  aiQuery: string;
-  aiReasoning: string;
+  /* Con esto se compone la tarjeta de recomendación. Son datos que la ficha no
+     enseña en ningún otro sitio: el ambiente, el precio y las etiquetas. */
+  vibe: string[];
   aiTags: string[];
+  priceLabel?: string;
+  isBoosted?: boolean;
   slides: Slide[];
   menu: PlaceMenu[];
   specialOffer?: {
@@ -253,7 +257,7 @@ export function PlaceDetail({
               onReview={() => setReviewOpen(true)}
             />
 
-            <AiCard place={place} />
+            <WhyCard place={place} />
 
             {/* Special Offer */}
             {showOffer && place.specialOffer && (
@@ -300,7 +304,10 @@ export function PlaceDetail({
             <Reveal>
               <section className={CARD}>
                 <div className="flex items-center justify-between mb-gap-md">
-                  <h2 className={H2}>Menú destacado</h2>
+                  {/* «Menú» solo valía para restaurantes. En la app hay mercados,
+                    mipymes y vendedores independientes, y lo que enseñan es un
+                    producto o un servicio, no un plato. */}
+                <h2 className={H2}>Lo que ofrece</h2>
                   <button
                     type="button"
                     onClick={onMenuSeeAll}
@@ -428,7 +435,7 @@ export function PlaceDetail({
 
           {/* AI Recommendation */}
           <Reveal>
-            <AiCard place={place} className="mx-gutter my-gap-md" />
+            <WhyCard place={place} className="mx-gutter my-gap-md" />
           </Reveal>
 
           {/* Special Offer Banner */}
@@ -486,7 +493,10 @@ export function PlaceDetail({
           <Reveal>
             <section className="p-gap-lg px-gutter bg-sand-warm">
               <div className="flex items-center justify-between mb-gap-md">
-                <h2 className={H2}>Menú destacado</h2>
+                {/* «Menú» solo valía para restaurantes. En la app hay mercados,
+                    mipymes y vendedores independientes, y lo que enseñan es un
+                    producto o un servicio, no un plato. */}
+                <h2 className={H2}>Lo que ofrece</h2>
                 <button
                   type="button"
                   onClick={onMenuSeeAll}
@@ -526,10 +536,36 @@ export function PlaceDetail({
   );
 }
 
-/* La recomendación de la IA sale en el escritorio (columna lateral) y en móvil
-   (a lo ancho). El marcado era idéntico en los dos sitios; solo cambiaban los
-   márgenes, que entran por `className`. */
-function AiCard({ place, className }: { place: PlaceData; className?: string }) {
+/**
+ * Por qué La Verde lo recomienda. Sale en el escritorio (columna lateral) y en
+ * móvil (a lo ancho); el marcado es el mismo y solo cambian los márgenes, que
+ * entran por `className`.
+ *
+ * El texto se compone con lo que la ficha sabe de verdad del negocio. Antes
+ * decía «Buscaste "buscar restaurante en Cuba"» —una consulta fabricada que
+ * nadie escribió— y una razón que venía de un campo sin columna en la base, así
+ * que salía siempre el mismo relleno: «listo para ser recomendado».
+ *
+ * Lo que se dice aquí es lo que no se ve en ninguna otra parte de la ficha: el
+ * horario está en el `InfoBar`, la nota en la cabecera y la dirección en su
+ * línea. Repetirlos sería volver a lo de antes.
+ */
+function WhyCard({ place, className }: { place: PlaceData; className?: string }) {
+  const lines = [
+    `${place.category} en ${place.barrio}`,
+    place.priceLabel ? `Precios de ${place.priceLabel}` : null,
+  ].filter((line): line is string => line !== null);
+
+  /* `Set` porque el mismo valor puede llegar por los dos lados: la siembra mete
+     «Todo el día» en `vibe` y el negocio puede tenerlo también en sus etiquetas. */
+  const chips = [
+    ...new Set([
+      ...(place.isBoosted ? ["Destacado"] : []),
+      ...place.vibe,
+      ...place.aiTags,
+    ]),
+  ];
+
   return (
     <div
       className={cn(
@@ -545,24 +581,26 @@ function AiCard({ place, className }: { place: PlaceData; className?: string }) 
           <div className="font-lv-display text-small font-bold text-ink">
             Por qué La Verde te lo recomienda
           </div>
-          <div className="text-meta text-ink-soft/75">
-            Basado en tu búsqueda y ubicación
-          </div>
+          <div className="text-meta text-ink-soft/75">Datos del lugar</div>
         </div>
       </div>
-      <div className="text-small leading-relaxed text-ink">
-        Buscaste <strong>&ldquo;{place.aiQuery}&rdquo;</strong>. {place.aiReasoning}
+
+      <div className="text-small leading-relaxed text-ink text-pretty">
+        {lines.join(". ")}.
       </div>
-      <div className="flex gap-[6px] flex-wrap mt-gap-sm">
-        {place.aiTags.map((tag) => (
-          <span
-            key={tag}
-            className="px-[8px] py-[3px] rounded-full bg-white border border-verde-200 font-lv-display text-[10px] font-semibold text-verde-600 uppercase tracking-[0.08em]"
-          >
-            {tag}
-          </span>
-        ))}
-      </div>
+
+      {chips.length > 0 && (
+        <div className="flex gap-[6px] flex-wrap mt-gap-sm">
+          {chips.map((tag) => (
+            <span
+              key={tag}
+              className="px-[8px] py-[3px] rounded-full bg-white border border-verde-200 font-lv-display text-[10px] font-semibold text-verde-600 uppercase tracking-[0.08em]"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

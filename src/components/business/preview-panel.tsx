@@ -128,7 +128,9 @@ export function PreviewPanel({
 
           {/* Menu preview */}
           <div className="px-gap-md pb-gap-md">
-            <h3 className="font-lv-display text-small font-bold text-ink mb-gap-sm">Menú destacado</h3>
+            {/* Mismo título que la sección de la ficha: el dueño ve aquí lo que
+                verá quien mire su negocio. */}
+            <h3 className="font-lv-display text-small font-bold text-ink mb-gap-sm">Lo que ofrece</h3>
             <div className="flex flex-col gap-gap-sm">
               {menuItems.map((item, i) => (
                 <div key={i} className="flex gap-gap-sm items-center">
@@ -161,7 +163,7 @@ export function PreviewPanel({
             { label: "Estado", value: isOpen ? "Abierto ahora" : "Cerrado", color: isOpen ? "text-verde-600" : "text-destructive" },
             { label: "Pagos", value: payments.map(currencyLabel).join(", ") },
             { label: "Oferta", value: offer, color: "text-verde-600" },
-            { label: "Menú items", value: `${menuCount} platos destacados` },
+            { label: "Productos", value: `${menuCount} productos o servicios` },
           ].map((field) => (
             <div
               key={field.label}

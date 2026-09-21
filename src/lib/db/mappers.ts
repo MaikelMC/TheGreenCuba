@@ -45,7 +45,12 @@ export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
     lat: row.lat,
     lng: row.lng,
     address: row.address ?? "",
-    barrio: row.neighborhood ?? "",
+    /* El barrio cae a la ciudad cuando el negocio no tiene uno. Media siembra
+       viene sin `neighborhood` —La Cabaña, entre otros—, y con el fallback
+       anterior esos negocios acababan con la etiqueta «Cuba» en la ficha, que
+       no es un barrio ni un dato: es un hueco disfrazado. `city` es `notNull`,
+       así que nunca queda vacío. */
+    barrio: row.neighborhood || row.city,
     description: row.description ?? row.shortDescription ?? "",
     schedule: row.schedule ?? "",
     /* La base lo guarda desde la primera siembra; sin esto los filtros de
@@ -121,9 +126,13 @@ export function toPlaceValues(
   if (patch.priceLabel !== undefined) values.priceLabel = patch.priceLabel;
   if (patch.aiTags !== undefined) values.aiTags = patch.aiTags;
 
-  /* `photos`, `aiReasoning` y `distanceLabel` no tienen columna: las fotos van
-     a su propia tabla y las otras dos son del render, no del negocio. Se quedan
-     fuera del mapeo a propósito, no por olvido. */
+  /* `photos` y `distanceLabel` no tienen columna: las fotos van a su propia
+     tabla y la distancia la calcula el render, que es quien tiene la ubicación
+     del usuario. Se quedan fuera del mapeo a propósito, no por olvido.
+
+     `aiReasoning` estaba en esta lista y ya no existe: nadie lo escribía, nadie
+     lo leía, y la ficha lo pintaba con un texto de relleno creyendo que venía
+     de la base. */
 
   return values;
 }
