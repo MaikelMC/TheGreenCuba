@@ -30,7 +30,17 @@ const isProd = process.env.NODE_ENV === "production";
    Consecuencia que conviene tener presente: la consulta del usuario —incluida
    la que va al buscador de IA— sale del navegador a Photon en cada pulsación.
    Si algún día eso importa, el arreglo es mover `searchAddress` a una ruta
-   propia y quitar estos dos orígenes de aquí. */
+   propia y quitar estos dos orígenes de aquí.
+
+   El router de OSRM es el caso contrario y sirve de ejemplo de cuándo NO
+   abrir esto. También bloqueaba la ruta del mapa en producción —mismo síntoma
+   exacto: el código caía a su respaldo de línea recta y nadie relacionaba una
+   cosa con la otra—, pero aquí sí se puso proxy propio (`/api/route`). La
+   diferencia es que las rutas no son best-effort de verdad: el respaldo es una
+   recta que no sirve para nada, así que más vale que la llamada funcione. Con
+   el proxy el navegador solo habla con este origen, este `connect-src` sigue
+   cerrado, y el día que se cambie de proveedor de rutas —el servidor demo de
+   OSRM limita a ~1 req/s— se cambia una URL en el servidor. */
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",

@@ -9,8 +9,14 @@ export interface RoutePoint {
   lng: number;
 }
 
-const OSRM_ENDPOINT = "https://router.project-osrm.org/route/v1/driving";
-const OSRM_TIMEOUT_MS = 8000;
+/* La ruta la calcula el servidor, en `/api/route`. Antes se llamaba a OSRM
+   desde aquí, desde el navegador, y el CSP del sitio (`connect-src 'self'`) lo
+   bloqueaba en producción: el mapa caía al respaldo de línea recta y el error
+   no mencionaba el CSP por ninguna parte. */
+const ROUTE_API = "/api/route";
+// Más que el timeout del servidor (8 s) a propósito: así el que corta es él,
+// que puede devolver un error con sentido, y no un aborto del lado del cliente.
+const ROUTE_TIMEOUT_MS = 12000;
 
 function toRad(deg: number): number {
   return (deg * Math.PI) / 180;
@@ -34,27 +40,24 @@ export async function fetchDrivingRoute(
   dest: RoutePoint,
 ): Promise<RouteResult | null> {
   try {
-    const coords = `${origin.lng},${origin.lat};${dest.lng},${dest.lat}`;
-    const url = `${OSRM_ENDPOINT}/${coords}?overview=full&geometries=geojson`;
+    const url = `${ROUTE_API}?from=${origin.lat},${origin.lng}&to=${dest.lat},${dest.lng}`;
     const res = await fetch(url, {
-      signal: AbortSignal.timeout(OSRM_TIMEOUT_MS),
+      signal: AbortSignal.timeout(ROUTE_TIMEOUT_MS),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as {
-      code?: string;
-      routes?: { distance?: number; duration?: number; geometry?: { coordinates?: number[][] } }[];
+      ok?: boolean;
+      coordinates?: [number, number][];
+      distanceM?: number;
+      durationSec?: number;
     };
-    if (data.code !== "Ok" || !data.routes?.length) return null;
-    const route = data.routes[0]!;
-    const geometry = route.geometry?.coordinates;
-    if (!geometry || geometry.length < 2) return null;
-    const coordinates = geometry.map(
-      ([lng, lat]) => [lat, lng] as [number, number],
-    );
+    if (data.ok !== true || !data.coordinates || data.coordinates.length < 2) {
+      return null;
+    }
     return {
-      coordinates,
-      distanceM: route.distance ?? haversineM(origin, dest),
-      durationSec: route.duration ?? 0,
+      coordinates: data.coordinates,
+      distanceM: data.distanceM ?? haversineM(origin, dest),
+      durationSec: data.durationSec ?? 0,
     };
   } catch {
     return null;
