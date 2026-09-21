@@ -80,7 +80,15 @@ Edita `.env.local` con tus credenciales:
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key |
 | `CLERK_SECRET_KEY` | Clerk secret key |
 | `OPENAI_API_KEY` | OpenAI API key |
-| `R2_*` | Cloudflare R2 credentials (opcional en desarrollo) |
+| `AWS_ENDPOINT_URL_S3` | Endpoint de la rama, en Branch → Storage de la consola de Neon |
+| `AWS_ACCESS_KEY_ID` | `token_id` de una credencial de Neon con `storage:read` y `storage:write` |
+| `AWS_SECRET_ACCESS_KEY` | `s3_secret_access_key`, que solo se devuelve al crear la credencial |
+| `AWS_REGION` | Región real de la rama. `auto` no vale |
+| `S3_BUCKET_NAME` | Bucket de las fotos. Por defecto `la-verde-images` |
+
+El bucket tiene que estar en `public_read`. Se cambia en la consola o en la API
+de Neon, no por S3: `PutBucketAcl` devuelve `501 Not Implemented`. Con un bucket
+privado, las fotos se suben pero la ficha pública no las puede leer.
 
 ### 3. Base de datos
 

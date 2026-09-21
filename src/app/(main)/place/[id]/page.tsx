@@ -15,13 +15,20 @@ import type { UserPlace } from "@/lib/places-store";
 
 /* Mismo par de degradados claros que usa el editor de fotos del panel de
    negocio. Los anteriores eran verdes oscuros y el rótulo del carrusel —que va
-   en `verde-600`— no se leía encima. */
+   en `verde-600`— no se leía encima.
+
+   El `url: null` es lo que los marca como relleno: `PhotoCarousel` pinta el
+   degradado en lugar de una imagen. */
 const FALLBACK_SLIDES = [
   {
+    url: null,
+    alt: "",
     gradient: "linear-gradient(160deg, #EAF7EF, #CEEEDB)",
     label: "El lugar",
   },
   {
+    url: null,
+    alt: "",
     gradient: "linear-gradient(160deg, #F6F3EC, #EAE4D6)",
     label: "Ambiente",
   },
@@ -56,9 +63,14 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
       p.aiReasoning ||
       `Este negocio está en ${p.barrio || "Cuba"}, listo para ser recomendado por La Verde.`,
     aiTags: tags.length > 0 ? tags : ["Nuevo en La Verde"],
+    /* Las fotos subidas mandan; el degradado solo rellena cuando el negocio
+       todavía no tiene ninguna. */
     slides:
-      p.slides && p.slides.length > 0
-        ? p.slides
+      p.photos && p.photos.length > 0
+        ? p.photos.map((photo, i) => ({
+            url: photo.url,
+            alt: photo.alt || `Foto ${i + 1} de ${p.name}`,
+          }))
         : FALLBACK_SLIDES.map((s) => ({ ...s, label: `${p.name}: ${s.label}` })),
     menu: p.menu
       .filter((item) => item.name.trim().length > 0)
@@ -79,8 +91,11 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
 }
 
 function placeState(p: UserPlace): PlaceState {
+  /* La oferta va primero y el orden importa: en `PlaceDetail` el banner solo se
+     pinta con el estado `special-offer`, así que un negocio con fotos y oferta
+     perdería el banner si las fotos se comprobaran antes. */
   if (p.offer) return "special-offer";
-  if (p.slides && p.slides.length > 0) return "normal";
+  if (p.photos && p.photos.length > 0) return "normal";
   return "no-photos";
 }
 

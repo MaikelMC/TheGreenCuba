@@ -13,6 +13,7 @@ import {
   Utensils,
   Tag,
   Zap,
+  Image as ImageIcon,
 } from "lucide-react";
 import {
   Select,
@@ -27,6 +28,7 @@ import { CategoryIcon } from "@/components/admin/category-icon";
 import { IconPicker } from "@/components/ui/icon-picker";
 import { placeIcon } from "@/lib/places";
 import { FormSection } from "@/components/business/form-section";
+import { PhotoGrid } from "@/components/business/photo-grid";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { MenuItemEditor } from "@/components/business/menu-item-editor";
 import {
@@ -220,6 +222,19 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
       </motion.div>
 
       <div className="space-y-gap-md">
+        {/* Las fotos van primero porque son lo que más pesa en la ficha pública.
+            Con el negocio sin guardar no hay `place_id`, así que la rejilla se
+            queda en un aviso hasta que exista la ficha. */}
+        <FormSection
+          title="Fotos del lugar"
+          icon={<ImageIcon size={18} strokeWidth={1.8} />}
+        >
+          <PhotoGrid
+            placeId={initial?.id ?? null}
+            placeName={name.trim() || "el negocio"}
+          />
+        </FormSection>
+
         <FormSection
           title="Información del negocio"
           icon={<Store size={18} strokeWidth={1.8} />}

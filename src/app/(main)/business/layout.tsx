@@ -2,6 +2,16 @@ import { redirect } from "next/navigation";
 import { type ReactNode } from "react";
 import { getAppUser } from "@/lib/auth/user";
 
+/* El segmento se declara dinámico de entrada, antes de que nadie lo pida.
+   Sin esta línea `next build` intenta prerenderizar cada ruta de `/business`,
+   el layout lee las cookies de la sesión y Next lanza su señal de «esto es
+   dinámico» —`DYNAMIC_SERVER_USAGE`— para salirse del paso estático. El SDK de
+   Neon la captura por el camino y la registra como «cookie validation error»,
+   que no es lo que pasó: el error salta *obteniendo* las cookies, no
+   validándolas. Queda un bloque de alarma por ruta y por build, todos falsos, y
+   un fallo de sesión de verdad se pierde entre ellos. */
+export const dynamic = "force-dynamic";
+
 /**
  * Puerta del panel de negocio.
  *

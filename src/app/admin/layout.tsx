@@ -4,6 +4,16 @@ import { getAppUser } from "@/lib/auth/user";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { PlacesProvider } from "@/providers/places-provider";
 
+/* El segmento se declara dinámico de entrada, antes de que nadie lo pida.
+   Sin esta línea `next build` intenta prerenderizar cada ruta de `/admin`, el
+   layout lee las cookies de la sesión y Next lanza su señal de «esto es
+   dinámico» —`DYNAMIC_SERVER_USAGE`— para salirse del paso estático. El SDK de
+   Neon la captura por el camino y la registra como «cookie validation error»,
+   que no es lo que pasó: el error salta *obteniendo* las cookies, no
+   validándolas. Queda un bloque de alarma por ruta y por build, todos falsos, y
+   un fallo de sesión de verdad se pierde entre ellos. */
+export const dynamic = "force-dynamic";
+
 /**
  * Puerta del panel de administración.
  *

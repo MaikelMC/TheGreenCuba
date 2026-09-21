@@ -1,6 +1,6 @@
 import type { categories, places } from "@/lib/db/schema";
 import type { BusinessCategory } from "@/lib/places";
-import type { UserPlace, UserPlaceMenuItem } from "@/lib/places-store";
+import type { UserPlace, UserPlaceMenuItem, UserPlacePhoto } from "@/lib/places-store";
 import { slugify } from "@/lib/utils";
 
 /**
@@ -23,8 +23,18 @@ import { slugify } from "@/lib/utils";
 type PlaceRow = typeof places.$inferSelect;
 type CategoryRow = typeof categories.$inferSelect;
 
-/** Fila de `places` más la etiqueta de su categoría, que viene de un JOIN. */
-export type PlaceRowWithCategory = PlaceRow & { categoryName: string | null };
+/**
+ * Fila de `places` más la etiqueta de su categoría, que viene de un JOIN.
+ *
+ * `photos` es opcional porque es de otra tabla: la traen las consultas del
+ * catálogo, con un segundo viaje, y no la traen las rutas que responden con la
+ * fila que acaban de escribir. Un alta nueva no tiene fotos todavía, así que
+ * ausente y vacío significan lo mismo.
+ */
+export type PlaceRowWithCategory = PlaceRow & {
+  categoryName: string | null;
+  photos?: UserPlacePhoto[];
+};
 
 export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
   return {
@@ -52,6 +62,10 @@ export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
     rating: row.rating ?? undefined,
     aiTags: row.aiTags ?? undefined,
     priceLabel: row.priceLabel ?? undefined,
+    /* Las fotos viven en su propia tabla y llegan ya agrupadas por quien
+       consulta. Si no vinieron —una ruta que responde con la fila recién
+       escrita— la lista va vacía, que es lo que significa no tener fotos. */
+    photos: row.photos ?? [],
     createdAt: row.createdAt.getTime(),
     updatedAt: row.updatedAt.getTime(),
   };
@@ -107,9 +121,9 @@ export function toPlaceValues(
   if (patch.priceLabel !== undefined) values.priceLabel = patch.priceLabel;
   if (patch.aiTags !== undefined) values.aiTags = patch.aiTags;
 
-  /* `slides`, `aiReasoning`, `distanceLabel` y `rating` decorativo no tienen
-     columna: son del render, no del negocio. Se quedan fuera del mapeo a
-     propósito, no por olvido. */
+  /* `photos`, `aiReasoning` y `distanceLabel` no tienen columna: las fotos van
+     a su propia tabla y las otras dos son del render, no del negocio. Se quedan
+     fuera del mapeo a propósito, no por olvido. */
 
   return values;
 }

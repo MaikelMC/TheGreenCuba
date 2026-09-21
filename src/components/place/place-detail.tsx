@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { cn, currencyLabel } from "@/lib/utils";
 import { isSaved as isPlaceSaved, recordVisit, toggleSaved } from "@/lib/activity-store";
-import { PhotoCarousel } from "./photo-carousel";
+import { PhotoCarousel, type Slide } from "./photo-carousel";
 import { InfoBar } from "./info-bar";
 import { ActionButtons } from "./action-buttons";
 import { MenuItem } from "./menu-item";
@@ -34,11 +34,6 @@ interface PlaceMenu {
   imageEmoji?: string;
 }
 
-interface PlacePhoto {
-  gradient: string;
-  label: string;
-}
-
 export interface PlaceData {
   id: string;
   name: string;
@@ -55,7 +50,7 @@ export interface PlaceData {
   aiQuery: string;
   aiReasoning: string;
   aiTags: string[];
-  slides: PlacePhoto[];
+  slides: Slide[];
   menu: PlaceMenu[];
   specialOffer?: {
     label: string;

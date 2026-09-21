@@ -47,6 +47,13 @@ interface PlacesContextValue {
   hydrated: boolean;
   /** Mensaje del último fallo. Los paneles lo pintan tal cual. */
   error: string | null;
+  /**
+   * Vuelve a pedir el catálogo entero. Lo usa el editor de fotos: las fotos
+   * viajan por su propia ruta, así que la copia que tiene el provider se queda
+   * sin ellas y la ficha pública —que lee de aquí— no las enseñaría hasta
+   * recargar.
+   */
+  refreshPlaces: () => Promise<void>;
   addPlace: (input: NewUserPlace) => Promise<UserPlace | null>;
   updatePlace: (id: string, patch: UserPlacePatch) => Promise<UserPlace | null>;
   removePlace: (id: string) => Promise<boolean>;
@@ -119,6 +126,12 @@ export function PlacesProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  const refreshPlaces = useCallback(async () => {
+    const result = await request<UserPlace[]>("/api/places");
+    if (result.ok) setPlaces(result.data);
+    else setError(result.error);
   }, []);
 
   const addPlace = useCallback(async (input: NewUserPlace) => {
@@ -212,6 +225,7 @@ export function PlacesProvider({ children }: { children: ReactNode }) {
       categories,
       hydrated,
       error,
+      refreshPlaces,
       addPlace,
       updatePlace,
       removePlace,
@@ -224,6 +238,7 @@ export function PlacesProvider({ children }: { children: ReactNode }) {
       categories,
       hydrated,
       error,
+      refreshPlaces,
       addPlace,
       updatePlace,
       removePlace,

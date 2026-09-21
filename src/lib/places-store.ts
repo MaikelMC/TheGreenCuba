@@ -27,10 +27,20 @@ export interface UserPlaceOffer {
   expiry: string;
 }
 
-/** Sin columna en la base: el carrusel de la ficha se pinta con lo que haya. */
-export interface UserPlaceSlide {
-  gradient: string;
-  label: string;
+/**
+ * Una foto subida del negocio.
+ *
+ * La `url` es la del bucket, entera. El cliente no sabe nada de R2: no ve la
+ * clave del objeto ni el nombre del bucket, solo una dirección que puede pedir.
+ * `isCover` llega ya ordenado desde la API —la portada primero—, porque es la
+ * que se enseña en la ficha.
+ */
+export interface UserPlacePhoto {
+  url: string;
+  alt: string | null;
+  width: number | null;
+  height: number | null;
+  isCover: boolean;
 }
 
 export interface UserPlace {
@@ -62,7 +72,8 @@ export interface UserPlace {
   isBoosted: boolean;
   boostExpiresAt: string;
   rating?: number;
-  slides?: UserPlaceSlide[];
+  /** Vacío o ausente = el negocio todavía no tiene fotos subidas. */
+  photos?: UserPlacePhoto[];
   aiReasoning?: string;
   aiTags?: string[];
   distanceLabel?: string;

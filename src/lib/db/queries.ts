@@ -1,6 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { categories, places } from "@/lib/db/schema";
+import { categories, placeImages, places } from "@/lib/db/schema";
+import type { UserPlacePhoto } from "@/lib/places-store";
 import {
   toBusinessCategory,
   toUserPlace,
@@ -20,6 +21,44 @@ const SELECT_WITH_CATEGORY = { place: places, categoryName: categories.name };
 
 function unwrap(row: { place: typeof places.$inferSelect; categoryName: string | null }): PlaceRowWithCategory {
   return { ...row.place, categoryName: row.categoryName };
+}
+
+/**
+ * Las fotos de varios negocios, agrupadas por negocio.
+ *
+ * Va en un segundo viaje y no en un JOIN con `place_images`. Uno a varios en un
+ * `select` plano duplica la fila del negocio por cada foto que tenga, y luego
+ * hay que desduplicar en JavaScript igualmente. Dos consultas se leen mejor, y
+ * con `inArray` el catálogo entero sigue costando un solo viaje.
+ *
+ * El orden es el que quiere el carrusel: la portada primero. En Postgres, un
+ * `ORDER BY` descendente sobre un booleano pone `true` delante de `false`, que
+ * es justo lo que hace falta.
+ */
+async function photosByPlace(ids: string[]): Promise<Map<string, UserPlacePhoto[]>> {
+  const grouped = new Map<string, UserPlacePhoto[]>();
+  if (ids.length === 0) return grouped;
+
+  const rows = await db
+    .select()
+    .from(placeImages)
+    .where(inArray(placeImages.placeId, ids))
+    .orderBy(desc(placeImages.isCover), asc(placeImages.sortOrder), asc(placeImages.createdAt));
+
+  for (const row of rows) {
+    const photo: UserPlacePhoto = {
+      url: row.url,
+      alt: row.alt,
+      width: row.width,
+      height: row.height,
+      isCover: row.isCover,
+    };
+    const list = grouped.get(row.placeId);
+    if (list) list.push(photo);
+    else grouped.set(row.placeId, [photo]);
+  }
+
+  return grouped;
 }
 
 export interface ListPlacesOptions {
@@ -49,7 +88,11 @@ export async function listPlaces(options: ListPlacesOptions = {}) {
     .where(filters.length > 0 ? and(...filters) : undefined)
     .limit(Math.min(options.limit ?? 200, 500));
 
-  return rows.map((row) => toUserPlace(unwrap(row)));
+  const photos = await photosByPlace(rows.map((row) => row.place.id));
+
+  return rows.map((row) =>
+    toUserPlace({ ...unwrap(row), photos: photos.get(row.place.id) ?? [] }),
+  );
 }
 
 export async function getPlaceById(id: string) {
@@ -60,7 +103,10 @@ export async function getPlaceById(id: string) {
     .where(eq(places.id, id))
     .limit(1);
 
-  return row ? toUserPlace(unwrap(row)) : null;
+  if (!row) return null;
+
+  const photos = await photosByPlace([row.place.id]);
+  return toUserPlace({ ...unwrap(row), photos: photos.get(row.place.id) ?? [] });
 }
 
 /** Clave foránea a partir de la etiqueta («Restaurante»). `null` si no existe. */

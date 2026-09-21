@@ -168,6 +168,11 @@ export interface CatalogPlace {
   payments?: string[];
   schedule?: string;
   description?: string;
+  /**
+   * Distancia en metros a quien consulta, calculada en el navegador. Ausente si
+   * no hay ubicación. El catálogo llega ordenado de menor a mayor.
+   */
+  distanceM?: number;
 }
 
 export interface PlaceMatch {
@@ -195,6 +200,12 @@ Reglas:
   CUP = peso cubano, USD = dólar, EUR = euro, TRANSFER = transferencia. Un lugar con
   "MLC" SÍ cumple la condición "acepta USD Clásica"; sin esta equivalencia devolvías
   cero resultados a la consulta de ejemplo del propio buscador.
+- El catálogo llega ordenado del lugar más cercano al más lejano, y cada lugar trae
+  "distanceM": su distancia en metros a quien consulta. El campo puede faltar: eso
+  significa que no se conoce la ubicación de quien busca, no que esté lejos.
+- La cercanía desempata, no descarta. Entre dos lugares que encajen igual de bien,
+  pon primero el más cercano. No dejes fuera uno que encaje claramente mejor solo
+  por estar más lejos, y si los que encajan están lejos, dilo en el "summary".
 - Si ningún lugar encaja, devuelve "matches" vacío y un "summary" que lo explique amablemente.`;
 
 export async function recommendPlaces(
