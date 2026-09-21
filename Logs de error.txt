@@ -1,0 +1,107 @@
+17:19:00.874 [neon-auth] Cookie validation error before getSession upstream call {
+17:19:00.875   err: Error: Dynamic server usage: Route /business couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+17:19:00.876       at j3 (src/lib/auth/user.ts:101:40)
+17:19:00.876       at e (src/app/(main)/business/layout.tsx:21:22)
+17:19:00.876      99 |  */
+17:19:00.876     100 | export async function getAppUser(): Promise<AppUser | null> {
+17:19:00.876   > 101 |   const { data: session } = await auth.getSession();
+17:19:00.877         |                                        ^
+17:19:00.877     102 |   const neonUser = session?.user;
+17:19:00.877     103 |   if (!neonUser?.id) return null;
+17:19:00.878     104 | {
+17:19:00.878     description: "Route /business couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+17:19:00.879     digest: 'DYNAMIC_SERVER_USAGE'
+17:19:00.879   }
+17:19:00.879 }
+17:19:01.290 [neon-auth] Cookie validation error before getSession upstream call {
+17:19:01.291   err: Error: Dynamic server usage: Route /admin/categorias couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+17:19:01.292       at j3 (src/lib/auth/user.ts:101:40)
+17:19:01.292       at g (src/app/admin/layout.tsx:22:22)
+17:19:01.293      99 |  */
+17:19:01.294     100 | export async function getAppUser(): Promise<AppUser | null> {
+17:19:01.294   > 101 |   const { data: session } = await auth.getSession();
+17:19:01.295         |                                        ^
+17:19:01.295     102 |   const neonUser = session?.user;
+17:19:01.295     103 |   if (!neonUser?.id) return null;
+17:19:01.296     104 | {
+17:19:01.296     description: "Route /admin/categorias couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+17:19:01.296     digest: 'DYNAMIC_SERVER_USAGE'
+17:19:01.297   }
+17:19:01.297 }
+17:19:01.309 [neon-auth] Cookie validation error before getSession upstream call {
+17:19:01.310   err: Error: Dynamic server usage: Route /admin/negocios/nuevo couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+17:19:01.312       at j3 (src/lib/auth/user.ts:101:40)
+17:19:01.312       at g (src/app/admin/layout.tsx:22:22)
+17:19:01.313      99 |  */
+17:19:01.313     100 | export async function getAppUser(): Promise<AppUser | null> {
+17:19:01.313   > 101 |   const { data: session } = await auth.getSession();
+17:19:01.313         |                                        ^
+17:19:01.313     102 |   const neonUser = session?.user;
+17:19:01.313     103 |   if (!neonUser?.id) return null;
+17:19:01.313     104 | {
+17:19:01.313     description: "Route /admin/negocios/nuevo couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+17:19:01.313     digest: 'DYNAMIC_SERVER_USAGE'
+17:19:01.314   }
+17:19:01.314 }
+17:19:01.333 [neon-auth] Cookie validation error before getSession upstream call {
+17:19:01.337   err: Error: Dynamic server usage: Route /admin/negocios couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+17:19:01.337       at j3 (src/lib/auth/user.ts:101:40)
+17:19:01.337       at g (src/app/admin/layout.tsx:22:22)
+17:19:01.337      99 |  */
+17:19:01.337     100 | export async function getAppUser(): Promise<AppUser | null> {
+17:19:01.337   > 101 |   const { data: session } = await auth.getSession();
+17:19:01.337         |                                        ^
+17:19:01.337     102 |   const neonUser = session?.user;
+17:19:01.337     103 |   if (!neonUser?.id) return null;
+17:19:01.337     104 | {
+17:19:01.337     description: "Route /admin/negocios couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+17:19:01.337     digest: 'DYNAMIC_SERVER_USAGE'
+17:19:01.337   }
+17:19:01.337 }
+17:19:01.346 [neon-auth] Cookie validation error before getSession upstream call {
+17:19:01.347   err: Error: Dynamic server usage: Route /admin/lista-de-espera couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+17:19:01.348       at j3 (src/lib/auth/user.ts:101:40)
+17:19:01.348       at g (src/app/admin/layout.tsx:22:22)
+17:19:01.349      99 |  */
+17:19:01.349     100 | export async function getAppUser(): Promise<AppUser | null> {
+17:19:01.349   > 101 |   const { data: session } = await auth.getSession();
+17:19:01.350         |                                        ^
+17:19:01.350     102 |   const neonUser = session?.user;
+17:19:01.350     103 |   if (!neonUser?.id) return null;
+17:19:01.350     104 | {
+17:19:01.350     description: "Route /admin/lista-de-espera couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+17:19:01.350     digest: 'DYNAMIC_SERVER_USAGE'
+17:19:01.350   }
+17:19:01.350 }
+17:19:01.352 [neon-auth] Cookie validation error before getSession upstream call {
+17:19:01.357   err: Error: Dynamic server usage: Route /admin couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+17:19:01.357       at j3 (src/lib/auth/user.ts:101:40)
+17:19:01.357       at g (src/app/admin/layout.tsx:22:22)
+17:19:01.357      99 |  */
+17:19:01.357     100 | export async function getAppUser(): Promise<AppUser | null> {
+17:19:01.357   > 101 |   const { data: session } = await auth.getSession();
+17:19:01.358         |                                        ^
+17:19:01.358     102 |   const neonUser = session?.user;
+17:19:01.358     103 |   if (!neonUser?.id) return null;
+17:19:01.358     104 | {
+17:19:01.358     description: "Route /admin couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+17:19:01.358     digest: 'DYNAMIC_SERVER_USAGE'
+17:19:01.358   }
+17:19:01.359 }
+17:19:01.366 [neon-auth] Cookie validation error before getSession upstream call {
+17:19:01.367   err: Error: Dynamic server usage: Route /admin/proveedores-ia couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+17:19:01.367       at j3 (src/lib/auth/user.ts:101:40)
+17:19:01.368       at g (src/app/admin/layout.tsx:22:22)
+17:19:01.368      99 |  */
+17:19:01.368     100 | export async function getAppUser(): Promise<AppUser | null> {
+17:19:01.368   > 101 |   const { data: session } = await auth.getSession();
+17:19:01.369         |                                        ^
+17:19:01.369     102 |   const neonUser = session?.user;
+17:19:01.369     103 |   if (!neonUser?.id) return null;
+17:19:01.369     104 | {
+17:19:01.369     description: "Route /admin/proveedores-ia couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+17:19:01.369     digest: 'DYNAMIC_SERVER_USAGE'
+17:19:01.369   }
+17:19:01.369 }
+
+la-verde-cuba.vercel.app
