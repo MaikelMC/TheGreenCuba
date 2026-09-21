@@ -30,6 +30,12 @@ let cachedProviders: AiProvider[] | null = null;
  * `gemini-flash-lite-latest` es la familia vigente: los `gemini-2.5-*` ya no
  * están disponibles para cuentas nuevas (404 "no longer available to new users")
  * y los `gemini-3.x-flash` devuelven 503 por demanda alta.
+ *
+ * El modelo sale de `process.env.<PROVEEDOR>_MODEL`, y una variable **vacía**
+ * cuenta como ausente. Con `??` no contaba: una casilla guardada en blanco en el
+ * panel de variables de Vercel pasaba tal cual, el cuerpo iba con `model: ""` y
+ * Mistral contestaba «Missing model parameter» a todas las búsquedas. De ahí el
+ * `?.trim() ||` en vez del `??`.
  */
 const DEFAULT_MODELS = {
   mistral: "mistral-small-latest",
@@ -53,7 +59,7 @@ function buildEnvProviders(): AiProvider[] {
       vendor: "openai",
       baseURL: "https://api.mistral.ai/v1",
       apiKey: process.env.MISTRAL_API_KEY,
-      model: process.env.MISTRAL_MODEL ?? DEFAULT_MODELS.mistral,
+      model: process.env.MISTRAL_MODEL?.trim() || DEFAULT_MODELS.mistral,
       enabled: true,
       priority: 2,
     });
@@ -66,7 +72,7 @@ function buildEnvProviders(): AiProvider[] {
       vendor: "openai",
       baseURL: "https://openrouter.ai/api/v1",
       apiKey: process.env.OPENROUTER_API_KEY,
-      model: process.env.OPENROUTER_MODEL ?? DEFAULT_MODELS.openrouter,
+      model: process.env.OPENROUTER_MODEL?.trim() || DEFAULT_MODELS.openrouter,
       enabled: false,
       priority: 3,
     });
@@ -81,7 +87,7 @@ function buildEnvProviders(): AiProvider[] {
       vendor: "gemini",
       baseURL: "https://generativelanguage.googleapis.com/v1beta",
       apiKey: process.env.GEMINI_API_KEY,
-      model: process.env.GEMINI_MODEL ?? DEFAULT_MODELS.gemini,
+      model: process.env.GEMINI_MODEL?.trim() || DEFAULT_MODELS.gemini,
       enabled: true,
       priority: 1,
     });
@@ -96,7 +102,7 @@ function buildEnvProviders(): AiProvider[] {
       vendor: "openai",
       baseURL: "https://api.cerebras.ai/v1",
       apiKey: process.env.CEREBRAS_API_KEY,
-      model: process.env.CEREBRAS_MODEL ?? DEFAULT_MODELS.cerebras,
+      model: process.env.CEREBRAS_MODEL?.trim() || DEFAULT_MODELS.cerebras,
       enabled: true,
       priority: 4,
     });
@@ -219,7 +225,7 @@ export function resolveProviders(): {
       {
         apiKey: process.env.MISTRAL_API_KEY,
         baseURL: "https://api.mistral.ai/v1",
-        model: process.env.MISTRAL_MODEL ?? DEFAULT_MODELS.mistral,
+        model: process.env.MISTRAL_MODEL?.trim() || DEFAULT_MODELS.mistral,
         name: "Mistral (env)",
         vendor: "openai",
       },
