@@ -1,6 +1,4 @@
-"use client";
-
-import { useWaitlistDialog } from "@/store/waitlist-dialog";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 interface JoinButtonProps {
@@ -8,13 +6,11 @@ interface JoinButtonProps {
   fullWidth?: boolean;
 }
 
+/** Botón de registro de la landing: lleva a `/register`, no al formulario de solicitud. */
 export function JoinButton({ className, fullWidth }: JoinButtonProps) {
-  const { openDialog } = useWaitlistDialog();
-
   return (
-    <button
-      type="button"
-      onClick={openDialog}
+    <Link
+      href="/register"
       className={cn(
         // `.btn-pill` del design system: pastilla, transición de 500 ms con
         // easeOutQuint en línea, y halo del propio verde del botón.
@@ -27,6 +23,6 @@ export function JoinButton({ className, fullWidth }: JoinButtonProps) {
       )}
     >
       Registrarse
-    </button>
+    </Link>
   );
 }
