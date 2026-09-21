@@ -24,6 +24,8 @@ export interface MapViewProps {
   selectedPlaceId?: string | null;
   onPlaceSelect?: (place: MapPlace) => void;
   onPlaceRoute?: (place: MapPlace) => void;
+  /** Click en el mapa vacío —fuera de un pin—. Se usa para quitar la selección. */
+  onMapClick?: () => void;
   onMapMove?: (
     bounds: {
       north: number;

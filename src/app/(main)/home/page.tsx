@@ -438,6 +438,11 @@ function HomePageContent() {
     setSelectedId(id);
   }, []);
 
+  // Tocar el fondo del mapa quita la selección, como en cualquier mapa.
+  const handleDeselect = useCallback(() => {
+    setSelectedId("");
+  }, []);
+
   const handleDetail = useCallback(
     (id: string) => {
       router.push(`/place/${id}`);
@@ -725,6 +730,7 @@ function HomePageContent() {
           initialZoom={disableAutoFit ? 13 : undefined}
           disableAutoFit={disableAutoFit}
           onPlaceSelect={(place) => handleMarkerClick(place.id)}
+          onMapClick={handleDeselect}
         onPlaceRoute={(place) => {
           const target = filteredPlaces.find((p) => p.id === place.id);
           if (target) handleRouteFromPopup(target);

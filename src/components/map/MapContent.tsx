@@ -30,10 +30,15 @@ import type { MapPlace, MapViewProps } from "./types";
 
 function MapEventsHandler({
   onMapMove,
+  onMapClick,
 }: {
   onMapMove?: MapViewProps["onMapMove"];
+  onMapClick?: MapViewProps["onMapClick"];
 }) {
   useMapEvents({
+    // Los pines no burbujean al mapa (`bubblingMouseEvents: false` en
+    // `L.Marker`), así que este click es siempre el del fondo del mapa.
+    click: () => onMapClick?.(),
     moveend: (e) => {
       if (!onMapMove) return;
       const map = e.target;
@@ -192,6 +197,7 @@ export function MapContent({
   onPlaceSelect,
   onPlaceRoute,
   onMapMove,
+  onMapClick,
   userLocation,
   onUserLocated,
   onLocateStateChange,
@@ -237,7 +243,7 @@ export function MapContent({
       style={{ height: "100%", width: "100%" }}
     >
       <ZoomControl position="bottomleft" />
-      <MapEventsHandler onMapMove={onMapMove} />
+      <MapEventsHandler onMapMove={onMapMove} onMapClick={onMapClick} />
       <FitBoundsOnMount
         places={validPlaces}
         hasUserLocation={hasUserLocation || Boolean(route)}
