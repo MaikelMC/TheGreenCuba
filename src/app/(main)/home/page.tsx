@@ -621,20 +621,47 @@ function HomePageContent() {
     [drawRoute],
   );
 
-  // Al llegar desde la ficha del lugar (?lugar=<id>) y tener ubicación,
-  // dibuja la ruta automáticamente hacia ese lugar.
+  /* Al llegar desde el botón "Cómo llegar" de la ficha (`?lugar=<id>`) la ruta
+     se dibuja sola, y sin abrir la ficha: el usuario viene justo de ella, lo
+     que quiere ver es el mapa.
+
+     La ubicación se pide aquí cuando no la tenemos. Con el onboarding hecho el
+     mapa no arranca el GPS a propósito —la primera vista es la ciudad elegida—,
+     así que antes este gesto se quedaba en nada: mapa quieto, sin ruta y sin
+     decir por qué. Nadie toca "Cómo llegar" para no ir a ningún sitio. */
   const placeIdFromUrl = searchParams.get("lugar");
   const pendingPlace = useMemo(
     () => filteredPlaces.find((p) => p.id === placeIdFromUrl) ?? null,
     [placeIdFromUrl, filteredPlaces],
   );
-  const didAutoNavigate = useRef(false);
+
+  /* Guarda el id ya dibujado, no un booleano: si el usuario vuelve a la ficha y
+     elige otro negocio, este mismo montaje tiene que atender al segundo. */
+  const routedPlaceId = useRef<string | null>(null);
+  const askingLocation = useRef(false);
+
   useEffect(() => {
-    if (!pendingPlace || !userLocation) return;
-    if (didAutoNavigate.current) return;
-    didAutoNavigate.current = true;
-    handleNavigate(pendingPlace);
-  }, [pendingPlace, userLocation, handleNavigate]);
+    if (!pendingPlace || routedPlaceId.current === pendingPlace.id) return;
+
+    if (userLocation) {
+      routedPlaceId.current = pendingPlace.id;
+      handleRouteFromPopup(pendingPlace);
+      return;
+    }
+
+    if (askingLocation.current) return;
+    askingLocation.current = true;
+    /* `useCache` —el valor por defecto— deja pasar una lectura reciente sin
+       volver a preguntar por el permiso, y solo baja al GPS si no hay ninguna. */
+    getCurrentPosition()
+      .then((pos) => handleUserLocated(pos.lat, pos.lng, pos.accuracy))
+      .catch((err: Error) => {
+        toast.error(err?.message || "No pudimos obtener tu ubicación para calcular la ruta.");
+      })
+      .finally(() => {
+        askingLocation.current = false;
+      });
+  }, [pendingPlace, userLocation, handleRouteFromPopup, handleUserLocated]);
 
   // Limpia la ruta del mapa.
   const handleClearRoute = useCallback(() => {
