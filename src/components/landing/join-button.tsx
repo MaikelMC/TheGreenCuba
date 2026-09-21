@@ -10,7 +10,7 @@ interface JoinButtonProps {
 export function JoinButton({ className, fullWidth }: JoinButtonProps) {
   return (
     <Link
-      href="/register"
+      href="/register?next=/onboarding"
       className={cn(
         // `.btn-pill` del design system: pastilla, transición de 500 ms con
         // easeOutQuint en línea, y halo del propio verde del botón.

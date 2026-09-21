@@ -16,6 +16,7 @@ import { PreferencesScreen } from "@/components/onboarding/preferences-screen";
 import { ProvinceMap } from "@/components/onboarding/province-map";
 import { cn } from "@/lib/utils";
 import {
+  readUserPreferences,
   writeUserPreferences,
   DEFAULT_USER_PREFERENCES,
 } from "@/lib/user-preferences-store";
@@ -253,6 +254,9 @@ export default function OnboardingPage() {
      `DEFAULT_USER_PREFERENCES` —"Martín", "martin@email.com"—, que son valores
      de relleno del prototipo: el perfil acababa mostrando a otra persona. */
   const [identity, setIdentity] = useState<{ name: string; email: string } | null>(null);
+  /* Se queda en `false` hasta saber si toca onboarding. Sin esta puerta, el
+     splash se pintaba y desaparecía en el mismo parpadeo. */
+  const [ready, setReady] = useState(false);
   const [splashDone, setSplashDone] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
@@ -270,6 +274,23 @@ export default function OnboardingPage() {
     setCurrentStep(step);
     setAnimTick((t) => t + 1);
   }
+
+  /* El onboarding es de una sola vez. Quien ya lo completó va derecho al Home:
+     la landing entra por `/login?next=/onboarding`, así que sin esta guarda el
+     flujo se repetía en cada visita y las preferencias ya elegidas se perdían
+     al reescribirlas.
+
+     ponytail: la marca va en localStorage, así que es **por navegador**, no por
+     cuenta: en otro dispositivo, o tras borrar los datos del sitio, vuelve a
+     salir. Para atarlo a la cuenta está `users.onboarding_completed` en la base
+     —la columna existe y hoy nadie la escribe—; se cambiaría cuando importe. */
+  useEffect(() => {
+    if (readUserPreferences().onboardingCompleted) {
+      router.replace("/home");
+      return;
+    }
+    setReady(true);
+  }, [router]);
 
   useEffect(() => {
     let alive = true;
@@ -393,6 +414,8 @@ export default function OnboardingPage() {
     // el lenguaje viejo y encima pisaba la del tema.
     toast("Perfil de IA reseteado");
   }
+
+  if (!ready) return null;
 
   return (
     <OnboardingShell>
