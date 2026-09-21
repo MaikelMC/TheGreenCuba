@@ -5,10 +5,8 @@ import { cn, currencyLabel } from "@/lib/utils";
 
 interface InfoBarProps {
   schedule: string;
-  distance: string;
+  barrio: string;
   payments: string[];
-  isOpen: boolean;
-  closedLabel?: string;
   className?: string;
 }
 
@@ -29,28 +27,29 @@ const VALUE = "font-lv-display text-small font-semibold text-ink leading-tight";
 
 export function InfoBar({
   schedule,
-  distance,
+  barrio,
   payments,
-  isOpen,
-  closedLabel,
   className,
 }: InfoBarProps) {
   return (
     <div className={cn("flex gap-[1px] bg-ink/5 border-t border-b border-ink/5 lg:border lg:rounded-2xl lg:overflow-hidden", className)}>
-      {/* Horario */}
+      {/* Horario. Antes se pisaba con "Cerrado" cuando el negocio estaba cerrado:
+         el chip de la cabecera ya lo dice, y aquí se perdía el horario, que es
+         justo el dato que se viene a buscar a esta celda. */}
       <div className={CELL}>
         <Clock size={20} strokeWidth={1.8} className="text-verde-600" />
         <span className={LABEL}>Horario</span>
-        <span className={cn(VALUE, !isOpen && "text-destructive")}>
-          {isOpen ? schedule : closedLabel ?? "Cerrado"}
-        </span>
+        <span className={VALUE}>{schedule}</span>
       </div>
 
-      {/* Distancia */}
+      {/* Barrio. La celda decía "Distancia", pero el valor que recibía era el
+         mismo cajón de sastre —distancia, dirección o barrio— que ya se pinta
+         arriba: lo normal era ver el mismo texto dos veces en la misma
+         pantalla. El barrio, en cambio, no salía en ningún otro sitio. */}
       <div className={CELL}>
         <MapPin size={20} strokeWidth={1.8} className="text-verde-600" />
-        <span className={LABEL}>Distancia</span>
-        <span className={VALUE}>{distance}</span>
+        <span className={LABEL}>Barrio</span>
+        <span className={VALUE}>{barrio}</span>
       </div>
 
       {/* Pagos */}

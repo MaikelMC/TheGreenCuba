@@ -43,7 +43,10 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
     name: p.name,
     category: p.category,
     rating: p.rating ?? 0,
-    distance: p.distanceLabel || p.address || p.barrio || "Ver en el mapa",
+    /* Sin el respaldo "Ver en el mapa" que había aquí: cuando no hay ni
+       distancia ni dirección el campo queda vacío y la ficha esconde la línea,
+       en vez de anunciar un mapa que no lleva a ninguna parte. */
+    distance: p.distanceLabel || p.address || "",
     barrio: p.barrio || "Cuba",
     schedule: p.schedule || "Próximamente",
     payments: p.payments,
