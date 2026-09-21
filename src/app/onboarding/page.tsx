@@ -676,7 +676,7 @@ function Slide({
   const isActive = step === currentStep;
   return (
     <div
-      className="min-w-full px-5 flex flex-col overflow-y-auto pb-[100px] scrollbar-hide"
+      className="min-w-full px-5 flex flex-col overflow-y-auto scrollbar-hide"
       data-active={isActive}
     >
       {children}
