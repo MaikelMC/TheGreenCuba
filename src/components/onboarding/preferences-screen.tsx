@@ -64,7 +64,7 @@ export function PreferencesScreen({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5 pb-20 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 pb-20 scrollbar-hide">
         {/* Ubicación */}
         <section className="mb-8">
           <h2 className="font-lv-display text-[10px] font-semibold text-verde-600 mb-3 uppercase tracking-[0.22em]">
@@ -88,8 +88,8 @@ export function PreferencesScreen({
             Intereses
           </h2>
           <div className="flex items-center justify-between py-3 border-b border-ink/5">
-            <span className="text-body font-medium text-ink">Categorías favoritas</span>
-            <span className="flex items-center gap-1.5">
+            <span className="text-body font-medium text-ink shrink-0">Categorías favoritas</span>
+            <span className="flex flex-wrap justify-end gap-1.5 min-w-0">
               {interests.map((i) => (
                 <span key={i.value} className="px-2.5 py-1 rounded-full bg-verde-50 text-verde-600 font-lv-display text-xs font-semibold">
                   {i.label}
@@ -98,8 +98,8 @@ export function PreferencesScreen({
             </span>
           </div>
           <div className="flex items-center justify-between py-3 border-b border-ink/5 last:border-none">
-            <span className="text-body font-medium text-ink">Ambiente preferido</span>
-            <span className="flex items-center gap-1.5">
+            <span className="text-body font-medium text-ink shrink-0">Ambiente preferido</span>
+            <span className="flex flex-wrap justify-end gap-1.5 min-w-0">
               {moods.map((m) => (
                 <span key={m.value} className="px-2.5 py-1 rounded-full bg-verde-50 text-verde-600 font-lv-display text-xs font-semibold">
                   {m.label}
@@ -115,8 +115,8 @@ export function PreferencesScreen({
             Monedas
           </h2>
           <div className="flex items-center justify-between py-3 border-b border-ink/5 last:border-none">
-            <span className="text-body font-medium text-ink">Mis monedas</span>
-            <span className="flex items-center gap-1.5">
+            <span className="text-body font-medium text-ink shrink-0">Mis monedas</span>
+            <span className="flex flex-wrap justify-end gap-1.5 min-w-0">
               {currencies.map((c) => (
                 <span key={c.value} className="px-2.5 py-1 rounded-full bg-verde-50 text-verde-600 font-lv-display text-xs font-semibold">
                   {c.label}
