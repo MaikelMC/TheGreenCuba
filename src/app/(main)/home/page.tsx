@@ -63,6 +63,10 @@ function userPlaceToHomePlace(
   /** Catálogo del almacén, para que el icono que el admin cambia a una
       categoría llegue también a las tarjetas y no solo al pin. */
   categories: BusinessCategory[],
+  /** Distancia a la ubicación del usuario, en metros. Con ella la tarjeta
+      muestra la distancia real; con `null` cae a la dirección, que es el
+      único dato que hay. */
+  distanceM: number | null,
 ): HomePlace {
   const tags: HomePlace["tags"] = [
     {
@@ -78,7 +82,10 @@ function userPlaceToHomePlace(
     category: p.category,
     barrio: p.barrio || "Cuba",
     rating: p.rating ?? 0,
-    distance: p.distanceLabel || p.address || p.barrio || "Ver en el mapa",
+    distance:
+      distanceM !== null
+        ? formatDistanceM(distanceM)
+        : p.distanceLabel || p.address || p.barrio || "Ver en el mapa",
     price: p.priceLabel || "—",
     icon: placeIcon(p.icon, p.category, categories),
     tags,
@@ -422,10 +429,23 @@ function HomePageContent() {
     [visiblePlaces, categories],
   );
 
-  const filteredPlaces = useMemo<HomePlace[]>(
-    () => visiblePlaces.map((p) => userPlaceToHomePlace(p, categories)),
-    [visiblePlaces, categories],
-  );
+  const filteredPlaces = useMemo<HomePlace[]>(() => {
+    /* Misma reserva que usan las rutas y la búsqueda: la ubicación del estado y,
+       si todavía no llegó, la última conocida. Así la distancia sale ya en el
+       primer pintado y no solo tras conceder el permiso. */
+    const origin = userLocation ?? getLastKnownPosition();
+    /* La distancia se mide una vez por lugar y la usan el orden y la tarjeta.
+       Con ubicación la lista va de más cercano a más lejano, que es el orden
+       que se espera al abrirla; sin ella se respeta el del catálogo. */
+    const measured = visiblePlaces.map((place) => ({
+      place,
+      distanceM: origin ? haversineM(origin, { lat: place.lat, lng: place.lng }) : null,
+    }));
+    if (origin) measured.sort((a, b) => (a.distanceM ?? 0) - (b.distanceM ?? 0));
+    return measured.map(({ place, distanceM }) =>
+      userPlaceToHomePlace(place, categories, distanceM),
+    );
+  }, [visiblePlaces, categories, userLocation]);
 
   const handleLike = useCallback((id: string) => {
     setLikedIds((prev) => {
