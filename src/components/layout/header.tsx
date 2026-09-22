@@ -7,6 +7,7 @@ import { Search, Mic, Loader2, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchActions, useSearchState } from "@/providers/search-provider";
 import { searchAddress, type GeocodeSuggestion } from "@/lib/map/geocode";
+import { readRecentSearches, type RecentSearch } from "@/lib/recent-searches-store";
 import { UserMenu } from "./user-menu";
 import { Logo } from "./logo";
 
@@ -25,10 +26,18 @@ const SUGGESTIONS = [
   },
 ];
 
-const RECENT_SEARCHES = [
-  { query: "discotecas con reggaeton cubano", category: "Vida nocturna" },
-  { query: "mercado de frutas frescas barato", category: "Mercado · Centro histórico" },
-];
+/** Distancia en palabras hasta una búsqueda. La lista solo se pinta ya en el
+    cliente —se lee al enfocar el campo—, así que no hay riesgo de que el HTML
+    del servidor y el del navegador digan cosas distintas. */
+function timeAgo(at: number): string {
+  const minutes = Math.floor((Date.now() - at) / 60_000);
+  if (minutes < 1) return "hace un momento";
+  if (minutes < 60) return `hace ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? "ayer" : `hace ${days} días`;
+}
 
 /** Rótulo de sección del desplegable: el eyebrow del design system. */
 const EYEBROW =
@@ -60,6 +69,9 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
   const [focused, setFocused] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addrResults, setAddrResults] = useState<GeocodeSuggestion[]>([]);
+  /* Arranca vacío y se llena al enfocar: leer `localStorage` durante el render
+     haría que el HTML del servidor y el del navegador no coincidieran. */
+  const [recent, setRecent] = useState<RecentSearch[]>([]);
   const addrTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const addrSeq = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -174,6 +186,9 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
             onFocus={() => {
               setFocused(true);
               setShowSuggestions(true);
+              /* Se relee en cada apertura: el historial lo escribe el home al
+                 buscar, y este header sigue montado mientras eso pasa. */
+              setRecent(readRecentSearches());
               if (query.trim().length >= 3) handleQueryChange(query);
               else setAddrResults([]);
             }}
@@ -295,36 +310,42 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
                   </div>
                 </motion.button>
               ))}
-              <div className="h-px bg-ink/5 mx-gap-md my-[4px]" />
-              <div className={EYEBROW}>
-                Búsquedas recientes
-              </div>
-              {RECENT_SEARCHES.map((s, i) => (
-                <motion.button
-                  key={s.query}
-                  type="button"
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.14 + i * 0.04, duration: 0.3 }}
-                  className={ROW}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleSuggestionClick(s.query);
-                  }}
-                >
-                  <span className="size-8 rounded-xl bg-sand-deep grid place-items-center text-ink-soft/75 shrink-0">
-                    <Search size={16} strokeWidth={1.8} />
-                  </span>
-                  <div className="min-w-0">
-                    <div className="text-small text-ink truncate">
-                      {s.query}
-                    </div>
-                    <div className="text-meta text-ink-soft/75 mt-px">
-                      {s.category}
-                    </div>
+              {/* Sin historial no hay sección: en un navegador recién estrenado
+                  el rótulo se quedaba anunciando una lista vacía. */}
+              {recent.length > 0 && (
+                <>
+                  <div className="h-px bg-ink/5 mx-gap-md my-[4px]" />
+                  <div className={EYEBROW}>
+                    Búsquedas recientes
                   </div>
-                </motion.button>
-              ))}
+                  {recent.map((s, i) => (
+                    <motion.button
+                      key={s.query}
+                      type="button"
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.14 + i * 0.04, duration: 0.3 }}
+                      className={ROW}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSuggestionClick(s.query);
+                      }}
+                    >
+                      <span className="size-8 rounded-xl bg-sand-deep grid place-items-center text-ink-soft/75 shrink-0">
+                        <Search size={16} strokeWidth={1.8} />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-small text-ink truncate">
+                          {s.query}
+                        </div>
+                        <div className="text-meta text-ink-soft/75 mt-px">
+                          {timeAgo(s.at)}
+                        </div>
+                      </div>
+                    </motion.button>
+                  ))}
+                </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

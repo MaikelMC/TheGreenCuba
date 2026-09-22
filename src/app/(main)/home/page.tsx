@@ -38,6 +38,7 @@ import {
   readUserPreferences,
   locationCenter,
 } from "@/lib/user-preferences-store";
+import { pushRecentSearch } from "@/lib/recent-searches-store";
 
 type SheetState = "default" | "searching" | "results" | "no-results" | "error";
 
@@ -478,6 +479,11 @@ function HomePageContent() {
   const handleSearch = useCallback(
     async (query: string) => {
       setSearchingQuery(query);
+      /* Al historial del buscador en cuanto sale la consulta, sin esperar a la
+         respuesta: lo que se guarda es lo que se buscó, salga bien o mal. Toda
+         búsqueda pasa por aquí —la barra del header y los atajos de «sin
+         resultados»—, así que es el único punto que hace falta. */
+      pushRecentSearch(query);
       setAiState(null);
       setSheetState("searching");
       searchCtx.setIsSearching(true);
