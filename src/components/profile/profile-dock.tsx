@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { MapPin, Settings, UserRound, type LucideIcon } from "lucide-react";
+import { MapPin, Settings, Store, UserRound, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { spring } from "@/lib/motion";
 import { MobileDock } from "@/components/layout/mobile-dock";
 
-export type ProfileView = "perfil" | "lugares" | "ajustes";
+export type ProfileView = "perfil" | "lugares" | "negocio" | "ajustes";
 
 interface DockItem {
   id: ProfileView;
@@ -15,11 +15,16 @@ interface DockItem {
   icon: LucideIcon;
 }
 
-/* Tres destinos y ni uno más: un dock se recorre de un vistazo, y en cuanto
-   pasa de cinco iconos deja de ser un dock y pasa a ser un menú. */
+/* Cuatro destinos. El techo sigue siendo cinco —un dock se recorre de un
+   vistazo y al sexto icono deja de ser un dock y pasa a ser un menú—, así que
+   «Tengo un negocio» cabe sin tocar la estructura.
+ *
+ * Va tercero, entre los lugares y la configuración: el orden es el de la
+ * frecuencia, y dar de alta un negocio es algo que se hace una vez. */
 export const DOCK_ITEMS: DockItem[] = [
   { id: "perfil", label: "Perfil", icon: UserRound },
   { id: "lugares", label: "Mis lugares", icon: MapPin },
+  { id: "negocio", label: "Tengo un negocio", icon: Store },
   { id: "ajustes", label: "Configuración", icon: Settings },
 ];
 

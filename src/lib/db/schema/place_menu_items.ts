@@ -20,7 +20,9 @@ export const placeMenuItems = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
-    placeIdx: index("menu_items_place_idx").on(table.placeId),
+    /* Uno solo, con las dos columnas. El de `place_id` a secas era su prefijo;
+       el menú siempre se pide por negocio y a veces filtrando los activos, y
+       las dos formas las resuelve el compuesto. */
     activeIdx: index("menu_items_active_idx").on(table.placeId, table.isActive),
   }),
 );

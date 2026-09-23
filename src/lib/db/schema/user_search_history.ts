@@ -19,7 +19,10 @@ export const userSearchHistory = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
-    userIdx: index("search_history_user_idx").on(table.userId),
+    /* Uno solo, y con las dos columnas. El índice por `user_id` a secas era un
+       prefijo de este: Postgres usa el compuesto para cualquier consulta que
+       empiece por `user_id`, así que tener los dos no compraba nada y se pagaba
+       dos veces en cada `insert`. */
     userCreatedIdx: index("search_history_user_created_idx").on(table.userId, table.createdAt),
   }),
 );

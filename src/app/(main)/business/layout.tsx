@@ -23,9 +23,12 @@ export const dynamic = "force-dynamic";
  * `/profile`, en cambio, no necesita archivo: su regla es «cualquier sesión»,
  * que es exactamente lo que el proxy ya garantiza.
  *
- * Los dos `redirect` son distintos a propósito. Sin sesión, al formulario. Con
- * sesión pero sin rol, al formulario **con `motivo=rol`**, para que `/login`
- * enseñe el aviso en vez de pedir la contraseña otra vez a quien ya está dentro.
+ * Los dos `redirect` son distintos a propósito. Sin sesión, al formulario de
+ * acceso. Con sesión pero sin negocio, **al alta**, no al formulario: quien ya
+ * está dentro no tiene que volver a escribir su contraseña para que le digan
+ * que no. Antes esto era `/login?next=/business&motivo=rol`, y el efecto era
+ * mandar a pedir la contraseña a alguien que acababa de entrar, para acabar en
+ * un aviso que no le decía lo único útil: que ahí se registra el negocio.
  */
 export default async function BusinessLayout({ children }: { children: ReactNode }) {
   const user = await getAppUser();
@@ -35,7 +38,7 @@ export default async function BusinessLayout({ children }: { children: ReactNode
   }
 
   if (user.role !== "owner" && user.role !== "admin") {
-    redirect("/login?next=/business&motivo=rol");
+    redirect("/profile?seccion=negocio");
   }
 
   return <>{children}</>;

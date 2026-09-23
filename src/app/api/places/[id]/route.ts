@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
-import { isAdminRequest } from "@/lib/admin-server";
+import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema";
 import { toPlaceValues, toUserPlace } from "@/lib/db/mappers";
-import { getPlaceById, resolveCategoryId } from "@/lib/db/queries";
+import { CATALOG_TAG, getPlaceById, resolveCategoryId } from "@/lib/db/queries";
 import type { UserPlace } from "@/lib/places-store";
 
 type Params = { params: Promise<{ id: string }> };
@@ -19,11 +20,15 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  if (!(await isAdminRequest(req))) {
+  const { id } = await params;
+
+  /* El `id` se resuelve **antes** de la comprobación, y no después como estaba:
+     `canManagePlace` necesita saber de qué negocio se habla para decidir. El
+     dueño guarda su ficha desde el panel y es `owner`, no `admin`, así que la
+     comprobación de antes le devolvía un 401 en cada guardado. */
+  if (!(await canManagePlace(req, id))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
-
-  const { id } = await params;
 
   let body: Partial<UserPlace>;
   try {
@@ -66,6 +71,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
   }
 
+  /* Antes de releer, y no después: `getPlaceById` está cacheado, así que sin
+     invalidar primero devolvería la ficha vieja y el panel guardaría un cambio
+     que no se ve. El orden importa. */
+  revalidateTag(CATALOG_TAG, "max");
+
   /* La categoría puede haber cambiado: se relee para devolver la etiqueta nueva
      en vez de la que mandó el cliente, que podría ser otra. */
   const updated = await getPlaceById(id);
@@ -83,5 +93,8 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   if (!row) {
     return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
   }
+
+  revalidateTag(CATALOG_TAG, "max");
+
   return NextResponse.json({ id: row.id });
 }

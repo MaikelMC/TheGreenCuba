@@ -120,7 +120,10 @@ export const places = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => ({
-    slugIdx: index("places_slug_idx").on(table.slug),
+    /* Sin `slugIdx`. `slug` ya lleva `.unique()` y Postgres crea un índice único
+       para respaldarlo —`places_slug_unique`—, así que el de apoyo no acelera
+       ninguna lectura: el único hace el mismo trabajo. Sí cuesta en cada
+       `insert`, y se contaba dos veces. */
     categoryIdx: index("places_category_idx").on(table.categoryId),
     cityIdx: index("places_city_idx").on(table.city),
     coordsIdx: index("places_coords_idx").on(table.lat, table.lng),

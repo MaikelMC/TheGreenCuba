@@ -395,19 +395,10 @@ export default function OnboardingPage() {
 
   // Final del flujo: guarda una copia local y la versión persistente de la cuenta.
   const handleDone = useCallback(async () => {
-    const nextPreferences = {
-      onboardingCompleted: true,
-      // La identidad viene de la sesión real y no de una persona de ejemplo.
-      name: identity?.name || DEFAULT_USER_PREFERENCES.name,
-      email: identity?.email || DEFAULT_USER_PREFERENCES.email,
-      phone: DEFAULT_USER_PREFERENCES.phone,
-      location,
-      locationName: LOCATION_NAMES[location] ?? location,
-      interests: Array.from(interests),
-      moods: Array.from(moods),
-      currencies: Array.from(currencies),
-    };
-
+    /* El id se resuelve antes de armar las preferencias, y no después como
+       antes: el teléfono —lo único que recoge el alta y el onboarding no vuelve
+       a preguntar— está guardado bajo la clave de ese usuario, así que hay que
+       saber quién es para poder leerlo. */
     let resolvedUserId = userId;
     if (!resolvedUserId) {
       try {
@@ -421,6 +412,22 @@ export default function OnboardingPage() {
         resolvedUserId = null;
       }
     }
+
+    const nextPreferences = {
+      onboardingCompleted: true,
+      // La identidad viene de la sesión real y no de una persona de ejemplo.
+      name: identity?.name || DEFAULT_USER_PREFERENCES.name,
+      email: identity?.email || DEFAULT_USER_PREFERENCES.email,
+      /* El del alta. Antes iba el valor por defecto —vacío—, así que el
+         onboarding pisaba lo que se acababa de escribir unos segundos antes y
+         el perfil lo enseñaba en blanco. */
+      phone: readUserPreferences(resolvedUserId).phone,
+      location,
+      locationName: LOCATION_NAMES[location] ?? location,
+      interests: Array.from(interests),
+      moods: Array.from(moods),
+      currencies: Array.from(currencies),
+    };
 
     writeUserPreferences({ ...nextPreferences, onboardingCompleted: true }, resolvedUserId);
 

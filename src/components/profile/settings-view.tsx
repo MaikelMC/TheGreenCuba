@@ -7,6 +7,7 @@ import {
   Facebook,
   FileText,
   Instagram,
+  Loader2,
   Mail,
   MessageCircle,
   ShieldCheck,
@@ -23,13 +24,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { siteConfig } from "@/config/site";
 import { clearActivity } from "@/lib/activity-store";
+import { SUPPORT_EMAIL } from "@/lib/legal";
 import { clearUserPreferences } from "@/lib/user-preferences-store";
 import { logout } from "@/lib/logout";
-
-/** La misma dirección que ya usa el panel de negocio. */
-const SUPPORT_EMAIL = "soporte@laverde.cu";
 
 const ROLE_NAMES: Record<string, string> = {
   user: "Usuario",
@@ -52,10 +52,17 @@ interface SessionUser {
   email: string;
   name: string;
   role: string;
+  /** La versión de los términos que aceptó. `null` en cuentas anteriores a la
+      casilla del alta. */
+  termsVersion?: string | null;
 }
 
 export function SettingsView() {
   const [user, setUser] = useState<SessionUser | null>(null);
+  /* Sin esto, un doble clic manda dos borrados: el segundo llega cuando la fila
+     ya no está, el servidor responde 401 y el aviso que sale es el de «no
+     pudimos confirmar el borrado» — alarmante y falso. */
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -70,12 +77,54 @@ export function SettingsView() {
     };
   }, []);
 
-  /* Borrar la cuenta no puede borrar una cuenta: las demo salen de `.env` y no
-     hay base de datos. Lo que sí puede —y lo dice el aviso antes de hacerlo— es
-     vaciar lo que este navegador guarda de ti y cerrar la sesión. */
-  function handleDelete() {
+  /**
+   * Borrar la cuenta.
+   *
+   * Aquí vivía un comentario que decía que esto no podía borrar una cuenta
+   * porque las demo salían de `.env` y no había base de datos. Era verdad
+   * entonces y dejó de serlo: hoy hay una fila en `users` con correo, teléfono,
+   * ciudad, preferencias, búsquedas y reseñas. Lo que hacía esta función era
+   * vaciar el `localStorage` y cerrar sesión, y el diálogo lo contaba —decía que
+   * no había nada más que borrar— así que al menos no engañaba. Pero unos
+   * términos con derecho de supresión no pueden convivir con un botón que solo
+   * limpia el navegador.
+   *
+   * El `DELETE /api/me` borra la fila y con ella, en cascada, todo lo que cuelga
+   * del usuario; después se lleva la cuenta de Neon. El servidor avisa si esa
+   * segunda parte no salió.
+   */
+  async function handleDelete() {
+    if (deleting) return;
+    setDeleting(true);
+
+    let warning: string | null = null;
+
+    try {
+      const response = await fetch("/api/me", { method: "DELETE" });
+      const data = (await response.json()) as { accountDeleted?: boolean };
+      /* Los datos ya no están —eso lo garantiza el orden de dentro del
+         servidor—, pero la credencial sí. Se dice, porque callarlo dejaría a
+         alguien creyendo que su correo quedó libre cuando no. */
+      if (data.accountDeleted === false) {
+        warning = `Tus datos se borraron, pero la cuenta de correo no. Escribe a ${SUPPORT_EMAIL} y la quitamos.`;
+      }
+    } catch {
+      /* Sin respuesta no se sabe si llegó a borrarse. Decir «no se pudo» sería
+         afirmar algo que no consta, así que se dice lo que sí se sabe. */
+      warning = `No pudimos confirmar el borrado con el servidor. Si al volver a entrar tu cuenta sigue ahí, escribe a ${SUPPORT_EMAIL}.`;
+    }
+
     clearActivity(user?.id ?? null);
     clearUserPreferences(user?.id ?? null);
+
+    /* Con aviso se espera antes de salir: `logout` hace una carga limpia del
+       documento y se llevaría por delante el aviso sin que nadie lo lea. */
+    if (warning) {
+      toast.error(warning, { duration: 9000 });
+      window.setTimeout(() => void logout(), 9000);
+      return;
+    }
+
     void logout();
   }
 
@@ -122,7 +171,18 @@ export function SettingsView() {
           <Row
             icon={FileText}
             label="Términos y condiciones"
-            detail="Cómo funciona La Verde y qué se espera de ti"
+            /* La constancia, a la vista. Guardar en la base qué versión se
+               aceptó y no enseñarla en ninguna parte sería un dato que solo nos
+               sirve a nosotros, y esto va de lo contrario.
+
+               Sin fecha: `termsAcceptedAt` no sale por `/api/me` y traerlo hasta
+               aquí sería otra vuelta por la API para un adorno. La versión basta
+               para saber si está al día. */
+            detail={
+              user?.termsVersion
+                ? `Versión aceptada: ${user.termsVersion}`
+                : "Cómo funciona La Verde y qué se espera de ti"
+            }
             href="/terminos"
           />
           <Row
@@ -145,8 +205,9 @@ export function SettingsView() {
           Zona de riesgo
         </h2>
         <p className="text-meta text-pretty text-ink-soft/75">
-          Borrar tu cuenta vacía tus preferencias y tu actividad de este navegador
-          y cierra la sesión. No se puede deshacer.
+          Borrar tu cuenta elimina tu ficha y todo lo que cuelga de ella —lugares
+          guardados, reseñas, historial de búsquedas, los negocios que lleves— más
+          lo que este navegador guarda de ti. No se puede deshacer.
         </p>
 
         <Dialog>
@@ -164,10 +225,10 @@ export function SettingsView() {
             <DialogHeader>
               <DialogTitle>¿Borrar tu cuenta?</DialogTitle>
               <DialogDescription>
-                Se borrarán tus preferencias y el historial de lugares de este
-                navegador, y se cerrará la sesión. Las cuentas de esta demo no
-                viven en un servidor, así que no hay nada más que borrar — pero
-                lo que hay aquí se va para siempre.
+                Se borra tu cuenta entera: tu ficha, tus lugares guardados, tus
+                reseñas, tu historial de búsquedas y los negocios que lleves,
+                además de lo que este navegador guarda de ti. No hay vuelta atrás
+                y no guardamos copia.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -182,10 +243,16 @@ export function SettingsView() {
               <button
                 type="button"
                 onClick={handleDelete}
-                className="inline-flex h-11 cursor-pointer items-center justify-center gap-gap-xs rounded-full bg-destructive px-gap-lg font-lv-display text-small font-semibold text-white transition-colors duration-500 ease-outquint hover:brightness-110"
+                disabled={deleting}
+                aria-busy={deleting}
+                className="inline-flex h-11 cursor-pointer items-center justify-center gap-gap-xs rounded-full bg-destructive px-gap-lg font-lv-display text-small font-semibold text-white transition-colors duration-500 ease-outquint hover:brightness-110 disabled:pointer-events-none disabled:opacity-60"
               >
-                <Trash2 size={16} strokeWidth={1.8} />
-                Borrar definitivamente
+                {deleting ? (
+                  <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
+                ) : (
+                  <Trash2 size={16} strokeWidth={1.8} />
+                )}
+                {deleting ? "Borrando..." : "Borrar definitivamente"}
               </button>
             </DialogFooter>
           </DialogContent>

@@ -80,6 +80,7 @@ export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
       ? { text: row.offerText, expiry: row.offerExpiry ?? "" }
       : null,
     status: row.status,
+    isActive: row.isActive,
     isBoosted: row.isBoosted,
     boostExpiresAt: row.boostExpiresAt ?? "",
     rating: row.rating ?? undefined,

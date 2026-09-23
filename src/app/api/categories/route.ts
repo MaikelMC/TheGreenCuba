@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { categories } from "@/lib/db/schema";
 import { toBusinessCategory } from "@/lib/db/mappers";
-import { categorySlugTaken, listCategories } from "@/lib/db/queries";
+import { CATALOG_TAG, categorySlugTaken, listCategories } from "@/lib/db/queries";
 import { generateId, slugify } from "@/lib/utils";
 import { BUSINESS_CATEGORIES } from "@/lib/places";
 
@@ -68,6 +69,8 @@ export async function POST(req: NextRequest) {
       sortOrder: BUSINESS_CATEGORIES.length,
     })
     .returning();
+
+  revalidateTag(CATALOG_TAG, "max");
 
   return NextResponse.json(toBusinessCategory(row!), { status: 201 });
 }

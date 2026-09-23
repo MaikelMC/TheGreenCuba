@@ -7,6 +7,7 @@ import { ArrowLeft, Save } from "lucide-react";
 import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/layout/user-menu";
+import { BusinessView } from "@/components/profile/business-view";
 import { DetailsView } from "@/components/profile/details-view";
 import { PlacesView } from "@/components/profile/places-view";
 import { SettingsView } from "@/components/profile/settings-view";
@@ -42,13 +43,41 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
+  /* La sección se puede pedir desde la URL, y hace falta que se pueda: «Para tu
+     negocio» del menú lleva aquí, y el armazón no cambia de ruta —las cuatro
+     secciones son la misma página—, así que sin esto el enlace dejaría a quien
+     llega en «Perfil» buscando la pestaña a mano.
+
+     Se lee de `window.location` y no con `useSearchParams`, que obligaría a
+     envolver la página en un `Suspense` y a renunciar al HTML estático que hoy
+     se sirve. Para leer un parámetro una vez al montar, no compensa. */
+  useEffect(() => {
+    const section = new URLSearchParams(window.location.search).get("seccion");
+    if (section && DOCK_ITEMS.some((item) => item.id === section)) {
+      setView(section as ProfileView);
+    }
+  }, []);
+
+  /* Cambiar de sección no navega, pero sí actualiza la URL: así una sección se
+     puede compartir y el botón «atrás» no devuelve a un sitio distinto del que
+     se está viendo. `replaceState` y no `pushState` a propósito — pasar por tres
+     pestañas no debería dejar tres pasos en el historial. */
+  function changeView(next: ProfileView) {
+    setView(next);
+
+    const url = new URL(window.location.href);
+    if (next === "perfil") url.searchParams.delete("seccion");
+    else url.searchParams.set("seccion", next);
+    window.history.replaceState(null, "", url);
+  }
+
   useEffect(() => {
     const localPrefs = readUserPreferences(userId);
     setPrefs(localPrefs);
 
     fetch("/api/me")
       .then((res) => res.json())
-      .then((data: { authenticated: boolean; user: { id?: string; name: string; email: string; imageUrl?: string | null } | null }) => {
+      .then((data: { authenticated: boolean; user: { id?: string; name: string; email: string; imageUrl?: string | null; phone?: string | null } | null }) => {
         const user = data.user;
         if (!data.authenticated || !user) return;
 
@@ -59,6 +88,10 @@ export default function ProfilePage() {
         const nextName = user.name || nextLocalPrefs.name;
         const nextEmail = user.email || nextLocalPrefs.email;
         const nextAvatar = user.imageUrl || nextLocalPrefs.avatarUrl;
+        /* El teléfono llega de la cuenta desde que tiene columna. El local
+           queda de red para quien lo escribió antes de que existiera: se enseña
+           y se guarda en el primer «Guardar cambios». */
+        const nextPhone = user.phone || nextLocalPrefs.phone;
 
         setPrefs((current) => {
           const merged = {
@@ -66,6 +99,7 @@ export default function ProfilePage() {
             name: nextName,
             email: nextEmail,
             avatarUrl: nextAvatar,
+            phone: nextPhone,
           };
           writeUserPreferences(merged, nextUserId);
           return merged;
@@ -193,12 +227,13 @@ export default function ProfilePage() {
               />
             )}
             {view === "lugares" && <PlacesView />}
+            {view === "negocio" && <BusinessView />}
             {view === "ajustes" && <SettingsView />}
           </motion.div>
         </AnimatePresence>
       </div>
 
-      <ProfileDock view={view} onChange={setView} />
+      <ProfileDock view={view} onChange={changeView} />
     </div>
   );
 }

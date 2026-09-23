@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema";
 import { toNewPlaceValues, toUserPlace } from "@/lib/db/mappers";
-import { listPlaces, resolveCategoryId } from "@/lib/db/queries";
+import { CATALOG_TAG, listPlaces, resolveCategoryId } from "@/lib/db/queries";
 import { generateId } from "@/lib/utils";
 import type { UserPlace } from "@/lib/places-store";
 
@@ -25,9 +26,17 @@ export async function GET(req: NextRequest) {
   const items = await listPlaces({
     city: searchParams.get("city"),
     categorySlug: searchParams.get("category"),
-    /* Sin `?active=true` devuelve todo a propósito: el panel de admin necesita
-       ver los negocios cerrados para poder reabrirlos. */
-    onlyActive: searchParams.get("active") === "true",
+    /* **Solo lo publicado, por defecto.** Antes era al revés —sin `?active=true`
+       devolvía todo— y el catálogo público enseñaba los negocios apagados: el
+       home y el mapa piden esta ruta sin parámetros, así que un negocio que
+       administración había cerrado seguía saliendo con su pin.
+
+       Con el alta desde el perfil deja de ser un detalle: un negocio recién
+       creado nace apagado, pendiente de aprobación, y con el defecto viejo
+       habría aparecido en el mapa antes de que nadie lo mirara.
+
+       El panel de administración lo necesita todo y por eso pide `?all=true`. */
+    onlyActive: searchParams.get("all") !== "true",
     limit: Number(searchParams.get("limit") ?? 200) || 200,
   });
 
@@ -76,6 +85,8 @@ export async function POST(req: NextRequest) {
     .insert(places)
     .values(toNewPlaceValues(body, categoryId, generateId()))
     .returning();
+
+  revalidateTag(CATALOG_TAG, "max");
 
   return NextResponse.json(
     toUserPlace({ ...row!, categoryName: body.category ?? null }),

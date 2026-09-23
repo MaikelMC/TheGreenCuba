@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { and, asc, eq } from "drizzle-orm";
-import { isAdminRequest } from "@/lib/admin-server";
+import { canManagePlace } from "@/lib/admin-server";
 import { db } from "@/lib/db";
+import { CATALOG_TAG } from "@/lib/db/queries";
 import { placeImages, places } from "@/lib/db/schema";
 import { S3_BUCKET, S3_PUBLIC_URL, s3Client, s3ConfigProblem } from "@/lib/storage/s3";
 import { EXTENSION, MAX_UPLOAD_BYTES, sniffImageType } from "@/lib/storage/image";
@@ -76,11 +78,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
-  if (!(await isAdminRequest(req))) {
+  const { id } = await params;
+
+  /* Sube fotos el dueño del negocio, no solo un administrador. Ver
+     `canManagePlace`: el rol `owner` no basta, hace falta el vínculo concreto. */
+  if (!(await canManagePlace(req, id))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
-
-  const { id } = await params;
 
   /* El negocio primero. `place_id` es clave foránea, así que un id inventado
      reventaría en el INSERT —después de haber subido el archivo al bucket y
@@ -172,15 +176,21 @@ export async function POST(req: NextRequest, { params }: Params) {
     })
     .returning();
 
+  /* Las fotos van en el mismo objeto que sirve `/api/places` —llegan agrupadas
+     dentro de cada negocio—, así que una subida deja el catálogo cacheado
+     incompleto hasta que se invalide. */
+  revalidateTag(CATALOG_TAG, "max");
+
   return NextResponse.json(toClientImage(row!), { status: 201 });
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {
-  if (!(await isAdminRequest(req))) {
+  const { id } = await params;
+
+  if (!(await canManagePlace(req, id))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  const { id } = await params;
   const imageId = new URL(req.url).searchParams.get("imageId");
   if (!imageId) {
     return NextResponse.json({ error: "Falta `imageId`" }, { status: 400 });
@@ -228,6 +238,8 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         .where(eq(placeImages.id, next.id));
     }
   }
+
+  revalidateTag(CATALOG_TAG, "max");
 
   return NextResponse.json({ id: row.id });
 }

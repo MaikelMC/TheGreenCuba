@@ -26,7 +26,13 @@ export const siteConfig = {
   },
   mainNav: [
     { title: "Explorar", href: "/home" },
-    { title: "Para tu negocio", href: "/business" },
+    /* Al alta del perfil, y no a `/business`: `/business` es el panel y rebota
+       a quien no tiene negocio. Antes llevaba ahí y el rebote acababa en
+       `/login?motivo=rol`, o sea pidiéndole la contraseña a quien ya había
+       entrado para darle un aviso. Desde esta dirección, quien no tiene sesión
+       pasa por el acceso con esta misma vuelta y quien la tiene aterriza en el
+       formulario. */
+    { title: "Para tu negocio", href: "/profile?seccion=negocio" },
   ],
 };
 

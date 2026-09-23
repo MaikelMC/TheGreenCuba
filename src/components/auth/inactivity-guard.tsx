@@ -26,8 +26,17 @@ const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "touchstart", "scr
 export function InactivityGuard() {
   const pathname = usePathname();
 
+  /* Un booleano y no el `pathname` en las dependencias del efecto, y no es un
+     detalle: con la ruta entera, cada navegación —`/home` → `/mapa` → una
+     ficha— desmontaba y volvía a montar el efecto, que quiere decir volver a
+     preguntar `/api/me` y registrar cinco escuchadores de ventana otra vez. Una
+     consulta a la base por cada clic, para recibir siempre la misma respuesta: si
+     este componente está pintado y no te ha echado, ya hay sesión.
+     Lo único que el efecto necesita saber es si está en una pantalla de acceso. */
+  const isAuthPage = pathname === "/login" || pathname === "/register";
+
   useEffect(() => {
-    if (pathname === "/login" || pathname === "/register") return;
+    if (isAuthPage) return;
 
     let timer: ReturnType<typeof setTimeout> | null = null;
     let active = true;
@@ -59,7 +68,7 @@ export function InactivityGuard() {
         window.removeEventListener(eventName, scheduleLogout);
       }
     };
-  }, [pathname]);
+  }, [isAuthPage]);
 
   return null;
 }

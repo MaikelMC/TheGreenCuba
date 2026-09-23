@@ -100,8 +100,20 @@ export function PlacesProvider({
   children,
   initialPlaces,
   initialCategories,
+  includeUnpublished = false,
 }: {
   children: ReactNode;
+  /**
+   * Si el catálogo que pide este árbol incluye los negocios sin publicar.
+   *
+   * Público por defecto y **a propósito**: `/api/places` devuelve solo lo
+   * publicado salvo que le pidan lo contrario, y el único árbol que necesita
+   * verlo todo es `/admin`, que tiene que poder aprobar lo que está pendiente y
+   * reabrir lo cerrado. Antes el defecto era el contrario —la ruta devolvía todo
+   * y el filtro había que pedirlo—, y el resultado era que un negocio apagado
+   * por administración seguía saliendo en el mapa con su pin.
+   */
+  includeUnpublished?: boolean;
   /**
    * El catálogo ya resuelto en el servidor, cuando quien monta el provider es un
    * componente de servidor que puede leerlo —hoy, el layout de `/admin`—.
@@ -128,6 +140,11 @@ export function PlacesProvider({
   const [hydrated, setHydrated] = useState(hasInitialData);
   const [error, setError] = useState<string | null>(null);
 
+  /* La consulta del catálogo, atada al prop. Es una constante mientras el prop
+     no cambie, que es lo que necesita el `useCallback` de abajo para no
+     reconstruirse en cada render. */
+  const placesQuery = includeUnpublished ? "?all=true" : "";
+
   useEffect(() => {
     /* Con datos del servidor no se pide nada. `hasInitialData` es un booleano
        estable, así que el efecto sigue corriendo una sola vez. */
@@ -137,7 +154,7 @@ export function PlacesProvider({
 
     (async () => {
       const [placesResult, categoriesResult] = await Promise.all([
-        request<UserPlace[]>("/api/places"),
+        request<UserPlace[]>(`/api/places${placesQuery}`),
         request<BusinessCategory[]>("/api/categories"),
       ]);
       if (cancelled) return;
@@ -156,13 +173,17 @@ export function PlacesProvider({
     return () => {
       cancelled = true;
     };
-  }, [hasInitialData]);
+  }, [hasInitialData, placesQuery]);
 
   const refreshPlaces = useCallback(async () => {
-    const result = await request<UserPlace[]>("/api/places");
+    /* Con la consulta del prop y no sin ella: el panel de administración
+       refresca después de cada cambio —subir una foto lo hace, por ejemplo— y
+       pidiendo el catálogo público la lista perdería de golpe los negocios
+       pendientes y cerrados, que son justo los que está mirando. */
+    const result = await request<UserPlace[]>(`/api/places${placesQuery}`);
     if (result.ok) setPlaces(result.data);
     else setError(result.error);
-  }, []);
+  }, [placesQuery]);
 
   const addPlace = useCallback(async (input: NewUserPlace) => {
     const result = await request<UserPlace>("/api/places", json("POST", input));

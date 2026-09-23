@@ -92,6 +92,19 @@ export interface UserPlace {
   menu: UserPlaceMenuItem[];
   offer: UserPlaceOffer | null;
   status: PlaceStatus;
+  /**
+   * Si la ficha está publicada. `false` = pendiente de que un administrador la
+   * apruebe, que es como nacen los negocios dados de alta desde el perfil.
+   *
+   * Es distinto de `status`, y la diferencia importa: `status` es lo que dice
+   * el dueño sobre si su negocio está abierto ahora mismo —y la ficha se enseña
+   * igual, cerrada—, mientras que esto lo decide el sistema y significa que la
+   * ficha todavía no existe para nadie de fuera.
+   *
+   * Lo escribe solo la administración: `toPlaceValues` no lo mapea, así que un
+   * `PATCH` del dueño no puede publicarse a sí mismo.
+   */
+  isActive: boolean;
   isBoosted: boolean;
   boostExpiresAt: string;
   rating?: number;
@@ -107,11 +120,17 @@ export interface UserPlace {
   updatedAt?: number;
 }
 
+/* Los cuatro campos del final se **quitan** del `Omit` para volver a entrar por
+   el `Partial`, y ese paso es necesario: una intersección no ablanda lo que ya
+   es obligatorio en el tipo de la izquierda. Dejando `isActive` en el `Omit`,
+   `Partial<Pick<...>>` no lo hace opcional y cada formulario que crea un
+   negocio tendría que declarar si se publica, que es una decisión del servidor
+   y no suya. */
 export type NewUserPlace = Omit<
   UserPlace,
-  "id" | "createdAt" | "updatedAt"
+  "id" | "createdAt" | "updatedAt" | "status" | "isActive" | "isBoosted" | "boostExpiresAt"
 > &
-  Partial<Pick<UserPlace, "status" | "isBoosted" | "boostExpiresAt">>;
+  Partial<Pick<UserPlace, "status" | "isActive" | "isBoosted" | "boostExpiresAt">>;
 
 export type UserPlacePatch = Partial<
   Omit<UserPlace, "id" | "createdAt" | "updatedAt">

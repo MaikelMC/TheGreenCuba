@@ -3,8 +3,10 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Home, Loader2, Lock, Mail } from "lucide-react";
+import { ArrowRight, Home, Loader2, Lock, Mail, Phone } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
+import { TERMS_VERSION } from "@/lib/legal";
+import { readUserPreferences, writeUserPreferences } from "@/lib/user-preferences-store";
 import { EASE } from "@/lib/motion";
 
 export type AuthMode = "login" | "register";
@@ -108,11 +110,63 @@ const FIELD =
 
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
 
+/**
+ * Lo que el alta recoge y Better Auth no conoce: el teléfono y la aceptación de
+ * los términos.
+ *
+ * Su alta son correo y contraseña, así que lo demás va por nuestra tabla. El
+ * `POST` de `/api/me` es el mismo que usa el perfil para guardar, y de paso crea
+ * la fila del usuario recién dado de alta y devuelve su id. Una sola llamada
+ * para las tres cosas.
+ *
+ * **Se llama siempre, aunque no haya teléfono.** Antes salía antes de tiempo si
+ * el campo estaba vacío, y entonces daba igual —no había nada que guardar—. Con
+ * la aceptación dentro del mismo `POST`, ese `return` habría dejado sin
+ * constancia a todo el que no escribiera su número.
+ *
+ * La copia en `localStorage` no es un extra: el onboarding arma las preferencias
+ * a partir de ahí, y el perfil las lee antes de que llegue la respuesta de la
+ * red. Se escribe bajo la clave del usuario —por eso hace falta el id— y no bajo
+ * la de invitado: con la suya, cualquier lectura posterior lo encuentra, tenga
+ * id o no. Si la red falla, cae en la de invitado y el número al menos no se
+ * pierde.
+ */
+async function saveRegistration(phone: string): Promise<void> {
+  const value = phone.trim();
+
+  /* `phone` solo viaja si hay algo. Mandarlo vacío **borra** el número en el
+     servidor —así se distingue «lo vacié» de «no lo toqué»—, y dejarlo en blanco
+     al registrarse no es pedir que se borre nada. */
+  const body: { termsVersion: string; phone?: string } = { termsVersion: TERMS_VERSION };
+  if (value) body.phone = value;
+
+  let userId: string | null = null;
+  try {
+    const response = await fetch("/api/me", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = (await response.json()) as { user?: { id?: string } | null };
+    userId = data.user?.id ?? null;
+  } catch {
+    // Sin id se escribe en la clave de invitado, que es la que lee quien no tiene sesión.
+  }
+
+  if (value) {
+    writeUserPreferences({ ...readUserPreferences(userId), phone: value }, userId);
+  }
+}
+
 export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }) {
   const copy = COPY[mode];
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  /* Solo lo usa el alta. En el acceso el campo ni se pinta. */
+  const [phone, setPhone] = useState("");
+  /* La casilla de los términos. Tampoco hace falta en el acceso. */
+  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -145,6 +199,11 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
           return;
         }
 
+        /* El teléfono y la aceptación se guardan aquí, con la sesión ya emitida,
+           y no después del salto: la carga limpia de abajo se lleva por delante
+           lo que quede a medias. */
+        if (mode === "register") await saveRegistration(phone);
+
         /* Carga completa del documento, no `router.replace`. La cookie la acaba
            de escribir Neon en el navegador y el App Router guarda en caché el
            árbol de la ruta: navegando por cliente se corre el riesgo de pintar
@@ -158,7 +217,7 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
         setLoading(false);
       }
     },
-    [email, loading, mode, next, password],
+    [email, loading, mode, next, password, phone],
   );
 
   return (
@@ -223,6 +282,62 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
             />
           </span>
         </label>
+
+        {/* Solo en el alta. Es opcional a propósito: el sitio funciona sin el
+            número, y un campo obligatorio de más en el registro cuesta altas.
+            Quien lo deja vacío se queda como estaba hasta ahora. */}
+        {mode === "register" && (
+          <label className="flex flex-col gap-gap-xs">
+            <span className={LABEL}>
+              Teléfono <span className="font-normal">(opcional)</span>
+            </span>
+            <span className={FIELD}>
+              <Phone size={16} strokeWidth={1.8} className="text-ink-soft/75 shrink-0" />
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                autoComplete="tel"
+                aria-label="Teléfono"
+                className="flex-1 min-w-0 bg-transparent text-small text-ink outline-none placeholder:text-ink-soft/75"
+                placeholder="+53 5 123 4567"
+              />
+            </span>
+          </label>
+        )}
+
+        {/* La casilla de los términos. Obligatoria, y con el `required` nativo
+            sobre el propio `checkbox`: está dentro del `<form>`, así que el
+            navegador corta el envío antes de que salga, lo anuncia en su idioma
+            y no hace falta ni una línea de JavaScript ni un estado más que
+            mantener.
+
+            El enlace abre en pestaña nueva a propósito. Quien está a medio
+            registro no puede perder lo escrito por ir a leer el contrato, y
+            volver atrás no siempre devuelve el formulario como estaba. */}
+        {mode === "register" && (
+          <label className="flex items-start gap-gap-sm text-meta leading-relaxed text-ink-soft">
+            <input
+              type="checkbox"
+              checked={accepted}
+              onChange={(e) => setAccepted(e.target.checked)}
+              required
+              className="mt-0.5 size-4 shrink-0 accent-verde-500"
+            />
+            <span>
+              He leído y acepto los{" "}
+              <Link
+                href="/terminos"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-verde-600 underline underline-offset-2 transition-colors duration-500 ease-outquint hover:text-verde-700"
+              >
+                términos y la política de privacidad
+              </Link>
+              , incluido el tratamiento de mis datos tal como se describe ahí.
+            </span>
+          </label>
+        )}
 
         {/* El error va pegado a los campos, no en un aviso flotante: es donde
             está la mirada cuando el envío falla. `role="alert"` para que un

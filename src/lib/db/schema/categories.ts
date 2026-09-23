@@ -1,4 +1,4 @@
-import { pgTable, text, integer, index } from "drizzle-orm/pg-core";
+import { pgTable, text, integer } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const categories = pgTable(
@@ -14,9 +14,10 @@ export const categories = pgTable(
     emoji: text("emoji"),
     sortOrder: integer("sort_order").default(0).notNull(),
   },
-  (table) => ({
-    slugIdx: index("categories_slug_idx").on(table.slug),
-  }),
+  /* Sin índices propios: `slug` ya es único y el índice único que lo respalda
+     cubre la búsqueda por slug, que es la única que se hace contra esta tabla
+     (`findCategoryBySlug`, `categorySlugTaken`). El apoyo que había encima era
+     el mismo índice otra vez. */
 );
 
 export const categoryRelations = relations(categories, ({ many }) => ({

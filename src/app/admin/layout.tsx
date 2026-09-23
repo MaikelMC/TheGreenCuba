@@ -55,6 +55,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     <PlacesProvider
       initialPlaces={places ?? undefined}
       initialCategories={categories ?? undefined}
+      /* El único árbol que ve el catálogo entero: aquí es donde se aprueba lo
+         pendiente y se reabre lo cerrado. El resto del sitio pide solo lo
+         publicado. `listPlaces()` sin opciones ya devuelve todo, así que los
+         datos iniciales y el `refreshPlaces` del provider coinciden. */
+      includeUnpublished
     >
       <AdminShell>{children}</AdminShell>
     </PlacesProvider>

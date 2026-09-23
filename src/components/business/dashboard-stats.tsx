@@ -12,7 +12,15 @@ interface StatChange {
 interface StatCard {
   label: string;
   value: string;
-  change: StatChange;
+  /**
+   * La variación respecto al periodo anterior. **Opcional desde que las
+   * tarjetas llevan cifras de verdad**: para contar cuántos guardados tienes
+   * hoy hace falta la tabla `saved_places`, y para decir cuántos tenías la
+   * semana pasada haría falta un histórico que no existe. Antes era obligatoria
+   * y por eso el panel enseñaba un «+18%» que nadie había medido: lo más fácil
+   * era inventarlo. Sin dato, no se pinta la pastilla.
+   */
+  change?: StatChange;
 }
 
 interface DashboardStatsProps {
@@ -39,7 +47,8 @@ export function DashboardStats({ stats, className }: DashboardStatsProps) {
   return (
     <div className={cn("grid grid-cols-2 lg:grid-cols-4 gap-gap-sm", className)}>
       {stats.map((s, i) => {
-        const Icon = changeIcons[s.change.direction] ?? Minus;
+        const change = s.change;
+        const Icon = change ? changeIcons[change.direction] ?? Minus : Minus;
         return (
           <motion.div
             key={s.label}
@@ -55,15 +64,17 @@ export function DashboardStats({ stats, className }: DashboardStatsProps) {
             <span className="font-lv-display text-[clamp(28px,6vw,36px)] font-bold text-ink tracking-[-0.02em] leading-none">
               {s.value}
             </span>
-            <span
-              className={cn(
-                "inline-flex items-center gap-[4px] font-lv-display text-meta font-medium px-[8px] py-[3px] rounded-full w-fit",
-                changeStyles[s.change.direction],
-              )}
-            >
-              <Icon size={12} strokeWidth={1.8} />
-              {s.change.value}
-            </span>
+            {change && (
+              <span
+                className={cn(
+                  "inline-flex w-fit items-center gap-[4px] rounded-full px-[8px] py-[3px] font-lv-display text-meta font-medium",
+                  changeStyles[change.direction],
+                )}
+              >
+                <Icon size={12} strokeWidth={1.8} />
+                {change.value}
+              </span>
+            )}
           </motion.div>
         );
       })}

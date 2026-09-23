@@ -18,7 +18,9 @@ export const placeImages = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
-    placeIdx: index("place_images_place_idx").on(table.placeId),
+    /* Uno solo, con las dos columnas: el índice por `place_id` a secas era su
+       prefijo y no añadía nada que Postgres no sacara del compuesto. Las fotos
+       siempre se piden por negocio, así que este cubre los dos casos. */
     coverIdx: index("place_images_cover_idx").on(table.placeId, table.isCover),
   }),
 );

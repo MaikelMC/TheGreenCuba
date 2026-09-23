@@ -10,7 +10,6 @@ import {
   Bot,
   ArrowLeft,
   LogOut,
-  ListTodo,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,18 +20,21 @@ import { logout } from "@/lib/logout";
 interface AdminNavItem {
   href: string;
   label: string;
-  /** Rótulo de la barra inferior. Cinco pestañas a 360 px dejan 72 px por
-      botón: "Lista de espera" (~87 px) y "Proveedores IA" (~81 px) no caben y
-      partían en dos líneas, descuadrando la barra. */
+  /** Rótulo de la barra inferior. Las pestañas a 360 px dejan unos 72 px por
+      botón, y un rótulo que no quepa parte en dos líneas y descuadra la barra:
+      «Proveedores IA» (~81 px) ya necesita el suyo. */
   short: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
 }
 
+/* Sin «Lista de espera»: se retiró con la sección nueva del perfil. Era un
+   formulario que nadie podía rellenar —existían el store, la API y esta
+   pantalla, pero ningún sitio que hiciera el `POST`— y ahora el alta de un
+   negocio es cosa suya, desde `/profile?seccion=negocio`. */
 const NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin", label: "Dashboard", short: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/negocios", label: "Negocios", short: "Negocios", icon: Store },
-  { href: "/admin/lista-de-espera", label: "Lista de espera", short: "Espera", icon: ListTodo },
   { href: "/admin/usuarios", label: "Usuarios", short: "Usuarios", icon: Users },
   { href: "/admin/categorias", label: "Categorías", short: "Categorías", icon: Tags },
   { href: "/admin/proveedores-ia", label: "Proveedores IA", short: "IA", icon: Bot },

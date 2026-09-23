@@ -60,3 +60,8 @@ Cloudflare/
 
 # credenciales de las cuentas demo: van en claro, no al repositorio
 CREDENCIALES-DEMO.md
+
+# skill instalada en local, no del proyecto. Las otras dos de .agents/skills/
+# —ui-ux-pro-max y vercel-react-best-practices— sí están versionadas; si la idea
+# es no versionar ninguna, hay que sacarlas también.
+.agents/skills/impeccable/
