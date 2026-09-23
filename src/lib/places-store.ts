@@ -64,6 +64,22 @@ export interface UserPlace {
   lng: number;
   address: string;
   barrio: string;
+  /**
+   * Ciudad y provincia, tal como están en la base.
+   *
+   * Opcionales y no obligatorias a propósito: `NewUserPlace` se deriva de este
+   * tipo, así que hacerlas obligatorias obligaría a rellenarlas en todos los
+   * formularios que crean un negocio, que no las piden porque las pone el
+   * servidor. Existen para el `PostalAddress` del marcado estructurado y para el
+   * título de la ficha: sin localidad, un `LocalBusiness` no está atado a ningún
+   * sitio.
+   */
+  city?: string;
+  province?: string;
+  /** Contacto del negocio cuando la base lo tiene. La ficha lo usa en el
+      marcado estructurado; el panel todavía no lo edita. */
+  phone?: string;
+  website?: string;
   description: string;
   schedule: string;
   /**

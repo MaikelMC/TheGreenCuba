@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Source_Sans_3, JetBrains_Mono } from "next/font/google";
 import { lvFontVars } from "@/lib/fonts";
+import { siteConfig } from "@/config/site";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -48,14 +49,40 @@ export const viewport: Viewport = {
   ],
 };
 
+const TITLE = "La Verde | Encuentra tu lugar en Cuba";
+const DESCRIPTION =
+  "Encuentra los mejores lugares en Cuba con inteligencia artificial. Restaurantes, cafeterías, playas y más.";
+
 export const metadata: Metadata = {
+  /* Sin `metadataBase`, Next resuelve las URL relativas de Open Graph y de
+     canonical contra `localhost:3000`: las previews al compartir salían con una
+     imagen que no carga para nadie más. Aquí manda la URL canónica del sitio. */
+  metadataBase: new URL(siteConfig.url),
   title: {
-    default: "La Verde | Encuentra tu lugar en Cuba",
+    default: TITLE,
     template: "%s | La Verde",
   },
-  description:
-    "Encuentra los mejores lugares en Cuba con inteligencia artificial. Restaurantes, cafeterías, playas y más.",
+  description: DESCRIPTION,
   keywords: ["Cuba", "lugares", "recomendaciones", "IA", "turismo"],
+  applicationName: siteConfig.name,
+  /* Se hereda en todas las páginas: lo que cada una cambie encima (título, OG,
+     canonical) se fusiona con esto. Las zonas privadas ponen su propio
+     `robots: { index: false }` en su layout. */
+  openGraph: {
+    type: "website",
+    locale: "es_CU",
+    siteName: siteConfig.name,
+    url: siteConfig.url,
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  /* No se declara `robots` aquí: lo decide `robots.ts`, que además puede excluir
+     rutas enteras del rastreo, cosa que una meta etiqueta no hace. */
 };
 
 export default function RootLayout({

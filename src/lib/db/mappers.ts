@@ -20,7 +20,18 @@ import { slugify } from "@/lib/utils";
  * importar desde un componente de cliente sin arrastrar drizzle al navegador.
  */
 
-type PlaceRow = typeof places.$inferSelect;
+/**
+ * La fila de `places`, con el vector como opcional.
+ *
+ * El `embedding` es opcional y no obligatorio porque las consultas del catálogo
+ * ya no lo traen —`PLACE_COLUMNS` en `queries.ts`: son 1024 números por fila que
+ * nadie lee y que hacían que el catálogo entero pesara medio mega—. Dejarlo
+ * opcional permite que una fila completa siga encajando aquí, que es lo que
+ * devuelve un `INSERT ... RETURNING` y lo que se le pasa a `toUserPlace`.
+ */
+export type PlaceRow = Omit<typeof places.$inferSelect, "embedding"> & {
+  embedding?: typeof places.$inferSelect["embedding"];
+};
 type CategoryRow = typeof categories.$inferSelect;
 
 /**
@@ -51,6 +62,13 @@ export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
        no es un barrio ni un dato: es un hueco disfrazado. `city` es `notNull`,
        así que nunca queda vacío. */
     barrio: row.neighborhood || row.city,
+    /* La ciudad va aparte del barrio, y no es lo mismo: el barrio cae a la ciudad
+       cuando falta, así que sin este campo el marcado estructurado de una ficha
+       sin `neighborhood` habría puesto la ciudad como si fuera el barrio. */
+    city: row.city,
+    province: row.province,
+    phone: row.phone ?? undefined,
+    website: row.website ?? undefined,
     description: row.description ?? row.shortDescription ?? "",
     schedule: row.schedule ?? "",
     /* La base lo guarda desde la primera siembra; sin esto los filtros de

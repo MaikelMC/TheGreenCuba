@@ -1,159 +1,124 @@
-"use client";
+import type { Metadata } from "next";
+import { cache } from "react";
+import { getPlaceById } from "@/lib/db/queries";
+import { placeJsonLd, placeUrl } from "@/lib/structured-data";
+import { PlaceView } from "./place-view";
 
-import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { MapPin, ArrowLeft } from "lucide-react";
-import { StateView } from "@/components/ui/state-view";
-import { LoadingState } from "@/components/ui/loading";
-import {
-  PlaceDetail,
-  type PlaceData,
-  type PlaceState,
-} from "@/components/place/place-detail";
-import { usePlaces } from "@/providers/places-provider";
-import type { UserPlace } from "@/lib/places-store";
+/**
+ * La ficha pública de un lugar.
+ *
+ * Esta página era un componente de cliente entero, y eso tenía una consecuencia
+ * que no se veía en el navegador: sin JavaScript no había ficha. El servidor
+ * mandaba el esqueleto vacío, el nombre del negocio lo ponía `usePlaces()` tras
+ * hidratar, y un buscador que no ejecuta scripts —o que decide no gastar en
+ * hacerlo— se encontraba una página sin nada que indexar. Las fichas son la
+ * puerta de entrada orgánica del producto, así que esto era el problema más
+ * caro de todos.
+ *
+ * La división queda así: aquí, en el servidor, se resuelve el lugar, se emite la
+ * metadata y el marcado estructurado, y se pinta la vista con el dato dentro;
+ * `place-view.tsx` se queda con lo que de verdad es interacción.
+ */
 
-/* Mismo par de degradados claros que usa el editor de fotos del panel de
-   negocio. Los anteriores eran verdes oscuros y el rótulo del carrusel —que va
-   en `verde-600`— no se leía encima.
+/**
+ * Una sola consulta por petición.
+ *
+ * `generateMetadata` y el componente piden el mismo lugar, y sin esto serían dos
+ * viajes a Neon para la misma fila. `cache` de React deduplica dentro de la
+ * petición, que es exactamente el alcance que hace falta.
+ *
+ * El `try` devuelve `null` en vez de propagar: si Neon no contesta —y desde esta
+ * red eso pasa por rachas—, es mejor servir la ficha sin metadata que un error
+ * en una URL que la gente comparte por WhatsApp.
+ */
+const getPlace = cache(async (id: string) => {
+  try {
+    return await getPlaceById(id);
+  } catch {
+    return null;
+  }
+});
 
-   El `url: null` es lo que los marca como relleno: `PhotoCarousel` pinta el
-   degradado en lugar de una imagen. */
-const FALLBACK_SLIDES = [
-  {
-    url: null,
-    alt: "",
-    gradient: "linear-gradient(160deg, #EAF7EF, #CEEEDB)",
-    label: "El lugar",
-  },
-  {
-    url: null,
-    alt: "",
-    gradient: "linear-gradient(160deg, #F6F3EC, #EAE4D6)",
-    label: "Ambiente",
-  },
-];
-
-function userPlaceToPlaceData(p: UserPlace): PlaceData {
-  const isOpen = p.status === "active";
+function describe(place: {
+  name: string;
+  category: string;
+  city?: string;
+  barrio: string;
+  description: string;
+}): { title: string; description: string } {
+  const where = place.city || place.barrio || "Cuba";
   return {
-    id: p.id,
-    name: p.name,
-    category: p.category,
-    rating: p.rating ?? 0,
-    /* Sin el respaldo "Ver en el mapa" que había aquí: cuando no hay ni
-       distancia ni dirección el campo queda vacío y la ficha esconde la línea,
-       en vez de anunciar un mapa que no lleva a ninguna parte. */
-    distance: p.distanceLabel || p.address || "",
-    barrio: p.barrio || "Cuba",
-    schedule: p.schedule || "Próximamente",
-    payments: p.payments,
-    description: p.description,
-    longDescription:
-      p.description ||
-      "Negocio agregado por su dueño en La Verde. Pronto tendrá más información, horarios y fotos.",
-    isOpen,
-    closedMessage:
-      p.status === "closed"
-        ? "Cerrado temporalmente."
-        : p.status === "temporary_closed"
-          ? "Temporalmente cerrado."
-          : undefined,
-    /* Lo que la tarjeta de recomendación dice sale de aquí y solo de aquí: sin
-       frase de relleno, sin consulta inventada y sin `aiReasoning`, que viajaba
-       en `UserPlace` pero no tiene columna en `places` y llegaba siempre vacío. */
-    vibe: p.vibe ?? [],
-    aiTags: p.aiTags ?? [],
-    priceLabel: p.priceLabel,
-    isBoosted: p.isBoosted,
-    /* Las fotos subidas mandan; el degradado solo rellena cuando el negocio
-       todavía no tiene ninguna. */
-    slides:
-      p.photos && p.photos.length > 0
-        ? p.photos.map((photo, i) => ({
-            url: photo.url,
-            alt: photo.alt || `Foto ${i + 1} de ${p.name}`,
-          }))
-        : FALLBACK_SLIDES.map((s) => ({ ...s, label: `${p.name}: ${s.label}` })),
-    /* El precio pasa tal cual y la chapita también. Aquí estaba el corte de la
-       cadena: `Number(item.price) || 0` convertía a cero todo precio que no
-       fuese una cifra pelada —el campo es texto libre, el propio esquema pone
-       «3–5 USD» de ejemplo— y la reconstrucción del objeto se dejaba fuera el
-       `tag` que el dueño había escrito. */
-    menu: p.menu
-      .filter((item) => item.name.trim().length > 0)
-      .map((item) => ({
-        name: item.name,
-        description: item.description,
-        price: item.price,
-        currency: item.currency || "MLC",
-        tag: item.tag,
-      })),
-    specialOffer: p.offer
-      ? {
-          label: "Oferta especial",
-          text: p.offer.text,
-          expiry: p.offer.expiry,
-        }
-      : undefined,
+    title: `${place.name} — ${place.category} en ${where}`,
+    /* La descripción larga se recorta: Google corta alrededor de los 160
+       caracteres y lo que sobre no se lee, solo resta espacio a lo que sí. */
+    description: place.description
+      ? place.description.slice(0, 160)
+      : `${place.name}, ${place.category} en ${where}. Dirección, horario, precios y métodos de pago en La Verde.`,
   };
 }
 
-function placeState(p: UserPlace): PlaceState {
-  /* La oferta va primero y el orden importa: en `PlaceDetail` el banner solo se
-     pinta con el estado `special-offer`, así que un negocio con fotos y oferta
-     perdería el banner si las fotos se comprobaran antes. */
-  if (p.offer) return "special-offer";
-  if (p.photos && p.photos.length > 0) return "normal";
-  return "no-photos";
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const place = await getPlace(id);
+
+  /* Una URL que no corresponde a ningún negocio no se indexa: si entra en el
+     índice, compite con las fichas buenas por las mismas consultas y no tiene
+     nada que ofrecer a quien llegue. */
+  if (!place) {
+    return { title: "Lugar no encontrado", robots: { index: false, follow: true } };
+  }
+
+  const { title, description } = describe(place);
+  const cover = place.photos?.[0]?.url;
+
+  return {
+    title,
+    description,
+    /* Relativa a propósito: la resuelve `metadataBase` contra la URL canónica
+       del sitio, así que no puede quedarse apuntando a localhost ni a la
+       preview de Vercel. */
+    alternates: { canonical: `/place/${place.id}` },
+    openGraph: {
+      type: "website",
+      title,
+      description,
+      url: placeUrl(place.id),
+      images: cover ? [cover] : undefined,
+    },
+    twitter: { card: "summary_large_image", title, description },
+    /* Un negocio cerrado se enseña —el enlace está compartido y tiene que
+       abrir—, pero no se ofrece al índice: es una página que dice «cerrado». */
+    robots: place.status === "active" ? undefined : { index: false, follow: true },
+  };
 }
 
-export default function PlacePage() {
-  const params = useParams();
-  const router = useRouter();
-  const { places, hydrated } = usePlaces();
-
-  const id = typeof params.id === "string" ? params.id : "";
-
-  // `places` se llena en un useEffect del provider, así que en el primer render
-  // está vacío. Sin esta guarda no se puede distinguir "todavía no cargó" de
-  // "no existe", y la página mostraba "Lugar no encontrado" un instante antes
-  // de encontrar el lugar, al recargar o entrar por URL directa.
-  if (!hydrated) {
-    return <LoadingState className="min-h-screen min-h-dvh" />;
-  }
-
-  const place = places.find((p) => p.id === id) ?? null;
-
-  if (!place) {
-    return (
-      <div className="grid min-h-screen min-h-dvh place-items-center bg-sand font-lv text-ink px-gutter">
-        <StateView
-          icon={MapPin}
-          title="Lugar no encontrado"
-          description="Este lugar no está en La Verde o fue eliminado."
-          actions={
-            <Link
-              href="/home"
-              className="inline-flex items-center gap-[6px] h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98]"
-            >
-              <ArrowLeft size={16} strokeWidth={1.8} />
-              Volver al mapa
-            </Link>
-          }
-        />
-      </div>
-    );
-  }
+export default async function PlacePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const place = await getPlace(id);
 
   return (
-    <PlaceDetail
-      place={userPlaceToPlaceData(place)}
-      state={placeState(place)}
-      onBack={() => router.back()}
-      onShare={() => {}}
-      onMenuSeeAll={() => {}}
-      onNavigate={() => router.push(`/home?lugar=${place.id}`)}
-    />
+    <>
+      {place && (
+        <script
+          type="application/ld+json"
+          /* Los datos del negocio los escribe su dueño desde el panel, así que
+             el `<` se escapa antes de meterlos en la página: sin eso, un nombre
+             con `</script>` dentro cierra la etiqueta y lo que venga detrás se
+             ejecuta como HTML. */
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(placeJsonLd(place)).replace(/</g, "\\u003c"),
+          }}
+        />
+      )}
+      <PlaceView id={id} initialPlace={place} />
+    </>
   );
 }

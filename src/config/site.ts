@@ -2,8 +2,18 @@ export const siteConfig = {
   name: "La Verde",
   description: "Encuentra los mejores lugares en Cuba con ayuda de inteligencia artificial",
   slogan: "Tu guía de Cuba",
-  url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
-  ogImage: "/og.png",
+  /* La reserva es el dominio de producción y no `localhost`, que es lo que era.
+     Si `NEXT_PUBLIC_APP_URL` falta en el despliegue, cada canonical, cada Open
+     Graph y cada entrada del sitemap apuntaría a `http://localhost:3000`, y eso
+     desindexa el sitio entero sin un solo error en los logs: Google recibe una
+     URL que no puede rastrear y se queda con la copia que ya tenía, o con
+     ninguna. En desarrollo se pone la variable en `.env` y manda ella. */
+  url: process.env.NEXT_PUBLIC_APP_URL ?? "https://laverde.kynari.dev",
+  /* Aquí había un `ogImage: "/og.png"` que apuntaba a un archivo que no existe
+     —`public/` solo tiene `logo.png`—, así que cada enlace compartido enseñaba
+     una imagen rota. La tarjeta de Open Graph la genera ahora
+     `src/app/opengraph-image.tsx`, que es la convención de Next y no hace falta
+     declararla aquí. */
   links: {
     twitter: "https://twitter.com/laverde",
     /* Marcadores. Son las cuentas que enseña «Configuración» en el perfil y hay
