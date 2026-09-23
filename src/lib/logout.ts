@@ -32,6 +32,6 @@ export async function logout(): Promise<void> {
     } catch {
       // El navegador puede bloquear localStorage en modo privado o sin permisos.
     }
-    window.location.assign("/login");
+    window.location.assign("/");
   }
 }
