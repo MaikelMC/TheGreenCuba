@@ -4,7 +4,23 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { logout } from "@/lib/logout";
 
-const INACTIVITY_LIMIT_MS = 3 * 60 * 1000;
+/**
+ * Cuánto puede quedarse alguien sin tocar nada antes de que se le cierre la
+ * sesión.
+ *
+ * Eran tres minutos, y en un sitio de descubrir lugares son muy pocos: leer una
+ * ficha entera, mirar el menú o comparar dos negocios se hace sin mover el ratón
+ * ni la pantalla, y a los tres minutos la lectura se interrumpía sola. Treinta
+ * minutos es el rato que se le da por defecto a una sesión inactiva, y sigue
+ * siendo corto para lo que esta protección busca —una sesión olvidada abierta en
+ * un equipo compartido—.
+ *
+ * El contador solo se reinicia con gestos de verdad (`mousemove`, `scroll`,
+ * `touchstart`…), no con el simple paso del tiempo, así que una pestaña de fondo
+ * también caduca. Es lo que se quiere.
+ */
+const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
+
 const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"] as const;
 
 export function InactivityGuard() {
