@@ -96,13 +96,43 @@ function json(method: string, body: unknown): RequestInit {
   };
 }
 
-export function PlacesProvider({ children }: { children: ReactNode }) {
-  const [places, setPlaces] = useState<UserPlace[]>([]);
-  const [categories, setCategories] = useState<BusinessCategory[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+export function PlacesProvider({
+  children,
+  initialPlaces,
+  initialCategories,
+}: {
+  children: ReactNode;
+  /**
+   * El catálogo ya resuelto en el servidor, cuando quien monta el provider es un
+   * componente de servidor que puede leerlo —hoy, el layout de `/admin`—.
+   *
+   * Con esto el panel arranca con los datos puestos: antes pintaba vacío y el
+   * usuario esperaba a que volvieran **dos** peticiones (`/api/places` y
+   * `/api/categories`) para ver algo, que es exactamente el «recargo y espero» de
+   * un panel de administración. Se ahorra la ida y vuelta entera y, de paso, la
+   * pantalla de carga.
+   *
+   * Van juntos a propósito: por uno solo no se ahorra nada —la petición que
+   * falta hay que hacerla igual— así que o llegan los dos o no llega ninguno.
+   */
+  initialPlaces?: UserPlace[];
+  initialCategories?: BusinessCategory[];
+}) {
+  const hasInitialData =
+    initialPlaces !== undefined && initialCategories !== undefined;
+
+  const [places, setPlaces] = useState<UserPlace[]>(initialPlaces ?? []);
+  const [categories, setCategories] = useState<BusinessCategory[]>(
+    initialCategories ?? [],
+  );
+  const [hydrated, setHydrated] = useState(hasInitialData);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    /* Con datos del servidor no se pide nada. `hasInitialData` es un booleano
+       estable, así que el efecto sigue corriendo una sola vez. */
+    if (hasInitialData) return;
+
     let cancelled = false;
 
     (async () => {
@@ -126,7 +156,7 @@ export function PlacesProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [hasInitialData]);
 
   const refreshPlaces = useCallback(async () => {
     const result = await request<UserPlace[]>("/api/places");

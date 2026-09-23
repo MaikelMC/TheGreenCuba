@@ -28,11 +28,42 @@ const CONNECT_FAILURES = new Set([
    agotaba sembrando: la racha de cortes dura más que la cuenta. */
 const RETRY_DELAYS_MS = [500, 1500, 4000, 8000, 12000];
 
-function isConnectFailure(error: unknown): boolean {
+function errorCode(error: unknown): string | undefined {
   const code =
     (error as { cause?: { code?: string } })?.cause?.code ??
     (error as { code?: string })?.code;
-  return typeof code === "string" && CONNECT_FAILURES.has(code);
+  return typeof code === "string" ? code : undefined;
+}
+
+function isConnectFailure(error: unknown): boolean {
+  const code = errorCode(error);
+  return code !== undefined && CONNECT_FAILURES.has(code);
+}
+
+/**
+ * El cuerpo que manda el driver de Neon es `{"query":"…","params":[…]}` —está en
+ * `node_modules/@neondatabase/serverless/index.mjs`, no supuesto—, así que el
+ * verbo de la consulta se lee de ahí sin tocar el driver.
+ */
+function isReadQuery(init?: RequestInit): boolean {
+  const body = init?.body;
+  return typeof body === "string" && /"query"\s*:\s*"\s*(select|with)\b/i.test(body);
+}
+
+/**
+ * Si la llamada se puede repetir sin miedo.
+ *
+ * `ECONNRESET` **no** está en `CONNECT_FAILURES` a propósito: es un corte a
+ * mitad de la respuesta, cuando la consulta ya se envió, y repetir una que
+ * escribe podría aplicarla dos veces. Pero en un `SELECT` —o un `WITH`, que es
+ * como drizzle escribe las consultas con CTE— repetir no cambia nada: lo que se
+ * perdió fue la respuesta, no el efecto. Y desde esta red los cortes de lectura
+ * son buena parte de los fallos: sin esto, la lista de lugares se quedaba sin
+ * pines al primer reset que caía en el catálogo.
+ */
+function isRetryable(error: unknown, init?: RequestInit): boolean {
+  if (isConnectFailure(error)) return true;
+  return errorCode(error) === "ECONNRESET" && isReadQuery(init);
 }
 
 const retryingFetch: typeof fetch = async (input, init) => {
@@ -41,7 +72,7 @@ const retryingFetch: typeof fetch = async (input, init) => {
       return await fetch(input, init);
     } catch (error) {
       const delay = RETRY_DELAYS_MS[attempt];
-      if (delay === undefined || !isConnectFailure(error) || init?.signal?.aborted) {
+      if (delay === undefined || !isRetryable(error, init) || init?.signal?.aborted) {
         throw error;
       }
       await new Promise((resolve) => setTimeout(resolve, delay));

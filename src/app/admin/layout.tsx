@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { type ReactNode } from "react";
 import { getAppUser } from "@/lib/auth/user";
+import { listCategories, listPlaces } from "@/lib/db/queries";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { PlacesProvider } from "@/providers/places-provider";
 
@@ -27,6 +28,13 @@ export const dynamic = "force-dynamic";
  * El `motivo=rol` no es decorativo: `/login` lo lee para distinguir «no has
  * entrado» de «has entrado y no te toca». Sin él, alguien con sesión de usuario
  * normal vería el formulario otra vez y escribiría su contraseña para nada.
+ *
+ * **El catálogo se lee aquí, en el servidor.** Este layout ya es un componente
+ * de servidor y ya está consultando Neon para el rol, así que leer el catálogo
+ * en la misma petición no cuesta un viaje extra; en cambio ahorra los dos que
+ * hacía el provider desde el navegador (`/api/places` y `/api/categories`)
+ * antes de pintar nada. El panel aparece con los datos puestos en vez de con
+ * una pantalla de carga. Las dos consultas van en paralelo y no encadenadas.
  */
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const user = await getAppUser();
@@ -35,8 +43,19 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     redirect("/login?next=/admin&motivo=rol");
   }
 
+  /* `.catch(() => null)` y no dejar que suba: si Neon no contesta, esto se
+     comporta como antes —el provider pide los datos desde el cliente y enseña
+     su error— en lugar de tumbar el panel entero. */
+  const [places, categories] = await Promise.all([
+    listPlaces().catch(() => null),
+    listCategories().catch(() => null),
+  ]);
+
   return (
-    <PlacesProvider>
+    <PlacesProvider
+      initialPlaces={places ?? undefined}
+      initialCategories={categories ?? undefined}
+    >
       <AdminShell>{children}</AdminShell>
     </PlacesProvider>
   );

@@ -1,5 +1,3 @@
-import { authClient } from "@/lib/auth/client";
-
 /**
  * Cierre de sesión, en un solo sitio.
  *
@@ -18,8 +16,21 @@ import { authClient } from "@/lib/auth/client";
  */
 export async function logout(): Promise<void> {
   try {
+    /* El cliente de Neon entra con `import()` y no con un `import` de arriba, y
+       no es un detalle de estilo: `@neondatabase/auth` es **el trozo más grande
+       de la aplicación** —unos 105 KB comprimidos, Better Auth entero— y este
+       módulo lo importaba de forma estática. Como medio sitio importa `logout`
+       para un botón, esos 105 KB viajaban en el paquete inicial de todas las
+       páginas con header: el mapa, el panel de negocio y el de administración.
+       Separado así, solo lo descarga quien cierra sesión.
+
+       El formulario de entrar (`auth-card`) sí lo importa de forma estática, y
+       ahí está bien: en `/login` el cliente *es* la pantalla. */
+    const { authClient } = await import("@/lib/auth/client");
     await authClient.signOut();
   } finally {
+    /* En `finally` a propósito: si el `import()` o el `signOut` fallan por red,
+       hay que salir igual o el usuario se queda mirando un botón muerto. */
     window.location.assign("/login");
   }
 }

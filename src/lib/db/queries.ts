@@ -1,10 +1,11 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { categories, placeImages, places } from "@/lib/db/schema";
 import type { UserPlacePhoto } from "@/lib/places-store";
 import {
   toBusinessCategory,
   toUserPlace,
+  type PlaceRow,
   type PlaceRowWithCategory,
 } from "./mappers";
 
@@ -17,9 +18,21 @@ import {
  * la entrada y decidir el código de estado.
  */
 
-const SELECT_WITH_CATEGORY = { place: places, categoryName: categories.name };
+/**
+ * Todas las columnas de `places` menos `embedding`.
+ *
+ * El vector son 1024 números por negocio y **no lo lee nadie de aquí**:
+ * `toUserPlace` lo tiraba en cuanto llegaba. Traerlo costaba en torno a medio
+ * mega por carga del catálogo —treinta negocios— viajando de Neon al servidor en
+ * cada visita, y en esta red un cuerpo así se corta a mitad: es el `ECONNRESET`
+ * que dejaba el mapa sin pines. La búsqueda por IA no pasa por aquí; consulta el
+ * vector en su propia ruta.
+ */
+const { embedding: _embedding, ...PLACE_COLUMNS } = getTableColumns(places);
 
-function unwrap(row: { place: typeof places.$inferSelect; categoryName: string | null }): PlaceRowWithCategory {
+const SELECT_WITH_CATEGORY = { place: PLACE_COLUMNS, categoryName: categories.name };
+
+function unwrap(row: { place: PlaceRow; categoryName: string | null }): PlaceRowWithCategory {
   return { ...row.place, categoryName: row.categoryName };
 }
 
