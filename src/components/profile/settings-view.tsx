@@ -48,6 +48,7 @@ const SOCIALS: { label: string; href: string; icon: LucideIcon }[] = [
 ];
 
 interface SessionUser {
+  id?: string;
   email: string;
   name: string;
   role: string;
@@ -61,7 +62,7 @@ export function SettingsView() {
     fetch("/api/me")
       .then((res) => res.json())
       .then((data: { authenticated: boolean; user: SessionUser | null }) => {
-        if (alive && data.authenticated && data.user) setUser(data.user);
+        if (alive && data.authenticated && data.user) setUser({ ...data.user, id: (data.user as unknown as { id?: string }).id ?? "" });
       })
       .catch(() => {});
     return () => {
@@ -73,8 +74,8 @@ export function SettingsView() {
      hay base de datos. Lo que sí puede —y lo dice el aviso antes de hacerlo— es
      vaciar lo que este navegador guarda de ti y cerrar la sesión. */
   function handleDelete() {
-    clearActivity();
-    clearUserPreferences();
+    clearActivity(user?.id ?? null);
+    clearUserPreferences(user?.id ?? null);
     void logout();
   }
 

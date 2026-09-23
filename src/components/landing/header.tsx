@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import {
   Sheet,
@@ -21,14 +22,29 @@ const NAV_LINKS = [
 ];
 
 export function Header() {
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    let previousY = window.scrollY;
+
+    function handleScroll() {
+      const currentY = window.scrollY;
+      if (currentY <= 24 || currentY < previousY) {
+        setVisible(true);
+      } else if (currentY > previousY) {
+        setVisible(false);
+      }
+      previousY = currentY;
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    // Barra flotante del sistema: pastilla `rounded-full` de cristal verde
-    // oscuro con `ring-1 ring-white/10`. Va `fixed` porque el hero tiene que
-    // pasarle por debajo — el cielo oscuro arranca en el borde superior de la
-    // pantalla. El hero reserva el hueco con `pt-28`.
     <motion.header
       initial={{ y: -80, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
+      animate={{ y: visible ? 0 : -100, opacity: visible ? 1 : 0 }}
       transition={{ duration: 0.9, ease: EASE, delay: 0.2 }}
       className="fixed inset-x-0 top-0 z-50 px-gutter pt-3 md:px-gutter-lg"
     >

@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   LogOut,
   ListTodo,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MobileDock } from "@/components/layout/mobile-dock";
@@ -32,6 +33,7 @@ const NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin", label: "Dashboard", short: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/negocios", label: "Negocios", short: "Negocios", icon: Store },
   { href: "/admin/lista-de-espera", label: "Lista de espera", short: "Espera", icon: ListTodo },
+  { href: "/admin/usuarios", label: "Usuarios", short: "Usuarios", icon: Users },
   { href: "/admin/categorias", label: "Categorías", short: "Categorías", icon: Tags },
   { href: "/admin/proveedores-ia", label: "Proveedores IA", short: "IA", icon: Bot },
 ];

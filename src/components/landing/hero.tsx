@@ -164,13 +164,10 @@ export function Hero() {
               variants={fadeUp}
               className="mt-gap-xl flex flex-wrap justify-center gap-gap-sm"
             >
-              {/* La puerta de entrada del sitio. Antes iba derecho a
-                  `/onboarding`, que ahora exige sesión: el middleware devolvía
-                  aquí, así que el botón parecía no hacer nada. Con `next`, quien
-                  entra por primera vez aterriza en el onboarding después de
-                  identificarse. */}
+              {/* La puerta de entrada para una persona nueva es el registro:
+                  después de crear la cuenta continúa con sus preferencias. */}
               <Link
-                href="/login?next=/onboarding"
+                href="/register"
                 className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-verde-400 px-6 py-3 font-lv-display text-sm font-semibold leading-none text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
               >
                 Probar La Verde

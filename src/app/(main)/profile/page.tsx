@@ -40,9 +40,40 @@ export default function ProfilePage() {
   const [view, setView] = useState<ProfileView>("perfil");
   const [prefs, setPrefs] = useState<UserPreferences | null>(null);
   const [saved, setSaved] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    setPrefs(readUserPreferences());
+    const localPrefs = readUserPreferences(userId);
+    setPrefs(localPrefs);
+
+    fetch("/api/me")
+      .then((res) => res.json())
+      .then((data: { authenticated: boolean; user: { id?: string; name: string; email: string; imageUrl?: string | null } | null }) => {
+        const user = data.user;
+        if (!data.authenticated || !user) return;
+
+        const nextUserId = user.id ?? null;
+        setUserId(nextUserId);
+        const nextLocalPrefs = readUserPreferences(nextUserId);
+
+        const nextName = user.name || nextLocalPrefs.name;
+        const nextEmail = user.email || nextLocalPrefs.email;
+        const nextAvatar = user.imageUrl || nextLocalPrefs.avatarUrl;
+
+        setPrefs((current) => {
+          const merged = {
+            ...(current ?? nextLocalPrefs),
+            name: nextName,
+            email: nextEmail,
+            avatarUrl: nextAvatar,
+          };
+          writeUserPreferences(merged, nextUserId);
+          return merged;
+        });
+      })
+      .catch(() => {
+        // Si no hay sesión o falla la red, se queda con las preferencias locales.
+      });
   }, []);
 
   const title = DOCK_ITEMS.find((item) => item.id === view)?.label ?? "Perfil";
@@ -72,20 +103,56 @@ export default function ProfilePage() {
     });
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!prefs) return;
+
     writeUserPreferences({
       ...prefs,
       onboardingCompleted: true,
       locationName: locationLabel(prefs.location),
-    });
+    }, userId);
+
+    try {
+      const response = await fetch("/api/me", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...prefs,
+          onboardingCompleted: true,
+          location: prefs.location,
+          locationName: locationLabel(prefs.location),
+        }),
+      });
+
+      if (response.ok) {
+        const data = (await response.json()) as {
+          authenticated: boolean;
+          user: { name?: string; email?: string; imageUrl?: string | null } | null;
+        };
+
+        const savedUser = data.user;
+        if (data.authenticated && savedUser) {
+          setPrefs((current) => ({
+            ...(current ?? prefs),
+            name: savedUser.name || current?.name || prefs.name,
+            email: savedUser.email || current?.email || prefs.email,
+            avatarUrl: savedUser.imageUrl || current?.avatarUrl || prefs.avatarUrl,
+          }));
+        }
+      }
+    } catch {
+      // Si falla la escritura en DB, al menos se conserva la copia local del navegador.
+    }
+
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
 
   return (
     <div className="min-h-dvh bg-sand font-lv text-ink">
-      <TopBar title={title} initial={prefs.name.charAt(0)}>
+      <TopBar title={title} initial={prefs.name.charAt(0)} avatarUrl={prefs.avatarUrl}>
         {view === "perfil" && (
           <motion.button
             type="button"
@@ -143,10 +210,12 @@ export default function ProfilePage() {
 function TopBar({
   title,
   initial,
+  avatarUrl,
   children,
 }: {
   title: string;
   initial?: string;
+  avatarUrl?: string;
   children?: React.ReactNode;
 }) {
   return (
@@ -163,7 +232,7 @@ function TopBar({
       </h1>
       <div className="min-w-0 flex-1" />
       {children}
-      <UserMenu initial={initial} />
+      <UserMenu initial={initial} avatarUrl={avatarUrl} />
     </header>
   );
 }

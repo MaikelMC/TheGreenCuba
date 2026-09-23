@@ -109,6 +109,8 @@ export function PlaceDetail({
 }: PlaceDetailProps) {
   const [descExpanded, setDescExpanded] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+
   /* El diálogo vive aquí y no dentro de `ActionButtons` porque hay dos rejillas
      —la de escritorio y la de móvil— montadas a la vez: dentro habría dos
      diálogos, y dos estados de nota distintos para la misma opinión. */
@@ -118,20 +120,29 @@ export function PlaceDetail({
      ver la suya. */
   const [reviewsKey, setReviewsKey] = useState(0);
 
+  useEffect(() => {
+    fetch("/api/me")
+      .then((res) => res.json())
+      .then((data: { authenticated: boolean; user: { id?: string } | null }) => {
+        if (data.authenticated && data.user?.id) setUserId(data.user.id);
+      })
+      .catch(() => {});
+  }, []);
+
   /* Abrir la ficha es la visita. Se cuenta aquí y no en cada página porque por
      este componente pasan todas: la ficha de `/place/[id]` y la que abre el
      panel del home. El store ignora la repetición dentro de una ventana corta,
      que es lo que evita que el doble montaje —panel y hoja— cuente doble. */
   useEffect(() => {
-    recordVisit({ id: place.id, name: place.name, category: place.category });
-  }, [place.id, place.name, place.category]);
+    recordVisit({ id: place.id, name: place.name, category: place.category }, userId);
+  }, [place.id, place.name, place.category, userId]);
 
   /* El estado de guardado se lee en efecto y no en el inicializador: en el
      servidor no hay `localStorage`, así que arrancar de ahí daría un HTML
      distinto al del cliente y React se quejaría al hidratar. */
   useEffect(() => {
-    setSaved(isPlaceSaved(place.id));
-  }, [place.id]);
+    setSaved(isPlaceSaved(place.id, userId));
+  }, [place.id, userId]);
 
   const isClosed = state === "closed" || (!place.isOpen && state !== "special-offer");
   const hasPhotos = state !== "no-photos" && place.slides.length > 0;
@@ -145,7 +156,7 @@ export function PlaceDetail({
   const location = place.distance === place.barrio ? "" : place.distance;
 
   function handleSave() {
-    setSaved(toggleSaved(place.id));
+    setSaved(toggleSaved(place.id, userId));
   }
 
   // Aquí va `min-h-dvh` solo: `cn` usa twMerge, que colapsaría el par

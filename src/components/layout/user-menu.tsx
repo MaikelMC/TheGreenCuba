@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { User, Building2, ShieldCheck, LogOut } from "lucide-react";
 import type { Role } from "@/lib/session";
 import { logout } from "@/lib/logout";
+import { readUserPreferences } from "@/lib/user-preferences-store";
 
 /* Hairline entre filas en vez de `<div>` separadores sueltos: es el mismo
    idioma que las filas de la pantalla de preferencias. */
@@ -23,8 +24,10 @@ const ITEM =
  * ahora a una consulta a `business_owners` para llenar un campo que no se lee.
  */
 interface SessionUser {
+  id?: string;
   email: string;
   name: string;
+  imageUrl?: string | null;
   role: Role;
 }
 
@@ -46,11 +49,21 @@ const ITEMS: { path: string; label: string; icon: typeof User; roles: Role[] }[]
   { path: "/admin", label: "Panel de administración", icon: ShieldCheck, roles: ["admin"] },
 ];
 
-export function UserMenu({ initial }: { initial?: string }) {
+export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?: string }) {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    try {
+      const prefs = readUserPreferences(user?.id ?? null);
+      if (prefs.avatarUrl) setLocalAvatarUrl(prefs.avatarUrl);
+    } catch {
+      // Sin preferencias válidas, deja el avatar por defecto.
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     let alive = true;
@@ -59,7 +72,13 @@ export function UserMenu({ initial }: { initial?: string }) {
     fetch("/api/me")
       .then((res) => res.json())
       .then((data: { authenticated: boolean; user: SessionUser | null }) => {
-        if (alive && data.authenticated) setUser(data.user);
+        if (alive && data.authenticated) {
+          setUser(data.user);
+          if (data.user?.id) {
+            const prefs = readUserPreferences(data.user.id);
+            if (prefs.avatarUrl) setLocalAvatarUrl(prefs.avatarUrl);
+          }
+        }
       })
       // Sin sesión o sin red, el menú queda con lo que ya tenía: no es un error
       // que merezca un aviso en pantalla.
@@ -95,6 +114,7 @@ export function UserMenu({ initial }: { initial?: string }) {
   // El nombre de la sesión manda sobre el `initial` que pase quien lo use: el
   // primero viene del servidor con la firma comprobada, el segundo es una
   // cadena escrita a mano en la llamada.
+  const resolvedAvatarUrl = avatarUrl || user?.imageUrl || localAvatarUrl || null;
   const avatar = user?.name?.trim().charAt(0).toUpperCase() || initial;
   const visible = user ? ITEMS.filter((i) => i.roles.includes(user.role)) : ITEMS;
 
@@ -107,10 +127,14 @@ export function UserMenu({ initial }: { initial?: string }) {
         type="button"
         whileTap={{ scale: 0.9 }}
         onClick={() => setOpen((v) => !v)}
-        className="size-11 shrink-0 rounded-full bg-verde-950 grid place-items-center text-white font-lv-display font-bold text-small transition-colors duration-500 hover:bg-verde-800"
+        className="size-11 shrink-0 overflow-hidden rounded-full bg-verde-950 grid place-items-center text-white font-lv-display font-bold text-small transition-colors duration-500 hover:bg-verde-800"
         aria-label="Menú de usuario"
       >
-        {avatar ?? <User size={18} strokeWidth={1.8} />}
+        {resolvedAvatarUrl ? (
+          <img src={resolvedAvatarUrl} alt="Foto de perfil" className="h-full w-full object-cover" />
+        ) : (
+          avatar ?? <User size={18} strokeWidth={1.8} />
+        )}
       </motion.button>
       <AnimatePresence>
         {open && (

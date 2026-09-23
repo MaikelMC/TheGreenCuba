@@ -13,7 +13,30 @@
  * `window.location.assign` y no `router.push`, y sigue valiendo igual: el
  * App Router guarda el árbol de la ruta en caché, así que una navegación por
  * cliente puede repintar la versión con sesión. Una carga limpia no.
+ *
+ * Se sale a la portada y no a `/login`: quien cierra sesión no tiene por qué
+ * querer volver a entrar, y `/login` le pide la contraseña otra vez.
  */
+
+/** Prefijos del navegador que pertenecen a la sesión que se está cerrando. */
+const POR_PREFIJO = [
+  /* Preferencias: la clave de cada usuario y la del cajón de invitado. */
+  "la-verde:user:",
+  /* Actividad: qué abrió y qué guardó. */
+  "la-verde:activity:",
+];
+
+/** Claves sueltas que no comparten prefijo con nada. */
+const EXACTAS = [
+  /* La clave anterior a que las preferencias fueran por usuario. */
+  "la-verde:user",
+  /* El índice de «quién guardó la última vez», que leen el header y el mapa. */
+  "la-verde:last-user",
+  /* El historial del buscador: es lo más personal que guarda el navegador y
+     faltaba aquí, así que sobrevivía al cierre de sesión. */
+  "la-verde:recent-searches",
+];
+
 export async function logout(): Promise<void> {
   try {
     /* El cliente de Neon entra con `import()` y no con un `import` de arriba, y
@@ -31,6 +54,19 @@ export async function logout(): Promise<void> {
   } finally {
     /* En `finally` a propósito: si el `import()` o el `signOut` fallan por red,
        hay que salir igual o el usuario se queda mirando un botón muerto. */
-    window.location.assign("/login");
+    try {
+      for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
+        const key = window.localStorage.key(i);
+        if (
+          key &&
+          (POR_PREFIJO.some((prefix) => key.startsWith(prefix)) || EXACTAS.includes(key))
+        ) {
+          window.localStorage.removeItem(key);
+        }
+      }
+    } catch {
+      // El navegador puede bloquear localStorage en modo privado o sin permisos.
+    }
+    window.location.assign("/");
   }
 }

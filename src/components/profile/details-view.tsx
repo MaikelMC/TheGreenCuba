@@ -63,6 +63,18 @@ interface DetailsViewProps {
 export function DetailsView({ prefs, set, toggle, onSave, saved }: DetailsViewProps) {
   const { name } = prefs;
 
+  async function onAvatarChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      set("avatarUrl", result);
+    };
+    reader.readAsDataURL(file);
+  }
+
   return (
     <div className="flex flex-col gap-gap-xl">
       <motion.div
@@ -71,14 +83,33 @@ export function DetailsView({ prefs, set, toggle, onSave, saved }: DetailsViewPr
         transition={{ duration: 0.45, ease: EASE }}
         className="flex flex-col items-center gap-gap-sm"
       >
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
-          className="grid size-20 place-items-center rounded-full border-2 border-verde-200 bg-verde-50 font-lv-display text-2xl font-bold text-verde-600"
-        >
-          {name.charAt(0)}
-        </motion.div>
+        <label className="group relative block cursor-pointer">
+          <input
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={onAvatarChange}
+          />
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
+            className="relative grid size-20 place-items-center overflow-hidden rounded-full border-2 border-verde-200 bg-verde-50 font-lv-display text-2xl font-bold text-verde-600"
+          >
+            {prefs.avatarUrl ? (
+              <img
+                src={prefs.avatarUrl}
+                alt="Foto de perfil"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              name.charAt(0)
+            )}
+            <span className="absolute inset-0 flex items-center justify-center rounded-full bg-ink/0 text-[10px] font-semibold uppercase tracking-[0.16em] text-white opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-hover:bg-ink/45">
+              Cambiar
+            </span>
+          </motion.div>
+        </label>
         <p className="text-meta text-ink-soft/75">Foto de perfil</p>
       </motion.div>
 

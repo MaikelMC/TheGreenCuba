@@ -37,7 +37,9 @@ import type { UserPlace } from "@/lib/places-store";
 import {
   readUserPreferences,
   locationCenter,
+  type UserPreferences,
 } from "@/lib/user-preferences-store";
+import { personalizePlaces } from "@/lib/personalized-recommendations";
 import { pushRecentSearch } from "@/lib/recent-searches-store";
 
 type SheetState = "default" | "searching" | "results" | "no-results" | "error";
@@ -365,6 +367,7 @@ function HomePageContent() {
   } | null>(null);
   const [initialCenter, setInitialCenter] = useState<[number, number] | null>(null);
   const [disableAutoFit, setDisableAutoFit] = useState(false);
+  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
   const searchCtx = useSearchActions();
   const mapRef = useRef<HTMLDivElement | null>(null);
   const viewKey = useRef(0);
@@ -373,6 +376,20 @@ function HomePageContent() {
      pintando un catálogo y el panel de admin editando otro: cambiar el icono
      de una categoría no movía ni un pin del mapa. */
   const { places, categories } = usePlaces();
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/me")
+      .then((res) => res.json())
+      .then((data: { authenticated?: boolean; user?: { id?: string } | null }) => {
+        if (!alive || !data.authenticated || !data.user?.id) return;
+        setUserPreferences(readUserPreferences(data.user.id));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const toggleFilter = useCallback((value: string) => {
     setActiveFilters((prev) => {
@@ -431,22 +448,25 @@ function HomePageContent() {
   );
 
   const filteredPlaces = useMemo<HomePlace[]>(() => {
-    /* Misma reserva que usan las rutas y la búsqueda: la ubicación del estado y,
-       si todavía no llegó, la última conocida. Así la distancia sale ya en el
-       primer pintado y no solo tras conceder el permiso. */
     const origin = userLocation ?? getLastKnownPosition();
-    /* La distancia se mide una vez por lugar y la usan el orden y la tarjeta.
-       Con ubicación la lista va de más cercano a más lejano, que es el orden
-       que se espera al abrirla; sin ella se respeta el del catálogo. */
-    const measured = visiblePlaces.map((place) => ({
+    const ranked = userPreferences ? personalizePlaces(visiblePlaces, userPreferences) : visiblePlaces;
+
+    const measured = ranked.map((place) => ({
       place,
       distanceM: origin ? haversineM(origin, { lat: place.lat, lng: place.lng }) : null,
     }));
-    if (origin) measured.sort((a, b) => (a.distanceM ?? 0) - (b.distanceM ?? 0));
+
+    if (origin) {
+      measured.sort(
+        (a, b) =>
+          (a.distanceM ?? Number.POSITIVE_INFINITY) - (b.distanceM ?? Number.POSITIVE_INFINITY),
+      );
+    }
+
     return measured.map(({ place, distanceM }) =>
       userPlaceToHomePlace(place, categories, distanceM),
     );
-  }, [visiblePlaces, categories, userLocation]);
+  }, [visiblePlaces, categories, userLocation, userPreferences]);
 
   const handleLike = useCallback((id: string) => {
     setLikedIds((prev) => {

@@ -19,6 +19,13 @@ import {
   type ActivityState,
 } from "@/lib/activity-store";
 
+interface SavedPlaceItem {
+  placeId: string;
+  name: string;
+  category: string;
+  savedAt: string | null;
+}
+
 const H_VIEW = "font-lv-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-ink";
 
 /**
@@ -31,12 +38,45 @@ const H_VIEW = "font-lv-display text-[26px] font-bold leading-tight tracking-[-0
  */
 export function PlacesView() {
   const [activity, setActivity] = useState<ActivityState | null>(null);
+  const [savedPlaces, setSavedPlaces] = useState<SavedPlaceItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    setActivity(readActivity());
+    let alive = true;
+
+    fetch("/api/me")
+      .then((res) => res.json())
+      .then((data: { authenticated?: boolean; user?: { id?: string } | null }) => {
+        if (!alive) return;
+        const nextUserId = data.authenticated && data.user?.id ? data.user.id : null;
+        setUserId(nextUserId);
+        setActivity(readActivity(nextUserId));
+      })
+      .catch(() => {
+        if (!alive) return;
+        setUserId(null);
+        setActivity(readActivity(null));
+      });
+
+    fetch("/api/me/places")
+      .then((res) => res.json())
+      .then((data: { authenticated?: boolean; saved?: SavedPlaceItem[] }) => {
+        if (data.authenticated && Array.isArray(data.saved)) {
+          setSavedPlaces(data.saved);
+        }
+      })
+      .catch(() => {
+        setSavedPlaces([]);
+      })
+      .finally(() => setLoading(false));
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  if (!activity) {
+  if (!activity && loading) {
     return (
       <p className="py-gap-2xl text-center text-small text-ink-soft/75" aria-busy>
         Cargando tu actividad…
@@ -44,10 +84,10 @@ export function PlacesView() {
     );
   }
 
-  const top = topVisits(activity, 5);
-  const saved = savedVisits(activity);
-  const category = topCategory(activity);
-  const lastVisit = topVisits(activity, 1)[0];
+  const top = topVisits(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false }, 5);
+  const saved = savedPlaces.length > 0 ? savedPlaces : savedVisits(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false });
+  const category = topCategory(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false });
+  const lastVisit = topVisits(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false }, 1)[0];
   const max = Math.max(...top.map((v) => v.count), 1);
 
   return (
@@ -63,19 +103,19 @@ export function PlacesView() {
         </p>
       </header>
 
-      {activity.isDemo && (
+      {(!activity || activity.isDemo) && savedPlaces.length === 0 && (
         <p className="flex items-start gap-gap-xs rounded-2xl border border-verde-200 bg-verde-50 px-gap-sm py-gap-xs text-meta text-verde-700">
           <Info size={15} strokeWidth={1.8} className="mt-[1px] shrink-0" aria-hidden />
           <span>
-            <strong className="font-semibold">Datos de ejemplo.</strong> Todavía no has
-            abierto ningún lugar. En cuanto abras uno, esto se llena con lo tuyo.
+            <strong className="font-semibold">Sin lugares guardados.</strong> Cuando
+            guardes un sitio en la app, aparecerá aquí con tus datos reales.
           </span>
         </p>
       )}
 
       <div className="grid grid-cols-2 gap-gap-sm">
-        <Stat label="Lugares vistos" value={String(placeCount(activity))} icon={Eye} />
-        <Stat label="Guardados" value={String(activity.savedIds.length)} icon={Bookmark} />
+        <Stat label="Lugares vistos" value={String(placeCount(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false }))} icon={Eye} />
+        <Stat label="Guardados" value={String(savedPlaces.length || activity?.savedIds.length || 0)} icon={Bookmark} />
         <Stat label="Lo que más ves" value={category?.label ?? "—"} icon={Sparkles} />
         <Stat
           label="Última visita"
@@ -85,7 +125,7 @@ export function PlacesView() {
       </div>
 
       <MiniChart
-        data={dailyHistogram(activity)}
+        data={dailyHistogram(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false })}
         labels={dayLabels()}
         title="Lugares abiertos por día"
         period="Últimos 14 días"

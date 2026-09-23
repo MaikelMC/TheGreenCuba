@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -264,11 +264,13 @@ export default function OnboardingPage() {
   const [animTick, setAnimTick] = useState(0);
 
   const [location, setLocation] = useState("santiago");
+  const [userId, setUserId] = useState<string | null>(null);
   const [gpsDetected, setGpsDetected] = useState(false);
   const [detectedName, setDetectedName] = useState<string | null>(null);
   const [interests, setInterests] = useState<Set<string>>(new Set(["cafes", "restaurantes"]));
   const [currencies, setCurrencies] = useState<Set<string>>(new Set(["mlc", "cup"]));
   const [moods, setMoods] = useState<Set<string>>(new Set(["tranquilo", "romantico"]));
+  const locationDetectionStarted = useRef(false);
 
   function goToStep(step: number) {
     setCurrentStep(step);
@@ -276,36 +278,43 @@ export default function OnboardingPage() {
   }
 
   /* El onboarding es de una sola vez. Quien ya lo completó va derecho al Home:
-     la landing entra por `/login?next=/onboarding`, así que sin esta guarda el
-     flujo se repetía en cada visita y las preferencias ya elegidas se perdían
-     al reescribirlas.
-
-     ponytail: la marca va en localStorage, así que es **por navegador**, no por
-     cuenta: en otro dispositivo, o tras borrar los datos del sitio, vuelve a
-     salir. Para atarlo a la cuenta está `users.onboarding_completed` en la base
-     —la columna existe y hoy nadie la escribe—; se cambiaría cuando importe. */
-  useEffect(() => {
-    if (readUserPreferences().onboardingCompleted) {
-      router.replace("/home");
-      return;
-    }
-    setReady(true);
-  }, [router]);
-
+     la marca se guarda por usuario en localStorage y la comprobación debe leer
+     la sesión real antes de decidir si repetir el flujo. */
   useEffect(() => {
     let alive = true;
+
     fetch("/api/me")
       .then((res) => res.json())
-      .then((data: { authenticated: boolean; user: { name: string; email: string } | null }) => {
-        if (alive && data.authenticated && data.user) {
+      .then((data: { authenticated: boolean; user: { id?: string; name: string; email: string } | null }) => {
+        if (!alive) return;
+
+        if (data.authenticated && data.user) {
+          const nextUserId = data.user.id ?? null;
+          setUserId(nextUserId);
           setIdentity({ name: data.user.name, email: data.user.email });
+
+          if (readUserPreferences(nextUserId).onboardingCompleted) {
+            router.replace("/home");
+            return;
+          }
         }
+
+        setReady(true);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (alive) setReady(true);
+      });
+
     return () => {
       alive = false;
     };
-  }, []);
+  }, [router]);
+
+  useEffect(() => {
+    if (!showOnboarding || currentStep !== 0 || locationDetectionStarted.current) return;
+    locationDetectionStarted.current = true;
+    void handleUseGPS();
+  }, [showOnboarding, currentStep]);
 
   const handleSplashDone = useCallback(() => {
     setSplashDone(true);
@@ -384,23 +393,64 @@ export default function OnboardingPage() {
     setShowPreferences(true);
   }
 
-  // Final del flujo: persiste las preferencias y lleva al Home.
-  const handleDone = useCallback(() => {
-    writeUserPreferences({
+  // Final del flujo: guarda una copia local y la versión persistente de la cuenta.
+  const handleDone = useCallback(async () => {
+    const nextPreferences = {
       onboardingCompleted: true,
-      // La identidad viene de la sesión. El teléfono sigue siendo el de relleno:
-      // el onboarding no lo pide en ningún paso y el perfil lo deja editar.
-      name: identity?.name ?? DEFAULT_USER_PREFERENCES.name,
-      email: identity?.email ?? DEFAULT_USER_PREFERENCES.email,
+      // La identidad viene de la sesión real y no de una persona de ejemplo.
+      name: identity?.name || DEFAULT_USER_PREFERENCES.name,
+      email: identity?.email || DEFAULT_USER_PREFERENCES.email,
       phone: DEFAULT_USER_PREFERENCES.phone,
       location,
       locationName: LOCATION_NAMES[location] ?? location,
       interests: Array.from(interests),
       moods: Array.from(moods),
       currencies: Array.from(currencies),
-    });
+    };
+
+    let resolvedUserId = userId;
+    if (!resolvedUserId) {
+      try {
+        const sessionResponse = await fetch("/api/me");
+        const sessionData = (await sessionResponse.json()) as {
+          authenticated?: boolean;
+          user?: { id?: string } | null;
+        };
+        resolvedUserId = sessionData.authenticated ? sessionData.user?.id ?? null : null;
+      } catch {
+        resolvedUserId = null;
+      }
+    }
+
+    writeUserPreferences({ ...nextPreferences, onboardingCompleted: true }, resolvedUserId);
+
+    try {
+      const response = await fetch("/api/me", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: nextPreferences.name,
+          email: nextPreferences.email,
+          location: nextPreferences.location,
+          locationName: nextPreferences.locationName,
+          interests: nextPreferences.interests,
+          moods: nextPreferences.moods,
+          currencies: nextPreferences.currencies,
+          onboardingCompleted: true,
+        }),
+      });
+
+      if (!response.ok) {
+        toast.error("No pudimos guardar tus preferencias. Inténtalo de nuevo.");
+        return;
+      }
+    } catch {
+      toast.error("No pudimos guardar tus preferencias. Revisa tu conexión.");
+      return;
+    }
+
     router.push("/home");
-  }, [router, identity, location, interests, moods, currencies]);
+  }, [router, identity, location, interests, moods, currencies, userId]);
 
   function handlePrefBack() {
     setShowPreferences(false);

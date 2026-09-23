@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Loader2, Lock, Mail } from "lucide-react";
+import { ArrowRight, Home, Loader2, Lock, Mail } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 import { EASE } from "@/lib/motion";
 
@@ -44,18 +44,59 @@ const COPY: Record<AuthMode, { eyebrow: string; title: string; lead?: string; ct
  * esta pantalla, de ahí que el mensaje no repita una cifra que podría no ser la
  * suya.
  */
-function messageFor(error: { status?: number; code?: string }, mode: AuthMode): string {
-  if (error.code === "USER_ALREADY_EXISTS") {
-    return "Ese correo ya tiene una cuenta. Entra en su lugar.";
+function messageFor(error: unknown, mode: AuthMode): string {
+  const value = error && typeof error === "object"
+    ? (error as Record<string, unknown>)
+    : {};
+  const nested = value.error && typeof value.error === "object"
+    ? (value.error as Record<string, unknown>)
+    : {};
+  const errorCode = String(value.code ?? nested.code ?? "").toLowerCase();
+  const errorMessage = String(value.message ?? nested.message ?? error ?? "");
+  const errorText = `${errorCode} ${errorMessage} ${collectErrorText(error)}`.toLowerCase();
+  const status = Number(value.status ?? nested.status ?? value.statusCode ?? nested.statusCode);
+  const accountExists =
+    errorCode === "user_already_exists" ||
+    errorCode === "email_exists" ||
+    errorText.includes("already exists") ||
+    errorText.includes("already registered") ||
+    errorText.includes("user_exists") ||
+    errorText.includes("email_exists");
+
+  if (accountExists) {
+    return "Correo ya registrado. Entra en su lugar.";
   }
-  if (error.status === 401) return "Correo o contraseña incorrectos.";
-  if (error.status === 422) return "Revisa los datos: el correo o la contraseña no valen.";
-  if (typeof error.status === "number" && error.status >= 500) {
+  if (status === 401) return "Correo o contraseña incorrectos.";
+  if (status === 400 || status === 422 || errorCode === "validation_error") {
+    return "Revisa los datos: el correo o la contraseña no son válidos.";
+  }
+  if (status >= 500) {
     return "La autenticación no responde. Inténtalo en un momento.";
   }
   return mode === "login"
     ? "No se pudo entrar. Inténtalo de nuevo."
     : "No se pudo crear la cuenta. Inténtalo de nuevo.";
+}
+
+function safeSerialize(value: unknown): string {
+  try {
+    return typeof value === "string" ? value : JSON.stringify(value) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function collectErrorText(value: unknown, depth = 0): string {
+  if (depth > 3 || value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (typeof value !== "object") return String(value);
+
+  const record = value as Record<string, unknown>;
+  const keys = ["code", "message", "name", "statusText", "cause", "data", "details", "response"];
+  return keys
+    .map((key) => collectErrorText(record[key], depth + 1))
+    .filter(Boolean)
+    .join(" ");
 }
 
 /* Campo con etiqueta visible, como los del perfil: un marcador que hace de
@@ -108,10 +149,11 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
            de escribir Neon en el navegador y el App Router guarda en caché el
            árbol de la ruta: navegando por cliente se corre el riesgo de pintar
            la versión sin sesión. Una carga limpia no deja lugar a ello. */
-        window.location.assign(next ?? "/home");
+        const destination = mode === "register" ? next ?? "/onboarding" : next ?? "/home";
+        window.location.assign(destination);
         return;
-      } catch {
-        setError("No se pudo conectar con el servidor.");
+      } catch (error) {
+        setError(messageFor(error, mode));
       } finally {
         setLoading(false);
       }
@@ -214,6 +256,14 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
           {loading ? "Comprobando..." : copy.cta}
         </button>
       </form>
+
+      <Link
+        href="/"
+        className="inline-flex items-center justify-center gap-gap-xs h-11 rounded-full border border-white/30 text-white font-lv-display text-small font-semibold transition-colors duration-500 ease-outquint hover:bg-white/10 lg:border-ink/10 lg:text-ink-soft lg:hover:bg-white"
+      >
+        <Home size={16} strokeWidth={1.8} />
+        Volver a la página principal
+      </Link>
 
       <p className="text-center text-meta text-white/70 lg:text-ink-soft/75">
         {mode === "login" ? (

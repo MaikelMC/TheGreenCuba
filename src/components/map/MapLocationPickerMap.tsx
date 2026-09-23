@@ -69,13 +69,23 @@ export function MapLocationPickerMap({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   // Abre centrado en la ubicación guardada del usuario (default Santiago) o en
   // el negocio que se está editando. Ya no arranca desde La Habana.
   const [center] = useState<[number, number]>(() =>
     value
       ? [value.lat, value.lng]
-      : locationCenter(readUserPreferences().location),
+      : locationCenter(readUserPreferences(null).location),
   );
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((res) => res.json())
+      .then((data: { authenticated: boolean; user: { id?: string } | null }) => {
+        if (data.authenticated && data.user?.id) setUserId(data.user.id);
+      })
+      .catch(() => {});
+  }, []);
   const [initialZoom] = useState(() => (value ? 16 : DEFAULT_ZOOM));
 
   const pinIcon = createPlacePinIcon("selected");
