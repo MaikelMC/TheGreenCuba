@@ -2,6 +2,7 @@ export interface UserPreferences {
   onboardingCompleted: boolean;
   name: string;
   email: string;
+  avatarUrl?: string;
   phone: string;
   location: string;
   locationName: string;
@@ -11,6 +12,11 @@ export interface UserPreferences {
 }
 
 export const STORAGE_KEY = "la-verde:user";
+
+function userStorageKey(userId?: string | null): string {
+  const safeId = (userId ?? "guest").trim();
+  return safeId ? `${STORAGE_KEY}:${safeId}` : `${STORAGE_KEY}:guest`;
+}
 
 const LOCATION_META: Record<
   string,
@@ -40,9 +46,12 @@ export function isKnownLocation(value: string): boolean {
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   onboardingCompleted: false,
-  name: "Martín",
-  email: "martin@email.com",
-  phone: "+52 55 1234 5678",
+  /* Valores neutrales para no dejar un perfil con identidad falsa. El nombre y
+     el correo reales los toma la sesión autenticada o el formulario de alta. */
+  name: "Usuario",
+  email: "",
+  avatarUrl: "",
+  phone: "",
   location: FALLBACK_LOCATION,
   locationName: LOCATION_META[FALLBACK_LOCATION]!.label,
   interests: [],
@@ -54,10 +63,11 @@ function stringArray(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
 }
 
-export function readUserPreferences(): UserPreferences {
+export function readUserPreferences(userId?: string | null): UserPreferences {
   if (typeof window === "undefined") return DEFAULT_USER_PREFERENCES;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const key = userStorageKey(userId);
+    const raw = window.localStorage.getItem(key);
     if (!raw) return DEFAULT_USER_PREFERENCES;
     const p = JSON.parse(raw) as Partial<UserPreferences>;
     const location = isKnownLocation(String(p.location ?? ""))
@@ -67,6 +77,10 @@ export function readUserPreferences(): UserPreferences {
       onboardingCompleted: Boolean(p.onboardingCompleted),
       name: typeof p.name === "string" && p.name.length > 0 ? p.name : DEFAULT_USER_PREFERENCES.name,
       email: typeof p.email === "string" && p.email.length > 0 ? p.email : DEFAULT_USER_PREFERENCES.email,
+      avatarUrl:
+        typeof p.avatarUrl === "string" && p.avatarUrl.length > 0
+          ? p.avatarUrl
+          : DEFAULT_USER_PREFERENCES.avatarUrl,
       phone: typeof p.phone === "string" && p.phone.length > 0 ? p.phone : DEFAULT_USER_PREFERENCES.phone,
       location,
       locationName:
@@ -82,10 +96,10 @@ export function readUserPreferences(): UserPreferences {
   }
 }
 
-export function writeUserPreferences(prefs: UserPreferences): void {
+export function writeUserPreferences(prefs: UserPreferences, userId?: string | null): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+    window.localStorage.setItem(userStorageKey(userId), JSON.stringify(prefs));
   } catch {
     // localStorage unavailable (privacy mode / SSR) — ignore
   }
@@ -96,10 +110,10 @@ export function writeUserPreferences(prefs: UserPreferences): void {
  * tiene nada más que borrar: las cuentas demo salen de `.env`, no de una base
  * de datos.
  */
-export function clearUserPreferences(): void {
+export function clearUserPreferences(userId?: string | null): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(userStorageKey(userId));
   } catch {
     // Nada que hacer: si no se puede borrar, tampoco se pudo escribir.
   }

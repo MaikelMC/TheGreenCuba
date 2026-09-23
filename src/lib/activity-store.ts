@@ -27,6 +27,11 @@ const DEMO_PICKS = [
 
 const STORAGE_KEY = "la-verde:activity";
 
+function userStorageKey(userId?: string | null): string {
+  const safeId = (userId ?? "guest").trim();
+  return safeId ? `${STORAGE_KEY}:${safeId}` : `${STORAGE_KEY}:guest`;
+}
+
 /** Tope de marcas de tiempo. Con 300 sobra para el histograma de dos semanas. */
 const MAX_STAMPS = 300;
 
@@ -82,10 +87,10 @@ function parseVisit(v: unknown): PlaceVisit | null {
   };
 }
 
-function readRaw(): ActivityState {
+function readRaw(userId?: string | null): ActivityState {
   if (typeof window === "undefined") return EMPTY;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(userStorageKey(userId));
     if (!raw) return EMPTY;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const visits = Array.isArray(parsed.visits)
@@ -105,10 +110,10 @@ function readRaw(): ActivityState {
   }
 }
 
-function write(state: Omit<ActivityState, "isDemo">): void {
+function write(state: Omit<ActivityState, "isDemo">, userId?: string | null): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(userStorageKey(userId), JSON.stringify(state));
   } catch {
     // localStorage no disponible (modo privado) — se pierde la métrica, no la visita.
   }
@@ -165,8 +170,8 @@ function demoState(now: number): ActivityState {
  * `isDemo`. El relleno **no se escribe** en el almacenamiento: en cuanto haya
  * una visita real, desaparece solo.
  */
-export function readActivity(now: number = Date.now()): ActivityState {
-  const state = readRaw();
+export function readActivity(userId?: string | null, now: number = Date.now()): ActivityState {
+  const state = readRaw(userId);
   if (state.visits.length === 0 && state.savedIds.length === 0) {
     return demoState(now);
   }
@@ -176,9 +181,10 @@ export function readActivity(now: number = Date.now()): ActivityState {
 /** Suma una apertura. Ignora la llamada si es la misma ficha, recién contada. */
 export function recordVisit(
   place: { id: string; name: string; category: string },
+  userId?: string | null,
   now: number = Date.now(),
 ): void {
-  const state = readRaw();
+  const state = readRaw(userId);
   const existing = state.visits.find((v) => v.placeId === place.id);
   if (existing && now - existing.lastAt < DUPLICATE_WINDOW_MS) return;
 
@@ -193,35 +199,41 @@ export function recordVisit(
         { placeId: place.id, name: place.name, category: place.category, count: 1, lastAt: now },
       ];
 
-  write({
-    visits: visits.sort((a, b) => b.count - a.count || b.lastAt - a.lastAt),
-    savedIds: state.savedIds,
-    stamps: [...state.stamps, now].slice(-MAX_STAMPS),
-  });
+  write(
+    {
+      visits: visits.sort((a, b) => b.count - a.count || b.lastAt - a.lastAt),
+      savedIds: state.savedIds,
+      stamps: [...state.stamps, now].slice(-MAX_STAMPS),
+    },
+    userId,
+  );
 }
 
-export function isSaved(placeId: string): boolean {
-  return readRaw().savedIds.includes(placeId);
+export function isSaved(placeId: string, userId?: string | null): boolean {
+  return readRaw(userId).savedIds.includes(placeId);
 }
 
 /** Guarda o quita de guardados. Devuelve cómo ha quedado. */
-export function toggleSaved(placeId: string): boolean {
-  const state = readRaw();
+export function toggleSaved(placeId: string, userId?: string | null): boolean {
+  const state = readRaw(userId);
   const maintenant = state.savedIds.includes(placeId);
-  write({
-    visits: state.visits,
-    savedIds: maintenant
-      ? state.savedIds.filter((id) => id !== placeId)
-      : [...state.savedIds, placeId],
-    stamps: state.stamps,
-  });
+  write(
+    {
+      visits: state.visits,
+      savedIds: maintenant
+        ? state.savedIds.filter((id) => id !== placeId)
+        : [...state.savedIds, placeId],
+      stamps: state.stamps,
+    },
+    userId,
+  );
   return !maintenant;
 }
 
-export function clearActivity(): void {
+export function clearActivity(userId?: string | null): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(userStorageKey(userId));
   } catch {
     // Nada que hacer: si no se puede borrar, tampoco se pudo escribir.
   }

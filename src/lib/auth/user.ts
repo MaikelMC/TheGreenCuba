@@ -28,6 +28,7 @@ export interface AppUser {
   id: string;
   email: string;
   name: string;
+  imageUrl: string | null;
   role: Role;
 }
 
@@ -76,6 +77,7 @@ function toAppUser(row: typeof users.$inferSelect): AppUser {
        `null` dejaría el hueco en blanco. El correo sin dominio es un nombre
        pobre, pero es un nombre. */
     name: row.name?.trim() || row.email.split("@")[0] || row.email,
+    imageUrl: row.imageUrl ?? null,
     role: isRole(row.role) ? row.role : "user",
   };
 }

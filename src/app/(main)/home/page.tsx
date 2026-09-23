@@ -37,7 +37,9 @@ import type { UserPlace } from "@/lib/places-store";
 import {
   readUserPreferences,
   locationCenter,
+  type UserPreferences,
 } from "@/lib/user-preferences-store";
+import { personalizePlaces } from "@/lib/personalized-recommendations";
 
 type SheetState = "default" | "searching" | "results" | "no-results" | "error";
 
@@ -355,6 +357,7 @@ function HomePageContent() {
   } | null>(null);
   const [initialCenter, setInitialCenter] = useState<[number, number] | null>(null);
   const [disableAutoFit, setDisableAutoFit] = useState(false);
+  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
   const searchCtx = useSearchActions();
   const mapRef = useRef<HTMLDivElement | null>(null);
   const viewKey = useRef(0);
@@ -363,6 +366,20 @@ function HomePageContent() {
      pintando un catálogo y el panel de admin editando otro: cambiar el icono
      de una categoría no movía ni un pin del mapa. */
   const { places, categories } = usePlaces();
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/me")
+      .then((res) => res.json())
+      .then((data: { authenticated?: boolean; user?: { id?: string } | null }) => {
+        if (!alive || !data.authenticated || !data.user?.id) return;
+        setUserPreferences(readUserPreferences(data.user.id));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const toggleFilter = useCallback((value: string) => {
     setActiveFilters((prev) => {
@@ -421,8 +438,13 @@ function HomePageContent() {
   );
 
   const filteredPlaces = useMemo<HomePlace[]>(
-    () => visiblePlaces.map((p) => userPlaceToHomePlace(p, categories)),
-    [visiblePlaces, categories],
+    () => {
+      const personalized = userPreferences
+        ? personalizePlaces(visiblePlaces, userPreferences)
+        : visiblePlaces;
+      return personalized.map((p) => userPlaceToHomePlace(p, categories));
+    },
+    [visiblePlaces, categories, userPreferences],
   );
 
   const handleLike = useCallback((id: string) => {

@@ -20,6 +20,18 @@ export async function logout(): Promise<void> {
   try {
     await authClient.signOut();
   } finally {
+    try {
+      const currentUserKeyPattern = "la-verde:user:";
+      const activityUserKeyPattern = "la-verde:activity:";
+      for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
+        const key = window.localStorage.key(i);
+        if (key?.startsWith(currentUserKeyPattern) || key?.startsWith(activityUserKeyPattern)) {
+          window.localStorage.removeItem(key);
+        }
+      }
+    } catch {
+      // El navegador puede bloquear localStorage en modo privado o sin permisos.
+    }
     window.location.assign("/login");
   }
 }
