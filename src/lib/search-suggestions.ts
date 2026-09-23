@@ -1,5 +1,7 @@
 import { formatDistanceM, haversineM, type RoutePoint } from "@/lib/map/routing";
+import { recommendationScore } from "@/lib/personalized-recommendations";
 import type { UserPlace } from "@/lib/places-store";
+import type { UserPreferences } from "@/lib/user-preferences-store";
 
 /**
  * Sugerencias del buscador, sacadas del catálogo real.
@@ -40,6 +42,16 @@ export interface SuggestionInput {
   originIsUserPosition: boolean;
   /** Ciudad del onboarding, para la fila cuando el origen no es el usuario. */
   cityLabel: string;
+  /**
+   * Lo que eligió en el onboarding. Con esto, la categoría que encaja con su
+   * perfil sube por delante del recuento: aquí es donde manda la
+   * personalización, y no en el orden de la lista del home, que va por
+   * cercanía.
+   *
+   * Sin preferencias —o si ninguna de las que hay alrededor encaja— todos los
+   * puntajes son cero y se ordena como antes: por cuántos hay y por cercanía.
+   */
+  preferences?: UserPreferences | null;
 }
 
 export function buildSearchSuggestions({
@@ -47,6 +59,7 @@ export function buildSearchSuggestions({
   origin,
   originIsUserPosition,
   cityLabel,
+  preferences,
 }: SuggestionInput): SearchSuggestion[] {
   const near = places
     .map((place) => ({
@@ -58,21 +71,35 @@ export function buildSearchSuggestions({
 
   /* Categorías por lo que hay alrededor, no por lo que hay en el catálogo: una
      categoría con veinte negocios a 800 km no es una sugerencia para alguien
-     que está aquí. */
-  const byCategory = new Map<string, { count: number; nearestM: number }>();
+     que está aquí.
+
+     `score` es el mejor puntaje de perfil entre los negocios de esa categoría:
+     basta con que uno encaje para que la categoría merezca salir. */
+  const byCategory = new Map<
+    string,
+    { count: number; nearestM: number; score: number }
+  >();
   for (const { place, distanceM } of near) {
+    const score = preferences ? recommendationScore(place, preferences) : 0;
     const entry = byCategory.get(place.category);
     if (entry) {
       entry.count += 1;
       entry.nearestM = Math.min(entry.nearestM, distanceM);
+      entry.score = Math.max(entry.score, score);
     } else {
-      byCategory.set(place.category, { count: 1, nearestM: distanceM });
+      byCategory.set(place.category, { count: 1, nearestM: distanceM, score });
     }
   }
 
   return [...byCategory.entries()]
-    // Más negocios primero; a igualdad, la categoría que tiene algo más cerca.
-    .sort((a, b) => b[1].count - a[1].count || a[1].nearestM - b[1].nearestM)
+    /* Primero lo que va con su perfil; después cuántos hay; y a igualdad, la
+       categoría que tiene algo más cerca. */
+    .sort(
+      (a, b) =>
+        b[1].score - a[1].score ||
+        b[1].count - a[1].count ||
+        a[1].nearestM - b[1].nearestM,
+    )
     .slice(0, MAX_SUGGESTIONS)
     .map(([category, { count, nearestM }]) => ({
       category,

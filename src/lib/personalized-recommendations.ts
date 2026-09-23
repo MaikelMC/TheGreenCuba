@@ -43,7 +43,14 @@ function containsAny(values: string[], candidates: string[]): boolean {
   return values.some((value) => candidates.some((candidate) => value.includes(normalize(candidate))));
 }
 
-function recommendationScore(place: UserPlace, prefs: UserPreferences): number {
+/**
+ * Cuánto encaja un negocio con el perfil de quien mira.
+ *
+ * Exportada porque las sugerencias del buscador puntúan con esta misma regla,
+ * y dos tablas de equivalencias —intereses, ambientes, monedas— que se separan
+ * con el tiempo serían peor que compartir una.
+ */
+export function recommendationScore(place: UserPlace, prefs: UserPreferences): number {
   const category = normalize(place.category);
   const vibes = (place.vibe ?? []).map(normalize);
   const payments = place.payments.map(normalize);

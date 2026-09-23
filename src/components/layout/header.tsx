@@ -25,20 +25,27 @@ import { Logo } from "./logo";
  * 320 m de ti».
  */
 function suggestionOrigin() {
-  const prefs = readUserPreferences();
+  /* Las preferencias del onboarding viajan con el origen: son lo que decide
+     qué categorías salen primero en el desplegable. La lectura sin id las
+     encuentra igual —el almacén recuerda de quién son— así que esto vale
+     tanto para quien tiene sesión como para quien completó el onboarding sin
+     cuenta. */
+  const preferences = readUserPreferences();
   const cached = getLastKnownPosition();
   if (cached) {
     return {
       origin: { lat: cached.lat, lng: cached.lng },
       originIsUserPosition: true,
-      cityLabel: prefs.locationName,
+      cityLabel: preferences.locationName,
+      preferences,
     };
   }
-  const [lat, lng] = locationCenter(prefs.location);
+  const [lat, lng] = locationCenter(preferences.location);
   return {
     origin: { lat, lng },
     originIsUserPosition: false,
-    cityLabel: prefs.locationName,
+    cityLabel: preferences.locationName,
+    preferences,
   };
 }
 
