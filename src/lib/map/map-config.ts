@@ -38,7 +38,11 @@ export const DEFAULT_TILE = "osm";
 export const HAVANA_CENTER: [number, number] = [23.1374, -82.359];
 
 export const DEFAULT_ZOOM = 13;
-export const MIN_ZOOM = 10;
+/* Con 10 no se salía de la provincia: el país entero —unos 1.100 km de punta a
+   punta— no cabía en pantalla, ni siquiera en un monitor. Con 5 entra Cuba
+   completa hasta en un móvil de 390 px, que es la pantalla más estrecha que
+   tenemos que cubrir. */
+export const MIN_ZOOM = 5;
 /** Lower max zoom = faster loading on slow connections. */
 export const MAX_ZOOM = 17;
 /** Zoom level used when centering on the user's location. */

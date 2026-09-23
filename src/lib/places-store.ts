@@ -18,8 +18,15 @@ export type PlaceStatus = "active" | "closed" | "temporary_closed";
 export interface UserPlaceMenuItem {
   name: string;
   description: string;
+  /**
+   * Texto libre, tal como lo escribe el dueño: `"1200"`, `"3–5 USD"`, `"Desde 8"`.
+   * **No es un número.** El jsonb lo guarda como cadena a propósito y convertirlo
+   * con `Number()` dejaba en cero todo lo que no fuera una cifra pelada.
+   */
   price: string;
   currency: string;
+  /** Chapita del producto («Popular», «Nuevo», «2x1»). Vacío = sin chapita. */
+  tag?: string;
 }
 
 export interface UserPlaceOffer {
@@ -74,7 +81,9 @@ export interface UserPlace {
   rating?: number;
   /** Vacío o ausente = el negocio todavía no tiene fotos subidas. */
   photos?: UserPlacePhoto[];
-  aiReasoning?: string;
+  /* Hubo aquí un `aiReasoning` que no tenía columna detrás: `toUserPlace` nunca
+     lo llenaba, así que llegaba siempre `undefined` y quien lo pintara creía
+     estar enseñando un dato de la base. Se quitó en vez de dejar el hueco. */
   aiTags?: string[];
   distanceLabel?: string;
   priceLabel?: string;

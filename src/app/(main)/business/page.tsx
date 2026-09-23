@@ -304,10 +304,10 @@ function EditorView({
         {/* Menu + Offer — side by side on desktop */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-gap-md">
           <FormSection
-            title="Menú / Ofertas destacadas"
+            title="Lo que ofreces"
             icon={<Utensils size={18} strokeWidth={1.8} />}
           >
-            <p className="text-meta text-ink-soft/75 mb-gap-sm">Añade tus platos o servicios más populares. Aparecen en la ficha del lugar.</p>
+            <p className="text-meta text-ink-soft/75 mb-gap-sm">Añade tus productos o servicios más populares. Aparecen en la ficha del lugar.</p>
             <MenuItemEditor />
           </FormSection>
 

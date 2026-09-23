@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import { useMap } from "react-leaflet";
+import L from "leaflet";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getCurrentPosition, GEO_ERROR_MESSAGES } from "@/lib/map/geolocation";
@@ -27,6 +28,15 @@ export const LocateButton = memo(function LocateButton({
   // ya está destruido y `map.flyTo` reventaría con "_leaflet_pos" al animar un
   // pane retirado. Esta bandera corta el flujo al desmontar.
   const alive = useRef(true);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+
+  // Sin esto el click del botón llega al contenedor del mapa como click de
+  // fondo y el padre quita la selección. Tiene que ser la API de Leaflet: el
+  // listener de click del mapa está en el contenedor, por dentro del árbol de
+  // React, así que un `stopPropagation` desde React llega tarde.
+  useEffect(() => {
+    if (boxRef.current) L.DomEvent.disableClickPropagation(boxRef.current);
+  }, []);
 
   useEffect(() => {
     alive.current = true;
@@ -71,7 +81,7 @@ export const LocateButton = memo(function LocateButton({
     "flex size-[var(--map-ctrl-size)] items-center justify-center rounded-2xl border border-ink/5 bg-white shadow-soft";
 
   return (
-    <div className="absolute left-2.5 z-[1000] bottom-[var(--map-locate-bottom)]">
+    <div ref={boxRef} className="absolute left-2.5 z-[1000] bottom-[var(--map-locate-bottom)]">
       <button
         type="button"
         onClick={handleClick}

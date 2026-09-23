@@ -7,28 +7,53 @@ import { Search, Mic, Loader2, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchActions, useSearchState } from "@/providers/search-provider";
 import { searchAddress, type GeocodeSuggestion } from "@/lib/map/geocode";
+import { readRecentSearches, type RecentSearch } from "@/lib/recent-searches-store";
+import { getLastKnownPosition } from "@/lib/map/geolocation";
+import { locationCenter, readUserPreferences } from "@/lib/user-preferences-store";
+import { buildSearchSuggestions, type SearchSuggestion } from "@/lib/search-suggestions";
+import { categoryIcon } from "@/lib/places";
+import { CategoryIcon } from "@/components/admin/category-icon";
+import { usePlaces } from "@/providers/places-provider";
 import { UserMenu } from "./user-menu";
 import { Logo } from "./logo";
 
-const SUGGESTIONS = [
-  {
-    query: "cafe tranquilo cerca de mi que acepte USD Clásica",
-    label: "Café tranquilo cerca de mi que acepte USD Clásica",
-    category: "Cafetería · Enramadas",
-    icon: "cafe",
-  },
-  {
-    query: "restaurante con vista al mar para cenar",
-    label: "Restaurante con vista al mar para cenar",
-    category: "Restaurante · Bahía",
-    icon: "restaurante",
-  },
-];
+/**
+ * Desde dónde se mide la cercanía de las sugerencias: la posición real si ya hay
+ * un fix guardado y, si no —quien completó el onboarding no da permiso hasta que
+ * toca el botón del mapa—, el centro de la ciudad que eligió. Cuál de las dos es
+ * viaja también, porque con el centro de la ciudad la fila no puede decir «a
+ * 320 m de ti».
+ */
+function suggestionOrigin() {
+  const prefs = readUserPreferences();
+  const cached = getLastKnownPosition();
+  if (cached) {
+    return {
+      origin: { lat: cached.lat, lng: cached.lng },
+      originIsUserPosition: true,
+      cityLabel: prefs.locationName,
+    };
+  }
+  const [lat, lng] = locationCenter(prefs.location);
+  return {
+    origin: { lat, lng },
+    originIsUserPosition: false,
+    cityLabel: prefs.locationName,
+  };
+}
 
-const RECENT_SEARCHES = [
-  { query: "discotecas con reggaeton cubano", category: "Vida nocturna" },
-  { query: "mercado de frutas frescas barato", category: "Mercado · Centro histórico" },
-];
+/** Distancia en palabras hasta una búsqueda. La lista solo se pinta ya en el
+    cliente —se lee al enfocar el campo—, así que no hay riesgo de que el HTML
+    del servidor y el del navegador digan cosas distintas. */
+function timeAgo(at: number): string {
+  const minutes = Math.floor((Date.now() - at) / 60_000);
+  if (minutes < 1) return "hace un momento";
+  if (minutes < 60) return `hace ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? "ayer" : `hace ${days} días`;
+}
 
 /** Rótulo de sección del desplegable: el eyebrow del design system. */
 const EYEBROW =
@@ -55,11 +80,16 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
   const effectiveOnSearch = propOnSearch ?? actions?.onSearch;
   const effectiveIsSearching = propIsSearching ?? state?.isSearching;
   const effectiveLocate = actions?.onLocateAddress;
+  const { places, categories } = usePlaces();
 
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addrResults, setAddrResults] = useState<GeocodeSuggestion[]>([]);
+  /* Arranca vacío y se llena al enfocar: leer `localStorage` durante el render
+     haría que el HTML del servidor y el del navegador no coincidieran. */
+  const [recent, setRecent] = useState<RecentSearch[]>([]);
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const addrTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const addrSeq = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -174,6 +204,10 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
             onFocus={() => {
               setFocused(true);
               setShowSuggestions(true);
+              /* Se relee en cada apertura: el historial lo escribe el home al
+                 buscar, y este header sigue montado mientras eso pasa. */
+              setRecent(readRecentSearches());
+              setSuggestions(buildSearchSuggestions({ places, ...suggestionOrigin() }));
               if (query.trim().length >= 3) handleQueryChange(query);
               else setAddrResults([]);
             }}
@@ -266,65 +300,84 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
                   <div className="h-px bg-ink/5 mx-gap-md my-[4px]" />
                 </>
               )}
-              <div className={cn(EYEBROW, "pt-[10px]")}>
-                Sugerencias
-              </div>
-              {SUGGESTIONS.map((s, i) => (
-                <motion.button
-                  key={s.query}
-                  type="button"
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.04 + i * 0.04, duration: 0.3 }}
-                  className={ROW}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleSuggestionClick(s.query);
-                  }}
-                >
-                  <span className="size-8 rounded-xl bg-verde-50 grid place-items-center text-verde-700 shrink-0">
-                    <Search size={16} strokeWidth={1.8} />
-                  </span>
-                  <div className="min-w-0">
-                    <div className="text-small text-ink truncate">
-                      {s.label}
-                    </div>
-                    <div className="text-meta text-ink-soft/75 mt-px">
-                      {s.category}
-                    </div>
+              {/* Sin catálogo cerca no hay sección: antes el rótulo anunciaba
+                  dos sugerencias escritas a mano aunque no hubiera cargado
+                  nada. El separador de abajo lo pone el bloque siguiente. */}
+              {suggestions.length > 0 && (
+                <>
+                  <div className={cn(EYEBROW, "pt-[10px]")}>
+                    Sugerencias
                   </div>
-                </motion.button>
-              ))}
-              <div className="h-px bg-ink/5 mx-gap-md my-[4px]" />
-              <div className={EYEBROW}>
-                Búsquedas recientes
-              </div>
-              {RECENT_SEARCHES.map((s, i) => (
-                <motion.button
-                  key={s.query}
-                  type="button"
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.14 + i * 0.04, duration: 0.3 }}
-                  className={ROW}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleSuggestionClick(s.query);
-                  }}
-                >
-                  <span className="size-8 rounded-xl bg-sand-deep grid place-items-center text-ink-soft/75 shrink-0">
-                    <Search size={16} strokeWidth={1.8} />
-                  </span>
-                  <div className="min-w-0">
-                    <div className="text-small text-ink truncate">
-                      {s.query}
-                    </div>
-                    <div className="text-meta text-ink-soft/75 mt-px">
-                      {s.category}
-                    </div>
+                  {suggestions.map((s, i) => (
+                    <motion.button
+                      key={s.query}
+                      type="button"
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.04 + i * 0.04, duration: 0.3 }}
+                      className={ROW}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSuggestionClick(s.query);
+                      }}
+                    >
+                      {/* El icono es el de la categoría en el catálogo: el mismo
+                          que llevan su pin y su tarjeta. */}
+                      <span className="size-8 rounded-xl bg-verde-50 grid place-items-center text-verde-700 shrink-0">
+                        <CategoryIcon
+                          icon={categoryIcon(s.category, categories)}
+                          size={16}
+                          strokeWidth={1.8}
+                        />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-small text-ink truncate">
+                          {s.label}
+                        </div>
+                        <div className="text-meta text-ink-soft/75 mt-px">
+                          {s.detail}
+                        </div>
+                      </div>
+                    </motion.button>
+                  ))}
+                </>
+              )}
+              {/* Sin historial no hay sección: en un navegador recién estrenado
+                  el rótulo se quedaba anunciando una lista vacía. */}
+              {recent.length > 0 && (
+                <>
+                  <div className="h-px bg-ink/5 mx-gap-md my-[4px]" />
+                  <div className={EYEBROW}>
+                    Búsquedas recientes
                   </div>
-                </motion.button>
-              ))}
+                  {recent.map((s, i) => (
+                    <motion.button
+                      key={s.query}
+                      type="button"
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.14 + i * 0.04, duration: 0.3 }}
+                      className={ROW}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSuggestionClick(s.query);
+                      }}
+                    >
+                      <span className="size-8 rounded-xl bg-sand-deep grid place-items-center text-ink-soft/75 shrink-0">
+                        <Search size={16} strokeWidth={1.8} />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-small text-ink truncate">
+                          {s.query}
+                        </div>
+                        <div className="text-meta text-ink-soft/75 mt-px">
+                          {timeAgo(s.at)}
+                        </div>
+                      </div>
+                    </motion.button>
+                  ))}
+                </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

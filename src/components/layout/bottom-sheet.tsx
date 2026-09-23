@@ -3,7 +3,20 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
-type SheetState = "peek" | "full";
+type SheetState = "collapsed" | "peek" | "full";
+
+/**
+ * Lo que asoma en cada estado reposado.
+ *
+ * `collapsed` deja justo el asa (20 px: los 10 de arriba más los 6 de abajo más
+ * los 4 de la barra). Recortar más abajo cortaría el titular por la mitad en
+ * lugar de esconderlo, que es peor que no esconderlo.
+ */
+const RESTING_OFFSET: Record<SheetState, string> = {
+  collapsed: "calc(100% - 20px)",
+  peek: "calc(100% - 120px)",
+  full: "0px",
+};
 
 interface BottomSheetProps {
   children: ReactNode;
@@ -14,6 +27,8 @@ interface BottomSheetProps {
   defaultState?: SheetState;
   /** Cuando es true, fuerza el sheet abierto (full) para revelar su contenido. */
   forceOpen?: boolean;
+  /** Cada valor nuevo recoge el sheet a `collapsed`, para dejar ver el mapa. */
+  collapseSignal?: number;
 }
 
 export function BottomSheet({
@@ -24,6 +39,7 @@ export function BottomSheet({
   className,
   defaultState = "peek",
   forceOpen = false,
+  collapseSignal,
 }: BottomSheetProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -47,17 +63,29 @@ export function BottomSheet({
     if (forceOpen) setState("full");
   }, [forceOpen]);
 
-  const translateY =
-    isDragging
-      ? `${dragY}px`
-      : !mounted
-        ? "100%"
-        : state === "peek"
-          ? "calc(100% - 120px)"
-          : "0px";
+  // Recoge la hoja hasta dejar solo el asa, para que el mapa y el pin tocado
+  // queden a la vista. Es un contador y no un booleano porque el gesto se
+  // repite —con un `true` que ya estaba, el segundo pin tocado no disparaba
+  // nada— y porque recogida no es un estado al que quedarse: el asa sigue ahí y
+  // el usuario puede tocarla o estirarla cuando quiera.
+  //
+  // `forceOpen` manda: durante una búsqueda la hoja la gobierna ella, y
+  // recogerla dejaría los resultados sin ver.
+  useEffect(() => {
+    if (collapseSignal && !forceOpen) setState("collapsed");
+  }, [collapseSignal, forceOpen]);
 
+  const translateY = isDragging
+    ? `${dragY}px`
+    : !mounted
+      ? "100%"
+      : RESTING_OFFSET[state];
+
+  // `collapsed` no está en el ciclo: sube a `full` de una, que es lo que se pide
+  // al tocar un asa que asoma 20 px. Bajar hasta `collapsed` solo lo hace el
+  // gesto que lo pide, tocar un pin.
   function cycleState() {
-    setState((prev) => (prev === "peek" ? "full" : "peek"));
+    setState((prev) => (prev === "full" ? "peek" : "full"));
   }
 
   const handlePointerDown = useCallback(
@@ -130,7 +158,7 @@ export function BottomSheet({
         // Al cerrar vuelve antes que al abrir: entrar despacio da sensación de
         // continuidad, salir despacio se hace pesado. El `data-state` ya cambió
         // cuando arranca la transición, así que cada dirección usa su duración.
-        "data-[state=peek]:[transition-duration:300ms]",
+        "data-[state=peek]:[transition-duration:300ms] data-[state=collapsed]:[transition-duration:300ms]",
         mounted && "bottom-sheet-desktop",
         isDragging && "!transition-none",
         className,

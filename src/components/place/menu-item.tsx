@@ -7,25 +7,28 @@ import { cn, currencyLabel } from "@/lib/utils";
 interface MenuItemProps {
   name: string;
   description: string;
-  price: number;
+  /** Texto libre, como lo escribió el dueño. Ver `UserPlaceMenuItem`. */
+  price: string;
   currency: string;
-  tag?: {
-    label: string;
-    variant: "popular" | "new" | "offer";
-  };
+  tag?: string;
   imageEmoji?: string;
   className?: string;
   index?: number;
 }
 
-/* Mismo mapa que `menu-item-editor` del panel de negocio: verde para lo
-   destacado, arena para el resto. Antes eran ámbar y rojo, que no existen en el
-   sistema. */
-const tagStyles: Record<string, string> = {
-  popular: "bg-verde-100 text-verde-700",
-  new: "bg-verde-50 text-verde-600",
-  offer: "bg-sand-deep text-ink-soft/75",
+/* Mismo mapa y **mismas claves** que `TAG_STYLES` del `menu-item-editor`: la
+   chapita que el dueño pone en el panel y la que sale aquí son la misma, y con
+   vocabularios distintos —aquí eran `popular`/`new`/`offer` en minúscula— el
+   `tag` guardado no casaba con ningún estilo. */
+const TAG_STYLES: Record<string, string> = {
+  Popular: "bg-verde-100 text-verde-700",
+  Nuevo: "bg-verde-50 text-verde-600",
+  "2x1": "bg-sand-deep text-ink-soft/75",
 };
+
+/* Una etiqueta que el panel no conozca se pinta igual, en arena. Mejor una
+   chapita sin color propio que una chapita invisible. */
+const TAG_FALLBACK = "bg-sand text-ink-soft/75";
 
 export function MenuItem({
   name,
@@ -74,10 +77,10 @@ export function MenuItem({
             <span
               className={cn(
                 "px-[8px] py-[2px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em]",
-                tagStyles[tag.variant],
+                TAG_STYLES[tag] ?? TAG_FALLBACK,
               )}
             >
-              {tag.label}
+              {tag}
             </span>
           )}
         </div>

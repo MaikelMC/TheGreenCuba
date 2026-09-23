@@ -3,13 +3,11 @@
 import { memo, useEffect, useMemo, useRef } from "react";
 import { Polyline, Marker, useMap } from "react-leaflet";
 import { divIcon } from "leaflet";
-import { createPlacePinIcon } from "./pin-icon";
 import type { RouteResult, RoutePoint } from "@/lib/map/routing";
 
 interface RouteLayerProps {
   route: RouteResult | null;
   origin: RoutePoint;
-  dest: RoutePoint;
 }
 
 /* Origen de la ruta = donde está el usuario, así que va en `ink` igual que el
@@ -23,14 +21,45 @@ function createOriginDot() {
   });
 }
 
+/* Estilo de ruta tipo Google Maps: una línea clara más gruesa por debajo hace
+   de borde y la verde queda encima, resaltada sobre el mapa. Con una sola
+   línea fina la ruta se perdía entre las calles del tile. */
+const ROUTE_CASE = {
+  color: "#FFFFFF",
+  weight: 11,
+  opacity: 0.9,
+  lineCap: "round",
+  lineJoin: "round",
+} as const;
+
+const ROUTE_CORE = {
+  color: "#35AF6D", /* verde-400, el mismo del pin de destino */
+  weight: 6,
+  opacity: 1,
+  lineCap: "round",
+  lineJoin: "round",
+} as const;
+
+/* La ruta absorbe su propio click. `L.Path` burbujea al mapa por defecto, y el
+   mapa lo lee como "clic fuera" y quita la selección. Hacen falta las dos
+   cosas: un listener de click —sin él la línea no cuenta como objetivo y el
+   evento sigue al mapa— y apagar el burbujeo. Va en las dos líneas porque el
+   click cae en la que esté arriba. */
+const ROUTE_CLICK_GUARD = {
+  bubblingMouseEvents: false,
+  eventHandlers: { click: () => {} },
+};
+
+/* El destino no lleva pin propio: lo pone el marcador del lugar, que ya está en
+   esa misma coordenada y, al quedar seleccionado, sale en la variante `selected`
+   —más grande—. El pin extra que había aquí se dibujaba encima del suyo, sin
+   popup ni handler, y se comía el click: el destino dejaba de ser tocable. */
 export const RouteLayer = memo(function RouteLayer({
   route,
   origin,
-  dest,
 }: RouteLayerProps) {
   const map = useMap();
   const originIcon = useMemo(() => createOriginDot(), []);
-  const destIcon = createPlacePinIcon("default");
   const lastRoute = useRef<RouteResult | null>(null);
 
   useEffect(() => {
@@ -48,16 +77,15 @@ export const RouteLayer = memo(function RouteLayer({
     <>
       <Polyline
         positions={route.coordinates}
-        pathOptions={{
-          color: "#35AF6D", /* verde-400, el mismo del pin de destino */
-          weight: 5,
-          opacity: 0.85,
-          lineCap: "round",
-          lineJoin: "round",
-        }}
+        pathOptions={ROUTE_CASE}
+        {...ROUTE_CLICK_GUARD}
+      />
+      <Polyline
+        positions={route.coordinates}
+        pathOptions={ROUTE_CORE}
+        {...ROUTE_CLICK_GUARD}
       />
       <Marker position={[origin.lat, origin.lng]} icon={originIcon} />
-      <Marker position={[dest.lat, dest.lng]} icon={destIcon} />
     </>
   );
 });

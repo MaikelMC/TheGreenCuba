@@ -40,6 +40,34 @@ export function isProtected(pathname: string): boolean {
 }
 
 /**
+ * Cabecera por la que el proxy le pasa la identidad al render.
+ *
+ * Hace falta porque la sesión no se puede preguntar dentro del render. El
+ * paquete de Neon, cuando falla su caché de sesión, aplica el `Set-Cookie` que
+ * devuelve el servidor con `cookies().set()`, y Next solo deja escribir cookies
+ * en una Server Action, una ruta de API o el proxy: en el render eso lanza
+ * `ReadonlyRequestCookiesError` (E1180) y se cae la página entera. Al proxy sí
+ * le está permitido, así que la sesión se resuelve allí y viaja en esta
+ * cabecera.
+ *
+ * El proxy la borra siempre antes de poner la suya: si no, cualquiera podría
+ * mandarla desde el cliente y hacerse pasar por otro.
+ */
+export const AUTH_USER_HEADER = "x-lv-auth-user";
+
+/**
+ * Rutas cuyo render pregunta por el usuario de la app (`getAppUser`), y por
+ * tanto las únicas en las que el proxy tiene que resolver la sesión.
+ *
+ * **Si una página nueva llama a `getAppUser`, su ruta entra aquí.** Sin la
+ * cabecera el render cae al respaldo de `getAppUser` —pensado para las rutas de
+ * API, que no pasan por el proxy— y ahí sí revienta con E1180.
+ */
+export function needsAppUser(pathname: string): boolean {
+  return pathname === "/login" || isProtected(pathname);
+}
+
+/**
  * Destino de una redirección tras el login. Solo se aceptan rutas del propio
  * sitio: sin esto, `/login?next=https://otro-sitio` serviría para sacar a
  * alguien de La Verde justo después de escribir su contraseña.

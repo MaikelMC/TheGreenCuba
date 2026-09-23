@@ -40,6 +40,7 @@ import {
   type UserPreferences,
 } from "@/lib/user-preferences-store";
 import { personalizePlaces } from "@/lib/personalized-recommendations";
+import { pushRecentSearch } from "@/lib/recent-searches-store";
 
 type SheetState = "default" | "searching" | "results" | "no-results" | "error";
 
@@ -65,6 +66,10 @@ function userPlaceToHomePlace(
   /** Catálogo del almacén, para que el icono que el admin cambia a una
       categoría llegue también a las tarjetas y no solo al pin. */
   categories: BusinessCategory[],
+  /** Distancia a la ubicación del usuario, en metros. Con ella la tarjeta
+      muestra la distancia real; con `null` cae a la dirección, que es el
+      único dato que hay. */
+  distanceM: number | null,
 ): HomePlace {
   const tags: HomePlace["tags"] = [
     {
@@ -80,7 +85,10 @@ function userPlaceToHomePlace(
     category: p.category,
     barrio: p.barrio || "Cuba",
     rating: p.rating ?? 0,
-    distance: p.distanceLabel || p.address || p.barrio || "Ver en el mapa",
+    distance:
+      distanceM !== null
+        ? formatDistanceM(distanceM)
+        : p.distanceLabel || p.address || p.barrio || "Ver en el mapa",
     price: p.priceLabel || "—",
     icon: placeIcon(p.icon, p.category, categories),
     tags,
@@ -328,6 +336,8 @@ function HomePageContent() {
   const searchParams = useSearchParams();
   const [sheetState, setSheetState] = useState<SheetState>("default");
   const [selectedId, setSelectedId] = useState<string>("6");
+  /* Contador, no booleano: cada pin tocado pide otra vez recoger la hoja. */
+  const [collapseKey, setCollapseKey] = useState(0);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set(["6"]));
   const [activeCategory, setActiveCategory] = useState("all");
   /* Filtros acumulables del mapa. Viven aquí y no dentro de `PlaceFilters`
@@ -437,15 +447,26 @@ function HomePageContent() {
     [visiblePlaces, categories],
   );
 
-  const filteredPlaces = useMemo<HomePlace[]>(
-    () => {
-      const personalized = userPreferences
-        ? personalizePlaces(visiblePlaces, userPreferences)
-        : visiblePlaces;
-      return personalized.map((p) => userPlaceToHomePlace(p, categories));
-    },
-    [visiblePlaces, categories, userPreferences],
-  );
+  const filteredPlaces = useMemo<HomePlace[]>(() => {
+    const origin = userLocation ?? getLastKnownPosition();
+    const ranked = userPreferences ? personalizePlaces(visiblePlaces, userPreferences) : visiblePlaces;
+
+    const measured = ranked.map((place) => ({
+      place,
+      distanceM: origin ? haversineM(origin, { lat: place.lat, lng: place.lng }) : null,
+    }));
+
+    if (origin) {
+      measured.sort(
+        (a, b) =>
+          (a.distanceM ?? Number.POSITIVE_INFINITY) - (b.distanceM ?? Number.POSITIVE_INFINITY),
+      );
+    }
+
+    return measured.map(({ place, distanceM }) =>
+      userPlaceToHomePlace(place, categories, distanceM),
+    );
+  }, [visiblePlaces, categories, userLocation, userPreferences]);
 
   const handleLike = useCallback((id: string) => {
     setLikedIds((prev) => {
@@ -456,8 +477,16 @@ function HomePageContent() {
     });
   }, []);
 
+  /* Tocar una card de recomendaciones recoge la hoja hasta dejar el asa: el
+     negocio se queda resaltado en el mapa, y con la lista delante no se veía. */
   const handleSelect = useCallback((id: string) => {
     setSelectedId(id);
+    setCollapseKey((k) => k + 1);
+  }, []);
+
+  // Tocar el fondo del mapa quita la selección, como en cualquier mapa.
+  const handleDeselect = useCallback(() => {
+    setSelectedId("");
   }, []);
 
   const handleDetail = useCallback(
@@ -470,6 +499,11 @@ function HomePageContent() {
   const handleSearch = useCallback(
     async (query: string) => {
       setSearchingQuery(query);
+      /* Al historial del buscador en cuanto sale la consulta, sin esperar a la
+         respuesta: lo que se guarda es lo que se buscó, salga bien o mal. Toda
+         búsqueda pasa por aquí —la barra del header y los atajos de «sin
+         resultados»—, así que es el único punto que hace falta. */
+      pushRecentSearch(query);
       setAiState(null);
       setSheetState("searching");
       searchCtx.setIsSearching(true);
@@ -556,6 +590,8 @@ function HomePageContent() {
     }, 2500);
   }, [searchingQuery, handleSearch, searchCtx]);
 
+  /* Tocar un pin del mapa solo selecciona: la hoja no se toca. El popup sale
+     del propio pin y ya se abre solo. */
   const handleMarkerClick = useCallback((id: string) => {
     setSelectedId(id);
   }, []);
@@ -564,13 +600,18 @@ function HomePageContent() {
     setDetailPlace(place);
   }, []);
 
-  // Vuela el mapa hasta un lugar al tocar su botón de ubicación.
+  /* Vuela el mapa hasta un lugar al tocar su botón de ubicación —el 📍 "Ver en
+     el mapa" de la card—, lo resalta y recoge la hoja. Las tres cosas van
+     juntas: sin vuelo no se llega, sin resaltado el pin se pierde entre los
+     demás, y sin recogerla el negocio queda justo detrás de la lista. */
   const handleLocate = useCallback((place: HomePlace) => {
+    setSelectedId(place.id);
     setFocusTarget((prev) => ({
       lat: place.lat,
       lng: place.lng,
       key: (prev?.key ?? 0) + 1,
     }));
+    setCollapseKey((k) => k + 1);
   }, []);
 
   const handleUserLocated = useCallback((lat: number, lng: number, accuracy?: number) => {
@@ -626,20 +667,47 @@ function HomePageContent() {
     [drawRoute],
   );
 
-  // Al llegar desde la ficha del lugar (?lugar=<id>) y tener ubicación,
-  // dibuja la ruta automáticamente hacia ese lugar.
+  /* Al llegar desde el botón "Cómo llegar" de la ficha (`?lugar=<id>`) la ruta
+     se dibuja sola, y sin abrir la ficha: el usuario viene justo de ella, lo
+     que quiere ver es el mapa.
+
+     La ubicación se pide aquí cuando no la tenemos. Con el onboarding hecho el
+     mapa no arranca el GPS a propósito —la primera vista es la ciudad elegida—,
+     así que antes este gesto se quedaba en nada: mapa quieto, sin ruta y sin
+     decir por qué. Nadie toca "Cómo llegar" para no ir a ningún sitio. */
   const placeIdFromUrl = searchParams.get("lugar");
   const pendingPlace = useMemo(
     () => filteredPlaces.find((p) => p.id === placeIdFromUrl) ?? null,
     [placeIdFromUrl, filteredPlaces],
   );
-  const didAutoNavigate = useRef(false);
+
+  /* Guarda el id ya dibujado, no un booleano: si el usuario vuelve a la ficha y
+     elige otro negocio, este mismo montaje tiene que atender al segundo. */
+  const routedPlaceId = useRef<string | null>(null);
+  const askingLocation = useRef(false);
+
   useEffect(() => {
-    if (!pendingPlace || !userLocation) return;
-    if (didAutoNavigate.current) return;
-    didAutoNavigate.current = true;
-    handleNavigate(pendingPlace);
-  }, [pendingPlace, userLocation, handleNavigate]);
+    if (!pendingPlace || routedPlaceId.current === pendingPlace.id) return;
+
+    if (userLocation) {
+      routedPlaceId.current = pendingPlace.id;
+      handleRouteFromPopup(pendingPlace);
+      return;
+    }
+
+    if (askingLocation.current) return;
+    askingLocation.current = true;
+    /* `useCache` —el valor por defecto— deja pasar una lectura reciente sin
+       volver a preguntar por el permiso, y solo baja al GPS si no hay ninguna. */
+    getCurrentPosition()
+      .then((pos) => handleUserLocated(pos.lat, pos.lng, pos.accuracy))
+      .catch((err: Error) => {
+        toast.error(err?.message || "No pudimos obtener tu ubicación para calcular la ruta.");
+      })
+      .finally(() => {
+        askingLocation.current = false;
+      });
+  }, [pendingPlace, userLocation, handleRouteFromPopup, handleUserLocated]);
 
   // Limpia la ruta del mapa.
   const handleClearRoute = useCallback(() => {
@@ -747,6 +815,7 @@ function HomePageContent() {
           initialZoom={disableAutoFit ? 13 : undefined}
           disableAutoFit={disableAutoFit}
           onPlaceSelect={(place) => handleMarkerClick(place.id)}
+          onMapClick={handleDeselect}
         onPlaceRoute={(place) => {
           const target = filteredPlaces.find((p) => p.id === place.id);
           if (target) handleRouteFromPopup(target);
@@ -758,6 +827,8 @@ function HomePageContent() {
         viewTarget={viewTarget}
         route={route}
         routeOrigin={routeOrigin}
+        routePlaceId={routeDest?.id ?? null}
+        onRouteClear={handleClearRoute}
       >
         <CategoryBar
           categories={categories}
@@ -813,6 +884,7 @@ function HomePageContent() {
         subtitle={sheetSubtitle}
         badge={showBadge ? String(shownCount) : undefined}
         forceOpen={sheetState !== "default"}
+        collapseSignal={collapseKey}
       >
         {/* Default / Results state */}
         {(sheetState === "default" || sheetState === "results") && (

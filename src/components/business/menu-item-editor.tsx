@@ -103,7 +103,7 @@ export function MenuItemEditor({
               type="text"
               value={item.name}
               onChange={(e) => update(item.id, "name", e.target.value)}
-              placeholder="Nombre del plato"
+              placeholder="Nombre del producto o servicio"
               className={cn(INPUT, "h-10 border-ink/10 font-semibold w-full")}
             />
             <input
@@ -129,7 +129,7 @@ export function MenuItemEditor({
                 value={item.currency}
                 onChange={(e) => update(item.id, "currency", e.target.value)}
                 className={cn(INPUT, "min-w-0 h-10 border-ink/10 font-lv-display text-meta cursor-pointer")}
-                aria-label="Moneda del plato"
+                aria-label="Moneda del producto"
               >
                 <option value="MLC">USD Clásica</option>
                 <option value="CUP">CUP</option>
@@ -165,7 +165,7 @@ export function MenuItemEditor({
         className="flex items-center justify-center gap-gap-xs py-gap-sm border border-dashed border-ink/10 rounded-2xl text-ink-soft/75 font-lv-display text-small font-medium cursor-pointer hover:border-verde-300 hover:text-verde-600 hover:bg-verde-50 transition-all duration-500 ease-outquint w-full mt-gap-xs"
       >
         <Plus size={18} strokeWidth={1.8} />
-        Añadir plato o servicio
+        Añadir producto o servicio
       </button>
     </div>
   );

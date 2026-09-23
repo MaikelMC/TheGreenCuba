@@ -30,10 +30,15 @@ import type { MapPlace, MapViewProps } from "./types";
 
 function MapEventsHandler({
   onMapMove,
+  onMapClick,
 }: {
   onMapMove?: MapViewProps["onMapMove"];
+  onMapClick?: MapViewProps["onMapClick"];
 }) {
   useMapEvents({
+    // Los pines no burbujean al mapa (`bubblingMouseEvents: false` en
+    // `L.Marker`), así que este click es siempre el del fondo del mapa.
+    click: () => onMapClick?.(),
     moveend: (e) => {
       if (!onMapMove) return;
       const map = e.target;
@@ -88,6 +93,8 @@ function MapChildren({
   selectedPlaceId,
   onPlaceSelect,
   onPlaceRoute,
+  routePlaceId,
+  onRouteClear,
   userLocation,
   onUserLocated,
   onLocateStateChange,
@@ -99,6 +106,8 @@ function MapChildren({
   selectedPlaceId?: string | null;
   onPlaceSelect?: MapViewProps["onPlaceSelect"];
   onPlaceRoute?: MapViewProps["onPlaceRoute"];
+  routePlaceId: MapViewProps["routePlaceId"];
+  onRouteClear: MapViewProps["onRouteClear"];
   userLocation?: MapViewProps["userLocation"];
   onUserLocated?: MapViewProps["onUserLocated"];
   onLocateStateChange?: MapViewProps["onLocateStateChange"];
@@ -166,6 +175,8 @@ function MapChildren({
         selectedId={selectedPlaceId}
         onSelect={onPlaceSelect}
         onRoute={onPlaceRoute}
+        routePlaceId={routePlaceId}
+        onRouteClear={onRouteClear}
       />
       {userLocation && (
         <UserLocationMarker
@@ -192,6 +203,7 @@ export function MapContent({
   onPlaceSelect,
   onPlaceRoute,
   onMapMove,
+  onMapClick,
   userLocation,
   onUserLocated,
   onLocateStateChange,
@@ -199,6 +211,8 @@ export function MapContent({
   viewTarget,
   route,
   routeOrigin,
+  routePlaceId,
+  onRouteClear,
   initialCenter = HAVANA_CENTER,
   initialZoom = DEFAULT_ZOOM,
   maxZoom = MAX_ZOOM,
@@ -237,7 +251,7 @@ export function MapContent({
       style={{ height: "100%", width: "100%" }}
     >
       <ZoomControl position="bottomleft" />
-      <MapEventsHandler onMapMove={onMapMove} />
+      <MapEventsHandler onMapMove={onMapMove} onMapClick={onMapClick} />
       <FitBoundsOnMount
         places={validPlaces}
         hasUserLocation={hasUserLocation || Boolean(route)}
@@ -250,6 +264,8 @@ export function MapContent({
         selectedPlaceId={selectedPlaceId}
         onPlaceSelect={onPlaceSelect}
         onPlaceRoute={onPlaceRoute}
+        routePlaceId={routePlaceId}
+        onRouteClear={onRouteClear}
         userLocation={userLocation}
         onUserLocated={onUserLocated}
         onLocateStateChange={onLocateStateChange}
@@ -258,14 +274,7 @@ export function MapContent({
       />
 
       {route && routeOrigin && route.coordinates.length > 0 && (
-        <RouteLayer
-          route={route}
-          origin={routeOrigin}
-          dest={{
-            lat: route.coordinates[route.coordinates.length - 1]![0],
-            lng: route.coordinates[route.coordinates.length - 1]![1],
-          }}
-        />
+        <RouteLayer route={route} origin={routeOrigin} />
       )}
     </MapContainer>
   );

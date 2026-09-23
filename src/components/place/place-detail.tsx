@@ -3,15 +3,14 @@
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
-  Share2,
-  MoreHorizontal,
   Utensils,
   Clock,
   Star,
   Layers,
   MapPin,
   CreditCard,
-  MessageSquare,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { cn, currencyLabel } from "@/lib/utils";
 import { isSaved as isPlaceSaved, recordVisit, toggleSaved } from "@/lib/activity-store";
@@ -20,17 +19,19 @@ import { InfoBar } from "./info-bar";
 import { ActionButtons } from "./action-buttons";
 import { MenuItem } from "./menu-item";
 import { OfferBanner } from "./offer-banner";
+import { ReviewDialog } from "./review-dialog";
+import { ReviewsSection } from "./reviews-section";
 import { Reveal } from "@/components/ui/reveal";
-import { StateView } from "@/components/ui/state-view";
 
 export type PlaceState = "normal" | "closed" | "no-photos" | "special-offer";
 
 interface PlaceMenu {
   name: string;
   description: string;
-  price: number;
+  /** Texto libre. Ver `UserPlaceMenuItem`: no es un número. */
+  price: string;
   currency: string;
-  tag?: { label: string; variant: "popular" | "new" | "offer" };
+  tag?: string;
   imageEmoji?: string;
 }
 
@@ -47,9 +48,12 @@ export interface PlaceData {
   longDescription: string;
   isOpen: boolean;
   closedMessage?: string;
-  aiQuery: string;
-  aiReasoning: string;
+  /* Con esto se compone la tarjeta de recomendación. Son datos que la ficha no
+     enseña en ningún otro sitio: el ambiente, el precio y las etiquetas. */
+  vibe: string[];
   aiTags: string[];
+  priceLabel?: string;
+  isBoosted?: boolean;
   slides: Slide[];
   menu: PlaceMenu[];
   specialOffer?: {
@@ -81,8 +85,17 @@ const currencyStyles: Record<string, string> = {
 
 const CARD = "bg-white rounded-2xl border border-ink/5 shadow-soft p-gap-xl";
 const H2 = "font-lv-display text-h3 font-bold text-ink";
-const LINK_BTN =
-  "font-lv-display text-meta font-semibold uppercase tracking-[0.08em] text-verde-600 hover:text-verde-700 transition-colors duration-500 ease-outquint";
+
+/* Mismo botón secundario que el resto del sistema —el `BTN_OUTLINE` del panel
+   de negocio y del formulario de alta—. Antes estos dos eran texto verde suelto
+   sin forma ni área: ni se veían como algo tocable, ni llegaban a los 44 px de
+   alto que pide un dedo. */
+const BTN_OUTLINE =
+  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full border border-ink/10 bg-white text-ink font-lv-display text-small font-semibold cursor-pointer hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 transition-all duration-500 ease-outquint active:scale-[0.98]";
+
+/* El chevron acompaña al botón sin robarle el foco: mismo trazo que el resto de
+   los iconos de la ficha. */
+const CHEVRON = "transition-transform duration-500 ease-outquint";
 
 export function PlaceDetail({
   place,
@@ -97,6 +110,15 @@ export function PlaceDetail({
   const [descExpanded, setDescExpanded] = useState(false);
   const [saved, setSaved] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+
+  /* El diálogo vive aquí y no dentro de `ActionButtons` porque hay dos rejillas
+     —la de escritorio y la de móvil— montadas a la vez: dentro habría dos
+     diálogos, y dos estados de nota distintos para la misma opinión. */
+  const [reviewOpen, setReviewOpen] = useState(false);
+  /* Cuenta las reseñas publicadas. La lista la lee y la usa como señal para
+     releer: sin esto, quien acaba de opinar cerraría el diálogo y seguiría sin
+     ver la suya. */
+  const [reviewsKey, setReviewsKey] = useState(0);
 
   useEffect(() => {
     fetch("/api/me")
@@ -126,6 +148,13 @@ export function PlaceDetail({
   const hasPhotos = state !== "no-photos" && place.slides.length > 0;
   const showOffer = state === "special-offer" && place.specialOffer;
 
+  /* `distance` es un cajón de sastre: trae la distancia, la dirección o el
+     barrio, lo que haya. El barrio se pinta por su cuenta, así que aquí solo
+     queda lo que no sea ya el barrio. Sin esta guarda la línea decía
+     "Centro Habana · Centro Habana", y en móvil además repetía la celda del
+     `InfoBar`. */
+  const location = place.distance === place.barrio ? "" : place.distance;
+
   function handleSave() {
     setSaved(toggleSaved(place.id, userId));
   }
@@ -144,26 +173,12 @@ export function PlaceDetail({
         >
           <ArrowLeft size={20} strokeWidth={1.8} />
         </button>
+        {/* La barra superior navega; las acciones viven en su rejilla, más abajo.
+            Aquí había además un "Compartir" —el mismo botón que el de la rejilla,
+            los dos sin destino— y un "Más opciones" sin handler ninguno. */}
         <span className="font-lv-display text-small font-semibold text-ink flex-1 truncate">
           {place.name}
         </span>
-        <div className="flex gap-[4px]">
-          <button
-            type="button"
-            onClick={onShare}
-            className="size-10 rounded-full grid place-items-center text-ink-soft/75 hover:bg-verde-50 hover:text-verde-600 transition-colors duration-500 ease-outquint"
-            aria-label="Compartir"
-          >
-            <Share2 size={20} strokeWidth={1.8} />
-          </button>
-          <button
-            type="button"
-            className="size-10 rounded-full grid place-items-center text-ink-soft/75 hover:bg-verde-50 hover:text-verde-600 transition-colors duration-500 ease-outquint"
-            aria-label="Más opciones"
-          >
-            <MoreHorizontal size={20} strokeWidth={1.8} />
-          </button>
-        </div>
       </header>
 
       {/* ────────── Desktop Layout ────────── */}
@@ -215,7 +230,9 @@ export function PlaceDetail({
           <span className="text-ink/10">|</span>
           <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
             <MapPin size={14} strokeWidth={1.8} className="text-verde-600" />
-            <span className="font-lv-display font-medium text-ink">{place.distance} · {place.barrio}</span>
+            <span className="font-lv-display font-medium text-ink">
+              {location ? `${location} · ${place.barrio}` : place.barrio}
+            </span>
           </div>
           <span className="text-ink/10">|</span>
           <div className="flex items-center gap-[4px] text-meta text-ink-soft/75">
@@ -243,9 +260,15 @@ export function PlaceDetail({
         <div className="grid grid-cols-[350px_1fr] gap-gap-lg items-start">
           {/* ── Left Column (sticky sidebar) ── */}
           <Reveal className="sticky top-[calc(var(--header-h)+var(--gap-lg))] flex flex-col gap-gap-md">
-            <ActionButtons isSaved={saved} onSave={handleSave} onNavigate={onNavigate} />
+            <ActionButtons
+              isSaved={saved}
+              onSave={handleSave}
+              onNavigate={onNavigate}
+              onShare={onShare}
+              onReview={() => setReviewOpen(true)}
+            />
 
-            <AiCard place={place} />
+            <WhyCard place={place} />
 
             {/* Special Offer */}
             {showOffer && place.specialOffer && (
@@ -275,9 +298,15 @@ export function PlaceDetail({
                 <button
                   type="button"
                   onClick={() => setDescExpanded((prev) => !prev)}
-                  className={cn(LINK_BTN, "mt-gap-xs py-[4px]")}
+                  aria-expanded={descExpanded}
+                  className={cn(BTN_OUTLINE, "mt-gap-md")}
                 >
                   {descExpanded ? "Leer menos" : "Leer más"}
+                  <ChevronDown
+                    size={16}
+                    strokeWidth={1.8}
+                    className={cn(CHEVRON, descExpanded && "rotate-180")}
+                  />
                 </button>
               </section>
             </Reveal>
@@ -286,9 +315,21 @@ export function PlaceDetail({
             <Reveal>
               <section className={CARD}>
                 <div className="flex items-center justify-between mb-gap-md">
-                  <h2 className={H2}>Menú destacado</h2>
-                  <button type="button" onClick={onMenuSeeAll} className={LINK_BTN}>
+                  {/* «Menú» solo valía para restaurantes. En la app hay mercados,
+                    mipymes y vendedores independientes, y lo que enseñan es un
+                    producto o un servicio, no un plato. */}
+                <h2 className={H2}>Lo que ofrece</h2>
+                  <button
+                    type="button"
+                    onClick={onMenuSeeAll}
+                    className={cn(BTN_OUTLINE, "group")}
+                  >
                     Ver todo
+                    <ChevronRight
+                      size={16}
+                      strokeWidth={1.8}
+                      className={cn(CHEVRON, "group-hover:translate-x-[2px]")}
+                    />
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-x-gap-lg">
@@ -299,20 +340,10 @@ export function PlaceDetail({
               </section>
             </Reveal>
 
-            {/* Reviews (placeholder) */}
+            {/* Reviews */}
             <Reveal>
               <section className={CARD}>
-                <div className="flex items-center justify-between mb-gap-md">
-                  <h2 className={H2}>Reseñas</h2>
-                  <span className="font-lv-display text-meta text-ink-soft/75">Próximamente</span>
-                </div>
-                <div className="border border-dashed border-ink/10 rounded-2xl">
-                  <StateView
-                    icon={MessageSquare}
-                    title="Las reseñas llegarán pronto"
-                    description="Podrás calificar y dejar tu opinión tras visitar el lugar"
-                  />
-                </div>
+                <ReviewsSection placeId={place.id} reloadKey={reviewsKey} />
               </section>
             </Reveal>
 
@@ -364,10 +395,14 @@ export function PlaceDetail({
                     {place.rating}
                   </span>
                 )}
-                <span className="text-meta text-ink-soft/75 italic">Próximamente en La Verde</span>
-                <span className="font-lv-display text-meta text-ink-soft/75">
-                  {place.distance} · {place.barrio}
-                </span>
+                {/* El barrio lo dice la celda del `InfoBar`, justo debajo; aquí
+                    va la dirección, y solo cuando no es ya ese barrio. */}
+                {location && (
+                  <span className="inline-flex items-center gap-[4px] text-meta text-ink-soft/75">
+                    <MapPin size={14} strokeWidth={1.8} className="text-verde-600" />
+                    {location}
+                  </span>
+                )}
               </div>
             </section>
           </Reveal>
@@ -379,9 +414,9 @@ export function PlaceDetail({
                 <div className="size-9 rounded-2xl bg-destructive/10 grid place-items-center shrink-0">
                   <Clock size={18} strokeWidth={1.8} className="text-destructive" />
                 </div>
-                <div className="text-small text-ink leading-snug">
-                  <strong>Cerrado ahora</strong> · {place.closedMessage}
-                </div>
+                {/* El chip de arriba ya dice "Cerrado". Repetirlo aquí dejaba
+                    la línea en "Cerrado ahora · Cerrado temporalmente." */}
+                <div className="text-small text-ink leading-snug">{place.closedMessage}</div>
               </div>
             </Reveal>
           )}
@@ -390,10 +425,8 @@ export function PlaceDetail({
           <Reveal delay={0.05}>
             <InfoBar
               schedule={place.schedule}
-              distance={place.distance}
+              barrio={place.barrio}
               payments={place.payments}
-              isOpen={!isClosed}
-              closedLabel="Cerrado"
             />
           </Reveal>
 
@@ -403,6 +436,8 @@ export function PlaceDetail({
               isSaved={saved}
               onSave={handleSave}
               onNavigate={onNavigate}
+              onShare={onShare}
+              onReview={() => setReviewOpen(true)}
             />
           </Reveal>
 
@@ -411,7 +446,7 @@ export function PlaceDetail({
 
           {/* AI Recommendation */}
           <Reveal>
-            <AiCard place={place} className="mx-gutter my-gap-md" />
+            <WhyCard place={place} className="mx-gutter my-gap-md" />
           </Reveal>
 
           {/* Special Offer Banner */}
@@ -441,9 +476,15 @@ export function PlaceDetail({
               <button
                 type="button"
                 onClick={() => setDescExpanded((prev) => !prev)}
-                className={cn(LINK_BTN, "mt-gap-xs py-[4px]")}
+                aria-expanded={descExpanded}
+                className={cn(BTN_OUTLINE, "mt-gap-md")}
               >
                 {descExpanded ? "Leer menos" : "Leer más"}
+                <ChevronDown
+                  size={16}
+                  strokeWidth={1.8}
+                  className={cn(CHEVRON, descExpanded && "rotate-180")}
+                />
               </button>
             </section>
           </Reveal>
@@ -451,20 +492,10 @@ export function PlaceDetail({
           {/* Divider */}
           <div className="h-[8px] bg-sand-deep" />
 
-          {/* Reviews (future) */}
+          {/* Reviews */}
           <Reveal>
             <section className="p-gap-lg px-gutter bg-sand-warm">
-              <div className="flex items-center justify-between mb-gap-md">
-                <h2 className={H2}>Reseñas</h2>
-                <span className="font-lv-display text-meta text-ink-soft/75">Próximamente</span>
-              </div>
-              <div className="border border-dashed border-ink/10 rounded-2xl">
-                <StateView
-                  icon={MessageSquare}
-                  title="Las reseñas llegarán pronto"
-                  description="Podrás calificar y dejar tu opinión tras visitar el lugar"
-                />
-              </div>
+              <ReviewsSection placeId={place.id} reloadKey={reviewsKey} />
             </section>
           </Reveal>
 
@@ -473,9 +504,21 @@ export function PlaceDetail({
           <Reveal>
             <section className="p-gap-lg px-gutter bg-sand-warm">
               <div className="flex items-center justify-between mb-gap-md">
-                <h2 className={H2}>Menú destacado</h2>
-                <button type="button" onClick={onMenuSeeAll} className={LINK_BTN}>
+                {/* «Menú» solo valía para restaurantes. En la app hay mercados,
+                    mipymes y vendedores independientes, y lo que enseñan es un
+                    producto o un servicio, no un plato. */}
+                <h2 className={H2}>Lo que ofrece</h2>
+                <button
+                  type="button"
+                  onClick={onMenuSeeAll}
+                  className={cn(BTN_OUTLINE, "group")}
+                >
                   Ver todo
+                  <ChevronRight
+                    size={16}
+                    strokeWidth={1.8}
+                    className={cn(CHEVRON, "group-hover:translate-x-[2px]")}
+                  />
                 </button>
               </div>
               {place.menu.map((item, i) => (
@@ -490,14 +533,50 @@ export function PlaceDetail({
 
       {/* Bottom safe area */}
       <div className="pb-safe-bottom bg-sand" />
+
+      {/* Va al final y fuera de los dos bloques de maquetación: es uno solo para
+          la ficha entera, se abra desde donde se abra. */}
+      <ReviewDialog
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
+        placeId={place.id}
+        placeName={place.name}
+        onPublished={() => setReviewsKey((k) => k + 1)}
+      />
     </div>
   );
 }
 
-/* La recomendación de la IA sale en el escritorio (columna lateral) y en móvil
-   (a lo ancho). El marcado era idéntico en los dos sitios; solo cambiaban los
-   márgenes, que entran por `className`. */
-function AiCard({ place, className }: { place: PlaceData; className?: string }) {
+/**
+ * Por qué La Verde lo recomienda. Sale en el escritorio (columna lateral) y en
+ * móvil (a lo ancho); el marcado es el mismo y solo cambian los márgenes, que
+ * entran por `className`.
+ *
+ * El texto se compone con lo que la ficha sabe de verdad del negocio. Antes
+ * decía «Buscaste "buscar restaurante en Cuba"» —una consulta fabricada que
+ * nadie escribió— y una razón que venía de un campo sin columna en la base, así
+ * que salía siempre el mismo relleno: «listo para ser recomendado».
+ *
+ * Lo que se dice aquí es lo que no se ve en ninguna otra parte de la ficha: el
+ * horario está en el `InfoBar`, la nota en la cabecera y la dirección en su
+ * línea. Repetirlos sería volver a lo de antes.
+ */
+function WhyCard({ place, className }: { place: PlaceData; className?: string }) {
+  const lines = [
+    `${place.category} en ${place.barrio}`,
+    place.priceLabel ? `Precios de ${place.priceLabel}` : null,
+  ].filter((line): line is string => line !== null);
+
+  /* `Set` porque el mismo valor puede llegar por los dos lados: la siembra mete
+     «Todo el día» en `vibe` y el negocio puede tenerlo también en sus etiquetas. */
+  const chips = [
+    ...new Set([
+      ...(place.isBoosted ? ["Destacado"] : []),
+      ...place.vibe,
+      ...place.aiTags,
+    ]),
+  ];
+
   return (
     <div
       className={cn(
@@ -513,24 +592,26 @@ function AiCard({ place, className }: { place: PlaceData; className?: string }) 
           <div className="font-lv-display text-small font-bold text-ink">
             Por qué La Verde te lo recomienda
           </div>
-          <div className="text-meta text-ink-soft/75">
-            Basado en tu búsqueda y ubicación
-          </div>
+          <div className="text-meta text-ink-soft/75">Datos del lugar</div>
         </div>
       </div>
-      <div className="text-small leading-relaxed text-ink">
-        Buscaste <strong>&ldquo;{place.aiQuery}&rdquo;</strong>. {place.aiReasoning}
+
+      <div className="text-small leading-relaxed text-ink text-pretty">
+        {lines.join(". ")}.
       </div>
-      <div className="flex gap-[6px] flex-wrap mt-gap-sm">
-        {place.aiTags.map((tag) => (
-          <span
-            key={tag}
-            className="px-[8px] py-[3px] rounded-full bg-white border border-verde-200 font-lv-display text-[10px] font-semibold text-verde-600 uppercase tracking-[0.08em]"
-          >
-            {tag}
-          </span>
-        ))}
-      </div>
+
+      {chips.length > 0 && (
+        <div className="flex gap-[6px] flex-wrap mt-gap-sm">
+          {chips.map((tag) => (
+            <span
+              key={tag}
+              className="px-[8px] py-[3px] rounded-full bg-white border border-verde-200 font-lv-display text-[10px] font-semibold text-verde-600 uppercase tracking-[0.08em]"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

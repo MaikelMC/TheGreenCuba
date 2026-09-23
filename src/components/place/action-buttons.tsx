@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Navigation, Heart, Share2, Users } from "lucide-react";
+import { Navigation, Heart, Share2, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ActionButtonsProps {
   onNavigate?: () => void;
   onSave?: () => void;
   onShare?: () => void;
-  onWannaGo?: () => void;
+  /** Abre el diálogo de opinión (estrellas + comentario). */
+  onReview?: () => void;
   isSaved?: boolean;
   className?: string;
 }
@@ -25,7 +26,7 @@ export function ActionButtons({
   onNavigate,
   onSave,
   onShare,
-  onWannaGo,
+  onReview,
   isSaved: controlledSaved,
   className,
 }: ActionButtonsProps) {
@@ -93,15 +94,15 @@ export function ActionButtons({
         <span className={cn(LABEL, "text-ink")}>Compartir</span>
       </motion.button>
 
-      {/* Quiero ir */}
+      {/* Opinar */}
       <motion.button
         type="button"
         whileTap={{ scale: 0.95 }}
-        onClick={onWannaGo}
+        onClick={onReview}
         className={cn(BOX, "border-ink/10 bg-white hover:border-verde-300 hover:bg-verde-50")}
       >
-        <Users size={24} strokeWidth={1.8} className="text-verde-600" />
-        <span className={cn(LABEL, "text-ink")}>Quiero ir</span>
+        <Star size={24} strokeWidth={1.8} className="text-verde-600" />
+        <span className={cn(LABEL, "text-ink")}>Opinar</span>
       </motion.button>
     </div>
   );

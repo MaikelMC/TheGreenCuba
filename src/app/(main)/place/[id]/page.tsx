@@ -36,14 +36,15 @@ const FALLBACK_SLIDES = [
 
 function userPlaceToPlaceData(p: UserPlace): PlaceData {
   const isOpen = p.status === "active";
-  const tags = p.aiTags ? [...p.aiTags] : [];
-  if (p.isBoosted && !tags.includes("Destacado")) tags.unshift("Destacado");
   return {
     id: p.id,
     name: p.name,
     category: p.category,
     rating: p.rating ?? 0,
-    distance: p.distanceLabel || p.address || p.barrio || "Ver en el mapa",
+    /* Sin el respaldo "Ver en el mapa" que había aquí: cuando no hay ni
+       distancia ni dirección el campo queda vacío y la ficha esconde la línea,
+       en vez de anunciar un mapa que no lleva a ninguna parte. */
+    distance: p.distanceLabel || p.address || "",
     barrio: p.barrio || "Cuba",
     schedule: p.schedule || "Próximamente",
     payments: p.payments,
@@ -58,11 +59,13 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
         : p.status === "temporary_closed"
           ? "Temporalmente cerrado."
           : undefined,
-    aiQuery: `buscar ${p.category.toLowerCase()} en Cuba`,
-    aiReasoning:
-      p.aiReasoning ||
-      `Este negocio está en ${p.barrio || "Cuba"}, listo para ser recomendado por La Verde.`,
-    aiTags: tags.length > 0 ? tags : ["Nuevo en La Verde"],
+    /* Lo que la tarjeta de recomendación dice sale de aquí y solo de aquí: sin
+       frase de relleno, sin consulta inventada y sin `aiReasoning`, que viajaba
+       en `UserPlace` pero no tiene columna en `places` y llegaba siempre vacío. */
+    vibe: p.vibe ?? [],
+    aiTags: p.aiTags ?? [],
+    priceLabel: p.priceLabel,
+    isBoosted: p.isBoosted,
     /* Las fotos subidas mandan; el degradado solo rellena cuando el negocio
        todavía no tiene ninguna. */
     slides:
@@ -72,13 +75,19 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
             alt: photo.alt || `Foto ${i + 1} de ${p.name}`,
           }))
         : FALLBACK_SLIDES.map((s) => ({ ...s, label: `${p.name}: ${s.label}` })),
+    /* El precio pasa tal cual y la chapita también. Aquí estaba el corte de la
+       cadena: `Number(item.price) || 0` convertía a cero todo precio que no
+       fuese una cifra pelada —el campo es texto libre, el propio esquema pone
+       «3–5 USD» de ejemplo— y la reconstrucción del objeto se dejaba fuera el
+       `tag` que el dueño había escrito. */
     menu: p.menu
       .filter((item) => item.name.trim().length > 0)
       .map((item) => ({
         name: item.name,
         description: item.description,
-        price: Number(item.price) || 0,
+        price: item.price,
         currency: item.currency || "MLC",
+        tag: item.tag,
       })),
     specialOffer: p.offer
       ? {

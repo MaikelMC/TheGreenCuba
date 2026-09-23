@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth/server";
-import { isProtected } from "@/lib/session";
+import { AUTH_USER_HEADER, isProtected, needsAppUser } from "@/lib/session";
 
 /**
  * Puerta de entrada del sitio.
@@ -11,10 +11,15 @@ import { isProtected } from "@/lib/session";
  * no dentro del render—. El runtime también cambió: el proxy corre sobre Node,
  * no sobre Edge. Aquí da igual, porque ya no hay criptografía propia.
  *
- * **Solo pregunta si hay sesión.** El rol no se mira aquí y es a propósito: vive
- * en la tabla `users`, así que comprobarlo costaría una consulta a Neon en cada
- * petición, incluidas las de estáticos. Lo comprueban los layouts de `/admin` y
- * `/business`, que ya están consultando la base de todos modos.
+ * Aquí también se resuelve **quién eres** y se reenvía al render en una
+ * cabecera: el render no puede llamar a `auth.getSession()` sin arriesgarse a
+ * tumbar la página. Está contado entero en `AUTH_USER_HEADER`
+ * (`src/lib/session.ts`).
+ *
+ * **El rol no se mira aquí, y es a propósito:** vive en la tabla `users`, así
+ * que comprobarlo costaría una consulta a Neon en cada petición, incluidas las
+ * de estáticos. Lo comprueban los layouts de `/admin` y `/business`, que ya
+ * están consultando la base de todos modos.
  *
  * El matcher excluye `api` a propósito. Las rutas de API no pueden depender de
  * esto —un `rewrite` o un `fetch` interno no siempre lo atraviesan— así que se
@@ -27,10 +32,32 @@ import { isProtected } from "@/lib/session";
  */
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (!isProtected(pathname)) return NextResponse.next();
+  const wantsUser = needsAppUser(pathname);
 
+  /* Nadie más que este archivo puede poner la cabecera de identidad. Se corta
+     aquí, antes de que la lea nadie: si viene del cliente y la ruta no es de
+     las que la reciben, se tira. */
+  if (!wantsUser && !request.headers.has(AUTH_USER_HEADER)) {
+    return NextResponse.next();
+  }
+
+  /* Se reenvían las cabeceras **enteras**. El proxy no añade la suya a las que
+     ya hay: las reemplaza en bloque por la lista que viaja en
+     `x-middleware-override-headers`, y lo que no esté en esa lista desaparece
+     de la petición —la cookie, para empezar—. */
+  const headers = new Headers(request.headers);
+  headers.delete(AUTH_USER_HEADER);
+
+  if (!wantsUser) return NextResponse.next({ request: { headers } });
+
+  /* La sesión se resuelve aquí y no dentro del render, que no puede escribir
+     cookies. Ver `AUTH_USER_HEADER` en `src/lib/session.ts`. */
   const { data: session } = await auth.getSession();
-  if (session?.user) return NextResponse.next();
+  headers.set(AUTH_USER_HEADER, session?.user ? encodeUser(session.user) : "");
+
+  if (!isProtected(pathname) || session?.user) {
+    return NextResponse.next({ request: { headers } });
+  }
 
   /* Se guarda también la consulta: `/place/abc?foto=2` tiene que volver entero.
      No se emite `motivo=rol` desde aquí: quien llega sin sesión no tiene rol
@@ -40,6 +67,21 @@ export async function proxy(request: NextRequest) {
   url.search = "";
   url.searchParams.set("next", `${pathname}${search}`);
   return NextResponse.redirect(url);
+}
+
+/** Id, correo y nombre: el id solo no basta, al crear la fila hacen falta los tres. */
+function encodeUser(user: {
+  id: string;
+  email?: string | null;
+  name?: string | null;
+}) {
+  return encodeURIComponent(
+    JSON.stringify({
+      id: user.id,
+      email: user.email ?? "",
+      name: user.name ?? "",
+    }),
+  );
 }
 
 /**
