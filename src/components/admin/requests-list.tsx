@@ -13,7 +13,7 @@ const FILTER =
   "h-[42px] px-3 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer";
 
 export function RequestsList() {
-  const { places, hydrated, updatePlace } = usePlaces();
+  const { places, hydrated, updatePlace, removePlace } = usePlaces();
   const [query, setQuery] = useState("");
 
   const requests = useMemo(
@@ -38,6 +38,21 @@ export function RequestsList() {
       toast.success(`"${name}" ya está publicado en La Verde.`);
     },
     [updatePlace],
+  );
+
+  const rejectRequest = useCallback(
+    async (id: string, name: string) => {
+      const confirmed = window.confirm(`¿Rechazar la solicitud de "${name}"?`);
+      if (!confirmed) return;
+
+      const deleted = await removePlace(id);
+      if (!deleted) {
+        toast.error(`No se pudo rechazar "${name}".`);
+        return;
+      }
+      toast.success(`La solicitud de "${name}" fue rechazada.`);
+    },
+    [removePlace],
   );
 
   return (
@@ -104,14 +119,23 @@ export function RequestsList() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => approveRequest(place.id, place.name)}
-                  className="inline-flex items-center justify-center gap-gap-xs rounded-full bg-verde-500 px-gap-md py-[10px] font-lv-display text-small font-semibold text-white shadow-[0_16px_30px_-12px_rgba(53,175,109,0.75)] transition-colors duration-500 ease-outquint hover:bg-verde-600"
-                >
-                  <CheckCircle2 size={16} strokeWidth={1.8} />
-                  Aprobar
-                </button>
+                <div className="flex items-center gap-gap-xs">
+                  <button
+                    type="button"
+                    onClick={() => rejectRequest(place.id, place.name)}
+                    className="inline-flex items-center justify-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md py-[10px] font-lv-display text-small font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:border-destructive hover:text-destructive"
+                  >
+                    Rechazar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => approveRequest(place.id, place.name)}
+                    className="inline-flex items-center justify-center gap-gap-xs rounded-full bg-verde-500 px-gap-md py-[10px] font-lv-display text-small font-semibold text-white shadow-[0_16px_30px_-12px_rgba(53,175,109,0.75)] transition-colors duration-500 ease-outquint hover:bg-verde-600"
+                  >
+                    <CheckCircle2 size={16} strokeWidth={1.8} />
+                    Aprobar
+                  </button>
+                </div>
               </div>
 
               <div className="mt-gap-sm grid gap-gap-sm text-meta text-ink-soft/75 sm:grid-cols-2">
