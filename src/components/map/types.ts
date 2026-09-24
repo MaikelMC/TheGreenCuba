@@ -62,7 +62,6 @@ export interface MapViewProps {
   tileKey?: string;
   /** Evita el auto-fit de bounds al montar (útil cuando se centra en una zona elegida). */
   disableAutoFit?: boolean;
-  searching?: boolean;
   children?: ReactNode;
   className?: string;
 }

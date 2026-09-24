@@ -341,6 +341,11 @@ function HomePageContent() {
   const [selectedId, setSelectedId] = useState<string>("6");
   /* Contador, no booleano: cada pin tocado pide otra vez recoger la hoja. */
   const [collapseKey, setCollapseKey] = useState(0);
+  /* Contador también: cada búsqueda pide abrir la hoja de nuevo. Con solo
+     `forceOpen` la segunda búsqueda no reabría nada —el booleano ya estaba en
+     `true` desde la primera— y los resultados quedaban escondidos bajo la hoja
+     recogida. */
+  const [openKey, setOpenKey] = useState(0);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set(["6"]));
   const [activeCategory, setActiveCategory] = useState("all");
   /* Filtros acumulables del mapa. Viven aquí y no dentro de `PlaceFilters`
@@ -550,6 +555,8 @@ function HomePageContent() {
   const handleSearch = useCallback(
     async (query: string) => {
       setSearchingQuery(query);
+      /* Abre la hoja en cuanto arranca la búsqueda, siempre: primera o décima. */
+      setOpenKey((k) => k + 1);
       /* Al historial del buscador en cuanto sale la consulta, sin esperar a la
          respuesta: lo que se guarda es lo que se buscó, salga bien o mal. Toda
          búsqueda pasa por aquí —la barra del header y los atajos de «sin
@@ -634,6 +641,7 @@ function HomePageContent() {
       return;
     }
     setSheetState("searching");
+    setOpenKey((k) => k + 1);
     searchCtx.setIsSearching(true);
     setTimeout(() => {
       setSheetState("results");
@@ -837,7 +845,6 @@ function HomePageContent() {
 
   const sheetInfo = SHEET_TITLES[sheetState];
   const showBadge = sheetState === "default" || sheetState === "results";
-  const showFilters = sheetState === "default" || sheetState === "results";
 
   const sheetSubtitle =
     sheetState === "results" && searchingQuery
@@ -882,7 +889,6 @@ function HomePageContent() {
           const target = filteredPlaces.find((p) => p.id === place.id);
           if (target) handleRouteFromPopup(target);
         }}
-        searching={sheetState === "searching"}
         userLocation={userLocation}
         onUserLocated={handleUserLocated}
         focusTarget={focusTarget}
@@ -898,7 +904,6 @@ function HomePageContent() {
           onSelect={setActiveCategory}
         />
         <PlaceFilters
-          visible={showFilters}
           active={activeFilters}
           onToggle={toggleFilter}
           hasLocation={userLocation !== null}
@@ -947,6 +952,7 @@ function HomePageContent() {
         badge={showBadge ? String(shownCount) : undefined}
         forceOpen={sheetState !== "default"}
         collapseSignal={collapseKey}
+        openSignal={openKey}
       >
         {/* Default / Results state */}
         {(sheetState === "default" || sheetState === "results") && (

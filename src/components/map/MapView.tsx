@@ -62,7 +62,7 @@ class MapErrorBoundary extends Component<
 }
 
 export const MapView = forwardRef<HTMLDivElement, MapViewProps>(
-  function MapView({ children, className, searching, ...mapProps }, ref) {
+  function MapView({ children, className, ...mapProps }, ref) {
     const [retryKey, setRetryKey] = useState(0);
 
     return (
@@ -70,7 +70,6 @@ export const MapView = forwardRef<HTMLDivElement, MapViewProps>(
         ref={ref}
         className={cn(
           "absolute inset-0",
-          searching && "map-markers-searching",
           className,
         )}
       >

@@ -29,6 +29,10 @@ interface BottomSheetProps {
   forceOpen?: boolean;
   /** Cada valor nuevo recoge el sheet a `collapsed`, para dejar ver el mapa. */
   collapseSignal?: number;
+  /** Cada valor nuevo abre el sheet en `full` —mismo patrón que `collapseSignal`,
+      pero para abrir: con solo `forceOpen` la segunda búsqueda no disparaba el
+      efecto, porque el booleano ya estaba en `true` desde la búsqueda anterior. */
+  openSignal?: number;
 }
 
 export function BottomSheet({
@@ -40,6 +44,7 @@ export function BottomSheet({
   defaultState = "peek",
   forceOpen = false,
   collapseSignal,
+  openSignal,
 }: BottomSheetProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -58,10 +63,13 @@ export function BottomSheet({
   const [dragY, setDragY] = useState(0);
 
   // Abre el sheet automáticamente cuando se busca, para que siempre se vea la
-  // animación y luego los resultados.
+  // animación y luego los resultados. Con solo `forceOpen` la apertura dependía
+  // de una transición del booleano —false→true—, así que la segunda búsqueda
+  // no volvía a abrir la hoja si el usuario la había recogido. `openSignal`
+  // repite el patrón de `collapseSignal`: cada valor nuevo es un gesto nuevo.
   useEffect(() => {
-    if (forceOpen) setState("full");
-  }, [forceOpen]);
+    if (openSignal) setState("full");
+  }, [openSignal]);
 
   // Recoge la hoja hasta dejar solo el asa, para que el mapa y el pin tocado
   // queden a la vista. Es un contador y no un booleano porque el gesto se
@@ -70,7 +78,8 @@ export function BottomSheet({
   // el usuario puede tocarla o estirarla cuando quiera.
   //
   // `forceOpen` manda: durante una búsqueda la hoja la gobierna ella, y
-  // recogerla dejaría los resultados sin ver.
+  // recogerla dejaría los resultados sin ver. La apertura, en cambio, la pide
+  // cada búsqueda con `openSignal`.
   useEffect(() => {
     if (collapseSignal && !forceOpen) setState("collapsed");
   }, [collapseSignal, forceOpen]);

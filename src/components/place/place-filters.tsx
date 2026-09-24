@@ -19,7 +19,6 @@ const FILTERS = [
 ];
 
 interface PlaceFiltersProps {
-  visible?: boolean;
   active: ReadonlySet<string>;
   onToggle: (value: string) => void;
   /** Sin ubicación no se puede medir «cercanos». El chip se deshabilita en vez
@@ -29,14 +28,11 @@ interface PlaceFiltersProps {
 }
 
 export function PlaceFilters({
-  visible,
   active,
   onToggle,
   hasLocation,
   className,
 }: PlaceFiltersProps) {
-  if (!visible) return null;
-
   return (
     <div
       className={cn(

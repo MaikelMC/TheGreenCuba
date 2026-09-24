@@ -176,16 +176,6 @@
   }
 }
 
-/* ─── Map marker animations ─── */
-@keyframes markerSearch {
-  0%, 100% { opacity: 0.3; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1); }
-}
-
-.map-marker-searching {
-  animation: markerSearch 1.5s ease-in-out infinite;
-}
-
 /* ─── Skeleton shimmer ─── */
 @keyframes shimmer {
   0% { background-position: 200% 0; }
@@ -330,15 +320,6 @@
   color: rgba(27, 42, 33, 0.5) !important; /* ink-soft al 50 % */
   cursor: default !important;
   box-shadow: none !important;
-}
-
-.map-markers-searching .leaflet-marker-icon {
-  animation: markerSearch 1.5s ease-in-out infinite;
-}
-
-@keyframes markerSearch {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.85); }
 }
 
 /* ─── Popup del mapa ───
