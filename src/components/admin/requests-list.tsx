@@ -1,0 +1,135 @@
+"use client";
+
+import { useCallback, useMemo, useState } from "react";
+import { motion } from "motion/react";
+import { toast } from "sonner";
+import { CheckCircle2, Clock3, MapPin, Search } from "lucide-react";
+import { usePlaces } from "@/providers/places-provider";
+import { cn } from "@/lib/utils";
+import { StateView } from "@/components/ui/state-view";
+import { LoadingState } from "@/components/ui/loading";
+
+const FILTER =
+  "h-[42px] px-3 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer";
+
+export function RequestsList() {
+  const { places, hydrated, updatePlace } = usePlaces();
+  const [query, setQuery] = useState("");
+
+  const requests = useMemo(
+    () =>
+      places.filter((place) => !place.isActive).filter((place) => {
+        if (!query.trim()) return true;
+        const q = query.trim().toLowerCase();
+        return `${place.name} ${place.category} ${place.barrio} ${place.address}`
+          .toLowerCase()
+          .includes(q);
+      }),
+    [places, query],
+  );
+
+  const approveRequest = useCallback(
+    async (id: string, name: string) => {
+      const updated = await updatePlace(id, { isActive: true });
+      if (!updated) {
+        toast.error(`No se pudo aprobar "${name}".`);
+        return;
+      }
+      toast.success(`"${name}" ya está publicado en La Verde.`);
+    },
+    [updatePlace],
+  );
+
+  return (
+    <>
+      <div className="flex items-center justify-between gap-gap-sm mb-gap-md">
+        <h1 className="sr-only">Solicitudes</h1>
+        <p className="text-small text-ink-soft/75">
+          {requests.length} negocio{requests.length === 1 ? "" : "s"} pendiente
+          {requests.length === 1 ? "" : "s"} de aprobación
+        </p>
+      </div>
+
+      <div className="mb-gap-md">
+        <div className="relative flex-1">
+          <Search
+            size={16}
+            strokeWidth={1.8}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft/75 pointer-events-none"
+          />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar solicitud por nombre, barrio o categoría..."
+            aria-label="Buscar solicitudes"
+            className={cn(FILTER, "w-full pl-9 text-body")}
+          />
+        </div>
+      </div>
+
+      {!hydrated ? (
+        <LoadingState label="Cargando solicitudes…" />
+      ) : requests.length === 0 ? (
+        <StateView
+          size="sm"
+          icon={Clock3}
+          title="No hay solicitudes pendientes"
+          description="Cuando un usuario agregue un negocio, aparecerá aquí para aprobarlo."
+          className="rounded-2xl border border-ink/5 bg-white shadow-soft"
+        />
+      ) : (
+        <div className="flex flex-col gap-gap-sm">
+          {requests.map((place, index) => (
+            <motion.div
+              key={place.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.04, duration: 0.35 }}
+              className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft"
+            >
+              <div className="flex flex-col gap-gap-sm sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-gap-xs flex-wrap">
+                    <span className="font-lv-display text-small font-semibold text-ink">
+                      {place.name}
+                    </span>
+                    <span className="inline-flex items-center gap-[4px] rounded-full bg-sand px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-soft/75">
+                      Pendiente
+                    </span>
+                  </div>
+                  <div className="mt-[2px] flex flex-wrap items-center gap-gap-xs text-meta text-ink-soft/75">
+                    <span>{place.category}</span>
+                    <span>·</span>
+                    <span>{place.barrio || place.address || "Sin barrio"}</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => approveRequest(place.id, place.name)}
+                  className="inline-flex items-center justify-center gap-gap-xs rounded-full bg-verde-500 px-gap-md py-[10px] font-lv-display text-small font-semibold text-white shadow-[0_16px_30px_-12px_rgba(53,175,109,0.75)] transition-colors duration-500 ease-outquint hover:bg-verde-600"
+                >
+                  <CheckCircle2 size={16} strokeWidth={1.8} />
+                  Aprobar
+                </button>
+              </div>
+
+              <div className="mt-gap-sm grid gap-gap-sm text-meta text-ink-soft/75 sm:grid-cols-2">
+                <div className="flex items-center gap-gap-xs">
+                  <MapPin size={14} strokeWidth={1.8} className="text-verde-600" />
+                  <span>{place.address || "Dirección no indicada"}</span>
+                </div>
+                <div className="flex items-center gap-gap-xs">
+                  <Clock3 size={14} strokeWidth={1.8} className="text-verde-600" />
+                  <span>
+                    Enviado el {new Date(place.createdAt).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}

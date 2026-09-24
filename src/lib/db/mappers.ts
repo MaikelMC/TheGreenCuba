@@ -139,6 +139,7 @@ export function toPlaceValues(
     values.offerExpiry = patch.offer?.expiry ?? null;
   }
   if (patch.status !== undefined) values.status = patch.status;
+  if (patch.isActive !== undefined) values.isActive = patch.isActive;
   if (patch.isBoosted !== undefined) values.isBoosted = patch.isBoosted;
   if (patch.boostExpiresAt !== undefined) values.boostExpiresAt = patch.boostExpiresAt;
   if (patch.rating !== undefined) values.rating = patch.rating ?? null;
