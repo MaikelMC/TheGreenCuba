@@ -24,6 +24,7 @@ import { Logo } from "./logo";
  * viaja también, porque con el centro de la ciudad la fila no puede decir «a
  * 320 m de ti».
  */
+<<<<<<< HEAD
 function suggestionOrigin() {
   /* Las preferencias del onboarding viajan con el origen: son lo que decide
      qué categorías salen primero en el desplegable. La lectura sin id las
@@ -31,6 +32,10 @@ function suggestionOrigin() {
      tanto para quien tiene sesión como para quien completó el onboarding sin
      cuenta. */
   const preferences = readUserPreferences();
+=======
+function suggestionOrigin(userId?: string | null) {
+  const prefs = readUserPreferences(userId ?? null);
+>>>>>>> bbfc312 (fix: sync profile preferences and admin user management)
   const cached = getLastKnownPosition();
   if (cached) {
     return {
@@ -97,10 +102,22 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
      haría que el HTML del servidor y el del navegador no coincidieran. */
   const [recent, setRecent] = useState<RecentSearch[]>([]);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
   const addrTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const addrSeq = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((res) => res.json())
+      .then((data: { authenticated?: boolean; user?: { id?: string } | null }) => {
+        if (data.authenticated && data.user?.id) {
+          setUserId(data.user.id);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -214,7 +231,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
               /* Se relee en cada apertura: el historial lo escribe el home al
                  buscar, y este header sigue montado mientras eso pasa. */
               setRecent(readRecentSearches());
-              setSuggestions(buildSearchSuggestions({ places, ...suggestionOrigin() }));
+              setSuggestions(buildSearchSuggestions({ places, ...suggestionOrigin(userId) }));
               if (query.trim().length >= 3) handleQueryChange(query);
               else setAddrResults([]);
             }}

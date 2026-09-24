@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import {
   readUserPreferences,
   writeUserPreferences,
+  mergeRemoteUserPreferences,
   DEFAULT_USER_PREFERENCES,
 } from "@/lib/user-preferences-store";
 import {
@@ -263,7 +264,7 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [animTick, setAnimTick] = useState(0);
 
-  const [location, setLocation] = useState("santiago");
+  const [location, setLocation] = useState("otra");
   const [userId, setUserId] = useState<string | null>(null);
   const [gpsDetected, setGpsDetected] = useState(false);
   const [detectedName, setDetectedName] = useState<string | null>(null);
@@ -285,7 +286,17 @@ export default function OnboardingPage() {
 
     fetch("/api/me")
       .then((res) => res.json())
-      .then((data: { authenticated: boolean; user: { id?: string; name: string; email: string } | null }) => {
+      .then((data: {
+        authenticated: boolean;
+        user: {
+          id?: string;
+          name: string;
+          email: string;
+          locationCity?: string | null;
+          onboardingCompleted?: boolean;
+          preferences?: { interests?: string[]; moods?: string[]; currencies?: string[] } | null;
+        } | null;
+      }) => {
         if (!alive) return;
 
         if (data.authenticated && data.user) {
@@ -293,7 +304,13 @@ export default function OnboardingPage() {
           setUserId(nextUserId);
           setIdentity({ name: data.user.name, email: data.user.email });
 
-          if (readUserPreferences(nextUserId).onboardingCompleted) {
+          const merged = mergeRemoteUserPreferences(readUserPreferences(nextUserId), data.user);
+          writeUserPreferences(merged, nextUserId);
+          setInterests(new Set(merged.interests));
+          setCurrencies(new Set(merged.currencies));
+          setMoods(new Set(merged.moods));
+
+          if (merged.onboardingCompleted) {
             router.replace("/home");
             return;
           }
@@ -336,6 +353,8 @@ export default function OnboardingPage() {
         (code && messages[code]) ||
           "No pudimos detectar tu ubicación. Elige tu ciudad o inténtalo de nuevo.",
       );
+      setLocation("otra");
+      setDetectedName(null);
       setGpsDetected(false);
     }
   }

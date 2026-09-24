@@ -40,6 +40,13 @@ export interface AppUser {
       anteriores a que existiera la casilla. */
   termsVersion: string | null;
   role: Role;
+  locationCity: string | null;
+  onboardingCompleted: boolean;
+  preferences: {
+    interests?: string[];
+    moods?: string[];
+    currencies?: string[];
+  } | null;
 }
 
 const ROLES: readonly Role[] = ["user", "owner", "admin"];
@@ -125,6 +132,9 @@ function toAppUser(row: typeof users.$inferSelect): AppUser {
     phone: row.phone ?? null,
     termsVersion: row.termsVersion ?? null,
     role: isRole(row.role) ? row.role : "user",
+    locationCity: row.locationCity ?? null,
+    onboardingCompleted: row.onboardingCompleted,
+    preferences: row.preferences ?? null,
   };
 }
 
