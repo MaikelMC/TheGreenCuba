@@ -198,13 +198,33 @@ vuelvas a meter.
 Esta máquina tiene una red poco fiable. Casi todas las rarezas de este
 proyecto salen de ahí.
 
-### El puerto 5432 está bloqueado
+### El puerto 5432 ya no está bloqueado
 
-Es el puerto de Postgres. Por eso **`drizzle-kit push`, `migrate` y `studio`
-no funcionan** desde aquí: los tres necesitan conexión directa a la base.
+El puerto de Postgres estuvo cerrado desde esta red y **dejó de estarlo**.
+Comprobado el 24 de septiembre de 2026: `npm run db:migrate` conecta a Neon y
+aplica la migración. `push` y `studio` usan ese mismo puerto, así que también
+deberían funcionar, aunque desde entonces no se han probado.
 
-`drizzle-kit generate` **sí funciona**, porque es offline — compara el esquema
-con las instantáneas de `migrations/meta/` y no sale a la red.
+`drizzle-kit generate` sigue siendo **offline** —compara el esquema con las
+instantáneas de `migrations/meta/` y no sale a la red—, y es el camino que hay
+que usar de todas formas.
+
+**No mezcles `push` con `migrate`.** `push` no escribe en
+`drizzle.__drizzle_migrations`, así que deja la base con el esquema nuevo y el
+historial creyendo otra cosa. Es exactamente lo que había aquí: las migraciones
+0000–0006 se aplicaron fuera de banda, la tabla de control quedó **vacía**, y
+`db:migrate` intentaba replay desde 0000 para morir en
+`relation "business_owners" already exists`.
+
+Si ese error reaparece, **no falta nada: falta el sello.** Compara el esquema
+real (`information_schema`) contra el último snapshot de `migrations/meta/`
+—el de la migración más alta— y, si coinciden, marca las aplicadas insertando
+en `drizzle.__drizzle_migrations` el sha256 del `.sql` y el `when` de su
+entrada del `_journal.json`. El migrador solo compara el `created_at` de la
+fila más reciente, así que lo que importa es el orden. Re-ejecutarlas no es la
+reparación. Y al sellar, detente en la última **ya aplicada**: el 24/09 el
+bucle incluyó la migración nueva, la marcó como aplicada sin ejecutarla, y hubo
+que borrar esa fila.
 
 ### `registry.npmjs.org` falla a ratos
 
