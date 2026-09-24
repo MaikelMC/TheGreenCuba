@@ -190,10 +190,12 @@ export interface DetectedCity {
   label: string;
 }
 
-/** Ciudades elegibles del onboarding contra las que se compara la posición GPS. */
+/** Ciudades elegibles del onboarding contra las que se compara la posición GPS.
+ * No se fuerza a Santiago como valor por defecto: si no hay un fix válido o la
+ * persona ya tenía una ubicación guardada, esa zona debe seguir siendo la que
+ * se muestre. */
 const ONBOARDING_CITIES: { value: string; label: string; lat: number; lng: number }[] = [
   { value: "la-habana", label: "La Habana", lat: 23.1374, lng: -82.359 },
-  { value: "santiago", label: "Santiago de Cuba", lat: 20.0207, lng: -75.8267 },
   { value: "varadero", label: "Varadero", lat: 23.1547, lng: -81.2377 },
 ];
 

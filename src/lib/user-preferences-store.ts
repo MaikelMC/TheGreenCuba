@@ -181,10 +181,15 @@ export function readUserPreferences(userId?: string | null): UserPreferences {
 export function writeUserPreferences(prefs: UserPreferences, userId?: string | null): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(writeKey(userId), JSON.stringify(prefs));
-    /* Se apunta quién escribió: es lo que permite que las lecturas sin id —el
-       header, el mapa, el home— encuentren estas preferencias y no las del
-       cajón de invitado. */
+    const key = writeKey(userId);
+    window.localStorage.setItem(key, JSON.stringify(prefs));
+    /* Si se guarda una preferencia por usuario, también se limpia el depósito
+       genérico viejo: en una sesión previa pudo quedar una ubicación antigua
+       como Santiago, y sin esta limpieza la lectura sin id la seguiría viendo. */
+    if (userId) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(`${STORAGE_KEY}:${GUEST_ID}`);
+    }
     rememberUser(userId);
   } catch {
     // localStorage unavailable (privacy mode / SSR) — ignore

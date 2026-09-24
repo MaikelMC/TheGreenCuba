@@ -399,8 +399,13 @@ function HomePageContent() {
           writeUserPreferences(storedPrefs, data.user.id);
           setUserPreferences(storedPrefs);
 
-          if (storedPrefs.onboardingCompleted) {
-            setInitialCenter(locationCenter(storedPrefs.location));
+          const preferredCenter =
+            storedPrefs.onboardingCompleted && storedPrefs.location !== "otra"
+              ? locationCenter(storedPrefs.location)
+              : getLastKnownPosition() ? [getLastKnownPosition()!.lat, getLastKnownPosition()!.lng] as [number, number] : null;
+
+          if (preferredCenter) {
+            setInitialCenter(preferredCenter);
             setDisableAutoFit(true);
           }
           return;
@@ -408,16 +413,24 @@ function HomePageContent() {
 
         const fallbackPrefs = readUserPreferences();
         setUserPreferences(fallbackPrefs);
-        if (fallbackPrefs.onboardingCompleted) {
-          setInitialCenter(locationCenter(fallbackPrefs.location));
+        const fallbackCenter =
+          fallbackPrefs.onboardingCompleted && fallbackPrefs.location !== "otra"
+            ? locationCenter(fallbackPrefs.location)
+            : getLastKnownPosition() ? [getLastKnownPosition()!.lat, getLastKnownPosition()!.lng] as [number, number] : null;
+        if (fallbackCenter) {
+          setInitialCenter(fallbackCenter);
           setDisableAutoFit(true);
         }
       })
       .catch(() => {
         const fallbackPrefs = readUserPreferences();
         setUserPreferences(fallbackPrefs);
-        if (fallbackPrefs.onboardingCompleted) {
-          setInitialCenter(locationCenter(fallbackPrefs.location));
+        const fallbackCenter =
+          fallbackPrefs.onboardingCompleted && fallbackPrefs.location !== "otra"
+            ? locationCenter(fallbackPrefs.location)
+            : getLastKnownPosition() ? [getLastKnownPosition()!.lat, getLastKnownPosition()!.lng] as [number, number] : null;
+        if (fallbackCenter) {
+          setInitialCenter(fallbackCenter);
           setDisableAutoFit(true);
         }
       });
@@ -756,8 +769,17 @@ function HomePageContent() {
   // ubicación real cuando hay permiso.
   useEffect(() => {
     if (!userPreferences) return;
-    if (userPreferences.onboardingCompleted) {
-      setInitialCenter(locationCenter(userPreferences.location));
+
+    const cached = getLastKnownPosition();
+    const preferredCenter =
+      userPreferences.onboardingCompleted && userPreferences.location !== "otra"
+        ? locationCenter(userPreferences.location)
+        : cached
+          ? ([cached.lat, cached.lng] as [number, number])
+          : null;
+
+    if (preferredCenter) {
+      setInitialCenter(preferredCenter);
       setDisableAutoFit(true);
     }
   }, [userPreferences]);

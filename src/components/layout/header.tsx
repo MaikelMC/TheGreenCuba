@@ -24,18 +24,13 @@ import { Logo } from "./logo";
  * viaja también, porque con el centro de la ciudad la fila no puede decir «a
  * 320 m de ti».
  */
-<<<<<<< HEAD
-function suggestionOrigin() {
+function suggestionOrigin(userId?: string | null) {
   /* Las preferencias del onboarding viajan con el origen: son lo que decide
      qué categorías salen primero en el desplegable. La lectura sin id las
      encuentra igual —el almacén recuerda de quién son— así que esto vale
      tanto para quien tiene sesión como para quien completó el onboarding sin
      cuenta. */
-  const preferences = readUserPreferences();
-=======
-function suggestionOrigin(userId?: string | null) {
-  const prefs = readUserPreferences(userId ?? null);
->>>>>>> bbfc312 (fix: sync profile preferences and admin user management)
+  const preferences = readUserPreferences(userId ?? null);
   const cached = getLastKnownPosition();
   if (cached) {
     return {

@@ -88,14 +88,10 @@ export async function GET() {
       phone: user.phone,
       termsVersion: user.termsVersion,
       role: user.role,
-<<<<<<< HEAD
-      business: await businessFor(user.id, user.role),
-=======
       locationCity: user.locationCity,
       onboardingCompleted: user.onboardingCompleted,
       preferences: user.preferences,
-      business: user.role === "owner" ? await businessName(user.id) : null,
->>>>>>> bbfc312 (fix: sync profile preferences and admin user management)
+      business: await businessFor(user.id, user.role),
     },
   });
 }
@@ -178,14 +174,10 @@ export async function POST(request: NextRequest) {
       phone: user.phone,
       termsVersion: user.termsVersion,
       role: user.role,
-<<<<<<< HEAD
-      business: await businessFor(user.id, user.role),
-=======
       locationCity: user.locationCity,
       onboardingCompleted: user.onboardingCompleted,
       preferences: user.preferences,
-      business: user.role === "owner" ? await businessName(user.id) : null,
->>>>>>> bbfc312 (fix: sync profile preferences and admin user management)
+      business: await businessFor(user.id, user.role),
     },
   });
 }

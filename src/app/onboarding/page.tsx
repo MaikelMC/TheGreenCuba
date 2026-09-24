@@ -29,7 +29,6 @@ import {
 
 const LOCATION_NAMES: Record<string, string> = {
   "la-habana": "La Habana",
-  santiago: "Santiago de Cuba",
   varadero: "Varadero",
   otra: "Otra ciudad",
 };

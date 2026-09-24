@@ -78,9 +78,6 @@ export default function ProfilePage() {
 
     fetch("/api/me")
       .then((res) => res.json())
-<<<<<<< HEAD
-      .then((data: { authenticated: boolean; user: { id?: string; name: string; email: string; imageUrl?: string | null; phone?: string | null } | null }) => {
-=======
       .then((data: {
         authenticated: boolean;
         user: {
@@ -88,12 +85,12 @@ export default function ProfilePage() {
           name: string;
           email: string;
           imageUrl?: string | null;
+          phone?: string | null;
           locationCity?: string | null;
           onboardingCompleted?: boolean;
           preferences?: { interests?: string[]; moods?: string[]; currencies?: string[] } | null;
         } | null;
       }) => {
->>>>>>> bbfc312 (fix: sync profile preferences and admin user management)
         const user = data.user;
         if (!data.authenticated || !user) return;
 
