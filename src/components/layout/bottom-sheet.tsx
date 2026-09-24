@@ -80,8 +80,15 @@ export function BottomSheet({
   // `forceOpen` manda: durante una búsqueda la hoja la gobierna ella, y
   // recogerla dejaría los resultados sin ver. La apertura, en cambio, la pide
   // cada búsqueda con `openSignal`.
+  /* Guarda la última señal atendida: el efecto también corre cuando cambia
+     `forceOpen`, y sin este recuerdo una señal vieja —un pin tocado justo
+     antes de buscar— se re-aplicaba al terminar la búsqueda y recogía la hoja
+     con los resultados recién llegidos. Solo importa la señal fresca. */
+  const lastCollapseKey = useRef(collapseSignal ?? 0);
   useEffect(() => {
-    if (collapseSignal && !forceOpen) setState("collapsed");
+    if (collapseSignal === undefined || collapseSignal === lastCollapseKey.current) return;
+    lastCollapseKey.current = collapseSignal;
+    if (!forceOpen) setState("collapsed");
   }, [collapseSignal, forceOpen]);
 
   const translateY = isDragging

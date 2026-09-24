@@ -944,13 +944,17 @@ function HomePageContent() {
         )}
       </AnimatePresence>
 
-      {/* Bottom Sheet */}
+      {/* Bottom Sheet. Solo `searching` fuerza la hoja abierta: al llegar los
+          resultados tiene que poder recogerse —pin 📍 o card tocada— para
+          dejar ver el mapa y el negocio, igual que en la vista inicial. Con
+          `!== "default"` la guarda de forceOpen seguía viva en `results` y la
+          recogida no hacía nada después de una búsqueda. */}
       <BottomSheet
         className="home-bottom-sheet"
         title={sheetInfo.title}
         subtitle={sheetSubtitle}
         badge={showBadge ? String(shownCount) : undefined}
-        forceOpen={sheetState !== "default"}
+        forceOpen={sheetState === "searching"}
         collapseSignal={collapseKey}
         openSignal={openKey}
       >
