@@ -3,11 +3,12 @@
 import { useCallback, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
-import { CheckCircle2, Clock3, MapPin, Search } from "lucide-react";
+import { CheckCircle2, Clock3, MapPin, Search, XCircle } from "lucide-react";
 import { usePlaces } from "@/providers/places-provider";
 import { cn } from "@/lib/utils";
 import { StateView } from "@/components/ui/state-view";
 import { LoadingState } from "@/components/ui/loading";
+import { RequestDetailSheet } from "@/components/admin/request-detail-sheet";
 
 const FILTER =
   "h-[42px] px-3 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer";
@@ -15,6 +16,9 @@ const FILTER =
 export function RequestsList() {
   const { places, hydrated, updatePlace, removePlace } = usePlaces();
   const [query, setQuery] = useState("");
+  /* La solicitud abierta en el sheet de detalle. `null` = cerrado. El sheet
+     conserva el contenido por su cuenta durante la animación de cierre. */
+  const [detailPlace, setDetailPlace] = useState<null | (typeof places)[number]>(null);
 
   const requests = useMemo(
     () =>
@@ -36,6 +40,9 @@ export function RequestsList() {
         return;
       }
       toast.success(`"${name}" ya está publicado en La Verde.`);
+      /* Aprobada o rechazada, la solicitud deja de existir: si el sheet la
+         enseñaba, se cierra. */
+      setDetailPlace(null);
     },
     [updatePlace],
   );
@@ -51,6 +58,7 @@ export function RequestsList() {
         return;
       }
       toast.success(`La solicitud de "${name}" fue rechazada.`);
+      setDetailPlace(null);
     },
     [removePlace],
   );
@@ -102,58 +110,95 @@ export function RequestsList() {
               transition={{ delay: index * 0.04, duration: 0.35 }}
               className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft"
             >
-              <div className="flex flex-col gap-gap-sm sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-gap-xs flex-wrap">
-                    <span className="font-lv-display text-small font-semibold text-ink">
-                      {place.name}
-                    </span>
-                    <span className="inline-flex items-center gap-[4px] rounded-full bg-sand px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-soft/75">
-                      Pendiente
-                    </span>
+              {/* La tarjeta entera abre el detalle; los botones de acción
+                  quedan fuera con stopPropagation para no disparar la
+                  apertura. Cursor y foco la anuncian como lo que es: un botón
+                  grande que abre el detalle completo del negocio. */}
+              <button
+                type="button"
+                onClick={() => setDetailPlace(place)}
+                aria-haspopup="dialog"
+                className="group flex w-full flex-col gap-gap-sm rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+              >
+                <div className="flex flex-col gap-gap-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-gap-xs flex-wrap">
+                      <span className="font-lv-display text-small font-semibold text-ink group-hover:text-verde-600 transition-colors duration-500 ease-outquint">
+                        {place.name}
+                      </span>
+                      <span className="inline-flex items-center gap-[4px] rounded-full bg-sand px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-soft/75">
+                        Pendiente
+                      </span>
+                    </div>
+                    <div className="mt-[2px] flex flex-wrap items-center gap-gap-xs text-meta text-ink-soft/75">
+                      <span>{place.category}</span>
+                      <span>·</span>
+                      <span>{place.barrio || place.address || "Sin barrio"}</span>
+                    </div>
                   </div>
-                  <div className="mt-[2px] flex flex-wrap items-center gap-gap-xs text-meta text-ink-soft/75">
-                    <span>{place.category}</span>
-                    <span>·</span>
-                    <span>{place.barrio || place.address || "Sin barrio"}</span>
+
+                  <div className="flex items-center gap-gap-xs">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        rejectRequest(place.id, place.name);
+                      }}
+                      className="inline-flex items-center justify-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md py-[10px] font-lv-display text-small font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:border-destructive hover:text-destructive"
+                    >
+                      <XCircle size={16} strokeWidth={1.8} />
+                      Rechazar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        approveRequest(place.id, place.name);
+                      }}
+                      className="inline-flex items-center justify-center gap-gap-xs rounded-full bg-verde-500 px-gap-md py-[10px] font-lv-display text-small font-semibold text-white shadow-[0_16px_30px_-12px_rgba(53,175,109,0.75)] transition-colors duration-500 ease-outquint hover:bg-verde-600"
+                    >
+                      <CheckCircle2 size={16} strokeWidth={1.8} />
+                      Aprobar
+                    </button>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-gap-xs">
-                  <button
-                    type="button"
-                    onClick={() => rejectRequest(place.id, place.name)}
-                    className="inline-flex items-center justify-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md py-[10px] font-lv-display text-small font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:border-destructive hover:text-destructive"
-                  >
-                    Rechazar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => approveRequest(place.id, place.name)}
-                    className="inline-flex items-center justify-center gap-gap-xs rounded-full bg-verde-500 px-gap-md py-[10px] font-lv-display text-small font-semibold text-white shadow-[0_16px_30px_-12px_rgba(53,175,109,0.75)] transition-colors duration-500 ease-outquint hover:bg-verde-600"
-                  >
-                    <CheckCircle2 size={16} strokeWidth={1.8} />
-                    Aprobar
-                  </button>
+                <div className="mt-gap-sm grid gap-gap-sm text-meta text-ink-soft/75 sm:grid-cols-2">
+                  <div className="flex items-center gap-gap-xs">
+                    <MapPin size={14} strokeWidth={1.8} className="text-verde-600" />
+                    <span>{place.address || "Dirección no indicada"}</span>
+                  </div>
+                  <div className="flex items-center gap-gap-xs">
+                    <Clock3 size={14} strokeWidth={1.8} className="text-verde-600" />
+                    <span>
+                      Enviado el {new Date(place.createdAt).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              </button>
 
-              <div className="mt-gap-sm grid gap-gap-sm text-meta text-ink-soft/75 sm:grid-cols-2">
-                <div className="flex items-center gap-gap-xs">
-                  <MapPin size={14} strokeWidth={1.8} className="text-verde-600" />
-                  <span>{place.address || "Dirección no indicada"}</span>
-                </div>
-                <div className="flex items-center gap-gap-xs">
-                  <Clock3 size={14} strokeWidth={1.8} className="text-verde-600" />
-                  <span>
-                    Enviado el {new Date(place.createdAt).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                  </span>
-                </div>
-              </div>
+              {/* Enlace de texto aparte, fuera del botón grande: los botones
+                  no se anidan y "Ver detalles" es el gesto explícito que no
+                  depende de adivinar que la tarjeta es clicable. */}
+              <button
+                type="button"
+                onClick={() => setDetailPlace(place)}
+                className="mt-gap-xs inline-flex w-fit items-center gap-[4px] rounded-full font-lv-display text-meta font-semibold text-verde-600 transition-colors duration-500 ease-outquint hover:text-verde-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+              >
+                Ver detalles completos
+              </button>
             </motion.div>
           ))}
         </div>
       )}
+
+      {/* Detalle completo del negocio solicitante. */}
+      <RequestDetailSheet
+        place={detailPlace}
+        onClose={() => setDetailPlace(null)}
+        onApprove={(id, name) => void approveRequest(id, name)}
+        onReject={(id, name) => void rejectRequest(id, name)}
+      />
     </>
   );
 }
