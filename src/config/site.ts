@@ -1,3 +1,5 @@
+const canonicalAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://laverde.kynari.dev";
+
 export const siteConfig = {
   name: "La Verde",
   description: "Encuentra los mejores lugares en Cuba con ayuda de inteligencia artificial",
@@ -8,7 +10,7 @@ export const siteConfig = {
      desindexa el sitio entero sin un solo error en los logs: Google recibe una
      URL que no puede rastrear y se queda con la copia que ya tenía, o con
      ninguna. En desarrollo se pone la variable en `.env` y manda ella. */
-  url: process.env.NEXT_PUBLIC_APP_URL ?? "https://laverde.kynari.dev",
+  url: canonicalAppUrl,
   /* Aquí había un `ogImage: "/og.png"` que apuntaba a un archivo que no existe
      —`public/` solo tiene `logo.png`—, así que cada enlace compartido enseñaba
      una imagen rota. La tarjeta de Open Graph la genera ahora
