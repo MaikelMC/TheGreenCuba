@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Shield, Trash2, UserRound } from "lucide-react";
+import { KeyRound, Pencil, Search, Shield, Trash2, UserRound } from "lucide-react";
 import type { Role } from "@/lib/session";
 
 interface AdminUser {
@@ -26,6 +26,12 @@ export default function AdminUsersPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const [draftCity, setDraftCity] = useState("");
+  const [resettingId, setResettingId] = useState<string | null>(null);
+  const [draftPassword, setDraftPassword] = useState("");
+  const [draftPasswordConfirmation, setDraftPasswordConfirmation] = useState("");
 
   async function loadUsers() {
     setLoading(true);
@@ -71,6 +77,49 @@ export default function AdminUsersPage() {
     setUsers((current) => current.map((item) => (item.id === user.id ? data.user! : item)));
   }
 
+  function startEditing(user: AdminUser) {
+    setEditingId(user.id);
+    setDraftName(user.name ?? "");
+    setDraftCity(user.locationCity ?? "");
+    setError(null);
+  }
+
+  async function saveProfile(user: AdminUser) {
+    const response = await fetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: user.id, name: draftName, locationCity: draftCity }),
+    });
+    const data = (await response.json()) as { user?: AdminUser; error?: string };
+    if (!response.ok || !data.user) {
+      setError(data.error ?? "No se pudo guardar el perfil.");
+      return;
+    }
+    setUsers((current) => current.map((item) => (item.id === user.id ? data.user! : item)));
+    setEditingId(null);
+  }
+
+  async function resetPassword(user: AdminUser) {
+    if (draftPassword !== draftPasswordConfirmation) {
+      setError("Las contraseñas no coinciden.");
+      return;
+    }
+    const response = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: user.id, newPassword: draftPassword }),
+    });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      setError(data.error ?? "No se pudo cambiar la contraseña.");
+      return;
+    }
+    setError(`Contraseña actualizada para ${user.email}.`);
+    setDraftPassword("");
+    setDraftPasswordConfirmation("");
+    setResettingId(null);
+  }
+
   async function removeUser(user: AdminUser) {
     const confirmed = window.confirm(
       `Eliminar el perfil de ${user.email}? Se borraran tambien sus guardados, resenas e historial en La Verde.`,
@@ -99,7 +148,7 @@ export default function AdminUsersPage() {
           </p>
           <h1 className="font-lv-display text-h2 font-bold text-ink">Usuarios</h1>
           <p className="mt-1 text-small text-ink-soft/75">
-            Perfiles registrados en la aplicacion.
+            Cuentas de Neon y sus perfiles en la aplicacion.
           </p>
         </div>
         <span className="rounded-full border border-verde-200 bg-verde-50 px-3 py-1 font-lv-display text-meta font-semibold text-verde-700">
@@ -136,13 +185,20 @@ export default function AdminUsersPage() {
                   <UserRound size={18} strokeWidth={1.8} />
                 </span>
                 <div className="min-w-[180px] flex-1">
-                  <div className="font-lv-display text-small font-semibold text-ink">
-                    {user.name || "Sin nombre"}
-                  </div>
-                  <div className="text-meta text-ink-soft/75">{user.email}</div>
-                  <div className="mt-1 text-meta text-ink-soft/60">
-                    {user.locationCity || "Sin ubicación"} · {user.onboardingCompleted ? "Onboarding completo" : "Onboarding pendiente"}
-                  </div>
+                  {editingId === user.id ? (
+                    <div className="flex flex-wrap gap-2">
+                      <input value={draftName} onChange={(event) => setDraftName(event.target.value)} placeholder="Nombre" className="h-9 rounded-lg border border-ink/10 px-2 text-small" />
+                      <input value={draftCity} onChange={(event) => setDraftCity(event.target.value)} placeholder="Ciudad" className="h-9 rounded-lg border border-ink/10 px-2 text-small" />
+                      <button type="button" onClick={() => void saveProfile(user)} className="h-9 rounded-lg bg-verde-600 px-3 text-meta font-semibold text-white">Guardar</button>
+                      <button type="button" onClick={() => setEditingId(null)} className="h-9 rounded-lg border border-ink/10 px-3 text-meta">Cancelar</button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="font-lv-display text-small font-semibold text-ink">{user.name || "Sin nombre"}</div>
+                      <div className="text-meta text-ink-soft/75">{user.email}</div>
+                      <div className="mt-1 text-meta text-ink-soft/60">{user.locationCity || "Sin ubicación"} · {user.onboardingCompleted ? "Onboarding completo" : "Onboarding pendiente"}</div>
+                    </>
+                  )}
                 </div>
                 <div className="flex items-center gap-gap-xs">
                   <Shield size={15} className="text-verde-600" />
@@ -157,6 +213,12 @@ export default function AdminUsersPage() {
                     ))}
                   </select>
                 </div>
+                <button type="button" onClick={() => startEditing(user)} className="grid size-9 place-items-center rounded-full border border-ink/10 text-ink-soft transition-colors hover:bg-sand" aria-label={`Editar perfil de ${user.email}`} title="Editar perfil">
+                  <Pencil size={16} strokeWidth={1.8} />
+                </button>
+                <button type="button" onClick={() => { setResettingId(user.id); setDraftPassword(""); setDraftPasswordConfirmation(""); setError(null); }} className="grid size-9 place-items-center rounded-full border border-ink/10 text-ink-soft transition-colors hover:bg-sand" aria-label={`Cambiar contraseña de ${user.email}`} title="Cambiar contraseña">
+                  <KeyRound size={16} strokeWidth={1.8} />
+                </button>
                 <button
                   type="button"
                   onClick={() => void removeUser(user)}
@@ -166,6 +228,20 @@ export default function AdminUsersPage() {
                 >
                   <Trash2 size={16} strokeWidth={1.8} />
                 </button>
+                {resettingId === user.id && (
+                  <div className="basis-full flex flex-wrap items-end gap-2 border-t border-ink/5 pt-3">
+                    <label className="flex flex-col gap-1 text-meta text-ink-soft">
+                      Nueva contraseña
+                      <input type="password" value={draftPassword} onChange={(event) => setDraftPassword(event.target.value)} minLength={8} autoComplete="new-password" className="h-9 rounded-lg border border-ink/10 px-2 text-small text-ink" />
+                    </label>
+                    <label className="flex flex-col gap-1 text-meta text-ink-soft">
+                      Repetir contraseña
+                      <input type="password" value={draftPasswordConfirmation} onChange={(event) => setDraftPasswordConfirmation(event.target.value)} minLength={8} autoComplete="new-password" className="h-9 rounded-lg border border-ink/10 px-2 text-small text-ink" />
+                    </label>
+                    <button type="button" onClick={() => void resetPassword(user)} className="h-9 rounded-lg bg-verde-600 px-3 text-meta font-semibold text-white">Aplicar</button>
+                    <button type="button" onClick={() => setResettingId(null)} className="h-9 rounded-lg border border-ink/10 px-3 text-meta">Cancelar</button>
+                  </div>
+                )}
               </article>
             ))}
           </div>

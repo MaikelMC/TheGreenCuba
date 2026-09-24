@@ -92,7 +92,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning data-scroll-behavior="smooth">
       {/* `lvFontVars` solo declara las variables del design system: las
           consume `font-lv` / `font-lv-display`, no son las de la app. `body`
           sigue fijando Source Sans 3. */}

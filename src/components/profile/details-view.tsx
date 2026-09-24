@@ -4,14 +4,7 @@ import { motion } from "motion/react";
 import { Save, User, Mail, Phone, MapPin, Heart, Music, Wallet } from "lucide-react";
 import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-import type { UserPreferences } from "@/lib/user-preferences-store";
-
-const LOCATIONS = [
-  { value: "la-habana", label: "La Habana" },
-  { value: "santiago", label: "Santiago de Cuba" },
-  { value: "varadero", label: "Varadero" },
-  { value: "otra", label: "Otra ciudad" },
-];
+import { CUBA_PROVINCES, type UserPreferences } from "@/lib/user-preferences-store";
 
 const INTERESTS = [
   { value: "cafes", label: "Cafeterías" },
@@ -139,16 +132,29 @@ export function DetailsView({ prefs, set, toggle, onSave, saved }: DetailsViewPr
         </Section>
 
         <Section title="Zona donde te mueves" icon={MapPin}>
-          <div className="grid grid-cols-2 gap-gap-xs">
-            {LOCATIONS.map((loc) => (
-              <Chip
-                key={loc.value}
-                selected={prefs.location === loc.value}
-                onClick={() => set("location", loc.value)}
-                label={loc.label}
-              />
-            ))}
-          </div>
+          <label className="flex flex-col gap-gap-xs">
+            <span className="text-meta text-ink-soft/75">Selecciona tu provincia</span>
+            <select
+              value={CUBA_PROVINCES.some((province) => province.value === prefs.location) ? prefs.location : ""}
+              onChange={(event) => set("location", event.target.value)}
+              className="h-12 w-full rounded-xl border border-ink/10 bg-sand px-3 text-small text-ink outline-none transition-colors focus:border-verde-400 focus:bg-white focus:ring-2 focus:ring-verde-400/20"
+              aria-label="Provincia donde te mueves"
+            >
+              <option value="" disabled>Selecciona una provincia</option>
+              {CUBA_PROVINCES.map((province) => (
+                <option key={province.value} value={province.value}>{province.label}</option>
+              ))}
+            </select>
+            <span className="text-meta text-ink-soft/60">
+              Si la ubicación automática falla, puedes elegirla manualmente.
+            </span>
+          </label>
+          {prefs.location === "santiago" && (
+            <p className="text-meta text-ink-soft/60">Ubicación antigua detectada: Santiago de Cuba. Selecciona la provincia para actualizarla.</p>
+          )}
+          {prefs.location === "varadero" && (
+            <p className="text-meta text-ink-soft/60">Ubicación antigua detectada: Matanzas. Selecciona la provincia para actualizarla.</p>
+          )}
         </Section>
 
         <Section title="Lugares que te gustan" icon={Heart}>

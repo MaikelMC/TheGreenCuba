@@ -36,6 +36,8 @@ import { matchesPlaceFilters } from "@/lib/place-filters";
 import type { UserPlace } from "@/lib/places-store";
 import {
   readUserPreferences,
+  mergeRemoteUserPreferences,
+  writeUserPreferences,
   locationCenter,
   type UserPreferences,
 } from "@/lib/user-preferences-store";
@@ -381,11 +383,57 @@ function HomePageContent() {
     let alive = true;
     fetch("/api/me")
       .then((res) => res.json())
-      .then((data: { authenticated?: boolean; user?: { id?: string } | null }) => {
-        if (!alive || !data.authenticated || !data.user?.id) return;
-        setUserPreferences(readUserPreferences(data.user.id));
+      .then((data: {
+        authenticated?: boolean;
+        user?: {
+          id?: string;
+          locationCity?: string | null;
+          onboardingCompleted?: boolean;
+          preferences?: { interests?: string[]; moods?: string[]; currencies?: string[] } | null;
+        } | null;
+      }) => {
+        if (!alive) return;
+
+        if (data.authenticated && data.user?.id) {
+          const storedPrefs = mergeRemoteUserPreferences(readUserPreferences(data.user.id), data.user);
+          writeUserPreferences(storedPrefs, data.user.id);
+          setUserPreferences(storedPrefs);
+
+          const preferredCenter =
+            storedPrefs.onboardingCompleted && storedPrefs.location !== "otra"
+              ? locationCenter(storedPrefs.location)
+              : getLastKnownPosition() ? [getLastKnownPosition()!.lat, getLastKnownPosition()!.lng] as [number, number] : null;
+
+          if (preferredCenter) {
+            setInitialCenter(preferredCenter);
+            setDisableAutoFit(true);
+          }
+          return;
+        }
+
+        const fallbackPrefs = readUserPreferences();
+        setUserPreferences(fallbackPrefs);
+        const fallbackCenter =
+          fallbackPrefs.onboardingCompleted && fallbackPrefs.location !== "otra"
+            ? locationCenter(fallbackPrefs.location)
+            : getLastKnownPosition() ? [getLastKnownPosition()!.lat, getLastKnownPosition()!.lng] as [number, number] : null;
+        if (fallbackCenter) {
+          setInitialCenter(fallbackCenter);
+          setDisableAutoFit(true);
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        const fallbackPrefs = readUserPreferences();
+        setUserPreferences(fallbackPrefs);
+        const fallbackCenter =
+          fallbackPrefs.onboardingCompleted && fallbackPrefs.location !== "otra"
+            ? locationCenter(fallbackPrefs.location)
+            : getLastKnownPosition() ? [getLastKnownPosition()!.lat, getLastKnownPosition()!.lng] as [number, number] : null;
+        if (fallbackCenter) {
+          setInitialCenter(fallbackCenter);
+          setDisableAutoFit(true);
+        }
+      });
     return () => {
       alive = false;
     };
@@ -720,12 +768,21 @@ function HomePageContent() {
   // provincia que eligió. La geolocalización (más abajo) lo refina con la
   // ubicación real cuando hay permiso.
   useEffect(() => {
-    const prefs = readUserPreferences();
-    if (prefs.onboardingCompleted) {
-      setInitialCenter(locationCenter(prefs.location));
+    if (!userPreferences) return;
+
+    const cached = getLastKnownPosition();
+    const preferredCenter =
+      userPreferences.onboardingCompleted && userPreferences.location !== "otra"
+        ? locationCenter(userPreferences.location)
+        : cached
+          ? ([cached.lat, cached.lng] as [number, number])
+          : null;
+
+    if (preferredCenter) {
+      setInitialCenter(preferredCenter);
       setDisableAutoFit(true);
     }
-  }, []);
+  }, [userPreferences]);
 
   // Request location once when the home view loads, so the first map shown is
   // the user's local area (works on desktop and mobile). We first apply the

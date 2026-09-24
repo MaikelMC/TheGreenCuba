@@ -78,14 +78,36 @@ const LOCATION_META: Record<
   string,
   { label: string; center: [number, number] }
 > = {
+  "pinar-del-rio": { label: "Pinar del Río", center: [22.412, -83.696] },
+  artemisa: { label: "Artemisa", center: [22.813, -82.762] },
   "la-habana": { label: "La Habana", center: [23.1374, -82.359] },
+  mayabeque: { label: "Mayabeque", center: [22.838, -82.027] },
+  matanzas: { label: "Matanzas", center: [23.041, -81.576] },
+  cienfuegos: { label: "Cienfuegos", center: [22.146, -80.436] },
+  "sancti-spiritus": { label: "Sancti Spíritus", center: [21.93, -79.443] },
+  "villa-clara": { label: "Villa Clara", center: [22.407, -79.965] },
+  "ciego-de-avila": { label: "Ciego de Ávila", center: [21.849, -78.761] },
+  camaguey: { label: "Camagüey", center: [21.379, -77.916] },
+  "las-tunas": { label: "Las Tunas", center: [20.967, -76.95] },
+  holguin: { label: "Holguín", center: [20.888, -76.257] },
+  granma: { label: "Granma", center: [20.379, -76.643] },
+  "santiago-de-cuba": { label: "Santiago de Cuba", center: [20.014, -75.826] },
+  guantanamo: { label: "Guantánamo", center: [20.145, -75.209] },
+  "isla-de-la-juventud": { label: "Isla de la Juventud", center: [21.885, -82.802] },
+  /* Valores antiguos guardados por perfiles creados antes del selector de provincias. */
   santiago: { label: "Santiago de Cuba", center: [20.0207, -75.8267] },
   varadero: { label: "Varadero", center: [23.1547, -81.2377] },
   otra: { label: "Otra ciudad", center: [23.1374, -82.359] },
 };
 
-/** MVP lanzado en Santiago de Cuba: esa es la ciudad por defecto. */
-const FALLBACK_LOCATION = "santiago";
+export const CUBA_PROVINCES = Object.entries(LOCATION_META)
+  .filter(([value]) => !["santiago", "varadero", "otra"].includes(value))
+  .map(([value, { label }]) => ({ value, label }));
+
+/** Si no hay ubicación fiable del usuario, no se debe fingir una ciudad real.
+ * "otra" representa "otra ciudad / no detectada" y deja que el usuario o el
+ * GPS vuelvan a resolverla sin quedar fijado en una localización falsa. */
+const FALLBACK_LOCATION = "otra";
 
 export function locationLabel(value: string): string {
   return LOCATION_META[value]?.label ?? value;
@@ -159,10 +181,15 @@ export function readUserPreferences(userId?: string | null): UserPreferences {
 export function writeUserPreferences(prefs: UserPreferences, userId?: string | null): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(writeKey(userId), JSON.stringify(prefs));
-    /* Se apunta quién escribió: es lo que permite que las lecturas sin id —el
-       header, el mapa, el home— encuentren estas preferencias y no las del
-       cajón de invitado. */
+    const key = writeKey(userId);
+    window.localStorage.setItem(key, JSON.stringify(prefs));
+    /* Si se guarda una preferencia por usuario, también se limpia el depósito
+       genérico viejo: en una sesión previa pudo quedar una ubicación antigua
+       como Santiago, y sin esta limpieza la lectura sin id la seguiría viendo. */
+    if (userId) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(`${STORAGE_KEY}:${GUEST_ID}`);
+    }
     rememberUser(userId);
   } catch {
     // localStorage unavailable (privacy mode / SSR) — ignore
@@ -188,4 +215,43 @@ export function clearUserPreferences(userId?: string | null): void {
   } catch {
     // Nada que hacer: si no se puede borrar, tampoco se pudo escribir.
   }
+}
+
+export interface RemoteUserPreferences {
+  onboardingCompleted?: boolean;
+  locationCity?: string | null;
+  preferences?: {
+    interests?: string[];
+    moods?: string[];
+    currencies?: string[];
+  } | null;
+}
+
+export function mergeRemoteUserPreferences(
+  local: UserPreferences,
+  remote: RemoteUserPreferences,
+): UserPreferences {
+  const remotePreferences = remote.preferences;
+  const hasRemotePreferences = Boolean(
+    remotePreferences &&
+      (remotePreferences.interests || remotePreferences.moods || remotePreferences.currencies),
+  );
+  const locationName = remote.locationCity || local.locationName;
+  return {
+    ...local,
+    onboardingCompleted: remote.onboardingCompleted ?? local.onboardingCompleted,
+    location: remote.locationCity && isKnownLocation(remote.locationCity)
+      ? remote.locationCity
+      : local.location,
+    locationName,
+    interests: hasRemotePreferences && remotePreferences?.interests
+      ? remotePreferences.interests
+      : local.interests,
+    moods: hasRemotePreferences && remotePreferences?.moods
+      ? remotePreferences.moods
+      : local.moods,
+    currencies: hasRemotePreferences && remotePreferences?.currencies
+      ? remotePreferences.currencies
+      : local.currencies,
+  };
 }

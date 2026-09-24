@@ -19,6 +19,7 @@ import {
 import {
   locationLabel,
   readUserPreferences,
+  mergeRemoteUserPreferences,
   writeUserPreferences,
   type UserPreferences,
 } from "@/lib/user-preferences-store";
@@ -77,13 +78,25 @@ export default function ProfilePage() {
 
     fetch("/api/me")
       .then((res) => res.json())
-      .then((data: { authenticated: boolean; user: { id?: string; name: string; email: string; imageUrl?: string | null; phone?: string | null } | null }) => {
+      .then((data: {
+        authenticated: boolean;
+        user: {
+          id?: string;
+          name: string;
+          email: string;
+          imageUrl?: string | null;
+          phone?: string | null;
+          locationCity?: string | null;
+          onboardingCompleted?: boolean;
+          preferences?: { interests?: string[]; moods?: string[]; currencies?: string[] } | null;
+        } | null;
+      }) => {
         const user = data.user;
         if (!data.authenticated || !user) return;
 
         const nextUserId = user.id ?? null;
         setUserId(nextUserId);
-        const nextLocalPrefs = readUserPreferences(nextUserId);
+        const nextLocalPrefs = mergeRemoteUserPreferences(readUserPreferences(nextUserId), user);
 
         const nextName = user.name || nextLocalPrefs.name;
         const nextEmail = user.email || nextLocalPrefs.email;
@@ -96,6 +109,7 @@ export default function ProfilePage() {
         setPrefs((current) => {
           const merged = {
             ...(current ?? nextLocalPrefs),
+            ...nextLocalPrefs,
             name: nextName,
             email: nextEmail,
             avatarUrl: nextAvatar,

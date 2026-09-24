@@ -3,12 +3,11 @@
 import { cn } from "@/lib/utils";
 import { type ButtonHTMLAttributes } from "react";
 
-/* Solo Santiago de Cuba está cubierta. El resto lleva la etiqueta y queda sin
-   poder elegirse: marcar algo como «próximamente» y dejar que se seleccione
-   sería una promesa falsa. */
+/* No se fuerza una ciudad por defecto. Si el usuario ya estaba ubicado o
+   la ubicación automática lo marcó antes, ese valor debe mantenerse; en caso
+   contrario la app queda en el estado neutro “otra”. */
 const locations = [
   { value: "la-habana", label: "La Habana", sub: "Vedado, Centro Habana, Miramar", soon: true },
-  { value: "santiago", label: "Santiago de Cuba", sub: "Centro, Vista Alegre", soon: false },
   { value: "varadero", label: "Varadero", sub: "Península de Hicacos", soon: true },
   { value: "otra", label: "Otra ciudad", sub: "Matanzas, Trinidad, Santa Clara...", soon: true },
 ] as const;

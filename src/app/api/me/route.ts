@@ -88,6 +88,9 @@ export async function GET() {
       phone: user.phone,
       termsVersion: user.termsVersion,
       role: user.role,
+      locationCity: user.locationCity,
+      onboardingCompleted: user.onboardingCompleted,
+      preferences: user.preferences,
       business: await businessFor(user.id, user.role),
     },
   });
@@ -171,6 +174,9 @@ export async function POST(request: NextRequest) {
       phone: user.phone,
       termsVersion: user.termsVersion,
       role: user.role,
+      locationCity: user.locationCity,
+      onboardingCompleted: user.onboardingCompleted,
+      preferences: user.preferences,
       business: await businessFor(user.id, user.role),
     },
   });
