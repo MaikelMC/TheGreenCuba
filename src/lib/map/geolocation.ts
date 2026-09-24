@@ -51,13 +51,13 @@ export const GEO_ERROR_MESSAGES: Record<GeolocationErrorCode, string> = {
 };
 
 /**
- * Precisión máxima (en metros) que aceptamos como ubicación real.
- * Un navegador de escritorio sin GPS resuelve por Wi-Fi/IP y puede devolver un
- * punto a cientos de km con una precisión declarada de kilómetros. Preferimos
- * rechazar esa lectura antes que mover el mapa a otra ciudad.
- * ponytail: umbral fijo; súbelo si en móvil llega a rechazar fixes buenos en interiores.
+ * Precisión máxima (en metros) que aceptamos como ubicación útil.
+ * En Cuba y en móviles con Wi‑Fi/IP o cobertura débil, una lectura de 1–5 km
+ * sigue siendo válida para centrar la vista en una ciudad/provincia. Si se
+ * pasa mucho de ese valor, sí que es demasiado imprecisa para mover el mapa a
+ * otra provincia.
  */
-export const MAX_ACCURACY_M = 1000;
+export const MAX_ACCURACY_M = 5000;
 
 function isAccurate(accuracy: number): boolean {
   return Number.isFinite(accuracy) && accuracy <= MAX_ACCURACY_M;
