@@ -110,15 +110,24 @@ export function RequestsList() {
               transition={{ delay: index * 0.04, duration: 0.35 }}
               className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft"
             >
-              {/* La tarjeta entera abre el detalle; los botones de acción
-                  quedan fuera con stopPropagation para no disparar la
-                  apertura. Cursor y foco la anuncian como lo que es: un botón
-                  grande que abre el detalle completo del negocio. */}
-              <button
-                type="button"
+              {/* La tarjeta abre el detalle. No puede ser un <button>: aquí
+                  dentro viven los botones de Rechazar/Aprobar y HTML no
+                  permite botones anidados (error de hidratación). El papel de
+                  botón se lo da role="button", el gesto explícito es el
+                  enlace "Ver detalles" de abajo, y los botones de acción
+                  quedan como hermanos con stopPropagation. */}
+              <div
+                role="button"
+                tabIndex={0}
                 onClick={() => setDetailPlace(place)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setDetailPlace(place);
+                  }
+                }}
                 aria-haspopup="dialog"
-                className="group flex w-full flex-col gap-gap-sm rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+                className="group flex w-full cursor-pointer flex-col gap-gap-sm rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
               >
                 <div className="flex flex-col gap-gap-sm sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 flex-1">
@@ -175,11 +184,10 @@ export function RequestsList() {
                     </span>
                   </div>
                 </div>
-              </button>
+              </div>
 
-              {/* Enlace de texto aparte, fuera del botón grande: los botones
-                  no se anidan y "Ver detalles" es el gesto explícito que no
-                  depende de adivinar que la tarjeta es clicable. */}
+              {/* Enlace de texto explícito, hermano de la tarjeta: el gesto
+                  que no depende de adivinar que la tarjeta es clicable. */}
               <button
                 type="button"
                 onClick={() => setDetailPlace(place)}
