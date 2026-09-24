@@ -1,11 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { KeyRound, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 
 export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<ResetPasswordFallback />}>
+      <ResetPasswordForm />
+    </Suspense>
+  );
+}
+
+function ResetPasswordFallback() {
+  return (
+    <main className="mx-auto flex min-h-screen max-w-md items-center px-gap-md py-gap-xl">
+      <section className="w-full rounded-3xl border border-ink/10 bg-white p-gap-lg shadow-soft">
+        <div className="mb-gap-md flex items-center gap-gap-sm text-verde-700">
+          <KeyRound size={21} />
+          <h1 className="font-lv-display text-h3 font-bold text-ink">Restablecer contraseña</h1>
+        </div>
+        <div className="flex items-center justify-center py-6 text-small text-ink-soft">
+          <Loader2 size={16} className="mr-2 animate-spin" />
+          Cargando...
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const [password, setPassword] = useState("");

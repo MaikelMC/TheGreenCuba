@@ -39,6 +39,7 @@ import {
   mergeRemoteUserPreferences,
   writeUserPreferences,
   locationCenter,
+  preferredLocationCenter,
   type UserPreferences,
 } from "@/lib/user-preferences-store";
 import { personalizePlaces } from "@/lib/personalized-recommendations";
@@ -370,6 +371,7 @@ function HomePageContent() {
   const [initialCenter, setInitialCenter] = useState<[number, number] | null>(null);
   const [disableAutoFit, setDisableAutoFit] = useState(false);
   const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
+  const [hasSavedProfileLocation, setHasSavedProfileLocation] = useState(false);
   const searchCtx = useSearchActions();
   const mapRef = useRef<HTMLDivElement | null>(null);
   const viewKey = useRef(0);
@@ -381,6 +383,14 @@ function HomePageContent() {
 
   useEffect(() => {
     let alive = true;
+    const resolveInitialCenter = (prefs: UserPreferences | null): [number, number] | null => {
+      const profileCenter = preferredLocationCenter(prefs?.location);
+      if (profileCenter) return profileCenter;
+
+      const cached = getLastKnownPosition();
+      return cached ? [cached.lat, cached.lng] : null;
+    };
+
     fetch("/api/me")
       .then((res) => res.json())
       .then((data: {
@@ -398,12 +408,9 @@ function HomePageContent() {
           const storedPrefs = mergeRemoteUserPreferences(readUserPreferences(data.user.id), data.user);
           writeUserPreferences(storedPrefs, data.user.id);
           setUserPreferences(storedPrefs);
+          setHasSavedProfileLocation(Boolean(storedPrefs.location && storedPrefs.location !== "otra"));
 
-          const preferredCenter =
-            storedPrefs.onboardingCompleted && storedPrefs.location !== "otra"
-              ? locationCenter(storedPrefs.location)
-              : getLastKnownPosition() ? [getLastKnownPosition()!.lat, getLastKnownPosition()!.lng] as [number, number] : null;
-
+          const preferredCenter = resolveInitialCenter(storedPrefs);
           if (preferredCenter) {
             setInitialCenter(preferredCenter);
             setDisableAutoFit(true);
@@ -411,24 +418,20 @@ function HomePageContent() {
           return;
         }
 
+        setHasSavedProfileLocation(false);
         const fallbackPrefs = readUserPreferences();
         setUserPreferences(fallbackPrefs);
-        const fallbackCenter =
-          fallbackPrefs.onboardingCompleted && fallbackPrefs.location !== "otra"
-            ? locationCenter(fallbackPrefs.location)
-            : getLastKnownPosition() ? [getLastKnownPosition()!.lat, getLastKnownPosition()!.lng] as [number, number] : null;
+        const fallbackCenter = resolveInitialCenter(fallbackPrefs);
         if (fallbackCenter) {
           setInitialCenter(fallbackCenter);
           setDisableAutoFit(true);
         }
       })
       .catch(() => {
+        setHasSavedProfileLocation(false);
         const fallbackPrefs = readUserPreferences();
         setUserPreferences(fallbackPrefs);
-        const fallbackCenter =
-          fallbackPrefs.onboardingCompleted && fallbackPrefs.location !== "otra"
-            ? locationCenter(fallbackPrefs.location)
-            : getLastKnownPosition() ? [getLastKnownPosition()!.lat, getLastKnownPosition()!.lng] as [number, number] : null;
+        const fallbackCenter = resolveInitialCenter(fallbackPrefs);
         if (fallbackCenter) {
           setInitialCenter(fallbackCenter);
           setDisableAutoFit(true);
@@ -790,11 +793,13 @@ function HomePageContent() {
   // user), then request the real current position to refine it. Errors produce
   // a hint; the floating "Mi ubicación" button handles explicit requests.
   useEffect(() => {
-    // Con onboarding completado la primera vista es SIEMPRE la ciudad elegida
-    // (vuelo al mapa fijo, sin auto-GPS). La ubicación precisa se pide solo con
-    // el botón "Mi ubicación", para que un GPS errado no desplace la vista.
+    // Con onboarding completado y una provincia guardada, la primera vista es
+    // SIEMPRE la ciudad elegida. El cache de geolocalización solo sirve como
+    // respaldo y no debe desplazar el mapa sobre esa elección.
     const prefs = readUserPreferences();
-    if (prefs.onboardingCompleted) return;
+    if (hasSavedProfileLocation || prefs.onboardingCompleted || (prefs.location && prefs.location !== "otra")) {
+      return;
+    }
 
     let cancelled = false;
 
@@ -828,7 +833,7 @@ function HomePageContent() {
     return () => {
       cancelled = true;
     };
-  }, [handleUserLocated]);
+  }, [handleUserLocated, hasSavedProfileLocation]);
 
   const sheetInfo = SHEET_TITLES[sheetState];
   const showBadge = sheetState === "default" || sheetState === "results";

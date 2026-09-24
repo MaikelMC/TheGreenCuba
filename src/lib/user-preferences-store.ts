@@ -118,6 +118,11 @@ export function locationCenter(value: string): [number, number] {
   return LOCATION_META[value]?.center ?? LOCATION_META[FALLBACK_LOCATION]!.center;
 }
 
+export function preferredLocationCenter(value?: string | null): [number, number] | null {
+  if (!value || value === "otra" || !isKnownLocation(value)) return null;
+  return locationCenter(value);
+}
+
 export function isKnownLocation(value: string): boolean {
   return Boolean(LOCATION_META[value]);
 }
