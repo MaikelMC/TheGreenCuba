@@ -98,6 +98,29 @@
   ::selection {
     @apply bg-accent/20 text-accent-foreground;
   }
+
+  body {
+    /* Red de seguridad contra desbordes horizontales: sin esto, cualquier
+       elemento un pelo más ancho que el viewport asoma fuera del marco y en
+       el home —fijo, sin scroll— no hay forma de volver a encuadrar. `clip`
+       en vez de `hidden` para no crear contenedor de scroll ni romper los
+       hijos con position: sticky. */
+    overflow-x: clip;
+  }
+
+  /* iOS Safari hace auto-zoom del viewport al enfocar un control con fuente
+     menor a 16px, y el zoom se queda pegado: en el home, fijo y sin scroll,
+     los elementos quedaban sobresaliendo del marco como un zoom forzado.
+     Solo móvil —en desktop y tablet el diseño queda intacto—. Gana a las
+     utilidades de Tailwind (text-[15px], text-small, text-meta) por orden
+     del cascade, y el !important lo blinda contra futuros overrides. */
+  @media (max-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
 }
 
 @layer utilities {
