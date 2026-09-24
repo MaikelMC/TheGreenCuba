@@ -109,6 +109,14 @@ export const places = pgTable(
       .default("active")
       .notNull(),
 
+    /* El plan que eligió el dueño al dar de alta su negocio.
+       Nulo a propósito, y sin `default`: solo lo escribe el formulario del
+       perfil, así que las fichas de la siembra y las que crea administración
+       desde el panel salen con `null`, que significa «aquí nadie eligió plan».
+       Ponerle `default 'trial'` habría marcado como «en prueba» medio catálogo
+       el día de la migración. */
+    plan: text("plan", { enum: ["trial", "paid"] }),
+
     /* `set null` y no el NO ACTION por defecto: el lugar lo creó alguien que
        puede darse de baja, y borrar esa cuenta no debe impedir el borrado ni
        llevarse por delante el negocio. */

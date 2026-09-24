@@ -8,7 +8,6 @@ import {
   Clock,
   CreditCard,
   Image as ImageIcon,
-  Info,
   Loader2,
   LogOut,
   MapPin,
@@ -117,23 +116,6 @@ function ViewLead({ title, subtitle }: { title: string; subtitle: string }) {
  * rellenar su negocio y es donde se preguntaría por qué no aparece en el mapa.
  * Decirlo aquí responde a la pregunta en el sitio donde se la hace.
  */
-function PendingNotice() {
-  return (
-    <div className="mb-gap-md flex items-start gap-gap-sm rounded-2xl border border-amber-300/60 bg-amber-50 p-gap-md">
-      <Info size={18} strokeWidth={1.8} className="mt-[2px] shrink-0 text-amber-700" />
-      <div className="min-w-0">
-        <p className="font-lv-display text-small font-semibold text-ink">
-          Tu ficha todavía no está publicada
-        </p>
-        <p className="text-meta text-ink-soft/75">
-          Puedes rellenarla entera desde aquí y se guarda igual. Cuando un
-          administrador la revise, aparecerá en el buscador y en el mapa.
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function DashboardView({ place, stats }: { place: UserPlace; stats: PlaceStats }) {
   const offering = [place.description].filter(Boolean).join(" ");
 
@@ -143,8 +125,6 @@ function DashboardView({ place, stats }: { place: UserPlace; stats: PlaceStats }
         title="Dashboard"
         subtitle={`Resumen de ${place.name}`}
       />
-
-      {!place.isActive && <PendingNotice />}
 
       {/* Tres cifras y ninguna inventada. Aquí había «342 visitas esta semana,
           +18%», «87 clics en Cómo llegar» y «156 recomendaciones IA»: no existe
@@ -330,8 +310,6 @@ function EditorView({ place }: { place: UserPlace }) {
         title="Editar ficha"
         subtitle={`${place.name}${place.barrio ? `, ${place.barrio}` : ""}`}
       />
-
-      {!place.isActive && <PendingNotice />}
 
       <div className="space-y-gap-md">
         <FormSection title="Fotos del lugar" icon={<ImageIcon size={18} strokeWidth={1.8} />}>

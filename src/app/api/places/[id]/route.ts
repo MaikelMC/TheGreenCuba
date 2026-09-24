@@ -37,6 +37,29 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
   }
 
+  /* Publicar es cosa de administración, y por eso se tira el campo si quien
+     llama no lo es. `canManagePlace` deja pasar al dueño —tiene que poder
+     corregir su ficha—, y el dueño que espera aprobación tiene la misma sesión
+     que tendrá después: con esto fuera, un `PATCH {"isActive": true}` desde la
+     consola se publicaba solo y la revisión no valía nada. El panel del dueño
+     no manda ese campo, así que aquí no se pierde nada.
+
+     `plan` va en el mismo saco y por la misma razón: lo elige el dueño **al
+     darse de alta**, por `/api/business`, que es la que valida la lista de
+     planes; desde aquí no. Hoy solo pinta una etiqueta en el panel, pero el día
+     que un plan abra funciones de pago este es el `PATCH` que se regalaría el
+     ascenso.
+
+     La comprobación va solo cuando alguno de los dos campos viene, que es el
+     caso raro: la aprobación desde `/admin` y los scripts con `x-admin-key`. */
+  if (
+    (body.isActive !== undefined || body.plan !== undefined) &&
+    !(await isAdminRequest(req))
+  ) {
+    delete body.isActive;
+    delete body.plan;
+  }
+
   const name = typeof body.name === "string" ? body.name.trim() : undefined;
   if (name === "") {
     return NextResponse.json({ error: "El nombre no puede quedar vacío" }, { status: 400 });

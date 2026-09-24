@@ -15,6 +15,21 @@
 
 export type PlaceStatus = "active" | "closed" | "temporary_closed";
 
+/** Los dos planes del alta. `null` en `UserPlace.plan` = no eligió ninguno. */
+export type PlacePlan = "trial" | "paid";
+
+/**
+ * Cómo se llama cada plan **fuera** del formulario de alta.
+ *
+ * Allí se venden con otros nombres —«Eres nuevo», «Plan de pago»— porque están
+ * compitiendo entre sí; en el panel lo que hace falta es reconocer de un vistazo
+ * qué eligió el dueño, y «Eres nuevo» no dice que sea el mes de prueba.
+ */
+export const PLAN_LABEL: Record<PlacePlan, string> = {
+  trial: "Prueba gratis",
+  paid: "Plan de pago",
+};
+
 export interface UserPlaceMenuItem {
   name: string;
   description: string;
@@ -92,6 +107,15 @@ export interface UserPlace {
   menu: UserPlaceMenuItem[];
   offer: UserPlaceOffer | null;
   status: PlaceStatus;
+  /**
+   * El plan que eligió el dueño al dar de alta el negocio, y que se queda con
+   * la ficha: es lo que el administrador ve en la solicitud antes de aprobarla.
+   *
+   * Opcional porque media tabla no pasó por ese formulario —la siembra, las
+   * fichas que crea administración— y `null`/`undefined` significan lo mismo:
+   * aquí nadie eligió plan.
+   */
+  plan?: PlacePlan | null;
   /**
    * Si la ficha está publicada. `false` = pendiente de que un administrador la
    * apruebe, que es como nacen los negocios dados de alta desde el perfil.

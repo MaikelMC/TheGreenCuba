@@ -19,19 +19,14 @@ import {
   readUserPreferences,
   writeUserPreferences,
   mergeRemoteUserPreferences,
+  locationLabel,
   DEFAULT_USER_PREFERENCES,
 } from "@/lib/user-preferences-store";
 import {
   getCurrentPosition,
-  detectNearestCity,
+  detectNearestProvince,
   GEO_ERROR_MESSAGES,
 } from "@/lib/map/geolocation";
-
-const LOCATION_NAMES: Record<string, string> = {
-  "la-habana": "La Habana",
-  varadero: "Varadero",
-  otra: "Otra ciudad",
-};
 
 const INTEREST_NAMES: Record<string, string> = {
   cafes: "Cafeterías",
@@ -341,7 +336,7 @@ export default function OnboardingPage() {
   async function handleUseGPS() {
     try {
       const pos = await getCurrentPosition({ useCache: false });
-      const detected = detectNearestCity(pos.lat, pos.lng);
+      const detected = detectNearestProvince(pos.lat, pos.lng);
       setLocation(detected.value);
       setDetectedName(detected.label);
       setGpsDetected(true);
@@ -350,7 +345,7 @@ export default function OnboardingPage() {
       const messages = GEO_ERROR_MESSAGES as Record<string, string>;
       toast.error(
         (code && messages[code]) ||
-          "No pudimos detectar tu ubicación. Elige tu ciudad o inténtalo de nuevo.",
+          "No pudimos detectar tu ubicación. Elige tu provincia o inténtalo de nuevo.",
       );
       setLocation("otra");
       setDetectedName(null);
@@ -441,7 +436,10 @@ export default function OnboardingPage() {
          el perfil lo enseñaba en blanco. */
       phone: readUserPreferences(resolvedUserId).phone,
       location,
-      locationName: LOCATION_NAMES[location] ?? location,
+      /* El nombre sale de `LOCATION_META` y no de una tabla local: con las 16
+         provincias, la copia de tres entradas que había aquí se quedaba corta y
+         guardaba el slug en su lugar. */
+      locationName: locationLabel(location),
       interests: Array.from(interests),
       moods: Array.from(moods),
       currencies: Array.from(currencies),
@@ -725,7 +723,7 @@ export default function OnboardingPage() {
       {showPreferences && (
         <div className="flex flex-col h-full animate-fade-up">
           <PreferencesScreen
-            locationName={LOCATION_NAMES[location] ?? location}
+            locationName={locationLabel(location)}
             interests={Array.from(interests).map((v) => ({ value: v, label: INTEREST_NAMES[v] ?? v }))}
             moods={Array.from(moods).map((v) => ({ value: v, label: MOOD_NAMES[v] ?? v }))}
             currencies={Array.from(currencies).map((v) => ({ value: v, label: CURRENCY_NAMES[v] ?? v }))}

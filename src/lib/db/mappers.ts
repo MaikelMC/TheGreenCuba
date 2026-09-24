@@ -80,6 +80,7 @@ export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
       ? { text: row.offerText, expiry: row.offerExpiry ?? "" }
       : null,
     status: row.status,
+    plan: row.plan,
     isActive: row.isActive,
     isBoosted: row.isBoosted,
     boostExpiresAt: row.boostExpiresAt ?? "",
@@ -139,6 +140,7 @@ export function toPlaceValues(
     values.offerExpiry = patch.offer?.expiry ?? null;
   }
   if (patch.status !== undefined) values.status = patch.status;
+  if (patch.plan !== undefined) values.plan = patch.plan ?? null;
   if (patch.isActive !== undefined) values.isActive = patch.isActive;
   if (patch.isBoosted !== undefined) values.isBoosted = patch.isBoosted;
   if (patch.boostExpiresAt !== undefined) values.boostExpiresAt = patch.boostExpiresAt;

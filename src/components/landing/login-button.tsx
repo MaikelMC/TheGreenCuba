@@ -1,16 +1,23 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-interface JoinButtonProps {
+interface LoginButtonProps {
   className?: string;
   fullWidth?: boolean;
 }
 
-/** Botón de registro de la landing: lleva a `/register`, no al formulario de solicitud. */
-export function JoinButton({ className, fullWidth }: JoinButtonProps) {
+/**
+ * Botón de la landing para quien **ya tiene cuenta**: lleva a `/login`.
+ *
+ * Antes era «Registrarse» y mandaba a `/register?next=/onboarding`. El alta no
+ * desaparece de la landing —es el botón «Probar La Verde» de la cabecera de
+ * portada, que es donde la ve alguien nuevo—, pero repetida aquí se comía el
+ * único sitio para entrar los que ya son usuarios.
+ */
+export function LoginButton({ className, fullWidth }: LoginButtonProps) {
   return (
     <Link
-      href="/register?next=/onboarding"
+      href="/login"
       className={cn(
         // `.btn-pill` del design system: pastilla, transición de 500 ms con
         // easeOutQuint en línea, y halo del propio verde del botón.
@@ -22,7 +29,7 @@ export function JoinButton({ className, fullWidth }: JoinButtonProps) {
         className,
       )}
     >
-      Registrarse
+      Iniciar sesión
     </Link>
   );
 }

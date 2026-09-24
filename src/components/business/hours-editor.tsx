@@ -40,38 +40,36 @@ export function HoursEditor({
 }: HoursEditorProps) {
   const [items, setItems] = useState(hours);
 
+  /* Mismo arreglo que en los otros dos editores: el `onChange` sale del
+     actualizador. Ver `menu-item-editor.tsx`. */
   const update = useCallback(
     (index: number, field: keyof DayHours, value: string | boolean) => {
-      setItems((prev) => {
-        const next = prev.map((h, i) => (i === index ? { ...h, [field]: value } : h));
-        onChange?.(next);
-        return next;
-      });
+      const next = items.map((h, i) => (i === index ? { ...h, [field]: value } : h));
+      setItems(next);
+      onChange?.(next);
     },
-    [onChange],
+    [items, onChange],
   );
 
   const toggleClosed = useCallback(
     (index: number) => {
-      setItems((prev) => {
-        const item = prev[index];
-        if (!item) return prev;
-        const wasClosed = item.isClosed;
-        const next = prev.map((h, i) =>
-          i === index
-            ? {
-                ...h,
-                isClosed: !wasClosed,
-                open: wasClosed ? "12:00" : "Cerrado",
-                close: wasClosed ? "00:00" : "",
-              }
-            : h,
-        );
-        onChange?.(next);
-        return next;
-      });
+      const item = items[index];
+      if (!item) return;
+      const wasClosed = item.isClosed;
+      const next = items.map((h, i) =>
+        i === index
+          ? {
+              ...h,
+              isClosed: !wasClosed,
+              open: wasClosed ? "12:00" : "Cerrado",
+              close: wasClosed ? "00:00" : "",
+            }
+          : h,
+      );
+      setItems(next);
+      onChange?.(next);
     },
-    [onChange],
+    [items, onChange],
   );
 
   return (

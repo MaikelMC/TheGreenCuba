@@ -38,5 +38,18 @@ export default async function BusinessPage() {
 
   if (!place) redirect("/profile?seccion=negocio");
 
+  /* El panel se abre cuando un administrador aprueba la solicitud, no al
+     enviarla. Antes se abría al momento —el dueño podía rellenar su ficha
+     mientras esperaba— y eso dejaba dos puertas para lo mismo: la solicitud
+     pendiente en administración y un panel ya en marcha. Ahora hay una sola:
+     hasta que la aprueban, esto devuelve al perfil, que es donde se ve en qué
+     estado va.
+
+     ponytail: `isActive` es la única señal de aprobación que existe, así que
+     cerrar un negocio ya publicado también le cierra el panel a su dueño. El
+     día que eso incomode hace falta un estado de aprobación aparte de la
+     publicación, no otra consulta aquí. */
+  if (!place.isActive) redirect("/profile?seccion=negocio");
+
   return <BusinessPanel place={place} stats={stats} />;
 }

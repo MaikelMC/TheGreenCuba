@@ -1,3 +1,5 @@
+import { CUBA_PROVINCES, locationCenter } from "@/lib/user-preferences-store";
+
 export type GeolocationErrorCode =
   | "unsupported"
   | "denied"
@@ -185,22 +187,31 @@ export function getCurrentPosition(
   });
 }
 
-export interface DetectedCity {
+export interface DetectedProvince {
   value: string;
   label: string;
 }
 
-/** Ciudades elegibles del onboarding contra las que se compara la posición GPS.
- * No se fuerza a Santiago como valor por defecto: si no hay un fix válido o la
- * persona ya tenía una ubicación guardada, esa zona debe seguir siendo la que
- * se muestre. */
-const ONBOARDING_CITIES: { value: string; label: string; lat: number; lng: number }[] = [
-  { value: "la-habana", label: "La Habana", lat: 23.1374, lng: -82.359 },
-  { value: "varadero", label: "Varadero", lat: 23.1547, lng: -81.2377 },
-];
+/** Las 16 provincias contra las que se compara la posición GPS, con el centro
+ * que ya usa el mapa (`locationCenter`). Antes eran dos —La Habana y
+ * Varadero—, así que pulsar «Usar mi ubicación actual» desde Holguín devolvía
+ * «Otra ciudad» y el mapa volaba a La Habana.
+ *
+ * No se fuerza una provincia por defecto: si no hay un fix válido o la persona
+ * ya tenía una ubicación guardada, esa zona debe seguir siendo la que se
+ * muestre. */
+const ONBOARDING_PROVINCES = CUBA_PROVINCES.map(({ value, label }) => {
+  const [lat, lng] = locationCenter(value);
+  return { value, label, lat, lng };
+});
 
-/** Distancia máxima (km) para considerar que el GPS cae dentro de una ciudad. */
-const DETECT_MAX_KM = 65;
+/** Distancia máxima (km) para considerar que el GPS cae dentro de una provincia.
+ *
+ * Los 65 km de antes valían con dos ciudades; con las 16 capitales, que quedan a
+ * unos 90-100 km entre sí, dejaban fuera a media isla. Cuba mide unos 1.200 km
+ * de punta a punta, así que 150 km cubren el país entero y siguen dejando fuera
+ * a quien no está en Cuba. */
+const DETECT_MAX_KM = 150;
 
 function haversineKm(
   aLat: number,
@@ -219,19 +230,19 @@ function haversineKm(
 }
 
 /**
- * Mapea una posición GPS a la ciudad del onboarding más cercana.
+ * Mapea una posición GPS a la provincia del onboarding más cercana.
  * Si ninguna queda dentro de DETECT_MAX_KM devuelve "otra".
  */
-export function detectNearestCity(lat: number, lng: number): DetectedCity {
-  const first = ONBOARDING_CITIES[0];
+export function detectNearestProvince(lat: number, lng: number): DetectedProvince {
+  const first = ONBOARDING_PROVINCES[0];
   if (!first) return { value: "otra", label: "Otra ciudad" };
   let best = first;
   let bestKm = Infinity;
-  for (const city of ONBOARDING_CITIES) {
-    const km = haversineKm(lat, lng, city.lat, city.lng);
+  for (const province of ONBOARDING_PROVINCES) {
+    const km = haversineKm(lat, lng, province.lat, province.lng);
     if (km < bestKm) {
       bestKm = km;
-      best = city;
+      best = province;
     }
   }
   if (bestKm <= DETECT_MAX_KM) return { value: best.value, label: best.label };

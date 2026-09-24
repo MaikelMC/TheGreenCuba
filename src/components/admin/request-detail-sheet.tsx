@@ -22,7 +22,7 @@ import {
   SheetDescription,
   SheetTitle,
 } from "@/components/ui/sheet";
-import type { UserPlace } from "@/lib/places-store";
+import { PLAN_LABEL, type UserPlace } from "@/lib/places-store";
 
 /**
  * Etiqueta de sección, igual que las del panel: mayúsculas espaciadas de
@@ -190,6 +190,11 @@ export function RequestDetailSheet({
               {shown.isBoosted && (
                 <span className="inline-flex items-center gap-[4px] rounded-full bg-verde-100 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-verde-700">
                   Destacado
+                </span>
+              )}
+              {shown.plan && (
+                <span className="inline-flex items-center gap-[4px] rounded-full border border-verde-200 bg-verde-50 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-verde-700">
+                  {PLAN_LABEL[shown.plan]}
                 </span>
               )}
               <span className="inline-flex items-center gap-[4px] font-lv-display text-meta text-ink-soft/75">

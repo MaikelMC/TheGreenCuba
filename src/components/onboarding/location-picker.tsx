@@ -2,21 +2,24 @@
 
 import { cn } from "@/lib/utils";
 import { type ButtonHTMLAttributes } from "react";
+import { CUBA_PROVINCES } from "@/lib/user-preferences-store";
 
-/* No se fuerza una ciudad por defecto. Si el usuario ya estaba ubicado o
-   la ubicación automática lo marcó antes, ese valor debe mantenerse; en caso
-   contrario la app queda en el estado neutro “otra”. */
-const locations = [
-  { value: "la-habana", label: "La Habana", sub: "Vedado, Centro Habana, Miramar", soon: true },
-  { value: "varadero", label: "Varadero", sub: "Península de Hicacos", soon: true },
-  { value: "otra", label: "Otra ciudad", sub: "Matanzas, Trinidad, Santa Clara...", soon: true },
-] as const;
+/* Las 16 provincias del país, de `CUBA_PROVINCES`: la misma lista que usa el
+   selector provincial del perfil y la que sabe centrar el mapa en cada una.
+
+   Antes eran tres opciones escritas a mano —La Habana, Varadero, «Otra
+   ciudad»— y **las tres deshabilitadas** con un sello «In coming». El paso no
+   dejaba elegir nada: quien no tenía GPS se quedaba en «otra» y el mapa caía
+   siempre en La Habana.
+
+   No se fuerza provincia por defecto. Si el usuario ya estaba ubicado o el GPS
+   lo marcó antes, ese valor se mantiene; si no, queda el estado neutro «otra». */
 
 interface LocationPickerProps {
   selected: string;
   onSelect: (value: string) => void;
   gpsDetected?: boolean;
-  /** Nombre de la ciudad detectada por GPS (se muestra junto al check). */
+  /** Nombre de la provincia detectada por GPS (se muestra junto al check). */
   gpsLabel?: string;
   onUseGPS: () => void;
 }
@@ -24,25 +27,20 @@ interface LocationPickerProps {
 function LocationOption({
   selected,
   label,
-  sublabel,
-  soon,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   selected: boolean;
   label: string;
-  sublabel: string;
-  soon?: boolean;
 }) {
   return (
     <button
-      disabled={soon}
+      role="radio"
+      aria-checked={selected}
       className={cn(
-        "flex items-center gap-4 p-4 border rounded-2xl shadow-soft transition-all duration-500 ease-outquint text-left w-full",
-        soon
-          ? "border-ink/5 bg-white cursor-not-allowed"
-          : selected
-            ? "border-verde-400 bg-verde-50"
-            : "border-ink/5 bg-white hover:border-verde-300 hover:bg-verde-50",
+        "flex items-center gap-3 p-3 border rounded-2xl shadow-soft transition-all duration-500 ease-outquint text-left w-full",
+        selected
+          ? "border-verde-400 bg-verde-50"
+          : "border-ink/5 bg-white hover:border-verde-300 hover:bg-verde-50",
       )}
       {...props}
     >
@@ -54,15 +52,7 @@ function LocationOption({
             : "border-ink/20",
         )}
       />
-      <div className="flex-1">
-        <div className="font-lv-display text-body font-semibold text-ink">{label}</div>
-        <div className="text-meta text-ink-soft/75">{sublabel}</div>
-      </div>
-      {soon && (
-        <span className="shrink-0 rounded-full bg-sand-deep px-2.5 py-1 font-lv-display text-[11px] font-semibold text-ink-soft/75">
-          In coming
-        </span>
-      )}
+      <span className="font-lv-display text-body font-semibold text-ink">{label}</span>
     </button>
   );
 }
@@ -70,16 +60,23 @@ function LocationOption({
 export function LocationPicker({ selected, onSelect, gpsDetected, gpsLabel, onUseGPS }: LocationPickerProps) {
   return (
     <div className="flex flex-col gap-3">
-      {locations.map((loc) => (
-        <LocationOption
-          key={loc.value}
-          selected={selected === loc.value}
-          soon={loc.soon}
-          label={loc.label}
-          sublabel={loc.sub}
-          onClick={() => onSelect(loc.value)}
-        />
-      ))}
+      {/* Dieciséis provincias no caben de una vez en la pantalla del móvil, así
+          que la lista se desplaza dentro del paso y el botón del GPS —que es la
+          otra forma de responder— se queda a la vista. */}
+      <div
+        role="radiogroup"
+        aria-label="Provincia"
+        className="flex flex-col gap-2 max-h-[42vh] overflow-y-auto pr-1 -mr-1"
+      >
+        {CUBA_PROVINCES.map((province) => (
+          <LocationOption
+            key={province.value}
+            selected={selected === province.value}
+            label={province.label}
+            onClick={() => onSelect(province.value)}
+          />
+        ))}
+      </div>
 
       <button
         onClick={onUseGPS}

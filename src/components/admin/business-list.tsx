@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { usePlaces } from "@/providers/places-provider";
 import { placeIcon } from "@/lib/places";
 import { CategoryIcon } from "@/components/admin/category-icon";
-import type { PlaceStatus, UserPlace } from "@/lib/places-store";
+import { PLAN_LABEL, type PlaceStatus, type UserPlace } from "@/lib/places-store";
 import { StateView } from "@/components/ui/state-view";
 import { LoadingState } from "@/components/ui/loading";
 
@@ -25,6 +25,25 @@ function statusInfo(status: PlaceStatus): { label: string; cls: string } {
     default:
       return { label: "Activo", cls: "bg-verde-50 text-verde-600" };
   }
+}
+
+/* Misma píldora que la lista de solicitudes, para que el mismo negocio no se
+   lea distinto en las dos pantallas. */
+const PENDING = { label: "Pendiente", cls: "bg-sand text-ink-soft/75" };
+
+/**
+ * La píldora de la fila.
+ *
+ * `status` es lo que dice el dueño sobre si su negocio está abierto ahora, e
+ * `isActive` es lo que dice el sistema sobre si la ficha está publicada. Son
+ * cosas distintas y aquí se estaban mezclando: un negocio en solicitudes tiene
+ * `status = "active"` —está abierto, es lo que contestó su dueño— pero
+ * `is_active = false`, así que salía en verde «Activo» en la lista de negocios
+ * mientras la pantalla de solicitudes lo tenía pendiente. Sin publicar manda
+ * «Pendiente»: es el dato que le falta al administrador.
+ */
+function rowStatus(place: UserPlace): { label: string; cls: string } {
+  return place.isActive ? statusInfo(place.status) : PENDING;
 }
 
 const FILTER =
@@ -46,7 +65,10 @@ export function BusinessList() {
     const q = query.trim().toLowerCase();
     return places.filter((p) => {
       if (categoryFilter !== "all" && p.category !== categoryFilter) return false;
-      if (statusFilter === "active" && p.status !== "active") return false;
+      /* Publicado **y** abierto. Antes bastaba con `status`, así que un negocio
+         sin aprobar —que también tiene `status = "active"`— salía al filtrar
+         por «Activos», con la píldora verde al lado. */
+      if (statusFilter === "active" && !(p.status === "active" && p.isActive)) return false;
       if (statusFilter === "inactive" && p.status === "active") return false;
       if (statusFilter === "boosted" && !p.isBoosted) return false;
       if (
@@ -167,7 +189,7 @@ export function BusinessList() {
       ) : (
         <div className="flex flex-col gap-gap-sm">
           {filtered.map((p, i) => {
-            const st = statusInfo(p.status);
+            const st = rowStatus(p);
             return (
               <motion.div
                 key={p.id}
@@ -195,6 +217,13 @@ export function BusinessList() {
                       <span className="font-lv-display text-small font-semibold text-ink truncate">
                         {p.name}
                       </span>
+                      {/* El plan sigue a la ficha después de aprobarla. Si solo
+                          se viera en solicitudes, aprobar parecería borrarlo. */}
+                      {p.plan && (
+                        <span className="inline-flex items-center gap-[4px] rounded-full border border-verde-200 bg-verde-50 px-[7px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] text-verde-700">
+                          {PLAN_LABEL[p.plan]}
+                        </span>
+                      )}
                       {p.isBoosted && (
                         <span className="inline-flex items-center gap-[4px] px-[7px] py-[2px] rounded-full bg-verde-100 border border-verde-200 font-lv-display text-[10px] font-semibold text-verde-700 uppercase tracking-[0.14em]">
                           <Zap size={10} strokeWidth={1.8} />

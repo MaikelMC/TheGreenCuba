@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { toast } from "sonner";
 import { CheckCircle2, Clock3, MapPin, Search, XCircle } from "lucide-react";
 import { usePlaces } from "@/providers/places-provider";
+import { PLAN_LABEL } from "@/lib/places-store";
 import { cn } from "@/lib/utils";
 import { StateView } from "@/components/ui/state-view";
 import { LoadingState } from "@/components/ui/loading";
@@ -138,6 +139,16 @@ export function RequestsList() {
                       <span className="inline-flex items-center gap-[4px] rounded-full bg-sand px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-soft/75">
                         Pendiente
                       </span>
+                      {/* El plan que eligió el dueño al enviar la solicitud. Va
+                          en la tarjeta y no solo en el detalle porque es con lo
+                          que se decide: las condiciones de la prueba caducan.
+                          Sin `plan` —fichas viejas, anteriores a la columna— no
+                          se pinta nada, que es la verdad: nadie eligió. */}
+                      {place.plan && (
+                        <span className="inline-flex items-center gap-[4px] rounded-full border border-verde-200 bg-verde-50 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-verde-700">
+                          {PLAN_LABEL[place.plan]}
+                        </span>
+                      )}
                     </div>
                     <div className="mt-[2px] flex flex-wrap items-center gap-gap-xs text-meta text-ink-soft/75">
                       <span>{place.category}</span>

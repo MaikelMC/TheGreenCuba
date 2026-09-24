@@ -11,7 +11,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { JoinButton } from "@/components/landing/join-button";
+import { LoginButton } from "@/components/landing/login-button";
 import { Logo } from "@/components/layout/logo";
 import { EASE } from "./anim";
 
@@ -71,7 +71,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-gap-md">
-          <JoinButton className="px-[18px] py-2.5 max-sm:hidden" />
+          <LoginButton className="px-[18px] py-2.5 max-sm:hidden" />
 
           <Sheet>
             <SheetTrigger asChild>
@@ -108,7 +108,7 @@ export function Header() {
                   </SheetClose>
                 ))}
                 <SheetClose asChild>
-                  <JoinButton className="mt-gap-sm w-full py-3" />
+                  <LoginButton className="mt-gap-sm w-full py-3" />
                 </SheetClose>
               </nav>
             </SheetContent>

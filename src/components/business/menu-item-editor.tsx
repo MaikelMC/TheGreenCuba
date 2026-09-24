@@ -45,44 +45,43 @@ export function MenuItemEditor({
 }: MenuItemEditorProps) {
   const [menuItems, setMenuItems] = useState(items);
 
+  /* El `onChange` va fuera del `setState`, y no dentro como estaba en los tres.
+     React ejecuta el actualizador durante el render —y dos veces en modo
+     estricto—, así que avisar ahí al padre es actualizar otro componente
+     mientras se pinta este: «Cannot update a component while rendering a
+     different component». El actualizador calcula; el aviso es del clic. */
   const update = useCallback(
     (id: string, field: keyof MenuItemData, value: string) => {
-      setMenuItems((prev) => {
-        const next = prev.map((item) => (item.id === id ? { ...item, [field]: value } : item));
-        onChange?.(next);
-        return next;
-      });
+      const next = menuItems.map((item) => (item.id === id ? { ...item, [field]: value } : item));
+      setMenuItems(next);
+      onChange?.(next);
     },
-    [onChange],
+    [menuItems, onChange],
   );
 
   const remove = useCallback(
     (id: string) => {
-      setMenuItems((prev) => {
-        const next = prev.filter((item) => item.id !== id);
-        onChange?.(next);
-        return next;
-      });
+      const next = menuItems.filter((item) => item.id !== id);
+      setMenuItems(next);
+      onChange?.(next);
     },
-    [onChange],
+    [menuItems, onChange],
   );
 
   const add = useCallback(() => {
-    setMenuItems((prev) => {
-      const next = [
-        ...prev,
-        {
-          id: `new-${Date.now()}`,
-          name: "",
-          description: "",
-          price: "",
-          currency: "MLC",
-        },
-      ];
-      onChange?.(next);
-      return next;
-    });
-  }, [onChange]);
+    const next = [
+      ...menuItems,
+      {
+        id: `new-${Date.now()}`,
+        name: "",
+        description: "",
+        price: "",
+        currency: "MLC",
+      },
+    ];
+    setMenuItems(next);
+    onChange?.(next);
+  }, [menuItems, onChange]);
 
   return (
     <div className={cn("flex flex-col", className)}>

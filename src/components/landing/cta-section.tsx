@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "motion/react";
 import { fadeUp, staggerContainer, VIEWPORT } from "./anim";
-import { JoinButton } from "@/components/landing/join-button";
+import { LoginButton } from "@/components/landing/login-button";
 
 export function CTASection() {
   return (
@@ -33,7 +33,7 @@ export function CTASection() {
             variants={fadeUp}
             className="mt-9 flex flex-wrap justify-center gap-gap-sm"
           >
-            <JoinButton />
+            <LoginButton />
             <Link
               href="#como-funciona"
               className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-ink/10 bg-white px-6 py-3 font-lv-display text-sm font-semibold leading-none text-ink transition-all duration-500 ease-outquint hover:bg-verde-50 active:scale-[0.98]"

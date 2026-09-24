@@ -50,6 +50,13 @@
       "when": 1790200092133,
       "tag": "0006_workable_nebula",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790264808713,
+      "tag": "0007_add_place_plan",
+      "breakpoints": true
     }
   ]
 }

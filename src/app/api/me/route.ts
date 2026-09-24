@@ -5,6 +5,7 @@ import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { businessOwners, places, users } from "@/lib/db/schema";
 import { TERMS_VERSION } from "@/lib/legal";
+import type { PlacePlan } from "@/lib/places-store";
 
 /**
  * Nombre del negocio que lleva esta persona.
@@ -23,11 +24,14 @@ export interface AppBusiness {
   name: string;
   /** `false` mientras esté pendiente de que un administrador lo publique. */
   isActive: boolean;
+  /** El plan con el que se dio de alta, para que el dueño vea el suyo. `null`
+      en las fichas que no pasaron por el formulario del perfil. */
+  plan: PlacePlan | null;
 }
 
 async function businessOf(userId: string): Promise<AppBusiness | null> {
   const [row] = await db
-    .select({ id: places.id, name: places.name, isActive: places.isActive })
+    .select({ id: places.id, name: places.name, isActive: places.isActive, plan: places.plan })
     .from(businessOwners)
     .innerJoin(places, eq(businessOwners.placeId, places.id))
     .where(eq(businessOwners.userId, userId))

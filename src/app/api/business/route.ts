@@ -30,6 +30,10 @@ import type { UserPlace } from "@/lib/places-store";
  * y la vería todo el mundo al instante.
  */
 
+/** Los dos planes del formulario. Se repiten aquí a propósito: el servidor no
+    puede dar por buena una lista que le llega del navegador. */
+const PLAN_IDS = new Set(["trial", "paid"]);
+
 /** Los campos que este formulario puede escribir, y ninguno más. */
 function curatedInput(body: Partial<UserPlace>): Partial<UserPlace> {
   /* Lista blanca y no lista negra, y la diferencia importa: `toNewPlaceValues`
@@ -53,6 +57,13 @@ function curatedInput(body: Partial<UserPlace>): Partial<UserPlace> {
     lng: body.lng,
     payments: list(body.payments),
     vibe: list(body.vibe),
+    /* Un plan que no sea uno de los dos se descarta en vez de caer a «trial»:
+       guardar una prueba que nadie eligió es peor que no guardar nada, porque
+       el panel lo enseñaría como un dato. */
+    plan:
+      typeof body.plan === "string" && PLAN_IDS.has(body.plan)
+        ? (body.plan as UserPlace["plan"])
+        : undefined,
   };
 }
 

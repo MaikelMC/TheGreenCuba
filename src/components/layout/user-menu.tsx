@@ -29,6 +29,10 @@ interface SessionUser {
   name: string;
   imageUrl?: string | null;
   role: Role;
+  /** El negocio que lleva, si lleva alguno. Solo se lee para decidir si el
+      enlace al panel ya tiene destino: mientras esté pendiente de aprobación,
+      `/business` devuelve al perfil y ofrecerlo sería un enlace que rebota. */
+  business?: { isActive: boolean } | null;
 }
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -116,7 +120,23 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
   // cadena escrita a mano en la llamada.
   const resolvedAvatarUrl = avatarUrl || user?.imageUrl || localAvatarUrl || null;
   const avatar = user?.name?.trim().charAt(0).toUpperCase() || initial;
-  const visible = user ? ITEMS.filter((i) => i.roles.includes(user.role)) : ITEMS;
+  /* Sin `user` no se ofrece **ninguna** entrada, y antes se ofrecían todas.
+     `/api/me` es un viaje de red: hasta que contesta no se sabe el rol, así que
+     el fallback `: ITEMS` enseñaba «Panel de administración» a todo el mundo
+     durante ese hueco —el parpadeo que se veía al abrir el menú nada más
+     cargar— y se lo dejaba puesto a quien no tiene sesión, que además se
+     comía un enlace que rebota. Ausencia de dato no es «puede todo»: es que
+     todavía no se sabe. */
+  const visible = user
+    ? ITEMS.filter(
+        (i) =>
+          i.roles.includes(user.role) &&
+          /* El panel de negocio no existe hasta que lo aprueban. El rol se
+             concede al enviar la solicitud, así que por sí solo no basta: el
+             negocio tiene que estar publicado. */
+          (i.path !== "/business" || Boolean(user.business?.isActive)),
+      )
+    : [];
 
   return (
     <div ref={ref} className="relative shrink-0">

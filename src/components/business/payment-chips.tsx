@@ -38,17 +38,21 @@ export function PaymentChips({
 }: PaymentChipsProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set(defaultSelected));
 
+  /* El `onChange` va **fuera** del actualizador de estado, y no dentro como
+     estaba. React ejecuta el actualizador durante el render —y dos veces en
+     modo estricto—, así que llamar ahí al `setState` del padre es avisar a otro
+     componente mientras se pinta este: «Cannot update a component while
+     rendering a different component». El actualizador tiene que ser puro; el
+     aviso al padre es un efecto de un clic, no del cálculo. */
   const toggle = useCallback(
     (id: string) => {
-      setSelected((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        onChange?.(Array.from(next));
-        return next;
-      });
+      const next = new Set(selected);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      setSelected(next);
+      onChange?.(Array.from(next));
     },
-    [onChange],
+    [selected, onChange],
   );
 
   return (
