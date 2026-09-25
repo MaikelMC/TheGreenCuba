@@ -10,6 +10,15 @@ import { cn } from "@/lib/utils";
 import { StateView } from "@/components/ui/state-view";
 import { LoadingState } from "@/components/ui/loading";
 import { RequestDetailSheet } from "@/components/admin/request-detail-sheet";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const FILTER =
   "h-[42px] px-3 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer";
@@ -20,10 +29,13 @@ export function RequestsList() {
   /* La solicitud abierta en el sheet de detalle. `null` = cerrado. El sheet
      conserva el contenido por su cuenta durante la animación de cierre. */
   const [detailPlace, setDetailPlace] = useState<null | (typeof places)[number]>(null);
+  const [rejection, setRejection] = useState<null | { id: string; name: string }>(null);
+  const [rejectionMessage, setRejectionMessage] = useState("");
+  const [rejecting, setRejecting] = useState(false);
 
   const requests = useMemo(
     () =>
-      places.filter((place) => !place.isActive).filter((place) => {
+      places.filter((place) => place.reviewStatus === "pending").filter((place) => {
         if (!query.trim()) return true;
         const q = query.trim().toLowerCase();
         return `${place.name} ${place.category} ${place.barrio} ${place.address}`
@@ -35,7 +47,7 @@ export function RequestsList() {
 
   const approveRequest = useCallback(
     async (id: string, name: string) => {
-      const updated = await updatePlace(id, { isActive: true });
+      const updated = await updatePlace(id, { isActive: true, reviewStatus: "approved" });
       if (!updated) {
         toast.error(`No se pudo aprobar "${name}".`);
         return;
@@ -48,21 +60,24 @@ export function RequestsList() {
     [updatePlace],
   );
 
-  const rejectRequest = useCallback(
-    async (id: string, name: string) => {
-      const confirmed = window.confirm(`¿Rechazar la solicitud de "${name}"?`);
-      if (!confirmed) return;
+  const openRejection = useCallback((id: string, name: string) => {
+    setRejection({ id, name });
+    setRejectionMessage("");
+  }, []);
 
-      const deleted = await removePlace(id);
+  const rejectRequest = useCallback(async () => {
+    if (!rejection) return;
+    setRejecting(true);
+    const deleted = await removePlace(rejection.id, rejectionMessage.trim());
+    setRejecting(false);
       if (!deleted) {
-        toast.error(`No se pudo rechazar "${name}".`);
+        toast.error(`No se pudo rechazar "${rejection.name}".`);
         return;
       }
-      toast.success(`La solicitud de "${name}" fue rechazada.`);
+      toast.success(`La solicitud de "${rejection.name}" fue rechazada y notificada.`);
+      setRejection(null);
       setDetailPlace(null);
-    },
-    [removePlace],
-  );
+  }, [removePlace, rejection, rejectionMessage]);
 
   return (
     <>
@@ -162,7 +177,7 @@ export function RequestsList() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        rejectRequest(place.id, place.name);
+                        openRejection(place.id, place.name);
                       }}
                       className="inline-flex items-center justify-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md py-[10px] font-lv-display text-small font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:border-destructive hover:text-destructive"
                     >
@@ -216,8 +231,53 @@ export function RequestsList() {
         place={detailPlace}
         onClose={() => setDetailPlace(null)}
         onApprove={(id, name) => void approveRequest(id, name)}
-        onReject={(id, name) => void rejectRequest(id, name)}
+        onReject={(id, name) => openRejection(id, name)}
       />
+
+      <Dialog
+        open={rejection !== null}
+        onOpenChange={(open) => {
+          if (!open && !rejecting) setRejection(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rechazar solicitud</DialogTitle>
+            <DialogDescription>
+              {rejection
+                ? `La solicitud de «${rejection.name}» recibirá un mensaje automático. Puedes añadir una explicación opcional.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          <textarea
+            value={rejectionMessage}
+            onChange={(event) => setRejectionMessage(event.target.value)}
+            maxLength={1000}
+            rows={4}
+            placeholder="Mensaje adicional para el usuario (opcional)"
+            aria-label="Mensaje adicional del rechazo"
+            className="min-h-[112px] w-full resize-y rounded-xl border border-ink/10 bg-white px-3 py-3 text-small text-ink outline-none transition-colors focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20"
+            disabled={rejecting}
+          />
+
+          <DialogFooter className="gap-gap-xs sm:gap-gap-xs">
+            <DialogClose asChild>
+              <button type="button" className="rounded-full border border-ink/10 px-gap-md py-[10px] text-small font-semibold text-ink-soft/75">
+                Cancelar
+              </button>
+            </DialogClose>
+            <button
+              type="button"
+              onClick={() => void rejectRequest()}
+              disabled={rejecting}
+              className="inline-flex items-center justify-center gap-gap-xs rounded-full bg-destructive px-gap-md py-[10px] text-small font-semibold text-white disabled:opacity-60"
+            >
+              {rejecting ? "Enviando…" : "Rechazar y notificar"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

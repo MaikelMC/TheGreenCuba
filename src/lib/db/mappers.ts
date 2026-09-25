@@ -82,6 +82,7 @@ export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
     status: row.status,
     plan: row.plan,
     isActive: row.isActive,
+    reviewStatus: row.reviewStatus,
     isBoosted: row.isBoosted,
     boostExpiresAt: row.boostExpiresAt ?? "",
     rating: row.rating ?? undefined,
@@ -142,6 +143,7 @@ export function toPlaceValues(
   if (patch.status !== undefined) values.status = patch.status;
   if (patch.plan !== undefined) values.plan = patch.plan ?? null;
   if (patch.isActive !== undefined) values.isActive = patch.isActive;
+  if (patch.reviewStatus !== undefined) values.reviewStatus = patch.reviewStatus;
   if (patch.isBoosted !== undefined) values.isBoosted = patch.isBoosted;
   if (patch.boostExpiresAt !== undefined) values.boostExpiresAt = patch.boostExpiresAt;
   if (patch.rating !== undefined) values.rating = patch.rating ?? null;
@@ -176,6 +178,7 @@ export function toNewPlaceValues(
     address: input.address ?? null,
     city: "Santiago de Cuba",
     province: "Santiago de Cuba",
+    reviewStatus: "pending",
     neighborhood: input.barrio ?? null,
     ...toPlaceValues(input, categoryId),
   } as typeof places.$inferInsert;

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth/server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
-import { businessOwners, places, users } from "@/lib/db/schema";
+import { businessOwners, categories, places, users } from "@/lib/db/schema";
 import { TERMS_VERSION } from "@/lib/legal";
 import type { PlacePlan } from "@/lib/places-store";
 
@@ -24,16 +24,42 @@ export interface AppBusiness {
   name: string;
   /** `false` mientras esté pendiente de que un administrador lo publique. */
   isActive: boolean;
+  reviewStatus: "pending" | "approved" | "rejected";
   /** El plan con el que se dio de alta, para que el dueño vea el suyo. `null`
       en las fichas que no pasaron por el formulario del perfil. */
   plan: PlacePlan | null;
+  category: string;
+  description: string | null;
+  address: string | null;
+  barrio: string | null;
+  phone: string | null;
+  schedule: string | null;
+  lat: number;
+  lng: number;
+  payments: string[] | null;
 }
 
 async function businessOf(userId: string): Promise<AppBusiness | null> {
   const [row] = await db
-    .select({ id: places.id, name: places.name, isActive: places.isActive, plan: places.plan })
+    .select({
+      id: places.id,
+      name: places.name,
+      isActive: places.isActive,
+      reviewStatus: places.reviewStatus,
+      plan: places.plan,
+      category: categories.slug,
+      description: places.description,
+      address: places.address,
+      barrio: places.neighborhood,
+      phone: places.phone,
+      schedule: places.schedule,
+      lat: places.lat,
+      lng: places.lng,
+      payments: places.paymentMethods,
+    })
     .from(businessOwners)
     .innerJoin(places, eq(businessOwners.placeId, places.id))
+    .innerJoin(categories, eq(places.categoryId, categories.id))
     .where(eq(businessOwners.userId, userId))
     .limit(1);
 

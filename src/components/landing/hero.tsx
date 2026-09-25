@@ -7,10 +7,10 @@ import { cn } from "@/lib/utils";
 import { fadeUp, heroContainer } from "./anim";
 
 const PHRASES = [
-  "Un cafe tranquilo cerca de mi que acepte USD Clásica",
+  "Un café tranquilo cerca de mí que acepte USD Clásica",
   "Restaurante con vista al mar para hoy",
-  "Donde puedo comprar frutas baratas en Vedado",
-  "Bar que toque son cubano esta noche",
+  "¿Dónde puedo comprar frutas baratas en Vedado?",
+  "¿Dónde encuentro un bar con son cubano esta noche?",
   "Lugar con wifi para trabajar remoto",
 ];
 
@@ -124,7 +124,7 @@ export function Hero() {
   return (
     // `lv-grid-glow` es el cielo del sistema: dos radiales verdes sobre un
     // degradado casi negro. Único fondo oscuro de la landing junto al footer.
-    <section className="lv-grid-glow relative flex min-h-[100dvh] flex-col overflow-hidden pt-28">
+    <section className="landing-hero lv-grid-glow relative flex min-h-[100dvh] flex-col overflow-hidden pt-28">
       <div className="flex flex-1 items-center pb-16">
         <div className="mx-auto w-full max-w-container px-gutter md:px-gutter-lg">
           <motion.div
@@ -156,8 +156,8 @@ export function Hero() {
               variants={fadeUp}
               className="mx-auto mt-gap-xl max-w-[52ch] text-lead text-white/70 text-pretty"
             >
-              Preguntale a La Verde como si hablaras con un amigo,
-              y encuentra el lugar que buscas en Cuba.
+              Pregúntale a La Verde como si hablaras con un amigo y encuentra
+              el lugar que buscas en Cuba.
             </motion.p>
 
             <motion.div
@@ -176,7 +176,7 @@ export function Hero() {
                 href="#como-funciona"
                 className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-white/5 px-6 py-3 font-lv-display text-sm font-semibold leading-none text-white transition-all duration-500 ease-outquint hover:bg-white/10 active:scale-[0.98]"
               >
-                Como funciona
+                Cómo funciona
               </Link>
             </motion.div>
 

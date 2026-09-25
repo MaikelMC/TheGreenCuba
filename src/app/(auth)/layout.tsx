@@ -40,18 +40,18 @@ const PILLARS = [
  */
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="lv-grain relative min-h-screen min-h-dvh bg-sand font-lv text-ink lg:grid lg:grid-cols-[1.05fr_1fr]">
+    <div className="lv-grain relative min-h-screen min-h-dvh bg-sand font-lv text-ink lg:grid lg:h-dvh lg:min-h-0 lg:grid-cols-[1.05fr_1fr] lg:overflow-hidden">
       {/* El cielo de móvil, aparte del panel de escritorio: uno se pinta detrás
           de todo y el otro es una columna. Comparten la clase, no la caja. */}
       <div
         aria-hidden
-        className="lv-grid-glow pointer-events-none absolute inset-0 lg:hidden"
+        className="auth-mobile-glow lv-grid-glow pointer-events-none absolute inset-0 lg:hidden"
       />
 
       {/* Todo lo de dentro es de escritorio: por debajo de `lg` esta columna no
           se pinta, así que no hacen falta prefijos. Si vuelve a haber una
           versión móvil de este panel, se añaden aquí. */}
-      <aside className="lv-grid-glow relative hidden flex-col gap-gap-lg overflow-hidden px-gap-3xl py-gap-3xl lg:flex lg:justify-between">
+      <aside className="auth-brand-panel lv-grid-glow relative hidden flex-col gap-gap-lg overflow-hidden px-gap-3xl py-gap-3xl lg:flex lg:justify-between">
         {/* Halo de marca: el mismo par de radiales del hero, aquí para que el
             borde inferior del panel no corte en seco. */}
         <div
@@ -78,7 +78,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </span>
         </Link>
 
-        <div className="relative flex flex-col gap-gap-md">
+        <div className="relative mt-4 flex flex-col gap-gap-md">
           <p className="inline-flex self-start items-center rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-200 backdrop-blur-sm">
             Descubrimiento de lugares
           </p>
@@ -87,7 +87,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
               Va como `<p>` y no como titular: es reclamo de marca, y el único
               encabezado de la pantalla tiene que ser el del formulario, que es
               lo que la persona ha venido a hacer. */}
-          <p className="font-lv-display text-[38px] font-bold leading-[1.15] tracking-[-0.02em] text-white text-balance">
+          <p className="font-lv-display text-[38px] font-bold leading-[1.15] tracking-normal text-white text-balance">
             Escribe lo que buscas.{" "}
             <span className="bg-gradient-to-r from-verde-200 via-verde-300 to-emerald-400 bg-clip-text text-transparent">
               La Verde te lleva.
@@ -116,8 +116,8 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         </p>
       </aside>
 
-      <main className="relative flex min-h-screen min-h-dvh items-center justify-center px-gutter py-gap-2xl lg:min-h-0 lg:px-gap-xl">
-        <div className="flex w-full max-w-[420px] flex-col gap-gap-lg">
+      <main className="auth-form-scroll relative flex min-h-screen min-h-dvh items-center justify-center px-gutter py-gap-2xl lg:h-dvh lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:px-gap-xl">
+        <div className="my-auto flex w-full max-w-[420px] flex-col gap-gap-lg lg:my-auto">
           {/* La marca corona la tarjeta, sobre el cielo. Solo en móvil: en
               escritorio ya está arriba de la columna oscura y repetirla aquí
               sería decir dos veces lo mismo. */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -9,14 +9,13 @@ import {
   Tags,
   Bot,
   ArrowLeft,
-  LogOut,
   Users,
   ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MobileDock } from "@/components/layout/mobile-dock";
+import { UserMenu } from "@/components/layout/user-menu";
 import { EASE } from "@/lib/motion";
-import { logout } from "@/lib/logout";
 
 interface AdminNavItem {
   href: string;
@@ -52,16 +51,9 @@ function isActiveItem(pathname: string, item: AdminNavItem): boolean {
    dos paneles comparten lenguaje; solo cambia el acento de la marca. */
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-
-  /* Antes borraba la marca de `localStorage` de la pantalla de bloqueo; ahora
-     cierra la sesión de verdad, la misma que el resto del sitio. */
-  const handleLogout = () => {
-    void logout();
-  };
 
   return (
-    <div className="h-dvh bg-sand font-lv text-ink flex flex-col">
+    <div className="admin-panel h-dvh bg-sand font-lv text-ink flex flex-col">
       {/* Top Bar */}
       <header className="sticky top-0 z-50 bg-sand-warm/90 backdrop-blur-[16px] border-b border-ink/5 h-header flex items-center px-3 gap-2 sm:px-gap-md sm:gap-gap-sm shrink-0">
         <Link
@@ -78,14 +70,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <span className="font-lv-display text-meta font-semibold bg-verde-50 text-verde-600 px-[10px] py-[3px] rounded-full border border-verde-200 whitespace-nowrap max-sm:hidden">
           Panel de administración
         </span>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="size-9 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 hover:border-destructive hover:text-destructive hover:bg-destructive/5 transition-colors duration-500 ease-outquint shrink-0"
-          aria-label="Cerrar sesión de administrador"
-        >
-          <LogOut size={16} strokeWidth={1.8} />
-        </button>
+        <UserMenu />
       </header>
 
       {/* Shell */}

@@ -8,23 +8,23 @@ import { fadeUp, staggerContainer, VIEWPORT } from "./anim";
    categoría habla la búsqueda. */
 const EXAMPLES = [
   {
-    query: "Donde comer rico con la jeva esta noche",
+    query: "¿Dónde comer rico con la jeva esta noche?",
     pill: "restaurante",
     tags: ["esta noche", "con pareja"],
   },
   {
-    query: "Donde puedo comprar el carne que acepten transferencia",
+    query: "¿Dónde puedo comprar la carne y pagar con transferencia?",
     pill: "mercado",
     tags: ["transferencia", "carne"],
   },
   {
-    query: "Me apetece una hamburguesa con jamón cerca de mi",
+    query: "¿Me apetece una hamburguesa con jamón cerca de mí?",
     pill: "restaurante",
-    tags: ["hamburguesa", "cerca de mi"],
+    tags: ["hamburguesa", "cerca de mí"],
   },
   {
-    query: "Quiero tomarme un café en transferencia",
-    pill: "cafeteria",
+    query: "Quiero tomarme un café pagando por transferencia.",
+    pill: "cafetería",
     tags: ["transferencia", "café"],
   },
 ];
@@ -42,9 +42,9 @@ function ExampleCard({
     <motion.div
       variants={fadeUp}
       whileTap={{ scale: 0.98 }}
-      className="flex flex-col gap-3.5 rounded-4xl border border-ink/5 bg-white p-7 shadow-soft transition-all duration-500 ease-outquint hover:-translate-y-1 hover:shadow-card"
+      className="landing-search-example-card flex flex-col gap-3.5 rounded-4xl border border-ink/5 bg-white p-7 shadow-soft transition-all duration-500 ease-outquint hover:-translate-y-1 hover:shadow-card"
     >
-      <p className="text-[17px] font-medium leading-[1.5] text-ink text-pretty">
+      <p className="landing-search-example-copy text-[17px] font-medium leading-[1.5] text-ink text-pretty">
         <span className="font-lv-display text-[24px] text-verde-600/40" aria-hidden>
           &ldquo;
         </span>
@@ -87,21 +87,21 @@ export function SearchExamples() {
         >
           <motion.p
             variants={fadeUp}
-            className="inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-3.5 py-1.5 font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600"
+            className="landing-search-examples-label inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-3.5 py-1.5 font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600"
           >
-            Busquedas reales
+            Búsquedas reales
           </motion.p>
           <motion.h2
             variants={fadeUp}
             className="mt-5 font-lv-display text-4xl font-bold tracking-[-0.02em] text-ink text-balance sm:text-5xl"
           >
-            Asi habla Cuba con La Verde
+            Así habla Cuba con La Verde
           </motion.h2>
           <motion.p
             variants={fadeUp}
             className="mt-6 text-lead text-ink-soft/75 text-pretty"
           >
-            Ejemplos de como los usuarios encuentran lugares con lenguaje
+            Ejemplos de cómo los usuarios encuentran lugares con lenguaje
             natural.
           </motion.p>
         </motion.div>

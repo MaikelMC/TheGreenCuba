@@ -12,7 +12,8 @@ function useShowGlobalHeader() {
   return (
     pathname !== "/business" &&
     !pathname.startsWith("/profile") &&
-    !pathname.startsWith("/place")
+    !pathname.startsWith("/place") &&
+    !pathname.startsWith("/notifications")
   );
 }
 

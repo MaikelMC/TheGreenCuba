@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
+import { toast } from "sonner";
 import {
   ArrowRight,
   BadgeCheck,
@@ -40,9 +41,19 @@ interface BusinessSummary {
   name: string;
   /** `false` mientras esté pendiente de que un administrador lo publique. */
   isActive: boolean;
+  reviewStatus: "pending" | "approved" | "rejected";
   /** El plan con el que se dio de alta. `null` en fichas que no pasaron por
       este formulario. */
   plan: PlacePlan | null;
+  category: string;
+  description: string | null;
+  address: string | null;
+  barrio: string | null;
+  phone: string | null;
+  schedule: string | null;
+  lat: number;
+  lng: number;
+  payments: string[] | null;
 }
 
 const SCHEDULE_PRESETS = ["8:00 – 16:00", "9:00 – 18:00", "10:00 – 22:00", "12:00 – 24:00", "24 horas"];
@@ -211,7 +222,9 @@ export function BusinessView() {
     );
   }
 
-  return business ? (
+  return business?.reviewStatus === "rejected" ? (
+    <BusinessForm initialBusiness={business} categoriesReady={hydrated && categories.length > 0} />
+  ) : business ? (
     <BusinessCard business={business} />
   ) : (
     <BusinessForm categoriesReady={hydrated && categories.length > 0} />
@@ -220,6 +233,7 @@ export function BusinessView() {
 
 /** Ya tiene negocio: qué es, cómo va, y por dónde se entra a editarlo. */
 function BusinessCard({ business }: { business: BusinessSummary }) {
+  const pending = business.reviewStatus === "pending";
   return (
     <div className="flex flex-col gap-gap-md">
       {/* El nombre del negocio es el titular de esta vista; el título de
@@ -254,7 +268,7 @@ function BusinessCard({ business }: { business: BusinessSummary }) {
           </span>
           <div className="min-w-0 flex-1">
             <p className="font-lv-display text-small font-semibold text-ink">
-              {business.isActive ? "Publicado" : "Pendiente de revisión"}
+              {business.isActive ? "Publicado" : pending ? "Pendiente de revisión" : "Revisión"}
             </p>
             <p className="text-meta text-ink-soft/75">
               {business.isActive
@@ -281,18 +295,26 @@ function BusinessCard({ business }: { business: BusinessSummary }) {
 }
 
 /** El alta. Un negocio por persona, y por eso no hay lista ni «añadir otro». */
-function BusinessForm({ categoriesReady }: { categoriesReady: boolean }) {
+function BusinessForm({
+  categoriesReady,
+  initialBusiness,
+}: {
+  categoriesReady: boolean;
+  initialBusiness?: BusinessSummary;
+}) {
   const { categories } = usePlaces();
 
-  const [name, setName] = useState("");
-  const [categoryValue, setCategoryValue] = useState("");
-  const [barrio, setBarrio] = useState("");
-  const [address, setAddress] = useState("");
-  const [phone, setPhone] = useState("");
-  const [schedule, setSchedule] = useState("");
-  const [description, setDescription] = useState("");
-  const [payments, setPayments] = useState<string[]>([]);
-  const [location, setLocation] = useState<LocationPoint | null>(null);
+  const [name, setName] = useState(initialBusiness?.name ?? "");
+  const [categoryValue, setCategoryValue] = useState(initialBusiness?.category ?? "");
+  const [barrio, setBarrio] = useState(initialBusiness?.barrio ?? "");
+  const [address, setAddress] = useState(initialBusiness?.address ?? "");
+  const [phone, setPhone] = useState(initialBusiness?.phone ?? "");
+  const [schedule, setSchedule] = useState(initialBusiness?.schedule ?? "");
+  const [description, setDescription] = useState(initialBusiness?.description ?? "");
+  const [payments, setPayments] = useState<string[]>(initialBusiness?.payments ?? []);
+  const [location, setLocation] = useState<LocationPoint | null>(
+    initialBusiness ? { lat: initialBusiness.lat, lng: initialBusiness.lng } : null,
+  );
   /* Las fotos elegidas, todavía sin dueño: el negocio no existe hasta que se
      envía el formulario. Se quedan en memoria y se suben justo después del alta. */
   const [photos, setPhotos] = useState<File[]>([]);
@@ -301,12 +323,14 @@ function BusinessForm({ categoriesReady }: { categoriesReady: boolean }) {
      solicitud antes de aprobarla. No se cobra nada todavía. El mes de prueba
      viene marcado porque es el que quiere todo el mundo, y cambiarlo tiene que
      costar un clic, no dos. */
-  const [plan, setPlan] = useState<(typeof PLANS)[number]["id"]>("trial");
+  const [plan, setPlan] = useState<(typeof PLANS)[number]["id"]>(initialBusiness?.plan ?? "trial");
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  /* `true` cuando el alta ya se hizo pero alguna foto no subió. El botón deja de
-     dar de alta —repetir sería un 409— y pasa a llevar al perfil. */
+  /* `true` cuando la solicitud ya se registró y la pantalla pasa a la vista de
+     confirmación. El usuario no vuelve a enviar el formulario, y el botón de
+     salida lo lleva al mapa con el aviso claro de revisión. */
   const [created, setCreated] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   /* La primera categoría en cuanto llegan, para que el desplegable no arranque
@@ -384,20 +408,20 @@ function BusinessForm({ categoriesReady }: { categoriesReady: boolean }) {
       if (failed > 0) {
         setSending(false);
         setCreated(true);
+        setSubmitted(true);
         setError(
-          `Tu negocio quedó dado de alta, pero ${
+          `Tu negocio quedó enviado para revisión, pero ${
             failed === 1 ? "una foto no se pudo subir" : `${failed} fotos no se pudieron subir`
-          }${reason ? `: ${reason}` : ""}. Se añaden desde el panel cuando te aprueben la ficha.`,
+          }${reason ? `: ${reason}` : ""}.`,
         );
         return;
       }
 
-      /* Carga limpia y no `setState`: al terminar cambian tres cosas a la vez
-         —el rol en la base, el enlace del menú y esta misma sección—, y solo
-         recargando se enteran todas. La sección se conserva porque sigue en la
-         URL (`?seccion=negocio`), así que se vuelve aquí mismo, ya con el
-         negocio. */
-      window.location.reload();
+      setCreated(true);
+      setSubmitted(true);
+      setSending(false);
+      setError(null);
+      toast.success("Tu negocio quedó enviado para revisión. Te avisaremos cuando sea revisado.");
     } catch {
       setError("No hubo respuesta del servidor. Revisa tu conexión: no se cambió nada.");
       setSending(false);
@@ -419,8 +443,14 @@ function BusinessForm({ categoriesReady }: { categoriesReady: boolean }) {
   return (
     <div className="flex flex-col gap-gap-md">
       {/* «Registra tu negocio» repetía el título de la sección que ya está en
-          la barra superior; la introducción basta para orientar. */}
+          la barra superior; la introducción basta para orientar, también en el
+          reenvío de una solicitud rechazada. */}
       <header className="flex flex-col gap-gap-xs">
+        <p className="text-small text-pretty text-ink-soft/75">
+          {initialBusiness
+            ? "Actualiza los datos que indicó el administrador y vuelve a enviarla para revisión."
+            : "Completa los datos de tu negocio para enviarlo a revisión."}
+        </p>
         <p className="text-small text-pretty text-ink-soft/75">
           Con esto queda dado de alta, con las fotos que subas.{" "}
           <span className="font-semibold text-ink">
@@ -762,21 +792,42 @@ function BusinessForm({ categoriesReady }: { categoriesReady: boolean }) {
         )}
       </AnimatePresence>
 
-      {/* Con el alta ya hecha —y alguna foto perdida— el botón solo puede
-          llevar al perfil: volver a enviar el formulario sería un 409. */}
-      <button
-        type="button"
-        onClick={created ? () => window.location.reload() : submit}
-        disabled={sending || (!created && !categoriesReady)}
-        className={cn(BTN_PRIMARY, "w-full")}
-      >
-        {sending ? (
-          <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
-        ) : (
-          <Send size={16} strokeWidth={1.8} />
-        )}
-        {created ? "Ir a mi perfil" : sending ? "Dando de alta…" : "Dar de alta mi negocio"}
-      </button>
+      {submitted ? (
+        <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+          <div className="flex items-start gap-gap-sm">
+            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-sand text-verde-600">
+              <Clock size={20} strokeWidth={1.8} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-lv-display text-small font-semibold text-ink">
+                Espera menos de 24 horas
+              </p>
+              <p className="mt-[2px] text-meta text-ink-soft/75">
+                Un administrador revisará tu solicitud y la publicará en el mapa cuando esté aprobada.
+              </p>
+            </div>
+          </div>
+
+          <Link href="/home" className={cn(BTN_PRIMARY, "mt-gap-md w-full")}>
+            Volver al mapa
+            <ArrowRight size={16} strokeWidth={1.8} />
+          </Link>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={submit}
+          disabled={sending || !categoriesReady}
+          className={cn(BTN_PRIMARY, "w-full")}
+        >
+          {sending ? (
+            <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
+          ) : (
+            <Send size={16} strokeWidth={1.8} />
+          )}
+          {sending ? "Dando de alta…" : "Dar de alta mi negocio"}
+        </button>
+      )}
     </div>
   );
 }

@@ -3,7 +3,8 @@ import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
-import { places } from "@/lib/db/schema";
+import { businessOwners, notifications, places } from "@/lib/db/schema";
+import { generateId } from "@/lib/utils";
 import { toPlaceValues, toUserPlace } from "@/lib/db/mappers";
 import { CATALOG_TAG, getPlaceById, resolveCategoryId } from "@/lib/db/queries";
 import type { UserPlace } from "@/lib/places-store";
@@ -53,11 +54,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
      La comprobación va solo cuando alguno de los dos campos viene, que es el
      caso raro: la aprobación desde `/admin` y los scripts con `x-admin-key`. */
   if (
-    (body.isActive !== undefined || body.plan !== undefined) &&
+    (body.isActive !== undefined || body.plan !== undefined || body.reviewStatus !== undefined) &&
     !(await isAdminRequest(req))
   ) {
     delete body.isActive;
     delete body.plan;
+    delete body.reviewStatus;
   }
 
   const name = typeof body.name === "string" ? body.name.trim() : undefined;
@@ -94,6 +96,38 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
   }
 
+  if (body.reviewStatus === "approved" && body.isActive === true) {
+    const [owner] = await db
+      .select({ userId: businessOwners.userId })
+      .from(businessOwners)
+      .where(eq(businessOwners.placeId, id))
+      .limit(1);
+
+    if (owner) {
+      const [previous] = await db
+        .update(notifications)
+        .set({
+          type: "business_approved",
+          title: "Solicitud de negocio aprobada",
+          message: `Tu negocio «${row.name}» fue aprobado y ya está publicado en La Verde.`,
+          readAt: null,
+        })
+        .where(eq(notifications.placeId, id))
+        .returning({ id: notifications.id });
+
+      if (!previous) {
+        await db.insert(notifications).values({
+          id: generateId(),
+          userId: owner.userId,
+          type: "business_approved",
+          title: "Solicitud de negocio aprobada",
+          message: `Tu negocio «${row.name}» fue aprobado y ya está publicado en La Verde.`,
+          placeId: id,
+        });
+      }
+    }
+  }
+
   /* Antes de releer, y no después: `getPlaceById` está cacheado, así que sin
      invalidar primero devolvería la ficha vieja y el panel guardaría un cambio
      que no se ve. El orden importa. */
@@ -111,6 +145,47 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   }
 
   const { id } = await params;
+  let rejectionMessage = "";
+  try {
+    const body = (await req.json()) as { message?: unknown };
+    if (typeof body.message === "string") rejectionMessage = body.message.trim().slice(0, 1000);
+  } catch {
+    /* DELETE sin cuerpo sigue siendo válido para las eliminaciones del panel. */
+  }
+
+  const [owner] = await db
+    .select({ userId: businessOwners.userId })
+    .from(businessOwners)
+    .where(eq(businessOwners.placeId, id))
+    .limit(1);
+
+  const [place] = await db
+    .select({ name: places.name, isActive: places.isActive })
+    .from(places)
+    .where(eq(places.id, id))
+    .limit(1);
+
+  if (owner && place && !place.isActive) {
+    await db.insert(notifications).values({
+      id: generateId(),
+      userId: owner.userId,
+      type: "business_rejected",
+      title: "Solicitud de negocio rechazada",
+      message:
+        rejectionMessage ||
+        `La solicitud de «${place.name}» fue revisada y no aprobada. Puedes corregir los datos y enviarla nuevamente.`,
+      placeId: id,
+    });
+
+    await db
+      .update(places)
+      .set({ reviewStatus: "rejected", isActive: false, updatedAt: new Date() })
+      .where(eq(places.id, id));
+
+    revalidateTag(CATALOG_TAG, "max");
+    return NextResponse.json({ id, rejected: true });
+  }
+
   const [row] = await db.delete(places).where(eq(places.id, id)).returning({ id: places.id });
 
   if (!row) {

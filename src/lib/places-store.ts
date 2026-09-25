@@ -14,6 +14,7 @@
  */
 
 export type PlaceStatus = "active" | "closed" | "temporary_closed";
+export type PlaceReviewStatus = "pending" | "approved" | "rejected";
 
 /** Los dos planes del alta. `null` en `UserPlace.plan` = no eligió ninguno. */
 export type PlacePlan = "trial" | "paid";
@@ -129,6 +130,7 @@ export interface UserPlace {
    * `PATCH` del dueño no puede publicarse a sí mismo.
    */
   isActive: boolean;
+  reviewStatus: PlaceReviewStatus;
   isBoosted: boolean;
   boostExpiresAt: string;
   rating?: number;
@@ -152,7 +154,7 @@ export interface UserPlace {
    y no suya. */
 export type NewUserPlace = Omit<
   UserPlace,
-  "id" | "createdAt" | "updatedAt" | "status" | "isActive" | "isBoosted" | "boostExpiresAt"
+  "id" | "createdAt" | "updatedAt" | "status" | "isActive" | "reviewStatus" | "isBoosted" | "boostExpiresAt"
 > &
   Partial<Pick<UserPlace, "status" | "isActive" | "isBoosted" | "boostExpiresAt">>;
 

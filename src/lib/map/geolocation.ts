@@ -94,7 +94,19 @@ export function getLastKnownPosition(): UserPosition | null {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as UserPosition & { savedAt: number };
-    if (Date.now() - parsed.savedAt > USER_LOCATION_CACHE_TTL) {
+    const validCoordinates =
+      Number.isFinite(parsed.lat) &&
+      Number.isFinite(parsed.lng) &&
+      parsed.lat >= -90 &&
+      parsed.lat <= 90 &&
+      parsed.lng >= -180 &&
+      parsed.lng <= 180;
+    const validMetadata =
+      Number.isFinite(parsed.accuracy) &&
+      Number.isFinite(parsed.timestamp) &&
+      Number.isFinite(parsed.savedAt);
+
+    if (!validCoordinates || !validMetadata || Date.now() - parsed.savedAt > USER_LOCATION_CACHE_TTL) {
       localStorage.removeItem(CACHE_KEY);
       return null;
     }

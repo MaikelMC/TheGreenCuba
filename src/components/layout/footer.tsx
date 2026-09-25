@@ -3,7 +3,7 @@ import { Logo } from "./logo";
 
 export function Footer() {
   return (
-    <footer className="bg-verde-950 pt-16 pb-10 text-[14px] text-white/70">
+    <footer className="landing-footer bg-verde-950 pt-16 pb-10 text-[14px] text-white/70">
       <div className="mx-auto max-w-container px-5 md:px-8">
         <div className="flex flex-wrap justify-between items-start gap-gap-xl">
           <div className="max-w-[280px]">
