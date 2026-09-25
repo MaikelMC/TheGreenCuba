@@ -388,6 +388,89 @@
     border-color: rgba(255, 255, 255, 0.08) !important;
   }
 
+  /* Tokens que el bloque de arriba no cubre y sí usan la ficha de lugar, el
+     popup del mapa y el onboarding: arena profunda y los acentos verdes. La
+     paleta es la misma que ya usan el home, el admin y el panel de negocio
+     oscurecidos — una sola escala para todo el modo oscuro. */
+  html[data-theme="dark"] .bg-sand-deep {
+    background-color: #1b2922 !important;
+  }
+
+  html[data-theme="dark"] .bg-verde-50 {
+    background-color: #173522 !important;
+  }
+
+  html[data-theme="dark"] .bg-verde-100 {
+    background-color: #21442e !important;
+  }
+
+  /* La variante translúcida (`bg-verde-50/60`, tarjetas de plan) compila a una
+     clase distinta de `.bg-verde-50` y sin esto se le escaparía. */
+  html[data-theme="dark"] .bg-verde-50\/60 {
+    background-color: rgba(23, 53, 34, 0.6) !important;
+  }
+
+  html[data-theme="dark"] [class~="hover:bg-verde-100"]:hover {
+    background-color: #21442e !important;
+  }
+
+  /* Estrellas sin rellenar (valoración y reseñas): `ink/20` es tinta sobre
+     fondo oscuro — casi invisible. El hueco de estrella debe leerse como
+     hueco, no desaparecer. */
+  html[data-theme="dark"] .text-ink\/20 {
+    color: rgba(237, 247, 240, 0.25) !important;
+  }
+
+  /* Skeleton de carga de reseñas: el degradado claro de arriba delata un
+     bloque luminoso en mitad de la ficha oscura. Mismo brillo, escala oscura. */
+  html[data-theme="dark"] .skeleton-shimmer {
+    background: linear-gradient(90deg, #1b2922 25%, #24352c 50%, #1b2922 75%);
+    background-size: 200% 100%;
+  }
+
+  html[data-theme="dark"] [class~="hover:bg-verde-50"]:hover,
+  html[data-theme="dark"] [class~="hover:bg-verde-50"]:focus-visible {
+    background-color: #173522 !important;
+  }
+
+  html[data-theme="dark"] .border-verde-200 {
+    border-color: #28533a !important;
+  }
+
+  html[data-theme="dark"] .text-verde-600,
+  html[data-theme="dark"] .text-verde-700 {
+    color: #9be3b4 !important;
+  }
+
+  /* Flechas del carrusel de fotos: la lista global de whites no incluye el
+     /85, y sobre fotos un botón claro semiopaco es lo de menos; sobre el mapa
+     y los rellenos oscuros delata. Semitransparente oscuro, no sólido. */
+  html[data-theme="dark"] .bg-white\/85 {
+    background-color: rgba(14, 23, 32, 0.85) !important;
+  }
+
+  html[data-theme="dark"] .bg-white\/85:hover {
+    background-color: rgba(14, 23, 32, 0.95) !important;
+  }
+
+  /* Separadores verticales de la tira de datos en escritorio. */
+  html[data-theme="dark"] .text-ink\/10 {
+    color: rgba(237, 247, 240, 0.15) !important;
+  }
+
+  /* Relleno del carrusel cuando el negocio no tiene fotos. El degradado llega
+     como estilo inline desde la ficha, y el `!important` es lo único que gana a
+     un inline style: un parche verde-claro en mitad de la pantalla oscura
+     cantaba más que cualquier otro descuido de esta lista. */
+  html[data-theme="dark"] .slide-fallback {
+    background: linear-gradient(160deg, #142b1e, #0f2018) !important;
+    color: #9be3b4 !important;
+  }
+
+  html[data-theme="dark"] .slide-fallback svg {
+    color: #9be3b4 !important;
+  }
+
   /* `manipulation` desactiva el doble-tap-zoom y con él el retardo de ~300ms
      que los navegadores móviles meten antes de disparar el click. El sitio es
      de uso mayoritario en teléfono, así que se nota en cada pulsación. */
@@ -650,6 +733,87 @@
   color: rgba(27, 42, 33, 0.5) !important; /* ink-soft al 50 % */
   cursor: default !important;
   box-shadow: none !important;
+}
+
+/* Modo oscuro. Los valores claros de arriba son hex fijos —el override global
+   de `.bg-white` no alcanza aquí—, así que cada regla tiene su pareja bajo
+   `data-theme="dark"`, con la misma paleta que el resto del mapa oscuro
+   (#0e1720 de superficie, acento #9be3b4, hairline claro al 8 %). */
+html[data-theme="dark"] .leaflet-container {
+  /* El sand del modo claro delata un flash claro mientras cargan los tiles;
+     en oscuro el fondo arranca oscuro, como `.map-loading`. */
+  background: #0e1720;
+}
+
+html[data-theme="dark"] .leaflet-container .leaflet-bar.leaflet-control-zoom {
+  border-color: rgba(237, 247, 240, 0.08) !important;
+  background: #0e1720 !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 8px 24px -12px rgba(0, 0, 0, 0.55) !important;
+}
+
+html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a {
+  color: #edf7f0 !important;
+}
+
+html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a.leaflet-control-zoom-in {
+  border-bottom-color: rgba(237, 247, 240, 0.08) !important;
+}
+
+html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a:hover,
+html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a:focus,
+html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a:focus-visible {
+  background: #173522 !important;
+  color: #9be3b4 !important;
+}
+
+html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a:active {
+  background: #21442e !important;
+}
+
+html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a.leaflet-disabled,
+html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a.leaflet-disabled:hover {
+  background: transparent !important;
+  color: rgba(237, 247, 240, 0.35) !important;
+}
+
+/* El botón «Mi ubicación» comparte cluster con el zoom: su caja cae en el
+   override global de `.bg-white`, pero el borde `ink/5` y el icono del estado
+   en reposo (`text-ink`) quedaban tinta sobre tinta. El único `svg.text-ink`
+   dentro del mapa es ese icono, por eso el selector apunta tan fino y no toca
+   al popup ni al spinner verde del estado de carga. */
+html[data-theme="dark"] .leaflet-container [class~="border-ink/5"] {
+  border-color: rgba(237, 247, 240, 0.08) !important;
+}
+
+html[data-theme="dark"] .leaflet-container button.text-ink {
+  color: #edf7f0 !important;
+}
+
+/* La tarjeta del popup: wrapper y punta son `#ffffff` hex fijo en el CSS claro
+   de arriba, así que necesitan su pareja explícita. El contenido interior ya
+   cae en los overrides globales de token (`text-ink`, `bg-white`, y los verdes
+   de esta misma tanda). */
+html[data-theme="dark"] .custom-leaflet-popup .leaflet-popup-content-wrapper {
+  background: #0e1720 !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 16px 40px -16px rgba(0, 0, 0, 0.6) !important;
+}
+
+html[data-theme="dark"] .custom-leaflet-popup .leaflet-popup-tip {
+  background: #0e1720 !important;
+}
+
+html[data-theme="dark"] .leaflet-container .custom-leaflet-popup .leaflet-popup-close-button {
+  color: rgba(237, 247, 240, 0.72) !important;
+}
+
+html[data-theme="dark"] .leaflet-container .custom-leaflet-popup .leaflet-popup-close-button:hover,
+html[data-theme="dark"] .leaflet-container .custom-leaflet-popup .leaflet-popup-close-button:focus-visible {
+  color: #edf7f0 !important;
+  background: #173522 !important;
 }
 
 /* ─── Popup del mapa ───
