@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { Bookmark, Eye, Info, Sparkles, TrendingUp } from "lucide-react";
+import { CategoryIcon } from "@/components/admin/category-icon";
 import { MiniChart } from "@/components/business/mini-chart";
-import { categoryEmoji } from "@/lib/places";
+import { categoryIcon } from "@/lib/places";
 import { EASE } from "@/lib/motion";
 import {
   dailyHistogram,
@@ -25,8 +26,6 @@ interface SavedPlaceItem {
   category: string;
   savedAt: string | null;
 }
-
-const H_VIEW = "font-lv-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-ink";
 
 /* Estado mientras no hay nada guardado en este navegador. Es el mismo objeto
    EMPTY del store, repetido aquí porque `activity` empieza en `null` mientras
@@ -96,17 +95,8 @@ export function PlacesView() {
 
   return (
     <div className="flex flex-col gap-gap-xl">
-      <header className="flex flex-col gap-gap-xs">
-        <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
-          Tu actividad
-        </span>
-        <h1 className={H_VIEW}>Mis lugares</h1>
-        <p className="text-small text-pretty text-ink-soft/75">
-          Lo que has abierto y guardado en este dispositivo. No es una medida de
-          toda La Verde: es la tuya.
-        </p>
-      </header>
-
+      {/* Sin cabecera propia: el título de la sección ya lo dice la barra
+          superior del perfil, y repetirlo aquí era decir lo mismo dos veces. */}
       {top.length === 0 && saved.length === 0 && (
         <p className="flex items-start gap-gap-xs rounded-2xl border border-verde-200 bg-verde-50 px-gap-sm py-gap-xs text-meta text-verde-700">
           <Info size={15} strokeWidth={1.8} className="mt-[1px] shrink-0" aria-hidden />
@@ -157,8 +147,8 @@ export function PlacesView() {
                   <span className="w-4 shrink-0 font-lv-display text-meta font-semibold text-ink-soft/75">
                     {i + 1}
                   </span>
-                  <span aria-hidden className="shrink-0 text-[15px]">
-                    {categoryEmoji(v.category)}
+                  <span aria-hidden className="shrink-0 text-verde-600">
+                    <CategoryIcon icon={categoryIcon(v.category)} size={16} strokeWidth={1.8} />
                   </span>
                   <span className="min-w-0 flex-1 truncate text-small font-medium text-ink transition-colors duration-500 ease-outquint group-hover:text-verde-600">
                     {v.name}
@@ -193,8 +183,8 @@ export function PlacesView() {
                   href={`/place/${v.placeId}`}
                   className="flex items-center gap-gap-sm border-b border-ink/5 py-gap-sm text-small text-ink transition-colors duration-500 ease-outquint last:border-b-0 hover:text-verde-600"
                 >
-                  <span aria-hidden className="shrink-0">
-                    {categoryEmoji(v.category)}
+                  <span aria-hidden className="shrink-0 text-verde-600">
+                    <CategoryIcon icon={categoryIcon(v.category)} size={16} strokeWidth={1.8} />
                   </span>
                   <span className="min-w-0 flex-1 truncate">{v.name}</span>
                   <Bookmark size={14} strokeWidth={1.8} className="shrink-0 text-verde-500" />

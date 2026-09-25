@@ -130,15 +130,8 @@ export function SettingsView() {
 
   return (
     <div className="flex flex-col gap-gap-xl">
-      <header className="flex flex-col gap-gap-xs">
-        <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
-          Tu cuenta
-        </span>
-        <h1 className="font-lv-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-ink">
-          Configuración
-        </h1>
-      </header>
-
+      {/* Sin cabecera propia: el título de la sección ya lo dice la barra
+          superior del perfil, y repetirlo aquí era decir lo mismo dos veces. */}
       <section className="flex flex-col gap-gap-md rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
         <h2 className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
           Cuenta

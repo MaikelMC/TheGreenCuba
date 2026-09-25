@@ -222,10 +222,9 @@ export function BusinessView() {
 function BusinessCard({ business }: { business: BusinessSummary }) {
   return (
     <div className="flex flex-col gap-gap-md">
+      {/* El nombre del negocio es el titular de esta vista; el título de
+          sección («Tengo un negocio») ya lo pinta la barra superior. */}
       <header className="flex flex-col gap-gap-xs">
-        <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
-          Tu negocio
-        </span>
         <h2 className="font-lv-display text-[22px] font-bold leading-tight tracking-[-0.02em] text-ink">
           {business.name}
         </h2>
@@ -419,13 +418,9 @@ function BusinessForm({ categoriesReady }: { categoriesReady: boolean }) {
 
   return (
     <div className="flex flex-col gap-gap-md">
+      {/* «Registra tu negocio» repetía el título de la sección que ya está en
+          la barra superior; la introducción basta para orientar. */}
       <header className="flex flex-col gap-gap-xs">
-        <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
-          Para negocios
-        </span>
-        <h2 className="font-lv-display text-[22px] font-bold leading-tight tracking-[-0.02em] text-ink">
-          Registra tu negocio
-        </h2>
         <p className="text-small text-pretty text-ink-soft/75">
           Con esto queda dado de alta, con las fotos que subas.{" "}
           <span className="font-semibold text-ink">
