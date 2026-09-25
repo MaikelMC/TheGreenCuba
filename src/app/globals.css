@@ -81,6 +81,313 @@
     text-rendering: optimizeLegibility;
   }
 
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    background-color: #08130d;
+  }
+
+  html[data-theme="dark"] body {
+    background: radial-gradient(circle at top, rgba(53, 175, 109, 0.12), transparent 30%), #08130d;
+    color: #edf7f0;
+  }
+
+  html[data-theme="dark"] .bg-white,
+  html[data-theme="dark"] .bg-sand,
+  html[data-theme="dark"] .bg-sand-warm,
+  html[data-theme="dark"] .bg-white\/90,
+  html[data-theme="dark"] .bg-white\/95,
+  html[data-theme="dark"] .bg-white\/70,
+  html[data-theme="dark"] .bg-white\/60,
+  html[data-theme="dark"] .bg-sand-warm\/90,
+  html[data-theme="dark"] .bg-background {
+    background-color: #0e1720 !important;
+  }
+
+  html[data-theme="dark"] header.sticky,
+  html[data-theme="dark"] header.map-navigation {
+    background: rgba(10, 18, 24, 0.82) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  }
+
+  html[data-theme="dark"] header.map-navigation form,
+  html[data-theme="dark"] header.map-navigation .absolute,
+  html[data-theme="dark"] header.map-navigation [role="menu"] {
+    background-color: #0e1720 !important;
+  }
+
+  html[data-theme="dark"] .home-search-form {
+    border-color: rgba(237, 247, 240, 0.24) !important;
+  }
+
+  html[data-theme="dark"] .home-search-form:focus-within {
+    border-color: #67c792 !important;
+    box-shadow: 0 0 0 3px rgba(53, 175, 109, 0.2) !important;
+  }
+
+  html[data-theme="dark"] .auth-form {
+    border-color: rgba(237, 247, 240, 0.2) !important;
+  }
+
+  html[data-theme="dark"] .auth-field {
+    border-color: rgba(237, 247, 240, 0.32) !important;
+    background-color: transparent !important;
+  }
+
+  html[data-theme="dark"] .auth-field:focus-within {
+    border-color: #67c792 !important;
+    background-color: transparent !important;
+    box-shadow: 0 0 0 3px rgba(53, 175, 109, 0.18) !important;
+  }
+
+  html[data-theme="dark"] .auth-terms-checkbox {
+    accent-color: #67c792 !important;
+    color-scheme: light;
+    background-color: #f4f8f5 !important;
+    outline: 1px solid rgba(237, 247, 240, 0.65);
+    outline-offset: 1px;
+  }
+
+  html[data-theme="dark"] .auth-terms-label {
+    color: #edf7f0 !important;
+  }
+
+  html[data-theme="dark"] .auth-terms-link {
+    color: #9be3b4 !important;
+  }
+
+  html[data-theme="dark"] .auth-home-link {
+    border-color: rgba(237, 247, 240, 0.42) !important;
+    color: #f4faf6 !important;
+  }
+
+  html[data-theme="dark"] .auth-home-link:hover {
+    background-color: rgba(237, 247, 240, 0.1) !important;
+  }
+
+  html[data-theme="dark"] .user-menu-panel-item {
+    color: #edf7f0 !important;
+    border-color: rgba(237, 247, 240, 0.1) !important;
+    background-color: transparent !important;
+  }
+
+  html[data-theme="dark"] .user-menu-panel-item:hover,
+  html[data-theme="dark"] .user-menu-panel-item:focus-visible {
+    background-color: transparent !important;
+  }
+
+  html[data-theme="dark"] .user-menu-panel-icon {
+    color: #9be3b4 !important;
+  }
+
+  html[data-theme="dark"] .user-menu-icon {
+    color: #9be3b4 !important;
+  }
+
+  html[data-theme="dark"] .user-menu-popup .bg-verde-50 {
+    background-color: #173522 !important;
+  }
+
+  html[data-theme="dark"] .user-menu-popup .text-verde-700 {
+    color: #9be3b4 !important;
+  }
+
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-white,
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-sand,
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-sand-warm,
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-sand-deep,
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) [class~="bg-sand/50"] {
+    background-color: #0e1720 !important;
+  }
+
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-verde-50 {
+    background-color: #173522 !important;
+  }
+
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-verde-100 {
+    background-color: #21442e !important;
+  }
+
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) [class~="hover:bg-verde-50"]:hover,
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) [class~="hover:bg-sand"]:hover {
+    background-color: #173522 !important;
+  }
+
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .border-ink\/5,
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .border-ink\/10 {
+    border-color: rgba(237, 247, 240, 0.14) !important;
+  }
+
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .border-verde-200 {
+    border-color: rgba(103, 199, 146, 0.3) !important;
+  }
+
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .text-verde-600,
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .text-verde-700 {
+    color: #9be3b4 !important;
+  }
+
+  html[data-theme="dark"] .places-activity .activity-surface {
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+
+  html[data-theme="dark"] .places-activity .shadow-soft {
+    box-shadow: none !important;
+  }
+
+  html[data-theme="dark"] .dark-map-tiles .leaflet-tile {
+    filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(0.9);
+  }
+
+  html[data-theme="dark"] .map-loading {
+    background-color: #0e1720 !important;
+  }
+
+  html[data-theme="dark"] .home-bottom-sheet .bg-gradient-to-t {
+    background-image: linear-gradient(to top, #0e1720, transparent) !important;
+  }
+
+  html[data-theme="dark"] .home-bottom-sheet .recommendations-ai-banner {
+    background-color: #142b1e !important;
+    border-color: #28533a !important;
+  }
+
+  html[data-theme="dark"] .home-bottom-sheet .bg-verde-50 {
+    background-color: #173522 !important;
+  }
+
+  html[data-theme="dark"] .home-bottom-sheet .bg-verde-100 {
+    background-color: #21442e !important;
+  }
+
+  html[data-theme="dark"] .home-bottom-sheet .bg-sand,
+  html[data-theme="dark"] .home-bottom-sheet .bg-sand-deep {
+    background-color: #1b2922 !important;
+  }
+
+  html[data-theme="dark"] .home-bottom-sheet .bg-verde-50.text-verde-600 {
+    color: #9be3b4 !important;
+  }
+
+  html[data-theme="dark"] .home-bottom-sheet .recommendation-place-thumb {
+    background-image: none !important;
+    background-color: #173522 !important;
+  }
+
+  html[data-theme="dark"] .landing-cta {
+    background-color: #0e1720 !important;
+  }
+
+  html[data-theme="dark"] .landing-hero,
+  html[data-theme="dark"] .auth-brand-panel,
+  html[data-theme="dark"] .auth-mobile-glow {
+    background-image:
+      radial-gradient(circle at 20% 12%, rgba(53, 175, 109, 0.1), transparent 42%),
+      radial-gradient(circle at 85% 0%, rgba(15, 122, 65, 0.12), transparent 45%),
+      linear-gradient(to bottom, #03160f, #020b07) !important;
+  }
+
+  html[data-theme="dark"] .landing-nav-surface {
+    background-color: rgba(2, 11, 7, 0.92) !important;
+    box-shadow: 0 0 0 1px rgba(237, 247, 240, 0.08);
+  }
+
+  html[data-theme="dark"] .landing-mobile-nav-link {
+    color: #f4faf6 !important;
+  }
+
+  html[data-theme="dark"] .landing-nav-link {
+    color: #f4faf6 !important;
+  }
+
+  html[data-theme="dark"] .landing-footer {
+    background-color: #020b07 !important;
+  }
+
+  html[data-theme="dark"] .landing-cta .landing-cta-secondary {
+    background-color: #142b1e !important;
+    border-color: rgba(237, 247, 240, 0.2) !important;
+    color: #edf7f0 !important;
+  }
+
+  html[data-theme="dark"] .landing-cta .landing-cta-secondary:hover {
+    background-color: #21442e !important;
+    border-color: #67c792 !important;
+  }
+
+  html[data-theme="dark"] .landing-step-number-back {
+    color: rgba(103, 199, 146, 0.5) !important;
+  }
+
+  html[data-theme="dark"] .landing-step-number-front {
+    color: #9be3b4 !important;
+  }
+
+  html[data-theme="dark"] .landing-search-example-card {
+    border-color: rgba(237, 247, 240, 0.22) !important;
+    color: #edf7f0 !important;
+  }
+
+  html[data-theme="dark"] .landing-search-example-copy {
+    color: #ffffff !important;
+  }
+
+  html[data-theme="dark"] .landing-search-examples-label {
+    background-color: #173522 !important;
+    border-color: #28533a !important;
+    color: #9be3b4 !important;
+  }
+
+  html[data-theme="dark"] .landing-how-it-works-label,
+  html[data-theme="dark"] .landing-features-label {
+    background-color: #173522 !important;
+    border-color: #28533a !important;
+    color: #9be3b4 !important;
+  }
+
+  html[data-theme="dark"] .landing-feature-icon {
+    background-color: #173522 !important;
+    color: #9be3b4 !important;
+  }
+
+  html[data-theme="dark"] .group:hover .landing-feature-icon {
+    background-color: #21442e !important;
+  }
+
+  html[data-theme="dark"] .landing-search-example-card .bg-verde-50 {
+    background-color: #173522 !important;
+  }
+
+  html[data-theme="dark"] .landing-search-example-card .text-verde-600 {
+    color: #9be3b4 !important;
+  }
+
+  html[data-theme="dark"] .landing-search-example-card .border-ink\/5 {
+    border-color: rgba(237, 247, 240, 0.16) !important;
+  }
+
+  html[data-theme="dark"] .landing-search-example-card p span[aria-hidden] {
+    color: rgba(155, 227, 180, 0.7) !important;
+  }
+
+  html[data-theme="dark"] .text-ink {
+    color: #edf7f0 !important;
+  }
+
+  html[data-theme="dark"] .text-ink-soft\/75,
+  html[data-theme="dark"] .text-ink-soft\/70,
+  html[data-theme="dark"] .text-ink-soft\/60,
+  html[data-theme="dark"] .text-ink-soft\/80 {
+    color: rgba(237, 247, 240, 0.72) !important;
+  }
+
+  html[data-theme="dark"] .border-ink\/5,
+  html[data-theme="dark"] .border-ink\/10,
+  html[data-theme="dark"] .divide-ink\/5 {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
   /* `manipulation` desactiva el doble-tap-zoom y con él el retardo de ~300ms
      que los navegadores móviles meten antes de disparar el click. El sitio es
      de uso mayoritario en teléfono, así que se nota en cada pulsación. */

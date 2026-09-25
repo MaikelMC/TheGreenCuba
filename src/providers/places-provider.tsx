@@ -56,7 +56,7 @@ interface PlacesContextValue {
   refreshPlaces: () => Promise<void>;
   addPlace: (input: NewUserPlace) => Promise<UserPlace | null>;
   updatePlace: (id: string, patch: UserPlacePatch) => Promise<UserPlace | null>;
-  removePlace: (id: string) => Promise<boolean>;
+  removePlace: (id: string, message?: string) => Promise<boolean>;
   addCategory: (input: CategoryInput) => Promise<BusinessCategory | null>;
   updateCategory: (
     value: string,
@@ -207,10 +207,10 @@ export function PlacesProvider({
     return result.data;
   }, []);
 
-  const removePlace = useCallback(async (id: string) => {
+  const removePlace = useCallback(async (id: string, message?: string) => {
     const result = await request<{ id: string }>(
       `/api/places/${encodeURIComponent(id)}`,
-      { method: "DELETE" },
+      json("DELETE", { message }),
     );
     if (!result.ok) {
       setError(result.error);

@@ -68,9 +68,12 @@ export function PanelShell({
     let alive = true;
     fetch("/api/me")
       .then((res) => res.json())
-      .then((data: { authenticated: boolean; user: { business: string | null; name: string } | null }) => {
+      .then((data: {
+        authenticated: boolean;
+        user: { business: { name: string } | null; name: string } | null;
+      }) => {
         if (alive && data.authenticated && data.user) {
-          setSessionName(data.user.business ?? data.user.name);
+          setSessionName(data.user.business?.name ?? data.user.name);
         }
       })
       .catch(() => {});
@@ -82,7 +85,7 @@ export function PanelShell({
   const displayName = businessName ?? sessionName ?? "Mi negocio";
 
   return (
-    <div className={cn("h-dvh bg-sand font-lv text-ink flex flex-col", className)}>
+    <div className={cn("business-panel h-dvh bg-sand font-lv text-ink flex flex-col", className)}>
       {/* Top Bar. Igual que la cabecera del home: barra clara translúcida con
           hairline de tinta, no el `border-border` gris del sistema viejo. */}
       <header className="sticky top-0 z-50 bg-sand-warm/90 backdrop-blur-[16px] border-b border-ink/5 h-header flex items-center px-3 gap-2 sm:px-gap-md sm:gap-gap-sm shrink-0">

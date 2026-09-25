@@ -16,7 +16,7 @@ import { Logo } from "@/components/layout/logo";
 import { EASE } from "./anim";
 
 const NAV_LINKS = [
-  { href: "#como-funciona", label: "Como funciona" },
+  { href: "#como-funciona", label: "Cómo funciona" },
   { href: "#ejemplos", label: "Ejemplos" },
   { href: "#lugares", label: "Lugares" },
 ];
@@ -48,7 +48,7 @@ export function Header() {
       transition={{ duration: 0.9, ease: EASE, delay: 0.2 }}
       className="fixed inset-x-0 top-0 z-50 px-gutter pt-3 md:px-gutter-lg"
     >
-      <div className="mx-auto flex h-14 max-w-3xl items-center justify-between rounded-full bg-verde-950/70 pl-4 pr-2 ring-1 ring-white/10 backdrop-blur-2xl">
+      <div className="landing-nav-surface mx-auto flex h-14 max-w-3xl items-center justify-between rounded-full bg-verde-950/70 pl-4 pr-2 ring-1 ring-white/10 backdrop-blur-2xl">
         <Link
           href="/"
           className="flex items-center gap-2 font-lv-display text-[20px] font-bold tracking-[-0.02em] text-white"
@@ -63,7 +63,7 @@ export function Header() {
             <a
               key={link.href}
               href={link.href}
-              className="text-[15px] text-white/70 transition-colors duration-500 hover:text-white"
+              className="landing-nav-link text-[15px] text-white/70 transition-colors duration-500 hover:text-white"
             >
               {link.label}
             </a>
@@ -77,7 +77,7 @@ export function Header() {
             <SheetTrigger asChild>
               <button
                 className="grid size-10 place-items-center rounded-full text-white sm:hidden"
-                aria-label="Abrir menu"
+                aria-label="Abrir menú"
               >
                 <svg
                   width="22"
@@ -101,7 +101,7 @@ export function Header() {
                   <SheetClose key={link.href} asChild>
                     <a
                       href={link.href}
-                      className="text-[17px] font-medium text-foreground transition-colors hover:text-accent"
+                      className="landing-mobile-nav-link text-[17px] font-medium text-foreground transition-colors hover:text-accent"
                     >
                       {link.label}
                     </a>

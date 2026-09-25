@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { User, Building2, ShieldCheck, LogOut } from "lucide-react";
+import { User, Building2, ShieldCheck, LogOut, Bell } from "lucide-react";
 import type { Role } from "@/lib/session";
 import { logout } from "@/lib/logout";
 import { readUserPreferences } from "@/lib/user-preferences-store";
@@ -35,6 +35,14 @@ interface SessionUser {
   business?: { isActive: boolean } | null;
 }
 
+interface UserNotification {
+  id: string;
+  title: string;
+  message: string;
+  readAt: string | null;
+  createdAt: string;
+}
+
 const ROLE_LABEL: Record<Role, string> = {
   user: "Usuario",
   owner: "Negocio",
@@ -49,6 +57,7 @@ const ROLE_LABEL: Record<Role, string> = {
  */
 const ITEMS: { path: string; label: string; icon: typeof User; roles: Role[] }[] = [
   { path: "/profile", label: "Perfil de usuario", icon: User, roles: ["user", "owner", "admin"] },
+  { path: "/notifications", label: "Notificaciones", icon: Bell, roles: ["user", "owner", "admin"] },
   { path: "/business", label: "Panel de negocio", icon: Building2, roles: ["owner", "admin"] },
   { path: "/admin", label: "Panel de administración", icon: ShieldCheck, roles: ["admin"] },
 ];
@@ -57,6 +66,7 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(null);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<UserNotification[]>([]);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -91,6 +101,41 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+
+    async function loadNotifications() {
+      const response = await fetch("/api/notifications").catch(() => null);
+      if (!alive || !response?.ok) return;
+      const data = (await response.json()) as UserNotification[];
+      if (!Array.isArray(data)) return;
+
+      setNotifications(data);
+    }
+
+    void loadNotifications();
+    const timer = window.setInterval(() => void loadNotifications(), 30000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [user?.id]);
+
+  const unreadCount = notifications.filter((notification) => !notification.readAt).length;
+
+  const markNotificationsRead = useCallback(async () => {
+    if (unreadCount === 0) return;
+    setNotifications((current) => current.map((notification) => ({ ...notification, readAt: new Date().toISOString() })));
+    await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
+  }, [unreadCount]);
+
+  const openNotifications = useCallback(() => {
+    setOpen(false);
+    void markNotificationsRead();
+    router.push("/notifications");
+  }, [markNotificationsRead, router]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -163,7 +208,7 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.96 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute right-0 top-[calc(100%+6px)] w-[236px] bg-white border border-ink/5 rounded-2xl shadow-card z-50 overflow-hidden"
+            className="user-menu-popup absolute right-0 top-[calc(100%+6px)] w-[236px] bg-white border border-ink/5 rounded-2xl shadow-card z-50 overflow-hidden"
           >
             {user && (
               <div className="px-gap-md py-gap-sm border-b border-ink/5 bg-sand">
@@ -184,11 +229,21 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
                 initial={{ opacity: 0, x: -6 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3 }}
-                onClick={() => handleSelect(path)}
-                className={ITEM}
+                onClick={() => (path === "/notifications" ? openNotifications() : handleSelect(path))}
+                className={`${ITEM} ${path === "/business" || path === "/admin" ? "user-menu-panel-item" : ""}`}
               >
-                <Icon size={16} strokeWidth={1.8} className="text-verde-600 shrink-0" />
+                <Icon
+                  size={16}
+                  strokeWidth={1.8}
+                  className={`user-menu-icon ${path === "/business" || path === "/admin" ? "user-menu-panel-icon" : "text-verde-600"} shrink-0`}
+                />
                 {label}
+                {path === "/notifications" && unreadCount > 0 && (
+                  <span
+                    aria-label="Hay notificaciones sin leer"
+                    className="ml-auto size-2 rounded-full bg-verde-500"
+                  />
+                )}
               </motion.button>
             ))}
 

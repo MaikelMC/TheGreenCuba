@@ -91,7 +91,7 @@ export function PlacesView() {
   const max = Math.max(...top.map((v) => v.count), 1);
 
   return (
-    <div className="flex flex-col gap-gap-xl">
+    <div className="places-activity flex flex-col gap-gap-xl">
       <header className="flex flex-col gap-gap-xs">
         <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
           Tu actividad
@@ -129,9 +129,10 @@ export function PlacesView() {
         labels={dayLabels()}
         title="Lugares abiertos por día"
         period="Últimos 14 días"
+        className="activity-surface shadow-none"
       />
 
-      <section className="flex flex-col gap-gap-md rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+      <section className="activity-surface flex flex-col gap-gap-md rounded-2xl border border-ink/5 bg-white p-gap-md">
         <h2 className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
           Los que más abres
         </h2>
@@ -177,7 +178,7 @@ export function PlacesView() {
       </section>
 
       {saved.length > 0 && (
-        <section className="flex flex-col gap-gap-md rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+        <section className="activity-surface flex flex-col gap-gap-md rounded-2xl border border-ink/5 bg-white p-gap-md">
           <h2 className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
             Guardados
           </h2>
@@ -216,7 +217,7 @@ function Stat({
   icon: typeof Eye;
 }) {
   return (
-    <div className="flex flex-col gap-gap-xs rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+    <div className="activity-surface flex flex-col gap-gap-xs rounded-2xl border border-ink/5 bg-white p-gap-md">
       <span className="flex items-center gap-[6px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
         <Icon size={13} strokeWidth={1.8} className="shrink-0" aria-hidden />
         {label}

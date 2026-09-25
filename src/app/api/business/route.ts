@@ -3,8 +3,8 @@ import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
-import { businessOwners, places, users } from "@/lib/db/schema";
-import { toNewPlaceValues } from "@/lib/db/mappers";
+import { businessOwners, notifications, places, users } from "@/lib/db/schema";
+import { toNewPlaceValues, toPlaceValues } from "@/lib/db/mappers";
 import { CATALOG_TAG, resolveCategoryId } from "@/lib/db/queries";
 import { generateId } from "@/lib/utils";
 import type { UserPlace } from "@/lib/places-store";
@@ -115,12 +115,31 @@ export async function POST(req: NextRequest) {
   }
 
   const [existing] = await db
-    .select({ placeId: businessOwners.placeId })
+    .select({ placeId: businessOwners.placeId, reviewStatus: places.reviewStatus })
     .from(businessOwners)
+    .innerJoin(places, eq(businessOwners.placeId, places.id))
     .where(eq(businessOwners.userId, user.id))
     .limit(1);
 
   if (existing) {
+    if (existing.reviewStatus === "rejected") {
+      await db
+        .update(places)
+        .set({
+          ...toPlaceValues(input, categoryId),
+          isActive: false,
+          reviewStatus: "pending",
+          updatedAt: new Date(),
+        })
+        .where(eq(places.id, existing.placeId));
+
+      revalidateTag(CATALOG_TAG, "max");
+      return NextResponse.json(
+        { id: existing.placeId, name: input.name, isActive: false },
+        { status: 200 },
+      );
+    }
+
     return NextResponse.json(
       { error: "Ya tienes un negocio dado de alta." },
       { status: 409 },
@@ -138,6 +157,7 @@ export async function POST(req: NextRequest) {
     /* Después del volcado, para que ganen: `toNewPlaceValues` no toca ninguna de
        las dos, pero el orden deja claro quién manda si algún día lo hace. */
     isActive: false,
+    reviewStatus: "pending",
     createdBy: user.id,
   });
 
@@ -151,7 +171,11 @@ export async function POST(req: NextRequest) {
     acceptedAt: new Date(),
   });
 
-  if (user.role !== "owner") {
+  /* El alta del negocio solo debe subir a un usuario normal al rol `owner`.
+     Un admin no debe perder su acceso al panel por probar un flujo de negocio.
+     `owner` es una capacidad de negocio, no una sustitución del nivel de
+     administración. */
+  if (user.role === "user") {
     await db
       .update(users)
       .set({ role: "owner", updatedAt: new Date() })
@@ -161,6 +185,15 @@ export async function POST(req: NextRequest) {
   /* El negocio nace sin publicar, así que el catálogo público no cambia. Se
      invalida igual: el panel de administración lo lee todo y tiene que verlo
      aparecer para poder aprobarlo. */
+  await db.insert(notifications).values({
+    id: generateId(),
+    userId: user.id,
+    type: "business_submitted",
+    title: "Solicitud de negocio enviada",
+    message: `Hemos recibido tu solicitud para «${input.name}». Te avisaremos en menos de 24 horas cuando un administrador la revise.`,
+    placeId,
+  });
+
   revalidateTag(CATALOG_TAG, "max");
 
   return NextResponse.json({ id: placeId, name: input.name, isActive: false }, { status: 201 });

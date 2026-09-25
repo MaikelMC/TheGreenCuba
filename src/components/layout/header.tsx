@@ -180,7 +180,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
   return (
     // En móvil el aire se recorta a 12/8 px: con los 16/12 de escritorio el
     // campo de búsqueda se quedaba en ~88 px y el marcador no cabía.
-    <header className="fixed top-0 left-0 right-0 z-200 h-header border-b border-ink/5 bg-sand-warm/90 backdrop-blur-[16px] flex items-center px-3 gap-2 sm:px-gap-md sm:gap-gap-sm md:px-gap-lg min-h-[56px] md:min-h-[60px] font-lv text-ink">
+    <header className="map-navigation fixed top-0 left-0 right-0 z-200 h-header border-b border-ink/5 bg-sand-warm/90 backdrop-blur-[16px] flex items-center px-3 gap-2 sm:px-gap-md sm:gap-gap-sm md:px-gap-lg min-h-[56px] md:min-h-[60px] font-lv text-ink">
       {/* Logo. El PNG ya trae su propio degradado verde, así que va suelto: el
           círculo `verde-400 → verde-600` que lo envolvía era del mismo tono y
           se lo comía. */}
@@ -196,7 +196,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
         <form
           onSubmit={handleSubmit}
           className={cn(
-            "flex items-center gap-2 sm:gap-gap-xs bg-white border border-ink/10 rounded-full pl-3 pr-3 sm:pl-[14px] sm:pr-2 transition-all duration-500 ease-outquint cursor-text",
+            "home-search-form flex items-center gap-2 sm:gap-gap-xs bg-white border border-ink/10 rounded-full pl-3 pr-3 sm:pl-[14px] sm:pr-2 transition-all duration-500 ease-outquint cursor-text",
             focused && "border-verde-400 shadow-[0_0_0_3px_rgba(53,175,109,0.15)]",
             effectiveIsSearching && "border-verde-400",
           )}

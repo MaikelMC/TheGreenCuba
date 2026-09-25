@@ -100,6 +100,9 @@ export const places = pgTable(
     embedding: vector("embedding", { dimensions: 1024 }),
 
     isActive: boolean("is_active").default(true).notNull(),
+    reviewStatus: text("review_status", { enum: ["pending", "approved", "rejected"] })
+      .default("approved")
+      .notNull(),
     isBoosted: boolean("is_boosted").default(false).notNull(),
     /* `text` y no `timestamp`: el formulario recoge el texto libre que escribe
        el dueño («31 de agosto, 2026») y nada del código calcula con esta fecha.

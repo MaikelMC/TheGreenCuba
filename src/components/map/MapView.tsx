@@ -10,7 +10,7 @@ const MapContent = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="absolute inset-0 flex items-center justify-center bg-sand-deep">
+      <div className="map-loading absolute inset-0 flex items-center justify-center bg-sand-deep">
         <div className="flex flex-col items-center gap-3">
           <div className="size-8 animate-spin rounded-full border-2 border-verde-400 border-t-transparent" />
           <span className="text-small text-ink-soft/75">Cargando mapa...</span>

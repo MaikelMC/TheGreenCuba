@@ -57,6 +57,20 @@
       "when": 1790264808713,
       "tag": "0007_add_place_plan",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790270000000,
+      "tag": "0008_add_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790271000000,
+      "tag": "0009_add_review_status",
+      "breakpoints": true
     }
   ]
 }

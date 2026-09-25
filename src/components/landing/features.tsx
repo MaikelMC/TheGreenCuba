@@ -7,7 +7,7 @@ const FEATURES = [
   {
     title: "IA que entiende Cuba",
     description:
-      "No es un chatbot generico. La Verde conoce barrios, monedas, horarios y costumbres cubanas para darte resultados reales.",
+      "No es un chatbot genérico. La Verde conoce barrios, monedas, horarios y costumbres cubanas para darte resultados reales.",
     icon: (
       <svg
         viewBox="0 0 24 24"
@@ -25,7 +25,7 @@ const FEATURES = [
   {
     title: "Recomendaciones contextualizadas",
     description:
-      "La Verde te recomienda segun tu ubicacion, la hora, el momento y lo que buscas. Como un amigo que conoce bien la ciudad.",
+      "La Verde te recomienda según tu ubicación, la hora, el momento y lo que buscas. Como un amigo que conoce bien la ciudad.",
     icon: (
       <svg
         viewBox="0 0 24 24"
@@ -41,9 +41,9 @@ const FEATURES = [
     ),
   },
   {
-    title: "Rapido incluso sin datos",
+    title: "Rápido incluso sin datos",
     description:
-      "Funciona con conexion lenta. Tiles ligeros, cache inteligente y skeleton states para que nunca veas una pantalla en blanco.",
+      "Funciona con conexión lenta. Usa mapas ligeros, caché inteligente y estados de carga para que nunca veas una pantalla en blanco.",
     icon: (
       <svg
         viewBox="0 0 24 24"
@@ -72,9 +72,9 @@ export function Features() {
           >
             <motion.p
               variants={fadeUp}
-              className="inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-3.5 py-1.5 font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600"
+              className="landing-features-label inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-3.5 py-1.5 font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600"
             >
-              Por que La Verde
+              Por qué La Verde
             </motion.p>
             <motion.h2
               variants={fadeUp}
@@ -100,7 +100,7 @@ export function Features() {
               >
                 <motion.div
                   variants={popIn}
-                  className="mb-gap-lg flex size-11 items-center justify-center rounded-2xl bg-verde-50 text-verde-700 transition-colors duration-500 group-hover:bg-verde-100"
+                  className="landing-feature-icon mb-gap-lg flex size-11 items-center justify-center rounded-2xl bg-verde-50 text-verde-700 transition-colors duration-500 group-hover:bg-verde-100"
                 >
                   <div className="size-[22px]">{f.icon}</div>
                 </motion.div>

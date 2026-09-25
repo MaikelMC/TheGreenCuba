@@ -267,8 +267,31 @@ function TopBar({
   avatarUrl?: string;
   children?: React.ReactNode;
 }) {
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    let previousY = window.scrollY;
+
+    function handleScroll() {
+      const currentY = window.scrollY;
+      if (currentY <= 24 || currentY < previousY) {
+        setVisible(true);
+      } else if (currentY > previousY) {
+        setVisible(false);
+      }
+      previousY = currentY;
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <header className="sticky top-0 z-50 flex h-header items-center gap-2 border-b border-ink/5 bg-sand-warm/90 px-3 backdrop-blur-[16px] sm:gap-gap-sm sm:px-gap-md">
+    <motion.header
+      animate={{ y: visible ? 0 : -100, opacity: visible ? 1 : 0 }}
+      transition={{ duration: 0.3, ease: EASE }}
+      className="sticky top-0 z-50 flex h-header items-center gap-2 border-b border-ink/5 bg-sand-warm/90 px-3 backdrop-blur-[16px] sm:gap-gap-sm sm:px-gap-md"
+    >
       <Link
         href="/home"
         className="grid size-9 shrink-0 place-items-center rounded-full text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-verde-50 hover:text-verde-600"
@@ -282,6 +305,6 @@ function TopBar({
       <div className="min-w-0 flex-1" />
       {children}
       <UserMenu initial={initial} avatarUrl={avatarUrl} />
-    </header>
+    </motion.header>
   );
 }

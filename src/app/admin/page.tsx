@@ -13,10 +13,11 @@ export default function AdminDashboardPage() {
   const { places, categories } = usePlaces();
 
   const stats = useMemo(() => {
-    const total = places.length;
-    const active = places.filter((p) => p.status === "active").length;
+    const approved = places.filter((p) => p.reviewStatus === "approved");
+    const total = approved.length;
+    const active = approved.filter((p) => p.isActive && p.status === "active").length;
     const closed = total - active;
-    const boosted = places.filter((p) => p.isBoosted).length;
+    const boosted = approved.filter((p) => p.isBoosted).length;
     return { total, active, closed, boosted };
   }, [places]);
 
@@ -26,7 +27,7 @@ export default function AdminDashboardPage() {
         .map((c) => ({
           label: c.label,
           icon: c.icon,
-          count: places.filter((p) => p.category === c.label).length,
+          count: places.filter((p) => p.reviewStatus === "approved" && p.category === c.label).length,
         }))
         .filter((c) => c.count > 0)
         .sort((a, b) => b.count - a.count),
@@ -36,7 +37,7 @@ export default function AdminDashboardPage() {
   const attention = useMemo(
     () =>
       places.filter(
-        (p) => p.status !== "active" || !p.description?.trim(),
+        (p) => p.reviewStatus === "approved" && (p.status !== "active" || !p.description?.trim()),
       ),
     [places],
   );

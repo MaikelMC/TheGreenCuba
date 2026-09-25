@@ -165,7 +165,26 @@ export async function getAppUser(): Promise<AppUser | null> {
     .where(eq(users.authUserId, neonUser.id))
     .limit(1);
 
-  if (existing) return toAppUser(existing);
+  if (existing) {
+    const desiredRole = bootstrapRole(neonUser.email);
+    /* La fila puede existir desde antes de que este correo estuviera en
+       `AUTH_BOOTSTRAP_ROLES` o antes de que alguien cambiara la configuración.
+       Cuando la configuración dice que este correo debe ser `owner` o `admin`,
+       el perfil debe corregirse hasta ese valor sin tener que borrar la fila.
+       Eso cubre el caso real en que alguien quedó como `owner` pero la
+       interfaz de administración le exige `admin`. */
+    if (desiredRole !== "user" && existing.role !== desiredRole) {
+      const [updated] = await db
+        .update(users)
+        .set({ role: desiredRole, updatedAt: new Date() })
+        .where(eq(users.id, existing.id))
+        .returning();
+
+      return updated ? toAppUser(updated) : toAppUser(existing);
+    }
+
+    return toAppUser(existing);
+  }
 
   const email = neonUser.email;
   const [created] = await db

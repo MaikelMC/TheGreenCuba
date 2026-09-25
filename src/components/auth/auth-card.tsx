@@ -106,7 +106,7 @@ function collectErrorText(value: unknown, depth = 0): string {
    El `label` envuelve al `input`, así que la asociación es implícita.
    `h-12` son 48 px de alto, por encima de los 44 que pide el pulgar. */
 const FIELD =
-  "flex items-center gap-gap-sm rounded-2xl border border-ink/10 bg-sand-warm px-gap-sm h-12 transition-colors duration-500 ease-outquint focus-within:border-verde-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-verde-400/20";
+  "auth-field flex items-center gap-gap-sm rounded-2xl border border-ink/10 bg-sand-warm px-gap-sm h-12 transition-colors duration-500 ease-outquint focus-within:border-verde-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-verde-400/20";
 
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
 
@@ -246,7 +246,7 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
 
       <form
         onSubmit={handleSubmit}
-        className="rounded-4xl border border-ink/5 bg-white shadow-soft p-gap-lg flex flex-col gap-gap-md"
+        className="auth-form rounded-4xl border border-ink/5 bg-white shadow-soft p-gap-lg flex flex-col gap-gap-md"
       >
         <label className="flex flex-col gap-gap-xs">
           <span className={LABEL}>Correo</span>
@@ -316,13 +316,13 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
             registro no puede perder lo escrito por ir a leer el contrato, y
             volver atrás no siempre devuelve el formulario como estaba. */}
         {mode === "register" && (
-          <label className="flex items-start gap-gap-sm text-meta leading-relaxed text-ink-soft">
+          <label className="auth-terms-label flex items-start gap-gap-sm text-meta leading-relaxed text-ink-soft">
             <input
               type="checkbox"
               checked={accepted}
               onChange={(e) => setAccepted(e.target.checked)}
               required
-              className="mt-0.5 size-4 shrink-0 accent-verde-500"
+              className="auth-terms-checkbox mt-0.5 size-4 shrink-0 accent-verde-500"
             />
             <span>
               He leído y acepto los{" "}
@@ -330,7 +330,7 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
                 href="/terminos"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-semibold text-verde-600 underline underline-offset-2 transition-colors duration-500 ease-outquint hover:text-verde-700"
+                className="auth-terms-link font-semibold text-verde-600 underline underline-offset-2 transition-colors duration-500 ease-outquint hover:text-verde-700"
               >
                 términos y la política de privacidad
               </Link>
@@ -374,7 +374,7 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
 
       <Link
         href="/"
-        className="inline-flex items-center justify-center gap-gap-xs h-11 rounded-full border border-white/30 text-white font-lv-display text-small font-semibold transition-colors duration-500 ease-outquint hover:bg-white/10 lg:border-ink/10 lg:text-ink-soft lg:hover:bg-white"
+        className="auth-home-link inline-flex items-center justify-center gap-gap-xs h-11 rounded-full border border-white/30 text-white font-lv-display text-small font-semibold transition-colors duration-500 ease-outquint hover:bg-white/10 lg:border-ink/10 lg:text-ink-soft lg:hover:bg-white"
       >
         <Home size={16} strokeWidth={1.8} />
         Volver a la página principal

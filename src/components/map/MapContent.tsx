@@ -2,6 +2,7 @@
 
 import "leaflet/dist/leaflet.css";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTheme } from "next-themes";
 import {
   MapContainer,
   TileLayer,
@@ -100,6 +101,8 @@ function MapChildren({
   onLocateStateChange,
   focusTarget,
   viewTarget,
+  initialCenter,
+  initialZoom,
 }: {
   tile: ReturnType<typeof getTile>;
   places: MapPlace[];
@@ -113,10 +116,13 @@ function MapChildren({
   onLocateStateChange?: MapViewProps["onLocateStateChange"];
   focusTarget?: MapViewProps["focusTarget"];
   viewTarget?: MapViewProps["viewTarget"];
+  initialCenter?: [number, number] | null;
+  initialZoom: number;
 }) {
   const [ready, setReady] = useState(false);
   const map = useMap();
   const lastFlownTo = useRef<{ lat: number; lng: number } | null>(null);
+  const lastInitialCenter = useRef<[number, number] | null>(null);
 
   useEffect(() => {
     const timer = requestAnimationFrame(() => setReady(true));
@@ -138,6 +144,18 @@ function MapChildren({
     lastFlownTo.current = userLocation;
     map.flyTo([userLocation.lat, userLocation.lng], GEO_ZOOM, { duration: 0.8 });
   }, [userLocation, map, ready]);
+
+  useEffect(() => {
+    if (!initialCenter || userLocation) return;
+    if (
+      lastInitialCenter.current?.[0] === initialCenter[0] &&
+      lastInitialCenter.current?.[1] === initialCenter[1]
+    ) {
+      return;
+    }
+    lastInitialCenter.current = initialCenter;
+    map.flyTo(initialCenter, initialZoom, { duration: 0.8 });
+  }, [initialCenter, initialZoom, map, userLocation, ready]);
 
   // Fly to a specific place when a card's location button is tapped.
   const lastFocusKey = useRef<number | null>(null);
@@ -220,6 +238,7 @@ export function MapContent({
   disableAutoFit,
 }: MapViewProps) {
   const [mounted, setMounted] = useState(false);
+  const { resolvedTheme } = useTheme();
   const validPlaces = useMemo(() => filterValidPlaces(places), [places]);
   const hasUserLocation = Boolean(userLocation);
   const effectiveInitialCenter: [number, number] = userLocation
@@ -247,7 +266,7 @@ export function MapContent({
       maxZoom={maxZoom}
       zoomControl={false}
       preferCanvas={PREFER_CANVAS}
-      className="z-0"
+      className={resolvedTheme === "dark" ? "z-0 dark-map-tiles" : "z-0"}
       style={{ height: "100%", width: "100%" }}
     >
       <ZoomControl position="bottomleft" />
@@ -271,6 +290,8 @@ export function MapContent({
         onLocateStateChange={onLocateStateChange}
         focusTarget={focusTarget}
         viewTarget={viewTarget}
+        initialCenter={initialCenter}
+        initialZoom={initialZoom}
       />
 
       {route && routeOrigin && route.coordinates.length > 0 && (

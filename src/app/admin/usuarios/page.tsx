@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { KeyRound, Pencil, Search, Shield, Trash2, UserRound } from "lucide-react";
+import { toast } from "sonner";
 import type { Role } from "@/lib/session";
 
 interface AdminUser {
@@ -72,9 +73,11 @@ export default function AdminUsersPage() {
     const data = (await response.json()) as { user?: AdminUser; error?: string };
     if (!response.ok || !data.user) {
       setError(data.error ?? "No se pudo actualizar el rol.");
+      toast.error(data.error ?? "No se pudo actualizar el rol.");
       return;
     }
     setUsers((current) => current.map((item) => (item.id === user.id ? data.user! : item)));
+    toast.success(`El rol de ${user.email} se actualizó a ${ROLE_LABELS[role]}.`);
   }
 
   function startEditing(user: AdminUser) {
@@ -93,10 +96,12 @@ export default function AdminUsersPage() {
     const data = (await response.json()) as { user?: AdminUser; error?: string };
     if (!response.ok || !data.user) {
       setError(data.error ?? "No se pudo guardar el perfil.");
+      toast.error(data.error ?? "No se pudo guardar el perfil.");
       return;
     }
     setUsers((current) => current.map((item) => (item.id === user.id ? data.user! : item)));
     setEditingId(null);
+    toast.success(`Se guardó el perfil de ${user.email}.`);
   }
 
   async function resetPassword(user: AdminUser) {
@@ -112,9 +117,11 @@ export default function AdminUsersPage() {
     const data = (await response.json()) as { error?: string };
     if (!response.ok) {
       setError(data.error ?? "No se pudo cambiar la contraseña.");
+      toast.error(data.error ?? "No se pudo cambiar la contraseña.");
       return;
     }
     setError(`Contraseña actualizada para ${user.email}.`);
+    toast.success(`Contraseña actualizada para ${user.email}.`);
     setDraftPassword("");
     setDraftPasswordConfirmation("");
     setResettingId(null);

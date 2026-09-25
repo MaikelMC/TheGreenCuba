@@ -7,17 +7,17 @@ const STEPS = [
   {
     title: "Escribe lo que quieres",
     description:
-      "No necesitas elegir categorias ni llenar filtros. Simplemente describe lo que buscas como lo harías con un amigo: \"un cafe tranquilo cerca de mi que acepte USD Clásica\".",
+      "No necesitas elegir categorías ni llenar filtros. Simplemente describe lo que buscas como lo harías con un amigo: \"un café tranquilo cerca de mí que acepte USD Clásica\".",
   },
   {
     title: "La Verde interpreta",
     description:
-      "La app entiende el contexto cubano: monedas, barrios, horarios y costumbres. No es un buscador generico, entiende lo que necesitas.",
+      "La app entiende el contexto cubano: monedas, barrios, horarios y costumbres. No es un buscador genérico: entiende lo que necesitas.",
   },
   {
     title: "Encuentra tu lugar",
     description:
-      "RESULTADOS en el mapa con direccion exacta, recomendaciones personalizadas y toda la info que necesitas para llegar.",
+      "Encuentra resultados en el mapa con la dirección exacta, recomendaciones personalizadas y toda la información que necesitas para llegar.",
   },
 ];
 
@@ -39,10 +39,10 @@ function StepCard({
         variants={popIn}
         className="relative mb-gap-md font-lv-display text-[clamp(48px,6vw,72px)] font-bold leading-none tracking-[-0.04em] md:mb-gap-md"
       >
-        <span className="text-verde-600/10" aria-hidden>
+        <span className="landing-step-number-back text-verde-600/10" aria-hidden>
           {String(index + 1).padStart(2, "0")}
         </span>
-        <span className="absolute inset-0 text-verde-600/20" aria-hidden>
+        <span className="landing-step-number-front absolute inset-0 text-verde-600/20" aria-hidden>
           {String(index + 1).padStart(2, "0")}
         </span>
       </motion.div>
@@ -74,9 +74,9 @@ export function HowItWorks() {
         >
           <motion.p
             variants={fadeUp}
-            className="inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-3.5 py-1.5 font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600"
+            className="landing-how-it-works-label inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-3.5 py-1.5 font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600"
           >
-            Como funciona
+            Cómo funciona
           </motion.p>
           <motion.h2
             variants={fadeUp}

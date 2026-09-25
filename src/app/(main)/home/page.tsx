@@ -804,8 +804,7 @@ function HomePageContent() {
     // Con onboarding completado y una provincia guardada, la primera vista es
     // SIEMPRE la ciudad elegida. El cache de geolocalización solo sirve como
     // respaldo y no debe desplazar el mapa sobre esa elección.
-    const prefs = readUserPreferences();
-    if (hasSavedProfileLocation || prefs.onboardingCompleted || (prefs.location && prefs.location !== "otra")) {
+    if (!userPreferences || hasSavedProfileLocation) {
       return;
     }
 
@@ -841,7 +840,7 @@ function HomePageContent() {
     return () => {
       cancelled = true;
     };
-  }, [handleUserLocated, hasSavedProfileLocation]);
+  }, [handleUserLocated, hasSavedProfileLocation, userPreferences]);
 
   const sheetInfo = SHEET_TITLES[sheetState];
   const showBadge = sheetState === "default" || sheetState === "results";
@@ -973,7 +972,7 @@ function HomePageContent() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.08, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                className="flex items-start gap-gap-sm p-[14px] bg-verde-50 border border-verde-200 rounded-2xl mb-gap-md"
+                className="recommendations-ai-banner flex items-start gap-gap-sm p-[14px] bg-verde-50 border border-verde-200 rounded-2xl mb-gap-md"
               >
                 <div className="size-9 rounded-xl bg-gradient-to-br from-verde-400 to-verde-600 grid place-items-center text-white shrink-0">
                   <MessageCircle size={18} strokeWidth={1.8} />

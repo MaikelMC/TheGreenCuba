@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTheme } from "next-themes";
 import {
   ChevronRight,
   Facebook,
@@ -10,7 +11,9 @@ import {
   Loader2,
   Mail,
   MessageCircle,
+  MoonStar,
   ShieldCheck,
+  SunMedium,
   Trash2,
   type LucideIcon,
 } from "lucide-react";
@@ -28,7 +31,7 @@ import { toast } from "sonner";
 import { siteConfig } from "@/config/site";
 import { clearActivity } from "@/lib/activity-store";
 import { SUPPORT_EMAIL } from "@/lib/legal";
-import { clearUserPreferences } from "@/lib/user-preferences-store";
+import { clearUserPreferences, readUserPreferences } from "@/lib/user-preferences-store";
 import { logout } from "@/lib/logout";
 
 const ROLE_NAMES: Record<string, string> = {
@@ -51,6 +54,7 @@ interface SessionUser {
   id?: string;
   email: string;
   name: string;
+  imageUrl?: string | null;
   role: string;
   /** La versión de los términos que aceptó. `null` en cuentas anteriores a la
       casilla del alta. */
@@ -59,23 +63,37 @@ interface SessionUser {
 
 export function SettingsView() {
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   /* Sin esto, un doble clic manda dos borrados: el segundo llega cuando la fila
      ya no está, el servidor responde 401 y el aviso que sale es el de «no
      pudimos confirmar el borrado» — alarmante y falso. */
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     let alive = true;
     fetch("/api/me")
       .then((res) => res.json())
       .then((data: { authenticated: boolean; user: SessionUser | null }) => {
-        if (alive && data.authenticated && data.user) setUser({ ...data.user, id: (data.user as unknown as { id?: string }).id ?? "" });
+        if (alive && data.authenticated && data.user) {
+          const nextUser = { ...data.user, id: (data.user as unknown as { id?: string }).id ?? "" };
+          setUser(nextUser);
+          const prefs = readUserPreferences(nextUser.id ?? null);
+          if (prefs.avatarUrl) setLocalAvatarUrl(prefs.avatarUrl);
+        }
       })
       .catch(() => {});
     return () => {
       alive = false;
     };
   }, []);
+
+  const avatarUrl = user?.imageUrl || localAvatarUrl || null;
 
   /**
    * Borrar la cuenta.
@@ -144,9 +162,13 @@ export function SettingsView() {
           Cuenta
         </h2>
         <div className="flex items-center gap-gap-sm">
-          <span className="grid size-11 shrink-0 place-items-center rounded-full border-2 border-verde-200 bg-verde-50 font-lv-display text-body font-bold text-verde-600">
-            {(user?.name ?? "·").charAt(0)}
-          </span>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="Foto de perfil" className="size-11 shrink-0 rounded-full border-2 border-verde-200 object-cover" />
+          ) : (
+            <span className="grid size-11 shrink-0 place-items-center rounded-full border-2 border-verde-200 bg-verde-50 font-lv-display text-body font-bold text-verde-600">
+              {(user?.name ?? "·").charAt(0)}
+            </span>
+          )}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-small font-medium text-ink">
               {user?.name ?? "Sin sesión"}
@@ -160,6 +182,35 @@ export function SettingsView() {
               {ROLE_NAMES[user.role] ?? user.role}
             </span>
           )}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-gap-md rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+        <div className="flex items-center justify-between gap-gap-sm">
+          <div>
+            <h2 className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
+              Apariencia
+            </h2>
+            <p className="mt-1 text-meta text-ink-soft/75">Cambia el tema visual de la app.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            className="inline-flex items-center gap-gap-xs rounded-full border border-ink/10 bg-sand px-gap-sm py-[8px] font-lv-display text-meta font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700"
+            aria-label="Cambiar entre modo claro y oscuro"
+          >
+            {mounted && resolvedTheme === "dark" ? (
+              <>
+                <SunMedium size={15} strokeWidth={1.8} />
+                Claro
+              </>
+            ) : (
+              <>
+                <MoonStar size={15} strokeWidth={1.8} />
+                Oscuro
+              </>
+            )}
+          </button>
         </div>
       </section>
 

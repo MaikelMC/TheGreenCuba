@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { notifications, users } from "@/lib/db/schema";
 import type { Role } from "@/lib/session";
 import { generateId } from "@/lib/utils";
 
@@ -130,6 +130,19 @@ export async function PATCH(request: NextRequest) {
       SET role = ${body.role === "admin" ? "admin" : "user"}, "updatedAt" = now()
       WHERE id = ${updated.authUserId}::uuid
     `);
+
+    await db.insert(notifications).values({
+      id: generateId(),
+      userId: updated.id,
+      type: "role_updated",
+      title: "Cambio de rol",
+      message:
+        body.role === "admin"
+          ? "Tu cuenta fue actualizada a administrador. Ya tienes acceso a las herramientas de administración."
+          : body.role === "owner"
+            ? "Tu cuenta fue actualizada a propietario. Ya puedes gestionar tu negocio desde la app."
+            : "Tu cuenta fue actualizada a usuario. Puedes seguir usando la app con acceso normal.",
+    });
   }
   return NextResponse.json({ user: serializeUser(updated) });
 }
@@ -150,7 +163,7 @@ export async function POST(request: NextRequest) {
   }
 
   const [target] = await db
-    .select({ authUserId: users.authUserId })
+    .select({ id: users.id, authUserId: users.authUserId, name: users.name })
     .from(users)
     .where(eq(users.id, id))
     .limit(1);
@@ -190,6 +203,14 @@ export async function POST(request: NextRequest) {
     console.error("No se pudo cambiar la contraseña:", details);
     return NextResponse.json({ error: details || "No se pudo cambiar la contraseña." }, { status: 502 });
   }
+
+  await db.insert(notifications).values({
+    id: generateId(),
+    userId: target.id,
+    type: "password_reset",
+    title: "Contraseña actualizada",
+    message: `La contraseña de ${target.name ?? "tu cuenta"} fue restablecida correctamente por administración.`,
+  });
 
   return NextResponse.json({ ok: true });
 }
