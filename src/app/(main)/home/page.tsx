@@ -871,8 +871,8 @@ function HomePageContent() {
   const shownCount = sheetState === "results" ? resultPlaces.length : recommendationCount;
 
   const resultsBannerText = sheetState === "results"
-    ? `Encontré <strong>4 cafés tranquilos</strong> cerca de ti. <strong>Casa La Micaela</strong> es el más cercano, en Enramadas y abierto de día.`
-    : `Según tu ubicación en <strong>Santiago de Cuba</strong>, encontré <strong>${places.length} lugares</strong> que podrían gustarte. El mejor match es <strong>St. Pauli Restaurant-Bar</strong>, en plena Enramadas.`;
+    ? `Encontré <strong>4 lugares tranquilos</strong> cerca de ti. <strong>Hotel Casa Granda</strong> es el más cercano, en el Centro histórico.`
+    : `Según tu ubicación en <strong>Santiago de Cuba</strong>, encontré <strong>${places.length} lugares</strong> que podrían gustarte. El mejor match es <strong>Castillo del Morro</strong>, a la entrada de la bahía.`;
 
   return (
     <div className="fixed inset-0 pt-[var(--header-h)] font-lv text-ink">

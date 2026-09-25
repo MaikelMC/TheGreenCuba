@@ -7,12 +7,12 @@
  * cliente, que ya no existe: los lugares los sirve la base.
  */
 const DEMO_PICKS = [
-  { id: "primos-twice", name: "Primos Twice", category: "Restaurante" },
-  { id: "casa-la-micaela", name: "Casa La Micaela", category: "Cafetería" },
-  { id: "casa-de-la-trova", name: "Casa de la Trova 'Pepe Sánchez'", category: "Bar" },
+  { id: "castillo-del-morro", name: "Castillo del Morro San Pedro de la Roca", category: "Cultura" },
   { id: "playa-siboney", name: "Playa Siboney", category: "Playa" },
+  { id: "melia-santiago", name: "Meliá Santiago de Cuba", category: "Hospedaje" },
   { id: "hotel-casa-granda", name: "Hotel Casa Granda", category: "Hospedaje" },
-  { id: "mercado-municipal", name: "Mercado Municipal", category: "Mercado" },
+  { id: "casa-de-diego-velazquez", name: "Casa de Diego Velázquez", category: "Cultura" },
+  { id: "monumento-gran-piedra", name: "Monumento Natural Gran Piedra", category: "Naturaleza" },
 ];
 
 /**
