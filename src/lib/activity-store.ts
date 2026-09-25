@@ -1,21 +1,4 @@
 /**
- * Los seis lugares del relleno de ejemplo.
- *
- * Los ids son los del catálogo de Neon —que ahora son slugs estables y no
- * aleatorios, precisamente para poder escribirlos aquí— así que cada fila
- * apunta a un negocio real y su enlace funciona. Antes salían de la semilla del
- * cliente, que ya no existe: los lugares los sirve la base.
- */
-const DEMO_PICKS = [
-  { id: "castillo-del-morro", name: "Castillo del Morro San Pedro de la Roca", category: "Cultura" },
-  { id: "playa-siboney", name: "Playa Siboney", category: "Playa" },
-  { id: "melia-santiago", name: "Meliá Santiago de Cuba", category: "Hospedaje" },
-  { id: "hotel-casa-granda", name: "Hotel Casa Granda", category: "Hospedaje" },
-  { id: "casa-de-diego-velazquez", name: "Casa de Diego Velázquez", category: "Cultura" },
-  { id: "monumento-gran-piedra", name: "Monumento Natural Gran Piedra", category: "Naturaleza" },
-];
-
-/**
  * Actividad del usuario con los lugares: qué abre y qué guarda.
  *
  * Vive en `localStorage`, como el resto del MVP —los lugares y las
@@ -59,16 +42,9 @@ export interface ActivityState {
   savedIds: string[];
   /** Marca de tiempo de cada apertura, para el histograma por día. */
   stamps: number[];
-  /**
-   * `true` cuando lo que se está devolviendo es el relleno de ejemplo y no
-   * actividad real. Quien lo pinte tiene que decirlo: son cifras inventadas y
-   * hacerlas pasar por medidas sería mentir en la única pantalla que presume de
-   * medir.
-   */
-  isDemo: boolean;
 }
 
-const EMPTY: ActivityState = { visits: [], savedIds: [], stamps: [], isDemo: false };
+const EMPTY: ActivityState = { visits: [], savedIds: [], stamps: [] };
 
 function numberField(v: unknown, fallback: number): number {
   return typeof v === "number" && Number.isFinite(v) ? v : fallback;
@@ -104,13 +80,13 @@ function readRaw(userId?: string | null): ActivityState {
           .filter((x): x is number => typeof x === "number" && Number.isFinite(x))
           .slice(-MAX_STAMPS)
       : [];
-    return { visits, savedIds, stamps, isDemo: false };
+    return { visits, savedIds, stamps };
   } catch {
     return EMPTY;
   }
 }
 
-function write(state: Omit<ActivityState, "isDemo">, userId?: string | null): void {
+function write(state: ActivityState, userId?: string | null): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(userStorageKey(userId), JSON.stringify(state));
@@ -120,62 +96,13 @@ function write(state: Omit<ActivityState, "isDemo">, userId?: string | null): vo
 }
 
 /**
- * Relleno para cuando todavía no hay nada que medir.
- *
- * Los ids y los nombres salen de `DEMO_PICKS`, así que cada fila apunta a un
- * lugar que existe de verdad en el catálogo y su enlace funciona. Las marcas de
- * tiempo se generan relativas a ahora para que el histograma tenga forma en vez
- * de salir plano.
+ * Estado de la actividad, tal cual está guardado. Sin actividad devuelve el
+ * estado vacío: ceros que son ceros de verdad, no un relleno — antes esta
+ * función fabricaba un historial de ejemplo y la pantalla de perfil tenía que
+ * ir avisando de que esas cifras no eran medidas.
  */
-function demoState(now: number): ActivityState {
-  const [a, b, c, d, e, f] = DEMO_PICKS;
-  const picks: { place: (typeof DEMO_PICKS)[number] | undefined; count: number; days: number }[] = [
-    { place: c, count: 9, days: 0 },
-    { place: b, count: 7, days: 1 },
-    { place: a, count: 6, days: 2 },
-    { place: e, count: 4, days: 4 },
-    { place: d, count: 3, days: 6 },
-    { place: f, count: 2, days: 9 },
-  ];
-
-  const visits: PlaceVisit[] = [];
-  const stamps: number[] = [];
-  const DAY = 24 * 60 * 60 * 1000;
-
-  for (const { place, count, days } of picks) {
-    if (!place) continue;
-    visits.push({
-      placeId: place.id,
-      name: place.name,
-      category: place.category,
-      count,
-      lastAt: now - days * DAY,
-    });
-    // Reparte las aperturas hacia atrás desde el último día en que se abrió.
-    for (let i = 0; i < count; i += 1) {
-      stamps.push(now - (days + Math.floor(i / 2)) * DAY - i * 60 * 60 * 1000);
-    }
-  }
-
-  return {
-    visits: visits.sort((x, y) => y.count - x.count),
-    savedIds: [b?.id, c?.id].filter((x): x is string => typeof x === "string"),
-    stamps: stamps.sort((x, y) => x - y).slice(-MAX_STAMPS),
-    isDemo: true,
-  };
-}
-
-/**
- * Estado de la actividad. Si no hay ninguna, devuelve el relleno marcado con
- * `isDemo`. El relleno **no se escribe** en el almacenamiento: en cuanto haya
- * una visita real, desaparece solo.
- */
-export function readActivity(userId?: string | null, now: number = Date.now()): ActivityState {
-  const state = readRaw(userId);
-  if (state.visits.length === 0 && state.savedIds.length === 0) {
-    return demoState(now);
-  }
-  return state;
+export function readActivity(userId?: string | null): ActivityState {
+  return readRaw(userId);
 }
 
 /** Suma una apertura. Ignora la llamada si es la misma ficha, recién contada. */

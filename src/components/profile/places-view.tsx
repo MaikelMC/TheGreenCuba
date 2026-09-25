@@ -28,18 +28,22 @@ interface SavedPlaceItem {
 
 const H_VIEW = "font-lv-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-ink";
 
+/* Estado mientras no hay nada guardado en este navegador. Es el mismo objeto
+   EMPTY del store, repetido aquí porque `activity` empieza en `null` mientras
+   carga y toda derivada necesita algo contra qué correr. */
+const EMPTY_ACTIVITY: ActivityState = { visits: [], savedIds: [], stamps: [] };
+
 /**
  * «Mis lugares»: lo que este navegador sabe de tu uso.
  *
- * No hay analítica ni base de datos detrás. Estas cifras son las de aquí, y por
- * eso la pantalla no dice «popular» ni «tendencia»: dice cuántas veces has
- * abierto cada sitio tú. Cuando no hay nada medido, se enseña un relleno con su
- * aviso —sin él serían números inventados disfrazados de datos—.
+ * No hay analítica detrás. Estas cifras son las de aquí, y por eso la pantalla
+ * no dice «popular» ni «tendencia»: dice cuántas veces has abierto cada sitio
+ * tú. Antes, con cero actividad, se rellenaba con un historial de ejemplo; ya
+ * no — los ceros son ceros de verdad y el aviso lo dice sin adornos.
  */
 export function PlacesView() {
   const [activity, setActivity] = useState<ActivityState | null>(null);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlaceItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,15 +72,14 @@ export function PlacesView() {
       })
       .catch(() => {
         setSavedPlaces([]);
-      })
-      .finally(() => setLoading(false));
+      });
 
     return () => {
       alive = false;
     };
   }, []);
 
-  if (!activity && loading) {
+  if (!activity) {
     return (
       <p className="py-gap-2xl text-center text-small text-ink-soft/75" aria-busy>
         Cargando tu actividad…
@@ -84,10 +87,11 @@ export function PlacesView() {
     );
   }
 
-  const top = topVisits(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false }, 5);
-  const saved = savedPlaces.length > 0 ? savedPlaces : savedVisits(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false });
-  const category = topCategory(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false });
-  const lastVisit = topVisits(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false }, 1)[0];
+  const state = activity ?? EMPTY_ACTIVITY;
+  const top = topVisits(state, 5);
+  const saved = savedPlaces.length > 0 ? savedPlaces : savedVisits(state);
+  const category = topCategory(state);
+  const lastVisit = topVisits(state, 1)[0];
   const max = Math.max(...top.map((v) => v.count), 1);
 
   return (
@@ -103,18 +107,19 @@ export function PlacesView() {
         </p>
       </header>
 
-      {(!activity || activity.isDemo) && savedPlaces.length === 0 && (
+      {top.length === 0 && saved.length === 0 && (
         <p className="flex items-start gap-gap-xs rounded-2xl border border-verde-200 bg-verde-50 px-gap-sm py-gap-xs text-meta text-verde-700">
           <Info size={15} strokeWidth={1.8} className="mt-[1px] shrink-0" aria-hidden />
           <span>
-            <strong className="font-semibold">Sin lugares guardados.</strong> Cuando
-            guardes un sitio en la app, aparecerá aquí con tus datos reales.
+            <strong className="font-semibold">Aún no hay nada que medir.</strong> Explora el mapa,
+            abre fichas y guarda lo que te interese: aquí aparecerá tu actividad, solo con datos
+            reales.
           </span>
         </p>
       )}
 
       <div className="grid grid-cols-2 gap-gap-sm">
-        <Stat label="Lugares vistos" value={String(placeCount(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false }))} icon={Eye} />
+        <Stat label="Lugares vistos" value={String(placeCount(state))} icon={Eye} />
         <Stat label="Guardados" value={String(savedPlaces.length || activity?.savedIds.length || 0)} icon={Bookmark} />
         <Stat label="Lo que más ves" value={category?.label ?? "—"} icon={Sparkles} />
         <Stat
@@ -125,7 +130,7 @@ export function PlacesView() {
       </div>
 
       <MiniChart
-        data={dailyHistogram(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false })}
+        data={dailyHistogram(state)}
         labels={dayLabels()}
         title="Lugares abiertos por día"
         period="Últimos 14 días"
