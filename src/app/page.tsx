@@ -6,9 +6,13 @@ import {
   HowItWorks,
   SearchExamples,
   Features,
+  PlaceStrip,
   CTASection,
 } from "@/components/landing";
 import { Footer } from "@/components/layout/footer";
+import { siteConfig } from "@/config/site";
+import { listPlaces } from "@/lib/db/queries";
+import type { PlaceStripPlace } from "@/components/landing/place-strip";
 
 /**
  * El canonical va aquí y no en el layout raíz.
@@ -22,9 +26,51 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
-export default function LandingPage() {
+/**
+ * Qué es La Verde, dicho en el idioma de las máquinas (AEO).
+ *
+ * Los sistemas de respuesta —Google incluido— leen esta página mejor cuando la
+ * identidad del sitio va declarada además de escrita. Solo se afirma lo que
+ * existe: el nombre, la URL, el idioma y el buscador propio del sitio.
+ */
+const WEBSITE_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: siteConfig.name,
+  url: siteConfig.url,
+  inLanguage: "es-CU",
+  description: siteConfig.description,
+};
+
+/* La tira de lugares se resuelve en el servidor: su HTML viaja con la página,
+   lo que da a los buscadores enlaces rastreables del home a las fichas y
+   da al ancla «#lugares» del menú un destino real. Si Neon no contesta, la
+   sección se omite y la landing no se entera. */
+async function loadStripPlaces(): Promise<PlaceStripPlace[]> {
+  try {
+    const places = await listPlaces({ onlyActive: true, limit: 8 });
+    return places.map((p) => ({
+      id: p.id,
+      name: p.name,
+      category: p.category,
+      barrio: p.barrio || "",
+      rating: p.rating,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export default async function LandingPage() {
   return (
-    <MotionConfig reducedMotion="user">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(WEBSITE_JSON_LD).replace(/</g, "\\u003c"),
+        }}
+      />
+      <MotionConfig reducedMotion="user">
       <div className="lv-grain flex min-h-screen min-h-dvh flex-col bg-sand font-lv text-ink">
         <Header />
 
@@ -33,11 +79,13 @@ export default function LandingPage() {
           <HowItWorks />
           <SearchExamples />
           <Features />
+          <PlaceStrip places={await loadStripPlaces()} />
           <CTASection />
         </main>
 
         <Footer />
       </div>
     </MotionConfig>
+    </>
   );
 }

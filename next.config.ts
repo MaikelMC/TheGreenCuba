@@ -107,7 +107,23 @@ const nextConfig: NextConfig = {
      (ningún archivo lleva `use server`). Si algún día se añade una que suba
      imágenes, vuelve como `serverActions.bodySizeLimit`. */
   async headers() {
+    /* El preview histórico de Vercel no debe competir con la producción en
+       los buscadores: esta cabecera le dice a cualquier rastreador que no
+       indexe nada servido desde ese host. La condición por host evita tocar
+       la producción —laverde.kynari.dev— y cualquier otro despliegue.
+       `has` con `host` es un match exacto de cabecera Host. */
+    const previewNoIndex = [
+      {
+        key: "X-Robots-Tag",
+        value: "noindex, nofollow",
+      },
+    ];
     return [
+      {
+        source: "/(.*)",
+        has: [{ type: "host", value: "laverde-two.vercel.app" }],
+        headers: previewNoIndex,
+      },
       {
         source: "/(.*)",
         headers: securityHeaders,
