@@ -86,6 +86,16 @@ export const metadata: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
   },
+  /* Al «Agregar a la pantalla de inicio» en iOS: sin `capable` la app abre
+     dentro de una pestaña de Safari con barra de direcciones, y sin `title`
+     el icono se nombra con el dominio. El icono que iOS enseña no se declara
+     aquí: lo resuelve `src/app/apple-icon.png` por la convención de Next.
+     Android usa el manifest (`src/app/manifest.ts`). */
+  appleWebApp: {
+    capable: true,
+    title: siteConfig.name,
+    statusBarStyle: "default",
+  },
   /* No se declara `robots` aquí: lo decide `robots.ts`, que además puede excluir
      rutas enteras del rastreo, cosa que una meta etiqueta no hace. */
 };
