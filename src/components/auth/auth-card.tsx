@@ -8,6 +8,7 @@ import { authClient } from "@/lib/auth/client";
 import { messageFor } from "@/lib/auth/error-messages";
 import { TERMS_VERSION } from "@/lib/legal";
 import { readUserPreferences, writeUserPreferences } from "@/lib/user-preferences-store";
+import { identifyUser, trackUserLoggedIn, trackUserRegistered } from "@/lib/analytics";
 import { EASE } from "@/lib/motion";
 
 export type AuthMode = "login" | "register";
@@ -164,6 +165,16 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
         if (result.error) {
           setError(messageFor(result.error, mode));
           return;
+        }
+
+        /* Identificación y evento de conversión. El id viene con la sesión que
+           el SDK acaba de crear; sin él el evento sale igual, solo que anónimo. */
+        const sessionUserId = result.data?.user?.id;
+        if (sessionUserId) identifyUser(sessionUserId, { email });
+        if (mode === "register") {
+          trackUserRegistered(Boolean(sessionUserId));
+        } else {
+          trackUserLoggedIn(Boolean(sessionUserId));
         }
 
         /* El teléfono y la aceptación se guardan aquí, con la sesión ya emitida,

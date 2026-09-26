@@ -27,6 +27,7 @@ import {
   detectNearestProvince,
   GEO_ERROR_MESSAGES,
 } from "@/lib/map/geolocation";
+import { identifyUser, trackOnboardingCompleted } from "@/lib/analytics";
 
 const INTEREST_NAMES: Record<string, string> = {
   cafes: "Cafeterías",
@@ -450,6 +451,16 @@ export default function OnboardingPage() {
     };
 
     writeUserPreferences({ ...nextPreferences, onboardingCompleted: true }, resolvedUserId);
+
+    /* Conversión del flujo: se emite antes del guardado remoto y no después
+       de la navegación, porque una red lenta no debe perder el evento. */
+    if (resolvedUserId) identifyUser(resolvedUserId);
+    trackOnboardingCompleted({
+      location,
+      interests: Array.from(interests),
+      moods: Array.from(moods),
+      currencies: Array.from(currencies),
+    });
 
     try {
       const response = await fetch("/api/me", {

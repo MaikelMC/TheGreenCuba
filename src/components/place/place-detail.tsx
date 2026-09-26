@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Utensils,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn, currencyLabel } from "@/lib/utils";
 import { isSaved as isPlaceSaved, recordVisit, toggleSaved } from "@/lib/activity-store";
+import { trackPlaceSaveToggled, trackPlaceViewed } from "@/lib/analytics";
 import { PhotoCarousel, type Slide } from "./photo-carousel";
 import { InfoBar } from "./info-bar";
 import { ActionButtons } from "./action-buttons";
@@ -133,9 +134,23 @@ export function PlaceDetail({
      este componente pasan todas: la ficha de `/place/[id]` y la que abre el
      panel del home. El store ignora la repetición dentro de una ventana corta,
      que es lo que evita que el doble montaje —panel y hoja— cuente doble. */
+  /* El pageview del lugar se emite una sola vez por ficha, y no en cada
+     re-ejecución de este efecto —el id de usuario llega de /api/me y pasa de
+     null a su valor, lo que dispararía el efecto dos veces—. El guard por ref
+     evita el doble conteo. */
+  const viewTracked = useRef<string | null>(null);
   useEffect(() => {
     recordVisit({ id: place.id, name: place.name, category: place.category }, userId);
-  }, [place.id, place.name, place.category, userId]);
+    if (viewTracked.current !== place.id) {
+      viewTracked.current = place.id;
+      trackPlaceViewed({
+        id: place.id,
+        name: place.name,
+        category: place.category,
+        barrio: place.barrio,
+      });
+    }
+  }, [place.id, place.name, place.category, place.barrio, userId]);
 
   /* El estado de guardado se lee en efecto y no en el inicializador: en el
      servidor no hay `localStorage`, así que arrancar de ahí daría un HTML
@@ -156,7 +171,9 @@ export function PlaceDetail({
   const location = place.distance === place.barrio ? "" : place.distance;
 
   function handleSave() {
-    setSaved(toggleSaved(place.id, userId));
+    const next = toggleSaved(place.id, userId);
+    setSaved(next);
+    trackPlaceSaveToggled(place.id, place.name, next);
   }
 
   // Aquí va `min-h-dvh` solo: `cn` usa twMerge, que colapsaría el par

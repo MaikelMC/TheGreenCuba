@@ -27,6 +27,7 @@ import { PaymentChips } from "@/components/business/payment-chips";
 import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
 import { usePlaces } from "@/providers/places-provider";
 import { PLAN_LABEL, type PlacePlan } from "@/lib/places-store";
+import { trackBusinessSubmitted } from "@/lib/analytics";
 import {
   Select,
   SelectContent,
@@ -421,6 +422,12 @@ function BusinessForm({
       setSubmitted(true);
       setSending(false);
       setError(null);
+      trackBusinessSubmitted({
+        plan,
+        category: categoryLabel,
+        photoCount: photos.length,
+        photoFailures: failed,
+      });
       toast.success("Tu negocio quedó enviado para revisión. Te avisaremos cuando sea revisado.");
     } catch {
       setError("No hubo respuesta del servidor. Revisa tu conexión: no se cambió nada.");

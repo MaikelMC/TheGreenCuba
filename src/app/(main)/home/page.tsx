@@ -50,6 +50,16 @@ import {
   userProvinceLabel,
 } from "@/lib/user-province";
 import { pushRecentSearch } from "@/lib/recent-searches-store";
+import { sharePlace } from "@/lib/share";
+import {
+  trackAiSearchCompleted,
+  trackAiSearchSubmitted,
+  trackCategorySelect,
+  trackFilterToggle,
+  trackMapLocate,
+  trackMapMarkerClick,
+  trackRouteRequested,
+} from "@/lib/analytics";
 
 type SheetState = "default" | "searching" | "results" | "no-results" | "error";
 
@@ -262,7 +272,12 @@ function DetailOverlay({
                   </div>
                 )}
                 <div className="flex gap-[10px]">
-                  <motion.button whileTap={{ scale: 0.9 }} className="flex-1 size-12 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 transition-colors duration-500 hover:border-verde-300 hover:text-verde-600" aria-label="Compartir">
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => place && sharePlace(place.id, place.name)}
+                    className="flex-1 size-12 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 transition-colors duration-500 hover:border-verde-300 hover:text-verde-600"
+                    aria-label="Compartir"
+                  >
                     <Share2 size={18} strokeWidth={1.8} />
                   </motion.button>
                   <motion.button whileTap={{ scale: 0.9 }} className="flex-1 size-12 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 transition-colors duration-500 hover:border-verde-300 hover:text-verde-600" aria-label="Favorito">
@@ -474,14 +489,18 @@ function HomePageContent() {
     };
   }, []);
 
-  const toggleFilter = useCallback((value: string) => {
-    setActiveFilters((prev) => {
-      const next = new Set(prev);
-      if (next.has(value)) next.delete(value);
-      else next.add(value);
-      return next;
-    });
-  }, []);
+  const toggleFilter = useCallback(
+    (value: string) => {
+      trackFilterToggle(value, !activeFilters.has(value));
+      setActiveFilters((prev) => {
+        const next = new Set(prev);
+        if (next.has(value)) next.delete(value);
+        else next.add(value);
+        return next;
+      });
+    },
+    [activeFilters],
+  );
 
   /* Un solo filtrado para los dos sitios que pintan el catálogo —los pines del
      mapa y la lista del panel inferior—, para que no puedan discrepar. El chip
@@ -595,6 +614,7 @@ function HomePageContent() {
          búsqueda pasa por aquí —la barra del header y los atajos de «sin
          resultados»—, así que es el único punto que hace falta. */
       pushRecentSearch(query);
+      trackAiSearchSubmitted(query);
       setAiState(null);
       setSheetState("searching");
       searchCtx.setIsSearching(true);
@@ -659,7 +679,9 @@ function HomePageContent() {
         const matches = (data.matches ?? []).filter((m) => m && m.id).slice(0, 5);
         setAiState({ matches, summary: data.summary ?? "" });
         setSheetState(matches.length > 0 ? "results" : "no-results");
+        trackAiSearchCompleted(query, matches.length, matches.length > 0 ? "ok" : "empty");
       } catch {
+        trackAiSearchCompleted(query, 0, "error");
         setSheetState("error");
       } finally {
         clearTimeout(timeout);
@@ -702,6 +724,7 @@ function HomePageContent() {
   /* Tocar un pin del mapa solo selecciona: la hoja no se toca. El popup sale
      del propio pin y ya se abre solo. */
   const handleMarkerClick = useCallback((id: string) => {
+    trackMapMarkerClick(id);
     setSelectedId(id);
   }, []);
 
@@ -714,6 +737,7 @@ function HomePageContent() {
      juntas: sin vuelo no se llega, sin resaltado el pin se pierde entre los
      demás, y sin recogerla el negocio queda justo detrás de la lista. */
   const handleLocate = useCallback((place: HomePlace) => {
+    trackMapLocate(place.id);
     setSelectedId(place.id);
     setFocusTarget((prev) => ({
       lat: place.lat,
@@ -753,10 +777,12 @@ function HomePageContent() {
       const osrm = await fetchDrivingRoute(originPoint, destPoint);
       if (osrm) {
         setRoute(osrm);
+        trackRouteRequested(place.id, openOverlay ? "ficha" : "popup", false);
         return;
       }
       const direct = buildDirectRoute(originPoint, destPoint);
       setRoute(direct);
+      trackRouteRequested(place.id, openOverlay ? "ficha" : "popup", true);
       toast.info(
         "Ruta por calles no disponible desde tu zona. Mostrando distancia directa; puedes abrir la ruta en Google Maps.",
       );
@@ -950,7 +976,10 @@ function HomePageContent() {
         <CategoryBar
           categories={categoriesWithPlaces}
           active={activeCategory}
-          onSelect={setActiveCategory}
+          onSelect={(value) => {
+            setActiveCategory(value);
+            trackCategorySelect(value);
+          }}
         />
         <PlaceFilters
           active={activeFilters}

@@ -47,7 +47,11 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://photon.komoot.io https://nominatim.openstreetmap.org",
+  /* PostHog manda eventos y carga su UI de grabación desde los i.posthog.com
+     regionales — el SDK resuelve us/eu por sí solo según el host configurado.
+     Sin esta línea la producción bloquearía cada evento con CSP y nadie
+     relacionaría una ficha vacía en el panel con esta directiva. */
+  "connect-src 'self' https://photon.komoot.io https://nominatim.openstreetmap.org https://us.i.posthog.com https://eu.i.posthog.com https://us-assets.i.posthog.com https://eu-assets.i.posthog.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

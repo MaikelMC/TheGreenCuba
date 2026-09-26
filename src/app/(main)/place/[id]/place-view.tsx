@@ -11,6 +11,7 @@ import {
   type PlaceState,
 } from "@/components/place/place-detail";
 import { usePlaces } from "@/providers/places-provider";
+import { sharePlace } from "@/lib/share";
 import type { UserPlace } from "@/lib/places-store";
 
 /* Mismo par de degradados claros que usa el editor de fotos del panel de
@@ -173,7 +174,7 @@ export function PlaceView({
       place={userPlaceToPlaceData(place)}
       state={placeState(place)}
       onBack={() => router.back()}
-      onShare={() => {}}
+      onShare={() => sharePlace(place.id, place.name)}
       onMenuSeeAll={() => {}}
       onNavigate={() => router.push(`/home?lugar=${place.id}`)}
     />
