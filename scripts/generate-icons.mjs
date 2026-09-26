@@ -4,6 +4,13 @@
  * este script solo lo reescala y lo acomoda en los formatos que pide cada
  * contexto (pestaña del navegador, pantalla de inicio de iOS/Android).
  *
+ * El logo trae transparencia muerta alrededor del dibujo (~77% del ancho del
+ * lienzo es corazón, el resto aire). Metido tal cual en un icono, el dibujo
+ * queda pequeño rodeado de fondo — fue exactamente lo que se vio al agregar
+ * el sitio a la pantalla de inicio de iOS. Por eso aquí primero se recorta a
+ * su caja real (`extract` sobre el bounding box medido) y después se escala:
+ * el arte toca arriba y abajo del icono, y el fondo solo asoma en los lados.
+ *
  * Salidas:
  *  - src/app/favicon.ico            16/32/48 en un solo ICO → pestaña y marcadores
  *  - src/app/icon.png               512×512 transparente    → icono moderno
@@ -22,37 +29,75 @@ import sharp from "sharp";
 const SOURCE = "public/logo.png";
 const SAND = { r: 246, g: 243, b: 236, alpha: 1 }; // #F6F3EC, el fondo claro del sitio
 const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
+/** Umbral de alfa para considerar un píxel parte del dibujo. */
+const ALPHA_THRESHOLD = 8;
+
+/**
+ * Caja mínima que contiene todo el dibujo (píxeles con alfa sobre el umbral).
+ * Medirlo y no hardcodearlo: si el logo cambia, el recorte se adapta solo.
+ */
+async function tightBox() {
+  const { data, info } = await sharp(SOURCE)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let minX = info.width, minY = info.height, maxX = -1, maxY = -1;
+  for (let y = 0; y < info.height; y++) {
+    for (let x = 0; x < info.width; x++) {
+      if (data[(y * info.width + x) * info.channels + 3] > ALPHA_THRESHOLD) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) throw new Error("El logo no tiene píxeles visibles");
+  return {
+    left: minX,
+    top: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+  };
+}
 
 async function main() {
-  const logo = sharp(SOURCE);
-  const meta = await logo.metadata();
-  if (!meta.width || !meta.height) throw new Error("No pude leer el logo");
+  const box = await tightBox();
+  /* El recorte apretado es la fuente de todo: el arte llena su lienzo. */
+  const tight = await sharp(SOURCE).extract(box).png().toBuffer();
+  const meta = await sharp(tight).metadata();
+  console.log(
+    `Logo recortado a su dibujo real: ${box.width}x${box.height} ` +
+      `(desde ${meta.width}x${meta.height} del archivo original)`,
+  );
 
-  // Contenido cuadrado: el logo (256×267) entra con `contain` y el resto es
-  // margen del color de fondo que toque.
+  /* Contenido cuadrado: el dibujo es más alto que ancho, así que `contain`
+     lo escala hasta tocar arriba y abajo, y el fondo que corresponda rellena
+     los márgenes que quedan a los lados.
+
+     `flatten` compone TODO el lienzo sobre el fondo, no solo el padding: el
+     `resize` con `background` solo llena las bandas añadidas y el dibujo
+     conserva su propia alfa (las esquinas de su caja son transparentes). Sin
+     aplanar, iOS y Android pintan esas zonas con el fondo que les da la gana
+     y el icono se ve como un cuadrado que no llena la teja. Con fondo
+     transparente —el favicon— no se aplana: la transparencia es la gracia. */
   const contain = (size, background) =>
-    sharp(SOURCE)
-      .resize(size, size, { fit: "contain", background })
+    sharp(tight)
+      .resize(size, size, { fit: "contain", background: TRANSPARENT })
+      .png();
+
+  const containedOn = async (size, background) =>
+    sharp(await contain(size, TRANSPARENT).toBuffer())
+      .flatten({ background })
       .png();
 
   // ── src/app/icon.png ── favicon moderno y icono genérico (transparente).
   await contain(512, TRANSPARENT).toFile("src/app/icon.png");
 
-  // ── src/app/apple-icon.png ── iOS compone negro detrás del alfa, así que el
-  // fondo va lleno de arena, con margen sobrado alrededor del logo.
-  const appleSize = 180;
-  const appleInner = 150;
-  await sharp(SOURCE)
-    .resize(appleInner, appleInner, { fit: "contain", background: TRANSPARENT })
-    .extend({
-      top: (appleSize - appleInner) / 2,
-      bottom: (appleSize - appleInner) / 2,
-      left: (appleSize - appleInner) / 2,
-      right: (appleSize - appleInner) / 2,
-      background: SAND,
-    })
-    .png()
-    .toFile("src/app/apple-icon.png");
+  // ── src/app/apple-icon.png ── iOS no admite transparencia: el lienzo entero
+  // va aplanado en arena y el dibujo toca arriba y abajo del icono.
+  const appleIcon = await containedOn(180, SAND);
+  await appleIcon.toFile("src/app/apple-icon.png");
 
   // ── public/icons/ ── los que nombra el manifest.
   mkdirSync("public/icons", { recursive: true });
@@ -60,17 +105,24 @@ async function main() {
   await contain(512, TRANSPARENT).toFile("public/icons/icon-512.png");
 
   // Maskable: Android recorta un círculo hasta un 20% del borde, así que el
-  // logo baja al 66% y el fondo llena todo el lienzo.
-  const maskInner = Math.round(512 * 0.66);
-  await sharp(SOURCE)
-    .resize(maskInner, maskInner, { fit: "contain", background: TRANSPARENT })
-    .extend({
-      top: (512 - maskInner) / 2,
-      bottom: (512 - maskInner) / 2,
-      left: (512 - maskInner) / 2,
-      right: (512 - maskInner) / 2,
-      background: SAND,
-    })
+  // dibujo baja al 66% y el fondo llena todo el lienzo. Con el recorte
+  // apretado, ese 66% es ahora arte de verdad y no aire.
+  const maskSize = 512;
+  const maskInner = Math.round(maskSize * 0.66);
+  await sharp(
+    await sharp(tight)
+      .resize(maskInner, maskInner, { fit: "contain", background: TRANSPARENT })
+      .extend({
+        top: Math.floor((maskSize - maskInner) / 2),
+        bottom: Math.ceil((maskSize - maskInner) / 2),
+        left: Math.floor((maskSize - maskInner) / 2),
+        right: Math.ceil((maskSize - maskInner) / 2),
+        background: TRANSPARENT,
+      })
+      .png()
+      .toBuffer(),
+  )
+    .flatten({ background: SAND })
     .png()
     .toFile("public/icons/icon-512-maskable.png");
 
@@ -108,7 +160,7 @@ async function main() {
 
   writeFileSync("src/app/favicon.ico", Buffer.concat([header, ...entries, ...images]));
 
-  console.log("Iconos generados desde", SOURCE, `(${meta.width}x${meta.height}):`);
+  console.log("Iconos generados desde", SOURCE, ":");
   console.log("  src/app/favicon.ico (16/32/48), src/app/icon.png (512),");
   console.log("  src/app/apple-icon.png (180), public/icons/ (192, 512, maskable)");
 }
