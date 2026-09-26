@@ -16,8 +16,8 @@ export const TERMS_VERSION = "2026-09-23";
 /** El mismo día que `TERMS_VERSION`, escrito para leerse. */
 export const TERMS_UPDATED_LABEL = "septiembre de 2026";
 
-/** La dirección que ya usaba el panel de negocio para soporte. */
-export const SUPPORT_EMAIL = "soporte@laverde.cu";
+/** La dirección de soporte real del servicio. */
+export const SUPPORT_EMAIL = "laverdecuba@gmail.com";
 
 /**
  * Quién responde de los datos.

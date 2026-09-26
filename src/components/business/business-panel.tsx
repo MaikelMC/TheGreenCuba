@@ -18,6 +18,7 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SUPPORT_EMAIL } from "@/lib/legal";
 import { logout } from "@/lib/logout";
 import { formatCoordinates } from "@/lib/map/coordinates";
 import { placeIcon } from "@/lib/places";
@@ -658,7 +659,7 @@ function SettingsView({ place }: { place: UserPlace }) {
               escribirlos, y con ellos su ruta. */}
           <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
             <Row label="Plan actual" value="Básico (gratis)" />
-            <Row label="Contacto de soporte" value="soporte@laverde.cu" />
+            <Row label="Contacto de soporte" value={SUPPORT_EMAIL} />
             <Row label="Versión de la ficha" value={place.id} />
           </div>
         </div>
