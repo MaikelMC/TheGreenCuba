@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Home, Loader2, Lock, Mail, Phone } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
+import { messageFor } from "@/lib/auth/error-messages";
 import { TERMS_VERSION } from "@/lib/legal";
 import { readUserPreferences, writeUserPreferences } from "@/lib/user-preferences-store";
 import { EASE } from "@/lib/motion";
@@ -42,64 +43,15 @@ const COPY: Record<AuthMode, { eyebrow: string; title: string; lead?: string; ct
  *
  * Para credenciales malas se devuelve **uno solo** para los dos casos: decir
  * «ese correo no existe» por separado confirma qué correos están dados de alta.
- * El mínimo de caracteres de la contraseña lo pone la configuración de Neon, no
- * esta pantalla, de ahí que el mensaje no repita una cifra que podría no ser la
- * suya.
+ *
+ * Los códigos de abajo son los que el backend de Neon Auth responde de verdad
+ * (comprobados contra su API): `PASSWORD_TOO_SHORT` y `VALIDATION_ERROR` con
+ * HTTP 400 al crear la cuenta, `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL` con
+ * HTTP 422 si el correo ya está, e `INVALID_EMAIL_OR_PASSWORD` con HTTP 401
+ * al entrar. La longitud mínima la pone Neon (8), y como su mensaje no trae
+ * la cifra, el cliente la valida ANTES de enviar para poder decirla.
  */
-function messageFor(error: unknown, mode: AuthMode): string {
-  const value = error && typeof error === "object"
-    ? (error as Record<string, unknown>)
-    : {};
-  const nested = value.error && typeof value.error === "object"
-    ? (value.error as Record<string, unknown>)
-    : {};
-  const errorCode = String(value.code ?? nested.code ?? "").toLowerCase();
-  const errorMessage = String(value.message ?? nested.message ?? error ?? "");
-  const errorText = `${errorCode} ${errorMessage} ${collectErrorText(error)}`.toLowerCase();
-  const status = Number(value.status ?? nested.status ?? value.statusCode ?? nested.statusCode);
-  const accountExists =
-    errorCode === "user_already_exists" ||
-    errorCode === "email_exists" ||
-    errorText.includes("already exists") ||
-    errorText.includes("already registered") ||
-    errorText.includes("user_exists") ||
-    errorText.includes("email_exists");
 
-  if (accountExists) {
-    return "Correo ya registrado. Entra en su lugar.";
-  }
-  if (status === 401) return "Correo o contraseña incorrectos.";
-  if (status === 400 || status === 422 || errorCode === "validation_error") {
-    return "Revisa los datos: el correo o la contraseña no son válidos.";
-  }
-  if (status >= 500) {
-    return "La autenticación no responde. Inténtalo en un momento.";
-  }
-  return mode === "login"
-    ? "No se pudo entrar. Inténtalo de nuevo."
-    : "No se pudo crear la cuenta. Inténtalo de nuevo.";
-}
-
-function safeSerialize(value: unknown): string {
-  try {
-    return typeof value === "string" ? value : JSON.stringify(value) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-function collectErrorText(value: unknown, depth = 0): string {
-  if (depth > 3 || value === null || value === undefined) return "";
-  if (typeof value === "string") return value;
-  if (typeof value !== "object") return String(value);
-
-  const record = value as Record<string, unknown>;
-  const keys = ["code", "message", "name", "statusText", "cause", "data", "details", "response"];
-  return keys
-    .map((key) => collectErrorText(record[key], depth + 1))
-    .filter(Boolean)
-    .join(" ");
-}
 
 /* Campo con etiqueta visible, como los del perfil: un marcador que hace de
    etiqueta desaparece en cuanto se escribe y deja el campo sin nombre.
@@ -174,6 +126,21 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
     async (e: React.FormEvent) => {
       e.preventDefault();
       if (loading) return;
+
+      /* Validación en el cliente, antes de salir a la red: cada regla rota dice
+         SU nombre. El servidor también valida, pero su mensaje no trae la cifra
+         («Password too short»), y decirle «8» aquí no cuesta nada y se ahorra
+         un viaje. La casilla de términos la corta antes el `required` nativo
+         del propio checkbox, con el mensaje del navegador. */
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+      if (!emailOk) {
+        setError("Escribe un correo válido, por ejemplo usuario@laverde.cu");
+        return;
+      }
+      if (mode === "register" && password.length < 8) {
+        setError("La contraseña necesita al menos 8 caracteres.");
+        return;
+      }
 
       setLoading(true);
       setError(null);
@@ -259,6 +226,7 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
               autoComplete="email"
               required
               aria-label="Correo"
+              aria-invalid={error ? true : undefined}
               className="flex-1 min-w-0 bg-transparent text-small text-ink outline-none placeholder:text-ink-soft/75"
               placeholder="usuario@laverde.cu"
             />
