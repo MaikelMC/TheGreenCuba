@@ -14,10 +14,10 @@
  * Salidas:
  *  - src/app/favicon.ico            16/32/48 en un solo ICO → pestaña y marcadores
  *  - src/app/icon.png               512×512 transparente    → icono moderno
- *  - src/app/apple-icon.png         180×180 fondo arena     → iOS (no admite alfa)
+ *  - src/app/apple-icon.png         180×180 cielo del hero  → iOS (no admite alfa)
  *  - public/icons/icon-192.png      manifest any
  *  - public/icons/icon-512.png      manifest any
- *  - public/icons/icon-512-maskable.png  manifest maskable (logo al 66% sobre arena)
+ *  - public/icons/icon-512-maskable.png  manifest maskable (logo al 66% sobre el cielo)
  *
  * Uso: `node scripts/generate-icons.mjs` — correr de nuevo si cambia el logo.
  * `sharp` ya viene con Next (`next build` lo usa para optimizar imágenes).
@@ -27,10 +27,45 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import sharp from "sharp";
 
 const SOURCE = "public/logo.png";
-const SAND = { r: 246, g: 243, b: 236, alpha: 1 }; // #F6F3EC, el fondo claro del sitio
 const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
 /** Umbral de alfa para considerar un píxel parte del dibujo. */
 const ALPHA_THRESHOLD = 8;
+
+/**
+ * El "cielo" del hero de la landing: `.lv-grid-glow` en `globals.css`, una
+ * base degradada vertical (#06211a → #081b12) con dos brillos radiales
+ * verdes encima. Reproducido en SVG para que el icono y la pantalla de
+ * arranque compartan el mismo aire que la primera pantalla que ve quien
+ * llega al sitio.
+ *
+ * Los radiales van con el radio CSS real —`farthest-corner` es el default de
+ * `radial-gradient`, y en un lienzo cuadrado son 1.189·S y 1.312·S para los
+ * centros (20%, 12%) y (85%, 0%)— para que el brillo caiga donde cae en la
+ * landing y no a ojo.
+ */
+function heroGlowSvg(size) {
+  return Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">` +
+      `<defs>` +
+      `<linearGradient id="base" x1="0" y1="0" x2="0" y2="1">` +
+      `<stop offset="0" stop-color="#06211a"/>` +
+      `<stop offset="1" stop-color="#081b12"/>` +
+      `</linearGradient>` +
+      `<radialGradient id="glow1" gradientUnits="userSpaceOnUse" cx="${size * 0.2}" cy="${size * 0.12}" r="${size * 1.1893}">` +
+      `<stop offset="0" stop-color="#35AF6D" stop-opacity="0.16"/>` +
+      `<stop offset="0.42" stop-color="#35AF6D" stop-opacity="0"/>` +
+      `</radialGradient>` +
+      `<radialGradient id="glow2" gradientUnits="userSpaceOnUse" cx="${size * 0.85}" cy="0" r="${size * 1.312}">` +
+      `<stop offset="0" stop-color="#0F7A41" stop-opacity="0.18"/>` +
+      `<stop offset="0.45" stop-color="#0F7A41" stop-opacity="0"/>` +
+      `</radialGradient>` +
+      `</defs>` +
+      `<rect width="${size}" height="${size}" fill="url(#base)"/>` +
+      `<rect width="${size}" height="${size}" fill="url(#glow1)"/>` +
+      `<rect width="${size}" height="${size}" fill="url(#glow2)"/>` +
+      `</svg>`,
+  );
+}
 
 /**
  * Caja mínima que contiene todo el dibujo (píxeles con alfa sobre el umbral).
@@ -86,18 +121,26 @@ async function main() {
       .resize(size, size, { fit: "contain", background: TRANSPARENT })
       .png();
 
-  const containedOn = async (size, background) =>
-    sharp(await contain(size, TRANSPARENT).toBuffer())
-      .flatten({ background })
-      .png();
+  /* El dibujo (transparente, llenando su teja) compuesto sobre el cielo del
+     hero: iOS no admite transparencia y el fondo del icono ya no puede ser un
+     color plano — es el degradado de la landing. */
+  const onHeroGlow = async (size) =>
+    sharp(heroGlowSvg(size)).composite([
+      {
+        input: await contain(size, TRANSPARENT).toBuffer(),
+        top: 0,
+        left: 0,
+        blend: "over",
+      },
+    ]);
 
   // ── src/app/icon.png ── favicon moderno y icono genérico (transparente).
   await contain(512, TRANSPARENT).toFile("src/app/icon.png");
 
   // ── src/app/apple-icon.png ── iOS no admite transparencia: el lienzo entero
-  // va aplanado en arena y el dibujo toca arriba y abajo del icono.
-  const appleIcon = await containedOn(180, SAND);
-  await appleIcon.toFile("src/app/apple-icon.png");
+  // va con el cielo del hero y el dibujo toca arriba y abajo del icono.
+  const appleIcon = await onHeroGlow(180);
+  await appleIcon.png().toFile("src/app/apple-icon.png");
 
   // ── public/icons/ ── los que nombra el manifest.
   mkdirSync("public/icons", { recursive: true });
@@ -105,24 +148,23 @@ async function main() {
   await contain(512, TRANSPARENT).toFile("public/icons/icon-512.png");
 
   // Maskable: Android recorta un círculo hasta un 20% del borde, así que el
-  // dibujo baja al 66% y el fondo llena todo el lienzo. Con el recorte
+  // dibujo baja al 66% y el cielo llena todo el lienzo. Con el recorte
   // apretado, ese 66% es ahora arte de verdad y no aire.
   const maskSize = 512;
   const maskInner = Math.round(maskSize * 0.66);
-  await sharp(
-    await sharp(tight)
-      .resize(maskInner, maskInner, { fit: "contain", background: TRANSPARENT })
-      .extend({
+  const maskContent = await sharp(tight)
+    .resize(maskInner, maskInner, { fit: "contain", background: TRANSPARENT })
+    .png()
+    .toBuffer();
+  await sharp(heroGlowSvg(maskSize))
+    .composite([
+      {
+        input: maskContent,
         top: Math.floor((maskSize - maskInner) / 2),
-        bottom: Math.ceil((maskSize - maskInner) / 2),
         left: Math.floor((maskSize - maskInner) / 2),
-        right: Math.ceil((maskSize - maskInner) / 2),
-        background: TRANSPARENT,
-      })
-      .png()
-      .toBuffer(),
-  )
-    .flatten({ background: SAND })
+        blend: "over",
+      },
+    ])
     .png()
     .toFile("public/icons/icon-512-maskable.png");
 

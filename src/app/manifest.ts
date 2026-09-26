@@ -28,10 +28,12 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     orientation: "portrait",
     lang: "es",
-    /* El mismo tono que la superficie clara del sitio; es el color que tiñe la
-       barra de estado y la pantalla de arranque de la app instalada. */
-    background_color: "#F6F3EC",
-    theme_color: "#F6F3EC",
+    /* El cielo del hero (`.lv-grid-glow`): es el color que tiñe la pantalla de
+       arranque de la app instalada, detrás del icono — que ya lleva el mismo
+       degradado. Antes iba arena y el icono verde oscuro flotaba sobre claro
+       en cada lanzamiento. */
+    background_color: "#06211a",
+    theme_color: "#06211a",
     categories: ["travel", "food", "lifestyle"],
     icons: [
       {
