@@ -63,3 +63,48 @@ export function placeIcon(
 ): string {
   return icon && icon.trim() !== "" ? icon : categoryIcon(category, categories);
 }
+
+/**
+ * ¿`piece` ya está dicho dentro de `text`? Sin distinguir mayúsculas.
+ *
+ * Hace falta porque en esta base la dirección es texto libre y el dueño la
+ * escribe entera —«Francisco Vicente Aguilera (Marina), Flores, Santiago de
+ * Cuba»—, mientras el barrio, la ciudad y la provincia llegan por su cuenta en
+ * sus propias columnas. Pintarlos juntos repite media dirección.
+ */
+export function alreadySaid(
+  text: string | null | undefined,
+  piece: string | null | undefined,
+): boolean {
+  const haystack = text?.trim().toLowerCase();
+  const needle = piece?.trim().toLowerCase();
+  return Boolean(haystack && needle && haystack.includes(needle));
+}
+
+/**
+ * La ubicación de un negocio en una línea, sin repetir lo que ya está dentro.
+ *
+ * Une las partes y descarta cada una si aparece dentro de otra más larga. La
+ * ciudad y la provincia son la misma cadena en casi toda la base —«Santiago de
+ * Cuba»—, así que los duplicados exactos se quitan **antes** de la comparación
+ * por contención: si no, cada una bloquearía a la otra y saldrían las dos.
+ *
+ * El orden importa: `[dirección, barrio]` con la dirección entera deja solo la
+ * dirección, que es lo que se quiere; al revés habría dejado las dos.
+ */
+export function locationLine(parts: (string | null | undefined)[]): string {
+  const seen = new Set<string>();
+  const clean = parts
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+    .filter((part) => {
+      const key = part.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+  return clean
+    .filter((part) => !clean.some((other) => other !== part && alreadySaid(other, part)))
+    .join(", ");
+}

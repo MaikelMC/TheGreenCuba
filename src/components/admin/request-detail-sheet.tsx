@@ -14,7 +14,7 @@ import {
 import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CategoryIcon } from "@/components/admin/category-icon";
-import { placeIcon } from "@/lib/places";
+import { alreadySaid, locationLine, placeIcon } from "@/lib/places";
 import { usePlaces } from "@/providers/places-provider";
 import {
   Sheet,
@@ -121,6 +121,10 @@ export function RequestDetailSheet({
 
   const cover = shown?.photos?.find((p) => p.isCover) ?? shown?.photos?.[0];
   const gallery = shown?.photos?.filter((p) => p !== cover) ?? [];
+  /* El barrio se calla cuando la dirección ya lo dice. El dueño escribe la
+     dirección entera —«…, Flores, Santiago de Cuba»— y el rótulo de la cabecera
+     lo repetía justo encima de la sección de ubicación. */
+  const barrio = alreadySaid(shown?.address, shown?.barrio) ? "" : (shown?.barrio ?? "");
   const website = shown?.website
     ? shown.website.startsWith("http")
       ? shown.website
@@ -149,7 +153,7 @@ export function RequestDetailSheet({
                 </SheetTitle>
                 <SheetDescription className="text-small text-white/85">
                   {shown.category}
-                  {shown.barrio ? ` · ${shown.barrio}` : ""}
+                  {barrio ? ` · ${barrio}` : ""}
                 </SheetDescription>
               </div>
             </div>
@@ -178,7 +182,7 @@ export function RequestDetailSheet({
                 </h3>
                 <p className="text-small text-ink-soft/75 mt-[2px]">
                   {shown.category}
-                  {shown.barrio ? ` · ${shown.barrio}` : ""}
+                  {barrio ? ` · ${barrio}` : ""}
                 </p>
               </div>
             )}
@@ -213,14 +217,12 @@ export function RequestDetailSheet({
               <Section label="Ubicación y contacto">
                 <div className="flex flex-col gap-[6px]">
                   <InfoRow icon={MapPin} href={`https://www.google.com/maps/search/?api=1&query=${shown.lat},${shown.lng}`}>
-                    {[
+                    {locationLine([
                       shown.address,
                       shown.barrio,
                       shown.city,
                       shown.province,
-                    ]
-                      .filter(Boolean)
-                      .join(", ") || "Dirección no indicada"}
+                    ]) || "Dirección no indicada"}
                   </InfoRow>
                   {shown.phone && <InfoRow icon={Phone} href={`tel:${shown.phone}`}>{shown.phone}</InfoRow>}
                   {website && <InfoRow icon={Globe} href={website}>{shown.website}</InfoRow>}

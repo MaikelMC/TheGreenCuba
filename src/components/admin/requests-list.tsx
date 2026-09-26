@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { toast } from "sonner";
 import { CheckCircle2, Clock3, MapPin, Search, XCircle } from "lucide-react";
 import { usePlaces } from "@/providers/places-provider";
+import { alreadySaid } from "@/lib/places";
 import { PLAN_LABEL } from "@/lib/places-store";
 import { cn } from "@/lib/utils";
 import { StateView } from "@/components/ui/state-view";
@@ -167,8 +168,17 @@ export function RequestsList() {
                     </div>
                     <div className="mt-[2px] flex flex-wrap items-center gap-gap-xs text-meta text-ink-soft/75">
                       <span>{place.category}</span>
-                      <span>·</span>
-                      <span>{place.barrio || place.address || "Sin barrio"}</span>
+                      {/* El barrio se calla cuando la dirección de abajo ya lo
+                          dice. El dueño escribe la dirección entera —«…, Flores,
+                          Santiago de Cuba»— y aquí salía el barrio otra vez,
+                          justo encima. Con la dirección vacía el barrio es lo
+                          único que sitúa el negocio, y entonces sí se pinta. */}
+                      {!alreadySaid(place.address, place.barrio) && (
+                        <>
+                          <span>·</span>
+                          <span>{place.barrio}</span>
+                        </>
+                      )}
                     </div>
                   </div>
 

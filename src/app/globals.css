@@ -382,6 +382,22 @@
     color: rgba(237, 247, 240, 0.72) !important;
   }
 
+  /* El `text-ink-soft` a secas (sin opacidad) no estaba cubierto: la lista
+     «Lo que puedes hacer ahora» del panel de negocio, los términos y varios
+     botones de admin lo usan y quedaban tinta sobre tinta. Va un punto más
+     claro que las variantes /XX porque su uso es texto de lectura. */
+  html[data-theme="dark"] .text-ink-soft {
+    color: rgba(237, 247, 240, 0.82) !important;
+  }
+
+  /* `bg-ink/10`: el asa del bottom sheet de recomendaciones, los toggles
+     apagados, los pasos inactivos del onboarding y la barra de búsqueda.
+     En claro es un gris sutil sobre blanco; en oscuro era tinta sobre tinta
+     y el asa desaparecía — sin ella no hay forma de recoger la hoja. */
+  html[data-theme="dark"] .bg-ink\/10 {
+    background-color: rgba(237, 247, 240, 0.16) !important;
+  }
+
   html[data-theme="dark"] .border-ink\/5,
   html[data-theme="dark"] .border-ink\/10,
   html[data-theme="dark"] .divide-ink\/5 {
