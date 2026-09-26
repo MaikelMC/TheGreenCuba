@@ -163,13 +163,13 @@ export default function AdminUsersPage() {
         </span>
       </header>
 
-      <div className="flex items-center gap-gap-sm rounded-2xl border border-ink/10 bg-white px-gap-sm py-2 shadow-soft">
+      <div className="flex items-center gap-gap-sm rounded-2xl border border-ink/10 bg-white px-gap-sm py-2 shadow-soft transition-colors duration-500 ease-outquint focus-within:border-verde-400 focus-within:ring-2 focus-within:ring-verde-400/20">
         <Search size={17} className="shrink-0 text-ink-soft/75" />
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Buscar por nombre, correo o rol"
-          className="min-w-0 flex-1 bg-transparent text-small text-ink outline-none placeholder:text-ink-soft/60"
+          className="min-w-0 flex-1 bg-transparent text-small text-ink outline-none placeholder:text-ink-soft/70"
         />
       </div>
 
@@ -212,7 +212,7 @@ export default function AdminUsersPage() {
                   <select
                     value={user.role}
                     onChange={(event) => void changeRole(user, event.target.value as Role)}
-                    className="h-9 rounded-full border border-ink/10 bg-sand px-3 text-meta font-semibold text-ink outline-none"
+                    className="h-9 rounded-full border border-ink/10 bg-sand px-3 text-meta font-semibold text-ink outline-none focus-visible:border-verde-400 focus-visible:ring-2 focus-visible:ring-verde-400/20"
                     aria-label={`Rol de ${user.email}`}
                   >
                     {(Object.keys(ROLE_LABELS) as Role[]).map((role) => (

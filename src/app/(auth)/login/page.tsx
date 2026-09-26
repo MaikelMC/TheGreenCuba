@@ -61,7 +61,7 @@ export default async function LoginPage({
         <div className="flex flex-wrap gap-gap-xs pt-gap-xs">
           <Link
             href="/home"
-            className="inline-flex items-center justify-center h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98]"
+            className="inline-flex items-center justify-center h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98]"
           >
             Volver al inicio
           </Link>

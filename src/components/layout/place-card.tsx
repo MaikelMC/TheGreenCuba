@@ -52,7 +52,14 @@ export function PlaceCard({
       role="button"
       tabIndex={0}
       onClick={onSelect}
-      onKeyDown={(e) => e.key === "Enter" && onSelect?.()}
+      /* Patrón botón de WAI-ARIA: Enter y Space activan. Space hace
+         preventDefault para no scrollear la página al activar la tarjeta. */
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect?.();
+        }
+      }}
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}

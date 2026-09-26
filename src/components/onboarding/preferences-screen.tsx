@@ -187,7 +187,7 @@ export function PreferencesScreen({
         <motion.button
           onClick={onDone}
           whileTap={{ scale: 0.98 }}
-          className="inline-flex w-full items-center justify-center gap-2 px-6 py-3 rounded-full font-lv-display text-sm font-semibold bg-verde-400 text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] transition-all duration-500 ease-outquint min-h-12 hover:bg-verde-300 active:scale-[0.98]"
+          className="inline-flex w-full items-center justify-center gap-2 px-6 py-3 rounded-full font-lv-display text-sm font-semibold bg-verde-400 text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint min-h-12 hover:bg-verde-300 active:scale-[0.98]"
         >
           Empezar a explorar
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]">

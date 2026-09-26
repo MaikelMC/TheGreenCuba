@@ -11,6 +11,7 @@ import { BusinessView } from "@/components/profile/business-view";
 import { DetailsView } from "@/components/profile/details-view";
 import { PlacesView } from "@/components/profile/places-view";
 import { SettingsView } from "@/components/profile/settings-view";
+import { Skeleton } from "@/components/ui";
 import {
   DOCK_ITEMS,
   ProfileDock,
@@ -26,7 +27,7 @@ import {
 
 /* El halo del botón primario del sistema, para el guardado de la cabecera. */
 const SAVE_BTN =
-  "bg-verde-400 text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300 transition-all duration-500 ease-outquint font-lv-display font-semibold cursor-pointer";
+  "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint font-lv-display font-semibold cursor-pointer";
 
 /**
  * Armazón del perfil. Las tres secciones se cambian con el dock, sin tocar la
@@ -127,12 +128,30 @@ export default function ProfilePage() {
   const title = DOCK_ITEMS.find((item) => item.id === view)?.label ?? "Perfil";
 
   if (!prefs) {
+    /* Armazón con la forma de lo que viene: título y tres campos al ancho del
+       formulario real. Un texto suelto no anticipa nada; el skeleton evita el
+       salto cuando llegan las preferencias (DESIGN.md: nunca spinner o texto
+       solo donde el layout es predecible). */
     return (
       <div className="min-h-dvh bg-sand font-lv text-ink">
         <TopBar title={title} />
-        <p className="pt-gap-xl text-center text-small text-ink-soft/75" aria-busy>
-          Cargando perfil…
-        </p>
+        <div className="mx-auto w-full max-w-md px-gutter pt-gap-xl" aria-busy>
+          <Skeleton className="h-[24px] w-[45%]" />
+          <div className="mt-gap-md flex flex-col gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-[12px] w-[30%]" />
+              <Skeleton className="h-[44px] w-full rounded-xl" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-[12px] w-[40%]" />
+              <Skeleton className="h-[44px] w-full rounded-xl" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-[12px] w-[25%]" />
+              <Skeleton className="h-[44px] w-full rounded-xl" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

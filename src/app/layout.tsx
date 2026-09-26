@@ -46,7 +46,10 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#1a1a1a" },
+    /* #0e1720 y no #1a1a1a: la superficie oscura real de la app. Con el gris
+       neutro la barra del navegador destonzaba contra el fondo verdoso del
+       modo oscuro (globals.css). */
+    { media: "(prefers-color-scheme: dark)", color: "#0e1720" },
   ],
 };
 

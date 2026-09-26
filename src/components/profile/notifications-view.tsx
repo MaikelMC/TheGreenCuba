@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Bell, CheckCheck, Clock3, Inbox, MailOpen, Sparkles } from "lucide-react";
+import { Skeleton } from "@/components/ui";
 
 interface UserNotification {
   id: string;
@@ -125,8 +126,19 @@ export function NotificationsView() {
       </nav>
 
       {loading ? (
-        <div className="rounded-b-2xl border-b border-ink/10 bg-white/50 p-8 text-center text-small text-ink-soft/75">
-          Cargando notificaciones…
+        /* Skeleton con la forma de la lista real (icono + dos líneas por fila):
+           DESIGN.md pide skeletons y nunca spinner o texto solo — el armazón
+           anticipa el layout y la carga no mueve nada. */
+        <div className="rounded-b-2xl border-b border-ink/10 bg-white/60 shadow-soft" aria-busy="true">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-start gap-gap-sm border-b border-ink/5 px-6 py-4 last:border-b-0">
+              <Skeleton className="mt-[2px] size-9 shrink-0 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-[14px] w-[55%]" />
+                <Skeleton className="h-[12px] w-[85%]" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : visibleItems.length === 0 ? (
         <div className="rounded-b-2xl border-b border-ink/10 bg-white/60 px-6 py-16 text-center shadow-soft">

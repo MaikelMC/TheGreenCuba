@@ -42,7 +42,7 @@ const CURRENCIES = [
 /* El halo del botón primario del sistema. Vive suelto porque lo usa el botón
    del final del formulario; el de la cabecera se lo pone el armazón. */
 const SAVE_BTN =
-  "bg-verde-400 text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300 transition-all duration-500 ease-outquint font-lv-display font-semibold cursor-pointer";
+  "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint font-lv-display font-semibold cursor-pointer";
 
 interface DetailsViewProps {
   prefs: UserPreferences;

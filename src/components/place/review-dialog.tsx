@@ -34,7 +34,7 @@ const RATING_LABELS = ["Muy malo", "Malo", "Normal", "Bueno", "Excelente"];
 const MAX_COMMENT = 500;
 
 const BTN_PRIMARY =
-  "inline-flex h-11 cursor-pointer items-center justify-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none";
+  "inline-flex h-11 cursor-pointer items-center justify-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none";
 
 const BTN_GHOST =
   "inline-flex h-11 cursor-pointer items-center justify-center rounded-full border border-ink/10 bg-white px-gap-lg font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 disabled:pointer-events-none disabled:opacity-50";
@@ -161,7 +161,7 @@ export function ReviewDialog({
             rows={4}
             maxLength={MAX_COMMENT}
             placeholder="¿Qué tal el servicio, el ambiente, la comida?"
-            className="w-full resize-none rounded-2xl border border-ink/10 bg-white px-gap-md py-gap-sm font-lv text-small leading-relaxed text-ink placeholder:text-ink-soft/50 transition-colors duration-300 focus-visible:border-verde-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/25"
+            className="w-full resize-none rounded-2xl border border-ink/10 bg-white px-gap-md py-gap-sm font-lv text-small leading-relaxed text-ink placeholder:text-ink-soft/60 transition-colors duration-300 focus-visible:border-verde-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/25"
           />
           <span className="self-end font-lv-display text-meta tabular-nums text-ink-soft/60">
             {comment.length}/{MAX_COMMENT}

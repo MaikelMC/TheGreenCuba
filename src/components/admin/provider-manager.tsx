@@ -572,7 +572,7 @@ export function ProviderManager() {
               type="button"
               onClick={handleSubmit}
               disabled={saving}
-              className="w-full h-11 mt-gap-xs rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none inline-flex items-center justify-center gap-gap-xs"
+              className="w-full h-11 mt-gap-xs rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none inline-flex items-center justify-center gap-gap-xs"
             >
               {saving ? (
                 <Loader2 size={18} className="animate-spin" />

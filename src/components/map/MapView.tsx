@@ -49,7 +49,7 @@ class MapErrorBoundary extends Component<
                 this.setState({ hasError: false });
                 this.props.onRetry();
               }}
-              className="rounded-full bg-verde-400 px-5 py-2.5 font-lv-display text-small font-semibold text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+              className="rounded-full bg-verde-400 px-5 py-2.5 font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
             >
               Reintentar
             </button>

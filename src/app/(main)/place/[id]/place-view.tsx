@@ -18,18 +18,24 @@ import type { UserPlace } from "@/lib/places-store";
    en `verde-600`— no se leía encima.
 
    El `url: null` es lo que los marca como relleno: `PhotoCarousel` pinta el
-   degradado en lugar de una imagen. */
+   degradado en lugar de una imagen.
+
+   Los hex van a mano porque va dentro de un string CSS, pero son exactamente
+   los tokens `verde-50/100` y `sand/sand-deep` de tailwind.config: si un token
+   cambia, este par hay que alinearlo. */
+const GRADIENT_VERDE = "linear-gradient(160deg, #EAF7EF, #CEEEDB)"; // verde-50 → verde-100
+const GRADIENT_SAND = "linear-gradient(160deg, #F6F3EC, #EAE4D6)"; // sand → sand-deep
 const FALLBACK_SLIDES = [
   {
     url: null,
     alt: "",
-    gradient: "linear-gradient(160deg, #EAF7EF, #CEEEDB)",
+    gradient: GRADIENT_VERDE,
     label: "El lugar",
   },
   {
     url: null,
     alt: "",
-    gradient: "linear-gradient(160deg, #F6F3EC, #EAE4D6)",
+    gradient: GRADIENT_SAND,
     label: "Ambiente",
   },
 ];
@@ -151,7 +157,7 @@ export function PlaceView({
           actions={
             <Link
               href="/home"
-              className="inline-flex items-center gap-[6px] h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98]"
+              className="inline-flex items-center gap-[6px] h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98]"
             >
               <ArrowLeft size={16} strokeWidth={1.8} />
               Volver al mapa

@@ -16,6 +16,7 @@ import { PlaceFilters } from "@/components/place/place-filters";
 import { StateView } from "@/components/ui/state-view";
 import { CategoryIcon } from "@/components/admin/category-icon";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/loading";
 import { useSearchActions } from "@/providers/search-provider";
 import { getCurrentPosition, getLastKnownPosition } from "@/lib/map/geolocation";
 import {
@@ -239,7 +240,7 @@ function DetailOverlay({
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   onClick={() => onNavigate?.(place)}
-                  className="flex flex-1 items-center justify-center gap-2 min-h-12 px-6 py-3 rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+                  className="flex flex-1 items-center justify-center gap-2 min-h-12 px-6 py-3 rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
                 >
                   <Navigation size={18} strokeWidth={1.8} />
                   Cómo llegar
@@ -389,7 +390,17 @@ function HomePageContent() {
      leían de `localStorage` aquí aparte, así que la pantalla podía estar
      pintando un catálogo y el panel de admin editando otro: cambiar el icono
      de una categoría no movía ni un pin del mapa. */
-  const { places, categories } = usePlaces();
+  const { places, categories, hydrated } = usePlaces();
+
+  /* Solo categorías con al menos un negocio en el catálogo. Con la lista
+     completa, la barra ofrecía 12 chips y 7 llevaban a «sin resultados» —
+     cada opción muerta cuesta tiempo de decisión (Ley de Hick) y confianza.
+     Se recalcula con el catálogo: cuando se apruebe el primer restaurante,
+     el chip vuelve solo. Mientras el catálogo carga solo queda «Todo». */
+  const categoriesWithPlaces = useMemo(() => {
+    const present = new Set(places.map((p) => p.category.toLowerCase()));
+    return categories.filter((c) => present.has(c.label.toLowerCase()));
+  }, [places, categories]);
 
   useEffect(() => {
     let alive = true;
@@ -926,7 +937,7 @@ function HomePageContent() {
         onRouteClear={handleClearRoute}
       >
         <CategoryBar
-          categories={categories}
+          categories={categoriesWithPlaces}
           active={activeCategory}
           onSelect={setActiveCategory}
         />
@@ -1008,12 +1019,31 @@ function HomePageContent() {
                 <p className="text-small leading-relaxed text-ink">
                   {sheetState === "results" && aiState && aiState.summary
                     ? aiState.summary
-                    : `Según tu ubicación en Santiago de Cuba, encontré ${places.length} lugares que podrían gustarte. Explora el mapa o busca con lenguaje natural.`}
+                    : !hydrated
+                      ? "Estoy viendo qué hay cerca de ti…"
+                      : `Según tu ubicación en Santiago de Cuba, encontré ${places.length} lugares que podrían gustarte. Explora el mapa o busca con lenguaje natural.`}
                 </p>
               </motion.div>
 
-              {/* Place list */}
-              <div className="flex flex-col gap-gap-sm">
+              {/* Place list. Mientras el catálogo llega de la base, skeletons
+                  con la forma de las tarjetas: sin esto el sheet contaba
+                  «0 lugares» y el mapa arrancaba sin pines hasta que la
+                  respuesta aterrizaba de golpe. */}
+              <div className="flex flex-col gap-gap-sm" aria-busy={!hydrated}>
+                {!hydrated &&
+                  [1, 2, 3].map((i) => (
+                    <div
+                      key={`sk-${i}`}
+                      className="flex gap-[14px] p-[14px] border border-ink/5 rounded-2xl"
+                    >
+                      <Skeleton className="size-16 rounded-xl shrink-0" />
+                      <div className="flex-1 flex flex-col gap-2 pt-1">
+                        <Skeleton className="h-[14px] w-[65%]" />
+                        <Skeleton className="h-[12px] w-[40%]" />
+                        <Skeleton className="h-[12px] w-[85%]" />
+                      </div>
+                    </div>
+                  ))}
                 {resultPlaces.map((place, i) => (
                   <PlaceCardRow
                     key={place.id}
@@ -1067,7 +1097,7 @@ function HomePageContent() {
                     ? `No encontramos lugares que coincidan con “${searchingQuery}”. Intenta con otra búsqueda.`
                     : "No encontramos lugares que coincidan con tu búsqueda. Intenta con otras palabras."
                 }
-                actions={["Discotecas en Santiago", "Bar de jazz", "Música en vivo"].map((s) => (
+                actions={["Hoteles en el centro", "Playas cerca", "Lugares históricos"].map((s) => (
                   <button
                     key={s}
                     onClick={() => handleSearch(s)}

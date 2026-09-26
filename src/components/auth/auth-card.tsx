@@ -361,7 +361,7 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
           type="submit"
           disabled={loading}
           aria-busy={loading}
-          className="mt-gap-2xs inline-flex items-center justify-center gap-gap-xs w-full h-12 rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none cursor-pointer"
+          className="mt-gap-2xs inline-flex items-center justify-center gap-gap-xs w-full h-12 rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none cursor-pointer"
         >
           {loading ? (
             <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />

@@ -262,7 +262,11 @@ export default function OnboardingPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [gpsDetected, setGpsDetected] = useState(false);
   const [detectedName, setDetectedName] = useState<string | null>(null);
-  const [interests, setInterests] = useState<Set<string>>(new Set(["cafes", "restaurantes"]));
+  /* Pre-marcados alineados al catálogo real: los viejos («cafes»,
+     «restaurantes») son hoy categorías vacías — un interés sin cumplimiento
+     genera expectativas que el sitio no puede cumplir (Ley de Hick: opciones
+     que no llevan a nada). Se actualizan si el catálogo crece. */
+  const [interests, setInterests] = useState<Set<string>>(new Set(["cultura", "playas"]));
   const [currencies, setCurrencies] = useState<Set<string>>(new Set(["mlc", "cup"]));
   const [moods, setMoods] = useState<Set<string>>(new Set(["tranquilo", "romantico"]));
   const locationDetectionStarted = useRef(false);
@@ -712,7 +716,7 @@ export default function OnboardingPage() {
             <button
               onClick={handleContinue}
               disabled={!canProceed()}
-              className="inline-flex items-center justify-center gap-2 flex-1 px-6 py-3 rounded-full font-lv-display text-sm font-semibold bg-verde-400 text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] transition-all duration-500 ease-outquint min-h-12 hover:bg-verde-300 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
+              className="inline-flex items-center justify-center gap-2 flex-1 px-6 py-3 rounded-full font-lv-display text-sm font-semibold bg-verde-400 text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint min-h-12 hover:bg-verde-300 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
             >
               {currentStep === TOTAL_STEPS - 1 ? "Comenzar" : "Continuar"}
             </button>
