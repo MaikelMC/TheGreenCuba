@@ -379,8 +379,19 @@ function HomePageContent() {
     zoom: number;
     key: number;
   } | null>(null);
-  const [initialCenter, setInitialCenter] = useState<[number, number] | null>(null);
-  const [disableAutoFit, setDisableAutoFit] = useState(false);
+  /* El primer render ya sabe la ciudad del perfil: localStorage es síncrono y
+     el onboarding guardó la provincia ahí. Antes este estado nacía en null y
+     solo se llenaba cuando /api/me contestaba — entre tanto MapContent montaba
+     con su default HAVANA_CENTER y el efecto de initialCenter volaba después a
+     la provincia: el rebote La Habana → Santiago en CADA entrada al home, no
+     solo al iniciar sesión. Con la semilla síncrona el MapContainer nace
+     directo en la ciudad correcta y, si /api/me confirma la misma, el guard de
+     igualdad de MapChildren ni siquiera dispara el flyTo. */
+  const [initialCenter, setInitialCenter] = useState<[number, number] | null>(() => {
+    if (typeof window === "undefined") return null;
+    return preferredLocationCenter(readUserPreferences().location);
+  });
+  const [disableAutoFit, setDisableAutoFit] = useState(initialCenter !== null);
   const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
   const [hasSavedProfileLocation, setHasSavedProfileLocation] = useState(false);
   const searchCtx = useSearchActions();
