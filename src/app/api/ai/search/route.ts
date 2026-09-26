@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
   if (!limited.ok) return tooMany(limited.retryAfterSeconds);
 
   try {
-    const body = (await req.json()) as { query?: unknown; places?: unknown };
+    const body = (await req.json()) as { query?: unknown; places?: unknown; userProvince?: unknown };
     const query = cleanString(body.query).trim();
     if (!query) {
       return NextResponse.json(
@@ -90,7 +90,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data, provider } = await recommendPlaces(query, places);
+    /* La provincia del usuario viaja con la consulta: es la pieza que falta
+       cuando no hay GPS —sin distancia ni provincia el modelo elegía por
+       puro parecido semántico y recomendaba negocios de otra provincia a
+       alguien que nunca podría ir hoy. Vacío o no string = no se conoce. */
+    const userProvince =
+      typeof body.userProvince === "string" && body.userProvince.trim()
+        ? cleanString(body.userProvince).trim()
+        : null;
+
+    const { data, provider } = await recommendPlaces(query, places, userProvince);
 
     // Solo devolver ids de lugares que realmente existen en el catálogo enviado.
     const validIds = new Set(places.map((p) => p.id));

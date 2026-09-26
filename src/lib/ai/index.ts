@@ -206,13 +206,25 @@ Reglas:
 - La cercanía desempata, no descarta. Entre dos lugares que encajen igual de bien,
   pon primero el más cercano. No dejes fuera uno que encaje claramente mejor solo
   por estar más lejos, y si los que encajan están lejos, dilo en el "summary".
+- El usuario tiene una provincia de residencia. Si el mensaje trae "userProvince",
+  los lugares de ESA provincia van primero, siempre: para alguien de Santiago de
+  Cuba, un negocio de La Habana no es una recomendación sino un error, aunque el
+  texto encaje mejor. Los de otras provincias solo pueden entrar si la consulta
+  nombra esa otra provincia («en La Habana», «en Baracoa»), y en ese caso dilo en
+  el "summary" para que se sepa que los resultados no son de su zona.
 - Si ningún lugar encaja, devuelve "matches" vacío y un "summary" que lo explique amablemente.`;
 
 export async function recommendPlaces(
   query: string,
   catalog: CatalogPlace[],
+  /** Provincia del usuario («Santiago de Cuba»). Ausente si no se conoce. */
+  userProvince?: string | null,
 ): Promise<{ data: Recommendation; provider: string }> {
-  const user = `Consulta del usuario:\n"${query}"\n\nCatálogo de lugares (JSON):\n${JSON.stringify(catalog)}`;
+  const user = `Consulta del usuario:\n"${query}"\n${
+    userProvince
+      ? `Provincia del usuario: "${userProvince}"\n`
+      : ""
+  }\nCatálogo de lugares (JSON):\n${JSON.stringify(catalog)}`;
   return chatJSON<Recommendation>({
     system: RECOMMEND_SYSTEM,
     user,

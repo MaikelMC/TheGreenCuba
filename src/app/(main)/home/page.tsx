@@ -43,6 +43,11 @@ import {
   type UserPreferences,
 } from "@/lib/user-preferences-store";
 import { personalizePlaces } from "@/lib/personalized-recommendations";
+import {
+  placeInUserProvince,
+  queryMentionsOtherProvince,
+  userProvinceLabel,
+} from "@/lib/user-province";
 import { pushRecentSearch } from "@/lib/recent-searches-store";
 
 type SheetState = "default" | "searching" | "results" | "no-results" | "error";
@@ -504,7 +509,13 @@ function HomePageContent() {
   );
 
   const filteredPlaces = useMemo<HomePlace[]>(() => {
-    const origin = userLocation ?? getLastKnownPosition();
+    /* Origen para medir cercanía: el GPS si lo hay y, si no, el centro de la
+       provincia del perfil. Antes el fallback no existía y la lista quedaba
+       sin orden para quien no había dado permiso de ubicación — el mismo
+       criterio que ya usa el desplegable de sugerencias del header. */
+    const profileCenter = preferredLocationCenter(userPreferences?.location);
+    const origin = userLocation ?? getLastKnownPosition() ??
+      (profileCenter ? { lat: profileCenter[0], lng: profileCenter[1] } : null);
     const ranked = userPreferences ? personalizePlaces(visiblePlaces, userPreferences) : visiblePlaces;
 
     const measured = ranked.map((place) => ({
@@ -576,7 +587,17 @@ function HomePageContent() {
            El catálogo va ordenado por cercanía, y no solo con el número dentro:
            un orden es mucho más difícil de ignorar que un campo suelto. */
         const origin = userLocation ?? getLastKnownPosition();
-        const catalog = places
+        /* La provincia del perfil entra en la búsqueda, y también decide el
+           filtro duro: si la consulta nombra otra provincia («restaurantes en
+           La Habana»), el usuario la pidió explícitamente y no se recorta. */
+        const province = userProvinceLabel(userPreferences);
+        const mentionsOther = province ? queryMentionsOtherProvince(query, province) : false;
+        const pool =
+          province && !mentionsOther
+            ? places.filter((p) => placeInUserProvince(p, province))
+            : places;
+
+        const catalog = (pool.length > 0 ? pool : places)
           .map((p) => ({
             id: p.id,
             name: p.name,
@@ -595,7 +616,14 @@ function HomePageContent() {
         const res = await fetch("/api/ai/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, places: catalog }),
+          body: JSON.stringify({
+            query,
+            places: catalog,
+            /* El prompt solo la usa si la consulta no nombra otra provincia:
+               si la nombró, el catálogo ya va entero y la regla de provincia
+               no debe anular lo que el usuario pidió explícitamente. */
+            userProvince: mentionsOther ? null : province,
+          }),
           signal: controller.signal,
         });
         const data = (await res.json().catch(() => null)) as {
@@ -616,7 +644,7 @@ function HomePageContent() {
         searchCtx.setIsSearching(false);
       }
     },
-    [places, searchCtx, userLocation],
+    [places, searchCtx, userLocation, userPreferences],
   );
 
   useEffect(() => {

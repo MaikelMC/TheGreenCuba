@@ -1,5 +1,6 @@
 import type { UserPreferences } from "@/lib/user-preferences-store";
 import type { UserPlace } from "@/lib/places-store";
+import { placeInUserProvince, userProvinceLabel } from "@/lib/user-province";
 
 const INTEREST_CATEGORIES: Record<string, string[]> = {
   cafes: ["cafetería", "cafeteria"],
@@ -71,6 +72,15 @@ export function recommendationScore(place: UserPlace, prefs: UserPreferences): n
     if (containsAny(payments, paymentOptions)) score += 2;
   }
 
+  /* La provincia del perfil desempata: a igualdad de interés, lo de la
+     provincia del usuario vale más que lo de otra. El 3 se sitúa entre lo que
+     da un ambiente (4) y una moneda (2): un negocio de aquí gana a uno de
+     fuera que solo comparta la moneda, pero no a otro que además encaje con el
+     ambiente. Sin este peso, con perfiles que solo marcaron monedas, la
+     cafetería de La Habana podía salir por delante de la de al lado. */
+  const province = userProvinceLabel(prefs);
+  if (province && placeInUserProvince(place, province)) score += 3;
+
   if (place.isBoosted) score += 1;
   if (place.rating) score += Math.min(place.rating, 5) * 0.1;
   return score;
@@ -82,7 +92,12 @@ export function recommendationScore(place: UserPlace, prefs: UserPreferences): n
  * de negocio.
  */
 export function personalizePlaces(places: UserPlace[], prefs: UserPreferences): UserPlace[] {
-  if (prefs.interests.length === 0 && prefs.moods.length === 0 && prefs.currencies.length === 0) {
+  /* La provincia también personaliza: quien no marcó ningún interés pero sí
+     eligió su provincia merece ver primero lo de su provincia. Por eso la
+     salida temprana solo aplica cuando no hay NADA que personalizar. */
+  const hasProfile =
+    prefs.interests.length > 0 || prefs.moods.length > 0 || prefs.currencies.length > 0;
+  if (!hasProfile && !userProvinceLabel(prefs)) {
     return places;
   }
 
