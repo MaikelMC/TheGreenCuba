@@ -27,7 +27,6 @@ export async function PATCH(
       ...body,
       id,
       name: body.name?.trim() || existing.name,
-      type: body.type === "custom" ? "custom" : "openai",
       vendor:
         body.vendor === "gemini"
           ? "gemini"

@@ -38,7 +38,6 @@ export async function POST(req: NextRequest) {
     const provider: AiProvider = {
       id: makeId(),
       name: body.name.trim(),
-      type: body.type === "custom" ? "custom" : "openai",
       vendor: body.vendor === "gemini" ? "gemini" : "openai",
       baseURL: body.baseURL?.trim() || undefined,
       apiKey: body.apiKey.trim(),

@@ -22,7 +22,10 @@ function baseUrl(provider: ResolvedProvider): string {
    failover: 12 s deja el peor caso realista por debajo del corte del cliente. */
 const PROVIDER_TIMEOUT_MS = 12_000;
 
-function stripJson(text: string): string {
+/* Exportada porque la prueba de conexión del panel tiene que juzgar la
+   respuesta con el mismo rasero que la cadena real: si aquí se acepta un JSON
+   envuelto en ``` y allí no, la prueba aprobaría proveedores que luego fallan. */
+export function stripJson(text: string): string {
   const cleaned = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");

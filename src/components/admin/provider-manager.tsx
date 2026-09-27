@@ -9,16 +9,12 @@ import {
   Trash2,
   X,
   Zap,
-  Cpu,
   Server,
   Loader2,
 } from "lucide-react";
 import { StateView } from "@/components/ui/state-view";
 import { LoadingState } from "@/components/ui/loading";
-import type {
-  AiProviderType,
-  AiVendor,
-} from "@/lib/ai/providers-store";
+import type { AiVendor } from "@/lib/ai/providers-store";
 import {
   Select,
   SelectContent,
@@ -31,7 +27,6 @@ import { cn } from "@/lib/utils";
 interface ProviderDTO {
   id: string;
   name: string;
-  type: AiProviderType;
   vendor?: AiVendor;
   baseURL?: string;
   apiKey: string;
@@ -42,7 +37,6 @@ interface ProviderDTO {
 
 const EMPTY_FORM: Omit<ProviderDTO, "id"> = {
   name: "",
-  type: "custom",
   vendor: "openai",
   baseURL: "",
   apiKey: "",
@@ -54,18 +48,20 @@ const EMPTY_FORM: Omit<ProviderDTO, "id"> = {
 interface Preset {
   label: string;
   name: string;
-  type: AiProviderType;
   vendor: AiVendor;
   baseURL: string;
   model: string;
   hint: string;
 }
 
+/* `hint` existe para que el preset diga lo que trae, no solo cómo se llama: el
+   mismo proveedor puede entrar por dos caminos distintos —Gemini admite
+   `:generateContent` y también `/openai/chat/completions`— y solo uno de los
+   dos sirve para el asistente. */
 const PRESETS: Preset[] = [
   {
     label: "Mistral",
     name: "Mistral",
-    type: "custom",
     vendor: "openai",
     baseURL: "https://api.mistral.ai/v1",
     model: "mistral-small-latest",
@@ -74,7 +70,6 @@ const PRESETS: Preset[] = [
   {
     label: "OpenRouter",
     name: "OpenRouter",
-    type: "custom",
     vendor: "openai",
     baseURL: "https://openrouter.ai/api/v1",
     model: "nvidia/nemotron-3-super-120b-a12b:free",
@@ -83,11 +78,26 @@ const PRESETS: Preset[] = [
   {
     label: "Gemini",
     name: "Gemini",
-    type: "custom",
     vendor: "gemini",
     baseURL: "https://generativelanguage.googleapis.com/v1beta",
-    model: "gemini-flash-latest",
+    model: "gemini-flash-lite-latest",
     hint: "X-goog-api-key · :generateContent",
+  },
+  {
+    label: "Groq",
+    name: "Groq",
+    vendor: "openai",
+    baseURL: "https://api.groq.com/openai/v1",
+    model: "openai/gpt-oss-120b",
+    hint: "OpenAI-compatible · gpt-oss-120b",
+  },
+  {
+    label: "Gemini (asistente)",
+    name: "Gemini (asistente)",
+    vendor: "openai",
+    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+    model: "gemini-flash-lite-latest",
+    hint: "Mismo Gemini, por /chat/completions",
   },
 ];
 
@@ -138,7 +148,6 @@ export function ProviderManager() {
     setEditingId(p.id);
     setForm({
       name: p.name,
-      type: p.type,
       vendor: p.vendor ?? "openai",
       baseURL: p.baseURL ?? "",
       apiKey: "",
@@ -153,7 +162,6 @@ export function ProviderManager() {
     setForm((f) => ({
       ...f,
       name: preset.name,
-      type: preset.type,
       vendor: preset.vendor,
       baseURL: preset.baseURL,
       model: preset.model,
@@ -304,19 +312,20 @@ export function ProviderManager() {
                           : "bg-sand-deep text-ink-soft/75",
                       )}
                     >
-                      {p.type === "custom" ? (
-                        <Server size={17} strokeWidth={1.8} />
-                      ) : (
-                        <Cpu size={17} strokeWidth={1.8} />
-                      )}
+                      <Server size={17} strokeWidth={1.8} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-[6px]">
                         <span className="font-lv-display text-small font-semibold text-ink truncate">
                           {p.name}
                         </span>
+                        {/* Lo que separa a un proveedor de otro aquí es cómo hay
+                            que hablarle, y eso lo dice `vendor`. La etiqueta
+                            anterior leía `type`, que ya no existe y que además
+                            siempre valía lo mismo: «compatible» para todo lo
+                            que no fuera Gemini. */}
                         <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] rounded-full border border-ink/10 px-1.5 py-[1px] text-ink-soft/75">
-                          {p.vendor === "gemini" ? "gemini" : p.type === "custom" ? "compatible" : "openai"}
+                          {p.vendor === "gemini" ? "gemini" : "openai-compatible"}
                         </span>
                         {!p.enabled && (
                           <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] rounded-full border border-destructive/40 text-destructive px-1.5 py-[1px]">
@@ -421,8 +430,12 @@ export function ProviderManager() {
                     <span className="font-lv-display text-meta font-semibold text-ink">
                       {preset.label}
                     </span>
+                    {/* El modelo no se pinta: al pulsar el preset cae en el
+                        formulario y ahí se lee entero. Lo que el chip tiene que
+                        decir es **qué camino** abre el preset, que es la única
+                        diferencia entre los dos de Gemini. */}
                     <span className="font-lv-display text-[10px] text-ink-soft/75">
-                      {preset.model}
+                      {preset.hint}
                     </span>
                   </motion.button>
                 ))}
@@ -438,25 +451,6 @@ export function ProviderManager() {
                 placeholder="Ej: OpenAI principal"
                 className={INPUT}
               />
-            </div>
-
-            <div className="flex flex-col gap-gap-xs">
-              <label htmlFor="pType" className={LABEL}>Tipo</label>
-              <Select
-                value={form.type}
-                onValueChange={(v) =>
-                  setForm((f) => ({ ...f, type: v as AiProviderType }))
-                }
-              >
-                <SelectTrigger id="pType">
-                  <SelectValue placeholder="Selecciona el tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="custom">
-                    Compatible (base URL personalizada)
-                  </SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="flex flex-col gap-gap-xs">
@@ -479,30 +473,34 @@ export function ProviderManager() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+              {/* El asistente del chat solo sabe hablar `/chat/completions`, así
+                  que un proveedor en estilo Gemini queda fuera de él: la
+                  búsqueda lo usa, el asistente no. Decirlo aquí evita que se
+                  configure Gemini creyendo que cubre las dos cosas. */}
               <p className={HINT}>
-                Elige según el proveedor. Los presets lo configuran automáticamente.
+                En estilo Gemini, el proveedor sirve para la búsqueda pero no
+                para el asistente del chat, que necesita uno OpenAI-compatible.
+                Gemini también tiene ese camino: preset «Gemini (asistente)».
               </p>
             </div>
 
-            {(form.type === "custom" || form.vendor === "gemini") && (
-              <div className="flex flex-col gap-gap-xs">
-                <label htmlFor="pBase" className={LABEL}>Base URL</label>
-                <input
-                  id="pBase"
-                  value={form.baseURL}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, baseURL: e.target.value }))
-                  }
-                  placeholder="https://api.ejemplo.com/v1"
-                  className={INPUT}
-                />
-                <p className={HINT}>
-                  {form.vendor === "gemini"
-                    ? "Base URL de Gemini (p. ej. .../v1beta)."
-                    : "Endpoint compatible con OpenAI (debe terminar en /v1)."}
-                </p>
-              </div>
-            )}
+            <div className="flex flex-col gap-gap-xs">
+              <label htmlFor="pBase" className={LABEL}>Base URL</label>
+              <input
+                id="pBase"
+                value={form.baseURL}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, baseURL: e.target.value }))
+                }
+                placeholder="https://api.ejemplo.com/v1"
+                className={INPUT}
+              />
+              <p className={HINT}>
+                {form.vendor === "gemini"
+                  ? "Base URL de Gemini, p. ej. https://generativelanguage.googleapis.com/v1beta."
+                  : "Endpoint compatible con OpenAI. Si se deja vacío se usa https://api.openai.com/v1."}
+              </p>
+            </div>
 
             <div className="flex flex-col gap-gap-xs">
               <label htmlFor="pKey" className={LABEL}>API key</label>

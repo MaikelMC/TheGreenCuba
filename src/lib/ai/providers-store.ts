@@ -1,15 +1,23 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export type AiProviderType = "openai" | "custom";
-
 /** Estilo de request del proveedor. */
 export type AiVendor = "openai" | "gemini";
 
+/**
+ * Campos de un proveedor.
+ *
+ * Aquí hubo un `type: "openai" | "custom"` que decidía si el proveedor era de
+ * serie o traía URL propia. Dejó de significar algo en cuanto entró `vendor`:
+ * lo que separa un proveedor de otro no es de dónde salió, sino cómo hay que
+ * hablarle —`/chat/completions` con Bearer o `:generateContent` con
+ * `X-goog-api-key`—, y eso es `vendor`. `type` sobrevivía pintando una
+ * etiqueta y un icono, y el formulario ofrecía un desplegable con una sola
+ * opción. Se fue.
+ */
 export interface AiProvider {
   id: string;
   name: string;
-  type: AiProviderType;
   /** Estilo de API: openai (Bearer /chat/completions) o gemini (X-goog-api-key /generateContent). */
   vendor?: AiVendor;
   baseURL?: string;
@@ -41,6 +49,7 @@ const DEFAULT_MODELS = {
   mistral: "mistral-small-latest",
   openrouter: "nvidia/nemotron-3-super-120b-a12b:free",
   gemini: "gemini-flash-lite-latest",
+  groq: "openai/gpt-oss-120b",
   cerebras: "gpt-oss-120b",
 } as const;
 
@@ -55,25 +64,40 @@ function buildEnvProviders(): AiProvider[] {
     providers.push({
       id: makeId("Mistral"),
       name: "Mistral",
-      type: "openai",
       vendor: "openai",
       baseURL: "https://api.mistral.ai/v1",
       apiKey: process.env.MISTRAL_API_KEY,
       model: process.env.MISTRAL_MODEL?.trim() || DEFAULT_MODELS.mistral,
       enabled: true,
-      priority: 2,
+      priority: 5,
     });
   }
   if (process.env.OPENROUTER_API_KEY) {
     providers.push({
       id: makeId("OpenRouter"),
       name: "OpenRouter",
-      type: "custom",
       vendor: "openai",
       baseURL: "https://openrouter.ai/api/v1",
       apiKey: process.env.OPENROUTER_API_KEY,
       model: process.env.OPENROUTER_MODEL?.trim() || DEFAULT_MODELS.openrouter,
       enabled: false,
+      priority: 4,
+    });
+  }
+  /* Groq: compatible con OpenAI y admite `response_format: json_object`, así
+     que entra por el camino `openai` y sirve también al asistente. Medido el
+     27/09/2026 con la consulta real de búsqueda: 8,7 s, frente a los 27,7 s del
+     plan gratuito de OpenRouter. Va por delante de él y por detrás de Gemini
+     (1,5 s), que es el único más rápido. */
+  if (process.env.GROQ_API_KEY) {
+    providers.push({
+      id: makeId("Groq"),
+      name: "Groq",
+      vendor: "openai",
+      baseURL: "https://api.groq.com/openai/v1",
+      apiKey: process.env.GROQ_API_KEY,
+      model: process.env.GROQ_MODEL?.trim() || DEFAULT_MODELS.groq,
+      enabled: true,
       priority: 3,
     });
   }
@@ -83,13 +107,32 @@ function buildEnvProviders(): AiProvider[] {
     providers.push({
       id: makeId("Gemini"),
       name: "Gemini",
-      type: "custom",
       vendor: "gemini",
       baseURL: "https://generativelanguage.googleapis.com/v1beta",
       apiKey: process.env.GEMINI_API_KEY,
       model: process.env.GEMINI_MODEL?.trim() || DEFAULT_MODELS.gemini,
       enabled: true,
       priority: 1,
+    });
+    /* La misma clave y el mismo modelo, por el endpoint compatible con OpenAI.
+       No es duplicar por duplicar: `createAIStream` solo acepta proveedores con
+       `vendor: "openai"`, así que con la entrada de arriba sola el asistente del
+       chat **nunca** usa Gemini —cae a OpenRouter, el siguiente de la lista— por
+       mucho que Gemini sea la prioridad 1. Sin esta entrada, el panel enseñaba
+       a Gemini como el primero de la cadena mientras el chat lo ignoraba.
+
+       `buildEnvProviders` es el único camino que tiene producción: allí `data/`
+       no existe, el panel no puede escribir (disco de solo lectura) y la lista
+       sale entera de aquí. */
+    providers.push({
+      id: makeId("Gemini asistente"),
+      name: "Gemini (asistente)",
+      vendor: "openai",
+      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+      apiKey: process.env.GEMINI_API_KEY,
+      model: process.env.GEMINI_MODEL?.trim() || DEFAULT_MODELS.gemini,
+      enabled: true,
+      priority: 2,
     });
   }
   // Cerebras: API compatible con OpenAI (Bearer + /chat/completions) y soporta
@@ -98,13 +141,12 @@ function buildEnvProviders(): AiProvider[] {
     providers.push({
       id: makeId("Cerebras"),
       name: "Cerebras",
-      type: "custom",
       vendor: "openai",
       baseURL: "https://api.cerebras.ai/v1",
       apiKey: process.env.CEREBRAS_API_KEY,
       model: process.env.CEREBRAS_MODEL?.trim() || DEFAULT_MODELS.cerebras,
       enabled: true,
-      priority: 4,
+      priority: 6,
     });
   }
   return providers;
