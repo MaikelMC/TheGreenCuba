@@ -45,10 +45,17 @@ const WEBSITE_JSON_LD = {
 /* La tira de lugares se resuelve en el servidor: su HTML viaja con la página,
    lo que da a los buscadores enlaces rastreables del home a las fichas y
    da al ancla «#lugares» del menú un destino real. Si Neon no contesta, la
-   sección se omite y la landing no se entera. */
+   sección se omite y la landing no se entera.
+
+   Eran 8 fichas, y con el catálogo por encima de 8 eso dejaba negocios de
+   verdad fuera de la portada sin más criterio que el orden en que Postgres
+   sacara las filas. Doce son tres filas de la rejilla de cuatro y cubren el
+   catálogo actual entero. Si algún día no llega, lo que sobra se cae por la
+   cola —el orden de `listPlaces` es fijo y pone primero las mejores notas—, así
+   que lo que se pierde es lo peor valorado, no lo que apetezca esa vez. */
 async function loadStripPlaces(): Promise<PlaceStripPlace[]> {
   try {
-    const places = await listPlaces({ onlyActive: true, limit: 8 });
+    const places = await listPlaces({ onlyActive: true, limit: 12 });
     return places.map((p) => ({
       id: p.id,
       name: p.name,

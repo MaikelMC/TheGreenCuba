@@ -150,6 +150,19 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
        ciudad y categoría a la vez aplicaba solo la categoría y devolvía
        negocios de otra ciudad sin avisar. */
     .where(filters.length > 0 ? and(...filters) : undefined)
+    /* Orden fijo, y no es cosmético: sin él Postgres devuelve las filas en el
+       orden que le apetece —el del montón, que cambia al borrar y reinsertar— y
+       con un `limit` por debajo del total eso significa que **qué negocios se
+       caen de la lista es aleatorio**. La tira del landing pedía 8 de 10 activos
+       y dejaba 2 fuera sin que nadie pudiera decir cuáles ni por qué.
+
+       `nulls last` porque el rating es opcional: sin eso, un negocio sin
+       valoraciones encabezaría la lista. Y `name` como desempate para que dos
+       con la misma nota no bailen de sitio entre peticiones.
+
+       El catálogo de la app no se apoya en este orden —reordena por distancia
+       en el navegador—, así que aquí solo manda la presentación. */
+    .orderBy(sql`${places.rating} desc nulls last`, asc(places.name))
     .limit(Math.min(options.limit ?? 200, 500));
 
   const photos = await photosByPlace(rows.map((row) => row.place.id));
