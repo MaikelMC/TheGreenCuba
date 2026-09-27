@@ -90,6 +90,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
   const [icon, setIcon] = useState<string | null>(initial?.icon ?? null);
   const [barrio, setBarrio] = useState(initial?.barrio ?? "");
   const [address, setAddress] = useState(initial?.address ?? "");
+  const [phone, setPhone] = useState(initial?.phone ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [schedule, setSchedule] = useState(initial?.schedule ?? "");
   const [payments, setPayments] = useState<string[]>(initial?.payments ?? []);
@@ -139,6 +140,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
       lng: location.lng,
       address: address.trim(),
       barrio: barrio.trim(),
+      phone: phone.trim(),
       description: description.trim(),
       schedule: schedule.trim(),
       payments,
@@ -186,6 +188,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
     icon,
     address,
     barrio,
+    phone,
     description,
     schedule,
     payments,
@@ -285,6 +288,20 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="Ej: Calle 12 #45, entre 7 y 9"
+                className={INPUT}
+              />
+            </div>
+            {/* `type="tel"`: en el móvil abre el teclado de números. El campo no
+                se valida —los teléfonos cubanos se escriben de mil formas— y la
+                ficha lo usa tal cual en el marcado estructurado. */}
+            <div className="flex flex-col gap-gap-xs">
+              <label htmlFor="bfPhone" className={LABEL}>Teléfono</label>
+              <input
+                id="bfPhone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Ej: +53 5 123 4567"
                 className={INPUT}
               />
             </div>

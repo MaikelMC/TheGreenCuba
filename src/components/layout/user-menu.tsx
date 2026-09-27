@@ -50,6 +50,22 @@ const ROLE_LABEL: Record<Role, string> = {
 };
 
 /**
+ * La última respuesta buena de `/api/me`, guardada en el módulo.
+ *
+ * El menú solo pregunta una vez, al montarse, y el Header se vuelve a montar
+ * cada vez que se llega a una pantalla que lo enseña desde otra que no lo
+ * enseña —`/profile`, `/notifications` y `/business` tienen cabecera propia—.
+ * Con una red que falla a ratos, esa única pregunta se pierde y el menú se
+ * quedaba en su forma de «sin sesión»: ni nombre, ni enlaces, y un «Cerrar
+ * sesión» suelto, hasta recargar a mano. Con esto, la vuelta al home pinta al
+ * instante lo último que sí se supo mientras la petición nueva viaja.
+ *
+ * Vive solo en memoria: se pierde al recargar, y `logout()` sale con
+ * `window.location.assign`, así que nunca sobrevive a un cierre de sesión.
+ */
+let lastKnownUser: SessionUser | null = null;
+
+/**
  * Cada entrada declara qué roles la pueden abrir. Es la misma tabla que aplica
  * el middleware en `src/lib/session.ts`, repetida aquí para no ofrecer un enlace
  * que va a rebotar. Un usuario normal no tiene por qué ver "Panel de
@@ -64,7 +80,7 @@ const ITEMS: { path: string; label: string; icon: typeof User; roles: Role[] }[]
 
 export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?: string }) {
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<SessionUser | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(lastKnownUser);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<UserNotification[]>([]);
   const ref = useRef<HTMLDivElement>(null);
@@ -81,24 +97,48 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
 
   useEffect(() => {
     let alive = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
     /* `/api/me` y no `authClient.useSession()`: el cliente de Neon sabe el
        correo, pero no el rol, que es la mitad de lo que este menú necesita. */
-    fetch("/api/me")
-      .then((res) => res.json())
-      .then((data: { authenticated: boolean; user: SessionUser | null }) => {
-        if (alive && data.authenticated) {
-          setUser(data.user);
-          if (data.user?.id) {
-            const prefs = readUserPreferences(data.user.id);
-            if (prefs.avatarUrl) setLocalAvatarUrl(prefs.avatarUrl);
-          }
+    async function load(attempt: number): Promise<void> {
+      const response = await fetch("/api/me").catch(() => null);
+      const data = response?.ok
+        ? ((await response.json().catch(() => null)) as {
+            authenticated: boolean;
+            user: SessionUser | null;
+          } | null)
+        : null;
+
+      if (!alive) return;
+
+      if (data?.authenticated) {
+        lastKnownUser = data.user;
+        setUser(data.user);
+        if (data.user?.id) {
+          const prefs = readUserPreferences(data.user.id);
+          if (prefs.avatarUrl) setLocalAvatarUrl(prefs.avatarUrl);
         }
-      })
-      // Sin sesión o sin red, el menú queda con lo que ya tenía: no es un error
-      // que merezca un aviso en pantalla.
-      .catch(() => {});
+        return;
+      }
+
+      /* Un segundo intento, y solo uno. La ruta resuelve la sesión contra Neon
+         y, cuando esa ida falla, contesta `authenticated: false` —igual que si
+         de verdad no hubiera sesión—, así que sin esto el menú se quedaba en su
+         forma de «sin sesión» hasta recargar a mano. La espera es corta porque
+         lo que se reintenta es un fallo de red, no una cola. */
+      if (attempt === 0) {
+        timer = setTimeout(() => void load(1), 1500);
+      }
+      /* Al segundo «no» se le hace caso: el menú se queda con lo que ya tenía
+         —nada, o lo último bueno de `lastKnownUser`—. Sin sesión no es un error
+         que merezca un aviso en pantalla. */
+    }
+
+    void load(0);
     return () => {
       alive = false;
+      if (timer) clearTimeout(timer);
     };
   }, []);
 
@@ -182,6 +222,16 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
           (i.path !== "/business" || Boolean(user.business?.isActive)),
       )
     : [];
+
+  /* Sin saber que hay usuario, no hay menú. Antes se pintaba igual: el botón
+     salía —con un icono genérico si el nombre no había llegado— y dentro solo
+     estaba «Cerrar sesión», que es lo que veía cualquiera sin sesión en el home
+     y lo que quedaba cuando el viaje a `/api/me` se perdía. Un «cerrar sesión»
+     para quien no ha entrado no es una opción: es una mentira.
+
+     `initial` y `avatarUrl` cuentan como saberlo: solo los pasa una pantalla
+     cerrada (`/profile`), que ya tiene la sesión resuelta por el proxy. */
+  if (!user && !initial && !avatarUrl) return null;
 
   return (
     <div ref={ref} className="relative shrink-0">

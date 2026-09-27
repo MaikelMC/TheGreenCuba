@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, Source_Sans_3, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { lvFontVars } from "@/lib/fonts";
 import { siteConfig } from "@/config/site";
 import { ThemeProvider } from "@/providers/theme-provider";
@@ -8,22 +8,27 @@ import { InactivityGuard } from "@/components/auth/inactivity-guard";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const fontDisplay = DM_Sans({
-  subsets: ["latin"],
+/* Las tres de la app, desde el repo, no desde Google. El motivo entero está en
+   `src/lib/fonts.ts`: `next/font/google` convierte cada arranque en frío y cada
+   build en una apuesta a que `fonts.googleapis.com` conteste, y en esta red no
+   siempre contesta. Los `.woff2` son las variables de Google recortadas al
+   subconjunto `latin`. */
+const fontDisplay = localFont({
+  src: "../fonts/dm-sans.woff2",
   variable: "--font-display",
-  weight: ["400", "500", "600", "700"],
+  weight: "100 1000",
 });
 
-const fontBody = Source_Sans_3({
-  subsets: ["latin"],
+const fontBody = localFont({
+  src: "../fonts/source-sans-3.woff2",
   variable: "--font-body",
-  weight: ["400", "500", "600"],
+  weight: "200 900",
 });
 
-const fontMono = JetBrains_Mono({
-  subsets: ["latin"],
+const fontMono = localFont({
+  src: "../fonts/jetbrains-mono.woff2",
   variable: "--font-mono",
-  weight: ["400", "500", "600"],
+  weight: "100 800",
   // El mono no es crítico para el LCP; evita precargarlo en cada ruta.
   preload: false,
 });

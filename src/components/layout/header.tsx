@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect, type FormEvent } from "react";
-import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { Search, Mic, Loader2, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -104,14 +103,40 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/me")
-      .then((res) => res.json())
-      .then((data: { authenticated?: boolean; user?: { id?: string } | null }) => {
-        if (data.authenticated && data.user?.id) {
-          setUserId(data.user.id);
-        }
-      })
-      .catch(() => {});
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    /* Dos intentos, como en el menú de usuario: la ruta contesta
+       `authenticated: false` tanto si no hay sesión como si se le cayó el viaje
+       a Neon, y de este id salen las búsquedas recientes de quien entra —sin
+       él se leen del cajón de invitado, que para alguien con sesión está
+       vacío—. */
+    async function load(attempt: number): Promise<void> {
+      const response = await fetch("/api/me").catch(() => null);
+      const data = response?.ok
+        ? ((await response.json().catch(() => null)) as {
+            authenticated?: boolean;
+            user?: { id?: string } | null;
+          } | null)
+        : null;
+
+      if (!alive) return;
+
+      if (data?.authenticated && data.user?.id) {
+        setUserId(data.user.id);
+        return;
+      }
+
+      if (attempt === 0) {
+        timer = setTimeout(() => void load(1), 1500);
+      }
+    }
+
+    void load(0);
+    return () => {
+      alive = false;
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   useEffect(() => {
@@ -183,13 +208,21 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
     <header className="map-navigation fixed top-0 left-0 right-0 z-200 h-header border-b border-ink/5 bg-sand-warm/90 backdrop-blur-[16px] flex items-center px-3 gap-2 sm:px-gap-md sm:gap-gap-sm md:px-gap-lg min-h-[56px] md:min-h-[60px] font-lv text-ink">
       {/* Logo. El PNG ya trae su propio degradado verde, así que va suelto: el
           círculo `verde-400 → verde-600` que lo envolvía era del mismo tono y
-          se lo comía. */}
-      <Link href="/home" className="flex items-center gap-gap-xs shrink-0">
+          se lo comía.
+
+          Es un `<a>` y no un `<Link>` **a propósito**: el icono recarga el
+          sitio. Con `Link` la navegación es por cliente, y estando ya en
+          `/home` —que es donde se está casi siempre— pulsarlo no hacía
+          absolutamente nada. Un ancla normal la trata el navegador como una
+          carga nueva, y ahí sí vuelve todo a pedirse: la sesión, `/api/me` y
+          el catálogo. Es el gesto de «esto se ha quedado tonto, que se
+          recargue». */}
+      <a href="/home" className="flex items-center gap-gap-xs shrink-0">
         <Logo className="h-[26px] w-auto shrink-0" />
         <span className="font-lv-display text-[19px] font-bold tracking-[-0.02em] text-ink max-sm:hidden">
           La Verde
         </span>
-      </Link>
+      </a>
 
       {/* Search */}
       <div ref={searchRef} className="flex-1 relative max-md:flex-1 md:max-w-[480px] md:mx-auto">
