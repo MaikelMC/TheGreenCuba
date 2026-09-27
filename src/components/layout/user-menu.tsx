@@ -7,6 +7,7 @@ import { User, Building2, ShieldCheck, LogOut, Bell } from "lucide-react";
 import type { Role } from "@/lib/session";
 import { logout } from "@/lib/logout";
 import { readUserPreferences } from "@/lib/user-preferences-store";
+import { LoginButton } from "@/components/landing/login-button";
 
 /* Hairline entre filas en vez de `<div>` separadores sueltos: es el mismo
    idioma que las filas de la pantalla de preferencias. */
@@ -81,6 +82,12 @@ const ITEMS: { path: string; label: string; icon: typeof User; roles: Role[] }[]
 export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?: string }) {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(lastKnownUser);
+  /* Tres estados, no dos: «todavía no se sabe» no es «no hay sesión». Con dos,
+     la esquina no se podía pintar hasta terminar de preguntar sin arriesgarse a
+     enseñar el botón de entrar a quien sí tiene sesión. */
+  const [status, setStatus] = useState<"unknown" | "in" | "out">(
+    lastKnownUser ? "in" : "unknown",
+  );
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<UserNotification[]>([]);
   const ref = useRef<HTMLDivElement>(null);
@@ -115,12 +122,19 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
       if (data?.authenticated) {
         lastKnownUser = data.user;
         setUser(data.user);
+        setStatus("in");
         if (data.user?.id) {
           const prefs = readUserPreferences(data.user.id);
           if (prefs.avatarUrl) setLocalAvatarUrl(prefs.avatarUrl);
         }
         return;
       }
+
+      /* La ruta contestó «no hay sesión»: el botón de entrar sale ya, sin
+         esperar al reintento. No se pierde nada por enseñarlo antes de tiempo,
+         porque si el reintento dice que sí —el viaje a Neon se cayó una vez— el
+         botón se cambia por el avatar. */
+      if (data) setStatus("out");
 
       /* Un segundo intento, y solo uno. La ruta resuelve la sesión contra Neon
          y, cuando esa ida falla, contesta `authenticated: false` —igual que si
@@ -129,10 +143,15 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
          lo que se reintenta es un fallo de red, no una cola. */
       if (attempt === 0) {
         timer = setTimeout(() => void load(1), 1500);
+        return;
       }
-      /* Al segundo «no» se le hace caso: el menú se queda con lo que ya tenía
-         —nada, o lo último bueno de `lastKnownUser`—. Sin sesión no es un error
-         que merezca un aviso en pantalla. */
+
+      /* Dos respuestas sin sesión, o dos fallos de red. En los dos casos se
+         acaba aquí: ofrecer entrar es mejor que dejar la esquina muerta. Antes
+         no se pintaba nada, y quien volvía de la pantalla de inactividad se
+         encontraba en el home sin menú, sin perfil y sin más salida que
+         adivinar que `/login` existe. */
+      setStatus("out");
     }
 
     void load(0);
@@ -223,15 +242,22 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
       )
     : [];
 
-  /* Sin saber que hay usuario, no hay menú. Antes se pintaba igual: el botón
-     salía —con un icono genérico si el nombre no había llegado— y dentro solo
-     estaba «Cerrar sesión», que es lo que veía cualquiera sin sesión en el home
-     y lo que quedaba cuando el viaje a `/api/me` se perdía. Un «cerrar sesión»
-     para quien no ha entrado no es una opción: es una mentira.
+  /* Sin sesión, un botón para entrar; sin saberlo todavía, nada.
+
+     El menú no se pinta sin usuario porque dentro solo estaría «Cerrar sesión»,
+     que para quien no ha entrado no es una opción sino una mentira. Pero la
+     esquina tampoco puede quedarse vacía: es el sitio al que mira quien quiere
+     volver a entrar, y ahí no había nada. Lo que se pinta en ese hueco es el
+     mismo botón de la portada, que ya lleva a `/login`.
 
      `initial` y `avatarUrl` cuentan como saberlo: solo los pasa una pantalla
      cerrada (`/profile`), que ya tiene la sesión resuelta por el proxy. */
-  if (!user && !initial && !avatarUrl) return null;
+  if (!user && !initial && !avatarUrl) {
+    if (status !== "out") return null;
+    return (
+      <LoginButton className="shrink-0 px-3 py-2 text-[13px] sm:px-[18px] sm:py-2.5 sm:text-sm" />
+    );
+  }
 
   return (
     <div ref={ref} className="relative shrink-0">
