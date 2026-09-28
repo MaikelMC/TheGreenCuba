@@ -13,8 +13,13 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn, currencyLabel } from "@/lib/utils";
-import { isSaved as isPlaceSaved, recordVisit, toggleSaved } from "@/lib/activity-store";
+import {
+  isSaved as isPlaceSaved,
+  recordVisit,
+  toggleSaved,
+} from "@/lib/activity-store";
 import { trackPlaceSaveToggled, trackPlaceViewed } from "@/lib/analytics";
+import { trackPlaceMetric } from "@/lib/place-metrics";
 import { PhotoCarousel, type Slide } from "./photo-carousel";
 import { InfoBar } from "./info-bar";
 import { ActionButtons } from "./action-buttons";
@@ -124,9 +129,11 @@ export function PlaceDetail({
   useEffect(() => {
     fetch("/api/me")
       .then((res) => res.json())
-      .then((data: { authenticated: boolean; user: { id?: string } | null }) => {
-        if (data.authenticated && data.user?.id) setUserId(data.user.id);
-      })
+      .then(
+        (data: { authenticated: boolean; user: { id?: string } | null }) => {
+          if (data.authenticated && data.user?.id) setUserId(data.user.id);
+        },
+      )
       .catch(() => {});
   }, []);
 
@@ -140,9 +147,13 @@ export function PlaceDetail({
      evita el doble conteo. */
   const viewTracked = useRef<string | null>(null);
   useEffect(() => {
-    recordVisit({ id: place.id, name: place.name, category: place.category }, userId);
+    recordVisit(
+      { id: place.id, name: place.name, category: place.category },
+      userId,
+    );
     if (viewTracked.current !== place.id) {
       viewTracked.current = place.id;
+      trackPlaceMetric(place.id, "view");
       trackPlaceViewed({
         id: place.id,
         name: place.name,
@@ -159,7 +170,8 @@ export function PlaceDetail({
     setSaved(isPlaceSaved(place.id, userId));
   }, [place.id, userId]);
 
-  const isClosed = state === "closed" || (!place.isOpen && state !== "special-offer");
+  const isClosed =
+    state === "closed" || (!place.isOpen && state !== "special-offer");
   const hasPhotos = state !== "no-photos" && place.slides.length > 0;
   const showOffer = state === "special-offer" && place.specialOffer;
 
@@ -173,6 +185,7 @@ export function PlaceDetail({
   function handleSave() {
     const next = toggleSaved(place.id, userId);
     setSaved(next);
+    trackPlaceMetric(place.id, "save");
     trackPlaceSaveToggled(place.id, place.name, next);
   }
 
@@ -230,7 +243,12 @@ export function PlaceDetail({
               </span>
               {place.rating > 0 && (
                 <span className="inline-flex items-center gap-[4px] font-lv-display text-xs font-semibold text-white/80">
-                  <Star size={12} strokeWidth={1.8} className="text-verde-300" fill="currentColor" />
+                  <Star
+                    size={12}
+                    strokeWidth={1.8}
+                    className="text-verde-300"
+                    fill="currentColor"
+                  />
                   {place.rating}
                 </span>
               )}
@@ -239,10 +257,15 @@ export function PlaceDetail({
         </Reveal>
 
         {/* Row 2: Info Strip (compact) */}
-        <Reveal delay={0.05} className="flex items-center gap-gap-lg mb-gap-lg px-gap-md">
+        <Reveal
+          delay={0.05}
+          className="flex items-center gap-gap-lg mb-gap-lg px-gap-md"
+        >
           <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
             <Clock size={14} strokeWidth={1.8} className="text-verde-600" />
-            <span className="font-lv-display font-medium text-ink">{place.schedule}</span>
+            <span className="font-lv-display font-medium text-ink">
+              {place.schedule}
+            </span>
           </div>
           <span className="text-ink/10">|</span>
           <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
@@ -253,7 +276,11 @@ export function PlaceDetail({
           </div>
           <span className="text-ink/10">|</span>
           <div className="flex items-center gap-[4px] text-meta text-ink-soft/75">
-            <CreditCard size={14} strokeWidth={1.8} className="text-verde-600" />
+            <CreditCard
+              size={14}
+              strokeWidth={1.8}
+              className="text-verde-600"
+            />
             {place.payments.map((c) => (
               <span
                 key={c}
@@ -269,7 +296,9 @@ export function PlaceDetail({
           <span className="text-ink/10">|</span>
           <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
             <Utensils size={14} strokeWidth={1.8} className="text-verde-600" />
-            <span className="font-lv-display font-medium text-ink">{place.category}</span>
+            <span className="font-lv-display font-medium text-ink">
+              {place.category}
+            </span>
           </div>
         </Reveal>
 
@@ -306,7 +335,7 @@ export function PlaceDetail({
                 <h2 className={cn(H2, "mb-gap-sm")}>Sobre este lugar</h2>
                 <p
                   className={cn(
-                    "text-body leading-relaxed text-ink text-pretty",
+                    "text-body leading-relaxed text-ink whitespace-pre-wrap",
                     !descExpanded && "line-clamp-3",
                   )}
                 >
@@ -335,7 +364,7 @@ export function PlaceDetail({
                   {/* «Menú» solo valía para restaurantes. En la app hay mercados,
                     mipymes y vendedores independientes, y lo que enseñan es un
                     producto o un servicio, no un plato. */}
-                <h2 className={H2}>Lo que ofrece</h2>
+                  <h2 className={H2}>Lo que ofrece</h2>
                   <button
                     type="button"
                     onClick={onMenuSeeAll}
@@ -416,7 +445,11 @@ export function PlaceDetail({
                     va la dirección, y solo cuando no es ya ese barrio. */}
                 {location && (
                   <span className="inline-flex items-center gap-[4px] text-meta text-ink-soft/75">
-                    <MapPin size={14} strokeWidth={1.8} className="text-verde-600" />
+                    <MapPin
+                      size={14}
+                      strokeWidth={1.8}
+                      className="text-verde-600"
+                    />
                     {location}
                   </span>
                 )}
@@ -429,11 +462,17 @@ export function PlaceDetail({
             <Reveal delay={0.05}>
               <div className="mx-gutter mb-gap-md p-gap-md bg-destructive/5 border border-destructive/15 rounded-2xl flex items-center gap-gap-sm">
                 <div className="size-9 rounded-2xl bg-destructive/10 grid place-items-center shrink-0">
-                  <Clock size={18} strokeWidth={1.8} className="text-destructive" />
+                  <Clock
+                    size={18}
+                    strokeWidth={1.8}
+                    className="text-destructive"
+                  />
                 </div>
                 {/* El chip de arriba ya dice "Cerrado". Repetirlo aquí dejaba
                     la línea en "Cerrado ahora · Cerrado temporalmente." */}
-                <div className="text-small text-ink leading-snug">{place.closedMessage}</div>
+                <div className="text-small text-ink leading-snug">
+                  {place.closedMessage}
+                </div>
               </div>
             </Reveal>
           )}
@@ -484,7 +523,7 @@ export function PlaceDetail({
               <h2 className={cn(H2, "mb-gap-sm")}>Sobre este lugar</h2>
               <p
                 className={cn(
-                  "text-body leading-relaxed text-ink text-pretty",
+                  "text-body leading-relaxed text-ink whitespace-pre-wrap",
                   !descExpanded && "line-clamp-3",
                 )}
               >
@@ -578,7 +617,13 @@ export function PlaceDetail({
  * horario está en el `InfoBar`, la nota en la cabecera y la dirección en su
  * línea. Repetirlos sería volver a lo de antes.
  */
-function WhyCard({ place, className }: { place: PlaceData; className?: string }) {
+function WhyCard({
+  place,
+  className,
+}: {
+  place: PlaceData;
+  className?: string;
+}) {
   const lines = [
     `${place.category} en ${place.barrio}`,
     place.priceLabel ? `Precios de ${place.priceLabel}` : null,

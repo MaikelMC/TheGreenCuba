@@ -71,6 +71,13 @@
       "when": 1790271000000,
       "tag": "0009_add_review_status",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790572785937,
+      "tag": "0010_serious_gunslinger",
+      "breakpoints": true
     }
   ]
 }

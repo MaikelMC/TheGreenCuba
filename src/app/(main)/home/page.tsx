@@ -60,6 +60,7 @@ import {
   trackMapMarkerClick,
   trackRouteRequested,
 } from "@/lib/analytics";
+import { trackPlaceMetric } from "@/lib/place-metrics";
 
 type SheetState = "default" | "searching" | "results" | "no-results" | "error";
 
@@ -677,6 +678,7 @@ function HomePageContent() {
           throw new Error(data?.summary ? "" : "Búsqueda fallida");
         }
         const matches = (data.matches ?? []).filter((m) => m && m.id).slice(0, 5);
+        for (const m of matches) trackPlaceMetric(m.id, "ai_match");
         setAiState({ matches, summary: data.summary ?? "" });
         setSheetState(matches.length > 0 ? "results" : "no-results");
         trackAiSearchCompleted(query, matches.length, matches.length > 0 ? "ok" : "empty");
@@ -725,6 +727,7 @@ function HomePageContent() {
      del propio pin y ya se abre solo. */
   const handleMarkerClick = useCallback((id: string) => {
     trackMapMarkerClick(id);
+    trackPlaceMetric(id, "map_click");
     setSelectedId(id);
   }, []);
 
@@ -777,11 +780,13 @@ function HomePageContent() {
       const osrm = await fetchDrivingRoute(originPoint, destPoint);
       if (osrm) {
         setRoute(osrm);
+        trackPlaceMetric(place.id, "route");
         trackRouteRequested(place.id, openOverlay ? "ficha" : "popup", false);
         return;
       }
       const direct = buildDirectRoute(originPoint, destPoint);
       setRoute(direct);
+      trackPlaceMetric(place.id, "route");
       trackRouteRequested(place.id, openOverlay ? "ficha" : "popup", true);
       toast.info(
         "Ruta por calles no disponible desde tu zona. Mostrando distancia directa; puedes abrir la ruta en Google Maps.",

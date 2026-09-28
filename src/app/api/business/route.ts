@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { businessOwners, notifications, places, users } from "@/lib/db/schema";
 import { toNewPlaceValues, toPlaceValues } from "@/lib/db/mappers";
 import { CATALOG_TAG, resolveCategoryId } from "@/lib/db/queries";
+import { notifyAdminsBusinessSubmission } from "@/lib/email";
 import { generateId } from "@/lib/utils";
 import type { UserPlace } from "@/lib/places-store";
 
@@ -41,9 +42,12 @@ function curatedInput(body: Partial<UserPlace>): Partial<UserPlace> {
      cual dejaría al usuario escribir `isBoosted`, `boostExpiresAt`, `rating` o
      `aiTags` — campos que no son suyos—. El alta de administración sí pasa el
      cuerpo entero, y está bien: allí quien llama es de confianza. Aquí no. */
-  const text = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
+  const text = (value: unknown): string =>
+    typeof value === "string" ? value.trim() : "";
   const list = (value: unknown): string[] =>
-    Array.isArray(value) ? value.filter((v): v is string => typeof v === "string").slice(0, 20) : [];
+    Array.isArray(value)
+      ? value.filter((v): v is string => typeof v === "string").slice(0, 20)
+      : [];
 
   return {
     name: text(body.name),
@@ -77,13 +81,19 @@ export async function POST(req: NextRequest) {
   try {
     body = (await req.json()) as Partial<UserPlace>;
   } catch {
-    return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Cuerpo JSON inválido" },
+      { status: 400 },
+    );
   }
 
   const input = curatedInput(body);
 
   if (!input.name) {
-    return NextResponse.json({ error: "El nombre del negocio es obligatorio" }, { status: 400 });
+    return NextResponse.json(
+      { error: "El nombre del negocio es obligatorio" },
+      { status: 400 },
+    );
   }
   /* El rango además de `isFinite`: esto viene del navegador y termina en un pin
      del mapa compartido. Un `lat` de 500 no revienta nada, simplemente sitúa el
@@ -101,7 +111,9 @@ export async function POST(req: NextRequest) {
     lng > 180
   ) {
     return NextResponse.json(
-      { error: "Marca tu negocio en el mapa: hacen falta coordenadas válidas." },
+      {
+        error: "Marca tu negocio en el mapa: hacen falta coordenadas válidas.",
+      },
       { status: 400 },
     );
   }
@@ -115,7 +127,10 @@ export async function POST(req: NextRequest) {
   }
 
   const [existing] = await db
-    .select({ placeId: businessOwners.placeId, reviewStatus: places.reviewStatus })
+    .select({
+      placeId: businessOwners.placeId,
+      reviewStatus: places.reviewStatus,
+    })
     .from(businessOwners)
     .innerJoin(places, eq(businessOwners.placeId, places.id))
     .where(eq(businessOwners.userId, user.id))
@@ -194,7 +209,24 @@ export async function POST(req: NextRequest) {
     placeId,
   });
 
+  /* Aviso por correo al equipo de administración. Best-effort: si Resend no
+     está configurado o falla, la solicitud ya está guardada y aparece en el
+     panel — el correo acelera la revisión, no la garantiza. */
+  void notifyAdminsBusinessSubmission({
+    businessName: input.name,
+    category: input.category ?? "—",
+    ownerName: user.name ?? "",
+    ownerEmail: user.email,
+    plan: input.plan ?? "—",
+    address: input.address ?? "",
+    barrio: input.barrio ?? "",
+    province: input.province ?? "",
+  });
+
   revalidateTag(CATALOG_TAG, "max");
 
-  return NextResponse.json({ id: placeId, name: input.name, isActive: false }, { status: 201 });
+  return NextResponse.json(
+    { id: placeId, name: input.name, isActive: false },
+    { status: 201 },
+  );
 }

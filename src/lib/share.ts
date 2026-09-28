@@ -16,6 +16,7 @@
 
 import { toast } from "sonner";
 import { trackPlaceShared } from "@/lib/analytics";
+import { trackPlaceMetric } from "@/lib/place-metrics";
 
 export async function sharePlace(placeId: string, placeName: string): Promise<void> {
   const url = `${window.location.origin}/place/${placeId}?utm_source=share&utm_medium=referral&utm_campaign=place_share`;
@@ -27,11 +28,13 @@ export async function sharePlace(placeId: string, placeName: string): Promise<vo
         text: `Mira ${placeName} en La Verde`,
         url,
       });
+      trackPlaceMetric(placeId, "share");
       trackPlaceShared(placeId, placeName, "native");
       return;
     }
 
     await navigator.clipboard.writeText(url);
+    trackPlaceMetric(placeId, "share");
     trackPlaceShared(placeId, placeName, "clipboard");
     toast.success("Enlace copiado al portapapeles");
   } catch (error) {

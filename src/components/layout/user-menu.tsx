@@ -72,14 +72,45 @@ let lastKnownUser: SessionUser | null = null;
  * que va a rebotar. Un usuario normal no tiene por qué ver "Panel de
  * administración" y descubrir al pulsarlo que no puede.
  */
-const ITEMS: { path: string; label: string; icon: typeof User; roles: Role[] }[] = [
-  { path: "/profile", label: "Perfil de usuario", icon: User, roles: ["user", "owner", "admin"] },
-  { path: "/notifications", label: "Notificaciones", icon: Bell, roles: ["user", "owner", "admin"] },
-  { path: "/business", label: "Panel de negocio", icon: Building2, roles: ["owner", "admin"] },
-  { path: "/admin", label: "Panel de administración", icon: ShieldCheck, roles: ["admin"] },
+const ITEMS: {
+  path: string;
+  label: string;
+  icon: typeof User;
+  roles: Role[];
+}[] = [
+  {
+    path: "/profile",
+    label: "Perfil de usuario",
+    icon: User,
+    roles: ["user", "owner", "admin"],
+  },
+  {
+    path: "/notifications",
+    label: "Notificaciones",
+    icon: Bell,
+    roles: ["user", "owner", "admin"],
+  },
+  {
+    path: "/business",
+    label: "Panel de negocio",
+    icon: Building2,
+    roles: ["owner", "admin"],
+  },
+  {
+    path: "/admin",
+    label: "Panel de administración",
+    icon: ShieldCheck,
+    roles: ["admin"],
+  },
 ];
 
-export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?: string }) {
+export function UserMenu({
+  initial,
+  avatarUrl,
+}: {
+  initial?: string;
+  avatarUrl?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(lastKnownUser);
   /* Tres estados, no dos: «todavía no se sabe» no es «no hay sesión». Con dos,
@@ -164,6 +195,17 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
   useEffect(() => {
     if (!user?.id) return;
     let alive = true;
+    let es: EventSource | null = null;
+    let pollTimer: number | null = null;
+
+    const unreadCountRef = { current: 0 };
+
+    function schedulePoll(interval: number) {
+      if (pollTimer) clearTimeout(pollTimer);
+      pollTimer = window.setTimeout(() => {
+        if (alive) void loadNotifications();
+      }, interval);
+    }
 
     async function loadNotifications() {
       const response = await fetch("/api/notifications").catch(() => null);
@@ -172,22 +214,67 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
       if (!Array.isArray(data)) return;
 
       setNotifications(data);
+      unreadCountRef.current = data.filter((n) => !n.readAt).length;
     }
 
+    async function connectSSE() {
+      try {
+        es = new EventSource("/api/notifications/stream");
+        es.onmessage = (event) => {
+          if (!alive) return;
+          const data = JSON.parse(event.data) as UserNotification[];
+          if (Array.isArray(data)) {
+            setNotifications(data);
+            unreadCountRef.current = data.filter((n) => !n.readAt).length;
+          }
+        };
+        es.onerror = () => {
+          if (!alive) return;
+          console.warn(
+            "[notifications] SSE disconnected, falling back to polling",
+          );
+          es?.close();
+          es = null;
+          // Exponential backoff: 10s, 30s, 60s, max 5min
+          schedulePoll(
+            Math.min(10000 * Math.pow(2, retryCount.current), 300000),
+          );
+        };
+      } catch {
+        // SSE not supported, use polling
+        schedulePoll(30000);
+      }
+    }
+
+    const retryCount = { current: 0 };
+
     void loadNotifications();
-    const timer = window.setInterval(() => void loadNotifications(), 30000);
+    void connectSSE();
+
     return () => {
       alive = false;
-      window.clearInterval(timer);
+      es?.close();
+      if (pollTimer) clearTimeout(pollTimer);
     };
   }, [user?.id]);
 
-  const unreadCount = notifications.filter((notification) => !notification.readAt).length;
+  const unreadCount = notifications.filter(
+    (notification) => !notification.readAt,
+  ).length;
 
   const markNotificationsRead = useCallback(async () => {
     if (unreadCount === 0) return;
-    setNotifications((current) => current.map((notification) => ({ ...notification, readAt: new Date().toISOString() })));
-    await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
+    setNotifications((current) =>
+      current.map((notification) => ({
+        ...notification,
+        readAt: new Date().toISOString(),
+      })),
+    );
+    await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    }).catch(() => {});
   }, [unreadCount]);
 
   const openNotifications = useCallback(() => {
@@ -222,7 +309,8 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
   // El nombre de la sesión manda sobre el `initial` que pase quien lo use: el
   // primero viene del servidor con la firma comprobada, el segundo es una
   // cadena escrita a mano en la llamada.
-  const resolvedAvatarUrl = avatarUrl || user?.imageUrl || localAvatarUrl || null;
+  const resolvedAvatarUrl =
+    avatarUrl || user?.imageUrl || localAvatarUrl || null;
   const avatar = user?.name?.trim().charAt(0).toUpperCase() || initial;
   /* Sin `user` no se ofrece **ninguna** entrada, y antes se ofrecían todas.
      `/api/me` es un viaje de red: hasta que contesta no se sabe el rol, así que
@@ -272,9 +360,13 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
         aria-label="Menú de usuario"
       >
         {resolvedAvatarUrl ? (
-          <img src={resolvedAvatarUrl} alt="Foto de perfil" className="h-full w-full object-cover" />
+          <img
+            src={resolvedAvatarUrl}
+            alt="Foto de perfil"
+            className="h-full w-full object-cover"
+          />
         ) : (
-          avatar ?? <User size={18} strokeWidth={1.8} />
+          (avatar ?? <User size={18} strokeWidth={1.8} />)
         )}
       </motion.button>
       <AnimatePresence>
@@ -291,7 +383,9 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
                 <div className="font-lv-display text-small font-semibold text-ink truncate">
                   {user.name}
                 </div>
-                <div className="text-meta text-ink-soft/75 truncate">{user.email}</div>
+                <div className="text-meta text-ink-soft/75 truncate">
+                  {user.email}
+                </div>
                 <div className="mt-[6px] inline-flex items-center gap-[6px] px-[8px] py-[2px] rounded-full bg-verde-50 border border-verde-200 font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] text-verde-700">
                   {ROLE_LABEL[user.role]}
                 </div>
@@ -305,7 +399,11 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
                 initial={{ opacity: 0, x: -6 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3 }}
-                onClick={() => (path === "/notifications" ? openNotifications() : handleSelect(path))}
+                onClick={() =>
+                  path === "/notifications"
+                    ? openNotifications()
+                    : handleSelect(path)
+                }
                 className={`${ITEM} ${path === "/business" || path === "/admin" ? "user-menu-panel-item" : ""}`}
               >
                 <Icon

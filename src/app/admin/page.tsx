@@ -8,6 +8,7 @@ import { usePlaces } from "@/providers/places-provider";
 import { DashboardStats } from "@/components/business/dashboard-stats";
 import { MiniChart } from "@/components/business/mini-chart";
 import { CategoryIcon } from "@/components/admin/category-icon";
+import { TopPlaces } from "@/components/admin/top-places";
 
 export default function AdminDashboardPage() {
   const { places, categories } = usePlaces();
@@ -15,7 +16,9 @@ export default function AdminDashboardPage() {
   const stats = useMemo(() => {
     const approved = places.filter((p) => p.reviewStatus === "approved");
     const total = approved.length;
-    const active = approved.filter((p) => p.isActive && p.status === "active").length;
+    const active = approved.filter(
+      (p) => p.isActive && p.status === "active",
+    ).length;
     const closed = total - active;
     const boosted = approved.filter((p) => p.isBoosted).length;
     return { total, active, closed, boosted };
@@ -27,20 +30,22 @@ export default function AdminDashboardPage() {
         .map((c) => ({
           label: c.label,
           icon: c.icon,
-          count: places.filter((p) => p.reviewStatus === "approved" && p.category === c.label).length,
+          count: places.filter(
+            (p) => p.reviewStatus === "approved" && p.category === c.label,
+          ).length,
         }))
         .filter((c) => c.count > 0)
         .sort((a, b) => b.count - a.count),
     [places, categories],
   );
 
-  const attention = useMemo(
-    () =>
-      places.filter(
-        (p) => p.reviewStatus === "approved" && (p.status !== "active" || !p.description?.trim()),
-      ),
-    [places],
-  );
+  const attention = useMemo(() => {
+    return places.filter(
+      (p) =>
+        p.reviewStatus === "approved" &&
+        (p.status !== "active" || !p.description?.trim()),
+    );
+  }, [places]);
 
   return (
     <>
@@ -49,9 +54,6 @@ export default function AdminDashboardPage() {
         <p className="text-small text-ink-soft/75">
           Resumen de toda la plataforma La Verde
         </p>
-        {/* En móvil el rótulo se oculta y queda solo el icono. Sin el
-            `aria-label` el enlace se quedaría sin nombre accesible: `hidden`
-            saca el `<span>` del árbol de accesibilidad. */}
         <Link
           href="/admin/negocios/nuevo"
           aria-label="Nuevo negocio"
@@ -96,17 +98,30 @@ export default function AdminDashboardPage() {
         ]}
       />
 
+      <div className="mt-gap-lg">
+        <TopPlaces />
+      </div>
+
       <div className="mt-gap-lg grid grid-cols-1 lg:grid-cols-3 gap-gap-md">
         <div className="lg:col-span-2 space-y-gap-md">
           <MiniChart
-            data={byCategory.map((c) => c.count)}
-            labels={byCategory
-              .slice(0, 4)
-              .map((c) => (
-                <CategoryIcon key={c.label} icon={c.icon} size={14} strokeWidth={1.8} />
-              ))}
+            data={byCategory.slice(0, 5).map((c) => c.count)}
+            labels={byCategory.slice(0, 5).map((c) => (
+              <span
+                key={c.label}
+                className="flex items-center gap-[4px] text-[10px] text-ink-soft/75"
+              >
+                <CategoryIcon
+                  icon={c.icon}
+                  size={14}
+                  strokeWidth={1.8}
+                  className="text-verde-600"
+                />
+                {c.label}
+              </span>
+            ))}
             title="Negocios por categoría"
-            period={categories.length === byCategory.length ? "Todas las categorías" : "Con negocios"}
+            period={categories.length === byCategory.length ? "Todas" : "Top 5"}
           />
 
           <div className="bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md">
@@ -124,7 +139,11 @@ export default function AdminDashboardPage() {
                     key={p.id}
                     initial={{ opacity: 0, x: -12 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                    transition={{
+                      delay: i * 0.05,
+                      duration: 0.35,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
                     className="flex items-center gap-gap-sm py-gap-sm border-b border-ink/5 last:border-b-0"
                   >
                     <AlertTriangle
@@ -173,7 +192,11 @@ export default function AdminDashboardPage() {
                   key={c.label}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{
+                    delay: i * 0.05,
+                    duration: 0.35,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
                   className="flex items-center justify-between py-gap-xs border-b border-ink/5 last:border-b-0"
                 >
                   <span className="inline-flex items-center gap-2 text-small text-ink">
@@ -193,13 +216,21 @@ export default function AdminDashboardPage() {
             </div>
           )}
           <div className="mt-gap-md p-gap-md bg-sand border border-ink/5 rounded-2xl">
-            <Store size={18} strokeWidth={1.8} className="text-verde-600 mb-gap-xs" />
+            <Store
+              size={18}
+              strokeWidth={1.8}
+              className="text-verde-600 mb-gap-xs"
+            />
             <p className="text-small text-ink-soft/75 leading-relaxed">
               Gestiona los negocios de La Verde en{" "}
-              <Link href="/admin/negocios" className="text-verde-600 font-semibold hover:text-verde-700">
+              <Link
+                href="/admin/negocios"
+                className="text-verde-600 font-semibold hover:text-verde-700"
+              >
                 Negocios
               </Link>
-              . Puedes agregar, editar, eliminar, destacar y cambiar el estado de cada uno.
+              . Puedes agregar, editar, eliminar, destacar y cambiar el estado
+              de cada uno.
             </p>
           </div>
         </div>

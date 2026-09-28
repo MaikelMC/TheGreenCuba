@@ -4,6 +4,7 @@ import { lvFontVars } from "@/lib/fonts";
 import { siteConfig } from "@/config/site";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { PostHogAnalytics } from "@/providers/posthog-provider";
+import { Providers } from "@/providers/auth-provider";
 import { InactivityGuard } from "@/components/auth/inactivity-guard";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -127,21 +128,22 @@ export default function RootLayout({
           }}
         />
         <ThemeProvider
-            attribute="data-theme"
-            defaultTheme="light"
-            enableSystem
-            disableTransitionOnChange
-          >
+          attribute="data-theme"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Providers>
             <InactivityGuard />
             <PostHogAnalytics />
             {children}
             {/* Avisos flotantes. La pastilla va en `ink` con texto blanco, como
-                la del panel de negocio: es el mismo aviso y tiene que leerse
-                igual. Los tokens `--foreground` / `--background` eran el
-                sistema viejo.
-                `mobileOffset` sube el aviso por encima de la barra inferior:
-                en móvil el panel de negocio y el de admin la tienen fija, y el
-                aviso se posaba justo encima de las pestañas. */}
+                  la del panel de negocio: es el mismo aviso y tiene que leerse
+                  igual. Los tokens `--foreground` / `--background` eran el
+                  sistema viejo.
+                  `mobileOffset` sube el aviso por encima de la barra inferior:
+                  en móvil el panel de negocio y el de admin la tienen fija, y el
+                  aviso se posaba justo encima de las pestañas. */}
             <Toaster
               position="bottom-center"
               toastOptions={{
@@ -158,9 +160,12 @@ export default function RootLayout({
                     "0 1px 2px rgba(8,19,13,0.04), 0 16px 40px -16px rgba(8,19,13,0.18)",
                 },
               }}
-              mobileOffset={{ bottom: "calc(5rem + env(safe-area-inset-bottom, 0px))" }}
+              mobileOffset={{
+                bottom: "calc(5rem + env(safe-area-inset-bottom, 0px))",
+              }}
             />
-          </ThemeProvider>
+          </Providers>
+        </ThemeProvider>
       </body>
     </html>
   );

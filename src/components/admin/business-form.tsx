@@ -36,11 +36,7 @@ import {
   type LocationPoint,
 } from "@/components/map/MapLocationPicker";
 import { usePlaces } from "@/providers/places-provider";
-import type {
-  NewUserPlace,
-  PlaceStatus,
-  UserPlace,
-} from "@/lib/places-store";
+import type { NewUserPlace, PlaceStatus, UserPlace } from "@/lib/places-store";
 
 const SCHEDULE_PRESETS = [
   "8:00 – 16:00",
@@ -98,7 +94,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
   const [offerEnabled, setOfferEnabled] = useState(Boolean(initial?.offer));
   const [offerText, setOfferText] = useState(initial?.offer?.text ?? "");
   const [offerExpiry, setOfferExpiry] = useState(initial?.offer?.expiry ?? "");
-  const [status, setStatus] = useState<PlaceStatus>(initial?.status ?? "active");
+  const [status, setStatus] = useState<PlaceStatus>(
+    initial?.status ?? "active",
+  );
   const [isBoosted, setIsBoosted] = useState(initial?.isBoosted ?? false);
   const [boostExpiresAt, setBoostExpiresAt] = useState(
     initial?.boostExpiresAt ?? "",
@@ -178,7 +176,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
     }
 
     toast.success(
-      initial ? "Cambios guardados correctamente" : `"${trimmedName}" se agregó a La Verde`,
+      initial
+        ? "Cambios guardados correctamente"
+        : `"${trimmedName}" se agregó a La Verde`,
     );
     onDone();
   }, [
@@ -244,7 +244,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
         >
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-gap-md">
             <div className="flex flex-col gap-gap-xs">
-              <label htmlFor="bfName" className={LABEL}>Nombre del negocio</label>
+              <label htmlFor="bfName" className={LABEL}>
+                Nombre del negocio
+              </label>
               <input
                 id="bfName"
                 value={name}
@@ -254,7 +256,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
               />
             </div>
             <div className="flex flex-col gap-gap-xs">
-              <label htmlFor="bfCategory" className={LABEL}>Categoría</label>
+              <label htmlFor="bfCategory" className={LABEL}>
+                Categoría
+              </label>
               <Select value={categoryValue} onValueChange={setCategoryValue}>
                 <SelectTrigger id="bfCategory">
                   <SelectValue />
@@ -263,7 +267,11 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                   {categories.map((c) => (
                     <SelectItem key={c.value} value={c.value}>
                       <span className="inline-flex items-center gap-2">
-                        <CategoryIcon icon={c.icon} size={16} strokeWidth={1.8} />
+                        <CategoryIcon
+                          icon={c.icon}
+                          size={16}
+                          strokeWidth={1.8}
+                        />
                         {c.label}
                       </span>
                     </SelectItem>
@@ -272,7 +280,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
               </Select>
             </div>
             <div className="flex flex-col gap-gap-xs">
-              <label htmlFor="bfBarrio" className={LABEL}>Barrio / Municipio</label>
+              <label htmlFor="bfBarrio" className={LABEL}>
+                Barrio / Municipio
+              </label>
               <input
                 id="bfBarrio"
                 value={barrio}
@@ -282,7 +292,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
               />
             </div>
             <div className="flex flex-col gap-gap-xs">
-              <label htmlFor="bfAddress" className={LABEL}>Dirección</label>
+              <label htmlFor="bfAddress" className={LABEL}>
+                Dirección
+              </label>
               <input
                 id="bfAddress"
                 value={address}
@@ -295,7 +307,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                 se valida —los teléfonos cubanos se escriben de mil formas— y la
                 ficha lo usa tal cual en el marcado estructurado. */}
             <div className="flex flex-col gap-gap-xs">
-              <label htmlFor="bfPhone" className={LABEL}>Teléfono</label>
+              <label htmlFor="bfPhone" className={LABEL}>
+                Teléfono
+              </label>
               <input
                 id="bfPhone"
                 type="tel"
@@ -306,14 +320,20 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
               />
             </div>
             <div className="flex flex-col gap-gap-xs lg:col-span-2">
-              <label htmlFor="bfDesc" className={LABEL}>Descripción</label>
+              <label htmlFor="bfDesc" className={LABEL}>
+                Descripción
+              </label>
               <textarea
                 id="bfDesc"
-                rows={3}
+                rows={4}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe el negocio para que la IA lo recomiende mejor..."
-                className={cn(INPUT, "h-auto min-h-[80px] py-3 resize-y leading-relaxed")}
+                className={cn(
+                  INPUT,
+                  "h-auto min-h-[100px] py-3 resize-y leading-relaxed whitespace-pre-wrap font-lv text-body",
+                )}
+                spellCheck={false}
               />
             </div>
           </div>
@@ -325,7 +345,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
         >
           <div className="flex flex-col gap-gap-sm">
             <div className="flex flex-col gap-gap-xs">
-              <label htmlFor="bfSchedule" className={LABEL}>Horario de atención</label>
+              <label htmlFor="bfSchedule" className={LABEL}>
+                Horario de atención
+              </label>
               <input
                 id="bfSchedule"
                 value={schedule}
@@ -358,11 +380,13 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
 
         <FormSection
           title="Icono del negocio"
-          icon={<CategoryIcon icon={resolvedIcon} size={18} strokeWidth={1.8} />}
+          icon={
+            <CategoryIcon icon={resolvedIcon} size={18} strokeWidth={1.8} />
+          }
         >
           <p className="text-meta text-ink-soft/75 mb-gap-sm">
-            El dibujo que lleva este negocio en el pin del mapa, en el popup y en
-            su tarjeta. Mientras no elijas uno lleva el de su categoría, y si
+            El dibujo que lleva este negocio en el pin del mapa, en el popup y
+            en su tarjeta. Mientras no elijas uno lleva el de su categoría, y si
             cambias de categoría el icono cambia con ella.
           </p>
           <IconPicker
@@ -388,7 +412,8 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
             icon={<CreditCard size={18} strokeWidth={1.8} />}
           >
             <p className="text-meta text-ink-soft/75 mb-gap-sm">
-              Selecciona las monedas y métodos que acepta el negocio. Aparecen en la ficha del lugar.
+              Selecciona las monedas y métodos que acepta el negocio. Aparecen
+              en la ficha del lugar.
             </p>
             <PaymentChips
               defaultSelected={initial?.payments ?? []}
@@ -418,7 +443,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                 >
                   <div className="space-y-gap-xs mt-gap-sm">
                     <div className="flex flex-col gap-gap-xs">
-                      <label htmlFor="bfOfferText" className={LABEL}>Texto de la oferta</label>
+                      <label htmlFor="bfOfferText" className={LABEL}>
+                        Texto de la oferta
+                      </label>
                       <input
                         id="bfOfferText"
                         value={offerText}
@@ -428,7 +455,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                       />
                     </div>
                     <div className="flex flex-col gap-gap-xs">
-                      <label htmlFor="bfOfferExpiry" className={LABEL}>Válido hasta</label>
+                      <label htmlFor="bfOfferExpiry" className={LABEL}>
+                        Válido hasta
+                      </label>
                       <input
                         id="bfOfferExpiry"
                         value={offerExpiry}
@@ -449,7 +478,8 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
           icon={<Utensils size={18} strokeWidth={1.8} />}
         >
           <p className="text-meta text-ink-soft/75 mb-gap-sm">
-            Añade los productos o servicios más populares. Aparecen en la ficha del lugar.
+            Añade los productos o servicios más populares. Aparecen en la ficha
+            del lugar.
           </p>
           <MenuItemEditor
             items={(initial?.menu ?? []).map((m, i) => ({
@@ -469,8 +499,13 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
               Controla cómo aparece el negocio en la app pública.
             </p>
             <div className="flex flex-col gap-gap-xs">
-              <label htmlFor="bfStatus" className={LABEL}>Estado</label>
-              <Select value={status} onValueChange={(v) => setStatus(v as PlaceStatus)}>
+              <label htmlFor="bfStatus" className={LABEL}>
+                Estado
+              </label>
+              <Select
+                value={status}
+                onValueChange={(v) => setStatus(v as PlaceStatus)}
+              >
                 <SelectTrigger id="bfStatus">
                   <SelectValue />
                 </SelectTrigger>
@@ -506,7 +541,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                   className="overflow-hidden"
                 >
                   <div className="flex flex-col gap-gap-xs mt-gap-sm">
-                    <label htmlFor="bfBoostExpiry" className={LABEL}>Vigencia del destacado</label>
+                    <label htmlFor="bfBoostExpiry" className={LABEL}>
+                      Vigencia del destacado
+                    </label>
                     <input
                       id="bfBoostExpiry"
                       value={boostExpiresAt}
@@ -526,8 +563,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
           icon={<MapPin size={18} strokeWidth={1.8} />}
         >
           <p className="text-meta text-ink-soft/75 mb-gap-sm">
-            Escribe la dirección (ej: Calle Heredia e/ San Pedro y Santo Tomás), elige la
-            coincidencia y ajusta el pin en el mapa. El punto cae sobre la calle, no al lado.
+            Escribe la dirección (ej: Calle Heredia e/ San Pedro y Santo Tomás),
+            elige la coincidencia y ajusta el pin en el mapa. El punto cae sobre
+            la calle, no al lado.
           </p>
           <MapLocationPicker
             value={location}
@@ -605,7 +643,9 @@ function ToggleRow({
   return (
     <div className="flex items-center justify-between py-gap-sm border-b border-ink/5 gap-gap-sm">
       <div className="flex-1 min-w-0">
-        <div className="font-lv-display text-small font-medium text-ink">{label}</div>
+        <div className="font-lv-display text-small font-medium text-ink">
+          {label}
+        </div>
         <div className="text-meta text-ink-soft/75">{hint}</div>
       </div>
       <button

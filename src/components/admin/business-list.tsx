@@ -4,12 +4,24 @@ import { useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { toast } from "sonner";
-import { Search, Plus, Pencil, Trash2, Zap, MapPin } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Pencil,
+  Trash2,
+  Zap,
+  MapPin,
+  ChevronDown,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePlaces } from "@/providers/places-provider";
 import { placeIcon } from "@/lib/places";
 import { CategoryIcon } from "@/components/admin/category-icon";
-import { PLAN_LABEL, type PlaceStatus, type UserPlace } from "@/lib/places-store";
+import {
+  PLAN_LABEL,
+  type PlaceStatus,
+  type UserPlace,
+} from "@/lib/places-store";
 import { StateView } from "@/components/ui/state-view";
 import { LoadingState } from "@/components/ui/loading";
 
@@ -47,7 +59,7 @@ function rowStatus(place: UserPlace): { label: string; cls: string } {
 }
 
 const FILTER =
-  "h-[42px] px-3 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer";
+  "h-[42px] pl-4 pr-10 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition-all duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer appearance-none";
 
 /* 44 px en móvil, donde las acciones van en su propia fila y hay sitio; 36 px
    a partir de `sm`, donde la fila vuelve a ser una sola línea y hay que
@@ -56,7 +68,8 @@ const ICON_BTN =
   "size-11 sm:size-9 rounded-full border grid place-items-center shrink-0 transition-colors duration-500 ease-outquint";
 
 export function BusinessList() {
-  const { places, categories, hydrated, removePlace, updatePlace } = usePlaces();
+  const { places, categories, hydrated, removePlace, updatePlace } =
+    usePlaces();
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -64,11 +77,13 @@ export function BusinessList() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return places.filter((p) => {
-      if (categoryFilter !== "all" && p.category !== categoryFilter) return false;
+      if (categoryFilter !== "all" && p.category !== categoryFilter)
+        return false;
       /* Publicado **y** abierto. Antes bastaba con `status`, así que un negocio
          sin aprobar —que también tiene `status = "active"`— salía al filtrar
          por «Activos», con la píldora verde al lado. */
-      if (statusFilter === "active" && !(p.status === "active" && p.isActive)) return false;
+      if (statusFilter === "active" && !(p.status === "active" && p.isActive))
+        return false;
       if (statusFilter === "inactive" && p.status === "active") return false;
       if (statusFilter === "boosted" && !p.isBoosted) return false;
       if (
@@ -133,46 +148,59 @@ export function BusinessList() {
         </Link>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-gap-sm mb-gap-md">
         <div className="relative flex-1">
           <Search
             size={16}
             strokeWidth={1.8}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft/75 pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft/75 pointer-events-none z-10"
           />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar por nombre, barrio o categoría..."
             aria-label="Buscar negocios"
-            className={cn(FILTER, "w-full pl-9 text-body")}
+            className="w-full pl-10 pr-4 h-[42px] rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition-all duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-text"
           />
         </div>
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className={FILTER}
-          aria-label="Filtrar por categoría"
-        >
-          <option value="all">Todas las categorías</option>
-          {categories.map((c) => (
-            <option key={c.value} value={c.label}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className={FILTER}
-          aria-label="Filtrar por estado"
-        >
-          <option value="all">Todos los estados</option>
-          <option value="active">Activos</option>
-          <option value="inactive">Cerrados / Temporales</option>
-          <option value="boosted">Destacados</option>
-        </select>
+        <div className="relative">
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="w-full h-[42px] pl-4 pr-10 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition-all duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer appearance-none"
+            aria-label="Filtrar por categoría"
+          >
+            <option value="all">Todas las categorías</option>
+            {categories.map((c) => (
+              <option key={c.value} value={c.label}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            size={16}
+            strokeWidth={1.8}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft/75 pointer-events-none z-10"
+          />
+        </div>
+        <div className="relative">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full h-[42px] pl-4 pr-10 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition-all duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer appearance-none"
+            aria-label="Filtrar por estado"
+          >
+            <option value="all">Todos los estados</option>
+            <option value="active">Activos</option>
+            <option value="inactive">Cerrados / Temporales</option>
+            <option value="boosted">Destacados</option>
+          </select>
+          <ChevronDown
+            size={16}
+            strokeWidth={1.8}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft/75 pointer-events-none z-10"
+          />
+        </div>
       </div>
 
       {/* List */}
@@ -195,7 +223,11 @@ export function BusinessList() {
                 key={p.id}
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                transition={{
+                  delay: i * 0.04,
+                  duration: 0.35,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
                 layout
                 /* En móvil la fila se parte en dos: arriba el negocio, abajo
                    estado y acciones. En una sola línea, el nombre —que es lo
@@ -263,7 +295,10 @@ export function BusinessList() {
                     >
                       <Zap size={16} strokeWidth={1.8} />
                     </motion.button>
-                    <motion.span whileTap={{ scale: 0.9 }} className="inline-block shrink-0">
+                    <motion.span
+                      whileTap={{ scale: 0.9 }}
+                      className="inline-block shrink-0"
+                    >
                       <Link
                         href={`/admin/negocios/${p.id}/editar`}
                         className={cn(

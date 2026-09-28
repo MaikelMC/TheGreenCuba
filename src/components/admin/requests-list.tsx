@@ -7,6 +7,8 @@ import { CheckCircle2, Clock3, MapPin, Search, XCircle } from "lucide-react";
 import { usePlaces } from "@/providers/places-provider";
 import { alreadySaid } from "@/lib/places";
 import { PLAN_LABEL } from "@/lib/places-store";
+import { placeInUserProvince } from "@/lib/user-province";
+import { CUBA_PROVINCES } from "@/lib/user-preferences-store";
 import { cn } from "@/lib/utils";
 import { StateView } from "@/components/ui/state-view";
 import { LoadingState } from "@/components/ui/loading";
@@ -33,17 +35,21 @@ export function RequestsList() {
   const [rejection, setRejection] = useState<null | { id: string; name: string }>(null);
   const [rejectionMessage, setRejectionMessage] = useState("");
   const [rejecting, setRejecting] = useState(false);
+  /* Misma política de provincia que la lista de negocios: etiquetas y
+     comparación normalizada (`placeInUserProvince`). */
+  const [provinceFilter, setProvinceFilter] = useState("all");
 
   const requests = useMemo(
     () =>
       places.filter((place) => place.reviewStatus === "pending").filter((place) => {
+        if (provinceFilter !== "all" && !placeInUserProvince(place, provinceFilter)) return false;
         if (!query.trim()) return true;
         const q = query.trim().toLowerCase();
         return `${place.name} ${place.category} ${place.barrio} ${place.address}`
           .toLowerCase()
           .includes(q);
       }),
-    [places, query],
+    [places, query, provinceFilter],
   );
 
   const approveRequest = useCallback(
@@ -90,7 +96,7 @@ export function RequestsList() {
         </p>
       </div>
 
-      <div className="mb-gap-md">
+      <div className="mb-gap-md flex flex-col gap-gap-sm sm:flex-row">
         <div className="relative flex-1">
           <Search
             size={16}
@@ -105,6 +111,21 @@ export function RequestsList() {
             className={cn(FILTER, "w-full pl-9 text-body")}
           />
         </div>
+        <select
+          value={provinceFilter}
+          onChange={(e) => setProvinceFilter(e.target.value)}
+          className={FILTER}
+          aria-label="Filtrar por provincia"
+        >
+          <option value="all">Todas las provincias</option>
+          {CUBA_PROVINCES.filter((province) =>
+            places.some((p) => placeInUserProvince(p, province.label)),
+          ).map((province) => (
+            <option key={province.value} value={province.label}>
+              {province.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {!hydrated ? (

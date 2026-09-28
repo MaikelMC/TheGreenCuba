@@ -31,7 +31,7 @@ Los dos modos gobiernan **solo lo que te digo a ti y lo que construyes**.
 **No** se aplican al código, a los comentarios, a los mensajes de commit, a la
 documentación ni a los textos para terceros: ahí va prosa normal.
 
-### Reglas de trabajo
+### Reglas de trabajo (prohibiciones)
 
 - **No arranques el servidor de Next.** El usuario lo levanta él. Tú no.
 - **No conduzcas el navegador.** Nunca. Ni con herramientas ni con capturas.
@@ -39,7 +39,20 @@ documentación ni a los textos para terceros: ahí va prosa normal.
   falta uno para comprobar algo, créalo y bórralo en el mismo comando.
 - **No uses agentes ni subagentes.** Explora con Read, Grep y Glob.
 - **No escribas Python.**
-- **Avisa al terminar cada tarea.** El usuario ha pedido esto muchas veces.
+
+### Definición de terminado
+
+Antes de decir que una tarea está lista, en este orden:
+
+1. `npm run typecheck` pasa limpio (referencia de verdad; `lint` está roto).
+2. `git status` no muestra `.env` ni `data/`.
+3. Avisa explícitamente que terminaste — **no es un cierre de cortesía**,
+   es la regla 7 del estilo ADHD global (trabajo visible): di qué funciona
+   ahora y cómo verlo. La regla 10 de ese mismo estilo (sin despedidas) no
+   te exime de este aviso; solo prohíbe el relleno tipo "¿algo más?".
+
+Este último punto se ha corregido muchas veces en este proyecto — trátalo
+como no negociable, no como un recordatorio opcional al final de la lista.
 
 ### Verifica contra el código, no contra la documentación
 
@@ -198,33 +211,13 @@ vuelvas a meter.
 Esta máquina tiene una red poco fiable. Casi todas las rarezas de este
 proyecto salen de ahí.
 
-### El puerto 5432 ya no está bloqueado
+### El puerto 5432 está bloqueado
 
-El puerto de Postgres estuvo cerrado desde esta red y **dejó de estarlo**.
-Comprobado el 24 de septiembre de 2026: `npm run db:migrate` conecta a Neon y
-aplica la migración. `push` y `studio` usan ese mismo puerto, así que también
-deberían funcionar, aunque desde entonces no se han probado.
+Es el puerto de Postgres. Por eso **`drizzle-kit push`, `migrate` y `studio`
+no funcionan** desde aquí: los tres necesitan conexión directa a la base.
 
-`drizzle-kit generate` sigue siendo **offline** —compara el esquema con las
-instantáneas de `migrations/meta/` y no sale a la red—, y es el camino que hay
-que usar de todas formas.
-
-**No mezcles `push` con `migrate`.** `push` no escribe en
-`drizzle.__drizzle_migrations`, así que deja la base con el esquema nuevo y el
-historial creyendo otra cosa. Es exactamente lo que había aquí: las migraciones
-0000–0006 se aplicaron fuera de banda, la tabla de control quedó **vacía**, y
-`db:migrate` intentaba replay desde 0000 para morir en
-`relation "business_owners" already exists`.
-
-Si ese error reaparece, **no falta nada: falta el sello.** Compara el esquema
-real (`information_schema`) contra el último snapshot de `migrations/meta/`
-—el de la migración más alta— y, si coinciden, marca las aplicadas insertando
-en `drizzle.__drizzle_migrations` el sha256 del `.sql` y el `when` de su
-entrada del `_journal.json`. El migrador solo compara el `created_at` de la
-fila más reciente, así que lo que importa es el orden. Re-ejecutarlas no es la
-reparación. Y al sellar, detente en la última **ya aplicada**: el 24/09 el
-bucle incluyó la migración nueva, la marcó como aplicada sin ejecutarla, y hubo
-que borrar esa fila.
+`drizzle-kit generate` **sí funciona**, porque es offline — compara el esquema
+con las instantáneas de `migrations/meta/` y no sale a la red.
 
 ### `registry.npmjs.org` falla a ratos
 

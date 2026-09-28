@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Bell, CheckCheck, Clock3, Inbox, MailOpen, Sparkles } from "lucide-react";
+import { AlertCircle, Bell, CheckCheck, Clock3, Inbox, MailOpen, Megaphone, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui";
 
 interface UserNotification {
@@ -12,6 +12,8 @@ interface UserNotification {
   readAt: string | null;
   createdAt: string;
   placeId: string | null;
+  /** Remitente visible de los avisos de administración. */
+  senderName?: string | null;
 }
 
 function formatDate(value: string) {
@@ -173,7 +175,12 @@ export function NotificationsView() {
                       : "border-ink/10 bg-sand text-ink-soft/60"
                   }`}
                 >
-                  {isRejected ? (
+                  {/* El aviso de administración lleva el remitente pintado en
+                      el icono: se distingue de los avisos del sistema de un
+                      vistazo. */}
+                  {item.senderName ? (
+                    <Megaphone size={18} strokeWidth={1.8} className="text-verde-600" />
+                  ) : isRejected ? (
                     <AlertCircle size={18} strokeWidth={1.8} />
                   ) : isApproved ? (
                     <CheckCheck size={18} strokeWidth={1.8} />
@@ -191,6 +198,11 @@ export function NotificationsView() {
                         </h3>
                         {isUnread && <Sparkles size={12} strokeWidth={2} className="text-verde-600" />}
                       </div>
+                      {item.senderName && (
+                        <p className="mt-[2px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.14em] text-verde-600">
+                          {item.senderName}
+                        </p>
+                      )}
                       <p className="mt-[6px] line-clamp-2 text-body leading-relaxed text-ink-soft/80">
                         {item.message}
                       </p>
