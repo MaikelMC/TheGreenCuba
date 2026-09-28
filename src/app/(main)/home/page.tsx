@@ -50,6 +50,7 @@ import {
   userProvinceLabel,
 } from "@/lib/user-province";
 import { pushRecentSearch } from "@/lib/recent-searches-store";
+import { saveAiRecommendations } from "@/lib/ai-recommendation-store";
 import { sharePlace } from "@/lib/share";
 import {
   trackAiSearchCompleted,
@@ -679,6 +680,11 @@ function HomePageContent() {
         }
         const matches = (data.matches ?? []).filter((m) => m && m.id).slice(0, 5);
         for (const m of matches) trackPlaceMetric(m.id, "ai_match");
+        /* Las razones se guardan aquí y no al abrir la ficha: la lista se
+           ordena con ellas y luego se van con el estado del componente, así que
+           este es el único momento en que existen. La ficha las lee de
+           `localStorage` para poder enseñar qué se buscó y por qué salió. */
+        saveAiRecommendations(query, matches);
         setAiState({ matches, summary: data.summary ?? "" });
         setSheetState(matches.length > 0 ? "results" : "no-results");
         trackAiSearchCompleted(query, matches.length, matches.length > 0 ? "ok" : "empty");

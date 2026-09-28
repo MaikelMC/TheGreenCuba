@@ -18,6 +18,10 @@ import {
   recordVisit,
   toggleSaved,
 } from "@/lib/activity-store";
+import {
+  readAiRecommendation,
+  type AiRecommendation,
+} from "@/lib/ai-recommendation-store";
 import { trackPlaceSaveToggled, trackPlaceViewed } from "@/lib/analytics";
 import { trackPlaceMetric } from "@/lib/place-metrics";
 import { PhotoCarousel, type Slide } from "./photo-carousel";
@@ -39,6 +43,9 @@ interface PlaceMenu {
   currency: string;
   tag?: string;
   imageEmoji?: string;
+  /** URL de la foto del producto en el bucket. Si no hay, el hueco queda con
+      el icono de siempre. */
+  image?: string;
 }
 
 export interface PlaceData {
@@ -608,10 +615,21 @@ export function PlaceDetail({
  * móvil (a lo ancho); el marcado es el mismo y solo cambian los márgenes, que
  * entran por `className`.
  *
- * El texto se compone con lo que la ficha sabe de verdad del negocio. Antes
- * decía «Buscaste "buscar restaurante en Cuba"» —una consulta fabricada que
- * nadie escribió— y una razón que venía de un campo sin columna en la base, así
- * que salía siempre el mismo relleno: «listo para ser recomendado».
+ * Tiene dos formas, según cómo se llegó al lugar.
+ *
+ * Si se llegó por el buscador de lenguaje natural, la tarjeta cita lo que el
+ * usuario escribió y **la razón que la IA dio para este lugar en concreto**.
+ * Ese texto ya existía: el servidor lo devuelve como `matches[].reason` y hasta
+ * ahora solo ordenaba la lista antes de perderse. Ver
+ * `src/lib/ai-recommendation-store.ts` para dónde vive y por qué ahí.
+ *
+ * Si se llegó a mano —un pin del mapa, una URL compartida— no hay consulta que
+ * citar, y la tarjeta se queda con lo que la ficha sabe de verdad del negocio:
+ * categoría, barrio, precio y las etiquetas. Antes decía «Buscaste "buscar
+ * restaurante en Cuba"» —una consulta fabricada que nadie escribió— y una razón
+ * que venía de un campo sin columna en la base, así que salía siempre el mismo
+ * relleno: «listo para ser recomendado». Ahora la consulta que se cita es una
+ * que alguien escribió, porque solo se cita cuando la hay.
  *
  * Lo que se dice aquí es lo que no se ve en ninguna otra parte de la ficha: el
  * horario está en el `InfoBar`, la nota en la cabecera y la dirección en su
@@ -624,6 +642,16 @@ function WhyCard({
   place: PlaceData;
   className?: string;
 }) {
+  /* En efecto y no en el inicializador: en el servidor no hay `localStorage`, y
+     arrancar de ahí daría un HTML distinto al del cliente. Misma razón que el
+     `setSaved` de `PlaceDetail`. */
+  const [recommendation, setRecommendation] = useState<AiRecommendation | null>(
+    null,
+  );
+  useEffect(() => {
+    setRecommendation(readAiRecommendation(place.id));
+  }, [place.id]);
+
   const lines = [
     `${place.category} en ${place.barrio}`,
     place.priceLabel ? `Precios de ${place.priceLabel}` : null,
@@ -654,13 +682,26 @@ function WhyCard({
           <div className="font-lv-display text-small font-bold text-ink">
             Por qué La Verde te lo recomienda
           </div>
-          <div className="text-meta text-ink-soft/75">Datos del lugar</div>
+          <div className="text-meta text-ink-soft/75">
+            {recommendation ? "Según tu búsqueda" : "Datos del lugar"}
+          </div>
         </div>
       </div>
 
-      <div className="text-small leading-relaxed text-ink text-pretty">
-        {lines.join(". ")}.
-      </div>
+      {recommendation ? (
+        /* La consulta y la razón van como texto de React, nunca como HTML: la
+           frase la escribe un modelo a partir de lo que tecleó el usuario. */
+        <div className="text-small leading-relaxed text-ink text-pretty">
+          <span className="text-ink-soft/75">
+            Buscaste «{recommendation.query}».{" "}
+          </span>
+          {recommendation.reason}
+        </div>
+      ) : (
+        <div className="text-small leading-relaxed text-ink text-pretty">
+          {lines.join(". ")}.
+        </div>
+      )}
 
       {chips.length > 0 && (
         <div className="flex gap-[6px] flex-wrap mt-gap-sm">
