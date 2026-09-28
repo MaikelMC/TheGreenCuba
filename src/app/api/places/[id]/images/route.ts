@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { and, asc, eq } from "drizzle-orm";
 import { canManagePlace } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { CATALOG_TAG } from "@/lib/db/queries";
 import { placeImages, places } from "@/lib/db/schema";
-import { S3_BUCKET, S3_PUBLIC_URL, s3Client, s3ConfigProblem } from "@/lib/storage/s3";
-import { EXTENSION, MAX_UPLOAD_BYTES, sniffImageType } from "@/lib/storage/image";
+import { S3_BUCKET, s3Client } from "@/lib/storage/s3";
+import { keyFromUrl, uploadErrorResponse, uploadImage } from "@/lib/storage/upload";
 import { generateId } from "@/lib/utils";
 
 /**
@@ -20,7 +20,9 @@ import { generateId } from "@/lib/utils";
  * haría falta `@aws-sdk/s3-request-presigner`, que no está instalado.
  *
  * El archivo que llega ya viene comprimido a WebP por `prepareImage()`, en el
- * navegador. Aquí no se recomprime nada: se comprueba y se guarda.
+ * navegador. Aquí no se recomprime nada: se comprueba y se guarda. Las
+ * comprobaciones son las de `uploadImage` (`storage/upload.ts`), compartidas
+ * con las fotos del menú.
  */
 
 type Params = { params: Promise<{ id: string }> };
@@ -50,17 +52,6 @@ function toClientImage(row: typeof placeImages.$inferSelect): ClientImage {
 function optionalInt(value: FormDataEntryValue | null): number | null {
   const n = Number(value);
   return Number.isInteger(n) && n > 0 && n <= 20000 ? n : null;
-}
-
-function publicUrl(key: string): string {
-  return `${S3_PUBLIC_URL}/${key}`;
-}
-
-/** Clave del objeto a partir de su URL pública. `null` si no es de este bucket. */
-function keyFromUrl(url: string): string | null {
-  const base = S3_PUBLIC_URL;
-  if (!base || !url.startsWith(`${base}/`)) return null;
-  return url.slice(base.length + 1);
 }
 
 export async function GET(_req: NextRequest, { params }: Params) {
@@ -99,57 +90,14 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
   }
 
-  /* Antes de tocar el bucket. Un endpoint o unas claves a medio poner no dan un
-     error de configuración: dan un ENOTFOUND, un fallo de TLS o un 403 opaco,
-     y el sitio donde se busca eso no es donde está el problema. */
-  const configProblem = s3ConfigProblem();
-  if (configProblem) {
-    return NextResponse.json({ error: configProblem }, { status: 500 });
-  }
+  /* La subida —configuración, cuerpo, tipo real y `PutObject`— vive en
+     `uploadImage`, que es también la que usa `menu-image`. Devuelve el
+     `FormData` ya leído porque el cuerpo solo se consume una vez y aquí hacen
+     falta además el `alt` y las dimensiones. */
+  const upload = await uploadImage(req, `places/${place.id}/`);
+  if (!upload.ok) return uploadErrorResponse(upload);
 
-  let form: FormData;
-  try {
-    form = await req.formData();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
-  }
-
-  const file = form.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return NextResponse.json({ error: "Falta la imagen" }, { status: 400 });
-  }
-  if (file.size > MAX_UPLOAD_BYTES) {
-    return NextResponse.json(
-      { error: "La imagen es demasiado grande." },
-      { status: 413 },
-    );
-  }
-
-  const bytes = new Uint8Array(await file.arrayBuffer());
-
-  /* El tipo sale de los bytes, no de lo que diga el navegador. Lo que no sea
-     una imagen de verdad se cae aquí, antes de tocar el bucket público. */
-  const contentType = sniffImageType(bytes);
-  if (!contentType) {
-    return NextResponse.json(
-      { error: "El archivo no es una imagen JPEG, PNG o WebP." },
-      { status: 415 },
-    );
-  }
-
-  const key = `places/${place.id}/${generateId()}.${EXTENSION[contentType]}`;
-
-  await s3Client.send(
-    new PutObjectCommand({
-      Bucket: S3_BUCKET,
-      Key: key,
-      Body: bytes,
-      ContentType: contentType,
-      /* La clave lleva un id aleatorio y nunca se reescribe, así que el objeto
-         es inmutable y el navegador no tiene por qué volver a pedirlo. */
-      CacheControl: "public, max-age=31536000, immutable",
-    }),
-  );
+  const form = upload.form;
 
   /* Las fotos por negocio se cuentan con los dedos, así que traer los ids es
      más barato que un `count(*)` y de paso dice cuál es el orden que sigue. */
@@ -165,7 +113,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     .values({
       id: generateId(),
       placeId: place.id,
-      url: publicUrl(key),
+      url: upload.url,
       /* El texto alternativo lo manda el cliente, que conoce el nombre del
          negocio; si no llega, el nombre del sitio es mejor que un hueco vacío. */
       alt: typeof alt === "string" && alt.trim() ? alt.trim() : place.name,

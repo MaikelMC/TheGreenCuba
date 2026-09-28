@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { eq } from "drizzle-orm";
 import { canManagePlace } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema";
-import { S3_BUCKET, S3_PUBLIC_URL, s3Client, s3ConfigProblem } from "@/lib/storage/s3";
-import { EXTENSION, MAX_UPLOAD_BYTES, sniffImageType } from "@/lib/storage/image";
-import { generateId } from "@/lib/utils";
+import { S3_BUCKET, s3Client } from "@/lib/storage/s3";
+import {
+  keyFromUrl,
+  uploadErrorResponse,
+  uploadImage,
+} from "@/lib/storage/upload";
 
 /**
  * La foto de un producto de «Lo que ofrece»: subirla y borrarla.
@@ -23,7 +26,9 @@ import { generateId } from "@/lib/utils";
  * guarde la ficha no deja nada roto: solo un archivo de más en el bucket.
  *
  * El archivo llega ya comprimido a WebP por `prepareImage()`, en el navegador,
- * igual que las fotos del lugar.
+ * igual que las fotos del lugar. Las comprobaciones —tope de tamaño, tipo real
+ * por los bytes— son las de `uploadImage` (`storage/upload.ts`), compartidas
+ * con las del carrusel.
  */
 
 type Params = { params: Promise<{ id: string }> };
@@ -31,16 +36,6 @@ type Params = { params: Promise<{ id: string }> };
 /** Prefijo propio de las fotos del menú. Todo lo que no lo lleve, no se toca. */
 function menuPrefix(placeId: string): string {
   return `places/${placeId}/menu/`;
-}
-
-function publicUrl(key: string): string {
-  return `${S3_PUBLIC_URL}/${key}`;
-}
-
-/** Clave del objeto a partir de su URL pública. `null` si no es de este bucket. */
-function keyFromUrl(url: string): string | null {
-  if (!S3_PUBLIC_URL || !url.startsWith(`${S3_PUBLIC_URL}/`)) return null;
-  return url.slice(S3_PUBLIC_URL.length + 1);
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
@@ -62,54 +57,12 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
   }
 
-  /* Antes de tocar el bucket: un endpoint o unas claves a medio poner dan un
-     fallo de red que no dice dónde está el problema. */
-  const configProblem = s3ConfigProblem();
-  if (configProblem) {
-    return NextResponse.json({ error: configProblem }, { status: 500 });
-  }
+  /* De la configuración al bucket, en una llamada. El `FormData` no trae nada
+     más que la imagen aquí, así que se descarta lo que devuelve. */
+  const upload = await uploadImage(req, menuPrefix(place.id));
+  if (!upload.ok) return uploadErrorResponse(upload);
 
-  let form: FormData;
-  try {
-    form = await req.formData();
-  } catch {
-    return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
-  }
-
-  const file = form.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return NextResponse.json({ error: "Falta la imagen" }, { status: 400 });
-  }
-  if (file.size > MAX_UPLOAD_BYTES) {
-    return NextResponse.json({ error: "La imagen es demasiado grande." }, { status: 413 });
-  }
-
-  const bytes = new Uint8Array(await file.arrayBuffer());
-
-  /* El tipo sale de los bytes y no de lo que diga el navegador. */
-  const contentType = sniffImageType(bytes);
-  if (!contentType) {
-    return NextResponse.json(
-      { error: "El archivo no es una imagen JPEG, PNG o WebP." },
-      { status: 415 },
-    );
-  }
-
-  /* Id aleatorio y sin reutilizar: el objeto es inmutable, así que la URL se
-     puede cachear para siempre y cambiar de foto nunca sirve la vieja. */
-  const key = `${menuPrefix(place.id)}${generateId()}.${EXTENSION[contentType]}`;
-
-  await s3Client.send(
-    new PutObjectCommand({
-      Bucket: S3_BUCKET,
-      Key: key,
-      Body: bytes,
-      ContentType: contentType,
-      CacheControl: "public, max-age=31536000, immutable",
-    }),
-  );
-
-  return NextResponse.json({ url: publicUrl(key) }, { status: 201 });
+  return NextResponse.json({ url: upload.url }, { status: 201 });
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {
