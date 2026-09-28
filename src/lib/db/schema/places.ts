@@ -89,6 +89,10 @@ export const places = pgTable(
             TypeScript no podía saber que estaba ahí. `$type` no genera
             migración: es solo el tipo del jsonb. */
         tag?: string;
+        /** URL de la foto del producto en el bucket. Opcional: la mayoría de
+            los productos no lleva. Como `tag`, es solo el tipo del jsonb —
+            jsonb no tiene esquema, así que no hay migración que generar. */
+        image?: string;
       }[]
     >(),
     /** Valoración media. Denormalizada a propósito: las reseñas viven en

@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Wifi, Battery, Sparkles, Image } from "lucide-react";
+import Image from "next/image";
+import { Wifi, Battery, Sparkles, Image as ImageIcon } from "lucide-react";
 import { cn, currencyLabel } from "@/lib/utils";
 
 interface MenuPreviewItem {
@@ -10,6 +11,8 @@ interface MenuPreviewItem {
   currency: string;
   tag?: string;
   gradient: string;
+  /** URL de la foto del producto, si el dueño le puso una. */
+  image?: string;
 }
 
 interface PreviewPanelProps {
@@ -72,7 +75,7 @@ export function PreviewPanel({
         <div className="max-h-[500px] overflow-y-auto scrollbar-hide">
           {/* Photo */}
           <div className="aspect-[4/3] bg-gradient-to-br from-verde-50 to-verde-100 flex items-center justify-center text-verde-400 relative">
-            <Image size={40} strokeWidth={1.8} className="opacity-40" />
+            <ImageIcon size={40} strokeWidth={1.8} className="opacity-40" />
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-[4px]">
               <span className="w-4 h-[6px] rounded-full bg-verde-400" />
               <span className="w-[6px] h-[6px] rounded-full bg-ink/20" />
@@ -134,7 +137,20 @@ export function PreviewPanel({
             <div className="flex flex-col gap-gap-sm">
               {menuItems.map((item, i) => (
                 <div key={i} className="flex gap-gap-sm items-center">
-                  <div className="size-12 rounded-xl shrink-0" style={{ background: item.gradient }} />
+                  <div
+                    className="relative size-12 rounded-xl shrink-0 overflow-hidden"
+                    style={{ background: item.gradient }}
+                  >
+                    {item.image && (
+                      <Image
+                        src={item.image}
+                        alt={item.name ? `Foto de ${item.name}` : ""}
+                        fill
+                        sizes="48px"
+                        className="object-cover"
+                      />
+                    )}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-lv-display text-[13px] font-semibold text-ink">{item.name}</div>
                     <div className="font-lv-display text-meta text-verde-600">

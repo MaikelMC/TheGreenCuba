@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Image } from "lucide-react";
+import Image from "next/image";
+import { Image as ImageIcon } from "lucide-react";
 import { cn, currencyLabel } from "@/lib/utils";
 
 interface MenuItemProps {
@@ -12,6 +13,13 @@ interface MenuItemProps {
   currency: string;
   tag?: string;
   imageEmoji?: string;
+  /**
+   * Foto que el dueño puso al producto desde «Lo que ofrece».
+   *
+   * Va antes que el emoji y no después: si hay foto, la foto manda —el emoji
+   * era el relleno de cuando no había con qué llenar este hueco.
+   */
+  image?: string;
   className?: string;
   index?: number;
 }
@@ -37,6 +45,7 @@ export function MenuItem({
   currency,
   tag,
   imageEmoji,
+  image,
   className,
   index = 0,
 }: MenuItemProps) {
@@ -49,12 +58,20 @@ export function MenuItem({
       whileHover={{ x: 4 }}
       className={cn("flex gap-gap-md py-gap-md border-b border-ink/5 last:border-b-0", className)}
     >
-      {/* Image placeholder */}
-      <div className="size-[72px] rounded-2xl bg-sand-deep shrink-0 grid place-items-center overflow-hidden text-verde-600">
-        {imageEmoji ? (
+      {/* Hueco de la foto: la imagen subida, o el emoji, o el icono. */}
+      <div className="relative size-[72px] rounded-2xl bg-sand-deep shrink-0 grid place-items-center overflow-hidden text-verde-600">
+        {image ? (
+          <Image
+            src={image}
+            alt={name ? `Foto de ${name}` : ""}
+            fill
+            sizes="72px"
+            className="object-cover"
+          />
+        ) : imageEmoji ? (
           <span className="text-[28px]">{imageEmoji}</span>
         ) : (
-          <Image size={24} strokeWidth={1.8} className="opacity-50" />
+          <ImageIcon size={24} strokeWidth={1.8} className="opacity-50" />
         )}
       </div>
 

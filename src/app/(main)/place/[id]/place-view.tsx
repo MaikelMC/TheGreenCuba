@@ -95,6 +95,7 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
         price: item.price,
         currency: item.currency || "MLC",
         tag: item.tag,
+        image: item.image,
       })),
     specialOffer: p.offer
       ? {

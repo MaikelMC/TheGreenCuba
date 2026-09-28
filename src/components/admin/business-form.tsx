@@ -29,6 +29,7 @@ import { IconPicker } from "@/components/ui/icon-picker";
 import { placeIcon } from "@/lib/places";
 import { FormSection } from "@/components/business/form-section";
 import { PhotoGrid } from "@/components/business/photo-grid";
+import { pruneMenuImages } from "@/lib/menu-images";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { MenuItemEditor } from "@/components/business/menu-item-editor";
 import {
@@ -142,6 +143,8 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
       description: description.trim(),
       schedule: schedule.trim(),
       payments,
+      /* `tag` e `image` van con el resto: sin ellos cada guardado borraba la
+         chapita que el dueño ya tenía puesta y la foto recién subida. */
       menu: menu
         .filter((item) => item.name.trim().length > 0)
         .map((item) => ({
@@ -149,6 +152,8 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
           description: item.description,
           price: item.price,
           currency: item.currency,
+          tag: item.tag,
+          image: item.image || undefined,
         })),
       offer:
         offerEnabled && offerText.trim()
@@ -174,6 +179,11 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
       );
       return;
     }
+
+    /* Con la ficha ya escrita, las fotos del menú que este guardado dejó fuera
+       se retiran del bucket. Antes de aquí no, por lo que explica
+       `pruneMenuImages`. */
+    if (initial) pruneMenuImages(initial.id, initial.menu, values.menu);
 
     toast.success(
       initial
@@ -482,6 +492,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
             del lugar.
           </p>
           <MenuItemEditor
+            placeId={initial?.id ?? null}
             items={(initial?.menu ?? []).map((m, i) => ({
               ...m,
               id: String(i),

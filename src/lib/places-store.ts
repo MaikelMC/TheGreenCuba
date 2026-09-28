@@ -43,6 +43,17 @@ export interface UserPlaceMenuItem {
   currency: string;
   /** Chapita del producto («Popular», «Nuevo», «2x1»). Vacío = sin chapita. */
   tag?: string;
+  /**
+   * Una sola foto por producto, la que se elige tocando el icono de imagen en
+   * «Lo que ofrece».
+   *
+   * Es la URL pública del objeto en el bucket (`places/{id}/menu/{gen}.webp`),
+   * subida por `/api/places/[id]/menu-image`, y **no** un data URL: `menu` viaja
+   * entero en el catálogo del home y con los bytes dentro cada plato haría de
+   * esa respuesta un despropósito de peso. Opcional porque la mayoría de los
+   * productos no lleva foto.
+   */
+  image?: string;
 }
 
 export interface UserPlaceOffer {
