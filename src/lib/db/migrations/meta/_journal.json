@@ -113,6 +113,13 @@
       "when": 1790716359940,
       "tag": "0015_blue_master_chief",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790720107973,
+      "tag": "0016_minor_wendell_vaughn",
+      "breakpoints": true
     }
   ]
 }
