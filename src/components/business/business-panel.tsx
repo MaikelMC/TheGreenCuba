@@ -18,6 +18,7 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SUPPORT_EMAIL } from "@/lib/legal";
 import { logout } from "@/lib/logout";
 import { formatCoordinates } from "@/lib/map/coordinates";
 import { placeIcon } from "@/lib/places";
@@ -38,6 +39,7 @@ import { DashboardStats } from "@/components/business/dashboard-stats";
 import { PhotoGrid } from "@/components/business/photo-grid";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { MenuItemEditor } from "@/components/business/menu-item-editor";
+import { pruneMenuImages } from "@/lib/menu-images";
 import { PreviewPanel } from "@/components/business/preview-panel";
 import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
 import { usePlaces } from "@/providers/places-provider";
@@ -257,6 +259,8 @@ function EditorView({ place }: { place: UserPlace }) {
       schedule: schedule.trim(),
       status,
       payments,
+      /* `tag` e `image` van con el resto: sin ellos cada guardado borraba la
+         chapita que ya tenía puesta y la foto recién subida. */
       menu: menu
         .filter((item) => item.name.trim().length > 0)
         .map((item) => ({
@@ -264,6 +268,8 @@ function EditorView({ place }: { place: UserPlace }) {
           description: item.description,
           price: item.price,
           currency: item.currency,
+          tag: item.tag,
+          image: item.image || undefined,
         })),
       offer:
         offerEnabled && offerText.trim()
@@ -278,6 +284,11 @@ function EditorView({ place }: { place: UserPlace }) {
       setError("No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada.");
       return;
     }
+
+    /* Recién escrito en la base: las fotos del menú que quedaron fuera de este
+       guardado se retiran del bucket. Antes de aquí no, por lo que explica
+       `pruneMenuImages`. */
+    pruneMenuImages(place.id, place.menu, values.menu ?? []);
 
     toast.success("Cambios guardados");
     /* El servidor vuelve a leer la ficha para el dashboard y la vista previa, que
@@ -483,6 +494,7 @@ function EditorView({ place }: { place: UserPlace }) {
               Tus productos o servicios más populares. Aparecen en la ficha del lugar.
             </p>
             <MenuItemEditor
+              placeId={place.id}
               items={(place.menu ?? []).map((m, i) => ({ ...m, id: String(i) }))}
               onChange={setMenu}
             />
@@ -597,7 +609,7 @@ function EditorView({ place }: { place: UserPlace }) {
           type="button"
           onClick={save}
           disabled={saving}
-          className="inline-flex h-12 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+          className="inline-flex h-12 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
         >
           {saving ? (
             <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
@@ -620,15 +632,15 @@ function PreviewView({ place }: { place: UserPlace }) {
         category={place.category}
         payments={place.payments}
         offer={place.offer?.text ?? ""}
-        /* `gradient` es el relleno del hueco donde iría la foto del plato: los
-           elementos del menú no tienen imagen. Se pone uno fijo del sistema en
-           vez de inventar uno por plato — lo que se enseña de verdad son el
-           nombre, el precio y la moneda. */
+        /* `gradient` es el relleno del hueco donde va la foto del plato: los
+           productos sin imagen siguen mostrando el degradado, y con imagen
+           manda la foto, igual que en la ficha pública. */
         menuItems={(place.menu ?? []).map((m) => ({
           name: m.name,
           price: m.price,
           currency: m.currency,
           tag: m.tag,
+          image: m.image,
           gradient: "linear-gradient(135deg, #EAF7EF, #CEEEDB)",
         }))}
         menuCount={place.menu?.length ?? 0}
@@ -658,7 +670,7 @@ function SettingsView({ place }: { place: UserPlace }) {
               escribirlos, y con ellos su ruta. */}
           <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
             <Row label="Plan actual" value="Básico (gratis)" />
-            <Row label="Contacto de soporte" value="soporte@laverde.cu" />
+            <Row label="Contacto de soporte" value={SUPPORT_EMAIL} />
             <Row label="Versión de la ficha" value={place.id} />
           </div>
         </div>

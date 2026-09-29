@@ -1,28 +1,35 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, Source_Sans_3, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { lvFontVars } from "@/lib/fonts";
 import { siteConfig } from "@/config/site";
 import { ThemeProvider } from "@/providers/theme-provider";
+import { PostHogAnalytics } from "@/providers/posthog-provider";
+import { Providers } from "@/providers/auth-provider";
 import { InactivityGuard } from "@/components/auth/inactivity-guard";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const fontDisplay = DM_Sans({
-  subsets: ["latin"],
+/* Las tres de la app, desde el repo, no desde Google. El motivo entero está en
+   `src/lib/fonts.ts`: `next/font/google` convierte cada arranque en frío y cada
+   build en una apuesta a que `fonts.googleapis.com` conteste, y en esta red no
+   siempre contesta. Los `.woff2` son las variables de Google recortadas al
+   subconjunto `latin`. */
+const fontDisplay = localFont({
+  src: "../fonts/dm-sans.woff2",
   variable: "--font-display",
-  weight: ["400", "500", "600", "700"],
+  weight: "100 1000",
 });
 
-const fontBody = Source_Sans_3({
-  subsets: ["latin"],
+const fontBody = localFont({
+  src: "../fonts/source-sans-3.woff2",
   variable: "--font-body",
-  weight: ["400", "500", "600"],
+  weight: "200 900",
 });
 
-const fontMono = JetBrains_Mono({
-  subsets: ["latin"],
+const fontMono = localFont({
+  src: "../fonts/jetbrains-mono.woff2",
   variable: "--font-mono",
-  weight: ["400", "500", "600"],
+  weight: "100 800",
   // El mono no es crítico para el LCP; evita precargarlo en cada ruta.
   preload: false,
 });
@@ -46,7 +53,10 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#1a1a1a" },
+    /* #0e1720 y no #1a1a1a: la superficie oscura real de la app. Con el gris
+       neutro la barra del navegador destonzaba contra el fondo verdoso del
+       modo oscuro (globals.css). */
+    { media: "(prefers-color-scheme: dark)", color: "#0e1720" },
   ],
 };
 
@@ -82,6 +92,16 @@ export const metadata: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
   },
+  /* Al «Agregar a la pantalla de inicio» en iOS: sin `capable` la app abre
+     dentro de una pestaña de Safari con barra de direcciones, y sin `title`
+     el icono se nombra con el dominio. El icono que iOS enseña no se declara
+     aquí: lo resuelve `src/app/apple-icon.png` por la convención de Next.
+     Android usa el manifest (`src/app/manifest.ts`). */
+  appleWebApp: {
+    capable: true,
+    title: siteConfig.name,
+    statusBarStyle: "default",
+  },
   /* No se declara `robots` aquí: lo decide `robots.ts`, que además puede excluir
      rutas enteras del rastreo, cosa que una meta etiqueta no hace. */
 };
@@ -108,20 +128,22 @@ export default function RootLayout({
           }}
         />
         <ThemeProvider
-            attribute="data-theme"
-            defaultTheme="light"
-            enableSystem
-            disableTransitionOnChange
-          >
+          attribute="data-theme"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Providers>
             <InactivityGuard />
+            <PostHogAnalytics />
             {children}
             {/* Avisos flotantes. La pastilla va en `ink` con texto blanco, como
-                la del panel de negocio: es el mismo aviso y tiene que leerse
-                igual. Los tokens `--foreground` / `--background` eran el
-                sistema viejo.
-                `mobileOffset` sube el aviso por encima de la barra inferior:
-                en móvil el panel de negocio y el de admin la tienen fija, y el
-                aviso se posaba justo encima de las pestañas. */}
+                  la del panel de negocio: es el mismo aviso y tiene que leerse
+                  igual. Los tokens `--foreground` / `--background` eran el
+                  sistema viejo.
+                  `mobileOffset` sube el aviso por encima de la barra inferior:
+                  en móvil el panel de negocio y el de admin la tienen fija, y el
+                  aviso se posaba justo encima de las pestañas. */}
             <Toaster
               position="bottom-center"
               toastOptions={{
@@ -138,9 +160,12 @@ export default function RootLayout({
                     "0 1px 2px rgba(8,19,13,0.04), 0 16px 40px -16px rgba(8,19,13,0.18)",
                 },
               }}
-              mobileOffset={{ bottom: "calc(5rem + env(safe-area-inset-bottom, 0px))" }}
+              mobileOffset={{
+                bottom: "calc(5rem + env(safe-area-inset-bottom, 0px))",
+              }}
             />
-          </ThemeProvider>
+          </Providers>
+        </ThemeProvider>
       </body>
     </html>
   );

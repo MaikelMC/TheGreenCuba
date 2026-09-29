@@ -266,7 +266,7 @@ export default function CategoriasPage() {
             <button
               type="button"
               onClick={handleSubmit}
-              className="w-full h-11 mt-gap-xs rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] inline-flex items-center justify-center gap-gap-xs"
+              className="w-full h-11 mt-gap-xs rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] inline-flex items-center justify-center gap-gap-xs"
             >
               <Plus size={18} strokeWidth={1.8} />
               {editing ? "Guardar cambios" : "Agregar categoría"}

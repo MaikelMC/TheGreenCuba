@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { Bookmark, Eye, Info, Sparkles, TrendingUp } from "lucide-react";
+import { CategoryIcon } from "@/components/admin/category-icon";
 import { MiniChart } from "@/components/business/mini-chart";
-import { categoryEmoji } from "@/lib/places";
+import { categoryIcon } from "@/lib/places";
 import { EASE } from "@/lib/motion";
 import {
   dailyHistogram,
@@ -26,20 +27,22 @@ interface SavedPlaceItem {
   savedAt: string | null;
 }
 
-const H_VIEW = "font-lv-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-ink";
+/* Estado mientras no hay nada guardado en este navegador. Es el mismo objeto
+   EMPTY del store, repetido aquí porque `activity` empieza en `null` mientras
+   carga y toda derivada necesita algo contra qué correr. */
+const EMPTY_ACTIVITY: ActivityState = { visits: [], savedIds: [], stamps: [] };
 
 /**
  * «Mis lugares»: lo que este navegador sabe de tu uso.
  *
- * No hay analítica ni base de datos detrás. Estas cifras son las de aquí, y por
- * eso la pantalla no dice «popular» ni «tendencia»: dice cuántas veces has
- * abierto cada sitio tú. Cuando no hay nada medido, se enseña un relleno con su
- * aviso —sin él serían números inventados disfrazados de datos—.
+ * No hay analítica detrás. Estas cifras son las de aquí, y por eso la pantalla
+ * no dice «popular» ni «tendencia»: dice cuántas veces has abierto cada sitio
+ * tú. Antes, con cero actividad, se rellenaba con un historial de ejemplo; ya
+ * no — los ceros son ceros de verdad y el aviso lo dice sin adornos.
  */
 export function PlacesView() {
   const [activity, setActivity] = useState<ActivityState | null>(null);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlaceItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,15 +71,14 @@ export function PlacesView() {
       })
       .catch(() => {
         setSavedPlaces([]);
-      })
-      .finally(() => setLoading(false));
+      });
 
     return () => {
       alive = false;
     };
   }, []);
 
-  if (!activity && loading) {
+  if (!activity) {
     return (
       <p className="py-gap-2xl text-center text-small text-ink-soft/75" aria-busy>
         Cargando tu actividad…
@@ -84,37 +86,30 @@ export function PlacesView() {
     );
   }
 
-  const top = topVisits(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false }, 5);
-  const saved = savedPlaces.length > 0 ? savedPlaces : savedVisits(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false });
-  const category = topCategory(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false });
-  const lastVisit = topVisits(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false }, 1)[0];
+  const state = activity ?? EMPTY_ACTIVITY;
+  const top = topVisits(state, 5);
+  const saved = savedPlaces.length > 0 ? savedPlaces : savedVisits(state);
+  const category = topCategory(state);
+  const lastVisit = topVisits(state, 1)[0];
   const max = Math.max(...top.map((v) => v.count), 1);
 
   return (
     <div className="places-activity flex flex-col gap-gap-xl">
-      <header className="flex flex-col gap-gap-xs">
-        <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
-          Tu actividad
-        </span>
-        <h1 className={H_VIEW}>Mis lugares</h1>
-        <p className="text-small text-pretty text-ink-soft/75">
-          Lo que has abierto y guardado en este dispositivo. No es una medida de
-          toda La Verde: es la tuya.
-        </p>
-      </header>
-
-      {(!activity || activity.isDemo) && savedPlaces.length === 0 && (
+      {/* Sin cabecera propia: el título de la sección ya lo dice la barra
+          superior del perfil, y repetirlo aquí era decir lo mismo dos veces. */}
+      {top.length === 0 && saved.length === 0 && (
         <p className="flex items-start gap-gap-xs rounded-2xl border border-verde-200 bg-verde-50 px-gap-sm py-gap-xs text-meta text-verde-700">
           <Info size={15} strokeWidth={1.8} className="mt-[1px] shrink-0" aria-hidden />
           <span>
-            <strong className="font-semibold">Sin lugares guardados.</strong> Cuando
-            guardes un sitio en la app, aparecerá aquí con tus datos reales.
+            <strong className="font-semibold">Aún no hay nada que medir.</strong> Explora el mapa,
+            abre fichas y guarda lo que te interese: aquí aparecerá tu actividad, solo con datos
+            reales.
           </span>
         </p>
       )}
 
       <div className="grid grid-cols-2 gap-gap-sm">
-        <Stat label="Lugares vistos" value={String(placeCount(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false }))} icon={Eye} />
+        <Stat label="Lugares vistos" value={String(placeCount(state))} icon={Eye} />
         <Stat label="Guardados" value={String(savedPlaces.length || activity?.savedIds.length || 0)} icon={Bookmark} />
         <Stat label="Lo que más ves" value={category?.label ?? "—"} icon={Sparkles} />
         <Stat
@@ -125,7 +120,7 @@ export function PlacesView() {
       </div>
 
       <MiniChart
-        data={dailyHistogram(activity ?? { visits: [], savedIds: [], stamps: [], isDemo: false })}
+        data={dailyHistogram(state)}
         labels={dayLabels()}
         title="Lugares abiertos por día"
         period="Últimos 14 días"
@@ -153,8 +148,8 @@ export function PlacesView() {
                   <span className="w-4 shrink-0 font-lv-display text-meta font-semibold text-ink-soft/75">
                     {i + 1}
                   </span>
-                  <span aria-hidden className="shrink-0 text-[15px]">
-                    {categoryEmoji(v.category)}
+                  <span aria-hidden className="shrink-0 text-verde-600">
+                    <CategoryIcon icon={categoryIcon(v.category)} size={16} strokeWidth={1.8} />
                   </span>
                   <span className="min-w-0 flex-1 truncate text-small font-medium text-ink transition-colors duration-500 ease-outquint group-hover:text-verde-600">
                     {v.name}
@@ -189,8 +184,8 @@ export function PlacesView() {
                   href={`/place/${v.placeId}`}
                   className="flex items-center gap-gap-sm border-b border-ink/5 py-gap-sm text-small text-ink transition-colors duration-500 ease-outquint last:border-b-0 hover:text-verde-600"
                 >
-                  <span aria-hidden className="shrink-0">
-                    {categoryEmoji(v.category)}
+                  <span aria-hidden className="shrink-0 text-verde-600">
+                    <CategoryIcon icon={categoryIcon(v.category)} size={16} strokeWidth={1.8} />
                   </span>
                   <span className="min-w-0 flex-1 truncate">{v.name}</span>
                   <Bookmark size={14} strokeWidth={1.8} className="shrink-0 text-verde-500" />

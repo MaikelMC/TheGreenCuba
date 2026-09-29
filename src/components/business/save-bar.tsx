@@ -78,7 +78,7 @@ export function SaveBar({ onPublish, onDiscard, className }: SaveBarProps) {
           </Button>
           <Button
             onClick={handlePublish}
-            className="flex-1 rounded-full bg-verde-400 text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300 duration-500 ease-outquint active:scale-[0.98]"
+            className="flex-1 rounded-full bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300 duration-500 ease-outquint active:scale-[0.98]"
           >
             <Send size={18} strokeWidth={1.8} />
             Publicar cambios

@@ -12,7 +12,7 @@ export const metadata: Metadata = {
    `className` de fuera no siempre gana sobre la base de `cva`. */
 const PILL =
   "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full font-lv-display text-small font-semibold whitespace-nowrap transition-all duration-500 ease-outquint active:scale-[0.98]";
-const PILL_PRIMARY = `${PILL} bg-verde-400 text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300`;
+const PILL_PRIMARY = `${PILL} bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300`;
 const PILL_OUTLINE = `${PILL} border border-ink/10 bg-white text-ink hover:border-verde-300 hover:bg-verde-50`;
 
 export default function NotFound() {

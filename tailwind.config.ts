@@ -182,6 +182,9 @@ const config: Config = {
         /* Sombras del design system de La Verde: notación rgba y teñidas con
            `ink` (#08130D), nunca con negro puro. */
         soft: "0 1px 2px rgba(8,19,13,0.05), 0 8px 24px -12px rgba(8,19,13,0.12)",
+        /* El halo del botón primario: iba copiado a mano en 24 sitios hasta
+           que se tokenizó. Cualquier ajuste futuro se hace aquí y ya. */
+        "primary-halo": "0 18px 40px -12px rgba(53,175,109,0.6)",
         card: "0 1px 2px rgba(8,19,13,0.04), 0 16px 40px -16px rgba(8,19,13,0.18)",
         "card-hover":
           "0 1px 2px rgba(8,19,13,0.04), 0 30px 70px -24px rgba(8,19,13,0.30)",

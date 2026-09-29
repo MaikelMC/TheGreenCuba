@@ -132,6 +132,11 @@ export function toPlaceValues(
   if (patch.lng !== undefined) values.lng = patch.lng;
   if (patch.address !== undefined) values.address = patch.address;
   if (patch.barrio !== undefined) values.neighborhood = patch.barrio;
+  /* El teléfono faltaba aquí, y no es un detalle: el formulario de
+     administración no lo pedía y esta lista lo habría tirado igualmente. Una
+     cadena vacía lo borra —`|| null`—, que es lo que hace quien vacía el campo
+     a propósito. */
+  if (patch.phone !== undefined) values.phone = patch.phone || null;
   if (patch.description !== undefined) values.description = patch.description;
   if (patch.schedule !== undefined) values.schedule = patch.schedule;
   if (patch.payments !== undefined) values.paymentMethods = patch.payments;

@@ -1,4 +1,4 @@
-import { Space_Grotesk, Plus_Jakarta_Sans } from "next/font/google";
+import localFont from "next/font/local";
 
 /**
  * Tipografías del design system de La Verde (Space Grotesk para titulares,
@@ -12,18 +12,31 @@ import { Space_Grotesk, Plus_Jakarta_Sans } from "next/font/google";
  *
  * No se repuntan `display` (DM Sans) ni `body` (Source Sans 3): siguen siendo
  * las de la app, y las rutas que ya migraron piden las nuevas por su nombre.
+ *
+ * **Los archivos están en `src/fonts/`, no en Google.** Eran `next/font/google`
+ * y cada arranque en frío —y cada build— dependía de que `fonts.googleapis.com`
+ * contestara. En esta red, que se cae a ratos, eso dejaba el build roto con
+ * «next/font/google queries have exactly one entry»: sin CSS de fuente, el
+ * módulo que genera Turbopack sale mal y la culpa no apunta por ninguna parte
+ * a la red. Vendimiadas, `next/font/local` las lee del repo y ya no hay viaje.
+ *
+ * Son las variables de Google (el `wght` completo de cada familia) recortadas
+ * al subconjunto `latin`, que cubre el español entero —tildes, `ñ`, `¿`, `¡`
+ * y el euro—. Si algún día entra texto en otro alfabeto, hay que bajar también
+ * el subconjunto que falte y añadirlo como una segunda `src` con su
+ * `unicode-range`.
  */
-export const lvSans = Plus_Jakarta_Sans({
-  subsets: ["latin"],
+export const lvSans = localFont({
+  src: "../fonts/plus-jakarta-sans.woff2",
   variable: "--font-lv-sans",
-  weight: ["400", "500", "600", "700"],
+  weight: "200 800",
   display: "swap",
 });
 
-export const lvDisplay = Space_Grotesk({
-  subsets: ["latin"],
+export const lvDisplay = localFont({
+  src: "../fonts/space-grotesk.woff2",
   variable: "--font-lv-display",
-  weight: ["400", "500", "600", "700"],
+  weight: "300 700",
   display: "swap",
 });
 

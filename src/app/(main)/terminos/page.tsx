@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   title: "Términos y privacidad · La Verde",
   description:
     "Qué es La Verde, qué datos personales guarda, dónde los guarda, con quién los comparte y cómo borrarlos.",
+  /* Contenido público y enlazado desde el pie en todo el sitio: declara su
+     propia URL canónica para no heredar ambigüedad de parámetros. */
+  alternates: { canonical: "/terminos" },
 };
 
 /* Edad mínima. Es una decisión del producto, no una cifra que venga de la ley:

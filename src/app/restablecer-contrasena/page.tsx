@@ -74,11 +74,11 @@ function ResetPasswordForm() {
         <form onSubmit={submit} className="flex flex-col gap-gap-md">
           <label className="flex flex-col gap-gap-xs text-small text-ink-soft">
             Nueva contraseña
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={8} autoComplete="new-password" className="h-12 rounded-xl border border-ink/10 px-3 text-ink outline-none focus:border-verde-500" />
+            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={8} autoComplete="new-password" className="h-12 rounded-xl border border-ink/10 px-3 text-ink outline-none focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20" />
           </label>
           <label className="flex flex-col gap-gap-xs text-small text-ink-soft">
             Repetir contraseña
-            <input type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required minLength={8} autoComplete="new-password" className="h-12 rounded-xl border border-ink/10 px-3 text-ink outline-none focus:border-verde-500" />
+            <input type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required minLength={8} autoComplete="new-password" className="h-12 rounded-xl border border-ink/10 px-3 text-ink outline-none focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20" />
           </label>
           {error && <p role="alert" className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-meta text-destructive">{error}</p>}
           {message && <p role="status" className="rounded-xl border border-verde-200 bg-verde-50 px-3 py-2 text-meta text-verde-700">{message}</p>}

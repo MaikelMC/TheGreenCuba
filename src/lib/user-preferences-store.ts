@@ -104,6 +104,11 @@ export const CUBA_PROVINCES = Object.entries(LOCATION_META)
   .filter(([value]) => !["santiago", "varadero", "otra"].includes(value))
   .map(([value, { label }]) => ({ value, label }));
 
+/** Los valores antiguos que el selector ya no ofrece pero siguen resolviendo
+    etiqueta y centro. Los necesita la detección de provincia mencionada en una
+    consulta, que debe entender «santiago» igual que «santiago-de-cuba». */
+export const LOCATION_LEGACY_VALUES = ["santiago", "varadero", "otra"] as const;
+
 /** Si no hay ubicación fiable del usuario, no se debe fingir una ciudad real.
  * "otra" representa "otra ciudad / no detectada" y deja que el usuario o el
  * GPS vuelvan a resolverla sin quedar fijado en una localización falsa. */

@@ -7,6 +7,7 @@ import { User, Building2, ShieldCheck, LogOut, Bell } from "lucide-react";
 import type { Role } from "@/lib/session";
 import { logout } from "@/lib/logout";
 import { readUserPreferences } from "@/lib/user-preferences-store";
+import { LoginButton } from "@/components/landing/login-button";
 
 /* Hairline entre filas en vez de `<div>` separadores sueltos: es el mismo
    idioma que las filas de la pantalla de preferencias. */
@@ -50,21 +51,74 @@ const ROLE_LABEL: Record<Role, string> = {
 };
 
 /**
+ * La última respuesta buena de `/api/me`, guardada en el módulo.
+ *
+ * El menú solo pregunta una vez, al montarse, y el Header se vuelve a montar
+ * cada vez que se llega a una pantalla que lo enseña desde otra que no lo
+ * enseña —`/profile`, `/notifications` y `/business` tienen cabecera propia—.
+ * Con una red que falla a ratos, esa única pregunta se pierde y el menú se
+ * quedaba en su forma de «sin sesión»: ni nombre, ni enlaces, y un «Cerrar
+ * sesión» suelto, hasta recargar a mano. Con esto, la vuelta al home pinta al
+ * instante lo último que sí se supo mientras la petición nueva viaja.
+ *
+ * Vive solo en memoria: se pierde al recargar, y `logout()` sale con
+ * `window.location.assign`, así que nunca sobrevive a un cierre de sesión.
+ */
+let lastKnownUser: SessionUser | null = null;
+
+/**
  * Cada entrada declara qué roles la pueden abrir. Es la misma tabla que aplica
  * el middleware en `src/lib/session.ts`, repetida aquí para no ofrecer un enlace
  * que va a rebotar. Un usuario normal no tiene por qué ver "Panel de
  * administración" y descubrir al pulsarlo que no puede.
  */
-const ITEMS: { path: string; label: string; icon: typeof User; roles: Role[] }[] = [
-  { path: "/profile", label: "Perfil de usuario", icon: User, roles: ["user", "owner", "admin"] },
-  { path: "/notifications", label: "Notificaciones", icon: Bell, roles: ["user", "owner", "admin"] },
-  { path: "/business", label: "Panel de negocio", icon: Building2, roles: ["owner", "admin"] },
-  { path: "/admin", label: "Panel de administración", icon: ShieldCheck, roles: ["admin"] },
+const ITEMS: {
+  path: string;
+  label: string;
+  icon: typeof User;
+  roles: Role[];
+}[] = [
+  {
+    path: "/profile",
+    label: "Perfil de usuario",
+    icon: User,
+    roles: ["user", "owner", "admin"],
+  },
+  {
+    path: "/notifications",
+    label: "Notificaciones",
+    icon: Bell,
+    roles: ["user", "owner", "admin"],
+  },
+  {
+    path: "/business",
+    label: "Panel de negocio",
+    icon: Building2,
+    roles: ["owner", "admin"],
+  },
+  {
+    path: "/admin",
+    label: "Panel de administración",
+    icon: ShieldCheck,
+    roles: ["admin"],
+  },
 ];
 
-export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?: string }) {
+export function UserMenu({
+  initial,
+  avatarUrl,
+}: {
+  initial?: string;
+  avatarUrl?: string;
+}) {
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<SessionUser | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(lastKnownUser);
+  /* Tres estados, no dos: «todavía no se sabe» no es «no hay sesión». Con dos,
+     la esquina no se podía pintar hasta terminar de preguntar sin arriesgarse a
+     enseñar el botón de entrar a quien sí tiene sesión. */
+  const [status, setStatus] = useState<"unknown" | "in" | "out">(
+    lastKnownUser ? "in" : "unknown",
+  );
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<UserNotification[]>([]);
   const ref = useRef<HTMLDivElement>(null);
@@ -81,30 +135,77 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
 
   useEffect(() => {
     let alive = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
     /* `/api/me` y no `authClient.useSession()`: el cliente de Neon sabe el
        correo, pero no el rol, que es la mitad de lo que este menú necesita. */
-    fetch("/api/me")
-      .then((res) => res.json())
-      .then((data: { authenticated: boolean; user: SessionUser | null }) => {
-        if (alive && data.authenticated) {
-          setUser(data.user);
-          if (data.user?.id) {
-            const prefs = readUserPreferences(data.user.id);
-            if (prefs.avatarUrl) setLocalAvatarUrl(prefs.avatarUrl);
-          }
+    async function load(attempt: number): Promise<void> {
+      const response = await fetch("/api/me").catch(() => null);
+      const data = response?.ok
+        ? ((await response.json().catch(() => null)) as {
+            authenticated: boolean;
+            user: SessionUser | null;
+          } | null)
+        : null;
+
+      if (!alive) return;
+
+      if (data?.authenticated) {
+        lastKnownUser = data.user;
+        setUser(data.user);
+        setStatus("in");
+        if (data.user?.id) {
+          const prefs = readUserPreferences(data.user.id);
+          if (prefs.avatarUrl) setLocalAvatarUrl(prefs.avatarUrl);
         }
-      })
-      // Sin sesión o sin red, el menú queda con lo que ya tenía: no es un error
-      // que merezca un aviso en pantalla.
-      .catch(() => {});
+        return;
+      }
+
+      /* La ruta contestó «no hay sesión»: el botón de entrar sale ya, sin
+         esperar al reintento. No se pierde nada por enseñarlo antes de tiempo,
+         porque si el reintento dice que sí —el viaje a Neon se cayó una vez— el
+         botón se cambia por el avatar. */
+      if (data) setStatus("out");
+
+      /* Un segundo intento, y solo uno. La ruta resuelve la sesión contra Neon
+         y, cuando esa ida falla, contesta `authenticated: false` —igual que si
+         de verdad no hubiera sesión—, así que sin esto el menú se quedaba en su
+         forma de «sin sesión» hasta recargar a mano. La espera es corta porque
+         lo que se reintenta es un fallo de red, no una cola. */
+      if (attempt === 0) {
+        timer = setTimeout(() => void load(1), 1500);
+        return;
+      }
+
+      /* Dos respuestas sin sesión, o dos fallos de red. En los dos casos se
+         acaba aquí: ofrecer entrar es mejor que dejar la esquina muerta. Antes
+         no se pintaba nada, y quien volvía de la pantalla de inactividad se
+         encontraba en el home sin menú, sin perfil y sin más salida que
+         adivinar que `/login` existe. */
+      setStatus("out");
+    }
+
+    void load(0);
     return () => {
       alive = false;
+      if (timer) clearTimeout(timer);
     };
   }, []);
 
   useEffect(() => {
     if (!user?.id) return;
     let alive = true;
+    let es: EventSource | null = null;
+    let pollTimer: number | null = null;
+
+    const unreadCountRef = { current: 0 };
+
+    function schedulePoll(interval: number) {
+      if (pollTimer) clearTimeout(pollTimer);
+      pollTimer = window.setTimeout(() => {
+        if (alive) void loadNotifications();
+      }, interval);
+    }
 
     async function loadNotifications() {
       const response = await fetch("/api/notifications").catch(() => null);
@@ -113,22 +214,67 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
       if (!Array.isArray(data)) return;
 
       setNotifications(data);
+      unreadCountRef.current = data.filter((n) => !n.readAt).length;
     }
 
+    async function connectSSE() {
+      try {
+        es = new EventSource("/api/notifications/stream");
+        es.onmessage = (event) => {
+          if (!alive) return;
+          const data = JSON.parse(event.data) as UserNotification[];
+          if (Array.isArray(data)) {
+            setNotifications(data);
+            unreadCountRef.current = data.filter((n) => !n.readAt).length;
+          }
+        };
+        es.onerror = () => {
+          if (!alive) return;
+          console.warn(
+            "[notifications] SSE disconnected, falling back to polling",
+          );
+          es?.close();
+          es = null;
+          // Exponential backoff: 10s, 30s, 60s, max 5min
+          schedulePoll(
+            Math.min(10000 * Math.pow(2, retryCount.current), 300000),
+          );
+        };
+      } catch {
+        // SSE not supported, use polling
+        schedulePoll(30000);
+      }
+    }
+
+    const retryCount = { current: 0 };
+
     void loadNotifications();
-    const timer = window.setInterval(() => void loadNotifications(), 30000);
+    void connectSSE();
+
     return () => {
       alive = false;
-      window.clearInterval(timer);
+      es?.close();
+      if (pollTimer) clearTimeout(pollTimer);
     };
   }, [user?.id]);
 
-  const unreadCount = notifications.filter((notification) => !notification.readAt).length;
+  const unreadCount = notifications.filter(
+    (notification) => !notification.readAt,
+  ).length;
 
   const markNotificationsRead = useCallback(async () => {
     if (unreadCount === 0) return;
-    setNotifications((current) => current.map((notification) => ({ ...notification, readAt: new Date().toISOString() })));
-    await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
+    setNotifications((current) =>
+      current.map((notification) => ({
+        ...notification,
+        readAt: new Date().toISOString(),
+      })),
+    );
+    await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    }).catch(() => {});
   }, [unreadCount]);
 
   const openNotifications = useCallback(() => {
@@ -163,7 +309,8 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
   // El nombre de la sesión manda sobre el `initial` que pase quien lo use: el
   // primero viene del servidor con la firma comprobada, el segundo es una
   // cadena escrita a mano en la llamada.
-  const resolvedAvatarUrl = avatarUrl || user?.imageUrl || localAvatarUrl || null;
+  const resolvedAvatarUrl =
+    avatarUrl || user?.imageUrl || localAvatarUrl || null;
   const avatar = user?.name?.trim().charAt(0).toUpperCase() || initial;
   /* Sin `user` no se ofrece **ninguna** entrada, y antes se ofrecían todas.
      `/api/me` es un viaje de red: hasta que contesta no se sabe el rol, así que
@@ -183,6 +330,23 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
       )
     : [];
 
+  /* Sin sesión, un botón para entrar; sin saberlo todavía, nada.
+
+     El menú no se pinta sin usuario porque dentro solo estaría «Cerrar sesión»,
+     que para quien no ha entrado no es una opción sino una mentira. Pero la
+     esquina tampoco puede quedarse vacía: es el sitio al que mira quien quiere
+     volver a entrar, y ahí no había nada. Lo que se pinta en ese hueco es el
+     mismo botón de la portada, que ya lleva a `/login`.
+
+     `initial` y `avatarUrl` cuentan como saberlo: solo los pasa una pantalla
+     cerrada (`/profile`), que ya tiene la sesión resuelta por el proxy. */
+  if (!user && !initial && !avatarUrl) {
+    if (status !== "out") return null;
+    return (
+      <LoginButton className="shrink-0 px-3 py-2 text-[13px] sm:px-[18px] sm:py-2.5 sm:text-sm" />
+    );
+  }
+
   return (
     <div ref={ref} className="relative shrink-0">
       {/* Verde casi tinta, como la pastilla de la cabecera de la landing: sobre
@@ -196,9 +360,13 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
         aria-label="Menú de usuario"
       >
         {resolvedAvatarUrl ? (
-          <img src={resolvedAvatarUrl} alt="Foto de perfil" className="h-full w-full object-cover" />
+          <img
+            src={resolvedAvatarUrl}
+            alt="Foto de perfil"
+            className="h-full w-full object-cover"
+          />
         ) : (
-          avatar ?? <User size={18} strokeWidth={1.8} />
+          (avatar ?? <User size={18} strokeWidth={1.8} />)
         )}
       </motion.button>
       <AnimatePresence>
@@ -215,7 +383,9 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
                 <div className="font-lv-display text-small font-semibold text-ink truncate">
                   {user.name}
                 </div>
-                <div className="text-meta text-ink-soft/75 truncate">{user.email}</div>
+                <div className="text-meta text-ink-soft/75 truncate">
+                  {user.email}
+                </div>
                 <div className="mt-[6px] inline-flex items-center gap-[6px] px-[8px] py-[2px] rounded-full bg-verde-50 border border-verde-200 font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] text-verde-700">
                   {ROLE_LABEL[user.role]}
                 </div>
@@ -229,7 +399,11 @@ export function UserMenu({ initial, avatarUrl }: { initial?: string; avatarUrl?:
                 initial={{ opacity: 0, x: -6 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3 }}
-                onClick={() => (path === "/notifications" ? openNotifications() : handleSelect(path))}
+                onClick={() =>
+                  path === "/notifications"
+                    ? openNotifications()
+                    : handleSelect(path)
+                }
                 className={`${ITEM} ${path === "/business" || path === "/admin" ? "user-menu-panel-item" : ""}`}
               >
                 <Icon

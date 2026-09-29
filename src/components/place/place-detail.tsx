@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Utensils,
@@ -13,7 +13,17 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn, currencyLabel } from "@/lib/utils";
-import { isSaved as isPlaceSaved, recordVisit, toggleSaved } from "@/lib/activity-store";
+import {
+  isSaved as isPlaceSaved,
+  recordVisit,
+  toggleSaved,
+} from "@/lib/activity-store";
+import {
+  readAiRecommendation,
+  type AiRecommendation,
+} from "@/lib/ai-recommendation-store";
+import { trackPlaceSaveToggled, trackPlaceViewed } from "@/lib/analytics";
+import { trackPlaceMetric } from "@/lib/place-metrics";
 import { PhotoCarousel, type Slide } from "./photo-carousel";
 import { InfoBar } from "./info-bar";
 import { ActionButtons } from "./action-buttons";
@@ -33,6 +43,9 @@ interface PlaceMenu {
   currency: string;
   tag?: string;
   imageEmoji?: string;
+  /** URL de la foto del producto en el bucket. Si no hay, el hueco queda con
+      el icono de siempre. */
+  image?: string;
 }
 
 export interface PlaceData {
@@ -123,9 +136,11 @@ export function PlaceDetail({
   useEffect(() => {
     fetch("/api/me")
       .then((res) => res.json())
-      .then((data: { authenticated: boolean; user: { id?: string } | null }) => {
-        if (data.authenticated && data.user?.id) setUserId(data.user.id);
-      })
+      .then(
+        (data: { authenticated: boolean; user: { id?: string } | null }) => {
+          if (data.authenticated && data.user?.id) setUserId(data.user.id);
+        },
+      )
       .catch(() => {});
   }, []);
 
@@ -133,9 +148,27 @@ export function PlaceDetail({
      este componente pasan todas: la ficha de `/place/[id]` y la que abre el
      panel del home. El store ignora la repetición dentro de una ventana corta,
      que es lo que evita que el doble montaje —panel y hoja— cuente doble. */
+  /* El pageview del lugar se emite una sola vez por ficha, y no en cada
+     re-ejecución de este efecto —el id de usuario llega de /api/me y pasa de
+     null a su valor, lo que dispararía el efecto dos veces—. El guard por ref
+     evita el doble conteo. */
+  const viewTracked = useRef<string | null>(null);
   useEffect(() => {
-    recordVisit({ id: place.id, name: place.name, category: place.category }, userId);
-  }, [place.id, place.name, place.category, userId]);
+    recordVisit(
+      { id: place.id, name: place.name, category: place.category },
+      userId,
+    );
+    if (viewTracked.current !== place.id) {
+      viewTracked.current = place.id;
+      trackPlaceMetric(place.id, "view");
+      trackPlaceViewed({
+        id: place.id,
+        name: place.name,
+        category: place.category,
+        barrio: place.barrio,
+      });
+    }
+  }, [place.id, place.name, place.category, place.barrio, userId]);
 
   /* El estado de guardado se lee en efecto y no en el inicializador: en el
      servidor no hay `localStorage`, así que arrancar de ahí daría un HTML
@@ -144,7 +177,8 @@ export function PlaceDetail({
     setSaved(isPlaceSaved(place.id, userId));
   }, [place.id, userId]);
 
-  const isClosed = state === "closed" || (!place.isOpen && state !== "special-offer");
+  const isClosed =
+    state === "closed" || (!place.isOpen && state !== "special-offer");
   const hasPhotos = state !== "no-photos" && place.slides.length > 0;
   const showOffer = state === "special-offer" && place.specialOffer;
 
@@ -156,7 +190,10 @@ export function PlaceDetail({
   const location = place.distance === place.barrio ? "" : place.distance;
 
   function handleSave() {
-    setSaved(toggleSaved(place.id, userId));
+    const next = toggleSaved(place.id, userId);
+    setSaved(next);
+    trackPlaceMetric(place.id, "save");
+    trackPlaceSaveToggled(place.id, place.name, next);
   }
 
   // Aquí va `min-h-dvh` solo: `cn` usa twMerge, que colapsaría el par
@@ -213,7 +250,12 @@ export function PlaceDetail({
               </span>
               {place.rating > 0 && (
                 <span className="inline-flex items-center gap-[4px] font-lv-display text-xs font-semibold text-white/80">
-                  <Star size={12} strokeWidth={1.8} className="text-verde-300" fill="currentColor" />
+                  <Star
+                    size={12}
+                    strokeWidth={1.8}
+                    className="text-verde-300"
+                    fill="currentColor"
+                  />
                   {place.rating}
                 </span>
               )}
@@ -222,10 +264,15 @@ export function PlaceDetail({
         </Reveal>
 
         {/* Row 2: Info Strip (compact) */}
-        <Reveal delay={0.05} className="flex items-center gap-gap-lg mb-gap-lg px-gap-md">
+        <Reveal
+          delay={0.05}
+          className="flex items-center gap-gap-lg mb-gap-lg px-gap-md"
+        >
           <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
             <Clock size={14} strokeWidth={1.8} className="text-verde-600" />
-            <span className="font-lv-display font-medium text-ink">{place.schedule}</span>
+            <span className="font-lv-display font-medium text-ink">
+              {place.schedule}
+            </span>
           </div>
           <span className="text-ink/10">|</span>
           <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
@@ -236,7 +283,11 @@ export function PlaceDetail({
           </div>
           <span className="text-ink/10">|</span>
           <div className="flex items-center gap-[4px] text-meta text-ink-soft/75">
-            <CreditCard size={14} strokeWidth={1.8} className="text-verde-600" />
+            <CreditCard
+              size={14}
+              strokeWidth={1.8}
+              className="text-verde-600"
+            />
             {place.payments.map((c) => (
               <span
                 key={c}
@@ -252,7 +303,9 @@ export function PlaceDetail({
           <span className="text-ink/10">|</span>
           <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
             <Utensils size={14} strokeWidth={1.8} className="text-verde-600" />
-            <span className="font-lv-display font-medium text-ink">{place.category}</span>
+            <span className="font-lv-display font-medium text-ink">
+              {place.category}
+            </span>
           </div>
         </Reveal>
 
@@ -289,7 +342,7 @@ export function PlaceDetail({
                 <h2 className={cn(H2, "mb-gap-sm")}>Sobre este lugar</h2>
                 <p
                   className={cn(
-                    "text-body leading-relaxed text-ink text-pretty",
+                    "text-body leading-relaxed text-ink whitespace-pre-wrap",
                     !descExpanded && "line-clamp-3",
                   )}
                 >
@@ -318,7 +371,7 @@ export function PlaceDetail({
                   {/* «Menú» solo valía para restaurantes. En la app hay mercados,
                     mipymes y vendedores independientes, y lo que enseñan es un
                     producto o un servicio, no un plato. */}
-                <h2 className={H2}>Lo que ofrece</h2>
+                  <h2 className={H2}>Lo que ofrece</h2>
                   <button
                     type="button"
                     onClick={onMenuSeeAll}
@@ -399,7 +452,11 @@ export function PlaceDetail({
                     va la dirección, y solo cuando no es ya ese barrio. */}
                 {location && (
                   <span className="inline-flex items-center gap-[4px] text-meta text-ink-soft/75">
-                    <MapPin size={14} strokeWidth={1.8} className="text-verde-600" />
+                    <MapPin
+                      size={14}
+                      strokeWidth={1.8}
+                      className="text-verde-600"
+                    />
                     {location}
                   </span>
                 )}
@@ -412,11 +469,17 @@ export function PlaceDetail({
             <Reveal delay={0.05}>
               <div className="mx-gutter mb-gap-md p-gap-md bg-destructive/5 border border-destructive/15 rounded-2xl flex items-center gap-gap-sm">
                 <div className="size-9 rounded-2xl bg-destructive/10 grid place-items-center shrink-0">
-                  <Clock size={18} strokeWidth={1.8} className="text-destructive" />
+                  <Clock
+                    size={18}
+                    strokeWidth={1.8}
+                    className="text-destructive"
+                  />
                 </div>
                 {/* El chip de arriba ya dice "Cerrado". Repetirlo aquí dejaba
                     la línea en "Cerrado ahora · Cerrado temporalmente." */}
-                <div className="text-small text-ink leading-snug">{place.closedMessage}</div>
+                <div className="text-small text-ink leading-snug">
+                  {place.closedMessage}
+                </div>
               </div>
             </Reveal>
           )}
@@ -467,7 +530,7 @@ export function PlaceDetail({
               <h2 className={cn(H2, "mb-gap-sm")}>Sobre este lugar</h2>
               <p
                 className={cn(
-                  "text-body leading-relaxed text-ink text-pretty",
+                  "text-body leading-relaxed text-ink whitespace-pre-wrap",
                   !descExpanded && "line-clamp-3",
                 )}
               >
@@ -552,16 +615,43 @@ export function PlaceDetail({
  * móvil (a lo ancho); el marcado es el mismo y solo cambian los márgenes, que
  * entran por `className`.
  *
- * El texto se compone con lo que la ficha sabe de verdad del negocio. Antes
- * decía «Buscaste "buscar restaurante en Cuba"» —una consulta fabricada que
- * nadie escribió— y una razón que venía de un campo sin columna en la base, así
- * que salía siempre el mismo relleno: «listo para ser recomendado».
+ * Tiene dos formas, según cómo se llegó al lugar.
+ *
+ * Si se llegó por el buscador de lenguaje natural, la tarjeta cita lo que el
+ * usuario escribió y **la razón que la IA dio para este lugar en concreto**.
+ * Ese texto ya existía: el servidor lo devuelve como `matches[].reason` y hasta
+ * ahora solo ordenaba la lista antes de perderse. Ver
+ * `src/lib/ai-recommendation-store.ts` para dónde vive y por qué ahí.
+ *
+ * Si se llegó a mano —un pin del mapa, una URL compartida— no hay consulta que
+ * citar, y la tarjeta se queda con lo que la ficha sabe de verdad del negocio:
+ * categoría, barrio, precio y las etiquetas. Antes decía «Buscaste "buscar
+ * restaurante en Cuba"» —una consulta fabricada que nadie escribió— y una razón
+ * que venía de un campo sin columna en la base, así que salía siempre el mismo
+ * relleno: «listo para ser recomendado». Ahora la consulta que se cita es una
+ * que alguien escribió, porque solo se cita cuando la hay.
  *
  * Lo que se dice aquí es lo que no se ve en ninguna otra parte de la ficha: el
  * horario está en el `InfoBar`, la nota en la cabecera y la dirección en su
  * línea. Repetirlos sería volver a lo de antes.
  */
-function WhyCard({ place, className }: { place: PlaceData; className?: string }) {
+function WhyCard({
+  place,
+  className,
+}: {
+  place: PlaceData;
+  className?: string;
+}) {
+  /* En efecto y no en el inicializador: en el servidor no hay `localStorage`, y
+     arrancar de ahí daría un HTML distinto al del cliente. Misma razón que el
+     `setSaved` de `PlaceDetail`. */
+  const [recommendation, setRecommendation] = useState<AiRecommendation | null>(
+    null,
+  );
+  useEffect(() => {
+    setRecommendation(readAiRecommendation(place.id));
+  }, [place.id]);
+
   const lines = [
     `${place.category} en ${place.barrio}`,
     place.priceLabel ? `Precios de ${place.priceLabel}` : null,
@@ -592,13 +682,26 @@ function WhyCard({ place, className }: { place: PlaceData; className?: string })
           <div className="font-lv-display text-small font-bold text-ink">
             Por qué La Verde te lo recomienda
           </div>
-          <div className="text-meta text-ink-soft/75">Datos del lugar</div>
+          <div className="text-meta text-ink-soft/75">
+            {recommendation ? "Según tu búsqueda" : "Datos del lugar"}
+          </div>
         </div>
       </div>
 
-      <div className="text-small leading-relaxed text-ink text-pretty">
-        {lines.join(". ")}.
-      </div>
+      {recommendation ? (
+        /* La consulta y la razón van como texto de React, nunca como HTML: la
+           frase la escribe un modelo a partir de lo que tecleó el usuario. */
+        <div className="text-small leading-relaxed text-ink text-pretty">
+          <span className="text-ink-soft/75">
+            Buscaste «{recommendation.query}».{" "}
+          </span>
+          {recommendation.reason}
+        </div>
+      ) : (
+        <div className="text-small leading-relaxed text-ink text-pretty">
+          {lines.join(". ")}.
+        </div>
+      )}
 
       {chips.length > 0 && (
         <div className="flex gap-[6px] flex-wrap mt-gap-sm">

@@ -47,7 +47,11 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://photon.komoot.io https://nominatim.openstreetmap.org",
+  /* PostHog manda eventos y carga su UI de grabación desde los i.posthog.com
+     regionales — el SDK resuelve us/eu por sí solo según el host configurado.
+     Sin esta línea la producción bloquearía cada evento con CSP y nadie
+     relacionaría una ficha vacía en el panel con esta directiva. */
+  "connect-src 'self' https://photon.komoot.io https://nominatim.openstreetmap.org https://us.i.posthog.com https://eu.i.posthog.com https://us-assets.i.posthog.com https://eu-assets.i.posthog.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -107,7 +111,23 @@ const nextConfig: NextConfig = {
      (ningún archivo lleva `use server`). Si algún día se añade una que suba
      imágenes, vuelve como `serverActions.bodySizeLimit`. */
   async headers() {
+    /* El preview histórico de Vercel no debe competir con la producción en
+       los buscadores: esta cabecera le dice a cualquier rastreador que no
+       indexe nada servido desde ese host. La condición por host evita tocar
+       la producción —laverde.kynari.dev— y cualquier otro despliegue.
+       `has` con `host` es un match exacto de cabecera Host. */
+    const previewNoIndex = [
+      {
+        key: "X-Robots-Tag",
+        value: "noindex, nofollow",
+      },
+    ];
     return [
+      {
+        source: "/(.*)",
+        has: [{ type: "host", value: "laverde-two.vercel.app" }],
+        headers: previewNoIndex,
+      },
       {
         source: "/(.*)",
         headers: securityHeaders,

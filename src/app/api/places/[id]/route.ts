@@ -3,10 +3,15 @@ import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
-import { businessOwners, notifications, places } from "@/lib/db/schema";
+import { businessOwners, notifications, places, users } from "@/lib/db/schema";
 import { generateId } from "@/lib/utils";
 import { toPlaceValues, toUserPlace } from "@/lib/db/mappers";
 import { CATALOG_TAG, getPlaceById, resolveCategoryId } from "@/lib/db/queries";
+import {
+  notifyAdminsBusinessSubmission,
+  notifyOwnerBusinessApproved,
+  notifyOwnerBusinessRejected,
+} from "@/lib/email";
 import type { UserPlace } from "@/lib/places-store";
 
 type Params = { params: Promise<{ id: string }> };
@@ -15,7 +20,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   const place = await getPlaceById(id);
   if (!place) {
-    return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Negocio no encontrado" },
+      { status: 404 },
+    );
   }
   return NextResponse.json(place);
 }
@@ -35,7 +43,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     body = (await req.json()) as Partial<UserPlace>;
   } catch {
-    return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Cuerpo JSON inválido" },
+      { status: 400 },
+    );
   }
 
   /* Publicar es cosa de administración, y por eso se tira el campo si quien
@@ -54,7 +65,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
      La comprobación va solo cuando alguno de los dos campos viene, que es el
      caso raro: la aprobación desde `/admin` y los scripts con `x-admin-key`. */
   if (
-    (body.isActive !== undefined || body.plan !== undefined || body.reviewStatus !== undefined) &&
+    (body.isActive !== undefined ||
+      body.plan !== undefined ||
+      body.reviewStatus !== undefined) &&
     !(await isAdminRequest(req))
   ) {
     delete body.isActive;
@@ -64,7 +77,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const name = typeof body.name === "string" ? body.name.trim() : undefined;
   if (name === "") {
-    return NextResponse.json({ error: "El nombre no puede quedar vacío" }, { status: 400 });
+    return NextResponse.json(
+      { error: "El nombre no puede quedar vacío" },
+      { status: 400 },
+    );
   }
   if (body.lat !== undefined && !Number.isFinite(body.lat)) {
     return NextResponse.json({ error: "Latitud inválida" }, { status: 400 });
@@ -86,14 +102,27 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
   }
 
-  const values = toPlaceValues(name === undefined ? body : { ...body, name }, categoryId);
+  const values = toPlaceValues(
+    name === undefined ? body : { ...body, name },
+    categoryId,
+  );
   if (Object.keys(values).length === 0) {
-    return NextResponse.json({ error: "No hay nada que actualizar" }, { status: 400 });
+    return NextResponse.json(
+      { error: "No hay nada que actualizar" },
+      { status: 400 },
+    );
   }
 
-  const [row] = await db.update(places).set(values).where(eq(places.id, id)).returning();
+  const [row] = await db
+    .update(places)
+    .set(values)
+    .where(eq(places.id, id))
+    .returning();
   if (!row) {
-    return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Negocio no encontrado" },
+      { status: 404 },
+    );
   }
 
   if (body.reviewStatus === "approved" && body.isActive === true) {
@@ -125,6 +154,21 @@ export async function PATCH(req: NextRequest, { params }: Params) {
           placeId: id,
         });
       }
+
+      // Email al propietario (best-effort)
+      const [ownerUser] = await db
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, owner.userId))
+        .limit(1);
+      if (ownerUser?.email) {
+        const placeUrl = `${process.env.NEXT_PUBLIC_APP_URL}/place/${id}`;
+        void notifyOwnerBusinessApproved({
+          ownerEmail: ownerUser.email,
+          businessName: row.name,
+          placeUrl,
+        });
+      }
     }
   }
 
@@ -136,7 +180,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   /* La categoría puede haber cambiado: se relee para devolver la etiqueta nueva
      en vez de la que mandó el cliente, que podría ser otra. */
   const updated = await getPlaceById(id);
-  return NextResponse.json(updated ?? toUserPlace({ ...row, categoryName: null }));
+  return NextResponse.json(
+    updated ?? toUserPlace({ ...row, categoryName: null }),
+  );
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {
@@ -148,7 +194,8 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   let rejectionMessage = "";
   try {
     const body = (await req.json()) as { message?: unknown };
-    if (typeof body.message === "string") rejectionMessage = body.message.trim().slice(0, 1000);
+    if (typeof body.message === "string")
+      rejectionMessage = body.message.trim().slice(0, 1000);
   } catch {
     /* DELETE sin cuerpo sigue siendo válido para las eliminaciones del panel. */
   }
@@ -177,6 +224,22 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       placeId: id,
     });
 
+    // Email al propietario (best-effort)
+    const [ownerUser] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, owner.userId))
+      .limit(1);
+    if (ownerUser?.email) {
+      const resubmitUrl = `${process.env.NEXT_PUBLIC_APP_URL}/profile?seccion=negocio`;
+      void notifyOwnerBusinessRejected({
+        ownerEmail: ownerUser.email,
+        businessName: place.name,
+        reason: rejectionMessage || undefined,
+        resubmitUrl,
+      });
+    }
+
     await db
       .update(places)
       .set({ reviewStatus: "rejected", isActive: false, updatedAt: new Date() })
@@ -186,10 +249,16 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     return NextResponse.json({ id, rejected: true });
   }
 
-  const [row] = await db.delete(places).where(eq(places.id, id)).returning({ id: places.id });
+  const [row] = await db
+    .delete(places)
+    .where(eq(places.id, id))
+    .returning({ id: places.id });
 
   if (!row) {
-    return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Negocio no encontrado" },
+      { status: 404 },
+    );
   }
 
   revalidateTag(CATALOG_TAG, "max");

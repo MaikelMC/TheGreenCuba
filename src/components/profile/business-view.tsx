@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
@@ -10,17 +10,13 @@ import {
   Check,
   Clock,
   CreditCard,
-  Image as ImageIcon,
   Loader2,
   MapPin,
-  Plus,
   Send,
   Store,
-  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EASE } from "@/lib/motion";
-import { prepareImage } from "@/lib/storage/compress";
 import { CategoryIcon } from "@/components/admin/category-icon";
 import { FormSection } from "@/components/business/form-section";
 import { PaymentChips } from "@/components/business/payment-chips";
@@ -28,6 +24,7 @@ import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocat
 import { usePlaces } from "@/providers/places-provider";
 import { PLAN_LABEL, type PlacePlan } from "@/lib/places-store";
 import { focusProfileControl } from "@/components/profile/focus-profile-control";
+import { trackBusinessSubmitted } from "@/lib/analytics";
 import {
   Select,
   SelectContent,
@@ -59,26 +56,36 @@ interface BusinessSummary {
 
 const SCHEDULE_PRESETS = ["8:00 – 16:00", "9:00 – 18:00", "10:00 – 22:00", "12:00 – 24:00", "24 horas"];
 
-/* Ocho fotos, el mismo tope que la rejilla del panel. Se repite el número en
-   vez de importarlo de `photo-grid`: son dos pantallas y traer el componente
-   entero —con `next/image` y el provider— al formulario del perfil por una
-   constante no sale a cuenta. Si aparece un tercero, se extrae. */
-const MAX_PHOTOS = 8;
-
-/* Mismas clases que la rejilla del panel, por lo mismo que las del formulario. */
-const TILE_REMOVE =
-  "absolute top-[6px] right-[6px] size-7 rounded-full bg-ink/70 text-white grid place-items-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-500 ease-outquint z-10 cursor-pointer";
-const TILE_ADD =
-  "aspect-square rounded-2xl border border-dashed border-ink/10 flex flex-col items-center justify-center gap-[6px] cursor-pointer text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 transition-all duration-500 ease-outquint";
+/**
+ * Lo que la plataforma da, dicho **una sola vez**.
+ *
+ * Los beneficios son los que ya existen de verdad —búsqueda en lenguaje natural,
+ * recomendación por IA, ficha completa, estadísticas— más el destacado, que hoy
+ * enciende un administrador a mano desde `/admin/negocios` (ver el «Plan
+ * Destacado» del formulario de allí, que es de donde sale este texto). No se
+ * promete nada que no exista: la lista se puede comprobar en la app.
+ *
+ * Están aquí y no dentro del plan de prueba porque el de pago da **estos
+ * mismos** —lo dice su propia frase: «todo lo del plan anterior»—. Con la lista
+ * solo en el primero, la tarjeta de pago salía con la mitad de alto que su
+ * vecina y un hueco muerto en medio; y repetir los cinco textos serían dos
+ * listas obligadas a decir lo mismo para siempre.
+ */
+const BENEFITS = [
+  "Buscador con IA: te encuentra quien busca con sus propias palabras.",
+  "La IA te recomienda cuando alguien pide justo lo que ofreces.",
+  "Ficha completa: fotos, horarios, menú, ofertas y formas de pago.",
+  "Publicidad en el mapa: pin destacado y sello «Destacado» en tu ficha.",
+  "Estadísticas: guardados, reseñas, fotos y valoración.",
+] as const;
 
 /**
  * Los dos planes del alta.
  *
- * Los beneficios son los que la plataforma ya da de verdad —búsqueda en lenguaje
- * natural, recomendación por IA, ficha completa, estadísticas— más el destacado,
- * que hoy enciende un administrador a mano desde `/admin/negocios` (ver el
- * «Plan Destacado» del formulario de allí, que es de donde sale este texto). No
- * se promete nada que no exista: la lista se puede comprobar en la app.
+ * El precio va partido en dos —cantidad y periodo— porque son dos cosas con
+ * pesos distintos: el número se lee y el periodo se confirma. Juntos en una
+ * cadena («10 USD al mes · 100 USD al año») el importe del año se perdía como
+ * una nota al pie, y es justo el que interesa vender.
  */
 const PLANS = [
   {
@@ -86,79 +93,20 @@ const PLANS = [
     badge: "Recomendado",
     title: "Eres nuevo",
     tagline: "Un negocio nuevo disfruta de todos los servicios durante su primer mes, gratis.",
-    price: "0 USD el primer mes",
-    benefits: [
-      "Buscador con IA: te encuentra quien busca con sus propias palabras.",
-      "La IA te recomienda cuando alguien pide justo lo que ofreces.",
-      "Ficha completa: fotos, horarios, menú, ofertas y formas de pago.",
-      "Publicidad en el mapa: pin destacado y sello «Destacado» en tu ficha.",
-      "Estadísticas: guardados, reseñas, fotos y valoración.",
-    ],
+    price: "0 USD",
+    period: "el primer mes",
+    benefits: BENEFITS,
   },
   {
     id: "paid",
     title: "Plan de pago",
     tagline: "Todo lo del plan anterior, sin fecha de caducidad.",
-    price: "10 USD al mes · 100 USD al año",
-    note: "Pagando el año, dos meses gratis.",
+    price: "10 USD",
+    period: "al mes",
+    note: "100 USD al año · dos meses gratis",
+    benefits: BENEFITS,
   },
 ] as const;
-
-/**
- * Sube las fotos elegidas al negocio recién creado.
- *
- * Va después del `POST /api/business` y no antes porque `place_images.place_id`
- * es clave foránea: sin ficha no hay dónde colgarlas. Devuelve **cuántas
- * fallaron y por qué** en vez de lanzar: el alta ya está hecha y no se puede
- * deshacer, así que un fallo de subida no puede tumbar la respuesta que el
- * usuario espera. El aviso lo da quien llama.
- *
- * El motivo se guarda, y no solo el número: la primera versión contaba fallos y
- * decía «no se pudieron subir», que es lo mismo que no decir nada. Un 401, un
- * 413 y un 403 del bucket se arreglan de formas distintas y desde sitios
- * distintos.
- */
-async function uploadPhotos(
-  placeId: string,
-  files: File[],
-  placeName: string,
-): Promise<{ failed: number; reason: string | null }> {
-  let failed = 0;
-  let reason: string | null = null;
-
-  for (const file of files) {
-    try {
-      const prepared = await prepareImage(file);
-
-      const form = new FormData();
-      form.append("file", prepared.blob, prepared.name);
-      form.append("alt", `Foto de ${placeName}`);
-      /* Las dimensiones solo sirven para reservar el hueco antes de que la
-         imagen cargue. Si no se pudieron leer, se omiten. */
-      if (prepared.width) form.append("width", String(prepared.width));
-      if (prepared.height) form.append("height", String(prepared.height));
-
-      const res = await fetch(`/api/places/${placeId}/images`, { method: "POST", body: form });
-      if (!res.ok) {
-        failed++;
-        /* La ruta contesta `{error}` en todo lo que comprueba ella. Un fallo del
-           bucket no llega hasta ahí: revienta antes y Next devuelve su página
-           de error, que no es JSON. De ahí el `catch` y el código de estado. */
-        if (!reason) {
-          const data = (await res.json().catch(() => null)) as { error?: string } | null;
-          reason = data?.error ?? `El servidor respondió ${res.status}.`;
-        }
-      }
-    } catch (e) {
-      /* `prepareImage` solo lanza si el archivo pasa del tope. Una foto de menos
-         no puede impedir que el negocio quede dado de alta. */
-      failed++;
-      if (!reason) reason = e instanceof Error ? e.message : "No se pudo preparar la imagen.";
-    }
-  }
-
-  return { failed, reason };
-}
 
 /* Mismas clases que el formulario del panel de administración, que es el
    hermano de este. Se copian en vez de extraerse porque son dos sitios y un
@@ -168,7 +116,7 @@ const INPUT =
   "h-11 w-full rounded-xl border border-ink/10 bg-white px-4 text-body text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
 const BTN_PRIMARY =
-  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none";
 
 /**
  * «Tengo un negocio», la sección del perfil.
@@ -236,11 +184,10 @@ export function BusinessView() {
 function BusinessCard({ business }: { business: BusinessSummary }) {
   const pending = business.reviewStatus === "pending";
   return (
-    <div className="flex flex-col gap-gap-md" onPointerDownCapture={focusProfileControl}>
+  <div className="flex flex-col gap-gap-md">
+      {/* El nombre del negocio es el titular de esta vista; el título de
+          sección («Tengo un negocio») ya lo pinta la barra superior. */}
       <header className="flex flex-col gap-gap-xs">
-        <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
-          Tu negocio
-        </span>
         <h2 className="font-lv-display text-[22px] font-bold leading-tight tracking-[-0.02em] text-ink">
           {business.name}
         </h2>
@@ -317,9 +264,6 @@ function BusinessForm({
   const [location, setLocation] = useState<LocationPoint | null>(
     initialBusiness ? { lat: initialBusiness.lat, lng: initialBusiness.lng } : null,
   );
-  /* Las fotos elegidas, todavía sin dueño: el negocio no existe hasta que se
-     envía el formulario. Se quedan en memoria y se suben justo después del alta. */
-  const [photos, setPhotos] = useState<File[]>([]);
   /* El plan se elige aquí y **viaja con el alta**: se guarda en la ficha, que
      es lo que lo hace persistente, y es lo que el administrador ve en la
      solicitud antes de aprobarla. No se cobra nada todavía. El mes de prueba
@@ -333,7 +277,6 @@ function BusinessForm({
      salida lo lleva al mapa con el aviso claro de revisión. */
   const [created, setCreated] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const photoInputRef = useRef<HTMLInputElement>(null);
 
   /* La primera categoría en cuanto llegan, para que el desplegable no arranque
      vacío. No se pisa lo que el usuario haya elegido mientras tanto. */
@@ -341,21 +284,6 @@ function BusinessForm({
     if (categoryValue || categories.length === 0) return;
     setCategoryValue(categories[0]!.value);
   }, [categories, categoryValue]);
-
-  /* Vista previa de lo elegido. El `src` de un `<img>` no admite un `File`, así
-     que cada uno necesita su URL de objeto, y esas hay que soltarlas: se crean
-     nuevas en cada cambio de la lista y se revocan las viejas cuando React ya ha
-     pintado las nuevas. */
-  const previews = useMemo(
-    () => photos.map((file) => ({ file, url: URL.createObjectURL(file) })),
-    [photos],
-  );
-  useEffect(
-    () => () => {
-      previews.forEach((preview) => URL.revokeObjectURL(preview.url));
-    },
-    [previews],
-  );
 
   const submit = useCallback(async () => {
     const trimmed = name.trim();
@@ -401,28 +329,18 @@ function BusinessForm({
         return;
       }
 
-      /* Las fotos van ahora, con el id que acaba de devolver el alta, y no
-         pueden impedirla: si alguna falla el negocio ya está creado y quedaría
-         peor dejarlo a medias sin decirlo. */
-      const { id } = (await response.json()) as { id: string };
-      const { failed, reason } = await uploadPhotos(id, photos, trimmed);
-
-      if (failed > 0) {
-        setSending(false);
-        setCreated(true);
-        setSubmitted(true);
-        setError(
-          `Tu negocio quedó enviado para revisión, pero ${
-            failed === 1 ? "una foto no se pudo subir" : `${failed} fotos no se pudieron subir`
-          }${reason ? `: ${reason}` : ""}.`,
-        );
-        return;
-      }
-
       setCreated(true);
       setSubmitted(true);
       setSending(false);
       setError(null);
+      trackBusinessSubmitted({
+        plan,
+        category: categoryLabel,
+        /* El formulario ya no sube fotos —el bucket rechazaba las subidas y se
+           retiró el bloque entero—, así que el recuento va a cero. El campo se
+           queda para no romper la serie que ya hay en PostHog. */
+        photoCount: 0,
+      });
       toast.success("Tu negocio quedó enviado para revisión. Te avisaremos cuando sea revisado.");
     } catch {
       setError("No hubo respuesta del servidor. Revisa tu conexión: no se cambió nada.");
@@ -439,30 +357,27 @@ function BusinessForm({
     phone,
     schedule,
     payments,
-    photos,
   ]);
 
   return (
-    <div className="flex flex-col gap-gap-md">
+    <div className="flex flex-col gap-gap-md" onPointerDownCapture={focusProfileControl}>
+      {/* «Registra tu negocio» repetía el título de la sección que ya está en
+          la barra superior; la introducción basta para orientar, también en el
+          reenvío de una solicitud rechazada. */}
       <header className="flex flex-col gap-gap-xs">
-        <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
-          {initialBusiness ? "Solicitud para corregir" : "Para negocios"}
-        </span>
-        <h2 className="font-lv-display text-[22px] font-bold leading-tight tracking-[-0.02em] text-ink">
-          {initialBusiness ? "Corrige tu solicitud" : "Registra tu negocio"}
-        </h2>
         <p className="text-small text-pretty text-ink-soft/75">
           {initialBusiness
             ? "Actualiza los datos que indicó el administrador y vuelve a enviarla para revisión."
             : "Completa los datos de tu negocio para enviarlo a revisión."}
         </p>
         <p className="text-small text-pretty text-ink-soft/75">
-          Con esto queda dado de alta, con las fotos que subas.{" "}
+          Con esto queda dado de alta.{" "}
           <span className="font-semibold text-ink">
             No se publica de inmediato
           </span>{" "}
           — un administrador lo revisa antes de que salga en el mapa, y el panel
-          se abre para completarlo (horarios, menú, ofertas) en cuanto lo apruebe.
+          se abre para completarlo (fotos, horarios, menú, ofertas) en cuanto lo
+          apruebe.
         </p>
       </header>
 
@@ -624,75 +539,7 @@ function BusinessForm({
         <PaymentChips defaultSelected={payments} onChange={setPayments} />
       </FormSection>
 
-      <FormSection title="Fotos" icon={<ImageIcon size={18} strokeWidth={1.8} />}>
-        <p className="mb-gap-sm text-meta text-ink-soft/75">
-          Opcional, hasta {MAX_PHOTOS}. Se reducen a 1600 px y se convierten a
-          WebP antes de salir de tu dispositivo. La primera será la portada.
-          También se pueden añadir después, ya con el panel abierto.
-        </p>
-
-        {/* El negocio no existe todavía, así que las fotos se quedan aquí
-            elegidas y se suben en cuanto el alta devuelva su id. */}
-        <input
-          ref={photoInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          hidden
-          onChange={(e) => {
-            const picked = Array.from(e.target.files ?? []).slice(0, MAX_PHOTOS - photos.length);
-            /* Se vacía el input para que elegir otra vez el mismo archivo vuelva
-               a disparar el `change`. */
-            e.target.value = "";
-            setPhotos((prev) => [...prev, ...picked]);
-          }}
-        />
-
-        <div className="grid grid-cols-3 gap-gap-xs lg:grid-cols-4">
-          {previews.map(({ file, url }, index) => (
-            <div
-              key={url}
-              className="relative aspect-square overflow-hidden rounded-2xl border border-ink/5 bg-sand-deep group"
-            >
-              {/* `<img>` y no `next/image`: la URL es un objeto local del
-                  navegador y el optimizador no tiene nada que optimizar aquí. */}
-              <img
-                src={url}
-                alt={`Vista previa de ${file.name}`}
-                className="h-full w-full object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => setPhotos((prev) => prev.filter((_, i) => i !== index))}
-                aria-label={`Quitar ${file.name}`}
-                className={TILE_REMOVE}
-              >
-                <X size={14} strokeWidth={1.8} />
-              </button>
-              {index === 0 && (
-                <span className="absolute bottom-[8px] left-[8px] rounded-full bg-ink/70 px-[10px] py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-white">
-                  Portada
-                </span>
-              )}
-            </div>
-          ))}
-
-          {photos.length < MAX_PHOTOS && (
-            <button
-              type="button"
-              onClick={() => photoInputRef.current?.click()}
-              className={TILE_ADD}
-            >
-              <Plus size={24} strokeWidth={1.8} />
-              <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em]">
-                Añadir
-              </span>
-            </button>
-          )}
-        </div>
-      </FormSection>
-
-      {/* Va la última, después de los datos y las fotos, que es donde el usuario
+      {/* Va la última, después de los datos y el mapa, que es donde el usuario
           ya sabe qué está pidiendo. Radios nativos y no botones: el teclado y el
           lector de pantalla ya saben qué hacer con ellos. */}
       <FormSection title="Tu plan" icon={<BadgeCheck size={18} strokeWidth={1.8} />}>
@@ -704,7 +551,6 @@ function BusinessForm({
           <legend className="sr-only">Plan</legend>
           {PLANS.map((option) => {
             const selected = plan === option.id;
-            const benefits = "benefits" in option ? option.benefits : [];
 
             return (
               <label
@@ -751,9 +597,9 @@ function BusinessForm({
                   </span>
                 </div>
 
-                {benefits.length > 0 && (
+                {option.benefits.length > 0 && (
                   <ul className="flex flex-col gap-[6px]">
-                    {benefits.map((benefit) => (
+                    {option.benefits.map((benefit) => (
                       <li
                         key={benefit}
                         className="flex items-start gap-gap-xs text-meta text-pretty text-ink-soft/75"
@@ -772,8 +618,18 @@ function BusinessForm({
                 {/* `mt-auto`: en pantalla ancha las dos tarjetas miden lo mismo y
                     el precio queda abajo en las dos, a la misma altura. */}
                 <div className="mt-auto border-t border-ink/5 pt-gap-sm">
-                  <p className="font-lv-display text-small font-semibold text-ink">{option.price}</p>
-                  {"note" in option && <p className="text-meta text-ink-soft/75">{option.note}</p>}
+                  <p className="flex flex-wrap items-baseline gap-x-[6px]">
+                    <span className="font-lv-display text-body font-semibold tabular-nums text-ink">
+                      {option.price}
+                    </span>
+                    <span className="text-meta text-ink-soft/75">{option.period}</span>
+                  </p>
+                  {/* La línea del año va en verde y no en gris: es el argumento
+                      de esta tarjeta contra la de al lado, y hasta ahora estaba
+                      de nota al pie, del mismo color que un pie de foto. */}
+                  {"note" in option && (
+                    <p className="mt-[4px] text-meta font-medium text-verde-700">{option.note}</p>
+                  )}
                 </div>
               </label>
             );

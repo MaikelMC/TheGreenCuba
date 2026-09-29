@@ -34,7 +34,7 @@ export function SearchingAnimation({ query }: { query?: string }) {
       >
         <span className="searching-ring" />
         <span className="searching-ring searching-ring--delay" />
-        <div className="relative z-10 flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-verde-400 to-verde-600 text-white shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)]">
+        <div className="relative z-10 flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-verde-400 to-verde-600 text-white shadow-primary-halo">
           <MapPin size={26} strokeWidth={1.8} />
         </div>
         <span className="absolute -top-1 -right-1 z-20 flex size-7 items-center justify-center rounded-full bg-white text-verde-600 shadow-soft ring-1 ring-verde-200">

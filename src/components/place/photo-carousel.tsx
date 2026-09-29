@@ -112,7 +112,10 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
               />
             ) : (
               <div
-                className="w-full h-full flex flex-col items-center justify-center gap-gap-xs text-verde-600"
+                /* `slide-fallback` da punto de ancla al modo oscuro: el degradado
+                    llega como estilo inline y solo un `!important` desde CSS lo
+                    puede sustituir cuando el tema cambia. */
+                className="slide-fallback w-full h-full flex flex-col items-center justify-center gap-gap-xs text-verde-600"
                 style={{ background: slide.gradient }}
               >
                 <Image size={40} strokeWidth={1.5} className="opacity-40" />

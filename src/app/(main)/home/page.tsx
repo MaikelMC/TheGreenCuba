@@ -16,6 +16,7 @@ import { PlaceFilters } from "@/components/place/place-filters";
 import { StateView } from "@/components/ui/state-view";
 import { CategoryIcon } from "@/components/admin/category-icon";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/loading";
 import { useSearchActions } from "@/providers/search-provider";
 import { getCurrentPosition, getLastKnownPosition } from "@/lib/map/geolocation";
 import {
@@ -43,7 +44,24 @@ import {
   type UserPreferences,
 } from "@/lib/user-preferences-store";
 import { personalizePlaces } from "@/lib/personalized-recommendations";
+import {
+  placeInUserProvince,
+  queryMentionsOtherProvince,
+  userProvinceLabel,
+} from "@/lib/user-province";
 import { pushRecentSearch } from "@/lib/recent-searches-store";
+import { saveAiRecommendations } from "@/lib/ai-recommendation-store";
+import { sharePlace } from "@/lib/share";
+import {
+  trackAiSearchCompleted,
+  trackAiSearchSubmitted,
+  trackCategorySelect,
+  trackFilterToggle,
+  trackMapLocate,
+  trackMapMarkerClick,
+  trackRouteRequested,
+} from "@/lib/analytics";
+import { trackPlaceMetric } from "@/lib/place-metrics";
 
 type SheetState = "default" | "searching" | "results" | "no-results" | "error";
 
@@ -236,7 +254,7 @@ function DetailOverlay({
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   onClick={() => onNavigate?.(place)}
-                  className="flex flex-1 items-center justify-center gap-2 min-h-12 px-6 py-3 rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+                  className="flex flex-1 items-center justify-center gap-2 min-h-12 px-6 py-3 rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
                 >
                   <Navigation size={18} strokeWidth={1.8} />
                   Cómo llegar
@@ -258,7 +276,12 @@ function DetailOverlay({
                   </div>
                 )}
                 <div className="flex gap-[10px]">
-                  <motion.button whileTap={{ scale: 0.9 }} className="flex-1 size-12 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 transition-colors duration-500 hover:border-verde-300 hover:text-verde-600" aria-label="Compartir">
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => place && sharePlace(place.id, place.name)}
+                    className="flex-1 size-12 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 transition-colors duration-500 hover:border-verde-300 hover:text-verde-600"
+                    aria-label="Compartir"
+                  >
                     <Share2 size={18} strokeWidth={1.8} />
                   </motion.button>
                   <motion.button whileTap={{ scale: 0.9 }} className="flex-1 size-12 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 transition-colors duration-500 hover:border-verde-300 hover:text-verde-600" aria-label="Favorito">
@@ -375,8 +398,19 @@ function HomePageContent() {
     zoom: number;
     key: number;
   } | null>(null);
-  const [initialCenter, setInitialCenter] = useState<[number, number] | null>(null);
-  const [disableAutoFit, setDisableAutoFit] = useState(false);
+  /* El primer render ya sabe la ciudad del perfil: localStorage es síncrono y
+     el onboarding guardó la provincia ahí. Antes este estado nacía en null y
+     solo se llenaba cuando /api/me contestaba — entre tanto MapContent montaba
+     con su default HAVANA_CENTER y el efecto de initialCenter volaba después a
+     la provincia: el rebote La Habana → Santiago en CADA entrada al home, no
+     solo al iniciar sesión. Con la semilla síncrona el MapContainer nace
+     directo en la ciudad correcta y, si /api/me confirma la misma, el guard de
+     igualdad de MapChildren ni siquiera dispara el flyTo. */
+  const [initialCenter, setInitialCenter] = useState<[number, number] | null>(() => {
+    if (typeof window === "undefined") return null;
+    return preferredLocationCenter(readUserPreferences().location);
+  });
+  const [disableAutoFit, setDisableAutoFit] = useState(initialCenter !== null);
   const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
   const [hasSavedProfileLocation, setHasSavedProfileLocation] = useState(false);
   const searchCtx = useSearchActions();
@@ -386,7 +420,17 @@ function HomePageContent() {
      leían de `localStorage` aquí aparte, así que la pantalla podía estar
      pintando un catálogo y el panel de admin editando otro: cambiar el icono
      de una categoría no movía ni un pin del mapa. */
-  const { places, categories } = usePlaces();
+  const { places, categories, hydrated } = usePlaces();
+
+  /* Solo categorías con al menos un negocio en el catálogo. Con la lista
+     completa, la barra ofrecía 12 chips y 7 llevaban a «sin resultados» —
+     cada opción muerta cuesta tiempo de decisión (Ley de Hick) y confianza.
+     Se recalcula con el catálogo: cuando se apruebe el primer restaurante,
+     el chip vuelve solo. Mientras el catálogo carga solo queda «Todo». */
+  const categoriesWithPlaces = useMemo(() => {
+    const present = new Set(places.map((p) => p.category.toLowerCase()));
+    return categories.filter((c) => present.has(c.label.toLowerCase()));
+  }, [places, categories]);
 
   useEffect(() => {
     let alive = true;
@@ -449,14 +493,18 @@ function HomePageContent() {
     };
   }, []);
 
-  const toggleFilter = useCallback((value: string) => {
-    setActiveFilters((prev) => {
-      const next = new Set(prev);
-      if (next.has(value)) next.delete(value);
-      else next.add(value);
-      return next;
-    });
-  }, []);
+  const toggleFilter = useCallback(
+    (value: string) => {
+      trackFilterToggle(value, !activeFilters.has(value));
+      setActiveFilters((prev) => {
+        const next = new Set(prev);
+        if (next.has(value)) next.delete(value);
+        else next.add(value);
+        return next;
+      });
+    },
+    [activeFilters],
+  );
 
   /* Un solo filtrado para los dos sitios que pintan el catálogo —los pines del
      mapa y la lista del panel inferior—, para que no puedan discrepar. El chip
@@ -506,7 +554,13 @@ function HomePageContent() {
   );
 
   const filteredPlaces = useMemo<HomePlace[]>(() => {
-    const origin = userLocation ?? getLastKnownPosition();
+    /* Origen para medir cercanía: el GPS si lo hay y, si no, el centro de la
+       provincia del perfil. Antes el fallback no existía y la lista quedaba
+       sin orden para quien no había dado permiso de ubicación — el mismo
+       criterio que ya usa el desplegable de sugerencias del header. */
+    const profileCenter = preferredLocationCenter(userPreferences?.location);
+    const origin = userLocation ?? getLastKnownPosition() ??
+      (profileCenter ? { lat: profileCenter[0], lng: profileCenter[1] } : null);
     const ranked = userPreferences ? personalizePlaces(visiblePlaces, userPreferences) : visiblePlaces;
 
     const measured = ranked.map((place) => ({
@@ -564,6 +618,7 @@ function HomePageContent() {
          búsqueda pasa por aquí —la barra del header y los atajos de «sin
          resultados»—, así que es el único punto que hace falta. */
       pushRecentSearch(query);
+      trackAiSearchSubmitted(query);
       setAiState(null);
       setSheetState("searching");
       searchCtx.setIsSearching(true);
@@ -578,7 +633,17 @@ function HomePageContent() {
            El catálogo va ordenado por cercanía, y no solo con el número dentro:
            un orden es mucho más difícil de ignorar que un campo suelto. */
         const origin = userLocation ?? getLastKnownPosition();
-        const catalog = places
+        /* La provincia del perfil entra en la búsqueda, y también decide el
+           filtro duro: si la consulta nombra otra provincia («restaurantes en
+           La Habana»), el usuario la pidió explícitamente y no se recorta. */
+        const province = userProvinceLabel(userPreferences);
+        const mentionsOther = province ? queryMentionsOtherProvince(query, province) : false;
+        const pool =
+          province && !mentionsOther
+            ? places.filter((p) => placeInUserProvince(p, province))
+            : places;
+
+        const catalog = (pool.length > 0 ? pool : places)
           .map((p) => ({
             id: p.id,
             name: p.name,
@@ -601,7 +666,14 @@ function HomePageContent() {
         const res = await fetch("/api/ai/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, places: catalog }),
+          body: JSON.stringify({
+            query,
+            places: catalog,
+            /* El prompt solo la usa si la consulta no nombra otra provincia:
+               si la nombró, el catálogo ya va entero y la regla de provincia
+               no debe anular lo que el usuario pidió explícitamente. */
+            userProvince: mentionsOther ? null : province,
+          }),
           signal: controller.signal,
         });
         const data = (await res.json().catch(() => null)) as {
@@ -613,16 +685,24 @@ function HomePageContent() {
           throw new Error(data?.summary ? "" : "Búsqueda fallida");
         }
         const matches = (data.matches ?? []).filter((m) => m && m.id).slice(0, 5);
+        for (const m of matches) trackPlaceMetric(m.id, "ai_match");
+        /* Las razones se guardan aquí y no al abrir la ficha: la lista se
+           ordena con ellas y luego se van con el estado del componente, así que
+           este es el único momento en que existen. La ficha las lee de
+           `localStorage` para poder enseñar qué se buscó y por qué salió. */
+        saveAiRecommendations(query, matches);
         setAiState({ matches, summary: data.summary ?? "" });
         setSheetState(matches.length > 0 ? "results" : "no-results");
+        trackAiSearchCompleted(query, matches.length, matches.length > 0 ? "ok" : "empty");
       } catch {
+        trackAiSearchCompleted(query, 0, "error");
         setSheetState("error");
       } finally {
         clearTimeout(timeout);
         searchCtx.setIsSearching(false);
       }
     },
-    [places, searchCtx, userLocation],
+    [places, searchCtx, userLocation, userPreferences],
   );
 
   useEffect(() => {
@@ -658,6 +738,8 @@ function HomePageContent() {
   /* Tocar un pin del mapa solo selecciona: la hoja no se toca. El popup sale
      del propio pin y ya se abre solo. */
   const handleMarkerClick = useCallback((id: string) => {
+    trackMapMarkerClick(id);
+    trackPlaceMetric(id, "map_click");
     setSelectedId(id);
   }, []);
 
@@ -670,6 +752,7 @@ function HomePageContent() {
      juntas: sin vuelo no se llega, sin resaltado el pin se pierde entre los
      demás, y sin recogerla el negocio queda justo detrás de la lista. */
   const handleLocate = useCallback((place: HomePlace) => {
+    trackMapLocate(place.id);
     setSelectedId(place.id);
     setFocusTarget((prev) => ({
       lat: place.lat,
@@ -709,10 +792,14 @@ function HomePageContent() {
       const osrm = await fetchDrivingRoute(originPoint, destPoint);
       if (osrm) {
         setRoute(osrm);
+        trackPlaceMetric(place.id, "route");
+        trackRouteRequested(place.id, openOverlay ? "ficha" : "popup", false);
         return;
       }
       const direct = buildDirectRoute(originPoint, destPoint);
       setRoute(direct);
+      trackPlaceMetric(place.id, "route");
+      trackRouteRequested(place.id, openOverlay ? "ficha" : "popup", true);
       toast.info(
         "Ruta por calles no disponible desde tu zona. Mostrando distancia directa; puedes abrir la ruta en Google Maps.",
       );
@@ -876,8 +963,8 @@ function HomePageContent() {
   const shownCount = sheetState === "results" ? resultPlaces.length : recommendationCount;
 
   const resultsBannerText = sheetState === "results"
-    ? `Encontré <strong>4 cafés tranquilos</strong> cerca de ti. <strong>Casa La Micaela</strong> es el más cercano, en Enramadas y abierto de día.`
-    : `Según tu ubicación en <strong>Santiago de Cuba</strong>, encontré <strong>${places.length} lugares</strong> que podrían gustarte. El mejor match es <strong>St. Pauli Restaurant-Bar</strong>, en plena Enramadas.`;
+    ? `Encontré <strong>4 lugares tranquilos</strong> cerca de ti. <strong>Hotel Casa Granda</strong> es el más cercano, en el Centro histórico.`
+    : `Según tu ubicación en <strong>Santiago de Cuba</strong>, encontré <strong>${places.length} lugares</strong> que podrían gustarte. El mejor match es <strong>Castillo del Morro</strong>, a la entrada de la bahía.`;
 
   return (
     <div className="fixed inset-0 pt-[var(--header-h)] font-lv text-ink">
@@ -904,9 +991,12 @@ function HomePageContent() {
         onRouteClear={handleClearRoute}
       >
         <CategoryBar
-          categories={categories}
+          categories={categoriesWithPlaces}
           active={activeCategory}
-          onSelect={setActiveCategory}
+          onSelect={(value) => {
+            setActiveCategory(value);
+            trackCategorySelect(value);
+          }}
         />
         <PlaceFilters
           active={activeFilters}
@@ -986,12 +1076,31 @@ function HomePageContent() {
                 <p className="text-small leading-relaxed text-ink">
                   {sheetState === "results" && aiState && aiState.summary
                     ? aiState.summary
-                    : `Según tu ubicación en Santiago de Cuba, encontré ${places.length} lugares que podrían gustarte. Explora el mapa o busca con lenguaje natural.`}
+                    : !hydrated
+                      ? "Estoy viendo qué hay cerca de ti…"
+                      : `Según tu ubicación en Santiago de Cuba, encontré ${places.length} lugares que podrían gustarte. Explora el mapa o busca con lenguaje natural.`}
                 </p>
               </motion.div>
 
-              {/* Place list */}
-              <div className="flex flex-col gap-gap-sm">
+              {/* Place list. Mientras el catálogo llega de la base, skeletons
+                  con la forma de las tarjetas: sin esto el sheet contaba
+                  «0 lugares» y el mapa arrancaba sin pines hasta que la
+                  respuesta aterrizaba de golpe. */}
+              <div className="flex flex-col gap-gap-sm" aria-busy={!hydrated}>
+                {!hydrated &&
+                  [1, 2, 3].map((i) => (
+                    <div
+                      key={`sk-${i}`}
+                      className="flex gap-[14px] p-[14px] border border-ink/5 rounded-2xl"
+                    >
+                      <Skeleton className="size-16 rounded-xl shrink-0" />
+                      <div className="flex-1 flex flex-col gap-2 pt-1">
+                        <Skeleton className="h-[14px] w-[65%]" />
+                        <Skeleton className="h-[12px] w-[40%]" />
+                        <Skeleton className="h-[12px] w-[85%]" />
+                      </div>
+                    </div>
+                  ))}
                 {resultPlaces.map((place, i) => (
                   <PlaceCardRow
                     key={place.id}
@@ -1045,7 +1154,7 @@ function HomePageContent() {
                     ? `No encontramos lugares que coincidan con “${searchingQuery}”. Intenta con otra búsqueda.`
                     : "No encontramos lugares que coincidan con tu búsqueda. Intenta con otras palabras."
                 }
-                actions={["Discotecas en Santiago", "Bar de jazz", "Música en vivo"].map((s) => (
+                actions={["Hoteles en el centro", "Playas cerca", "Lugares históricos"].map((s) => (
                   <button
                     key={s}
                     onClick={() => handleSearch(s)}

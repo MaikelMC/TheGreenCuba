@@ -146,7 +146,11 @@ export function PhotoGrid({ placeId, placeName, className }: PhotoGridProps) {
   /* La portada va primera porque es la que se enseña en la tarjeta y en la
      ficha; el resto, en el orden en que se subieron. */
   const filled = [...images].sort((a, b) => Number(b.isCover) - Number(a.isCover));
-  const emptySlots = filled.length < MAX_SLOTS ? Math.min(2, MAX_SLOTS - filled.length) : 0;
+  /* **Una** casilla de añadir, no dos. Aquí había `Math.min(2, …)`, y en el
+     formulario se leían como un control duplicado —dos cuadros iguales, lado a
+     lado, con el mismo rótulo— en vez de como «caben dos fotos más». El otro
+     sitio donde se suben fotos, el alta del perfil, siempre tuvo una. */
+  const canAdd = filled.length < MAX_SLOTS;
 
   return (
     <div className={className}>
@@ -203,9 +207,8 @@ export function PhotoGrid({ placeId, placeName, className }: PhotoGridProps) {
           </div>
         ))}
 
-        {Array.from({ length: emptySlots }, (_, i) => (
+        {canAdd && (
           <button
-            key={`add-${i}`}
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={busy}
@@ -220,7 +223,7 @@ export function PhotoGrid({ placeId, placeName, className }: PhotoGridProps) {
               {busy ? "Subiendo" : "Añadir"}
             </span>
           </button>
-        ))}
+        )}
       </div>
 
       {loading && (

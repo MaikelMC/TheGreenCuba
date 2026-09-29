@@ -22,7 +22,10 @@ function baseUrl(provider: ResolvedProvider): string {
    failover: 12 s deja el peor caso realista por debajo del corte del cliente. */
 const PROVIDER_TIMEOUT_MS = 12_000;
 
-function stripJson(text: string): string {
+/* Exportada porque la prueba de conexión del panel tiene que juzgar la
+   respuesta con el mismo rasero que la cadena real: si aquí se acepta un JSON
+   envuelto en ``` y allí no, la prueba aprobaría proveedores que luego fallan. */
+export function stripJson(text: string): string {
   const cleaned = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");
@@ -211,13 +214,25 @@ Reglas:
 - La cercanía desempata, no descarta. Entre dos lugares que encajen igual de bien,
   pon primero el más cercano. No dejes fuera uno que encaje claramente mejor solo
   por estar más lejos, y si los que encajan están lejos, dilo en el "summary".
+- El usuario tiene una provincia de residencia. Si el mensaje trae "userProvince",
+  los lugares de ESA provincia van primero, siempre: para alguien de Santiago de
+  Cuba, un negocio de La Habana no es una recomendación sino un error, aunque el
+  texto encaje mejor. Los de otras provincias solo pueden entrar si la consulta
+  nombra esa otra provincia («en La Habana», «en Baracoa»), y en ese caso dilo en
+  el "summary" para que se sepa que los resultados no son de su zona.
 - Si ningún lugar encaja, devuelve "matches" vacío y un "summary" que lo explique amablemente.`;
 
 export async function recommendPlaces(
   query: string,
   catalog: CatalogPlace[],
+  /** Provincia del usuario («Santiago de Cuba»). Ausente si no se conoce. */
+  userProvince?: string | null,
 ): Promise<{ data: Recommendation; provider: string }> {
-  const user = `Consulta del usuario:\n"${query}"\n\nCatálogo de lugares (JSON):\n${JSON.stringify(catalog)}`;
+  const user = `Consulta del usuario:\n"${query}"\n${
+    userProvince
+      ? `Provincia del usuario: "${userProvince}"\n`
+      : ""
+  }\nCatálogo de lugares (JSON):\n${JSON.stringify(catalog)}`;
   return chatJSON<Recommendation>({
     system: RECOMMEND_SYSTEM,
     user,
