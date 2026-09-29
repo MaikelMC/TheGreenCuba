@@ -1,0 +1,1 @@
+ALTER TABLE "project_requests" ADD COLUMN IF NOT EXISTS "offer_packages" jsonb DEFAULT '[]'::jsonb NOT NULL;

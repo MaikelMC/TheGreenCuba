@@ -1,6 +1,16 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, timestamp, doublePrecision, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, doublePrecision, index, jsonb } from "drizzle-orm/pg-core";
 import { users } from "./users";
+
+export interface ProjectOfferPackage {
+  id: string;
+  title: string;
+  price: string;
+  includes: string[];
+  capacity: number | null;
+  conditions: string;
+  validUntil: string;
+}
 
 export const projectRequests = pgTable(
   "project_requests",
@@ -21,6 +31,10 @@ export const projectRequests = pgTable(
     startsAt: text("starts_at").notNull(),
     endsAt: text("ends_at").notNull(),
     offers: text("offers"),
+    offerPackages: jsonb("offer_packages").$type<ProjectOfferPackage[]>().notNull().default(sql`'[]'::jsonb`),
+    offerImageUrl: text("offer_image_url"),
+    coverImageUrl: text("cover_image_url"),
+    mapImageUrl: text("map_image_url"),
     imageUrls: text("image_urls").array().notNull().default(sql`'{}'::text[]`),
     status: text("status", { enum: ["pending", "approved", "rejected"] })
       .default("pending")

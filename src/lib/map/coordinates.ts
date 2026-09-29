@@ -98,5 +98,11 @@ export function formatCoordinates({ lat, lng }: LatLng): string {
 
 /** Filters out places with coordinates clearly outside Cuba or in the sea. */
 export function filterValidPlaces<T extends LatLng>(places: T[]): T[] {
-  return places.filter((p) => isValidCubaCoordinate(p.lat, p.lng));
+  return places.filter((place) => {
+    if (!isFiniteCoordinate(place.lat, place.lng) || !isWithinCubaBoundingBox(place.lat, place.lng)) {
+      return false;
+    }
+    if ("isProject" in place && place.isProject === true) return true;
+    return isApproximatelyOnLand(place.lat, place.lng);
+  });
 }

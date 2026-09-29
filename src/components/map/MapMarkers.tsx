@@ -43,6 +43,7 @@ const MarkerItem = memo(function MarkerItem({
   const icon = createPlacePinIcon(
     markerVariant(isSelected, isBoosted, place.isProject ?? false),
     placeIcon(place.icon, place.category),
+    place.image,
   );
 
   const handleClick = useCallback(() => {

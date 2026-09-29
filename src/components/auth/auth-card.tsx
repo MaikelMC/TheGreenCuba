@@ -122,6 +122,41 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleSignIn = useCallback(async () => {
+    if (loading) return;
+    if (mode === "register" && !accepted) {
+      setError("Acepta los términos y la política de privacidad para registrarte.");
+      return;
+    }
+
+    setLoading(true);
+    setGoogleLoading(true);
+    setError(null);
+    try {
+      const callbackURL = new URL(
+        mode === "register" ? "/api/google-auth-complete" : next ?? "/home",
+        window.location.origin,
+      ).toString();
+      const errorCallbackURL = new URL(
+        mode === "register" ? "/register?oauthError=google" : "/login?oauthError=google",
+        window.location.origin,
+      ).toString();
+      const result = await authClient.signIn.social({
+        provider: "google",
+        callbackURL,
+        errorCallbackURL,
+        ...(mode === "register" ? { newUserCallbackURL: callbackURL } : {}),
+      });
+      if (result.error) setError(messageFor(result.error, mode));
+    } catch (authError) {
+      setError(messageFor(authError, mode));
+    } finally {
+      setLoading(false);
+      setGoogleLoading(false);
+    }
+  }, [accepted, loading, mode, next]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -348,6 +383,31 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
             <ArrowRight size={16} strokeWidth={1.8} />
           )}
           {loading ? "Comprobando..." : copy.cta}
+        </button>
+
+        <div className="flex items-center gap-gap-sm text-meta text-ink-soft/60" aria-hidden="true">
+          <span className="h-px flex-1 bg-ink/10" />
+          <span>o continúa con</span>
+          <span className="h-px flex-1 bg-ink/10" />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void handleGoogleSignIn()}
+          disabled={loading}
+          aria-busy={googleLoading}
+          className="auth-google-button inline-flex h-12 w-full items-center justify-center gap-gap-sm rounded-full border border-ink/15 bg-white font-lv-display text-small font-semibold text-ink transition-colors hover:bg-sand disabled:pointer-events-none disabled:opacity-60"
+        >
+          {googleLoading ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : (
+            <span aria-hidden="true" className="font-lv-display text-lg font-bold text-[#4285F4]">G</span>
+          )}
+          {googleLoading
+            ? "Conectando con Google..."
+            : mode === "login"
+              ? "Iniciar sesión con Google"
+              : "Registrarse con Google"}
         </button>
       </form>
 

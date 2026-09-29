@@ -90,7 +90,7 @@ export function MapLocationPickerMap({
   }, [value]);
   const [initialZoom] = useState(() => (value ? 16 : DEFAULT_ZOOM));
 
-  const pinIcon = createPlacePinIcon("selected");
+  const pinIcon = createPlacePinIcon("project");
 
   useEffect(() => {
     setMounted(true);

@@ -1,16 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import {
   ArrowLeft,
+  CalendarDays,
+  Megaphone,
   Utensils,
   Clock,
   Star,
   Layers,
   MapPin,
   CreditCard,
+  ChevronLeft,
   ChevronDown,
   ChevronRight,
+  Image as ImageIcon,
 } from "lucide-react";
 import { cn, currencyLabel } from "@/lib/utils";
 import {
@@ -32,6 +37,8 @@ import { OfferBanner } from "./offer-banner";
 import { ReviewDialog } from "./review-dialog";
 import { ReviewsSection } from "./reviews-section";
 import { Reveal } from "@/components/ui/reveal";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
 
 export type PlaceState = "normal" | "closed" | "no-photos" | "special-offer";
 
@@ -52,6 +59,9 @@ export interface PlaceData {
   id: string;
   name: string;
   category: string;
+  isProject?: boolean;
+  projectOffers?: string | null;
+  projectOfferPackages?: ProjectOfferPackage[];
   rating: number;
   distance: string;
   barrio: string;
@@ -121,6 +131,8 @@ export function PlaceDetail({
   className,
 }: PlaceDetailProps) {
   const [descExpanded, setDescExpanded] = useState(false);
+  const [projectOffersExpanded, setProjectOffersExpanded] = useState(false);
+  const [projectPhotoIndex, setProjectPhotoIndex] = useState<number | null>(null);
   const [saved, setSaved] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -177,10 +189,12 @@ export function PlaceDetail({
     setSaved(isPlaceSaved(place.id, userId));
   }, [place.id, userId]);
 
-  const isClosed =
-    state === "closed" || (!place.isOpen && state !== "special-offer");
+  const isClosed = !place.isProject &&
+    (state === "closed" || (!place.isOpen && state !== "special-offer"));
   const hasPhotos = state !== "no-photos" && place.slides.length > 0;
-  const showOffer = state === "special-offer" && place.specialOffer;
+  const showOffer = !place.isProject && state === "special-offer" && place.specialOffer;
+  const projectPhotos = place.slides.filter((slide) => Boolean(slide.url));
+  const activeProjectPhoto = projectPhotoIndex === null ? null : projectPhotos[projectPhotoIndex] ?? null;
 
   /* `distance` es un cajón de sastre: trae la distancia, la dirección o el
      barrio, lo que haya. El barrio se pinta por su cuenta, así que aquí solo
@@ -219,7 +233,112 @@ export function PlaceDetail({
       </header>
 
       {/* ────────── Desktop Layout ────────── */}
-      <div className="hidden lg:block lg:max-w-container lg:mx-auto lg:px-gutter-lg lg:py-gap-xl">
+      <div className="hidden lg:block lg:h-[calc(100dvh_-_var(--header-h))] lg:overflow-hidden lg:max-w-container lg:mx-auto lg:px-gutter-lg lg:py-gap-xl">
+        {place.isProject ? (
+          <div className="grid h-full min-h-0 grid-cols-[minmax(300px,0.8fr)_minmax(0,1.2fr)] grid-rows-[minmax(0,1fr)] items-stretch gap-gap-xl">
+            <div className="flex h-full min-h-0 flex-col gap-gap-md overflow-y-auto overscroll-contain pr-gap-xs scrollbar-hide">
+              <Reveal>
+                <header className="flex flex-col gap-gap-sm">
+                  <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-verde-200 bg-verde-50 px-3 py-1 font-lv-display text-xs font-semibold uppercase tracking-[0.06em] text-verde-700">
+                    <Megaphone size={13} /> Proyecto
+                  </span>
+                  <h1 className="font-lv-display text-h1 font-bold leading-tight text-ink text-balance">{place.name}</h1>
+                  <div className="flex flex-wrap gap-gap-xs">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-small font-medium text-ink-soft/80">
+                      <CalendarDays size={15} className="text-verde-600" /> {place.schedule}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-small font-medium text-ink-soft/80">
+                      <MapPin size={15} className="text-verde-600" /> {place.barrio}
+                    </span>
+                  </div>
+                  <ActionButtons
+                    isSaved={saved}
+                    onSave={handleSave}
+                    onNavigate={onNavigate}
+                    onShare={onShare}
+                  />
+                </header>
+              </Reveal>
+
+              <Reveal>
+                <section className={CARD}>
+                  <h2 className={cn(H2, "mb-gap-sm")}>Sobre el proyecto</h2>
+                  <p className={cn("whitespace-pre-wrap text-body leading-relaxed text-ink", !descExpanded && "line-clamp-4")}>
+                    {place.longDescription}
+                  </p>
+                  {place.longDescription.length > 220 && (
+                    <button
+                      type="button"
+                      onClick={() => setDescExpanded((expanded) => !expanded)}
+                      aria-expanded={descExpanded}
+                      className={cn(BTN_OUTLINE, "mt-gap-md")}
+                    >
+                      {descExpanded ? "Leer menos" : "Leer más"}
+                      <ChevronDown size={16} className={cn(CHEVRON, descExpanded && "rotate-180")} />
+                    </button>
+                  )}
+                </section>
+              </Reveal>
+
+              <Reveal>
+                <section className={CARD}>
+                  <h2 className={cn(H2, "mb-gap-sm")}>Qué ofrece el proyecto</h2>
+                  {place.projectOfferPackages?.length ? (
+                    <ProjectOfferList offers={place.projectOfferPackages} />
+                  ) : place.projectOffers ? (
+                    <>
+                      <p className={cn("whitespace-pre-wrap text-body leading-relaxed text-ink", !projectOffersExpanded && "line-clamp-4")}>
+                        {place.projectOffers}
+                      </p>
+                      {place.projectOffers.length > 220 && (
+                        <button
+                          type="button"
+                          onClick={() => setProjectOffersExpanded((expanded) => !expanded)}
+                          aria-expanded={projectOffersExpanded}
+                          className={cn(BTN_OUTLINE, "mt-gap-md")}
+                        >
+                          {projectOffersExpanded ? "Ver menos" : "Ver todo"}
+                          <ChevronDown size={16} className={cn(CHEVRON, projectOffersExpanded && "rotate-180")} />
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-small leading-relaxed text-ink-soft/75">Este proyecto aún no ha añadido información sobre lo que ofrece.</p>
+                  )}
+                </section>
+              </Reveal>
+            </div>
+
+            <Reveal className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-gap-xs scrollbar-hide">
+              <section aria-label={`Fotos y afiches de ${place.name}`} className="grid grid-cols-2 gap-gap-sm">
+                {projectPhotos.map((slide, index) => (
+                  <figure key={`${slide.url}-${index}`} className={cn("relative overflow-hidden rounded-2xl bg-sand-deep", index === 0 ? "col-span-2 aspect-[4/3]" : "aspect-square")}>
+                    <button
+                      type="button"
+                      onClick={() => setProjectPhotoIndex(index)}
+                      aria-label={`Ampliar foto ${index + 1} de ${place.name}`}
+                      className="absolute inset-0 z-10 cursor-zoom-in focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-verde-400"
+                    />
+                    <Image
+                      src={slide.url!}
+                      alt={slide.alt || `${place.name}, imagen ${index + 1}`}
+                      fill
+                      sizes="(min-width: 1280px) 700px, 55vw"
+                      className="object-cover"
+                    />
+                  </figure>
+                ))}
+                {projectPhotos.length === 0 && (
+                  <div className="col-span-2 flex aspect-[4/3] flex-col items-center justify-center gap-gap-sm rounded-2xl border border-dashed border-ink/15 bg-white text-center text-ink-soft/70">
+                    <ImageIcon size={32} strokeWidth={1.5} />
+                    <p className="font-lv-display text-small font-medium">Fotos y afiches del proyecto</p>
+                  </div>
+                )}
+              </section>
+            </Reveal>
+          </div>
+        ) : (
+          <>
         {/* Row 1: Photo Carousel (full width) with place name overlay */}
         <Reveal className="relative mb-gap-lg">
           <PhotoCarousel
@@ -240,13 +359,15 @@ export function PlaceDetail({
                     : "bg-verde-400 text-verde-950",
                 )}
               >
-                <span
-                  className={cn(
-                    "size-[6px] rounded-full",
-                    isClosed ? "bg-white/80" : "bg-verde-950/60",
-                  )}
-                />
-                {isClosed ? "Cerrado" : "Abierto"}
+                {place.isProject ? <Megaphone size={12} /> : (
+                  <span
+                    className={cn(
+                      "size-[6px] rounded-full",
+                      isClosed ? "bg-white/80" : "bg-verde-950/60",
+                    )}
+                  />
+                )}
+                {place.isProject ? "Proyecto" : isClosed ? "Cerrado" : "Abierto"}
               </span>
               {place.rating > 0 && (
                 <span className="inline-flex items-center gap-[4px] font-lv-display text-xs font-semibold text-white/80">
@@ -269,7 +390,7 @@ export function PlaceDetail({
           className="flex items-center gap-gap-lg mb-gap-lg px-gap-md"
         >
           <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
-            <Clock size={14} strokeWidth={1.8} className="text-verde-600" />
+            {place.isProject ? <CalendarDays size={14} strokeWidth={1.8} className="text-verde-600" /> : <Clock size={14} strokeWidth={1.8} className="text-verde-600" />}
             <span className="font-lv-display font-medium text-ink">
               {place.schedule}
             </span>
@@ -281,28 +402,28 @@ export function PlaceDetail({
               {location ? `${location} · ${place.barrio}` : place.barrio}
             </span>
           </div>
-          <span className="text-ink/10">|</span>
-          <div className="flex items-center gap-[4px] text-meta text-ink-soft/75">
-            <CreditCard
-              size={14}
-              strokeWidth={1.8}
-              className="text-verde-600"
-            />
-            {place.payments.map((c) => (
-              <span
-                key={c}
-                className={cn(
-                  "px-[6px] py-[2px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.08em]",
-                  currencyStyles[c] ?? "bg-sand-deep text-ink-soft/75",
-                )}
-              >
-                {currencyLabel(c)}
-              </span>
-            ))}
-          </div>
+          {!place.isProject && (
+            <>
+              <span className="text-ink/10">|</span>
+              <div className="flex items-center gap-[4px] text-meta text-ink-soft/75">
+                <CreditCard size={14} strokeWidth={1.8} className="text-verde-600" />
+                {place.payments.map((c) => (
+                  <span
+                    key={c}
+                    className={cn(
+                      "px-[6px] py-[2px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.08em]",
+                      currencyStyles[c] ?? "bg-sand-deep text-ink-soft/75",
+                    )}
+                  >
+                    {currencyLabel(c)}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
           <span className="text-ink/10">|</span>
           <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
-            <Utensils size={14} strokeWidth={1.8} className="text-verde-600" />
+            {place.isProject ? <Megaphone size={14} strokeWidth={1.8} className="text-verde-600" /> : <Utensils size={14} strokeWidth={1.8} className="text-verde-600" />}
             <span className="font-lv-display font-medium text-ink">
               {place.category}
             </span>
@@ -318,10 +439,10 @@ export function PlaceDetail({
               onSave={handleSave}
               onNavigate={onNavigate}
               onShare={onShare}
-              onReview={() => setReviewOpen(true)}
+              onReview={place.isProject ? undefined : () => setReviewOpen(true)}
             />
 
-            <WhyCard place={place} />
+            {!place.isProject && <WhyCard place={place} />}
 
             {/* Special Offer */}
             {showOffer && place.specialOffer && (
@@ -339,7 +460,7 @@ export function PlaceDetail({
             {/* Description */}
             <Reveal>
               <section className={CARD}>
-                <h2 className={cn(H2, "mb-gap-sm")}>Sobre este lugar</h2>
+                <h2 className={cn(H2, "mb-gap-sm")}>{place.isProject ? "Sobre el proyecto" : "Sobre este lugar"}</h2>
                 <p
                   className={cn(
                     "text-body leading-relaxed text-ink whitespace-pre-wrap",
@@ -364,9 +485,36 @@ export function PlaceDetail({
               </section>
             </Reveal>
 
-            {/* Menu Section (grid 2 cols on desktop) */}
+            {/* A project describes its offer as text, not as a business menu. */}
             <Reveal>
-              <section className={CARD}>
+              {place.isProject ? (
+                <section className={CARD}>
+                  <h2 className={cn(H2, "mb-gap-md")}>Qué ofrece el proyecto</h2>
+                  {place.projectOfferPackages?.length ? (
+                    <ProjectOfferList offers={place.projectOfferPackages} />
+                  ) : place.projectOffers ? (
+                    <>
+                      <p className={cn("whitespace-pre-wrap text-body leading-relaxed text-ink", !projectOffersExpanded && "line-clamp-3")}>
+                        {place.projectOffers}
+                      </p>
+                      {place.projectOffers.length > 180 && (
+                        <button
+                          type="button"
+                          onClick={() => setProjectOffersExpanded((expanded) => !expanded)}
+                          aria-expanded={projectOffersExpanded}
+                          className={cn(BTN_OUTLINE, "mt-gap-md")}
+                        >
+                          {projectOffersExpanded ? "Ver menos" : "Ver todo"}
+                          <ChevronDown size={16} strokeWidth={1.8} className={cn(CHEVRON, projectOffersExpanded && "rotate-180")} />
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-small leading-relaxed text-ink-soft/75">Este proyecto aún no ha añadido información sobre lo que ofrece.</p>
+                  )}
+                </section>
+              ) : (
+                <section className={CARD}>
                 <div className="flex items-center justify-between mb-gap-md">
                   {/* «Menú» solo valía para restaurantes. En la app hay mercados,
                     mipymes y vendedores independientes, y lo que enseñan es un
@@ -390,19 +538,24 @@ export function PlaceDetail({
                     <MenuItem key={i} index={i} {...item} />
                   ))}
                 </div>
-              </section>
+                </section>
+              )}
             </Reveal>
 
             {/* Reviews */}
-            <Reveal>
-              <section className={CARD}>
-                <ReviewsSection placeId={place.id} reloadKey={reviewsKey} />
-              </section>
-            </Reveal>
+            {!place.isProject && (
+              <Reveal>
+                <section className={CARD}>
+                  <ReviewsSection placeId={place.id} reloadKey={reviewsKey} />
+                </section>
+              </Reveal>
+            )}
 
             {footerSlot}
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {/* ────────── Mobile Layout ────────── */}
@@ -428,18 +581,20 @@ export function PlaceDetail({
                       : "border-verde-200 bg-verde-50 text-verde-600",
                   )}
                 >
-                  <span
-                    className={cn(
-                      "size-[6px] rounded-full",
-                      isClosed ? "bg-destructive" : "bg-verde-400",
-                    )}
-                  />
-                  {isClosed ? "Cerrado" : "Abierto"}
+                  {place.isProject ? <Megaphone size={12} /> : (
+                    <span
+                      className={cn(
+                        "size-[6px] rounded-full",
+                        isClosed ? "bg-destructive" : "bg-verde-400",
+                      )}
+                    />
+                  )}
+                  {place.isProject ? "Proyecto" : isClosed ? "Cerrado" : "Abierto"}
                 </span>
               </div>
               <div className="flex items-center gap-gap-sm flex-wrap">
                 <span className="inline-flex items-center gap-[4px] px-[10px] py-[3px] rounded-full bg-verde-50 border border-verde-200 text-verde-600 font-lv-display text-xs font-semibold uppercase tracking-[0.06em]">
-                  <Utensils size={12} strokeWidth={1.8} />
+                  {place.isProject ? <Megaphone size={12} strokeWidth={1.8} /> : <Utensils size={12} strokeWidth={1.8} />}
                   {place.category}
                 </span>
                 {place.rating > 0 && (
@@ -490,6 +645,7 @@ export function PlaceDetail({
               schedule={place.schedule}
               barrio={place.barrio}
               payments={place.payments}
+              isProject={place.isProject}
             />
           </Reveal>
 
@@ -500,7 +656,7 @@ export function PlaceDetail({
               onSave={handleSave}
               onNavigate={onNavigate}
               onShare={onShare}
-              onReview={() => setReviewOpen(true)}
+              onReview={place.isProject ? undefined : () => setReviewOpen(true)}
             />
           </Reveal>
 
@@ -509,7 +665,7 @@ export function PlaceDetail({
 
           {/* AI Recommendation */}
           <Reveal>
-            <WhyCard place={place} className="mx-gutter my-gap-md" />
+            {!place.isProject && <WhyCard place={place} className="mx-gutter my-gap-md" />}
           </Reveal>
 
           {/* Special Offer Banner */}
@@ -527,7 +683,7 @@ export function PlaceDetail({
           {/* Description */}
           <Reveal>
             <section className="p-gap-lg px-gutter bg-sand-warm">
-              <h2 className={cn(H2, "mb-gap-sm")}>Sobre este lugar</h2>
+              <h2 className={cn(H2, "mb-gap-sm")}>{place.isProject ? "Sobre el proyecto" : "Sobre este lugar"}</h2>
               <p
                 className={cn(
                   "text-body leading-relaxed text-ink whitespace-pre-wrap",
@@ -556,16 +712,46 @@ export function PlaceDetail({
           <div className="h-[8px] bg-sand-deep" />
 
           {/* Reviews */}
-          <Reveal>
-            <section className="p-gap-lg px-gutter bg-sand-warm">
-              <ReviewsSection placeId={place.id} reloadKey={reviewsKey} />
-            </section>
-          </Reveal>
+          {!place.isProject && (
+            <Reveal>
+              <section className="p-gap-lg px-gutter bg-sand-warm">
+                <ReviewsSection placeId={place.id} reloadKey={reviewsKey} />
+              </section>
+            </Reveal>
+          )}
 
-          {/* Mobile Menu Section */}
+          {/* Project offer details are not business menu items. */}
           <div className="h-[8px] bg-sand-deep" />
           <Reveal>
             <section className="p-gap-lg px-gutter bg-sand-warm">
+              {place.isProject ? (
+                <>
+                  <h2 className={cn(H2, "mb-gap-md")}>Qué ofrece el proyecto</h2>
+                  {place.projectOfferPackages?.length ? (
+                    <ProjectOfferList offers={place.projectOfferPackages} />
+                  ) : place.projectOffers ? (
+                    <>
+                      <p className={cn("whitespace-pre-wrap text-body leading-relaxed text-ink", !projectOffersExpanded && "line-clamp-3")}>
+                        {place.projectOffers}
+                      </p>
+                      {place.projectOffers.length > 180 && (
+                        <button
+                          type="button"
+                          onClick={() => setProjectOffersExpanded((expanded) => !expanded)}
+                          aria-expanded={projectOffersExpanded}
+                          className={cn(BTN_OUTLINE, "mt-gap-md")}
+                        >
+                          {projectOffersExpanded ? "Ver menos" : "Ver todo"}
+                          <ChevronDown size={16} strokeWidth={1.8} className={cn(CHEVRON, projectOffersExpanded && "rotate-180")} />
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-small leading-relaxed text-ink-soft/75">Este proyecto aún no ha añadido información sobre lo que ofrece.</p>
+                  )}
+                </>
+              ) : (
+                <>
               <div className="flex items-center justify-between mb-gap-md">
                 {/* «Menú» solo valía para restaurantes. En la app hay mercados,
                     mipymes y vendedores independientes, y lo que enseñan es un
@@ -587,6 +773,8 @@ export function PlaceDetail({
               {place.menu.map((item, i) => (
                 <MenuItem key={i} index={i} {...item} />
               ))}
+                </>
+              )}
             </section>
           </Reveal>
 
@@ -599,14 +787,84 @@ export function PlaceDetail({
 
       {/* Va al final y fuera de los dos bloques de maquetación: es uno solo para
           la ficha entera, se abra desde donde se abra. */}
-      <ReviewDialog
-        open={reviewOpen}
-        onOpenChange={setReviewOpen}
-        placeId={place.id}
-        placeName={place.name}
-        onPublished={() => setReviewsKey((k) => k + 1)}
-      />
+      {!place.isProject && (
+        <ReviewDialog
+          open={reviewOpen}
+          onOpenChange={setReviewOpen}
+          placeId={place.id}
+          placeName={place.name}
+          onPublished={() => setReviewsKey((k) => k + 1)}
+        />
+      )}
+      {place.isProject && (
+        <Dialog open={activeProjectPhoto !== null} onOpenChange={(open) => { if (!open) setProjectPhotoIndex(null); }}>
+          <DialogContent className="w-[calc(100vw_-_32px)] max-w-6xl border-0 bg-ink p-0 shadow-none sm:w-[calc(100vw_-_64px)] [&>button]:text-white [&>button:hover]:bg-white/15 [&>button:hover]:text-white">
+            <DialogTitle className="sr-only">Fotos de {place.name}</DialogTitle>
+            {activeProjectPhoto && (
+              <div className="relative h-[82dvh] min-h-[240px] max-h-[900px] w-full">
+                <Image
+                  src={activeProjectPhoto.url!}
+                  alt={activeProjectPhoto.alt || `Foto de ${place.name}`}
+                  fill
+                  sizes="95vw"
+                  quality={95}
+                  className="object-contain"
+                />
+                {projectPhotos.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setProjectPhotoIndex((index) => index === null ? null : (index - 1 + projectPhotos.length) % projectPhotos.length)}
+                      aria-label="Foto anterior"
+                      className="absolute left-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-ink/70 text-white hover:bg-ink/90"
+                    >
+                      <ChevronLeft size={22} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProjectPhotoIndex((index) => index === null ? null : (index + 1) % projectPhotos.length)}
+                      aria-label="Foto siguiente"
+                      className="absolute right-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-ink/70 text-white hover:bg-ink/90"
+                    >
+                      <ChevronRight size={22} />
+                    </button>
+                  </>
+                )}
+                <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-ink/75 px-3 py-1 text-meta font-semibold text-white">
+                  {projectPhotoIndex! + 1} / {projectPhotos.length}
+                </span>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
+  );
+}
+
+function ProjectOfferList({ offers }: { offers: ProjectOfferPackage[] }) {
+  return (
+    <ul className="divide-y divide-ink/10">
+      {offers.map((offer, index) => (
+        <li key={offer.id} className="py-gap-sm first:pt-0 last:pb-0">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-gap-sm gap-y-1">
+            <h3 className="font-lv-display text-small font-semibold text-ink">{offer.title || `Oferta ${index + 1}`}</h3>
+            {offer.price && <span className="font-lv-display text-small font-semibold text-verde-700">{offer.price}</span>}
+          </div>
+          {(offer.capacity || offer.validUntil) && (
+            <p className="mt-1 text-meta text-ink-soft/70">
+              {[offer.capacity ? `${offer.capacity} personas` : "", offer.validUntil ? `Vigente hasta ${offer.validUntil}` : ""].filter(Boolean).join(" · ")}
+            </p>
+          )}
+          {offer.includes.length > 0 && (
+            <ul className="mt-gap-xs flex flex-col gap-1 text-small leading-relaxed text-ink-soft/85">
+              {offer.includes.map((item, itemIndex) => <li key={`${offer.id}-${itemIndex}`}>{item}</li>)}
+            </ul>
+          )}
+          {offer.conditions && <p className="mt-gap-xs whitespace-pre-wrap text-small leading-relaxed text-ink-soft/75">{offer.conditions}</p>}
+        </li>
+      ))}
+    </ul>
   );
 }
 

@@ -4,6 +4,7 @@ import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { CATALOG_TAG } from "@/lib/db/queries";
 import { notifications, projectRequests } from "@/lib/db/schema";
+import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
 import { revalidateTag } from "next/cache";
 
 function stringList(value: unknown, maxItems = 20): string[] | null {
@@ -13,6 +14,38 @@ function stringList(value: unknown, maxItems = 20): string[] | null {
 
 function validPoint(lat: unknown, lng: unknown): lat is number {
   return typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng) && lat >= 18 && lat <= 24 && lng >= -85 && lng <= -74;
+}
+
+function parseOfferPackages(value: unknown): ProjectOfferPackage[] | null {
+  if (!Array.isArray(value) || value.length > 20) return null;
+  const ids = new Set<string>();
+  const packages: ProjectOfferPackage[] = [];
+
+  for (const item of value) {
+    if (!item || typeof item !== "object") return null;
+    const candidate = item as Record<string, unknown>;
+    if (typeof candidate.id !== "string" || !candidate.id.trim() || ids.has(candidate.id)) return null;
+    if (typeof candidate.title !== "string" || !candidate.title.trim() || candidate.title.length > 120) return null;
+    if (typeof candidate.price !== "string" || candidate.price.length > 100) return null;
+    if (!Array.isArray(candidate.includes) || candidate.includes.length > 12 || candidate.includes.some((entry) => typeof entry !== "string" || entry.length > 1000)) return null;
+    const capacity = candidate.capacity === undefined ? null : candidate.capacity;
+    if (capacity !== null && (typeof capacity !== "number" || !Number.isInteger(capacity) || capacity < 1 || capacity > 100000)) return null;
+    if (typeof candidate.conditions !== "string" || candidate.conditions.length > 1200) return null;
+    if (typeof candidate.validUntil !== "string" || (candidate.validUntil && !/^\d{4}-\d{2}-\d{2}$/.test(candidate.validUntil))) return null;
+
+    ids.add(candidate.id);
+    packages.push({
+      id: candidate.id.trim(),
+      title: candidate.title.trim(),
+      price: candidate.price.trim(),
+      includes: candidate.includes.map((entry: string) => entry.trim()).filter(Boolean),
+      capacity,
+      conditions: candidate.conditions.trim(),
+      validUntil: candidate.validUntil,
+    });
+  }
+
+  return packages;
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -89,6 +122,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "Las ofertas no son válidas." }, { status: 400 });
     }
     updates.offers = typeof body.offers === "string" ? body.offers.trim().slice(0, 2000) || null : null;
+  }
+
+  if (body.offerPackages !== undefined) {
+    const offerPackages = parseOfferPackages(body.offerPackages);
+    if (!offerPackages) return NextResponse.json({ error: "Revisa los paquetes: hay datos incompletos o inválidos." }, { status: 400 });
+    updates.offerPackages = offerPackages;
   }
 
   if (!isAdmin && Object.keys(updates).some((key) => key !== "updatedAt")) {

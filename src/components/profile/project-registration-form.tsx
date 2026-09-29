@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { ArrowLeft, CalendarDays, ImagePlus, Loader2, MapPin, Plus, Send, Trash2, X } from "lucide-react";
-import { prepareImage } from "@/lib/storage/compress";
+import { prepareProjectImage } from "@/lib/storage/compress";
+import { MAX_PROJECT_MEDIA } from "@/lib/storage/project-media";
 import { CUBA_PROVINCES } from "@/lib/user-preferences-store";
 import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
 import { focusProfileControl } from "@/components/profile/focus-profile-control";
+import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
+import { ProjectOffersManager } from "@/components/profile/project-offers-manager";
 
 export interface ProjectFormProject {
   id: string;
@@ -21,6 +24,9 @@ export interface ProjectFormProject {
   startsAt: string;
   endsAt: string;
   offers: string | null;
+  offerPackages?: ProjectOfferPackage[];
+  coverImageUrl: string | null;
+  mapImageUrl: string | null;
   imageUrls: string[];
   adminNote: string | null;
   status: "pending" | "approved" | "rejected";
@@ -29,6 +35,7 @@ export interface ProjectFormProject {
 interface ProjectRegistrationFormProps {
   onBack: () => void;
   onSaved?: () => void;
+  onUpdated?: (patch: Partial<ProjectFormProject>) => void;
   project?: ProjectFormProject;
   showPhotos?: boolean;
 }
@@ -37,19 +44,41 @@ const INPUT =
   "h-11 w-full rounded-xl border border-ink/10 bg-white px-4 text-body text-ink placeholder:text-ink-soft/60 outline-none transition-colors focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/80";
 
-export function ProjectRegistrationForm({ onBack, onSaved, project, showPhotos = true }: ProjectRegistrationFormProps) {
+export function ProjectRegistrationForm({ onBack, onSaved, onUpdated, project, showPhotos = true }: ProjectRegistrationFormProps) {
   const [socialLinks, setSocialLinks] = useState(project?.socialLinks.length ? project.socialLinks : [""]);
   const [phoneNumbers, setPhoneNumbers] = useState(project?.phones.length ? project.phones : [""]);
   const [provinces, setProvinces] = useState(project?.provinces.length ? project.provinces : [""]);
   const [location, setLocation] = useState<LocationPoint | null>(project ? { lat: project.lat, lng: project.lng } : null);
   const [venueName, setVenueName] = useState(project?.venueName ?? "");
+  const [coverImageUrl, setCoverImageUrl] = useState(project?.coverImageUrl ?? null);
+  const [mapImageUrl, setMapImageUrl] = useState(project?.mapImageUrl ?? null);
   const [imageUrls, setImageUrls] = useState(project?.imageUrls ?? []);
+  const [offerPackages, setOfferPackages] = useState(project?.offerPackages ?? []);
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [selectedOfferFlyers, setSelectedOfferFlyers] = useState<File[]>([]);
   const [savedProjectId, setSavedProjectId] = useState(project?.id ?? null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const savedMediaCount = new Set([coverImageUrl, mapImageUrl, ...imageUrls].filter(Boolean)).size;
+
+  async function uploadProjectImage(projectId: string, file: File, role: "cover" | "pin" | "gallery") {
+    const prepared = await prepareProjectImage(file);
+    const imageForm = new FormData();
+    imageForm.append("file", prepared.blob, prepared.name);
+    imageForm.append("role", role);
+    if (prepared.width) imageForm.append("width", String(prepared.width));
+    if (prepared.height) imageForm.append("height", String(prepared.height));
+    const imageResponse = await fetch(`/api/project-requests/${projectId}/images`, { method: "POST", body: imageForm });
+    if (!imageResponse.ok) {
+      const data = (await imageResponse.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(data?.error ?? "No se pudo subir una foto.");
+    }
+    const result = (await imageResponse.json()) as ProjectFormProject;
+    setCoverImageUrl(result.coverImageUrl);
+    setMapImageUrl(result.mapImageUrl);
+    setImageUrls(result.imageUrls);
+  }
 
   function updateSocialLink(index: number, value: string) {
     setSocialLinks((current) => current.map((link, linkIndex) => (linkIndex === index ? value : link)));
@@ -73,8 +102,12 @@ export function ProjectRegistrationForm({ onBack, onSaved, project, showPhotos =
 
   function openDatePicker(field: "startsAt" | "endsAt") {
     const input = document.querySelector<HTMLInputElement>(`input[name="${field}"]`);
-    input?.showPicker?.();
-    input?.focus();
+    if (!input) return;
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+      return;
+    }
+    input.focus({ preventScroll: true });
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -116,6 +149,7 @@ export function ProjectRegistrationForm({ onBack, onSaved, project, showPhotos =
         startsAt: formData.get("startsAt"),
         endsAt: formData.get("endsAt"),
         offers: formData.get("offers"),
+        offerPackages,
         ...(location ? { lat: selectedLocation.lat, lng: selectedLocation.lng } : {}),
       }),
     }).catch(() => null);
@@ -131,19 +165,13 @@ export function ProjectRegistrationForm({ onBack, onSaved, project, showPhotos =
     const projectId = savedProjectId ?? savedProject.id;
     setSavedProjectId(projectId);
     try {
-      for (const file of [...selectedPhotos, ...selectedOfferFlyers]) {
-        const prepared = await prepareImage(file);
-        const imageForm = new FormData();
-        imageForm.append("file", prepared.blob, prepared.name);
-        if (prepared.width) imageForm.append("width", String(prepared.width));
-        if (prepared.height) imageForm.append("height", String(prepared.height));
-        const imageResponse = await fetch(`/api/project-requests/${projectId}/images`, { method: "POST", body: imageForm });
-        if (!imageResponse.ok) {
-          const data = (await imageResponse.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(data?.error ?? "No se pudo subir una foto.");
-        }
-        const result = (await imageResponse.json()) as { imageUrls: string[] };
-        setImageUrls(result.imageUrls);
+      for (const [index, file] of selectedPhotos.entries()) {
+        const isGif = file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif");
+        const role = index === 0 && !coverImageUrl && !isGif ? "cover" : "gallery";
+        await uploadProjectImage(projectId, file, role);
+      }
+      for (const file of selectedOfferFlyers) {
+        await uploadProjectImage(projectId, file, "gallery");
       }
       setSelectedPhotos([]);
       setSelectedOfferFlyers([]);
@@ -165,7 +193,9 @@ export function ProjectRegistrationForm({ onBack, onSaved, project, showPhotos =
       setError(data?.error ?? "No se pudo eliminar la foto.");
       return;
     }
-    const data = (await response.json()) as { imageUrls: string[] };
+    const data = (await response.json()) as ProjectFormProject;
+    setCoverImageUrl(data.coverImageUrl);
+    setMapImageUrl(data.mapImageUrl);
     setImageUrls(data.imageUrls);
   }
 
@@ -329,19 +359,30 @@ export function ProjectRegistrationForm({ onBack, onSaved, project, showPhotos =
               </button>
             </span>
           </label>
-          <label className="flex flex-col gap-gap-xs sm:col-span-2">
-            <span className={LABEL}>Ofertas y catálogo de productos</span>
-            <textarea
-              className="min-h-24 w-full resize-y rounded-xl border border-ink/10 bg-white px-4 py-3 text-body text-ink placeholder:text-ink-soft/60 outline-none transition-colors focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20"
-              name="offers"
-              defaultValue={project?.offers ?? ""}
-              placeholder="Entradas, servicios, promociones, productos o catálogo"
-            />
+          <div className="flex flex-col gap-gap-sm sm:col-span-2">
+            {project && (
+              <ProjectOffersManager
+                project={{ ...project, offerPackages }}
+                onUpdated={(patch) => {
+                  if (patch.offerPackages) setOfferPackages(patch.offerPackages);
+                  onUpdated?.(patch);
+                }}
+              />
+            )}
+            <details className="rounded-xl border border-ink/10 bg-white px-gap-md py-gap-sm">
+              <summary className="cursor-pointer font-lv-display text-meta font-semibold text-ink-soft/80">Texto anterior de ofertas o catálogo (opcional)</summary>
+              <textarea
+                className="mt-gap-sm min-h-24 w-full resize-y rounded-xl border border-ink/10 bg-white px-4 py-3 text-body text-ink placeholder:text-ink-soft/60 outline-none transition-colors focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20"
+                name="offers"
+                defaultValue={project?.offers ?? ""}
+                placeholder="Información general anterior sobre servicios, promociones o productos"
+              />
+            </details>
             <label className="flex min-h-20 cursor-pointer items-center gap-gap-sm rounded-xl border border-dashed border-ink/15 bg-sand px-4 py-3 text-ink-soft/75 transition-colors hover:border-verde-300 hover:bg-verde-50">
               <ImagePlus size={20} className="shrink-0 text-verde-600" />
               <span className="flex flex-1 flex-col gap-1">
                 <span className="font-lv-display text-small font-semibold text-ink">Añadir flyer de ofertas o catálogo</span>
-                <span className="text-meta">Imagen de promociones, menú o productos · {imageUrls.length + selectedPhotos.length + selectedOfferFlyers.length}/8 imágenes</span>
+                <span className="text-meta">Imagen de promociones, menú o productos · {savedMediaCount + selectedPhotos.length + selectedOfferFlyers.length}/{MAX_PROJECT_MEDIA} archivos · GIF hasta 2 MB</span>
               </span>
               <input
                 className="sr-only"
@@ -351,8 +392,8 @@ export function ProjectRegistrationForm({ onBack, onSaved, project, showPhotos =
                 onChange={(event) => {
                   const files = Array.from(event.target.files ?? []);
                   event.target.value = "";
-                  if (imageUrls.length + selectedPhotos.length + selectedOfferFlyers.length + files.length > 8) {
-                    setError("Cada proyecto admite hasta 8 imágenes.");
+                  if (savedMediaCount + selectedPhotos.length + selectedOfferFlyers.length + files.length > MAX_PROJECT_MEDIA) {
+                    setError(`Cada proyecto admite hasta ${MAX_PROJECT_MEDIA} materiales visuales.`);
                     return;
                   }
                   setSelectedOfferFlyers((current) => [...current, ...files]);
@@ -377,11 +418,11 @@ export function ProjectRegistrationForm({ onBack, onSaved, project, showPhotos =
                 ))}
               </ul>
             )}
-          </label>
+          </div>
           {showPhotos && <div className="flex flex-col gap-gap-sm sm:col-span-2">
-            {imageUrls.length > 0 && (
+            {(coverImageUrl || imageUrls.length > 0) && (
               <div className="grid grid-cols-3 gap-gap-xs">
-                {imageUrls.map((url, index) => (
+                {[...new Set([coverImageUrl, ...imageUrls].filter((url): url is string => Boolean(url)))].map((url, index) => (
                   <div key={url} className="relative aspect-square overflow-hidden rounded-xl border border-ink/10 bg-sand">
                     <img src={url} alt={`Foto ${index + 1} de ${project?.name ?? "tu proyecto"}`} className="h-full w-full object-cover" />
                     <button type="button" onClick={() => void removePhoto(url)} aria-label={`Eliminar foto ${index + 1}`} className="absolute right-1 top-1 grid size-8 place-items-center rounded-full bg-ink/75 text-white hover:bg-red-700">
@@ -394,7 +435,7 @@ export function ProjectRegistrationForm({ onBack, onSaved, project, showPhotos =
             <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-gap-xs rounded-xl border border-dashed border-ink/15 bg-sand px-4 text-center text-ink-soft/75 transition-colors hover:border-verde-300 hover:bg-verde-50">
             <ImagePlus size={22} className="text-verde-600" />
               <span className="font-lv-display text-small font-semibold text-ink">Añadir fotos del proyecto</span>
-              <span className="text-meta">{imageUrls.length + selectedPhotos.length + selectedOfferFlyers.length}/8 · Logo, cartel o foto de presentación</span>
+              <span className="text-meta">{savedMediaCount + selectedPhotos.length + selectedOfferFlyers.length}/{MAX_PROJECT_MEDIA} · La primera foto será la principal</span>
               <input
                 className="sr-only"
                 type="file"
@@ -404,8 +445,8 @@ export function ProjectRegistrationForm({ onBack, onSaved, project, showPhotos =
                   const files = Array.from(event.target.files ?? []);
                   event.target.value = "";
                   const next = [...selectedPhotos, ...files];
-                  if (imageUrls.length + next.length + selectedOfferFlyers.length > 8) {
-                    setError("Cada proyecto admite hasta 8 imágenes.");
+                  if (savedMediaCount + next.length + selectedOfferFlyers.length > MAX_PROJECT_MEDIA) {
+                    setError(`Cada proyecto admite hasta ${MAX_PROJECT_MEDIA} materiales visuales.`);
                     return;
                   }
                   setSelectedPhotos(next);
