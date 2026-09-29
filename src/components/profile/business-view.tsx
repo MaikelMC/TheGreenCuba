@@ -23,6 +23,7 @@ import { PaymentChips } from "@/components/business/payment-chips";
 import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
 import { usePlaces } from "@/providers/places-provider";
 import { PLAN_LABEL, type PlacePlan } from "@/lib/places-store";
+import { focusProfileControl } from "@/components/profile/focus-profile-control";
 import { trackBusinessSubmitted } from "@/lib/analytics";
 import {
   Select,
@@ -183,7 +184,7 @@ export function BusinessView() {
 function BusinessCard({ business }: { business: BusinessSummary }) {
   const pending = business.reviewStatus === "pending";
   return (
-    <div className="flex flex-col gap-gap-md">
+  <div className="flex flex-col gap-gap-md">
       {/* El nombre del negocio es el titular de esta vista; el título de
           sección («Tengo un negocio») ya lo pinta la barra superior. */}
       <header className="flex flex-col gap-gap-xs">
@@ -359,7 +360,7 @@ function BusinessForm({
   ]);
 
   return (
-    <div className="flex flex-col gap-gap-md">
+    <div className="flex flex-col gap-gap-md" onPointerDownCapture={focusProfileControl}>
       {/* «Registra tu negocio» repetía el título de la sección que ya está en
           la barra superior; la introducción basta para orientar, también en el
           reenvío de una solicitud rechazada. */}

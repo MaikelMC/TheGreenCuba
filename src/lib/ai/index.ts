@@ -166,8 +166,12 @@ export function createAIStream(messages: ModelMessage[]) {
 export interface CatalogPlace {
   id: string;
   name: string;
+  lat: number;
+  lng: number;
   category: string;
   barrio?: string;
+  city?: string;
+  province?: string;
   payments?: string[];
   schedule?: string;
   description?: string;
@@ -216,6 +220,7 @@ Reglas:
 - Cada "reason" es breve (1 frase, español cubano natural).
 - "summary" es un párrafo corto y amable (2-3 frases, español cubano) que resuma lo que se encontró para el usuario.
 - Considera: monedas (USD Clásica, CUP, USD, EUR), categoría, horarios, barrio/ciudad, y la descripción.
+- La ubicación es estricta cuando aparece en la consulta: «Varadero» corresponde a Varadero, Matanzas, no a Santiago de Cuba. «Hoteles en Varadero» debe priorizar hoteles cuyo city/province/barrio/description indique Varadero o Matanzas y no inventar coincidencias de otra ciudad.
 - Los pagos del catálogo vienen en código, no con su nombre largo: MLC = USD Clásica,
   CUP = peso cubano, USD = dólar, EUR = euro, TRANSFER = transferencia. Un lugar con
   "MLC" SÍ cumple la condición "acepta USD Clásica"; sin esta equivalencia devolvías

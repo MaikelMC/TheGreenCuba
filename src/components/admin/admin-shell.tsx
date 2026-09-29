@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   Users,
   ClipboardList,
+  Megaphone,
   LifeBuoy,
   BellRing,
   Menu,
@@ -56,6 +57,12 @@ const NAV_ITEMS: AdminNavItem[] = [
     label: "Solicitudes",
     short: "Solicitudes",
     icon: ClipboardList,
+  },
+  {
+    href: "/admin/proyectos",
+    label: "Proyectos",
+    short: "Proyectos",
+    icon: Megaphone,
   },
   {
     href: "/admin/soporte",

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
+import { eq } from "drizzle-orm";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
-import { places } from "@/lib/db/schema";
+import { places, projectRequests } from "@/lib/db/schema";
 import { toNewPlaceValues, toUserPlace } from "@/lib/db/mappers";
 import { CATALOG_TAG, listPlaces, resolveCategoryId } from "@/lib/db/queries";
 import { generateId } from "@/lib/utils";
@@ -40,7 +41,54 @@ export async function GET(req: NextRequest) {
     limit: Number(searchParams.get("limit") ?? 200) || 200,
   });
 
-  return NextResponse.json(items);
+  let approvedProjects: typeof projectRequests.$inferSelect[] = [];
+  try {
+    approvedProjects = await db
+      .select()
+      .from(projectRequests)
+      .where(eq(projectRequests.status, "approved"));
+  } catch (error) {
+    /* La tabla llega con la migración de proyectos. Mientras un despliegue aún
+       no la haya aplicado, los negocios normales deben seguir apareciendo. */
+    console.error("[api/places] project_requests no disponible", error);
+  }
+
+  const projects = approvedProjects
+    .filter((project) => !searchParams.get("category"))
+    .map((project) => ({
+      id: `project-${project.id}`,
+      name: project.name,
+      isProject: true,
+      icon: "Sparkles",
+      category: "Proyecto",
+      lat: project.lat,
+      lng: project.lng,
+      address: project.venueName,
+      barrio: project.venueName,
+      city: project.provinces[0] ?? "Cuba",
+      province: project.provinces[0] ?? "Cuba",
+      description: project.description,
+      photos: project.imageUrls.map((url, index) => ({
+        url,
+        alt: `Foto ${index + 1} de ${project.name}`,
+        width: null,
+        height: null,
+        isCover: index === 0,
+      })),
+      schedule: `${project.startsAt} a ${project.endsAt}`,
+      payments: [],
+      menu: [],
+      offer: project.offers ? { text: project.offers, expiry: project.endsAt } : null,
+      status: "active" as const,
+      isActive: true,
+      reviewStatus: "approved" as const,
+      isBoosted: false,
+      boostExpiresAt: "",
+      createdAt: project.createdAt.getTime(),
+      updatedAt: project.updatedAt.getTime(),
+    }));
+
+  return NextResponse.json([...items, ...projects]);
 }
 
 export async function POST(req: NextRequest) {

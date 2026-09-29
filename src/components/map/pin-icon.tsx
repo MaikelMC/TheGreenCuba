@@ -25,7 +25,7 @@ import {
  * distintos no compartan gradiente.
  */
 
-export type PlacePinVariant = "default" | "boosted" | "selected";
+export type PlacePinVariant = "default" | "boosted" | "selected" | "project";
 
 interface PinStyle {
   width: number;
@@ -41,6 +41,7 @@ const PIN_STYLES: Record<PlacePinVariant, PinStyle> = {
   default: { width: 24, height: 36, discR: 7.5, icon: 10, top: "#35AF6D", bottom: "#0F7A41" },
   boosted: { width: 30, height: 45, discR: 9, icon: 12, top: "#0A4B2C", bottom: "#052017" },
   selected: { width: 34, height: 51, discR: 10, icon: 13, ring: true, top: "#35AF6D", bottom: "#0F7A41" },
+  project: { width: 32, height: 48, discR: 9.5, icon: 12, ring: true, top: "#F97316", bottom: "#DB2777" },
 };
 
 const TEARDROP_PATH =
@@ -68,7 +69,7 @@ function buildPin(variant: PlacePinVariant, iconKey: string) {
   const id = `lv-pin-${variant}-${key}`;
   const html = `
     <div style="width:${width}px;height:${height}px;filter:drop-shadow(0 3px 6px rgba(8,19,13,0.45));${
-      variant === "boosted" ? "animation:pulse-ring 2s ease-in-out infinite;" : ""
+      variant === "boosted" || variant === "project" ? "animation:pulse-ring 2s ease-in-out infinite;" : ""
     }">
       <svg viewBox="0 0 24 36" width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg" style="display:block">
         <defs>

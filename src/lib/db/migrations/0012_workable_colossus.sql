@@ -1,0 +1,1 @@
+ALTER TABLE "project_requests" ADD COLUMN IF NOT EXISTS "image_urls" text[] DEFAULT '{}'::text[] NOT NULL;

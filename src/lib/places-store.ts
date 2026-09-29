@@ -80,6 +80,7 @@ export interface UserPlacePhoto {
 export interface UserPlace {
   id: string;
   name: string;
+  isProject?: boolean;
   category: string;
   /**
    * Nombre del icono Lucide que el dueño eligió para su pin. Vacío o ausente

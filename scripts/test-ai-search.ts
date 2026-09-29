@@ -79,6 +79,8 @@ async function runCase(c: Case, catalog: UserPlace[]): Promise<void> {
     .map((p) => ({
       id: p.id,
       name: p.name,
+      lat: p.lat,
+      lng: p.lng,
       category: p.category,
       barrio: p.barrio,
       payments: p.payments,

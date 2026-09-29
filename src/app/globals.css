@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* El formulario de proyectos usa un único botón de calendario externo. */
+.project-date-input::-webkit-calendar-picker-indicator {
+  display: none;
+  -webkit-appearance: none;
+}
+
+.project-date-input::-webkit-inner-spin-button,
+.project-date-input::-webkit-clear-button {
+  display: none;
+}
+
 @layer base {
   :root {
     --background: 98% 0.005 85;

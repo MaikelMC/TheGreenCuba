@@ -96,6 +96,7 @@ function menuLines(menu: UserPlaceMenuItem[]): string[] | undefined {
 interface HomePlace {
   id: string;
   name: string;
+  isProject?: boolean;
   category: string;
   barrio: string;
   rating: number;
@@ -131,6 +132,7 @@ function userPlaceToHomePlace(
   return {
     id: p.id,
     name: p.name,
+    isProject: p.isProject,
     category: p.category,
     barrio: p.barrio || "Cuba",
     rating: p.rating ?? 0,
@@ -561,6 +563,7 @@ function HomePageContent() {
       visiblePlaces.map((p) => ({
         id: p.id,
         name: p.name,
+        isProject: p.isProject,
         lat: p.lat,
         lng: p.lng,
         category: p.category,
@@ -673,8 +676,12 @@ function HomePageContent() {
           .map((p) => ({
             id: p.id,
             name: p.name,
+            lat: p.lat,
+            lng: p.lng,
             category: p.category,
             barrio: p.barrio,
+            city: p.city,
+            province: p.province,
             payments: p.payments,
             schedule: p.schedule,
             description: p.description,

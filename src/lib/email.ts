@@ -20,8 +20,6 @@ import { Resend } from "resend";
  * que ya nombra a los dos administradores del sistema.
  */
 
-const resend = new Resend(process.env.RESEND_API_KEY?.trim());
-
 export interface OutgoingEmail {
   to: string[];
   subject: string;
@@ -65,6 +63,7 @@ export async function sendEmail(email: OutgoingEmail): Promise<string | null> {
     return null;
   }
 
+  const resend = new Resend(apiKey);
   const from =
     process.env.RESEND_FROM?.trim() || "La Verde <onboarding@resend.dev>";
   const replyTo =

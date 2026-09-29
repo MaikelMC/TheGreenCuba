@@ -5,6 +5,7 @@ import { Save, User, Mail, Phone, MapPin, Heart, Music, Wallet } from "lucide-re
 import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { CUBA_PROVINCES, type UserPreferences } from "@/lib/user-preferences-store";
+import { focusProfileControl } from "@/components/profile/focus-profile-control";
 
 const INTERESTS = [
   { value: "cafes", label: "Cafeterías" },
@@ -69,7 +70,7 @@ export function DetailsView({ prefs, set, toggle, onSave, saved }: DetailsViewPr
   }
 
   return (
-    <div className="flex flex-col gap-gap-xl">
+    <div className="flex flex-col gap-gap-xl" onPointerDownCapture={focusProfileControl}>
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}

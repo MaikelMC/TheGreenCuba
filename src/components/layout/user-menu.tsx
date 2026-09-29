@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { User, Building2, ShieldCheck, LogOut, Bell } from "lucide-react";
+import { User, Building2, ShieldCheck, LogOut, Bell, Megaphone } from "lucide-react";
 import type { Role } from "@/lib/session";
 import { logout } from "@/lib/logout";
 import { readUserPreferences } from "@/lib/user-preferences-store";
@@ -95,6 +95,12 @@ const ITEMS: {
     label: "Panel de negocio",
     icon: Building2,
     roles: ["owner", "admin"],
+  },
+  {
+    path: "/projects",
+    label: "Administrar proyectos",
+    icon: Megaphone,
+    roles: ["user", "owner", "admin"],
   },
   {
     path: "/admin",

@@ -43,9 +43,9 @@ export function Header() {
 
   return (
     <motion.header
-      initial={{ y: -80, opacity: 0 }}
+      initial={{ y: -12, opacity: 1 }}
       animate={{ y: visible ? 0 : -100, opacity: visible ? 1 : 0 }}
-      transition={{ duration: 0.9, ease: EASE, delay: 0.2 }}
+      transition={{ duration: 0.45, ease: EASE }}
       className="fixed inset-x-0 top-0 z-50 px-gutter pt-3 md:px-gutter-lg"
     >
       <div className="landing-nav-surface mx-auto flex h-14 max-w-3xl items-center justify-between rounded-full bg-verde-950/70 pl-4 pr-2 ring-1 ring-white/10 backdrop-blur-2xl">

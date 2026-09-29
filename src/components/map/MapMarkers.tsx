@@ -16,7 +16,8 @@ interface MapMarkersProps {
   onRouteClear: () => void;
 }
 
-function markerVariant(isSelected: boolean, isBoosted: boolean): PlacePinVariant {
+function markerVariant(isSelected: boolean, isBoosted: boolean, isProject: boolean): PlacePinVariant {
+  if (isProject) return "project";
   if (isSelected) return "selected";
   if (isBoosted) return "boosted";
   return "default";
@@ -40,7 +41,7 @@ const MarkerItem = memo(function MarkerItem({
   onRouteClear: () => void;
 }) {
   const icon = createPlacePinIcon(
-    markerVariant(isSelected, isBoosted),
+    markerVariant(isSelected, isBoosted, place.isProject ?? false),
     placeIcon(place.icon, place.category),
   );
 

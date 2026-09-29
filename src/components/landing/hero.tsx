@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
-import { fadeUp, heroContainer } from "./anim";
+import { EASE, fadeUp, heroContainer } from "./anim";
 
 const PHRASES = [
   "Un café tranquilo cerca de mí que acepte USD Clásica",
@@ -141,7 +141,9 @@ export function Hero() {
             </motion.p>
 
             <motion.h1
-              variants={fadeUp}
+              initial={{ opacity: 1, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.65, ease: EASE }}
               className="mt-5 text-hero font-lv-display font-bold text-white text-balance"
             >
               Escribe lo que buscas.

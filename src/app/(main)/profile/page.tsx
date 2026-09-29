@@ -7,10 +7,10 @@ import { ArrowLeft, Save } from "lucide-react";
 import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/layout/user-menu";
-import { BusinessView } from "@/components/profile/business-view";
 import { DetailsView } from "@/components/profile/details-view";
 import { PlacesView } from "@/components/profile/places-view";
 import { SettingsView } from "@/components/profile/settings-view";
+import { ProjectsView } from "@/components/profile/projects-view";
 import { Skeleton } from "@/components/ui";
 import {
   DOCK_ITEMS,
@@ -55,6 +55,10 @@ export default function ProfilePage() {
      se sirve. Para leer un parámetro una vez al montar, no compensa. */
   useEffect(() => {
     const section = new URLSearchParams(window.location.search).get("seccion");
+    if (section === "proyectos") {
+      window.location.replace("/projects");
+      return;
+    }
     if (section && DOCK_ITEMS.some((item) => item.id === section)) {
       setView(section as ProfileView);
     }
@@ -260,7 +264,7 @@ export default function ProfilePage() {
               />
             )}
             {view === "lugares" && <PlacesView />}
-            {view === "negocio" && <BusinessView />}
+            {view === "negocio" && <ProjectsView />}
             {view === "ajustes" && <SettingsView />}
           </motion.div>
         </AnimatePresence>
