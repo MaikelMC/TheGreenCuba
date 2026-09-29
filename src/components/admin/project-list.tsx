@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Loader2, MapPin, Megaphone, Pencil, RotateCcw, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Loader2, MapPin, Megaphone, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
 
 interface Project {
   id: string;
@@ -26,6 +27,7 @@ interface Project {
   startsAt: string;
   endsAt: string;
   offers: string | null;
+  offerPackages: ProjectOfferPackage[];
   status: "approved";
   createdAt: string;
 }
@@ -43,6 +45,7 @@ interface ProjectDraft {
   startsAt: string;
   endsAt: string;
   offers: string;
+  offerPackages: ProjectOfferPackage[];
 }
 
 const INPUT =
@@ -62,6 +65,7 @@ function toDraft(project: Project): ProjectDraft {
     startsAt: project.startsAt,
     endsAt: project.endsAt,
     offers: project.offers ?? "",
+    offerPackages: project.offerPackages ?? [],
   };
 }
 
@@ -117,6 +121,39 @@ export function ProjectList() {
     setDraft((current) => (current ? { ...current, [key]: value } : current));
   }
 
+  function updateOffer(index: number, patch: Partial<ProjectOfferPackage>) {
+    setDraft((current) => current ? {
+      ...current,
+      offerPackages: current.offerPackages.map((offer, offerIndex) => offerIndex === index ? { ...offer, ...patch } : offer),
+    } : current);
+  }
+
+  function moveOffer(index: number, direction: -1 | 1) {
+    setDraft((current) => {
+      if (!current) return current;
+      const target = index + direction;
+      if (target < 0 || target >= current.offerPackages.length) return current;
+      const offerPackages = [...current.offerPackages];
+      [offerPackages[index], offerPackages[target]] = [offerPackages[target]!, offerPackages[index]!];
+      return { ...current, offerPackages };
+    });
+  }
+
+  function addOffer() {
+    setDraft((current) => current ? {
+      ...current,
+      offerPackages: [...current.offerPackages, {
+        id: crypto.randomUUID(),
+        title: "",
+        price: "",
+        includes: [],
+            capacity: null,
+        conditions: "",
+        validUntil: "",
+      }],
+    } : current);
+  }
+
   async function saveProject(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editing || !draft) return;
@@ -134,6 +171,10 @@ export function ProjectList() {
           lat: Number(draft.lat),
           lng: Number(draft.lng),
           offers: draft.offers.trim() || null,
+          offerPackages: draft.offerPackages.map((offer) => ({
+            ...offer,
+            includes: offer.includes.map((item) => item.trim()).filter(Boolean),
+          })),
         }),
       });
       if (!response.ok) {
@@ -227,6 +268,20 @@ export function ProjectList() {
                 <p className="flex items-start gap-gap-xs"><MapPin size={16} className="mt-0.5 shrink-0 text-verde-600" /><span><strong className="text-ink">Lugar:</strong> {project.venueName}<br />{project.provinces.join(", ")} · {project.lat.toFixed(5)}, {project.lng.toFixed(5)}</span></p>
                 <p><strong className="text-ink">Contacto:</strong> {project.contact} · {project.phones.join(", ")}</p>
                 {project.offers && <p className="sm:col-span-2"><strong className="text-ink">Ofertas:</strong> {project.offers}</p>}
+                {project.offerPackages.length > 0 && (
+                  <div className="sm:col-span-2">
+                    <strong className="text-ink">Paquetes:</strong>
+                    <ul className="mt-1 flex flex-col gap-1">
+                      {project.offerPackages.map((offer) => (
+                        <li key={offer.id}>
+                          <span className="font-semibold text-ink">{offer.title}</span>
+                          {offer.price && ` · ${offer.price}`}
+                          {offer.includes.length > 0 && ` · ${offer.includes.join(", ")}`}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </article>
           ))}
@@ -255,7 +310,42 @@ export function ProjectList() {
                 <label className="flex flex-col gap-1 text-meta font-semibold text-ink-soft/80">Inicio<input required type="date" className={INPUT} value={draft.startsAt} onChange={(event) => setField("startsAt", event.target.value)} /></label>
                 <label className="flex flex-col gap-1 text-meta font-semibold text-ink-soft/80">Finalización<input required type="date" className={INPUT} value={draft.endsAt} onChange={(event) => setField("endsAt", event.target.value)} /></label>
               </div>
-              <label className="flex flex-col gap-1 text-meta font-semibold text-ink-soft/80">Ofertas<textarea rows={3} className={`${INPUT} h-auto py-3`} value={draft.offers} onChange={(event) => setField("offers", event.target.value)} /></label>
+              <label className="flex flex-col gap-1 text-meta font-semibold text-ink-soft/80">Texto de ofertas anterior<textarea rows={2} className={`${INPUT} h-auto py-3`} value={draft.offers} onChange={(event) => setField("offers", event.target.value)} /></label>
+              <section className="flex flex-col gap-gap-sm border-t border-ink/10 pt-gap-md">
+                <div className="flex flex-wrap items-center justify-between gap-gap-sm">
+                  <div>
+                    <h3 className="font-lv-display text-small font-semibold text-ink">Ofertas y paquetes</h3>
+                    <p className="mt-1 text-meta text-ink-soft/75">Agrega precio, contenido y condiciones por separado.</p>
+                  </div>
+                  <button type="button" onClick={addOffer} disabled={workingId !== null || draft.offerPackages.length >= 20} className="inline-flex h-9 items-center gap-1 rounded-full border border-ink/10 px-gap-sm text-small font-semibold text-ink hover:bg-sand disabled:opacity-50">
+                    <Plus size={15} /> Añadir oferta
+                  </button>
+                </div>
+                {draft.offerPackages.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-ink/15 bg-sand/50 px-gap-md py-4 text-small text-ink-soft/70">Todavía no hay ofertas estructuradas.</p>
+                ) : (
+                  <div className="flex flex-col gap-gap-sm">
+                    {draft.offerPackages.map((offer, index) => (
+                      <article key={offer.id} className="flex flex-col gap-gap-xs rounded-xl border border-ink/10 bg-sand/40 p-gap-sm">
+                        <div className="flex items-center justify-between gap-gap-xs">
+                          <h4 className="font-lv-display text-meta font-semibold text-ink">Oferta {index + 1}</h4>
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => moveOffer(index, -1)} disabled={workingId !== null || index === 0} aria-label="Subir oferta" className="grid size-8 place-items-center rounded-full text-ink-soft hover:bg-white disabled:opacity-40"><ArrowUp size={15} /></button>
+                            <button type="button" onClick={() => moveOffer(index, 1)} disabled={workingId !== null || index === draft.offerPackages.length - 1} aria-label="Bajar oferta" className="grid size-8 place-items-center rounded-full text-ink-soft hover:bg-white disabled:opacity-40"><ArrowDown size={15} /></button>
+                            <button type="button" onClick={() => setField("offerPackages", draft.offerPackages.filter((_, offerIndex) => offerIndex !== index))} disabled={workingId !== null} aria-label="Eliminar oferta" className="grid size-8 place-items-center rounded-full text-ink-soft hover:bg-red-50 hover:text-red-700 disabled:opacity-40"><Trash2 size={15} /></button>
+                          </div>
+                        </div>
+                        <label className="flex flex-col gap-1 text-meta font-semibold text-ink-soft/80">Nombre del paquete<input required maxLength={120} className={INPUT} placeholder="Ej. Mesa VIP, módulo o paquete familiar" value={offer.title} onChange={(event) => updateOffer(index, { title: event.target.value })} /></label>
+                        <label className="flex flex-col gap-1 text-meta font-semibold text-ink-soft/80">Precio (opcional)<input maxLength={100} className={INPUT} placeholder="Ej. 50 USD o A consultar" value={offer.price} onChange={(event) => updateOffer(index, { price: event.target.value })} /></label>
+                        <label className="flex flex-col gap-1 text-meta font-semibold text-ink-soft/80">Qué incluye<textarea rows={4} maxLength={2400} className={`${INPUT} h-auto py-3`} placeholder="Escribe los detalles, uno por línea" value={offer.includes.join("\n")} onChange={(event) => updateOffer(index, { includes: event.target.value.split("\n").slice(0, 12) })} /></label>
+                        <label className="flex flex-col gap-1 text-meta font-semibold text-ink-soft/80">Capacidad de personas (opcional)<input type="number" min={1} max={100000} step={1} className={INPUT} placeholder="Ej. 10" value={offer.capacity ?? ""} onChange={(event) => updateOffer(index, { capacity: event.target.value ? Number(event.target.value) : null })} /></label>
+                        <label className="flex flex-col gap-1 text-meta font-semibold text-ink-soft/80">Condiciones adicionales (opcional)<textarea rows={4} maxLength={1200} className={`${INPUT} h-auto py-3`} placeholder="Escribe las condiciones; puedes usar varias líneas" value={offer.conditions} onChange={(event) => updateOffer(index, { conditions: event.target.value })} /></label>
+                        <label className="flex flex-col gap-1 text-meta font-semibold text-ink-soft/80">Vigencia (opcional)<input type="date" className={INPUT} value={offer.validUntil} onChange={(event) => updateOffer(index, { validUntil: event.target.value })} /></label>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </section>
               <DialogFooter className="gap-gap-xs sm:gap-gap-xs">
                 <DialogClose asChild><button type="button" disabled={workingId !== null} className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 px-gap-md text-small font-semibold text-ink-soft/75"><X size={15} /> Cancelar</button></DialogClose>
                 <button type="submit" disabled={workingId !== null} className="inline-flex h-10 items-center gap-gap-xs rounded-full bg-verde-400 px-gap-md font-lv-display text-small font-semibold text-verde-950 disabled:opacity-50">

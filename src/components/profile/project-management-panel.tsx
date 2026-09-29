@@ -90,6 +90,7 @@ export function ProjectManagementPanel() {
           key={project.id}
           project={project}
           showPhotos={false}
+          onUpdated={updateProject}
           onBack={() => setView("dashboard")}
           onSaved={() => {
             setView("dashboard");
@@ -155,7 +156,7 @@ export function ProjectManagementPanel() {
           </div>
           <div className="rounded-2xl border border-ink/10 bg-white p-gap-md">
             <p className="text-meta text-ink-soft/65">Fotos</p>
-            <p className="mt-1 inline-flex items-center gap-1 font-lv-display text-small font-semibold text-ink"><ImageIcon size={14} /> {project.imageUrls.length} / 8</p>
+            <p className="mt-1 inline-flex items-center gap-1 font-lv-display text-small font-semibold text-ink"><ImageIcon size={14} /> {new Set([project.coverImageUrl, project.mapImageUrl, ...project.imageUrls].filter(Boolean)).size} / 8</p>
           </div>
         </div>
 

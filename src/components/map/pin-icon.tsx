@@ -33,6 +33,7 @@ interface PinStyle {
   discR: number;
   icon: number;
   ring?: boolean;
+  ringColor?: string;
   top: string;
   bottom: string;
 }
@@ -41,7 +42,7 @@ const PIN_STYLES: Record<PlacePinVariant, PinStyle> = {
   default: { width: 24, height: 36, discR: 7.5, icon: 10, top: "#35AF6D", bottom: "#0F7A41" },
   boosted: { width: 30, height: 45, discR: 9, icon: 12, top: "#0A4B2C", bottom: "#052017" },
   selected: { width: 34, height: 51, discR: 10, icon: 13, ring: true, top: "#35AF6D", bottom: "#0F7A41" },
-  project: { width: 32, height: 48, discR: 9.5, icon: 12, ring: true, top: "#F97316", bottom: "#DB2777" },
+  project: { width: 38, height: 56, discR: 11, icon: 12, top: "#EF4444", bottom: "#B91C1C" },
 };
 
 const TEARDROP_PATH =
@@ -63,10 +64,32 @@ function iconMarkup(iconKey: string, style: PinStyle): string {
   return `<g transform="translate(12 12) scale(${scale.toFixed(4)}) translate(-12 -12)">${glyph}</g>`;
 }
 
-function buildPin(variant: PlacePinVariant, iconKey: string) {
+function escapeXmlAttribute(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("'", "&apos;");
+}
+
+function imageClipId(imageUrl: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < imageUrl.length; index += 1) {
+    hash = Math.imul(hash ^ imageUrl.charCodeAt(index), 16777619);
+  }
+  return `lv-pin-photo-${(hash >>> 0).toString(36)}`;
+}
+
+function buildPin(variant: PlacePinVariant, iconKey: string, imageUrl?: string) {
   const { width, height, discR, ring, top, bottom } = PIN_STYLES[variant];
   const key = isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON;
   const id = `lv-pin-${variant}-${key}`;
+  const photoRadius = Math.max(3, discR - 1);
+  const clipId = imageUrl ? imageClipId(imageUrl) : "";
+  const centerContent = imageUrl
+    ? `<image href="${escapeXmlAttribute(imageUrl)}" x="${12 - photoRadius}" y="${12 - photoRadius}" width="${photoRadius * 2}" height="${photoRadius * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/><circle cx="12" cy="12" r="${photoRadius}" fill="none" stroke="white" stroke-width="1"/>`
+    : iconMarkup(key, PIN_STYLES[variant]);
   const html = `
     <div style="width:${width}px;height:${height}px;filter:drop-shadow(0 3px 6px rgba(8,19,13,0.45));${
       variant === "boosted" || variant === "project" ? "animation:pulse-ring 2s ease-in-out infinite;" : ""
@@ -77,11 +100,12 @@ function buildPin(variant: PlacePinVariant, iconKey: string) {
             <stop offset="0" stop-color="${top}"/>
             <stop offset="1" stop-color="${bottom}"/>
           </linearGradient>
+          ${imageUrl ? `<clipPath id="${clipId}"><circle cx="12" cy="12" r="${photoRadius}"/></clipPath>` : ""}
         </defs>
         <path d="${TEARDROP_PATH}" fill="url(#${id})"/>
         <circle cx="12" cy="12" r="${discR}" fill="white"/>
-        ${iconMarkup(key, PIN_STYLES[variant])}
-        ${ring ? '<circle cx="12" cy="12" r="8" fill="none" stroke="rgba(53,175,109,0.4)" stroke-width="2"/>' : ""}
+        ${centerContent}
+        ${ring ? `<circle cx="12" cy="12" r="8" fill="none" stroke="${PIN_STYLES[variant].ringColor ?? "rgba(53,175,109,0.4)"}" stroke-width="2"/>` : ""}
       </svg>
     </div>`;
 
@@ -101,8 +125,9 @@ const ICON_CACHE: Record<string, ReturnType<typeof buildPin>> = {};
 export function createPlacePinIcon(
   variant: PlacePinVariant = "default",
   iconKey: string = DEFAULT_CATEGORY_ICON,
+  imageUrl?: string,
 ) {
-  const key = `${variant}:${isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON}`;
-  ICON_CACHE[key] ??= buildPin(variant, iconKey);
-  return ICON_CACHE[key]!;
+  const cacheKey = `${variant}:${isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON}:${imageUrl ?? ""}`;
+  ICON_CACHE[cacheKey] ??= buildPin(variant, iconKey, imageUrl);
+  return ICON_CACHE[cacheKey]!;
 }

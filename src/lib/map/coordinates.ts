@@ -28,6 +28,8 @@ export type LandRectangle = [north: number, south: number, west: number, east: n
 export const CUBA_LAND_RECTANGLES: LandRectangle[] = [
   // Western Cuba (Pinar del Río → La Habana → Matanzas oeste)
   [23.2, 22.2, -84.95, -81.55],
+  // Norte de Matanzas, incluida la península de Varadero.
+  [23.2, 22.9, -81.5, -80.9],
   // Cinturón de La Habana (franja norte más fina)
   [23.16, 22.85, -82.6, -82.05],
   // Centro de Cuba (Matanzas este → Cienfuegos → Villa Clara → Sancti Spíritus → Ciego → Camagüey)
@@ -96,5 +98,11 @@ export function formatCoordinates({ lat, lng }: LatLng): string {
 
 /** Filters out places with coordinates clearly outside Cuba or in the sea. */
 export function filterValidPlaces<T extends LatLng>(places: T[]): T[] {
-  return places.filter((p) => isValidCubaCoordinate(p.lat, p.lng));
+  return places.filter((place) => {
+    if (!isFiniteCoordinate(place.lat, place.lng) || !isWithinCubaBoundingBox(place.lat, place.lng)) {
+      return false;
+    }
+    if ("isProject" in place && place.isProject === true) return true;
+    return isApproximatelyOnLand(place.lat, place.lng);
+  });
 }

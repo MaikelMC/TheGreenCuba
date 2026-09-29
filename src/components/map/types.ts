@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { RouteResult, RoutePoint } from "@/lib/map/routing";
+import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
 
 export interface MapPlace {
   id: string;
@@ -15,6 +16,7 @@ export interface MapPlace {
   distance?: string;
   price?: string;
   image?: string;
+  offerPackages?: ProjectOfferPackage[];
   tags?: { label: string; variant?: string }[];
 }
 

@@ -1,12 +1,13 @@
 "use client";
 
-import { Clock, MapPin, CreditCard } from "lucide-react";
+import { CalendarDays, Clock, MapPin, CreditCard } from "lucide-react";
 import { cn, currencyLabel } from "@/lib/utils";
 
 interface InfoBarProps {
   schedule: string;
   barrio: string;
   payments: string[];
+  isProject?: boolean;
   className?: string;
 }
 
@@ -29,6 +30,7 @@ export function InfoBar({
   schedule,
   barrio,
   payments,
+  isProject = false,
   className,
 }: InfoBarProps) {
   return (
@@ -37,8 +39,8 @@ export function InfoBar({
          el chip de la cabecera ya lo dice, y aquí se perdía el horario, que es
          justo el dato que se viene a buscar a esta celda. */}
       <div className={CELL}>
-        <Clock size={20} strokeWidth={1.8} className="text-verde-600" />
-        <span className={LABEL}>Horario</span>
+        {isProject ? <CalendarDays size={20} strokeWidth={1.8} className="text-verde-600" /> : <Clock size={20} strokeWidth={1.8} className="text-verde-600" />}
+        <span className={LABEL}>{isProject ? "Fechas" : "Horario"}</span>
         <span className={VALUE}>{schedule}</span>
       </div>
 
@@ -48,28 +50,30 @@ export function InfoBar({
          pantalla. El barrio, en cambio, no salía en ningún otro sitio. */}
       <div className={CELL}>
         <MapPin size={20} strokeWidth={1.8} className="text-verde-600" />
-        <span className={LABEL}>Barrio</span>
+        <span className={LABEL}>{isProject ? "Sede" : "Barrio"}</span>
         <span className={VALUE}>{barrio}</span>
       </div>
 
       {/* Pagos */}
-      <div className={CELL}>
-        <CreditCard size={20} strokeWidth={1.8} className="text-verde-600" />
-        <span className={LABEL}>Pagos</span>
-        <div className="flex gap-[4px] justify-center flex-wrap">
-          {payments.map((c) => (
-            <span
-              key={c}
-              className={cn(
-                "px-[6px] py-[2px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.08em]",
-                currencyStyles[c] ?? "bg-sand-deep text-ink-soft/75",
-              )}
-            >
-              {currencyLabel(c)}
-            </span>
-          ))}
+      {!isProject && (
+        <div className={CELL}>
+          <CreditCard size={20} strokeWidth={1.8} className="text-verde-600" />
+          <span className={LABEL}>Pagos</span>
+          <div className="flex gap-[4px] justify-center flex-wrap">
+            {payments.map((c) => (
+              <span
+                key={c}
+                className={cn(
+                  "px-[6px] py-[2px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.08em]",
+                  currencyStyles[c] ?? "bg-sand-deep text-ink-soft/75",
+                )}
+              >
+                {currencyLabel(c)}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

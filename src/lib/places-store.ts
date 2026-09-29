@@ -13,6 +13,8 @@
  * importaciones y el valor es cosmético.
  */
 
+import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
+
 export type PlaceStatus = "active" | "closed" | "temporary_closed";
 export type PlaceReviewStatus = "pending" | "approved" | "rejected";
 
@@ -119,6 +121,7 @@ export interface UserPlace {
   payments: string[];
   menu: UserPlaceMenuItem[];
   offer: UserPlaceOffer | null;
+  offerPackages?: ProjectOfferPackage[];
   status: PlaceStatus;
   /**
    * El plan que eligió el dueño al dar de alta el negocio, y que se queda con
@@ -148,6 +151,8 @@ export interface UserPlace {
   rating?: number;
   /** Vacío o ausente = el negocio todavía no tiene fotos subidas. */
   photos?: UserPlacePhoto[];
+  /** Foto elegida para el pin del mapa; en negocios cae a la portada. */
+  mapImageUrl?: string | null;
   /* Hubo aquí un `aiReasoning` que no tenía columna detrás: `toUserPlace` nunca
      lo llenaba, así que llegaba siempre `undefined` y quien lo pintara creía
      estar enseñando un dato de la base. Se quitó en vez de dejar el hueco. */

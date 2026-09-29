@@ -47,6 +47,9 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
     id: p.id,
     name: p.name,
     category: p.category,
+    isProject: p.isProject ?? false,
+    projectOffers: p.isProject ? p.offer?.text ?? null : null,
+    projectOfferPackages: p.isProject ? p.offerPackages ?? [] : [],
     rating: p.rating ?? 0,
     /* Sin el respaldo "Ver en el mapa" que había aquí: cuando no hay ni
        distancia ni dirección el campo queda vacío y la ficha esconde la línea,

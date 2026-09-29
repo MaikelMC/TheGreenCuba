@@ -13,6 +13,7 @@
  * petición antes de que llegue a este código.
  */
 export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+export const MAX_GIF_UPLOAD_BYTES = 2 * 1024 * 1024;
 
 /**
  * Tipo real a partir de los primeros bytes.
@@ -22,8 +23,19 @@ export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
  * los formatos que produce el compresor más el JPEG y el PNG que se cuelan por
  * la vía de respaldo. Devuelve `null` para todo lo demás.
  */
-export function sniffImageType(bytes: Uint8Array): "image/webp" | "image/jpeg" | "image/png" | null {
+export function sniffImageType(bytes: Uint8Array): "image/webp" | "image/jpeg" | "image/png" | "image/gif" | null {
   if (bytes.length < 12) return null;
+
+  if (
+    bytes[0] === 0x47 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x38 &&
+    (bytes[4] === 0x37 || bytes[4] === 0x39) &&
+    bytes[5] === 0x61
+  ) {
+    return "image/gif";
+  }
 
   /* JPEG: FF D8 FF. PNG: los ocho bytes de cabecera. */
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
@@ -63,4 +75,5 @@ export const EXTENSION: Record<string, string> = {
   "image/webp": "webp",
   "image/jpeg": "jpg",
   "image/png": "png",
+  "image/gif": "gif",
 };

@@ -2,7 +2,7 @@
 
 import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
-import { Check, ChevronRight, Navigation, Star } from "lucide-react";
+import { Check, ChevronRight, Navigation, Star, Ticket } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { placeIcon } from "@/lib/places";
 import { CategoryIcon } from "@/components/admin/category-icon";
@@ -49,6 +49,7 @@ export function PlacePopup({
       {place.category}
     </span>,
   ];
+  const featuredOffer = place.isProject ? place.offerPackages?.[0] : undefined;
 
   if (place.rating) {
     segments.push(
@@ -95,6 +96,21 @@ export function PlacePopup({
           </Fragment>
         ))}
       </div>
+
+      {featuredOffer && (
+        <div className="mx-[14px] mt-2 rounded-lg border border-verde-200 bg-verde-50 px-2.5 py-2">
+          <div className="flex items-center gap-1 text-[10px] font-semibold uppercase text-verde-700">
+            <Ticket size={12} /> Oferta principal
+          </div>
+          <p className="mt-0.5 truncate font-lv-display text-small font-semibold text-ink">{featuredOffer.title}</p>
+          <p className="mt-0.5 truncate text-meta text-ink-soft/75">
+            {[featuredOffer.price, featuredOffer.capacity ? `${featuredOffer.capacity} personas` : "", featuredOffer.includes[0] ?? ""]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+          {(place.offerPackages?.length ?? 0) > 1 && <p className="mt-1 text-meta font-medium text-verde-700">+{place.offerPackages!.length - 1} ofertas más</p>}
+        </div>
+      )}
 
       {/* La ruta es la acción secundaria; abrir la ficha es la principal, así que
           va en el verde de acción y a la derecha.
@@ -144,7 +160,7 @@ export function PlacePopup({
           data-place-id={place.id}
           className={cn(ACTION, "bg-verde-400 !text-verde-950 hover:bg-verde-300")}
         >
-          Ver más
+          {place.isProject ? "Ver proyecto" : "Ver más"}
           <ChevronRight size={15} strokeWidth={1.8} />
         </Link>
       </div>

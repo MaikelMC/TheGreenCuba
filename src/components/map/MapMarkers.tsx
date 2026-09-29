@@ -17,8 +17,8 @@ interface MapMarkersProps {
 }
 
 function markerVariant(isSelected: boolean, isBoosted: boolean, isProject: boolean): PlacePinVariant {
-  if (isSelected) return "selected";
   if (isProject) return "project";
+  if (isSelected) return "selected";
   if (isBoosted) return "boosted";
   return "default";
 }
@@ -43,6 +43,7 @@ const MarkerItem = memo(function MarkerItem({
   const icon = createPlacePinIcon(
     markerVariant(isSelected, isBoosted, place.isProject ?? false),
     placeIcon(place.icon, place.category),
+    place.image,
   );
 
   const handleClick = useCallback(() => {
