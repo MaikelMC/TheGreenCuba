@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAppUser } from "@/lib/auth/user";
 import { getPlaceById, ownerPlaceId, placeStats } from "@/lib/db/queries";
 import { BusinessPanel } from "@/components/business/business-panel";
+import { BusinessEntry } from "@/components/business/business-entry";
 
 /**
  * El panel del negocio, resuelto en el servidor.
@@ -28,11 +29,9 @@ export default async function BusinessPage() {
   if (!user) redirect("/login?next=/business");
 
   const placeId = await ownerPlaceId(user.id);
-  /* El layout ya ha comprobado el rol, pero el rol dice que llevas **algún**
-     negocio, no que exista: una cuenta puede quedarse como `owner` sin fila si
-     algo se cortó a mitad del alta. Sin negocio no hay panel, así que se manda
-     al formulario en vez de dejar una pantalla vacía. */
-  if (!placeId) redirect("/profile?seccion=negocio");
+  /* La entrada ahora ofrece los dos caminos de creación. El alta de negocio
+     sigue viviendo en el perfil hasta que exista el formulario de campañas. */
+  if (!placeId) return <BusinessEntry />;
 
   const [place, stats] = await Promise.all([getPlaceById(placeId), placeStats(placeId)]);
 

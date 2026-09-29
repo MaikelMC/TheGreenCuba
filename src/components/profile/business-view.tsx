@@ -27,6 +27,7 @@ import { PaymentChips } from "@/components/business/payment-chips";
 import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
 import { usePlaces } from "@/providers/places-provider";
 import { PLAN_LABEL, type PlacePlan } from "@/lib/places-store";
+import { focusProfileControl } from "@/components/profile/focus-profile-control";
 import {
   Select,
   SelectContent,
@@ -235,7 +236,7 @@ export function BusinessView() {
 function BusinessCard({ business }: { business: BusinessSummary }) {
   const pending = business.reviewStatus === "pending";
   return (
-    <div className="flex flex-col gap-gap-md">
+    <div className="flex flex-col gap-gap-md" onPointerDownCapture={focusProfileControl}>
       <header className="flex flex-col gap-gap-xs">
         <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
           Tu negocio

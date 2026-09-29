@@ -9,3 +9,4 @@ export * from "./saved_places";
 export * from "./business_owners";
 export * from "./user_search_history";
 export * from "./notifications";
+export * from "./project_requests";

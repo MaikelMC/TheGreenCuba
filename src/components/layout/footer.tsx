@@ -17,13 +17,13 @@ export function Footer() {
           </div>
           <div className="flex gap-gap-2xl flex-wrap">
             <div>
-              <h4 className="font-lv-display text-[14px] font-semibold text-white mb-gap-sm">Producto</h4>
+              <h3 className="font-lv-display text-[14px] font-semibold text-white mb-gap-sm">Producto</h3>
               <a href="#como-funciona" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Cómo funciona</a>
               <a href="#ejemplos" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Ejemplos</a>
               <a href="/business" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Para negocios</a>
             </div>
             <div>
-              <h4 className="font-lv-display text-[14px] font-semibold text-white mb-gap-sm">Legal</h4>
+              <h3 className="font-lv-display text-[14px] font-semibold text-white mb-gap-sm">Legal</h3>
               {/* Antes los dos apuntaban a `#`, o sea a ninguna parte. Ahora
                   llevan a la página de verdad, que es una sola con la
                   privacidad anclada dentro. */}
@@ -32,7 +32,7 @@ export function Footer() {
             </div>
             {/* Bloque «Creado por» del sitio de La Verde. */}
             <div>
-              <h4 className="font-lv-display text-[14px] font-semibold text-white mb-gap-sm">Creado por</h4>
+              <h3 className="font-lv-display text-[14px] font-semibold text-white mb-gap-sm">Creado por</h3>
               <ul className="space-y-2 text-[14px] text-white/70">
                 <li className="flex items-start gap-2">
                   <UserRound size={14} strokeWidth={2} className="mt-0.5 shrink-0 text-verde-300" aria-hidden />

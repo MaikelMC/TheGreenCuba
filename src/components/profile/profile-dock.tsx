@@ -24,7 +24,7 @@ interface DockItem {
 export const DOCK_ITEMS: DockItem[] = [
   { id: "perfil", label: "Perfil", icon: UserRound },
   { id: "lugares", label: "Mis lugares", icon: MapPin },
-  { id: "negocio", label: "Tengo un negocio", icon: Store },
+    { id: "negocio", label: "Tengo un negocio", icon: Store },
   { id: "ajustes", label: "Configuración", icon: Settings },
 ];
 

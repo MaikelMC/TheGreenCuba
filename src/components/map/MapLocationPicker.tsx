@@ -9,7 +9,9 @@ import { getCurrentPosition, GEO_ERROR_MESSAGES, type GeolocationErrorCode } fro
 import { formatCoordinates, validatePlaceCoordinates } from "@/lib/map/coordinates";
 import {
   searchAddress,
+  searchCubaAreas,
   reverseGeocode,
+  type AreaSuggestion,
   type GeocodeSuggestion,
   type ResolvedLocation,
 } from "@/lib/map/geocode";
@@ -77,6 +79,8 @@ export function MapLocationPicker({
   className,
 }: MapLocationPickerProps) {
   const [areaQuery, setAreaQuery] = useState("");
+  const [searchedAreas, setSearchedAreas] = useState<AreaSuggestion[]>([]);
+  const [searchingAreas, setSearchingAreas] = useState(false);
   const [flyTarget, setFlyTarget] = useState<LocationPoint | null>(null);
   const [flyZoom, setFlyZoom] = useState(13);
   const [locateBusy, setLocateBusy] = useState(false);
@@ -91,12 +95,14 @@ export function MapLocationPicker({
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reverseSeq = useRef(0);
+  const areaSeq = useRef(0);
 
   // Cancela timers al desmontar.
   useEffect(() => {
     return () => {
       if (searchTimer.current) clearTimeout(searchTimer.current);
       reverseSeq.current++;
+      areaSeq.current++;
     };
   }, []);
 
@@ -175,11 +181,47 @@ export function MapLocationPicker({
 
   const filteredAreas = useMemo(() => {
     const q = normalize(areaQuery.trim());
-    if (!q) return CUBA_AREAS;
+    if (q.length < 2) return [];
     return CUBA_AREAS.filter((area) =>
       normalize(`${area.name} ${area.province}`).includes(q),
     );
   }, [areaQuery]);
+
+  useEffect(() => {
+    const query = areaQuery.trim();
+    const seq = ++areaSeq.current;
+    if (query.length < 2) {
+      setSearchedAreas([]);
+      setSearchingAreas(false);
+      return;
+    }
+
+    setSearchingAreas(true);
+    const timer = setTimeout(() => {
+      searchCubaAreas(query)
+        .then((areas) => {
+          if (seq === areaSeq.current) setSearchedAreas(areas);
+        })
+        .catch(() => {
+          if (seq === areaSeq.current) setSearchedAreas([]);
+        })
+        .finally(() => {
+          if (seq === areaSeq.current) setSearchingAreas(false);
+        });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [areaQuery]);
+
+  const displayedAreas = useMemo(() => {
+    const seen = new Set<string>();
+    return [...filteredAreas, ...searchedAreas].filter((area) => {
+      const key = `${normalize(area.name)}-${area.lat.toFixed(3)}-${area.lng.toFixed(3)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [filteredAreas, searchedAreas]);
 
   const handleSelectArea = useCallback(
     (lat: number, lng: number) => {
@@ -187,6 +229,9 @@ export function MapLocationPicker({
       setFlyZoom(13);
       onChange({ lat, lng });
       setAreaQuery("");
+      setAddressQuery("");
+      setSuggestions([]);
+      setShowSuggestions(false);
     },
     [onChange],
   );
@@ -219,64 +264,48 @@ export function MapLocationPicker({
 
   return (
     <div className={cn("flex flex-col gap-gap-sm", className)}>
-      {/* Búsqueda por dirección (Photon) */}
-      <div className="relative">
-        <div className="relative">
-          <Search
-            size={16}
-            strokeWidth={1.8}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft/75"
-          />
-          <input
-            value={addressQuery}
-            onChange={(e) => handleAddressInput(e.target.value)}
-            onFocus={() => setShowSuggestions(true)}
-            placeholder="Busca la dirección: ej. Calle Heredia e/ San Pedro y Santo Tomás..."
-            className={cn(FIELD, "pl-11 pr-10")}
-          />
-          {searchingAddr && (
-            <Loader2
-              size={15}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-verde-600 animate-spin"
+      {/* Zone quick-jump: va antes del mapa para elegir primero una provincia,
+          municipio o ciudad y después colocar el pin exacto. */}
+      <div className="relative overflow-visible rounded-2xl border border-ink/5 bg-white">
+        <div className="p-gap-sm">
+          <div className="relative">
+            <Search
+              size={16}
+              strokeWidth={1.8}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft/75"
             />
-          )}
+            <input
+              value={addressQuery}
+              onChange={(e) => {
+                handleAddressInput(e.target.value);
+                setAreaQuery(e.target.value);
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              placeholder="Buscar dirección, calle o lugar..."
+              className={cn(FIELD, "pl-11 pr-10")}
+            />
+            {searchingAddr && <Loader2 size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 animate-spin text-verde-600" />}
+          </div>
         </div>
-
-        {showSuggestions && addressQuery.trim().length >= 3 && (
-          <div className="absolute left-0 right-0 z-[600] mt-1 max-h-[240px] overflow-y-auto rounded-2xl border border-ink/5 bg-white shadow-card">
-            {suggestions.length === 0 && !searchingAddr && (
-              <div className="px-gap-md py-gap-sm text-meta text-ink-soft/75">
-                Sin coincidencias de calle. Escribe la dirección o toca el mapa.
-              </div>
-            )}
+        {showSuggestions && addressQuery.trim().length >= 2 && (
+          <div className="absolute left-0 right-0 top-full z-[600] max-h-[280px] overflow-y-auto rounded-2xl border border-ink/5 bg-white p-gap-xs shadow-card">
             {suggestions.map((s, i) => (
-              <button
-                key={`${s.lat}-${s.lng}-${i}`}
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleSelectSuggestion(s);
-                }}
-                className="flex w-full cursor-pointer items-start gap-gap-xs px-gap-md py-gap-sm text-left transition-colors duration-500 ease-outquint hover:bg-sand"
-              >
-                <CornerDownLeft
-                  size={13}
-                  strokeWidth={1.8}
-                  className="mt-[3px] shrink-0 text-verde-600"
-                />
-                <div className="min-w-0">
-                  <div className="truncate text-small text-ink">
-                    {[s.street, s.housenumber].filter(Boolean).join(" ")}
-                    {s.between && (
-                      <span className="text-ink-soft/75"> e/ {s.between}</span>
-                    )}
-                  </div>
-                  <div className="truncate text-meta text-ink-soft/75">
-                    {[s.district, s.city].filter(Boolean).join(" · ") || "Cuba"}
-                  </div>
-                </div>
+              <button key={`${s.lat}-${s.lng}-${i}`} type="button" onMouseDown={(e) => { e.preventDefault(); handleSelectSuggestion(s); }} className="flex w-full cursor-pointer items-start gap-gap-xs rounded-xl px-gap-sm py-gap-sm text-left hover:bg-sand">
+                <CornerDownLeft size={13} className="mt-[3px] shrink-0 text-verde-600" />
+                <span className="min-w-0">
+                  <span className="block truncate text-small text-ink">{[s.street, s.housenumber].filter(Boolean).join(" ")}{s.between && <span className="text-ink-soft/75"> e/ {s.between}</span>}</span>
+                  <span className="block truncate text-meta text-ink-soft/75">{[s.district, s.city].filter(Boolean).join(" · ") || "Cuba"}</span>
+                </span>
               </button>
             ))}
+            {displayedAreas.map((area) => (
+              <button key={area.id} type="button" onMouseDown={(e) => { e.preventDefault(); handleSelectArea(area.lat, area.lng); }} className="flex w-full items-center gap-gap-xs rounded-xl px-gap-sm py-gap-sm text-left hover:bg-sand">
+                <MapPin size={15} className="shrink-0 text-verde-600" />
+                <span className="truncate text-small text-ink">{area.name} <span className="text-meta text-ink-soft/60">{area.province}</span></span>
+              </button>
+            ))}
+            {searchingAreas && <span className="block px-gap-sm py-gap-sm text-meta text-ink-soft/75">Buscando en Cuba...</span>}
+            {!searchingAddr && !searchingAreas && suggestions.length === 0 && displayedAreas.length === 0 && <span className="block px-gap-sm py-gap-sm text-meta text-ink-soft/75">Sin coincidencias. También puedes tocar el mapa.</span>}
           </div>
         )}
       </div>
@@ -341,41 +370,6 @@ export function MapLocationPicker({
         </span>
       </div>
 
-      {/* Zone quick-jump */}
-      <div className="overflow-hidden rounded-2xl border border-ink/5 bg-white">
-        <div className="border-b border-ink/5 p-gap-sm">
-          <div className="relative">
-            <Search
-              size={16}
-              strokeWidth={1.8}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft/75"
-            />
-            <input
-              value={areaQuery}
-              onChange={(e) => setAreaQuery(e.target.value)}
-              placeholder="Buscar ciudad o zona de Cuba..."
-              className={cn(FIELD, "pl-11 pr-3.5")}
-            />
-          </div>
-        </div>
-        <div className="flex max-h-[132px] flex-wrap gap-[6px] overflow-y-auto p-gap-sm">
-          {filteredAreas.length === 0 && (
-            <span className="px-1 text-meta text-ink-soft/75">
-              No se encontraron zonas.
-            </span>
-          )}
-          {filteredAreas.map((area) => (
-            <button
-              key={area.id}
-              type="button"
-              onClick={() => handleSelectArea(area.lat, area.lng)}
-              className={AREA_CHIP}
-            >
-              {area.name}
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

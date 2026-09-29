@@ -28,12 +28,22 @@ export interface ResolvedLocation {
   label: string;
 }
 
+export interface AreaSuggestion {
+  id: string;
+  name: string;
+  province: string;
+  lat: number;
+  lng: number;
+}
+
 const PHOTON_URL = "https://photon.komoot.io/api/";
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse";
 
 /** Provincias/ciudades cubanas que suelen colarse al final de una dirección. */
 const CUBA_TAIL =
   /\s*(?:santiago de cuba|la habana|varadero|cienfuegos|trinidad|santa clara|cuba)\s*$/i;
+
+const CUBA_QUERY_TAIL = /\bcuba\s*$/i;
 
 /** Extrae "A y B" de texto con formato cubano "e/ A y B" o "entre A y B". */
 export function extractBetween(text: string): string | null {
@@ -102,8 +112,9 @@ export async function searchAddress(
 ): Promise<GeocodeSuggestion[]> {
   const q = query.trim();
   if (q.length < 3) return [];
-  // Sesgo hacia Cuba: evita que "Calle 3" o "Santa Clara" matcheen en otro país.
-  const qSearch = CUBA_TAIL.test(q) ? q : `${q}, Santiago de Cuba, Cuba`;
+  // Ámbito nacional: no fijar Santiago por defecto, porque eso hacía que
+  // «hoteles en Varadero» devolviera resultados de Santiago de Cuba.
+  const qSearch = CUBA_QUERY_TAIL.test(q) ? q : `${q}, Cuba`;
   const between = extractBetween(q);
   const url = `${PHOTON_URL}?q=${encodeURIComponent(qSearch)}&limit=6`;
   const data = (await fetchJson(url)) as {
@@ -141,6 +152,40 @@ export async function searchAddress(
     })
     .filter((s) => s.street.length > 0)
     .slice(0, 6);
+}
+
+/** Busca ciudades, municipios y pueblos de Cuba para el salto rápido del mapa. */
+export async function searchCubaAreas(query: string): Promise<AreaSuggestion[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+
+  const url = `${PHOTON_URL}?q=${encodeURIComponent(`${q}, Cuba`)}&limit=10`;
+  const data = (await fetchJson(url)) as { features?: PhotonFeature[] } | null;
+  if (!data?.features) return [];
+
+  return data.features
+    .filter((feature) => {
+      const properties = feature.properties;
+      const type = properties.type;
+      return (
+        ["city", "town", "village", "municipality", "district", "suburb"].includes(type ?? "") &&
+        properties.country?.toLowerCase() === "cuba" &&
+        Number.isFinite(feature.geometry.coordinates[0])
+      );
+    })
+    .map((feature, index) => {
+      const properties = feature.properties;
+      const name = properties.name ?? properties.city ?? properties.district ?? "";
+      const province = properties.state ?? properties.city ?? "Cuba";
+      return {
+        id: `search-${name}-${feature.geometry.coordinates.join("-")}-${index}`,
+        name,
+        province,
+        lat: feature.geometry.coordinates[1]!,
+        lng: feature.geometry.coordinates[0]!,
+      };
+    })
+    .filter((area) => area.name.length > 0);
 }
 
 /** Reverse: confirma calle y barrio reales del punto usando Nominatim. */

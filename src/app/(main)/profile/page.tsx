@@ -7,10 +7,10 @@ import { ArrowLeft, Save } from "lucide-react";
 import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/layout/user-menu";
-import { BusinessView } from "@/components/profile/business-view";
 import { DetailsView } from "@/components/profile/details-view";
 import { PlacesView } from "@/components/profile/places-view";
 import { SettingsView } from "@/components/profile/settings-view";
+import { ProjectsView } from "@/components/profile/projects-view";
 import {
   DOCK_ITEMS,
   ProfileDock,
@@ -241,7 +241,7 @@ export default function ProfilePage() {
               />
             )}
             {view === "lugares" && <PlacesView />}
-            {view === "negocio" && <BusinessView />}
+            {view === "negocio" && <ProjectsView />}
             {view === "ajustes" && <SettingsView />}
           </motion.div>
         </AnimatePresence>

@@ -4,6 +4,7 @@ import type { RouteResult, RoutePoint } from "@/lib/map/routing";
 export interface MapPlace {
   id: string;
   name: string;
+  isProject?: boolean;
   lat: number;
   lng: number;
   category: string;

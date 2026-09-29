@@ -37,9 +37,5 @@ export default async function BusinessLayout({ children }: { children: ReactNode
     redirect("/login?next=/business");
   }
 
-  if (user.role !== "owner" && user.role !== "admin") {
-    redirect("/profile?seccion=negocio");
-  }
-
   return <>{children}</>;
 }
