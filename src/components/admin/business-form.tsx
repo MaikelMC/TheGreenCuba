@@ -13,6 +13,7 @@ import {
   Utensils,
   Tag,
   Zap,
+  AtSign,
   Image as ImageIcon,
 } from "lucide-react";
 import {
@@ -88,6 +89,13 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
   const [barrio, setBarrio] = useState(initial?.barrio ?? "");
   const [address, setAddress] = useState(initial?.address ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
+  /* Sección «Contacto». Mismos cuatro campos que el formulario del perfil:
+     aquí se edita la ficha que el dueño ya dio de alta, y si no estuvieran el
+     admin los vaciaría sin querer en el siguiente guardado. */
+  const [website, setWebsite] = useState(initial?.website ?? "");
+  const [whatsapp, setWhatsapp] = useState(initial?.whatsapp ?? "");
+  const [instagram, setInstagram] = useState(initial?.instagram ?? "");
+  const [facebook, setFacebook] = useState(initial?.facebook ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [schedule, setSchedule] = useState(initial?.schedule ?? "");
   const [payments, setPayments] = useState<string[]>(initial?.payments ?? []);
@@ -140,6 +148,10 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
       address: address.trim(),
       barrio: barrio.trim(),
       phone: phone.trim(),
+      website: website.trim(),
+      whatsapp: whatsapp.trim(),
+      instagram: instagram.trim(),
+      facebook: facebook.trim(),
       description: description.trim(),
       schedule: schedule.trim(),
       payments,
@@ -199,6 +211,10 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
     address,
     barrio,
     phone,
+    website,
+    whatsapp,
+    instagram,
+    facebook,
     description,
     schedule,
     payments,
@@ -344,6 +360,70 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                   "h-auto min-h-[100px] py-3 resize-y leading-relaxed whitespace-pre-wrap font-lv text-body",
                 )}
                 spellCheck={false}
+              />
+            </div>
+          </div>
+        </FormSection>
+
+        <FormSection
+          title="Contacto"
+          icon={<AtSign size={18} strokeWidth={1.8} />}
+        >
+          <p className="text-meta text-ink-soft/75 mb-gap-sm">
+            Enlaces que aparecen como botones en la ficha pública. Todo es
+            opcional: el que quede vacío no se pinta.
+          </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-gap-md">
+            <div className="flex flex-col gap-gap-xs">
+              <label htmlFor="bfWebsite" className={LABEL}>
+                Sitio web
+              </label>
+              <input
+                id="bfWebsite"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                placeholder="Ej: laverde.cu"
+                className={INPUT}
+              />
+            </div>
+            <div className="flex flex-col gap-gap-xs">
+              <label htmlFor="bfWhatsapp" className={LABEL}>
+                WhatsApp
+              </label>
+              <input
+                id="bfWhatsapp"
+                type="tel"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="Ej: +53 5 123 4567"
+                className={INPUT}
+              />
+              <p className="text-meta text-ink-soft/75">
+                Número distinto del teléfono: es el que abre la conversación.
+              </p>
+            </div>
+            <div className="flex flex-col gap-gap-xs">
+              <label htmlFor="bfInstagram" className={LABEL}>
+                Instagram
+              </label>
+              <input
+                id="bfInstagram"
+                value={instagram}
+                onChange={(e) => setInstagram(e.target.value)}
+                placeholder="Ej: @laverde"
+                className={INPUT}
+              />
+            </div>
+            <div className="flex flex-col gap-gap-xs">
+              <label htmlFor="bfFacebook" className={LABEL}>
+                Facebook
+              </label>
+              <input
+                id="bfFacebook"
+                value={facebook}
+                onChange={(e) => setFacebook(e.target.value)}
+                placeholder="Ej: facebook.com/laverde"
+                className={INPUT}
               />
             </div>
           </div>

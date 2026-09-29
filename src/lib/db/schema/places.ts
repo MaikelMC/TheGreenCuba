@@ -36,6 +36,17 @@ export const places = pgTable(
 
     phone: text("phone"),
     website: text("website"),
+    /* ── Contacto: lo que el dueño rellena en la sección «Contacto» ──
+       Los cuatro son texto y no tienen validación en la base a propósito: un
+       sitio web sin protocolo, un @ de Instagram o un teléfono cubano se
+       escriben de mil formas y quien los normaliza es la ficha al pintarlos
+       (`src/lib/contact-links.ts`), no la columna. */
+    /** Teléfono con el que el dueño atiende WhatsApp, no el de la ficha. */
+    whatsapp: text("whatsapp"),
+    /** Usuario o URL completa («@laverde» / "https://instagram.com/laverde"). */
+    instagram: text("instagram"),
+    /** URL o nombre de la página (".../laverde" / "laverde"). */
+    facebook: text("facebook"),
     // denormalized hours JSON for quick reads
     hoursJson:
       jsonb("hours_json").$type<

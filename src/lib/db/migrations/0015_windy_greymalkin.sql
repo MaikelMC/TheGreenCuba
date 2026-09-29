@@ -1,0 +1,1 @@
+ALTER TABLE "project_requests" DROP COLUMN "offer_image_url";

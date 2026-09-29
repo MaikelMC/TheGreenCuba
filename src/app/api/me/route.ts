@@ -33,6 +33,12 @@ export interface AppBusiness {
   address: string | null;
   barrio: string | null;
   phone: string | null;
+  /* La sección «Contacto» del formulario, para que el dueño que vuelve a
+     enviar una solicitud rechazada la vea rellena en vez de vacía. */
+  website: string | null;
+  whatsapp: string | null;
+  instagram: string | null;
+  facebook: string | null;
   schedule: string | null;
   lat: number;
   lng: number;
@@ -52,6 +58,10 @@ async function businessOf(userId: string): Promise<AppBusiness | null> {
       address: places.address,
       barrio: places.neighborhood,
       phone: places.phone,
+      website: places.website,
+      whatsapp: places.whatsapp,
+      instagram: places.instagram,
+      facebook: places.facebook,
       schedule: places.schedule,
       lat: places.lat,
       lng: places.lng,

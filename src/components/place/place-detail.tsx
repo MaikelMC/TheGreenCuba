@@ -11,8 +11,15 @@ import {
   CreditCard,
   ChevronDown,
   ChevronRight,
+  ExternalLink,
+  Facebook,
+  Globe,
+  Instagram,
+  MessageCircle,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn, currencyLabel } from "@/lib/utils";
+import type { ContactLinks } from "@/lib/contact-links";
 import {
   isSaved as isPlaceSaved,
   recordVisit,
@@ -69,6 +76,13 @@ export interface PlaceData {
   isBoosted?: boolean;
   slides: Slide[];
   menu: PlaceMenu[];
+  /**
+   * Los enlaces de la sección «Contacto», ya convertidos en href por
+   * `contactLinks` (la ficha no normaliza nada). Sin ninguno relleno la tarjeta
+   * no se pinta, así que un negocio de los que no lo rellenaron no gana un
+   * bloque vacío en su ficha.
+   */
+  contact: ContactLinks;
   specialOffer?: {
     label: string;
     text: string;
@@ -321,6 +335,8 @@ export function PlaceDetail({
               onReview={() => setReviewOpen(true)}
             />
 
+            <ContactCard place={place} />
+
             <WhyCard place={place} />
 
             {/* Special Offer */}
@@ -502,6 +518,11 @@ export function PlaceDetail({
               onShare={onShare}
               onReview={() => setReviewOpen(true)}
             />
+          </Reveal>
+
+          {/* Contacto */}
+          <Reveal delay={0.05}>
+            <ContactCard place={place} className="mx-gutter mt-gap-md" />
           </Reveal>
 
           {/* Divider */}
@@ -715,6 +736,69 @@ function WhyCard({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Los enlaces que el dueño rellenó en la sección «Contacto» de su formulario:
+ * sitio web, WhatsApp, Instagram y Facebook.
+ *
+ * Va como tarjeta aparte y no dentro de los `ActionButtons`: esas cuatro son
+ * acciones **de La Verde** —llegar, guardar, compartir, opinar— y estas son del
+ * negocio, que se abren fuera. Mezclarlas en la misma rejilla de cuatro las
+ * habría obligado a decidir cuál se queda sin pintar cuando el dueño solo
+ * rellena dos, y una rejilla con huecos se lee como algo roto.
+ *
+ * Sin ningún enlace no pinta nada, que es lo que quiere decir «este negocio no
+ * dio sus contactos»: no un bloque con la cabecera sola.
+ */
+function ContactCard({
+  place,
+  className,
+}: {
+  place: PlaceData;
+  className?: string;
+}) {
+  const { website, whatsapp, instagram, facebook } = place.contact;
+
+  const rows: { label: string; href: string; icon: LucideIcon }[] = [];
+  if (whatsapp) rows.push({ label: "WhatsApp", href: whatsapp, icon: MessageCircle });
+  if (website) rows.push({ label: "Sitio web", href: website, icon: Globe });
+  if (instagram) rows.push({ label: "Instagram", href: instagram, icon: Instagram });
+  if (facebook) rows.push({ label: "Facebook", href: facebook, icon: Facebook });
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div
+      className={cn(
+        "bg-white rounded-2xl border border-ink/5 shadow-soft p-gap-md",
+        className,
+      )}
+    >
+      <div className="font-lv-display text-small font-semibold text-ink mb-gap-sm">
+        Contacto
+      </div>
+      <div className="flex flex-col gap-[6px]">
+        {rows.map((row) => (
+          <a
+            key={row.label}
+            href={row.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(BTN_OUTLINE, "w-full justify-start gap-gap-sm px-gap-md")}
+          >
+            <row.icon size={18} strokeWidth={1.8} className="shrink-0 text-verde-600" />
+            <span className="truncate">{row.label}</span>
+            <ExternalLink
+              size={15}
+              strokeWidth={1.8}
+              className="ml-auto shrink-0 text-ink-soft/75"
+            />
+          </a>
+        ))}
+      </div>
     </div>
   );
 }

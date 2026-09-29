@@ -1,4 +1,5 @@
 import { siteConfig } from "@/config/site";
+import { contactLinks } from "@/lib/contact-links";
 import { currencyLabel } from "@/lib/utils";
 import type { UserPlace } from "@/lib/places-store";
 
@@ -71,6 +72,20 @@ export function placeJsonLd(place: UserPlace): Record<string, unknown> {
     paymentAccepted: place.payments.length
       ? place.payments.map(currencyLabel).join(", ")
       : undefined,
-    sameAs: place.website || undefined,
+    /* La web y las redes que el dueño dio en la sección «Contacto». `sameAs`
+       espera una lista y aquí iba la web sola: son las URLs que Google asocia
+       con la entidad, así que cuanto más haya, mejor. Sale de
+       `contactLinks`, con lo que ya se ha normalizado para la ficha. */
+    sameAs: (() => {
+      const links = contactLinks({
+        website: place.website,
+        instagram: place.instagram,
+        facebook: place.facebook,
+      });
+      const list = [links.website, links.instagram, links.facebook].filter(
+        (value): value is string => Boolean(value),
+      );
+      return list.length > 0 ? list : undefined;
+    })(),
   };
 }

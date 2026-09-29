@@ -57,6 +57,14 @@ function curatedInput(body: Partial<UserPlace>): Partial<UserPlace> {
     barrio: text(body.barrio),
     schedule: text(body.schedule),
     phone: text(body.phone) || undefined,
+    /* Sección «Contacto». Van con `text()` y no con `|| undefined` como el
+       teléfono: aquí vaciar el campo es un dato —«ya no tengo web»— y con
+       `undefined` el reenvío de una solicitud rechazada no tocaría la columna
+       y dejaría la dirección vieja en la ficha. */
+    website: text(body.website),
+    whatsapp: text(body.whatsapp),
+    instagram: text(body.instagram),
+    facebook: text(body.facebook),
     lat: body.lat,
     lng: body.lng,
     payments: list(body.payments),

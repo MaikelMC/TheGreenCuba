@@ -5,8 +5,11 @@ import Image from "next/image";
 import {
   CalendarClock,
   Clock3,
+  Facebook,
   Globe,
+  Instagram,
   MapPin,
+  MessageCircle,
   Phone,
   Tag,
   UtensilsCrossed,
@@ -15,6 +18,7 @@ import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CategoryIcon } from "@/components/admin/category-icon";
 import { alreadySaid, locationLine, placeIcon } from "@/lib/places";
+import { contactLinks } from "@/lib/contact-links";
 import { usePlaces } from "@/providers/places-provider";
 import {
   Sheet,
@@ -125,11 +129,21 @@ export function RequestDetailSheet({
      dirección entera —«…, Flores, Santiago de Cuba»— y el rótulo de la cabecera
      lo repetía justo encima de la sección de ubicación. */
   const barrio = alreadySaid(shown?.address, shown?.barrio) ? "" : (shown?.barrio ?? "");
-  const website = shown?.website
-    ? shown.website.startsWith("http")
-      ? shown.website
-      : `https://${shown.website}`
-    : undefined;
+  /* Los enlaces ya normalizados, con los mismos que luego pinta la ficha
+     pública: un admin que apruebe viendo un «wa.me» distinto del que verá el
+     usuario estaría decidiendo sobre otra cosa. */
+  const links = contactLinks({
+    website: shown?.website,
+    whatsapp: shown?.whatsapp,
+    instagram: shown?.instagram,
+    facebook: shown?.facebook,
+  });
+  const sinContacto =
+    !shown?.phone &&
+    !links.website &&
+    !links.whatsapp &&
+    !links.instagram &&
+    !links.facebook;
 
   return (
     <Sheet open={place !== null} onOpenChange={(open) => !open && onClose()}>
@@ -225,10 +239,25 @@ export function RequestDetailSheet({
                     ]) || "Dirección no indicada"}
                   </InfoRow>
                   {shown.phone && <InfoRow icon={Phone} href={`tel:${shown.phone}`}>{shown.phone}</InfoRow>}
-                  {website && <InfoRow icon={Globe} href={website}>{shown.website}</InfoRow>}
-                  {!shown.phone && !website && (
+                  {links.whatsapp && (
+                    <InfoRow icon={MessageCircle} href={links.whatsapp}>
+                      WhatsApp · {shown.whatsapp}
+                    </InfoRow>
+                  )}
+                  {links.website && <InfoRow icon={Globe} href={links.website}>{shown.website}</InfoRow>}
+                  {links.instagram && (
+                    <InfoRow icon={Instagram} href={links.instagram}>
+                      Instagram · {shown.instagram}
+                    </InfoRow>
+                  )}
+                  {links.facebook && (
+                    <InfoRow icon={Facebook} href={links.facebook}>
+                      Facebook · {shown.facebook}
+                    </InfoRow>
+                  )}
+                  {sinContacto && (
                     <p className="text-small text-ink-soft/75">
-                      Sin teléfono ni web indicados.
+                      Sin datos de contacto indicados.
                     </p>
                   )}
                 </div>

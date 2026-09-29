@@ -69,6 +69,9 @@ export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
     province: row.province,
     phone: row.phone ?? undefined,
     website: row.website ?? undefined,
+    whatsapp: row.whatsapp ?? undefined,
+    instagram: row.instagram ?? undefined,
+    facebook: row.facebook ?? undefined,
     description: row.description ?? row.shortDescription ?? "",
     schedule: row.schedule ?? "",
     /* La base lo guarda desde la primera siembra; sin esto los filtros de
@@ -137,6 +140,13 @@ export function toPlaceValues(
      cadena vacía lo borra —`|| null`—, que es lo que hace quien vacía el campo
      a propósito. */
   if (patch.phone !== undefined) values.phone = patch.phone || null;
+  /* `website` no estaba en la lista y era el único de los cuatro que ya tenía
+     columna: sin esto, lo que el formulario de contacto escribía se caía en
+     silencio aquí, que es la lista blanca por la que pasan todos los `PATCH`. */
+  if (patch.website !== undefined) values.website = patch.website || null;
+  if (patch.whatsapp !== undefined) values.whatsapp = patch.whatsapp || null;
+  if (patch.instagram !== undefined) values.instagram = patch.instagram || null;
+  if (patch.facebook !== undefined) values.facebook = patch.facebook || null;
   if (patch.description !== undefined) values.description = patch.description;
   if (patch.schedule !== undefined) values.schedule = patch.schedule;
   if (patch.payments !== undefined) values.paymentMethods = patch.payments;

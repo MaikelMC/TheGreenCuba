@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import {
   ArrowRight,
+  AtSign,
   BadgeCheck,
   Check,
   Clock,
@@ -48,6 +49,13 @@ interface BusinessSummary {
   address: string | null;
   barrio: string | null;
   phone: string | null;
+  /* La sección «Contacto». Los cuatro llegan desde `/api/me` y vuelven en el
+     `POST`, para que una solicitud rechazada se reenvíe con lo que ya se había
+     escrito en vez de con los campos en blanco. */
+  website: string | null;
+  whatsapp: string | null;
+  instagram: string | null;
+  facebook: string | null;
   schedule: string | null;
   lat: number;
   lng: number;
@@ -258,6 +266,12 @@ function BusinessForm({
   const [barrio, setBarrio] = useState(initialBusiness?.barrio ?? "");
   const [address, setAddress] = useState(initialBusiness?.address ?? "");
   const [phone, setPhone] = useState(initialBusiness?.phone ?? "");
+  /* Sección «Contacto». Ninguno es obligatorio: un negocio sin web o sin
+     redes es el caso normal, y la ficha no pinta el botón que falte. */
+  const [website, setWebsite] = useState(initialBusiness?.website ?? "");
+  const [whatsapp, setWhatsapp] = useState(initialBusiness?.whatsapp ?? "");
+  const [instagram, setInstagram] = useState(initialBusiness?.instagram ?? "");
+  const [facebook, setFacebook] = useState(initialBusiness?.facebook ?? "");
   const [schedule, setSchedule] = useState(initialBusiness?.schedule ?? "");
   const [description, setDescription] = useState(initialBusiness?.description ?? "");
   const [payments, setPayments] = useState<string[]>(initialBusiness?.payments ?? []);
@@ -314,6 +328,10 @@ function BusinessForm({
           address: address.trim(),
           barrio: barrio.trim(),
           phone: phone.trim(),
+          website: website.trim(),
+          whatsapp: whatsapp.trim(),
+          instagram: instagram.trim(),
+          facebook: facebook.trim(),
           schedule: schedule.trim(),
           payments,
           lat: location.lat,
@@ -355,6 +373,10 @@ function BusinessForm({
     address,
     barrio,
     phone,
+    website,
+    whatsapp,
+    instagram,
+    facebook,
     schedule,
     payments,
   ]);
@@ -491,6 +513,70 @@ function BusinessForm({
               value={barrio}
               onChange={(e) => setBarrio(e.target.value)}
               placeholder="Ej: Centro histórico"
+              className={INPUT}
+            />
+          </div>
+        </div>
+      </FormSection>
+
+      <FormSection title="Contacto" icon={<AtSign size={18} strokeWidth={1.8} />}>
+        <p className="mb-gap-sm text-meta text-ink-soft/75">
+          Todo opcional. Son los botones que aparecen en tu ficha: el que dejes
+          vacío no se pinta.
+        </p>
+        <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
+          <div className="flex flex-col gap-gap-xs">
+            <label htmlFor="pbWebsite" className={LABEL}>
+              Sitio web
+            </label>
+            <input
+              id="pbWebsite"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="Ej: laverde.cu"
+              className={INPUT}
+            />
+          </div>
+          <div className="flex flex-col gap-gap-xs">
+            <label htmlFor="pbWhatsapp" className={LABEL}>
+              WhatsApp
+            </label>
+            <input
+              id="pbWhatsapp"
+              type="tel"
+              autoComplete="tel"
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(e.target.value)}
+              placeholder="+53 5 123 4567"
+              className={INPUT}
+            />
+            {/* El teléfono ya está en «Lo esencial» y sin esta frase los dos
+                campos se leían como el mismo dato escrito dos veces. */}
+            <p className="text-meta text-ink-soft/75">
+              El número con el que te escriben: abre WhatsApp desde tu ficha.
+            </p>
+          </div>
+          <div className="flex flex-col gap-gap-xs">
+            <label htmlFor="pbInstagram" className={LABEL}>
+              Instagram
+            </label>
+            <input
+              id="pbInstagram"
+              value={instagram}
+              onChange={(e) => setInstagram(e.target.value)}
+              placeholder="Ej: @laverde"
+              className={INPUT}
+            />
+          </div>
+          <div className="flex flex-col gap-gap-xs">
+            <label htmlFor="pbFacebook" className={LABEL}>
+              Facebook
+            </label>
+            <input
+              id="pbFacebook"
+              value={facebook}
+              onChange={(e) => setFacebook(e.target.value)}
+              placeholder="Ej: facebook.com/laverde"
               className={INPUT}
             />
           </div>

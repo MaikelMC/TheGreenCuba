@@ -12,6 +12,7 @@ import {
 } from "@/components/place/place-detail";
 import { usePlaces } from "@/providers/places-provider";
 import { sharePlace } from "@/lib/share";
+import { contactLinks } from "@/lib/contact-links";
 import type { UserPlace } from "@/lib/places-store";
 
 /* Mismo par de degradados claros que usa el editor de fotos del panel de
@@ -104,6 +105,16 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
           expiry: p.offer.expiry,
         }
       : undefined,
+    /* Aquí y no en `PlaceDetail`: normalizar es traducir lo de la base, y la
+       ficha solo pinta. El `whatsapp` no cae al teléfono de la ficha, aunque
+       parezcan lo mismo: el botón promete una conversación y un teléfono fijo
+       no la abre —el dueño que quiera el botón llena el suyo. */
+    contact: contactLinks({
+      website: p.website,
+      whatsapp: p.whatsapp,
+      instagram: p.instagram,
+      facebook: p.facebook,
+    }),
   };
 }
 

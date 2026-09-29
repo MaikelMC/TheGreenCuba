@@ -105,9 +105,17 @@ export interface UserPlace {
   city?: string;
   province?: string;
   /** Contacto del negocio cuando la base lo tiene. La ficha lo usa en el
-      marcado estructurado; el panel todavía no lo edita. */
+      marcado estructurado y en la tarjeta «Contacto». */
   phone?: string;
   website?: string;
+  /* Los tres de la sección «Contacto» del formulario. Opcionales como el resto
+     del contacto: media tabla se dio de alta antes de que existieran y
+     `undefined` significa «no lo rellenó», que es exactamente lo que la ficha
+     entiende para no pintar el botón. */
+  /** Teléfono con el que atiende WhatsApp, distinto del `phone` de la ficha. */
+  whatsapp?: string;
+  instagram?: string;
+  facebook?: string;
   description: string;
   schedule: string;
   /**
