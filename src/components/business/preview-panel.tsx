@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import Image from "next/image";
 import { Wifi, Battery, Sparkles, Image as ImageIcon } from "lucide-react";
-import { cn, currencyLabel } from "@/lib/utils";
+import { cn, currencyLabel, formatMenuPrice } from "@/lib/utils";
 
 interface MenuPreviewItem {
   name: string;
@@ -153,14 +153,18 @@ export function PreviewPanel({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-lv-display text-[13px] font-semibold text-ink">{item.name}</div>
-                    <div className="font-lv-display text-meta text-verde-600">
-                      {item.price} {currencyLabel(item.currency)}
-                      {item.tag && (
-                        <span className="ml-1 bg-verde-100 text-verde-700 px-[6px] py-[1px] rounded-full text-[9px]">
-                          {item.tag}
-                        </span>
-                      )}
-                    </div>
+                    {/* Igual que `MenuItem` en la ficha: sin precio no se pinta
+                        el hueco, y la chapita se queda sola si hace falta. */}
+                    {(formatMenuPrice(item.price, item.currency) || item.tag) && (
+                      <div className="font-lv-display text-meta text-verde-600">
+                        {formatMenuPrice(item.price, item.currency)}
+                        {item.tag && (
+                          <span className="ml-1 bg-verde-100 text-verde-700 px-[6px] py-[1px] rounded-full text-[9px]">
+                            {item.tag}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

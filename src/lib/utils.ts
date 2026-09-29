@@ -24,6 +24,20 @@ export function currencyLabel(code: string): string {
   return labels[code] ?? code;
 }
 
+/**
+ * El precio de una entrada de la carta, tal como lo escribió el dueño:
+ * «12 USD Clásica». **Cadena vacía si no hay precio.**
+ *
+ * Existe porque el precio puede faltar —un servicio como «Wi-Fi gratis» no
+ * tiene— y las dos vistas que pintan la carta lo escribían igual, así que la
+ * ficha enseñaba « USD Clásica»: con el espacio delante y la moneda de un
+ * precio que no existe. Una sola función para las dos, `MenuItem` (la ficha) y
+ * `PreviewPanel` (la vista previa del panel).
+ */
+export function formatMenuPrice(price: string, currency: string): string {
+  return price.trim() ? `${price} ${currencyLabel(currency)}` : "";
+}
+
 export function formatPrice(price: number, currency = "MLC"): string {
   const symbols: Record<string, string> = { MLC: "USD", CUP: "$", USD: "USD", EUR: "€" };
   return `${price.toFixed(2)} ${symbols[currency] ?? currency}`;

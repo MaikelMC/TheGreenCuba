@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import Image from "next/image";
 import { Image as ImageIcon } from "lucide-react";
-import { cn, currencyLabel } from "@/lib/utils";
+import { cn, formatMenuPrice } from "@/lib/utils";
 
 interface MenuItemProps {
   name: string;
@@ -49,6 +49,8 @@ export function MenuItem({
   className,
   index = 0,
 }: MenuItemProps) {
+  const priceText = formatMenuPrice(price, currency);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -83,24 +85,30 @@ export function MenuItem({
         <div className="text-meta text-ink-soft/75 leading-snug line-clamp-2">
           {description}
         </div>
-        <div className="flex items-center justify-between mt-[6px]">
-          <span className="font-lv-display text-small font-semibold text-ink">
-            {price}{" "}
-            <span className="font-lv-display text-meta font-normal text-ink-soft/75">
-              {currencyLabel(currency)}
-            </span>
-          </span>
-          {tag && (
-            <span
-              className={cn(
-                "px-[8px] py-[2px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em]",
-                TAG_STYLES[tag] ?? TAG_FALLBACK,
-              )}
-            >
-              {tag}
-            </span>
-          )}
-        </div>
+        {/* Sin precio ni chapita no hay fila: `formatMenuPrice` devuelve cadena
+            vacía cuando el dueño no puso precio, que es el caso de un servicio
+            como «Wi-Fi gratis». */}
+        {(priceText || tag) && (
+          <div className="flex items-center justify-between mt-[6px]">
+            {priceText && (
+              <span className="font-lv-display text-small font-semibold text-ink">
+                {priceText}
+              </span>
+            )}
+            {tag && (
+              <span
+                className={cn(
+                  /* `ml-auto` para que la chapita siga pegada a la derecha
+                     cuando es lo único que queda en la fila. */
+                  "ml-auto px-[8px] py-[2px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em]",
+                  TAG_STYLES[tag] ?? TAG_FALLBACK,
+                )}
+              >
+                {tag}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </motion.div>
   );

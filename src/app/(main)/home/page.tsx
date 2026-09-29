@@ -34,7 +34,7 @@ import type { MapPlace } from "@/components/map/types";
 import { usePlaces } from "@/providers/places-provider";
 import { placeIcon, type BusinessCategory } from "@/lib/places";
 import { matchesPlaceFilters } from "@/lib/place-filters";
-import type { UserPlace } from "@/lib/places-store";
+import type { UserPlace, UserPlaceMenuItem } from "@/lib/places-store";
 import {
   readUserPreferences,
   mergeRemoteUserPreferences,
@@ -64,6 +64,34 @@ import {
 import { trackPlaceMetric } from "@/lib/place-metrics";
 
 type SheetState = "default" | "searching" | "results" | "no-results" | "error";
+
+/* Cuántas entradas de «Lo que ofrece» viajan a la búsqueda con IA.
+   El formulario no pone tope a la carta, así que lo pone aquí: sin él, ochenta
+   lugares con una carta larga convierten la petición en un documento. */
+const MENU_ITEMS_PER_PLACE = 12;
+
+/**
+ * La carta, en una línea por producto o servicio, para el catálogo que va al
+ * modelo: «Ropa Vieja de Res: 12 MLC», «Mojito de la casa (2x1): 5 MLC».
+ *
+ * `price` es texto libre y **puede venir vacío** —un servicio sin precio, tipo
+ * «Wi-Fi gratis»—, así que los dos puntos solo se ponen cuando hay algo detrás.
+ * La foto y la descripción de cada plato se quedan fuera a propósito: son el
+ * grueso del peso y el modelo no las necesita para elegir. Ver `CatalogPlace`.
+ */
+function menuLines(menu: UserPlaceMenuItem[]): string[] | undefined {
+  const lines = menu
+    .slice(0, MENU_ITEMS_PER_PLACE)
+    .map((item) => {
+      const name = item.name.trim();
+      if (!name) return "";
+      const tag = item.tag?.trim();
+      const price = item.price.trim();
+      return `${name}${tag ? ` (${tag})` : ""}${price ? `: ${price} ${item.currency}` : ""}`;
+    })
+    .filter(Boolean);
+  return lines.length > 0 ? lines : undefined;
+}
 
 interface HomePlace {
   id: string;
@@ -650,6 +678,12 @@ function HomePageContent() {
             payments: p.payments,
             schedule: p.schedule,
             description: p.description,
+            /* La carta viaja con la búsqueda: sin ella el modelo solo podía
+               juzgar por categoría y descripción, así que «¿dónde como pizza
+               barata?» no tenía con qué responderse. `menuLines` la deja en una
+               línea por plato y fuera van la foto y la descripción de cada uno,
+               que es donde se iba el peso. */
+            menu: menuLines(p.menu),
             /* Sin ubicación el campo no viaja, y el modelo lo lee como
                «distancia desconocida», que es exactamente la verdad. */
             distanceM: origin

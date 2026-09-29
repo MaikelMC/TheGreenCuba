@@ -172,6 +172,23 @@ export interface CatalogPlace {
   schedule?: string;
   description?: string;
   /**
+   * «Lo que ofrece» el negocio, ya en una línea por entrada:
+   * `"Pizza margarita: 3–5 USD"`.
+   *
+   * **Productos y servicios son la misma lista.** El formulario del panel tiene
+   * un solo editor —«Añadir producto o servicio», `MenuItemEditor`— y las dos
+   * cosas caen en la misma columna de la ficha, así que aquí llegan mezcladas y
+   * no hay nada que separar.
+   *
+   * Se manda como cadena y no como objeto, y sin `description` ni `image`:
+   * el precio es texto libre («Desde 8», «3–5 USD»), así que trocearlo en campos
+   * solo añadiría llaves al JSON; y con ochenta lugares la descripción de cada
+   * plato y la URL de su foto pesan más que el catálogo entero.
+   * `ponytail:` si una consulta de ingredientes falla, añádase `description`
+   * al final de la línea, que es lo que esa consulta necesita.
+   */
+  menu?: string[];
+  /**
    * Distancia en metros a quien consulta, calculada en el navegador. Ausente si
    * no hay ubicación. El catálogo llega ordenado de menor a mayor.
    */
@@ -203,6 +220,13 @@ Reglas:
   CUP = peso cubano, USD = dólar, EUR = euro, TRANSFER = transferencia. Un lugar con
   "MLC" SÍ cumple la condición "acepta USD Clásica"; sin esta equivalencia devolvías
   cero resultados a la consulta de ejemplo del propio buscador.
+- Cada lugar puede traer "menu": su carta, una línea por producto o servicio, con el precio
+  tal como lo escribió el dueño («Ropa Vieja de Res: 12 MLC», «Wi-Fi gratis»). Úsalo para las
+  consultas de platos, precios o servicios («pizza barata», «postres», «¿qué desayuno aquí?»),
+  y cita los precios como vienen. Los códigos de moneda son los mismos de "payments".
+- Que un lugar no traiga "menu" significa que no lo publicó, no que no tenga carta: no lo
+  descartes por eso ni escribas que no ofrece algo. Y si la carta no trae el plato que piden,
+  no lo inventes.
 - El catálogo llega ordenado del lugar más cercano al más lejano, y cada lugar trae
   "distanceM": su distancia en metros a quien consulta. El campo puede faltar: eso
   significa que no se conoce la ubicación de quien busca, no que esté lejos.

@@ -8,6 +8,11 @@ export const maxDuration = 30;
 const MAX_PLACES = 80;
 const MAX_TEXT = 500;
 const MAX_FIELD = 2000;
+/* Tope de la carta. El cliente ya recorta a doce entradas, pero el cliente no
+   es de fiar: esta ruta la llama cualquiera con el cuerpo que quiera, y cada
+   entrada es una línea que se le paga al modelo. */
+const MAX_MENU_ITEMS = 12;
+const MAX_MENU_LINE = 60;
 
 // Límite de peticiones de IA por IP: protege el costo del LLM frente a abuso.
 const RATE_LIMIT = 15;
@@ -25,6 +30,23 @@ function tooMany(retryAfterSeconds?: number): NextResponse {
 
 function cleanString(value: unknown): string {
   return typeof value === "string" ? value.slice(0, MAX_FIELD) : "";
+}
+
+/**
+ * Lista de cadenas, acotada por número de entradas y por largo de cada una.
+ *
+ * Un array vacío se devuelve como `undefined` y no como `[]`: las dos cosas se
+ * serializan distinto y el modelo recibía un `"menu": []` que le dice «este
+ * lugar tiene una carta» cuando lo que hay es un lugar sin carta publicada.
+ */
+function cleanList(value: unknown, max: number, maxLength: number): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const out = value
+    .filter((x): x is string => typeof x === "string")
+    .map((x) => x.trim().slice(0, maxLength))
+    .filter(Boolean)
+    .slice(0, max);
+  return out.length > 0 ? out : undefined;
 }
 
 function sanitizePlaces(value: unknown): CatalogPlace[] {
@@ -54,6 +76,7 @@ function sanitizePlaces(value: unknown): CatalogPlace[] {
       payments,
       schedule: cleanString(p.schedule) || undefined,
       description: cleanString(p.description) || undefined,
+      menu: cleanList(p.menu, MAX_MENU_ITEMS, MAX_MENU_LINE),
       distanceM:
         Number.isFinite(distance) && distance >= 0
           ? Math.min(Math.round(distance), 20_000_000)
