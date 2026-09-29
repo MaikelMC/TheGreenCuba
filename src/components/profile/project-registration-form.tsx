@@ -1,25 +1,52 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, CalendarDays, ImagePlus, MapPin, Plus, Send, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, ImagePlus, Loader2, MapPin, Plus, Send, Trash2, X } from "lucide-react";
+import { prepareImage } from "@/lib/storage/compress";
 import { CUBA_PROVINCES } from "@/lib/user-preferences-store";
 import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
 import { focusProfileControl } from "@/components/profile/focus-profile-control";
 
+export interface ProjectFormProject {
+  id: string;
+  name: string;
+  description: string;
+  contact: string;
+  phones: string[];
+  socialLinks: string[];
+  provinces: string[];
+  venueName: string;
+  lat: number;
+  lng: number;
+  startsAt: string;
+  endsAt: string;
+  offers: string | null;
+  imageUrls: string[];
+  adminNote: string | null;
+  status: "pending" | "approved" | "rejected";
+}
+
 interface ProjectRegistrationFormProps {
   onBack: () => void;
+  onSaved?: () => void;
+  project?: ProjectFormProject;
+  showPhotos?: boolean;
 }
 
 const INPUT =
   "h-11 w-full rounded-xl border border-ink/10 bg-white px-4 text-body text-ink placeholder:text-ink-soft/60 outline-none transition-colors focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/80";
 
-export function ProjectRegistrationForm({ onBack }: ProjectRegistrationFormProps) {
-  const [socialLinks, setSocialLinks] = useState([""]);
-  const [phoneNumbers, setPhoneNumbers] = useState([""]);
-  const [provinces, setProvinces] = useState([""]);
-  const [location, setLocation] = useState<LocationPoint | null>(null);
-  const [venueName, setVenueName] = useState("");
+export function ProjectRegistrationForm({ onBack, onSaved, project, showPhotos = true }: ProjectRegistrationFormProps) {
+  const [socialLinks, setSocialLinks] = useState(project?.socialLinks.length ? project.socialLinks : [""]);
+  const [phoneNumbers, setPhoneNumbers] = useState(project?.phones.length ? project.phones : [""]);
+  const [provinces, setProvinces] = useState(project?.provinces.length ? project.provinces : [""]);
+  const [location, setLocation] = useState<LocationPoint | null>(project ? { lat: project.lat, lng: project.lng } : null);
+  const [venueName, setVenueName] = useState(project?.venueName ?? "");
+  const [imageUrls, setImageUrls] = useState(project?.imageUrls ?? []);
+  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
+  const [selectedOfferFlyers, setSelectedOfferFlyers] = useState<File[]>([]);
+  const [savedProjectId, setSavedProjectId] = useState(project?.id ?? null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -73,8 +100,8 @@ export function ProjectRegistrationForm({ onBack }: ProjectRegistrationFormProps
 
     setSending(true);
     setError(null);
-    const response = await fetch("/api/project-requests", {
-      method: "POST",
+    const response = await fetch(savedProjectId ? `/api/project-requests/${savedProjectId}` : "/api/project-requests", {
+      method: savedProjectId ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: formData.get("name"),
@@ -89,16 +116,57 @@ export function ProjectRegistrationForm({ onBack }: ProjectRegistrationFormProps
         startsAt: formData.get("startsAt"),
         endsAt: formData.get("endsAt"),
         offers: formData.get("offers"),
+        ...(location ? { lat: selectedLocation.lat, lng: selectedLocation.lng } : {}),
       }),
     }).catch(() => null);
 
-    setSending(false);
     if (!response?.ok) {
+      setSending(false);
       const data = await response?.json().catch(() => null);
       setError(data?.error ?? "No se pudo enviar el proyecto.");
       return;
     }
-    setSubmitted(true);
+
+    const savedProject = (await response.json()) as { id: string; imageUrls?: string[] };
+    const projectId = savedProjectId ?? savedProject.id;
+    setSavedProjectId(projectId);
+    try {
+      for (const file of [...selectedPhotos, ...selectedOfferFlyers]) {
+        const prepared = await prepareImage(file);
+        const imageForm = new FormData();
+        imageForm.append("file", prepared.blob, prepared.name);
+        if (prepared.width) imageForm.append("width", String(prepared.width));
+        if (prepared.height) imageForm.append("height", String(prepared.height));
+        const imageResponse = await fetch(`/api/project-requests/${projectId}/images`, { method: "POST", body: imageForm });
+        if (!imageResponse.ok) {
+          const data = (await imageResponse.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(data?.error ?? "No se pudo subir una foto.");
+        }
+        const result = (await imageResponse.json()) as { imageUrls: string[] };
+        setImageUrls(result.imageUrls);
+      }
+      setSelectedPhotos([]);
+      setSelectedOfferFlyers([]);
+      setSending(false);
+      if (onSaved) onSaved();
+      else setSubmitted(true);
+    } catch (uploadError) {
+      setSending(false);
+      setError(uploadError instanceof Error ? `El proyecto quedó guardado, pero ${uploadError.message}` : "El proyecto quedó guardado, pero no se pudieron subir todas las fotos.");
+    }
+  }
+
+  async function removePhoto(url: string) {
+    if (!savedProjectId) return;
+    setError(null);
+    const response = await fetch(`/api/project-requests/${savedProjectId}/images?imageUrl=${encodeURIComponent(url)}`, { method: "DELETE" });
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      setError(data?.error ?? "No se pudo eliminar la foto.");
+      return;
+    }
+    const data = (await response.json()) as { imageUrls: string[] };
+    setImageUrls(data.imageUrls);
   }
 
   return (
@@ -109,39 +177,42 @@ export function ProjectRegistrationForm({ onBack }: ProjectRegistrationFormProps
         className="mb-gap-sm inline-flex items-center gap-gap-xs font-lv-display text-small font-semibold text-verde-700"
       >
         <ArrowLeft size={16} />
-        Volver a opciones
+        {project ? "Volver a mis proyectos" : "Volver a opciones"}
       </button>
 
       <form lang="es-CU" noValidate onSubmit={handleSubmit} onPointerDownCapture={focusProfileControl} className="flex flex-col gap-gap-lg rounded-[24px] border border-ink/10 bg-white p-gap-lg shadow-[0_18px_50px_-32px_rgba(20,42,30,0.55)]">
         <div>
           <p className="font-lv-display text-meta font-semibold uppercase tracking-[0.12em] text-verde-600">
-            Nuevo proyecto
+            {project ? "Editar proyecto" : "Nuevo proyecto"}
           </p>
           <h2 className="mt-gap-xs font-lv-display text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">
-            Registra tu proyecto
+            {project ? "Administra tu proyecto" : "Registra tu proyecto"}
           </h2>
           <p className="mt-gap-sm text-body leading-relaxed text-ink-soft/80">
-            Cuéntanos qué haces, dónde te presentarás y cómo puede encontrarte la comunidad.
+            {project
+              ? "Actualiza los datos, la ubicación y las fotos del proyecto. Los cambios volverán a revisión."
+              : "Cuéntanos qué haces, dónde te presentarás y cómo puede encontrarte la comunidad."}
           </p>
         </div>
 
         <div className="grid gap-gap-md sm:grid-cols-2">
           <label className="flex flex-col gap-gap-xs sm:col-span-2">
             <span className={LABEL}>Nombre del proyecto</span>
-            <input className={INPUT} name="name" placeholder="Ej. Sonidos de La Habana" required />
+            <input className={INPUT} name="name" defaultValue={project?.name} placeholder="Ej. Sonidos de La Habana" required />
           </label>
           <label className="flex flex-col gap-gap-xs sm:col-span-2">
             <span className={LABEL}>Descripción</span>
             <textarea
               className="min-h-28 w-full resize-y rounded-xl border border-ink/10 bg-white px-4 py-3 text-body text-ink placeholder:text-ink-soft/60 outline-none transition-colors focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20"
               name="description"
+              defaultValue={project?.description}
               placeholder="Describe la propuesta, sus integrantes y qué experiencia ofreces."
               required
             />
           </label>
           <label className="flex flex-col gap-gap-xs">
             <span className={LABEL}>Persona de contacto</span>
-            <input className={INPUT} name="contact" placeholder="Nombre de la persona o grupo" required />
+            <input className={INPUT} name="contact" defaultValue={project?.contact} placeholder="Nombre de la persona o grupo" required />
           </label>
           <div className="flex flex-col gap-gap-xs">
             <span className={LABEL}>Números de teléfono</span>
@@ -243,7 +314,7 @@ export function ProjectRegistrationForm({ onBack }: ProjectRegistrationFormProps
           <label className="flex flex-col gap-gap-xs">
             <span className={LABEL}>Fecha de inicio</span>
             <span className="flex items-center gap-gap-xs">
-              <input className={`${INPUT} project-date-input`} lang="es-CU" type="date" name="startsAt" required />
+              <input className={`${INPUT} project-date-input`} lang="es-CU" type="date" name="startsAt" defaultValue={project?.startsAt} required />
               <button type="button" onClick={() => openDatePicker("startsAt")} aria-label="Seleccionar fecha de inicio" className="grid size-11 shrink-0 place-items-center rounded-xl border border-ink/10 bg-white text-verde-700 transition-colors hover:border-verde-300 hover:bg-verde-50">
                 <CalendarDays size={18} />
               </button>
@@ -252,7 +323,7 @@ export function ProjectRegistrationForm({ onBack }: ProjectRegistrationFormProps
           <label className="flex flex-col gap-gap-xs">
             <span className={LABEL}>Fecha de finalización</span>
             <span className="flex items-center gap-gap-xs">
-              <input className={`${INPUT} project-date-input`} lang="es-CU" type="date" name="endsAt" required />
+              <input className={`${INPUT} project-date-input`} lang="es-CU" type="date" name="endsAt" defaultValue={project?.endsAt} required />
               <button type="button" onClick={() => openDatePicker("endsAt")} aria-label="Seleccionar fecha de finalización" className="grid size-11 shrink-0 place-items-center rounded-xl border border-ink/10 bg-white text-verde-700 transition-colors hover:border-verde-300 hover:bg-verde-50">
                 <CalendarDays size={18} />
               </button>
@@ -263,20 +334,92 @@ export function ProjectRegistrationForm({ onBack }: ProjectRegistrationFormProps
             <textarea
               className="min-h-24 w-full resize-y rounded-xl border border-ink/10 bg-white px-4 py-3 text-body text-ink placeholder:text-ink-soft/60 outline-none transition-colors focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20"
               name="offers"
+              defaultValue={project?.offers ?? ""}
               placeholder="Entradas, servicios, promociones, productos o catálogo"
             />
+            <label className="flex min-h-20 cursor-pointer items-center gap-gap-sm rounded-xl border border-dashed border-ink/15 bg-sand px-4 py-3 text-ink-soft/75 transition-colors hover:border-verde-300 hover:bg-verde-50">
+              <ImagePlus size={20} className="shrink-0 text-verde-600" />
+              <span className="flex flex-1 flex-col gap-1">
+                <span className="font-lv-display text-small font-semibold text-ink">Añadir flyer de ofertas o catálogo</span>
+                <span className="text-meta">Imagen de promociones, menú o productos · {imageUrls.length + selectedPhotos.length + selectedOfferFlyers.length}/8 imágenes</span>
+              </span>
+              <input
+                className="sr-only"
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(event) => {
+                  const files = Array.from(event.target.files ?? []);
+                  event.target.value = "";
+                  if (imageUrls.length + selectedPhotos.length + selectedOfferFlyers.length + files.length > 8) {
+                    setError("Cada proyecto admite hasta 8 imágenes.");
+                    return;
+                  }
+                  setSelectedOfferFlyers((current) => [...current, ...files]);
+                  setError(null);
+                }}
+              />
+            </label>
+            {selectedOfferFlyers.length > 0 && (
+              <ul className="flex flex-col gap-gap-xs">
+                {selectedOfferFlyers.map((file, index) => (
+                  <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-gap-xs rounded-lg bg-sand px-3 py-2 text-meta text-ink-soft/80">
+                    <span className="truncate">{file.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedOfferFlyers((current) => current.filter((_, fileIndex) => fileIndex !== index))}
+                      aria-label={`Quitar flyer ${file.name}`}
+                      className="grid size-8 shrink-0 place-items-center rounded-full hover:bg-white hover:text-red-600"
+                    >
+                      <X size={15} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </label>
-          <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-gap-xs rounded-xl border border-dashed border-ink/15 bg-sand px-4 text-center text-ink-soft/75 transition-colors hover:border-verde-300 hover:bg-verde-50 sm:col-span-2">
+          {showPhotos && <div className="flex flex-col gap-gap-sm sm:col-span-2">
+            {imageUrls.length > 0 && (
+              <div className="grid grid-cols-3 gap-gap-xs">
+                {imageUrls.map((url, index) => (
+                  <div key={url} className="relative aspect-square overflow-hidden rounded-xl border border-ink/10 bg-sand">
+                    <img src={url} alt={`Foto ${index + 1} de ${project?.name ?? "tu proyecto"}`} className="h-full w-full object-cover" />
+                    <button type="button" onClick={() => void removePhoto(url)} aria-label={`Eliminar foto ${index + 1}`} className="absolute right-1 top-1 grid size-8 place-items-center rounded-full bg-ink/75 text-white hover:bg-red-700">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-gap-xs rounded-xl border border-dashed border-ink/15 bg-sand px-4 text-center text-ink-soft/75 transition-colors hover:border-verde-300 hover:bg-verde-50">
             <ImagePlus size={22} className="text-verde-600" />
-            <span className="font-lv-display text-small font-semibold text-ink">Añadir imagen del proyecto</span>
-            <span className="text-meta">Logo, cartel o foto de presentación</span>
-            <input className="sr-only" type="file" accept="image/*" name="image" />
-          </label>
+              <span className="font-lv-display text-small font-semibold text-ink">Añadir fotos del proyecto</span>
+              <span className="text-meta">{imageUrls.length + selectedPhotos.length + selectedOfferFlyers.length}/8 · Logo, cartel o foto de presentación</span>
+              <input
+                className="sr-only"
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(event) => {
+                  const files = Array.from(event.target.files ?? []);
+                  event.target.value = "";
+                  const next = [...selectedPhotos, ...files];
+                  if (imageUrls.length + next.length + selectedOfferFlyers.length > 8) {
+                    setError("Cada proyecto admite hasta 8 imágenes.");
+                    return;
+                  }
+                  setSelectedPhotos(next);
+                  setError(null);
+                }}
+              />
+            </label>
+            {selectedPhotos.length > 0 && <p className="text-meta text-ink-soft/75">Por subir: {selectedPhotos.map((file) => file.name).join(", ")}</p>}
+          </div>}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-gap-sm border-t border-ink/10 pt-gap-md">
           {error && <p className="w-full rounded-xl bg-red-50 px-gap-sm py-2 text-meta font-medium text-red-700">{error}</p>}
-          {submitted && <p className="w-full rounded-xl bg-verde-50 px-gap-sm py-2 text-meta font-medium text-verde-700">Proyecto enviado. Quedó pendiente de revisión.</p>}
+          {submitted && <p className="w-full rounded-xl bg-verde-50 px-gap-sm py-2 text-meta font-medium text-verde-700">Proyecto guardado. Quedó pendiente de revisión.</p>}
           <p className="max-w-[440px] text-meta leading-relaxed text-ink-soft/70">
             El proyecto será revisado antes de publicarse en el mapa y aparecer en las recomendaciones.
           </p>
@@ -285,7 +428,7 @@ export function ProjectRegistrationForm({ onBack }: ProjectRegistrationFormProps
             className="inline-flex h-11 items-center justify-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] transition-colors hover:bg-verde-300"
           >
             <Send size={16} />
-            {sending ? "Enviando..." : submitted ? "Proyecto enviado" : "Enviar proyecto"}
+            {sending ? "Guardando..." : submitted ? "Proyecto guardado" : project ? "Guardar cambios" : "Enviar proyecto"}
           </button>
         </div>
       </form>

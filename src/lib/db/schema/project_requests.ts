@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { pgTable, text, timestamp, doublePrecision, index } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
@@ -20,6 +21,7 @@ export const projectRequests = pgTable(
     startsAt: text("starts_at").notNull(),
     endsAt: text("ends_at").notNull(),
     offers: text("offers"),
+    imageUrls: text("image_urls").array().notNull().default(sql`'{}'::text[]`),
     status: text("status", { enum: ["pending", "approved", "rejected"] })
       .default("pending")
       .notNull(),

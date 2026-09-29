@@ -97,10 +97,14 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const user = await getAppUser();
-  if (user?.role !== "admin") return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const status = req.nextUrl.searchParams.get("status");
-  const rows = status === "pending" || status === "approved" || status === "rejected"
-    ? await db.select().from(projectRequests).where(eq(projectRequests.status, status)).orderBy(desc(projectRequests.createdAt))
-    : await db.select().from(projectRequests).orderBy(desc(projectRequests.createdAt));
+  const ownProjects = req.nextUrl.searchParams.get("mine") === "true" || user.role !== "admin";
+  const query = db.select().from(projectRequests);
+  const rows = ownProjects
+    ? await query.where(eq(projectRequests.userId, user.id)).orderBy(desc(projectRequests.createdAt))
+    : status === "pending" || status === "approved" || status === "rejected"
+      ? await query.where(eq(projectRequests.status, status)).orderBy(desc(projectRequests.createdAt))
+      : await query.orderBy(desc(projectRequests.createdAt));
   return NextResponse.json(rows.map(serialize));
 }

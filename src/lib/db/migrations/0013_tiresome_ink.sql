@@ -1,0 +1,1 @@
+ALTER TABLE "project_requests" ADD COLUMN "offer_image_url" text;

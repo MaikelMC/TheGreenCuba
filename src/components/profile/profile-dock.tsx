@@ -15,16 +15,11 @@ interface DockItem {
   icon: LucideIcon;
 }
 
-/* Cuatro destinos. El techo sigue siendo cinco —un dock se recorre de un
-   vistazo y al sexto icono deja de ser un dock y pasa a ser un menú—, así que
-   «Tengo un negocio» cabe sin tocar la estructura.
- *
- * Va tercero, entre los lugares y la configuración: el orden es el de la
- * frecuencia, y dar de alta un negocio es algo que se hace una vez. */
+/* Las secciones principales del perfil; la gestión de proyectos vive en el menú de usuario. */
 export const DOCK_ITEMS: DockItem[] = [
   { id: "perfil", label: "Perfil", icon: UserRound },
   { id: "lugares", label: "Mis lugares", icon: MapPin },
-    { id: "negocio", label: "Tengo un negocio", icon: Store },
+  { id: "negocio", label: "Tengo un negocio", icon: Store },
   { id: "ajustes", label: "Configuración", icon: Settings },
 ];
 

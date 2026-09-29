@@ -68,6 +68,13 @@ export async function GET(req: NextRequest) {
       city: project.provinces[0] ?? "Cuba",
       province: project.provinces[0] ?? "Cuba",
       description: project.description,
+      photos: project.imageUrls.map((url, index) => ({
+        url,
+        alt: `Foto ${index + 1} de ${project.name}`,
+        width: null,
+        height: null,
+        isCover: index === 0,
+      })),
       schedule: `${project.startsAt} a ${project.endsAt}`,
       payments: [],
       menu: [],

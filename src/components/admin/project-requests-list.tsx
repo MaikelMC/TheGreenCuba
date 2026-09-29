@@ -94,11 +94,7 @@ export function ProjectRequestsList() {
 
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-col gap-gap-lg">
-      <div>
-        <p className="font-lv-display text-meta font-semibold uppercase tracking-[0.12em] text-verde-600">Moderación</p>
-        <h1 className="mt-gap-xs font-lv-display text-[clamp(28px,5vw,44px)] font-bold tracking-[-0.03em] text-ink">Solicitudes de proyectos</h1>
-        <p className="mt-gap-sm text-body text-ink-soft/75">Revisa las propuestas antes de publicarlas en el mapa.</p>
-      </div>
+      <p className="text-small text-ink-soft/75">{requests.length} proyectos pendientes de aprobación</p>
 
       {error && <p className="rounded-xl bg-red-50 px-gap-md py-3 text-small font-medium text-red-700">{error}</p>}
       {loading && <div className="flex items-center gap-gap-xs text-small text-ink-soft/75"><Loader2 size={18} className="animate-spin" /> Cargando solicitudes...</div>}

@@ -11,6 +11,7 @@ function useShowGlobalHeader() {
   const pathname = usePathname();
   return (
     pathname !== "/business" &&
+    pathname !== "/projects" &&
     !pathname.startsWith("/profile") &&
     !pathname.startsWith("/place") &&
     !pathname.startsWith("/notifications")

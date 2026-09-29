@@ -1,5 +1,5 @@
-import { ProjectRequestsList } from "@/components/admin/project-requests-list";
+import { ProjectList } from "@/components/admin/project-list";
 
-export default function ProjectRequestsPage() {
-  return <ProjectRequestsList />;
+export default function ProjectsPage() {
+  return <ProjectList />;
 }

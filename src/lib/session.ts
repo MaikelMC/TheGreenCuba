@@ -30,7 +30,7 @@ export type Role = "user" | "owner" | "admin";
  *
  * `/onboarding` no tiene layout propio, así que aquí es su única puerta.
  */
-export const PROTECTED_PREFIXES = ["/admin", "/business", "/profile", "/onboarding"] as const;
+export const PROTECTED_PREFIXES = ["/admin", "/business", "/projects", "/profile", "/onboarding"] as const;
 
 /** Compara por prefijo **de segmento**: `/adminx` no entra por `/admin`. */
 export function isProtected(pathname: string): boolean {

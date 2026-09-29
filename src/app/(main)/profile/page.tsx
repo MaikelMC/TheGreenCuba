@@ -55,6 +55,10 @@ export default function ProfilePage() {
      se sirve. Para leer un parámetro una vez al montar, no compensa. */
   useEffect(() => {
     const section = new URLSearchParams(window.location.search).get("seccion");
+    if (section === "proyectos") {
+      window.location.replace("/projects");
+      return;
+    }
     if (section && DOCK_ITEMS.some((item) => item.id === section)) {
       setView(section as ProfileView);
     }

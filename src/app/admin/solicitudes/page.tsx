@@ -1,5 +1,5 @@
-import { RequestsList } from "@/components/admin/requests-list";
+import { CombinedRequests } from "@/components/admin/combined-requests";
 
 export default function SolicitudesPage() {
-  return <RequestsList />;
+  return <CombinedRequests />;
 }

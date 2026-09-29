@@ -81,13 +81,13 @@ export function ProjectsView() {
     <section className="flex flex-col gap-gap-lg">
       <div>
         <p className="font-lv-display text-meta font-semibold uppercase tracking-[0.12em] text-verde-600">
-          Tengo un negocio
+          Tu actividad
         </p>
         <h2 className="mt-gap-xs font-lv-display text-[clamp(28px,7vw,42px)] font-bold leading-[0.98] tracking-[-0.03em] text-ink">
-          ¿Qué quieres agregar?
+          Proyectos y negocios
         </h2>
         <p className="mt-gap-sm text-body leading-relaxed text-ink-soft/80">
-          Puedes registrar un negocio permanente o un proyecto temporal e itinerante.
+          Administra tus proyectos y agrega nuevas actividades o negocios.
         </p>
       </div>
 
@@ -117,7 +117,7 @@ export function ProjectsView() {
 
         <button
           type="button"
-          onClick={() => setMode("registration")}
+            onClick={() => setMode("registration")}
           className="group flex min-h-[210px] flex-col justify-between rounded-[24px] border border-ink/10 bg-ink p-gap-lg text-left text-white transition-all duration-500 ease-outquint hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400"
         >
           <span>
