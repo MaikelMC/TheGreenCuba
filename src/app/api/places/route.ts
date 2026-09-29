@@ -55,38 +55,45 @@ export async function GET(req: NextRequest) {
 
   const projects = approvedProjects
     .filter((project) => !searchParams.get("category"))
-    .map((project) => ({
-      id: `project-${project.id}`,
-      name: project.name,
-      isProject: true,
-      icon: "Sparkles",
-      category: "Proyecto",
-      lat: project.lat,
-      lng: project.lng,
-      address: project.venueName,
-      barrio: project.venueName,
-      city: project.provinces[0] ?? "Cuba",
-      province: project.provinces[0] ?? "Cuba",
-      description: project.description,
-      photos: project.imageUrls.map((url, index) => ({
-        url,
-        alt: `Foto ${index + 1} de ${project.name}`,
-        width: null,
-        height: null,
-        isCover: index === 0,
-      })),
-      schedule: `${project.startsAt} a ${project.endsAt}`,
-      payments: [],
-      menu: [],
-      offer: project.offers ? { text: project.offers, expiry: project.endsAt } : null,
-      status: "active" as const,
-      isActive: true,
-      reviewStatus: "approved" as const,
-      isBoosted: false,
-      boostExpiresAt: "",
-      createdAt: project.createdAt.getTime(),
-      updatedAt: project.updatedAt.getTime(),
-    }));
+    .map((project) => {
+      const coverImageUrl = project.coverImageUrl ?? project.imageUrls[0] ?? null;
+      const galleryUrls = [...new Set(project.imageUrls)].filter((url) => url !== coverImageUrl);
+      const photos = [
+        ...(coverImageUrl ? [{ url: coverImageUrl, alt: `Foto principal de ${project.name}`, width: null, height: null, isCover: true }] : []),
+        ...galleryUrls
+          .filter((url) => url !== coverImageUrl)
+          .map((url, index) => ({ url, alt: `Foto ${index + 1} de ${project.name}`, width: null, height: null, isCover: false })),
+      ];
+
+      return {
+        id: `project-${project.id}`,
+        name: project.name,
+        isProject: true,
+        icon: "Sparkles",
+        category: "Proyecto",
+        lat: project.lat,
+        lng: project.lng,
+        address: project.venueName,
+        barrio: project.venueName,
+        city: project.provinces[0] ?? "Cuba",
+        province: project.provinces[0] ?? "Cuba",
+        description: project.description,
+        offerPackages: project.offerPackages ?? [],
+        photos,
+        mapImageUrl: project.mapImageUrl ?? coverImageUrl ?? galleryUrls[0] ?? null,
+        schedule: `${project.startsAt} a ${project.endsAt}`,
+        payments: [],
+        menu: [],
+        offer: project.offers ? { text: project.offers, expiry: project.endsAt } : null,
+        status: "active" as const,
+        isActive: true,
+        reviewStatus: "approved" as const,
+        isBoosted: false,
+        boostExpiresAt: "",
+        createdAt: project.createdAt.getTime(),
+        updatedAt: project.updatedAt.getTime(),
+      };
+    });
 
   return NextResponse.json([...items, ...projects]);
 }

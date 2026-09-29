@@ -568,6 +568,8 @@ function HomePageContent() {
         lng: p.lng,
         category: p.category,
         icon: placeIcon(p.icon, p.category, categories),
+        image: p.mapImageUrl ?? p.photos?.find((photo) => photo.isCover)?.url ?? p.photos?.[0]?.url,
+        offerPackages: p.offerPackages,
         barrio: p.barrio,
         rating: p.rating,
         distance: p.distanceLabel || p.address || p.barrio,

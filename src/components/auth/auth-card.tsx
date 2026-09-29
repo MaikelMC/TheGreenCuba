@@ -122,6 +122,41 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleSignIn = useCallback(async () => {
+    if (loading) return;
+    if (mode === "register" && !accepted) {
+      setError("Acepta los términos y la política de privacidad para registrarte.");
+      return;
+    }
+
+    setLoading(true);
+    setGoogleLoading(true);
+    setError(null);
+    try {
+      const callbackURL = new URL(
+        mode === "register" ? "/api/google-auth-complete" : next ?? "/home",
+        window.location.origin,
+      ).toString();
+      const errorCallbackURL = new URL(
+        mode === "register" ? "/register?oauthError=google" : "/login?oauthError=google",
+        window.location.origin,
+      ).toString();
+      const result = await authClient.signIn.social({
+        provider: "google",
+        callbackURL,
+        errorCallbackURL,
+        ...(mode === "register" ? { newUserCallbackURL: callbackURL } : {}),
+      });
+      if (result.error) setError(messageFor(result.error, mode));
+    } catch (authError) {
+      setError(messageFor(authError, mode));
+    } finally {
+      setLoading(false);
+      setGoogleLoading(false);
+    }
+  }, [accepted, loading, mode, next]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -348,6 +383,36 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
             <ArrowRight size={16} strokeWidth={1.8} />
           )}
           {loading ? "Comprobando..." : copy.cta}
+        </button>
+
+        <div className="flex items-center gap-gap-sm text-meta text-ink-soft/60" aria-hidden="true">
+          <span className="h-px flex-1 bg-ink/10" />
+          <span>o continúa con</span>
+          <span className="h-px flex-1 bg-ink/10" />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void handleGoogleSignIn()}
+          disabled={loading}
+          aria-busy={googleLoading}
+          className="auth-google-button inline-flex h-12 w-full items-center justify-center gap-gap-sm rounded-full border border-ink/15 bg-white font-lv-display text-small font-semibold text-ink transition-colors hover:bg-sand disabled:pointer-events-none disabled:opacity-60"
+        >
+          {googleLoading ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : (
+            <svg aria-hidden="true" viewBox="0 0 48 48" className="size-5" focusable="false">
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.76 7.18l7.73 6c4.51-4.17 7.07-10.14 7.07-17.65z" />
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.91-5.8l-7.73-6c-2.14 1.44-4.89 2.3-8.18 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.97 6.19C6.51 42.62 14.62 48 24 48z" />
+              <path fill="#FBBC05" d="M10.53 28.59a14.4 14.4 0 0 1-.76-4.59c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.9 23.9 0 0 0 0 24c0 3.86.93 7.5 2.56 10.78l7.97-6.19z" />
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+            </svg>
+          )}
+          {googleLoading
+            ? "Conectando con Google..."
+            : mode === "login"
+              ? "Iniciar sesión con Google"
+              : "Registrarse con Google"}
         </button>
       </form>
 
