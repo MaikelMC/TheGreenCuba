@@ -535,6 +535,7 @@ function HomePageContent() {
       visiblePlaces.map((p) => ({
         id: p.id,
         name: p.name,
+        isProject: p.isProject,
         lat: p.lat,
         lng: p.lng,
         category: p.category,

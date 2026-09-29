@@ -17,8 +17,8 @@ interface MapMarkersProps {
 }
 
 function markerVariant(isSelected: boolean, isBoosted: boolean, isProject: boolean): PlacePinVariant {
-  if (isSelected) return "selected";
   if (isProject) return "project";
+  if (isSelected) return "selected";
   if (isBoosted) return "boosted";
   return "default";
 }
