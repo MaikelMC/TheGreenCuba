@@ -1,7 +1,7 @@
 "use client";
 
 import { CalendarDays, Clock, MapPin, CreditCard } from "lucide-react";
-import { cn, currencyLabel } from "@/lib/utils";
+import { cn, currencyLabel, currencyStyles } from "@/lib/utils";
 
 interface InfoBarProps {
   schedule: string;
@@ -10,16 +10,6 @@ interface InfoBarProps {
   isProject?: boolean;
   className?: string;
 }
-
-/* Mismo mapa que los chips de pago del panel de negocio: la moneda no se
-   distingue por color — el rótulo ya la dice — así que todas bajan a la escala
-   verde/arena. Antes eran lv-blue y lv-teal, que no son del sistema. */
-const currencyStyles: Record<string, string> = {
-  MLC: "bg-verde-100 text-verde-700",
-  CUP: "bg-verde-50 text-verde-600",
-  USD: "bg-sand-deep text-ink-soft/75",
-  EUR: "bg-sand-deep text-ink-soft/75",
-};
 
 /* El aire de cada celda vive aquí porque las tres lo comparten. */
 const CELL = "flex-1 flex flex-col items-center justify-center gap-[4px] py-gap-sm px-gap-xs bg-sand-warm text-center min-h-[72px]";

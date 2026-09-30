@@ -23,7 +23,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { cn, currencyLabel } from "@/lib/utils";
+import { cn, currencyLabel, currencyStyles } from "@/lib/utils";
 import type { ContactLinks } from "@/lib/contact-links";
 import {
   isSaved as isPlaceSaved,
@@ -111,17 +111,16 @@ interface PlaceDetailProps {
   className?: string;
 }
 
-/* Mismo mapa que los chips de pago del panel de negocio. Antes eran lv-blue y
-   lv-teal, que no son del sistema. */
-const currencyStyles: Record<string, string> = {
-  MLC: "bg-verde-100 text-verde-700",
-  CUP: "bg-verde-50 text-verde-600",
-  USD: "bg-sand-deep text-ink-soft/75",
-  EUR: "bg-sand-deep text-ink-soft/75",
-};
-
 const CARD = "bg-white rounded-2xl border border-ink/5 shadow-soft p-gap-xl";
 const H2 = "font-lv-display text-h3 font-bold text-ink";
+
+/* Cuándo el párrafo clampsado merece botón. El `line-clamp` no se puede medir
+   desde CSS, así que se estima por caracteres: por debajo de esto el texto cabe
+   en las tres o cuatro líneas del recorte y el botón no tendría nada que
+   desplegar. Se elige el umbral de los dos que había —220 y 180— y no el mayor,
+   porque el error caro es el otro: un párrafo recortado sin botón deja texto
+   que nadie puede leer, mientras que un botón de más solo se ve de más. */
+const CLAMP_MIN_CHARS = 180;
 
 /* Mismo botón secundario que el resto del sistema —el `BTN_OUTLINE` del panel
    de negocio y del formulario de alta—. Antes estos dos eran texto verde suelto
@@ -146,7 +145,10 @@ export function PlaceDetail({
 }: PlaceDetailProps) {
   const [descExpanded, setDescExpanded] = useState(false);
   const [projectOffersExpanded, setProjectOffersExpanded] = useState(false);
-  const [projectPhotoIndex, setProjectPhotoIndex] = useState<number | null>(null);
+  const [menuExpanded, setMenuExpanded] = useState(false);
+  const [projectPhotoIndex, setProjectPhotoIndex] = useState<number | null>(
+    null,
+  );
   const [saved, setSaved] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -180,12 +182,12 @@ export function PlaceDetail({
      evita el doble conteo. */
   const viewTracked = useRef<string | null>(null);
   useEffect(() => {
-    recordVisit(
-      { id: place.id, name: place.name, category: place.category },
-      userId,
-    );
     if (viewTracked.current !== place.id) {
       viewTracked.current = place.id;
+      recordVisit(
+        { id: place.id, name: place.name, category: place.category },
+        userId,
+      );
       trackPlaceMetric(place.id, "view");
       trackPlaceViewed({
         id: place.id,
@@ -203,12 +205,17 @@ export function PlaceDetail({
     setSaved(isPlaceSaved(place.id, userId));
   }, [place.id, userId]);
 
-  const isClosed = !place.isProject &&
+  const isClosed =
+    !place.isProject &&
     (state === "closed" || (!place.isOpen && state !== "special-offer"));
   const hasPhotos = state !== "no-photos" && place.slides.length > 0;
-  const showOffer = !place.isProject && state === "special-offer" && place.specialOffer;
+  const showOffer =
+    !place.isProject && state === "special-offer" && place.specialOffer;
   const projectPhotos = place.slides.filter((slide) => Boolean(slide.url));
-  const activeProjectPhoto = projectPhotoIndex === null ? null : projectPhotos[projectPhotoIndex] ?? null;
+  const activeProjectPhoto =
+    projectPhotoIndex === null
+      ? null
+      : (projectPhotos[projectPhotoIndex] ?? null);
 
   /* `distance` es un cajón de sastre: trae la distancia, la dirección o el
      barrio, lo que haya. El barrio se pinta por su cuenta, así que aquí solo
@@ -247,7 +254,20 @@ export function PlaceDetail({
       </header>
 
       {/* ────────── Desktop Layout ────────── */}
-      <div className="hidden lg:block lg:h-[calc(100dvh_-_var(--header-h))] lg:overflow-hidden lg:max-w-container lg:mx-auto lg:px-gutter-lg lg:py-gap-xl">
+      {/* La carcasa de alto fijo y `overflow-hidden` es solo del proyecto: sus
+          dos columnas traen su propio scroll interno (`overflow-y-auto`) y
+          necesitan una altura que las limite. La ficha normal no tiene ningún
+          contenedor que scrolle dentro, así que con la carcasa puesta el
+          contenido de debajo —contacto, descripción, menú, reseñas— se recortaba
+          contra el borde y no había forma de bajarlo: el bloque medía justo el
+          viewport y la página no scrolleaba. */}
+      <div
+        className={cn(
+          "hidden lg:block lg:max-w-container lg:mx-auto lg:px-gutter-lg lg:py-gap-xl",
+          place.isProject &&
+            "lg:h-[calc(100dvh_-_var(--header-h))] lg:overflow-hidden",
+        )}
+      >
         {place.isProject ? (
           <div className="grid h-full min-h-0 grid-cols-[minmax(300px,0.8fr)_minmax(0,1.2fr)] grid-rows-[minmax(0,1fr)] items-stretch gap-gap-xl">
             <div className="flex h-full min-h-0 flex-col gap-gap-md overflow-y-auto overscroll-contain pr-gap-xs scrollbar-hide">
@@ -256,13 +276,17 @@ export function PlaceDetail({
                   <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-verde-200 bg-verde-50 px-3 py-1 font-lv-display text-xs font-semibold uppercase tracking-[0.06em] text-verde-700">
                     <Megaphone size={13} /> Proyecto
                   </span>
-                  <h1 className="font-lv-display text-h1 font-bold leading-tight text-ink text-balance">{place.name}</h1>
+                  <h1 className="font-lv-display text-h1 font-bold leading-tight text-ink text-balance">
+                    {place.name}
+                  </h1>
                   <div className="flex flex-wrap gap-gap-xs">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-small font-medium text-ink-soft/80">
-                      <CalendarDays size={15} className="text-verde-600" /> {place.schedule}
+                      <CalendarDays size={15} className="text-verde-600" />{" "}
+                      {place.schedule}
                     </span>
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-small font-medium text-ink-soft/80">
-                      <MapPin size={15} className="text-verde-600" /> {place.barrio}
+                      <MapPin size={15} className="text-verde-600" />{" "}
+                      {place.barrio}
                     </span>
                   </div>
                   <ActionButtons
@@ -277,10 +301,15 @@ export function PlaceDetail({
               <Reveal>
                 <section className={CARD}>
                   <h2 className={cn(H2, "mb-gap-sm")}>Sobre el proyecto</h2>
-                  <p className={cn("whitespace-pre-wrap text-body leading-relaxed text-ink", !descExpanded && "line-clamp-4")}>
+                  <p
+                    className={cn(
+                      "whitespace-pre-wrap text-body leading-relaxed text-ink",
+                      !descExpanded && "line-clamp-4",
+                    )}
+                  >
                     {place.longDescription}
                   </p>
-                  {place.longDescription.length > 220 && (
+                  {place.longDescription.length > CLAMP_MIN_CHARS && (
                     <button
                       type="button"
                       onClick={() => setDescExpanded((expanded) => !expanded)}
@@ -288,7 +317,10 @@ export function PlaceDetail({
                       className={cn(BTN_OUTLINE, "mt-gap-md")}
                     >
                       {descExpanded ? "Leer menos" : "Leer más"}
-                      <ChevronDown size={16} className={cn(CHEVRON, descExpanded && "rotate-180")} />
+                      <ChevronDown
+                        size={16}
+                        className={cn(CHEVRON, descExpanded && "rotate-180")}
+                      />
                     </button>
                   )}
                 </section>
@@ -296,37 +328,64 @@ export function PlaceDetail({
 
               <Reveal>
                 <section className={CARD}>
-                  <h2 className={cn(H2, "mb-gap-sm")}>Qué ofrece el proyecto</h2>
+                  <h2 className={cn(H2, "mb-gap-sm")}>
+                    Qué ofrece el proyecto
+                  </h2>
                   {place.projectOfferPackages?.length ? (
                     <ProjectOfferList offers={place.projectOfferPackages} />
                   ) : place.projectOffers ? (
                     <>
-                      <p className={cn("whitespace-pre-wrap text-body leading-relaxed text-ink", !projectOffersExpanded && "line-clamp-4")}>
+                      <p
+                        className={cn(
+                          "whitespace-pre-wrap text-body leading-relaxed text-ink",
+                          !projectOffersExpanded && "line-clamp-4",
+                        )}
+                      >
                         {place.projectOffers}
                       </p>
-                      {place.projectOffers.length > 220 && (
+                      {place.projectOffers.length > CLAMP_MIN_CHARS && (
                         <button
                           type="button"
-                          onClick={() => setProjectOffersExpanded((expanded) => !expanded)}
+                          onClick={() =>
+                            setProjectOffersExpanded((expanded) => !expanded)
+                          }
                           aria-expanded={projectOffersExpanded}
                           className={cn(BTN_OUTLINE, "mt-gap-md")}
                         >
                           {projectOffersExpanded ? "Ver menos" : "Ver todo"}
-                          <ChevronDown size={16} className={cn(CHEVRON, projectOffersExpanded && "rotate-180")} />
+                          <ChevronDown
+                            size={16}
+                            className={cn(
+                              CHEVRON,
+                              projectOffersExpanded && "rotate-180",
+                            )}
+                          />
                         </button>
                       )}
                     </>
                   ) : (
-                    <p className="text-small leading-relaxed text-ink-soft/75">Este proyecto aún no ha añadido información sobre lo que ofrece.</p>
+                    <p className="text-small leading-relaxed text-ink-soft/75">
+                      Este proyecto aún no ha añadido información sobre lo que
+                      ofrece.
+                    </p>
                   )}
                 </section>
               </Reveal>
             </div>
 
             <Reveal className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-gap-xs scrollbar-hide">
-              <section aria-label={`Fotos y afiches de ${place.name}`} className="grid grid-cols-2 gap-gap-sm">
+              <section
+                aria-label={`Fotos y afiches de ${place.name}`}
+                className="grid grid-cols-2 gap-gap-sm"
+              >
                 {projectPhotos.map((slide, index) => (
-                  <figure key={`${slide.url}-${index}`} className={cn("relative overflow-hidden rounded-2xl bg-sand-deep", index === 0 ? "col-span-2 aspect-[4/3]" : "aspect-square")}>
+                  <figure
+                    key={`${slide.url}-${index}`}
+                    className={cn(
+                      "relative overflow-hidden rounded-2xl bg-sand-deep",
+                      index === 0 ? "col-span-2 aspect-[4/3]" : "aspect-square",
+                    )}
+                  >
                     <button
                       type="button"
                       onClick={() => setProjectPhotoIndex(index)}
@@ -345,7 +404,9 @@ export function PlaceDetail({
                 {projectPhotos.length === 0 && (
                   <div className="col-span-2 flex aspect-[4/3] flex-col items-center justify-center gap-gap-sm rounded-2xl border border-dashed border-ink/15 bg-white text-center text-ink-soft/70">
                     <ImageIcon size={32} strokeWidth={1.5} />
-                    <p className="font-lv-display text-small font-medium">Fotos y afiches del proyecto</p>
+                    <p className="font-lv-display text-small font-medium">
+                      Fotos y afiches del proyecto
+                    </p>
                   </div>
                 )}
               </section>
@@ -353,226 +414,305 @@ export function PlaceDetail({
           </div>
         ) : (
           <>
-        {/* Row 1: Photo Carousel (full width) with place name overlay */}
-        <Reveal className="relative mb-gap-lg">
-          <PhotoCarousel
-            slides={place.slides}
-            hasPhotos={hasPhotos}
-            className="aspect-[16/9] rounded-4xl overflow-hidden"
-          />
-          <div className="absolute bottom-0 left-0 right-0 p-gap-xl bg-gradient-to-t from-ink/85 via-ink/40 to-transparent rounded-b-4xl pointer-events-none">
-            <h1 className="font-lv-display text-h1 font-bold text-white leading-tight tracking-[-0.02em] text-balance">
-              {place.name}
-            </h1>
-            <div className="flex items-center gap-gap-sm mt-gap-xs">
-              <span
-                className={cn(
-                  "inline-flex items-center gap-[4px] px-[10px] py-[4px] rounded-full font-lv-display text-xs font-semibold uppercase tracking-[0.06em]",
-                  isClosed
-                    ? "bg-destructive/90 text-white"
-                    : "bg-verde-400 text-verde-950",
-                )}
-              >
-                {place.isProject ? <Megaphone size={12} /> : (
+            {/* Row 1: Photo Carousel (full width) with place name overlay */}
+            <Reveal className="relative mb-gap-lg">
+              <PhotoCarousel
+                slides={place.slides}
+                hasPhotos={hasPhotos}
+                className="aspect-[16/9] rounded-4xl overflow-hidden"
+              />
+              <div className="absolute bottom-0 left-0 right-0 p-gap-xl bg-gradient-to-t from-ink/85 via-ink/40 to-transparent rounded-b-4xl pointer-events-none">
+                <h1 className="font-lv-display text-h1 font-bold text-white leading-tight tracking-[-0.02em] text-balance">
+                  {place.name}
+                </h1>
+                <div className="flex items-center gap-gap-sm mt-gap-xs">
                   <span
                     className={cn(
-                      "size-[6px] rounded-full",
-                      isClosed ? "bg-white/80" : "bg-verde-950/60",
-                    )}
-                  />
-                )}
-                {place.isProject ? "Proyecto" : isClosed ? "Cerrado" : "Abierto"}
-              </span>
-              {place.rating > 0 && (
-                <span className="inline-flex items-center gap-[4px] font-lv-display text-xs font-semibold text-white/80">
-                  <Star
-                    size={12}
-                    strokeWidth={1.8}
-                    className="text-verde-300"
-                    fill="currentColor"
-                  />
-                  {place.rating}
-                </span>
-              )}
-            </div>
-          </div>
-        </Reveal>
-
-        {/* Row 2: Info Strip (compact) */}
-        <Reveal
-          delay={0.05}
-          className="flex items-center gap-gap-lg mb-gap-lg px-gap-md"
-        >
-          <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
-            {place.isProject ? <CalendarDays size={14} strokeWidth={1.8} className="text-verde-600" /> : <Clock size={14} strokeWidth={1.8} className="text-verde-600" />}
-            <span className="font-lv-display font-medium text-ink">
-              {place.schedule}
-            </span>
-          </div>
-          <span className="text-ink/10">|</span>
-          <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
-            <MapPin size={14} strokeWidth={1.8} className="text-verde-600" />
-            <span className="font-lv-display font-medium text-ink">
-              {location ? `${location} · ${place.barrio}` : place.barrio}
-            </span>
-          </div>
-          {!place.isProject && (
-            <>
-              <span className="text-ink/10">|</span>
-              <div className="flex items-center gap-[4px] text-meta text-ink-soft/75">
-                <CreditCard size={14} strokeWidth={1.8} className="text-verde-600" />
-                {place.payments.map((c) => (
-                  <span
-                    key={c}
-                    className={cn(
-                      "px-[6px] py-[2px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.08em]",
-                      currencyStyles[c] ?? "bg-sand-deep text-ink-soft/75",
+                      "inline-flex items-center gap-[4px] px-[10px] py-[4px] rounded-full font-lv-display text-xs font-semibold uppercase tracking-[0.06em]",
+                      isClosed
+                        ? "bg-destructive/90 text-white"
+                        : "bg-verde-400 text-verde-950",
                     )}
                   >
-                    {currencyLabel(c)}
+                    {place.isProject ? (
+                      <Megaphone size={12} />
+                    ) : (
+                      <span
+                        className={cn(
+                          "size-[6px] rounded-full",
+                          isClosed ? "bg-white/80" : "bg-verde-950/60",
+                        )}
+                      />
+                    )}
+                    {place.isProject
+                      ? "Proyecto"
+                      : isClosed
+                        ? "Cerrado"
+                        : "Abierto"}
                   </span>
-                ))}
+                  {place.rating > 0 && (
+                    <span className="inline-flex items-center gap-[4px] font-lv-display text-xs font-semibold text-white/80">
+                      <Star
+                        size={12}
+                        strokeWidth={1.8}
+                        className="text-verde-300"
+                        fill="currentColor"
+                      />
+                      {place.rating}
+                    </span>
+                  )}
+                </div>
               </div>
-            </>
-          )}
-          <span className="text-ink/10">|</span>
-          <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
-            {place.isProject ? <Megaphone size={14} strokeWidth={1.8} className="text-verde-600" /> : <Utensils size={14} strokeWidth={1.8} className="text-verde-600" />}
-            <span className="font-lv-display font-medium text-ink">
-              {place.category}
-            </span>
-          </div>
-        </Reveal>
+            </Reveal>
 
-        {/* Row 3: Two columns */}
-        <div className="grid grid-cols-[350px_1fr] gap-gap-lg items-start">
-          {/* ── Left Column (sticky sidebar) ── */}
-          <Reveal className="sticky top-[calc(var(--header-h)+var(--gap-lg))] flex flex-col gap-gap-md">
-            <ActionButtons
-              isSaved={saved}
-              onSave={handleSave}
-              onNavigate={onNavigate}
-              onShare={onShare}
-              onReview={place.isProject ? undefined : () => setReviewOpen(true)}
-            />
+            {/* Row 2: Info Strip (compact) */}
+            <Reveal
+              delay={0.05}
+              className="flex items-center gap-gap-lg mb-gap-lg px-gap-md"
+            >
+              <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
+                {place.isProject ? (
+                  <CalendarDays
+                    size={14}
+                    strokeWidth={1.8}
+                    className="text-verde-600"
+                  />
+                ) : (
+                  <Clock
+                    size={14}
+                    strokeWidth={1.8}
+                    className="text-verde-600"
+                  />
+                )}
+                <span className="font-lv-display font-medium text-ink">
+                  {place.schedule}
+                </span>
+              </div>
+              <span className="text-ink/10">|</span>
+              <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
+                <MapPin
+                  size={14}
+                  strokeWidth={1.8}
+                  className="text-verde-600"
+                />
+                <span className="font-lv-display font-medium text-ink">
+                  {location ? `${location} · ${place.barrio}` : place.barrio}
+                </span>
+              </div>
+              {!place.isProject && (
+                <>
+                  <span className="text-ink/10">|</span>
+                  <div className="flex items-center gap-[4px] text-meta text-ink-soft/75">
+                    <CreditCard
+                      size={14}
+                      strokeWidth={1.8}
+                      className="text-verde-600"
+                    />
+                    {place.payments.map((c) => (
+                      <span
+                        key={c}
+                        className={cn(
+                          "px-[6px] py-[2px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.08em]",
+                          currencyStyles[c] ?? "bg-sand-deep text-ink-soft/75",
+                        )}
+                      >
+                        {currencyLabel(c)}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+              <span className="text-ink/10">|</span>
+              <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
+                {place.isProject ? (
+                  <Megaphone
+                    size={14}
+                    strokeWidth={1.8}
+                    className="text-verde-600"
+                  />
+                ) : (
+                  <Utensils
+                    size={14}
+                    strokeWidth={1.8}
+                    className="text-verde-600"
+                  />
+                )}
+                <span className="font-lv-display font-medium text-ink">
+                  {place.category}
+                </span>
+              </div>
+            </Reveal>
 
-            {/* Sin condición: `ContactCard` ya devuelve `null` cuando no hay
+            {/* Row 3: Two columns */}
+            <div className="grid grid-cols-[350px_1fr] gap-gap-lg items-start">
+              {/* ── Left Column (sticky sidebar) ── */}
+              <Reveal className="sticky top-[calc(var(--header-h)+var(--gap-lg))] flex flex-col gap-gap-md">
+                <ActionButtons
+                  isSaved={saved}
+                  onSave={handleSave}
+                  onNavigate={onNavigate}
+                  onShare={onShare}
+                  onReview={
+                    place.isProject ? undefined : () => setReviewOpen(true)
+                  }
+                />
+
+                {/* Sin condición: `ContactCard` ya devuelve `null` cuando no hay
                 ningún enlace, y un proyecto no llega con `whatsapp` ni redes
                 mapeados, así que ahí simplemente no se pinta. */}
-            <ContactCard place={place} />
+                <ContactCard place={place} />
 
-            {!place.isProject && <WhyCard place={place} />}
+                {!place.isProject && <WhyCard place={place} />}
 
-            {/* Special Offer */}
-            {showOffer && place.specialOffer && (
-              <OfferBanner
-                label={place.specialOffer.label}
-                text={place.specialOffer.text}
-                expiry={place.specialOffer.expiry}
-                visible
-              />
-            )}
-          </Reveal>
-
-          {/* ── Right Column (main content) ── */}
-          <div className="flex flex-col gap-gap-lg">
-            {/* Description */}
-            <Reveal>
-              <section className={CARD}>
-                <h2 className={cn(H2, "mb-gap-sm")}>{place.isProject ? "Sobre el proyecto" : "Sobre este lugar"}</h2>
-                <p
-                  className={cn(
-                    "text-body leading-relaxed text-ink whitespace-pre-wrap",
-                    !descExpanded && "line-clamp-3",
-                  )}
-                >
-                  {place.longDescription}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setDescExpanded((prev) => !prev)}
-                  aria-expanded={descExpanded}
-                  className={cn(BTN_OUTLINE, "mt-gap-md")}
-                >
-                  {descExpanded ? "Leer menos" : "Leer más"}
-                  <ChevronDown
-                    size={16}
-                    strokeWidth={1.8}
-                    className={cn(CHEVRON, descExpanded && "rotate-180")}
+                {/* Special Offer */}
+                {showOffer && place.specialOffer && (
+                  <OfferBanner
+                    label={place.specialOffer.label}
+                    text={place.specialOffer.text}
+                    expiry={place.specialOffer.expiry}
+                    visible
                   />
-                </button>
-              </section>
-            </Reveal>
+                )}
+              </Reveal>
 
-            {/* A project describes its offer as text, not as a business menu. */}
-            <Reveal>
-              {place.isProject ? (
-                <section className={CARD}>
-                  <h2 className={cn(H2, "mb-gap-md")}>Qué ofrece el proyecto</h2>
-                  {place.projectOfferPackages?.length ? (
-                    <ProjectOfferList offers={place.projectOfferPackages} />
-                  ) : place.projectOffers ? (
-                    <>
-                      <p className={cn("whitespace-pre-wrap text-body leading-relaxed text-ink", !projectOffersExpanded && "line-clamp-3")}>
-                        {place.projectOffers}
-                      </p>
-                      {place.projectOffers.length > 180 && (
-                        <button
-                          type="button"
-                          onClick={() => setProjectOffersExpanded((expanded) => !expanded)}
-                          aria-expanded={projectOffersExpanded}
-                          className={cn(BTN_OUTLINE, "mt-gap-md")}
-                        >
-                          {projectOffersExpanded ? "Ver menos" : "Ver todo"}
-                          <ChevronDown size={16} strokeWidth={1.8} className={cn(CHEVRON, projectOffersExpanded && "rotate-180")} />
-                        </button>
+              {/* ── Right Column (main content) ── */}
+              <div className="flex flex-col gap-gap-lg">
+                {/* Description */}
+                <Reveal>
+                  <section className={CARD}>
+                    <h2 className={cn(H2, "mb-gap-sm")}>
+                      {place.isProject
+                        ? "Sobre el proyecto"
+                        : "Sobre este lugar"}
+                    </h2>
+                    <p
+                      className={cn(
+                        "text-body leading-relaxed text-ink whitespace-pre-wrap",
+                        !descExpanded && "line-clamp-3",
                       )}
-                    </>
+                    >
+                      {place.longDescription}
+                    </p>
+                    {place.longDescription.length > CLAMP_MIN_CHARS && (
+                      <button
+                        type="button"
+                        onClick={() => setDescExpanded((prev) => !prev)}
+                        aria-expanded={descExpanded}
+                        className={cn(BTN_OUTLINE, "mt-gap-md")}
+                      >
+                        {descExpanded ? "Leer menos" : "Leer más"}
+                        <ChevronDown
+                          size={16}
+                          strokeWidth={1.8}
+                          className={cn(CHEVRON, descExpanded && "rotate-180")}
+                        />
+                      </button>
+                    )}
+                  </section>
+                </Reveal>
+
+                {/* A project describes its offer as text, not as a business menu. */}
+                <Reveal>
+                  {place.isProject ? (
+                    <section className={CARD}>
+                      <h2 className={cn(H2, "mb-gap-md")}>
+                        Qué ofrece el proyecto
+                      </h2>
+                      {place.projectOfferPackages?.length ? (
+                        <ProjectOfferList offers={place.projectOfferPackages} />
+                      ) : place.projectOffers ? (
+                        <>
+                          <p
+                            className={cn(
+                              "whitespace-pre-wrap text-body leading-relaxed text-ink",
+                              !projectOffersExpanded && "line-clamp-3",
+                            )}
+                          >
+                            {place.projectOffers}
+                          </p>
+                          {place.projectOffers.length > CLAMP_MIN_CHARS && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setProjectOffersExpanded(
+                                  (expanded) => !expanded,
+                                )
+                              }
+                              aria-expanded={projectOffersExpanded}
+                              className={cn(BTN_OUTLINE, "mt-gap-md")}
+                            >
+                              {projectOffersExpanded ? "Ver menos" : "Ver todo"}
+                              <ChevronDown
+                                size={16}
+                                strokeWidth={1.8}
+                                className={cn(
+                                  CHEVRON,
+                                  projectOffersExpanded && "rotate-180",
+                                )}
+                              />
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-small leading-relaxed text-ink-soft/75">
+                          Este proyecto aún no ha añadido información sobre lo
+                          que ofrece.
+                        </p>
+                      )}
+                    </section>
                   ) : (
-                    <p className="text-small leading-relaxed text-ink-soft/75">Este proyecto aún no ha añadido información sobre lo que ofrece.</p>
-                  )}
-                </section>
-              ) : (
-                <section className={CARD}>
-                <div className="flex items-center justify-between mb-gap-md">
-                  {/* «Menú» solo valía para restaurantes. En la app hay mercados,
+                    <section className={CARD}>
+                      <div className="flex items-center justify-between mb-gap-md">
+                        {/* «Menú» solo valía para restaurantes. En la app hay mercados,
                     mipymes y vendedores independientes, y lo que enseñan es un
                     producto o un servicio, no un plato. */}
-                  <h2 className={H2}>Lo que ofrece</h2>
-                  <button
-                    type="button"
-                    onClick={onMenuSeeAll}
-                    className={cn(BTN_OUTLINE, "group")}
-                  >
-                    Ver todo
-                    <ChevronRight
-                      size={16}
-                      strokeWidth={1.8}
-                      className={cn(CHEVRON, "group-hover:translate-x-[2px]")}
-                    />
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-x-gap-lg">
-                  {place.menu.map((item, i) => (
-                    <MenuItem key={i} index={i} {...item} />
-                  ))}
-                </div>
-                </section>
-              )}
-            </Reveal>
+                        <h2 className={H2}>Lo que ofrece</h2>
+                        <button
+                          type="button"
+                          id="menu-see-all-trigger-desktop"
+                          onClick={onMenuSeeAll}
+                          aria-expanded="false"
+                          aria-controls="full-menu-list-desktop"
+                          className={cn(BTN_OUTLINE, "group")}
+                        >
+                          Ver todo
+                          <ChevronRight
+                            size={16}
+                            strokeWidth={1.8}
+                            className={cn(
+                              CHEVRON,
+                              "group-hover:translate-x-[2px]",
+                            )}
+                          />
+                        </button>
+                      </div>
+                      <div
+                        id="full-menu-list-desktop"
+                        className="grid grid-cols-2 gap-x-gap-lg"
+                      >
+                        {place.menu.map((item, i) => (
+                          <MenuItem key={i} index={i} {...item} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </Reveal>
 
-            {/* Reviews */}
-            {!place.isProject && (
-              <Reveal>
-                <section className={CARD}>
-                  <ReviewsSection placeId={place.id} reloadKey={reviewsKey} />
-                </section>
-              </Reveal>
-            )}
+                {/* Reviews */}
+                {!place.isProject && (
+                  <Reveal>
+                    <section className={CARD}>
+                      <ReviewsSection
+                        placeId={place.id}
+                        reloadKey={reviewsKey}
+                      />
+                    </section>
+                  </Reveal>
+                )}
 
-            {footerSlot}
-          </div>
-        </div>
+                {footerSlot}
+              </div>
+            </div>
           </>
         )}
       </div>
@@ -587,7 +727,7 @@ export function PlaceDetail({
 
           {/* Place Info */}
           <Reveal delay={0.05}>
-            <section className="p-gap-lg px-gutter bg-sand-warm">
+            <section className="p-gap-lg px-gutter bg-sand-warm border border-verde-200">
               <div className="flex items-start justify-between gap-gap-sm mb-gap-sm">
                 <h1 className="font-lv-display text-h2 font-bold leading-tight tracking-[-0.015em] text-ink text-balance">
                   {place.name}
@@ -600,7 +740,9 @@ export function PlaceDetail({
                       : "border-verde-200 bg-verde-50 text-verde-600",
                   )}
                 >
-                  {place.isProject ? <Megaphone size={12} /> : (
+                  {place.isProject ? (
+                    <Megaphone size={12} />
+                  ) : (
                     <span
                       className={cn(
                         "size-[6px] rounded-full",
@@ -608,12 +750,20 @@ export function PlaceDetail({
                       )}
                     />
                   )}
-                  {place.isProject ? "Proyecto" : isClosed ? "Cerrado" : "Abierto"}
+                  {place.isProject
+                    ? "Proyecto"
+                    : isClosed
+                      ? "Cerrado"
+                      : "Abierto"}
                 </span>
               </div>
               <div className="flex items-center gap-gap-sm flex-wrap">
                 <span className="inline-flex items-center gap-[4px] px-[10px] py-[3px] rounded-full bg-verde-50 border border-verde-200 text-verde-600 font-lv-display text-xs font-semibold uppercase tracking-[0.06em]">
-                  {place.isProject ? <Megaphone size={12} strokeWidth={1.8} /> : <Utensils size={12} strokeWidth={1.8} />}
+                  {place.isProject ? (
+                    <Megaphone size={12} strokeWidth={1.8} />
+                  ) : (
+                    <Utensils size={12} strokeWidth={1.8} />
+                  )}
                   {place.category}
                 </span>
                 {place.rating > 0 && (
@@ -625,7 +775,7 @@ export function PlaceDetail({
                 {/* El barrio lo dice la celda del `InfoBar`, justo debajo; aquí
                     va la dirección, y solo cuando no es ya ese barrio. */}
                 {location && (
-                  <span className="inline-flex items-center gap-[4px] text-meta text-ink-soft/75">
+                  <span className="inline-flex items-center gap-[4px] text-meta text-ink-soft/85">
                     <MapPin
                       size={14}
                       strokeWidth={1.8}
@@ -681,15 +831,20 @@ export function PlaceDetail({
 
           {/* Contacto */}
           <Reveal delay={0.05}>
-            <ContactCard place={place} className="mx-gutter mt-gap-md" />
+            {/* `my-` y no `mt-`: la tarjeta tiene debajo la banda de 8 px que
+                separa secciones, y sin margen abajo su borde inferior quedaba
+                pegado a la banda. Mismo aire abajo que arriba. */}
+            <ContactCard place={place} className="mx-gutter my-gap-md" />
           </Reveal>
 
           {/* Divider */}
-          <div className="h-[8px] bg-sand-deep" />
+          <div className="h-gap-xs bg-sand-warm" />
 
           {/* AI Recommendation */}
           <Reveal>
-            {!place.isProject && <WhyCard place={place} className="mx-gutter my-gap-md" />}
+            {!place.isProject && (
+              <WhyCard place={place} className="mx-gutter my-gap-md" />
+            )}
           </Reveal>
 
           {/* Special Offer Banner */}
@@ -707,7 +862,9 @@ export function PlaceDetail({
           {/* Description */}
           <Reveal>
             <section className="p-gap-lg px-gutter bg-sand-warm">
-              <h2 className={cn(H2, "mb-gap-sm")}>{place.isProject ? "Sobre el proyecto" : "Sobre este lugar"}</h2>
+              <h2 className={cn(H2, "mb-gap-sm")}>
+                {place.isProject ? "Sobre el proyecto" : "Sobre este lugar"}
+              </h2>
               <p
                 className={cn(
                   "text-body leading-relaxed text-ink whitespace-pre-wrap",
@@ -716,24 +873,26 @@ export function PlaceDetail({
               >
                 {place.longDescription}
               </p>
-              <button
-                type="button"
-                onClick={() => setDescExpanded((prev) => !prev)}
-                aria-expanded={descExpanded}
-                className={cn(BTN_OUTLINE, "mt-gap-md")}
-              >
-                {descExpanded ? "Leer menos" : "Leer más"}
-                <ChevronDown
-                  size={16}
-                  strokeWidth={1.8}
-                  className={cn(CHEVRON, descExpanded && "rotate-180")}
-                />
-              </button>
+              {place.longDescription.length > CLAMP_MIN_CHARS && (
+                <button
+                  type="button"
+                  onClick={() => setDescExpanded((prev) => !prev)}
+                  aria-expanded={descExpanded}
+                  className={cn(BTN_OUTLINE, "mt-gap-md")}
+                >
+                  {descExpanded ? "Leer menos" : "Leer más"}
+                  <ChevronDown
+                    size={16}
+                    strokeWidth={1.8}
+                    className={cn(CHEVRON, descExpanded && "rotate-180")}
+                  />
+                </button>
+              )}
             </section>
           </Reveal>
 
           {/* Divider */}
-          <div className="h-[8px] bg-sand-deep" />
+          <div className="h-gap-xs bg-sand-warm" />
 
           {/* Reviews */}
           {!place.isProject && (
@@ -745,58 +904,85 @@ export function PlaceDetail({
           )}
 
           {/* Project offer details are not business menu items. */}
-          <div className="h-[8px] bg-sand-deep" />
+          <div className="h-gap-xs bg-sand-warm" />
           <Reveal>
             <section className="p-gap-lg px-gutter bg-sand-warm">
               {place.isProject ? (
                 <>
-                  <h2 className={cn(H2, "mb-gap-md")}>Qué ofrece el proyecto</h2>
+                  <h2 className={cn(H2, "mb-gap-md")}>
+                    Qué ofrece el proyecto
+                  </h2>
                   {place.projectOfferPackages?.length ? (
                     <ProjectOfferList offers={place.projectOfferPackages} />
                   ) : place.projectOffers ? (
                     <>
-                      <p className={cn("whitespace-pre-wrap text-body leading-relaxed text-ink", !projectOffersExpanded && "line-clamp-3")}>
+                      <p
+                        className={cn(
+                          "whitespace-pre-wrap text-body leading-relaxed text-ink",
+                          !projectOffersExpanded && "line-clamp-3",
+                        )}
+                      >
                         {place.projectOffers}
                       </p>
-                      {place.projectOffers.length > 180 && (
+                      {place.projectOffers.length > CLAMP_MIN_CHARS && (
                         <button
                           type="button"
-                          onClick={() => setProjectOffersExpanded((expanded) => !expanded)}
+                          onClick={() =>
+                            setProjectOffersExpanded((expanded) => !expanded)
+                          }
                           aria-expanded={projectOffersExpanded}
                           className={cn(BTN_OUTLINE, "mt-gap-md")}
                         >
                           {projectOffersExpanded ? "Ver menos" : "Ver todo"}
-                          <ChevronDown size={16} strokeWidth={1.8} className={cn(CHEVRON, projectOffersExpanded && "rotate-180")} />
+                          <ChevronDown
+                            size={16}
+                            strokeWidth={1.8}
+                            className={cn(
+                              CHEVRON,
+                              projectOffersExpanded && "rotate-180",
+                            )}
+                          />
                         </button>
                       )}
                     </>
                   ) : (
-                    <p className="text-small leading-relaxed text-ink-soft/75">Este proyecto aún no ha añadido información sobre lo que ofrece.</p>
+                    <p className="text-small leading-relaxed text-ink-soft/75">
+                      Este proyecto aún no ha añadido información sobre lo que
+                      ofrece.
+                    </p>
                   )}
                 </>
               ) : (
                 <>
-              <div className="flex items-center justify-between mb-gap-md">
-                {/* «Menú» solo valía para restaurantes. En la app hay mercados,
+                  <div className="flex items-center justify-between mb-gap-md">
+                    {/* «Menú» solo valía para restaurantes. En la app hay mercados,
                     mipymes y vendedores independientes, y lo que enseñan es un
                     producto o un servicio, no un plato. */}
-                <h2 className={H2}>Lo que ofrece</h2>
-                <button
-                  type="button"
-                  onClick={onMenuSeeAll}
-                  className={cn(BTN_OUTLINE, "group")}
-                >
-                  Ver todo
-                  <ChevronRight
-                    size={16}
-                    strokeWidth={1.8}
-                    className={cn(CHEVRON, "group-hover:translate-x-[2px]")}
-                  />
-                </button>
-              </div>
-              {place.menu.map((item, i) => (
-                <MenuItem key={i} index={i} {...item} />
-              ))}
+                    <h2 className={H2}>Lo que ofrece</h2>
+                    <button
+                      type="button"
+                      id="menu-see-all-trigger"
+                      onClick={() => {
+                        setMenuExpanded(!menuExpanded);
+                        onMenuSeeAll?.();
+                      }}
+                      aria-expanded={menuExpanded}
+                      aria-controls="full-menu-list"
+                      className={cn(BTN_OUTLINE, "group")}
+                    >
+                      Ver todo
+                      <ChevronRight
+                        size={16}
+                        strokeWidth={1.8}
+                        className={cn(CHEVRON, "group-hover:translate-x-[2px]")}
+                      />
+                    </button>
+                  </div>
+                  <ul id="full-menu-list" className="flex flex-col gap-gap-sm">
+                    {place.menu.map((item, i) => (
+                      <MenuItem key={i} index={i} {...item} />
+                    ))}
+                  </ul>
                 </>
               )}
             </section>
@@ -821,7 +1007,12 @@ export function PlaceDetail({
         />
       )}
       {place.isProject && (
-        <Dialog open={activeProjectPhoto !== null} onOpenChange={(open) => { if (!open) setProjectPhotoIndex(null); }}>
+        <Dialog
+          open={activeProjectPhoto !== null}
+          onOpenChange={(open) => {
+            if (!open) setProjectPhotoIndex(null);
+          }}
+        >
           <DialogContent className="w-[calc(100vw_-_32px)] max-w-6xl border-0 bg-ink p-0 shadow-none sm:w-[calc(100vw_-_64px)] [&>button]:text-white [&>button:hover]:bg-white/15 [&>button:hover]:text-white">
             <DialogTitle className="sr-only">Fotos de {place.name}</DialogTitle>
             {activeProjectPhoto && (
@@ -838,7 +1029,14 @@ export function PlaceDetail({
                   <>
                     <button
                       type="button"
-                      onClick={() => setProjectPhotoIndex((index) => index === null ? null : (index - 1 + projectPhotos.length) % projectPhotos.length)}
+                      onClick={() =>
+                        setProjectPhotoIndex((index) =>
+                          index === null
+                            ? null
+                            : (index - 1 + projectPhotos.length) %
+                              projectPhotos.length,
+                        )
+                      }
                       aria-label="Foto anterior"
                       className="absolute left-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-ink/70 text-white hover:bg-ink/90"
                     >
@@ -846,7 +1044,13 @@ export function PlaceDetail({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setProjectPhotoIndex((index) => index === null ? null : (index + 1) % projectPhotos.length)}
+                      onClick={() =>
+                        setProjectPhotoIndex((index) =>
+                          index === null
+                            ? null
+                            : (index + 1) % projectPhotos.length,
+                        )
+                      }
                       aria-label="Foto siguiente"
                       className="absolute right-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-ink/70 text-white hover:bg-ink/90"
                     >
@@ -872,20 +1076,37 @@ function ProjectOfferList({ offers }: { offers: ProjectOfferPackage[] }) {
       {offers.map((offer, index) => (
         <li key={offer.id} className="py-gap-sm first:pt-0 last:pb-0">
           <div className="flex flex-wrap items-baseline justify-between gap-x-gap-sm gap-y-1">
-            <h3 className="font-lv-display text-small font-semibold text-ink">{offer.title || `Oferta ${index + 1}`}</h3>
-            {offer.price && <span className="font-lv-display text-small font-semibold text-verde-700">{offer.price}</span>}
+            <h3 className="font-lv-display text-small font-semibold text-ink">
+              {offer.title || `Oferta ${index + 1}`}
+            </h3>
+            {offer.price && (
+              <span className="font-lv-display text-small font-semibold text-verde-700">
+                {offer.price}
+              </span>
+            )}
           </div>
           {(offer.capacity || offer.validUntil) && (
             <p className="mt-1 text-meta text-ink-soft/70">
-              {[offer.capacity ? `${offer.capacity} personas` : "", offer.validUntil ? `Vigente hasta ${offer.validUntil}` : ""].filter(Boolean).join(" · ")}
+              {[
+                offer.capacity ? `${offer.capacity} personas` : "",
+                offer.validUntil ? `Vigente hasta ${offer.validUntil}` : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
           )}
           {offer.includes.length > 0 && (
             <ul className="mt-gap-xs flex flex-col gap-1 text-small leading-relaxed text-ink-soft/85">
-              {offer.includes.map((item, itemIndex) => <li key={`${offer.id}-${itemIndex}`}>{item}</li>)}
+              {offer.includes.map((item, itemIndex) => (
+                <li key={`${offer.id}-${itemIndex}`}>{item}</li>
+              ))}
             </ul>
           )}
-          {offer.conditions && <p className="mt-gap-xs whitespace-pre-wrap text-small leading-relaxed text-ink-soft/75">{offer.conditions}</p>}
+          {offer.conditions && (
+            <p className="mt-gap-xs whitespace-pre-wrap text-small leading-relaxed text-ink-soft/75">
+              {offer.conditions}
+            </p>
+          )}
         </li>
       ))}
     </ul>
@@ -1024,10 +1245,13 @@ function ContactCard({
   const { website, whatsapp, instagram, facebook } = place.contact;
 
   const rows: { label: string; href: string; icon: LucideIcon }[] = [];
-  if (whatsapp) rows.push({ label: "WhatsApp", href: whatsapp, icon: MessageCircle });
+  if (whatsapp)
+    rows.push({ label: "WhatsApp", href: whatsapp, icon: MessageCircle });
   if (website) rows.push({ label: "Sitio web", href: website, icon: Globe });
-  if (instagram) rows.push({ label: "Instagram", href: instagram, icon: Instagram });
-  if (facebook) rows.push({ label: "Facebook", href: facebook, icon: Facebook });
+  if (instagram)
+    rows.push({ label: "Instagram", href: instagram, icon: Instagram });
+  if (facebook)
+    rows.push({ label: "Facebook", href: facebook, icon: Facebook });
 
   if (rows.length === 0) return null;
 
@@ -1048,9 +1272,16 @@ function ContactCard({
             href={row.href}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn(BTN_OUTLINE, "w-full justify-start gap-gap-sm px-gap-md")}
+            className={cn(
+              BTN_OUTLINE,
+              "w-full justify-start gap-gap-sm px-gap-md",
+            )}
           >
-            <row.icon size={18} strokeWidth={1.8} className="shrink-0 text-verde-600" />
+            <row.icon
+              size={18}
+              strokeWidth={1.8}
+              className="shrink-0 text-verde-600"
+            />
             <span className="truncate">{row.label}</span>
             <ExternalLink
               size={15}

@@ -29,11 +29,26 @@ export function currencyLabel(code: string): string {
  * «12 USD Clásica». **Cadena vacía si no hay precio.**
  *
  * Existe porque el precio puede faltar —un servicio como «Wi-Fi gratis» no
- * tiene— y las dos vistas que pintan la carta lo escribían igual, así que la
- * ficha enseñaba « USD Clásica»: con el espacio delante y la moneda de un
- * precio que no existe. Una sola función para las dos, `MenuItem` (la ficha) y
- * `PreviewPanel` (la vista previa del panel).
+ * tiene— y las vistas que pintan la carta lo escribían a mano, así que la ficha
+ * enseñaba « USD Clásica»: con el espacio delante y la moneda de un precio que
+ * no existe. Hoy solo la usa `MenuItem`, pero el caso sigue ahí: el precio es
+ * texto libre y puede venir vacío.
  */
+/**
+ * Colores de la chapita de moneda. La moneda no se distingue por color —el
+ * rótulo ya la dice— así que todas bajan a la escala verde/arena del sistema.
+ * Antes eran lv-blue y lv-teal, que no son del sistema.
+ *
+ * Vive aquí y no en cada ficha porque son dos —`InfoBar` y `PlaceDetail`— y
+ * tenían el mapa copiado: cualquier ajuste había que hacerlo dos veces.
+ */
+export const currencyStyles: Record<string, string> = {
+  MLC: "bg-verde-100 text-verde-700",
+  CUP: "bg-verde-50 text-verde-600",
+  USD: "bg-sand-deep text-ink-soft/75",
+  EUR: "bg-sand-deep text-ink-soft/75",
+};
+
 export function formatMenuPrice(price: string, currency: string): string {
   return price.trim() ? `${price} ${currencyLabel(currency)}` : "";
 }

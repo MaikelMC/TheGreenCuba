@@ -32,13 +32,20 @@
     --accent: 62% 0.16 145;
     --accent-foreground: 100% 0 0;
     --accent-hover: 54% 0.15 145;
-    --destructive: 60% 0.20 25;
+    --destructive: 60% 0.2 25;
     --destructive-foreground: 100% 0 0;
     --border: 90% 0.004 250;
     --input: 90% 0.004 250;
     --ring: 62% 0.16 145;
     --radius: 10px;
     --header-h: 56px;
+    /* Gemela en CSS del `gap-lg` de tailwind.config (24 px). Existe porque el
+       desplazamiento `sticky` de la columna lateral de la ficha se calcula en
+       una clase arbitraria —`top-[calc(var(--header-h)+var(--gap-lg))]`— y ahí
+       no llega ninguna utilidad de Tailwind. Hasta ahora `--gap-lg` no existía:
+       el `calc()` entero era inválido, `top` caía a `auto` y la columna no se
+       pegaba nunca. Si cambia el token, cambia aquí. */
+    --gap-lg: 24px;
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     --duration-fast: 120ms;
     --duration-normal: 200ms;
@@ -69,7 +76,7 @@
     --accent: 70% 0.16 145;
     --accent-foreground: 15% 0.01 250;
     --accent-hover: 78% 0.14 145;
-    --destructive: 65% 0.20 25;
+    --destructive: 65% 0.2 25;
     --destructive-foreground: 100% 0 0;
     --border: 28% 0.01 250;
     --input: 28% 0.01 250;
@@ -98,7 +105,9 @@
   }
 
   html[data-theme="dark"] body {
-    background: radial-gradient(circle at top, rgba(53, 175, 109, 0.12), transparent 30%), #08130d;
+    background:
+      radial-gradient(circle at top, rgba(53, 175, 109, 0.12), transparent 30%),
+      #08130d;
     color: #edf7f0;
   }
 
@@ -144,13 +153,17 @@
     border-color: rgba(155, 227, 180, 0.62) !important;
     background-color: #101d24 !important;
     color: #f4faf6 !important;
-    box-shadow: inset 0 0 0 1px rgba(155, 227, 180, 0.12), 0 8px 24px rgba(0, 0, 0, 0.22);
+    box-shadow:
+      inset 0 0 0 1px rgba(155, 227, 180, 0.12),
+      0 8px 24px rgba(0, 0, 0, 0.22);
   }
 
   html[data-theme="dark"] .auth-google-button:hover {
     border-color: #9be3b4 !important;
     background-color: #152822 !important;
-    box-shadow: 0 0 0 3px rgba(103, 199, 146, 0.14), 0 8px 24px rgba(0, 0, 0, 0.25);
+    box-shadow:
+      0 0 0 3px rgba(103, 199, 146, 0.14),
+      0 8px 24px rgba(0, 0, 0, 0.25);
   }
 
   html[data-theme="dark"] .auth-google-button:focus-visible {
@@ -225,7 +238,9 @@
   html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-sand,
   html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-sand-warm,
   html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-sand-deep,
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) [class~="bg-sand/50"] {
+  html[data-theme="dark"]
+    :is(.admin-panel, .business-panel)
+    [class~="bg-sand/50"] {
     background-color: #0e1720 !important;
   }
 
@@ -237,8 +252,12 @@
     background-color: #21442e !important;
   }
 
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) [class~="hover:bg-verde-50"]:hover,
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) [class~="hover:bg-sand"]:hover {
+  html[data-theme="dark"]
+    :is(.admin-panel, .business-panel)
+    [class~="hover:bg-verde-50"]:hover,
+  html[data-theme="dark"]
+    :is(.admin-panel, .business-panel)
+    [class~="hover:bg-sand"]:hover {
     background-color: #173522 !important;
   }
 
@@ -312,8 +331,16 @@
   html[data-theme="dark"] .auth-brand-panel,
   html[data-theme="dark"] .auth-mobile-glow {
     background-image:
-      radial-gradient(circle at 20% 12%, rgba(53, 175, 109, 0.1), transparent 42%),
-      radial-gradient(circle at 85% 0%, rgba(15, 122, 65, 0.12), transparent 45%),
+      radial-gradient(
+        circle at 20% 12%,
+        rgba(53, 175, 109, 0.1),
+        transparent 42%
+      ),
+      radial-gradient(
+        circle at 85% 0%,
+        rgba(15, 122, 65, 0.12),
+        transparent 45%
+      ),
       linear-gradient(to bottom, #03160f, #020b07) !important;
   }
 
@@ -409,7 +436,7 @@
   html[data-theme="dark"] .text-ink-soft\/65,
   html[data-theme="dark"] .text-ink-soft\/60,
   html[data-theme="dark"] .text-ink-soft\/80 {
-    color: rgba(237, 247, 240, 0.72) !important;
+    color: rgba(237, 247, 240, 0.85) !important;
   }
 
   /* El `text-ink-soft` a secas (sin opacidad) no estaba cubierto: la lista
@@ -594,8 +621,16 @@
      único fondo oscuro del sistema además del footer. */
   .lv-grid-glow {
     background-image:
-      radial-gradient(circle at 20% 12%, rgba(53, 175, 109, 0.16), transparent 42%),
-      radial-gradient(circle at 85% 0%, rgba(15, 122, 65, 0.18), transparent 45%),
+      radial-gradient(
+        circle at 20% 12%,
+        rgba(53, 175, 109, 0.16),
+        transparent 42%
+      ),
+      radial-gradient(
+        circle at 85% 0%,
+        rgba(15, 122, 65, 0.18),
+        transparent 45%
+      ),
       linear-gradient(to bottom, #06211a, #081b12);
   }
 
@@ -628,7 +663,6 @@
     box-shadow:
       0 0 0 1px rgba(255, 255, 255, 0.6),
       0 20px 50px -16px rgba(8, 19, 13, 0.18) !important;
-
   }
   .bottom-sheet-desktop[data-state="peek"] {
     transform: translateY(calc(100% - 100px)) !important;
@@ -637,22 +671,34 @@
 
 /* ─── Skeleton shimmer ─── */
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* Solo lo usa el home (buscador): el brillo va de `sand-deep` a `sand-warm`,
    la escala neutra del design system, en vez del gris anterior. */
 .skeleton-shimmer {
-  background: linear-gradient(90deg, #EAE4D6 25%, #FBF9F4 50%, #EAE4D6 75%);
+  background: linear-gradient(90deg, #eae4d6 25%, #fbf9f4 50%, #eae4d6 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
 /* ─── Typing dots ─── */
 @keyframes typingBounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-  30% { transform: translateY(-4px); opacity: 1; }
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
 }
 
 .typing-dot {
@@ -662,13 +708,23 @@
   background: white;
   animation: typingBounce 1.2s ease-in-out infinite;
 }
-.typing-dot:nth-child(2) { animation-delay: 0.15s; }
-.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+.typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
 
 /* ─── Onboarding animations ─── */
 @keyframes chipPop {
-  from { opacity: 0; transform: scale(0.85); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .animate-chip-pop {
@@ -677,8 +733,14 @@
 
 /* ─── Entrada genérica ─── */
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fade-in-up {
@@ -709,7 +771,7 @@
   font-family: inherit;
   /* Fondo visible mientras cargan los tiles: `sand-deep`, el neutro del
      design system. */
-  background: #EAE4D6;
+  background: #eae4d6;
   /* Sin esto, arrastrar el mapa hacia abajo con el dedo encadena el scroll a la
      página y dispara el pull-to-refresh del navegador. */
   overscroll-behavior: contain;
@@ -743,7 +805,7 @@
   font-size: 20px !important;
   font-weight: 500 !important;
   text-indent: 0 !important;
-  color: #08130D !important;
+  color: #08130d !important;
   background: transparent !important;
   border: none !important;
   border-radius: 0 !important;
@@ -763,19 +825,19 @@
 .leaflet-container .leaflet-control-zoom a:hover,
 .leaflet-container .leaflet-control-zoom a:focus,
 .leaflet-container .leaflet-control-zoom a:focus-visible {
-  background: #EAF7EF !important; /* verde-50 */
-  color: #0F7A41 !important; /* verde-600 */
+  background: #eaf7ef !important; /* verde-50 */
+  color: #0f7a41 !important; /* verde-600 */
   outline: none !important;
   box-shadow: none !important;
 }
 
 .leaflet-container .leaflet-control-zoom a:active {
-  background: #CEEEDB !important; /* verde-100 */
+  background: #ceeedb !important; /* verde-100 */
 }
 
 .leaflet-container .leaflet-control-zoom a.leaflet-disabled,
 .leaflet-container .leaflet-control-zoom a.leaflet-disabled:hover {
-  background: #F6F3EC !important; /* sand */
+  background: #f6f3ec !important; /* sand */
   color: rgba(27, 42, 33, 0.5) !important; /* ink-soft al 50 % */
   cursor: default !important;
   box-shadow: none !important;
@@ -803,13 +865,19 @@ html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a {
   color: #edf7f0 !important;
 }
 
-html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a.leaflet-control-zoom-in {
+html[data-theme="dark"]
+  .leaflet-container
+  .leaflet-control-zoom
+  a.leaflet-control-zoom-in {
   border-bottom-color: rgba(237, 247, 240, 0.08) !important;
 }
 
 html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a:hover,
 html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a:focus,
-html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a:focus-visible {
+html[data-theme="dark"]
+  .leaflet-container
+  .leaflet-control-zoom
+  a:focus-visible {
   background: #173522 !important;
   color: #9be3b4 !important;
 }
@@ -818,8 +886,14 @@ html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a:active {
   background: #21442e !important;
 }
 
-html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a.leaflet-disabled,
-html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a.leaflet-disabled:hover {
+html[data-theme="dark"]
+  .leaflet-container
+  .leaflet-control-zoom
+  a.leaflet-disabled,
+html[data-theme="dark"]
+  .leaflet-container
+  .leaflet-control-zoom
+  a.leaflet-disabled:hover {
   background: transparent !important;
   color: rgba(237, 247, 240, 0.35) !important;
 }
@@ -852,12 +926,21 @@ html[data-theme="dark"] .custom-leaflet-popup .leaflet-popup-tip {
   background: #0e1720 !important;
 }
 
-html[data-theme="dark"] .leaflet-container .custom-leaflet-popup .leaflet-popup-close-button {
+html[data-theme="dark"]
+  .leaflet-container
+  .custom-leaflet-popup
+  .leaflet-popup-close-button {
   color: rgba(237, 247, 240, 0.72) !important;
 }
 
-html[data-theme="dark"] .leaflet-container .custom-leaflet-popup .leaflet-popup-close-button:hover,
-html[data-theme="dark"] .leaflet-container .custom-leaflet-popup .leaflet-popup-close-button:focus-visible {
+html[data-theme="dark"]
+  .leaflet-container
+  .custom-leaflet-popup
+  .leaflet-popup-close-button:hover,
+html[data-theme="dark"]
+  .leaflet-container
+  .custom-leaflet-popup
+  .leaflet-popup-close-button:focus-visible {
   color: #edf7f0 !important;
   background: #173522 !important;
 }
@@ -927,9 +1010,11 @@ html[data-theme="dark"] .leaflet-container .custom-leaflet-popup .leaflet-popup-
 }
 
 .leaflet-container .custom-leaflet-popup .leaflet-popup-close-button:hover,
-.leaflet-container .custom-leaflet-popup .leaflet-popup-close-button:focus-visible {
-  color: #08130D; /* ink */
-  background: #EAF7EF; /* verde-50 */
+.leaflet-container
+  .custom-leaflet-popup
+  .leaflet-popup-close-button:focus-visible {
+  color: #08130d; /* ink */
+  background: #eaf7ef; /* verde-50 */
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -999,8 +1084,8 @@ html[data-theme="dark"] .leaflet-container .custom-leaflet-popup .leaflet-popup-
   background: linear-gradient(
     90deg,
     transparent,
-    #35AF6D, /* verde-400 */
-    transparent
+    #35af6d,
+    /* verde-400 */ transparent
   );
   animation: searchingProgress 1.2s linear infinite;
 }

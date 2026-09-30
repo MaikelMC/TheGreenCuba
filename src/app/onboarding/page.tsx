@@ -635,13 +635,6 @@ export default function OnboardingPage() {
     goToStep(0);
   }
 
-  function handleResetAI() {
-    // Sin `style`: la pastilla ya la pone el `Toaster` del layout raíz con los
-    // tokens del sistema. Aquí vivía una copia con `var(--foreground)`, que era
-    // el lenguaje viejo y encima pisaba la del tema.
-    toast("Perfil de IA reseteado");
-  }
-
   if (!ready) return null;
 
   return (
@@ -932,7 +925,6 @@ export default function OnboardingPage() {
               label: CURRENCY_NAMES[v] ?? v,
             }))}
             onBack={handlePrefBack}
-            onResetAI={handleResetAI}
             onDone={handleDone}
           />
         </div>

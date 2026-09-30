@@ -2,20 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import {
-  LayoutDashboard,
-  Edit,
-  Eye,
-  Settings,
-  ArrowLeft,
-} from "lucide-react";
+import { LayoutDashboard, Edit, Settings, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { UserMenu } from "@/components/layout/user-menu";
 import { MobileDock } from "@/components/layout/mobile-dock";
 import { EASE } from "@/lib/motion";
 
-export type PanelView = "dashboard" | "editor" | "preview" | "settings";
+export type PanelView = "dashboard" | "editor" | "settings";
 
 interface PanelShellProps {
   businessName?: string;
@@ -36,14 +30,12 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "editor", label: "Editar", icon: Edit },
-  { id: "preview", label: "Vista previa", icon: Eye },
   { id: "settings", label: "Ajustes", icon: Settings },
 ];
 
 const SIDEBAR_ITEMS: NavItem[] = [
   { id: "dashboard" as PanelView, label: "Dashboard", icon: LayoutDashboard },
   { id: "editor" as PanelView, label: "Editar ficha", icon: Edit },
-  { id: "preview" as PanelView, label: "Vista previa", icon: Eye },
   { id: "settings" as PanelView, label: "Ajustes", icon: Settings },
 ];
 

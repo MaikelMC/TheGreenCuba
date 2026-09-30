@@ -11,7 +11,6 @@ interface PreferencesScreenProps {
   moods: Array<{ value: string; label: string }>;
   currencies: Array<{ value: string; label: string }>;
   onBack: () => void;
-  onResetAI: () => void;
   onDone: () => void;
 }
 
@@ -21,10 +20,8 @@ export function PreferencesScreen({
   moods,
   currencies,
   onBack,
-  onResetAI,
   onDone,
 }: PreferencesScreenProps) {
-  const [editing, setEditing] = useState(false);
   const [toggles, setToggles] = useState({
     notifRecomendaciones: true,
     notifOfertas: true,
@@ -53,15 +50,6 @@ export function PreferencesScreen({
           </svg>
         </motion.button>
         <h1 className="flex-1 font-lv-display text-h3 font-bold text-ink">Mis Preferencias</h1>
-        <button
-          onClick={() => setEditing((e) => !e)}
-          className={cn(
-            "bg-none px-2 py-2 min-h-[40px] text-small font-semibold rounded-full transition-colors duration-500",
-            editing ? "text-verde-700" : "text-verde-600 hover:text-verde-700",
-          )}
-        >
-          {editing ? "Listo" : "Editar"}
-        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 pb-20 scrollbar-hide">
@@ -157,28 +145,6 @@ export function PreferencesScreen({
           <div className="flex items-center justify-between py-3 border-b border-ink/5">
             <span className="text-body font-medium text-ink">Recomendaciones personalizadas</span>
             <ToggleSwitch active={toggles.iaPersonal} onToggle={() => toggle("iaPersonal")} />
-          </div>
-          <div className="py-3 border-none">
-            <span className="text-meta text-ink-soft/75 block">
-              La IA mejora con cada interacción. Puedes resetear tu perfil cuando quieras.
-            </span>
-          </div>
-        </section>
-
-        {/* Datos */}
-        <section className="mb-8">
-          <h2 className="font-lv-display text-[10px] font-semibold text-verde-600 mb-3 uppercase tracking-[0.22em]">
-            Datos
-          </h2>
-          <div className="flex items-center justify-between py-3 border-none">
-            <span className="text-body font-medium text-destructive">Resetear perfil de IA</span>
-            <motion.button
-              onClick={onResetAI}
-              whileTap={{ scale: 0.95 }}
-              className="px-3.5 py-1.5 min-h-[36px] border border-destructive text-destructive rounded-full text-xs font-medium transition-colors duration-500 hover:bg-destructive/10"
-            >
-              Resetear
-            </motion.button>
           </div>
         </section>
       </div>

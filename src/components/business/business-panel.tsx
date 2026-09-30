@@ -33,14 +33,13 @@ import {
 } from "@/components/ui/select";
 import { CategoryIcon } from "@/components/admin/category-icon";
 import { IconPicker } from "@/components/ui/icon-picker";
-import { FormSection } from "@/components/business/form-section";
+import { FormSection, FormSections } from "@/components/business/form-section";
 import { PanelShell } from "@/components/business/panel-shell";
 import { DashboardStats } from "@/components/business/dashboard-stats";
 import { PhotoGrid } from "@/components/business/photo-grid";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { MenuItemEditor } from "@/components/business/menu-item-editor";
 import { pruneMenuImages } from "@/lib/menu-images";
-import { PreviewPanel } from "@/components/business/preview-panel";
 import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
 import { usePlaces } from "@/providers/places-provider";
 import type { PlaceStatus, UserPlace, UserPlacePatch } from "@/lib/places-store";
@@ -91,8 +90,6 @@ export function BusinessPanel({ place, stats }: { place: UserPlace; stats: Place
             return <DashboardView place={place} stats={stats} />;
           case "editor":
             return <EditorView place={place} />;
-          case "preview":
-            return <PreviewView place={place} />;
           case "settings":
             return <SettingsView place={place} />;
         }
@@ -185,7 +182,7 @@ function DashboardView({ place, stats }: { place: UserPlace; stats: PlaceStats }
             )}
             <li>
               <span className="font-semibold text-ink">Revisa tu ficha.</span>{" "}
-              En «Vista previa» la ves tal como la ve quien te busca.
+              Ábrela en el mapa y mírala tal como la ve quien te busca.
             </li>
           </ul>
         </section>
@@ -236,11 +233,15 @@ function EditorView({ place }: { place: UserPlace }) {
   const save = useCallback(async () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("El nombre del negocio no puede quedar vacío.");
+      setError(
+        "El nombre del negocio no puede quedar vacío. Está en «Información básica».",
+      );
       return;
     }
     if (!location) {
-      setError("Marca tu negocio en el mapa antes de guardar.");
+      setError(
+        "Marca tu negocio en el mapa antes de guardar. Está en «Ubicación en el mapa».",
+      );
       return;
     }
 
@@ -291,9 +292,9 @@ function EditorView({ place }: { place: UserPlace }) {
     pruneMenuImages(place.id, place.menu, values.menu ?? []);
 
     toast.success("Cambios guardados");
-    /* El servidor vuelve a leer la ficha para el dashboard y la vista previa, que
-       son de servidor. El formulario no se resiembra —su estado es del cliente y
-       ya tiene lo que acabas de escribir—, así que no se pierde nada. */
+    /* El servidor vuelve a leer la ficha para el dashboard, que es de servidor.
+       El formulario no se resiembra —su estado es del cliente y ya tiene lo que
+       acabas de escribir—, así que no se pierde nada. */
     router.refresh();
   }, [
     name,
@@ -322,7 +323,7 @@ function EditorView({ place }: { place: UserPlace }) {
         subtitle={`${place.name}${place.barrio ? `, ${place.barrio}` : ""}`}
       />
 
-      <div className="space-y-gap-md">
+      <FormSections>
         <FormSection title="Fotos del lugar" icon={<ImageIcon size={18} strokeWidth={1.8} />}>
           <PhotoGrid placeId={place.id} placeName={name || place.name} />
         </FormSection>
@@ -598,7 +599,7 @@ function EditorView({ place }: { place: UserPlace }) {
             </motion.p>
           )}
         </AnimatePresence>
-      </div>
+      </FormSections>
 
       {/* La barra de guardado pegada abajo. Antes no había forma de saber si los
           cambios se habían escrito: el `SaveBar` que había publicaba contra
@@ -619,32 +620,6 @@ function EditorView({ place }: { place: UserPlace }) {
           {saving ? "Guardando…" : "Guardar cambios"}
         </button>
       </div>
-    </>
-  );
-}
-
-function PreviewView({ place }: { place: UserPlace }) {
-  return (
-    <>
-      <ViewLead title="Vista previa" subtitle="Así se ve tu ficha en La Verde" />
-      <PreviewPanel
-        businessName={place.name}
-        category={place.category}
-        payments={place.payments}
-        offer={place.offer?.text ?? ""}
-        /* `gradient` es el relleno del hueco donde va la foto del plato: los
-           productos sin imagen siguen mostrando el degradado, y con imagen
-           manda la foto, igual que en la ficha pública. */
-        menuItems={(place.menu ?? []).map((m) => ({
-          name: m.name,
-          price: m.price,
-          currency: m.currency,
-          tag: m.tag,
-          image: m.image,
-          gradient: "linear-gradient(135deg, #EAF7EF, #CEEEDB)",
-        }))}
-        menuCount={place.menu?.length ?? 0}
-      />
     </>
   );
 }
