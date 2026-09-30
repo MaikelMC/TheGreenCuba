@@ -16,10 +16,13 @@ import {
   Send,
   Store,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, sanitizePhone } from "@/lib/utils";
 import { EASE } from "@/lib/motion";
 import { CategoryIcon } from "@/components/admin/category-icon";
-import { FormSection } from "@/components/business/form-section";
+import {
+  FormSection,
+  sectionMessage,
+} from "@/components/business/form-section";
 import { PaymentChips } from "@/components/business/payment-chips";
 import {
   MapLocationPicker,
@@ -133,6 +136,30 @@ const PLANS = [
 const INPUT =
   "h-11 w-full rounded-xl border border-ink/10 bg-white px-4 text-body text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
+
+/**
+ * Los títulos de las secciones, en un solo sitio.
+ *
+ * El de la sección no se usa para el acordeón —cada `FormSection` se abre
+ * sola— sino para que el aviso de validación pueda decir **dónde** falta el
+ * campo: con las secciones plegadas, un «Escribe el nombre» a secas deja al
+ * usuario buscando en seis cajas cerradas. Como el mismo nombre va en el
+ * `title`, no hay dos listas que puedan discrepar.
+ */
+const SECTIONS = {
+  esencial: "Lo esencial",
+  ubicacion: "Dónde está",
+  contacto: "Contacto",
+  horario: "Cómo te encuentran",
+  pagos: "Métodos de pago",
+  plan: "Tu plan",
+} as const;
+
+type SectionId = keyof typeof SECTIONS;
+
+/** El aviso y las secciones que marca en rojo. Van juntos en un solo estado
+    para que no puedan desincronizarse. */
+type FormError = { message: string; sections: SectionId[] };
 const BTN_PRIMARY =
   "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none";
 
@@ -322,7 +349,7 @@ function BusinessForm({
   const [plan, setPlan] = useState<(typeof PLANS)[number]["id"]>(
     initialBusiness?.plan ?? "trial",
   );
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FormError | null>(null);
   const [sending, setSending] = useState(false);
   /* `true` cuando la solicitud ya se registró y la pantalla pasa a la vista de
      confirmación. El usuario no vuelve a enviar el formulario, y el botón de
@@ -340,12 +367,21 @@ function BusinessForm({
   const submit = useCallback(async () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("Escribe el nombre de tu negocio.");
+      setError(
+        sectionMessage(SECTIONS, [
+          { section: "esencial", text: "falta el nombre de tu negocio" },
+        ]),
+      );
       return;
     }
     if (!location) {
       setError(
-        "Marca tu negocio en el mapa: toca el punto donde está o busca su dirección.",
+        sectionMessage(SECTIONS, [
+          {
+            section: "ubicacion",
+            text: "falta el punto en el mapa — búscalo por la dirección o tócalo directamente",
+          },
+        ]),
       );
       return;
     }
@@ -385,10 +421,12 @@ function BusinessForm({
         const data = (await response.json().catch(() => ({}))) as {
           error?: string;
         };
-        setError(
-          data.error ??
+        setError({
+          message:
+            data.error ??
             "No se pudo dar de alta el negocio. Inténtalo otra vez.",
-        );
+          sections: [],
+        });
         setSending(false);
         return;
       }
@@ -409,9 +447,11 @@ function BusinessForm({
         "Tu negocio quedó enviado para revisión. Te avisaremos cuando sea revisado.",
       );
     } catch {
-      setError(
-        "No hubo respuesta del servidor. Revisa tu conexión: no se cambió nada.",
-      );
+      setError({
+        message:
+          "No hubo respuesta del servidor. Revisa tu conexión: no se cambió nada.",
+        sections: [],
+      });
       setSending(false);
     }
   }, [
@@ -457,7 +497,8 @@ function BusinessForm({
       </header>
 
       <FormSection
-        title="Lo esencial"
+        title={SECTIONS.esencial}
+        invalid={error?.sections.includes("esencial")}
         icon={<Store size={18} strokeWidth={1.8} />}
       >
         <div className="flex flex-col gap-gap-md">
@@ -526,7 +567,7 @@ function BusinessForm({
               id="pbPhone"
               type="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(sanitizePhone(e.target.value))}
               autoComplete="tel"
               placeholder="+53 5 123 4567"
               className={INPUT}
@@ -536,7 +577,8 @@ function BusinessForm({
       </FormSection>
 
       <FormSection
-        title="Dónde está"
+        title={SECTIONS.ubicacion}
+        invalid={error?.sections.includes("ubicacion")}
         icon={<MapPin size={18} strokeWidth={1.8} />}
       >
         <p className="mb-gap-sm text-meta text-ink-soft/75">
@@ -586,7 +628,8 @@ function BusinessForm({
       </FormSection>
 
       <FormSection
-        title="Contacto"
+        title={SECTIONS.contacto}
+        invalid={error?.sections.includes("contacto")}
         icon={<AtSign size={18} strokeWidth={1.8} />}
       >
         <p className="mb-gap-sm text-meta text-ink-soft/75">
@@ -600,9 +643,11 @@ function BusinessForm({
             </label>
             <input
               id="pbWebsite"
+              type="url"
+              inputMode="url"
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
-              placeholder="Ej: laverde.cu"
+              placeholder="Ej: https://laverde.cu"
               className={INPUT}
             />
           </div>
@@ -615,7 +660,7 @@ function BusinessForm({
               type="tel"
               autoComplete="tel"
               value={whatsapp}
-              onChange={(e) => setWhatsapp(e.target.value)}
+              onChange={(e) => setWhatsapp(sanitizePhone(e.target.value))}
               placeholder="+53 5 123 4567"
               className={INPUT}
             />
@@ -631,6 +676,8 @@ function BusinessForm({
             </label>
             <input
               id="pbInstagram"
+              type="url"
+              inputMode="url"
               value={instagram}
               onChange={(e) => setInstagram(e.target.value)}
               placeholder="https://instagram.com/laverde"
@@ -646,6 +693,8 @@ function BusinessForm({
             </label>
             <input
               id="pbFacebook"
+              type="url"
+              inputMode="url"
               value={facebook}
               onChange={(e) => setFacebook(e.target.value)}
               placeholder="https://facebook.com/laverde"
@@ -659,7 +708,8 @@ function BusinessForm({
       </FormSection>
 
       <FormSection
-        title="Cómo te encuentran"
+        title={SECTIONS.horario}
+        invalid={error?.sections.includes("horario")}
         icon={<Clock size={18} strokeWidth={1.8} />}
       >
         <div className="flex flex-col gap-gap-sm">
@@ -697,7 +747,8 @@ function BusinessForm({
       </FormSection>
 
       <FormSection
-        title="Métodos de pago"
+        title={SECTIONS.pagos}
+        invalid={error?.sections.includes("pagos")}
         icon={<CreditCard size={18} strokeWidth={1.8} />}
       >
         <p className="mb-gap-sm text-meta text-ink-soft/75">
@@ -711,7 +762,8 @@ function BusinessForm({
           ya sabe qué está pidiendo. Radios nativos y no botones: el teclado y el
           lector de pantalla ya saben qué hacer con ellos. */}
       <FormSection
-        title="Tu plan"
+        title={SECTIONS.plan}
+        invalid={error?.sections.includes("plan")}
         icon={<BadgeCheck size={18} strokeWidth={1.8} />}
       >
         <p className="mb-gap-sm text-meta text-ink-soft/75">
@@ -827,7 +879,7 @@ function BusinessForm({
             transition={{ duration: 0.25, ease: EASE }}
             className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
           >
-            {error}
+            {error.message}
           </motion.p>
         )}
       </AnimatePresence>

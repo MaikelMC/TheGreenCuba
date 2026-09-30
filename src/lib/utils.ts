@@ -49,6 +49,16 @@ export const currencyStyles: Record<string, string> = {
   EUR: "bg-sand-deep text-ink-soft/75",
 };
 
+/**
+ * Un teléfono solo lleva dígitos y los separadores con los que se escribe
+ * («+53 5 123 4567», «(7) 866-1234»). Hace falta cribar porque `type="tel"` no
+ * rechaza nada: solo cambia el teclado del móvil. Sin esto el campo acepta
+ * «llámame por la tarde» y ese texto acaba en la ficha pública.
+ */
+export function sanitizePhone(value: string): string {
+  return value.replace(/[^\d+\s().-]/g, "");
+}
+
 export function formatMenuPrice(price: string, currency: string): string {
   return price.trim() ? `${price} ${currencyLabel(currency)}` : "";
 }
