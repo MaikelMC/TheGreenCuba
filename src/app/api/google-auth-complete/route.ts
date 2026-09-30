@@ -13,8 +13,14 @@ export async function GET(request: NextRequest) {
 
   await db
     .update(users)
-    .set({ termsVersion: TERMS_VERSION, termsAcceptedAt: new Date(), updatedAt: new Date() })
+    .set({
+      termsVersion: TERMS_VERSION,
+      termsAcceptedAt: new Date(),
+      updatedAt: new Date(),
+    })
     .where(eq(users.id, user.id));
 
-  return NextResponse.redirect(new URL("/onboarding", request.url));
+  return NextResponse.redirect(
+    new URL("/onboarding?showSessionNotice=1", request.url),
+  );
 }

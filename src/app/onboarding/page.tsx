@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   OnboardingShell,
@@ -64,7 +64,13 @@ const categories = [
     value: "cafes",
     label: "Cafeterías",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
         <path d="M6 1v3M10 1v3M14 1v3" />
       </svg>
@@ -74,7 +80,13 @@ const categories = [
     value: "restaurantes",
     label: "Restaurantes",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <path d="M12 2a4 4 0 0 0-4 4v2a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z" />
         <path d="M6 14h12M12 14v8" />
       </svg>
@@ -84,7 +96,13 @@ const categories = [
     value: "discotecas",
     label: "Discotecas",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <circle cx="8" cy="18" r="4" />
         <circle cx="18" cy="16" r="4" />
         <path d="M12 18V2l8 2v12" />
@@ -96,7 +114,13 @@ const categories = [
     value: "mercados",
     label: "Mercados",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
         <path d="M3 6h18" />
         <path d="M16 10a4 4 0 0 1-8 0" />
@@ -107,7 +131,13 @@ const categories = [
     value: "bares",
     label: "Bares & Noche",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <path d="M8 2v4l-2 8h12l-2-8V2" />
         <path d="M8 14v6a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-6" />
         <path d="M2 8h20" />
@@ -118,7 +148,13 @@ const categories = [
     value: "playas",
     label: "Playas",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <circle cx="12" cy="12" r="10" />
         <path d="M8 12c0-4 4-8 4-8s4 4 4 8-4 8-4 8-4-4-4-8z" />
         <path d="M3.5 7.5c2.5 1 5.5 1 8.5 0s6-1 8.5 0" />
@@ -130,7 +166,13 @@ const categories = [
     value: "cultura",
     label: "Cultura & Arte",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <rect x="3" y="3" width="18" height="18" rx="2" />
         <path d="M3 9h18" />
         <path d="M9 21V9" />
@@ -141,7 +183,13 @@ const categories = [
     value: "fitness",
     label: "Deporte & Fitness",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <path d="M6.5 6.5l11 11M6.5 17.5l11-11" />
         <path d="M14.5 4.5l5 5M4.5 14.5l5 5" />
         <path d="M9.5 2.5l12 12M2.5 9.5l12 12" />
@@ -155,7 +203,13 @@ const moodOptions = [
     value: "tranquilo",
     label: "Tranquilo",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       </svg>
     ),
@@ -164,7 +218,13 @@ const moodOptions = [
     value: "fiesta",
     label: "Fiesta & Rumba",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <circle cx="12" cy="8" r="5" />
         <path d="M12 13v9" />
         <path d="M8 22h8" />
@@ -175,7 +235,13 @@ const moodOptions = [
     value: "romantico",
     label: "Romántico",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
       </svg>
     ),
@@ -184,7 +250,13 @@ const moodOptions = [
     value: "familiar",
     label: "Familiar",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
         <circle cx="9" cy="7" r="4" />
         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -196,7 +268,13 @@ const moodOptions = [
     value: "cultural",
     label: "Cultural",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
         <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
       </svg>
@@ -206,7 +284,13 @@ const moodOptions = [
     value: "aventura",
     label: "Aventura",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
         <path d="M4 22v-7" />
       </svg>
@@ -216,7 +300,13 @@ const moodOptions = [
     value: "trabajo",
     label: "Trabajo & Estudio",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <rect x="2" y="7" width="20" height="14" rx="2" />
         <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
       </svg>
@@ -226,7 +316,13 @@ const moodOptions = [
     value: "salud",
     label: "Salud & Bienestar",
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        className="size-[18px]"
+      >
         <path d="M9 12h6M12 9v6" />
         <rect x="2" y="4" width="20" height="16" rx="2" />
       </svg>
@@ -249,7 +345,10 @@ export default function OnboardingPage() {
   /* Nombre y correo de la sesión. Antes se guardaban los de
      `DEFAULT_USER_PREFERENCES` —"Martín", "martin@email.com"—, que son valores
      de relleno del prototipo: el perfil acababa mostrando a otra persona. */
-  const [identity, setIdentity] = useState<{ name: string; email: string } | null>(null);
+  const [identity, setIdentity] = useState<{
+    name: string;
+    email: string;
+  } | null>(null);
   /* Se queda en `false` hasta saber si toca onboarding. Sin esta puerta, el
      splash se pintaba y desaparecía en el mismo parpadeo. */
   const [ready, setReady] = useState(false);
@@ -267,9 +366,15 @@ export default function OnboardingPage() {
      «restaurantes») son hoy categorías vacías — un interés sin cumplimiento
      genera expectativas que el sitio no puede cumplir (Ley de Hick: opciones
      que no llevan a nada). Se actualizan si el catálogo crece. */
-  const [interests, setInterests] = useState<Set<string>>(new Set(["cultura", "playas"]));
-  const [currencies, setCurrencies] = useState<Set<string>>(new Set(["mlc", "cup"]));
-  const [moods, setMoods] = useState<Set<string>>(new Set(["tranquilo", "romantico"]));
+  const [interests, setInterests] = useState<Set<string>>(
+    new Set(["cultura", "playas"]),
+  );
+  const [currencies, setCurrencies] = useState<Set<string>>(
+    new Set(["mlc", "cup"]),
+  );
+  const [moods, setMoods] = useState<Set<string>>(
+    new Set(["tranquilo", "romantico"]),
+  );
   const locationDetectionStarted = useRef(false);
 
   function goToStep(step: number) {
@@ -285,38 +390,47 @@ export default function OnboardingPage() {
 
     fetch("/api/me")
       .then((res) => res.json())
-      .then((data: {
-        authenticated: boolean;
-        user: {
-          id?: string;
-          name: string;
-          email: string;
-          locationCity?: string | null;
-          onboardingCompleted?: boolean;
-          preferences?: { interests?: string[]; moods?: string[]; currencies?: string[] } | null;
-        } | null;
-      }) => {
-        if (!alive) return;
+      .then(
+        (data: {
+          authenticated: boolean;
+          user: {
+            id?: string;
+            name: string;
+            email: string;
+            locationCity?: string | null;
+            onboardingCompleted?: boolean;
+            preferences?: {
+              interests?: string[];
+              moods?: string[];
+              currencies?: string[];
+            } | null;
+          } | null;
+        }) => {
+          if (!alive) return;
 
-        if (data.authenticated && data.user) {
-          const nextUserId = data.user.id ?? null;
-          setUserId(nextUserId);
-          setIdentity({ name: data.user.name, email: data.user.email });
+          if (data.authenticated && data.user) {
+            const nextUserId = data.user.id ?? null;
+            setUserId(nextUserId);
+            setIdentity({ name: data.user.name, email: data.user.email });
 
-          const merged = mergeRemoteUserPreferences(readUserPreferences(nextUserId), data.user);
-          writeUserPreferences(merged, nextUserId);
-          setInterests(new Set(merged.interests));
-          setCurrencies(new Set(merged.currencies));
-          setMoods(new Set(merged.moods));
+            const merged = mergeRemoteUserPreferences(
+              readUserPreferences(nextUserId),
+              data.user,
+            );
+            writeUserPreferences(merged, nextUserId);
+            setInterests(new Set(merged.interests));
+            setCurrencies(new Set(merged.currencies));
+            setMoods(new Set(merged.moods));
 
-          if (merged.onboardingCompleted) {
-            router.replace("/home");
-            return;
+            if (merged.onboardingCompleted) {
+              router.replace("/home");
+              return;
+            }
           }
-        }
 
-        setReady(true);
-      })
+          setReady(true);
+        },
+      )
       .catch(() => {
         if (alive) setReady(true);
       });
@@ -326,8 +440,28 @@ export default function OnboardingPage() {
     };
   }, [router]);
 
+  // Show session notice if coming from login
   useEffect(() => {
-    if (!showOnboarding || currentStep !== 0 || locationDetectionStarted.current) return;
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (
+      params.get("showSessionNotice") === "1" &&
+      !sessionStorage.getItem("sessionNoticeShown")
+    ) {
+      toast.info(
+        "Tu sesión permanecerá activa por 30 días en este dispositivo. Cuando vuelvas entrarás directo al home de tu cuenta.",
+      );
+      sessionStorage.setItem("sessionNoticeShown", "true");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (
+      !showOnboarding ||
+      currentStep !== 0 ||
+      locationDetectionStarted.current
+    )
+      return;
     locationDetectionStarted.current = true;
     void handleUseGPS();
   }, [showOnboarding, currentStep]);
@@ -425,7 +559,9 @@ export default function OnboardingPage() {
           authenticated?: boolean;
           user?: { id?: string } | null;
         };
-        resolvedUserId = sessionData.authenticated ? sessionData.user?.id ?? null : null;
+        resolvedUserId = sessionData.authenticated
+          ? (sessionData.user?.id ?? null)
+          : null;
       } catch {
         resolvedUserId = null;
       }
@@ -450,7 +586,10 @@ export default function OnboardingPage() {
       currencies: Array.from(currencies),
     };
 
-    writeUserPreferences({ ...nextPreferences, onboardingCompleted: true }, resolvedUserId);
+    writeUserPreferences(
+      { ...nextPreferences, onboardingCompleted: true },
+      resolvedUserId,
+    );
 
     /* Conversión del flujo: se emite antes del guardado remoto y no después
        de la navegación, porque una red lenta no debe perder el evento. */
@@ -510,7 +649,10 @@ export default function OnboardingPage() {
       {!splashDone && <WelcomeSplash onComplete={handleSplashDone} />}
 
       {showOnboarding && (
-        <div className="flex flex-col h-full" style={{ display: showOnboarding ? "flex" : "none" }}>
+        <div
+          className="flex flex-col h-full"
+          style={{ display: showOnboarding ? "flex" : "none" }}
+        >
           <StatusBar />
 
           <StepBar currentStep={currentStep} totalSteps={TOTAL_STEPS} />
@@ -537,7 +679,14 @@ export default function OnboardingPage() {
               >
                 <SlideContent delay={50}>
                   <SlideIcon>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <path d="M12 2a8 8 0 0 0-8 8c0 4.42 8 12 8 12s8-7.58 8-12a8 8 0 0 0-8-8z" />
                       <circle cx="12" cy="10" r="3" />
                     </svg>
@@ -550,7 +699,8 @@ export default function OnboardingPage() {
                 </SlideContent>
                 <SlideContent delay={150}>
                   <p className="text-ink-soft/75 text-body leading-relaxed mb-6">
-                    Para recomendarte lugares cerca de ti, cuéntanos en qué zona de Cuba te encuentras.
+                    Para recomendarte lugares cerca de ti, cuéntanos en qué zona
+                    de Cuba te encuentras.
                   </p>
                 </SlideContent>
                 <SlideContent delay={200}>
@@ -575,7 +725,14 @@ export default function OnboardingPage() {
               >
                 <SlideContent delay={50}>
                   <SlideIcon>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                     </svg>
                   </SlideIcon>
@@ -587,7 +744,8 @@ export default function OnboardingPage() {
                 </SlideContent>
                 <SlideContent delay={150}>
                   <p className="text-ink-soft/75 text-body leading-relaxed mb-6">
-                    Selecciona tus tipos de lugares favoritos. La IA aprenderá tus gustos.
+                    Selecciona tus tipos de lugares favoritos. La IA aprenderá
+                    tus gustos.
                   </p>
                 </SlideContent>
                 <SlideContent delay={200} className="chip-grid">
@@ -621,7 +779,14 @@ export default function OnboardingPage() {
               >
                 <SlideContent delay={50}>
                   <SlideIcon>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <circle cx="12" cy="12" r="10" />
                       <path d="M8 8h8M8 12h6M8 16h4" />
                     </svg>
@@ -634,7 +799,8 @@ export default function OnboardingPage() {
                 </SlideContent>
                 <SlideContent delay={150}>
                   <p className="text-ink-soft/75 text-body leading-relaxed mb-6">
-                    Selecciona las monedas con las que pagas. Filtraremos lugares según tu preferencia.
+                    Selecciona las monedas con las que pagas. Filtraremos
+                    lugares según tu preferencia.
                   </p>
                 </SlideContent>
                 <SlideContent delay={200}>
@@ -668,7 +834,14 @@ export default function OnboardingPage() {
               >
                 <SlideContent delay={50}>
                   <SlideIcon>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <circle cx="12" cy="12" r="10" />
                       <path d="M8 14s1.5 2 4 2 4-2 4-2" />
                       <path d="M9 9h.01M15 9h.01" />
@@ -682,7 +855,8 @@ export default function OnboardingPage() {
                 </SlideContent>
                 <SlideContent delay={150}>
                   <p className="text-ink-soft/75 text-body leading-relaxed mb-6">
-                    Cuéntanos el tipo de planes que te gustan para recomendaciones más precisas.
+                    Cuéntanos el tipo de planes que te gustan para
+                    recomendaciones más precisas.
                   </p>
                 </SlideContent>
                 <SlideContent delay={200} className="chip-grid">
@@ -718,7 +892,13 @@ export default function OnboardingPage() {
                 onClick={handleBack}
                 className="inline-flex items-center justify-center gap-2 flex-1 px-6 py-3 rounded-full font-lv-display text-sm font-semibold border border-ink/10 bg-white text-ink transition-all duration-500 ease-outquint min-h-12 hover:bg-verde-50 active:scale-[0.98]"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.8}
+                  className="size-[18px]"
+                >
                   <path d="M19 12H5M12 19l-7-7 7-7" />
                 </svg>
                 Atrás
@@ -739,9 +919,18 @@ export default function OnboardingPage() {
         <div className="flex flex-col h-full animate-fade-up">
           <PreferencesScreen
             locationName={locationLabel(location)}
-            interests={Array.from(interests).map((v) => ({ value: v, label: INTEREST_NAMES[v] ?? v }))}
-            moods={Array.from(moods).map((v) => ({ value: v, label: MOOD_NAMES[v] ?? v }))}
-            currencies={Array.from(currencies).map((v) => ({ value: v, label: CURRENCY_NAMES[v] ?? v }))}
+            interests={Array.from(interests).map((v) => ({
+              value: v,
+              label: INTEREST_NAMES[v] ?? v,
+            }))}
+            moods={Array.from(moods).map((v) => ({
+              value: v,
+              label: MOOD_NAMES[v] ?? v,
+            }))}
+            currencies={Array.from(currencies).map((v) => ({
+              value: v,
+              label: CURRENCY_NAMES[v] ?? v,
+            }))}
             onBack={handlePrefBack}
             onResetAI={handleResetAI}
             onDone={handleDone}
@@ -798,5 +987,3 @@ function SlideContent({
     </div>
   );
 }
-
-

@@ -1,9 +1,30 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState, useCallback, useEffect, useRef, useMemo, memo } from "react";
+import {
+  Suspense,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+  memo,
+} from "react";
 import { useRouter } from "next/navigation";
-import { Search, Star, MapPin, X, RefreshCw, WifiOff, Navigation, Heart, Share2, DollarSign, MessageCircle, ExternalLink } from "lucide-react";
+import {
+  Search,
+  Star,
+  MapPin,
+  X,
+  RefreshCw,
+  WifiOff,
+  Navigation,
+  Heart,
+  Share2,
+  DollarSign,
+  MessageCircle,
+  ExternalLink,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { fadeUp, popIn, staggerContainer } from "@/lib/motion";
@@ -18,7 +39,10 @@ import { CategoryIcon } from "@/components/admin/category-icon";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/loading";
 import { useSearchActions } from "@/providers/search-provider";
-import { getCurrentPosition, getLastKnownPosition } from "@/lib/map/geolocation";
+import {
+  getCurrentPosition,
+  getLastKnownPosition,
+} from "@/lib/map/geolocation";
 import {
   buildDirectRoute,
   buildGoogleMapsUrl,
@@ -128,7 +152,8 @@ function userPlaceToHomePlace(
     },
   ];
   if (p.isBoosted) tags.push({ label: "Destacado" });
-  if (p.payments.includes("MLC")) tags.push({ label: "USD Clásica", variant: "mlc" });
+  if (p.payments.includes("MLC"))
+    tags.push({ label: "USD Clásica", variant: "mlc" });
   return {
     id: p.id,
     name: p.name,
@@ -154,8 +179,14 @@ const SHEET_TITLES: Record<SheetState, { title: string; subtitle: string }> = {
   default: { title: "Recomendaciones", subtitle: "Lugares cerca de ti" },
   searching: { title: "Buscando", subtitle: "Analizando tu consulta..." },
   results: { title: "Resultados", subtitle: "4 cafés tranquilos en Santiago" },
-  "no-results": { title: "Sin resultados", subtitle: "Intenta con otra búsqueda" },
-  error: { title: "Error de conexión", subtitle: "Verifica tu conexión a internet" },
+  "no-results": {
+    title: "Sin resultados",
+    subtitle: "Intenta con otra búsqueda",
+  },
+  error: {
+    title: "Error de conexión",
+    subtitle: "Verifica tu conexión a internet",
+  },
 };
 
 function googleMapsUrl(
@@ -206,7 +237,12 @@ function DetailOverlay({
             <motion.div
               initial={{ opacity: 0, scale: 0.6, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ delay: 0.12, type: "spring", stiffness: 260, damping: 22 }}
+              transition={{
+                delay: 0.12,
+                type: "spring",
+                stiffness: 260,
+                damping: 22,
+              }}
               className="h-[200px] bg-gradient-to-br from-verde-50 to-verde-100 rounded-t-4xl grid place-items-center text-[64px] relative shrink-0"
             >
               <CategoryIcon
@@ -240,7 +276,10 @@ function DetailOverlay({
                 </p>
               </motion.div>
 
-              <motion.div variants={fadeUp} className="flex gap-gap-md flex-wrap mb-gap-md">
+              <motion.div
+                variants={fadeUp}
+                className="flex gap-gap-md flex-wrap mb-gap-md"
+              >
                 {place.rating > 0 && (
                   <span className="inline-flex items-center gap-[4px] font-lv-display text-small font-semibold text-verde-600">
                     <Star size={16} fill="currentColor" />
@@ -258,15 +297,20 @@ function DetailOverlay({
               </motion.div>
 
               {/* Mismas etiquetas que la tarjeta de la lista (PlaceCard). */}
-              <motion.div variants={fadeUp} className="flex gap-[6px] flex-wrap mb-5">
+              <motion.div
+                variants={fadeUp}
+                className="flex gap-[6px] flex-wrap mb-5"
+              >
                 {place.tags.map((tag) => (
                   <span
                     key={tag.label}
                     className={cn(
                       "font-lv-display text-[11px] font-medium px-2 py-[2px] rounded-full",
-                      tag.variant === "mlc" ? "bg-sand-deep text-ink-soft/75"
-                      : tag.variant === "open" ? "bg-verde-100 text-verde-700"
-                      : "bg-sand text-ink-soft/75",
+                      tag.variant === "mlc"
+                        ? "bg-sand-deep text-ink-soft/75"
+                        : tag.variant === "open"
+                          ? "bg-verde-100 text-verde-700"
+                          : "bg-sand text-ink-soft/75",
                     )}
                   >
                     {tag.label}
@@ -274,11 +318,17 @@ function DetailOverlay({
                 ))}
               </motion.div>
 
-              <motion.p variants={fadeUp} className="text-body leading-relaxed text-ink mb-5 text-pretty">
+              <motion.p
+                variants={fadeUp}
+                className="text-body leading-relaxed text-ink mb-5 text-pretty"
+              >
                 {place.desc}
               </motion.p>
 
-              <motion.div variants={fadeUp} className="flex flex-col gap-[10px] pb-safe-bottom">
+              <motion.div
+                variants={fadeUp}
+                className="flex flex-col gap-[10px] pb-safe-bottom"
+              >
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   onClick={() => onNavigate?.(place)}
@@ -290,7 +340,8 @@ function DetailOverlay({
                 {route && route.distanceM > 0 && (
                   <div className="flex items-center justify-between gap-[10px] px-1">
                     <span className="font-lv-display text-small font-medium text-ink">
-                      {formatDistanceM(route.distanceM)} · {formatDurationSec(route.durationSec)}
+                      {formatDistanceM(route.distanceM)} ·{" "}
+                      {formatDurationSec(route.durationSec)}
                     </span>
                     <a
                       href={googleMapsUrl(place, userLocation)}
@@ -312,7 +363,11 @@ function DetailOverlay({
                   >
                     <Share2 size={18} strokeWidth={1.8} />
                   </motion.button>
-                  <motion.button whileTap={{ scale: 0.9 }} className="flex-1 size-12 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 transition-colors duration-500 hover:border-verde-300 hover:text-verde-600" aria-label="Favorito">
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    className="flex-1 size-12 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 transition-colors duration-500 hover:border-verde-300 hover:text-verde-600"
+                    aria-label="Favorito"
+                  >
                     <Heart size={18} strokeWidth={1.8} />
                   </motion.button>
                 </div>
@@ -329,7 +384,10 @@ function LoadingSkeleton() {
   return (
     <div className="flex flex-col gap-gap-sm">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="flex gap-[14px] p-[14px] border border-ink/5 rounded-2xl">
+        <div
+          key={i}
+          className="flex gap-[14px] p-[14px] border border-ink/5 rounded-2xl"
+        >
           <div className="size-16 rounded-xl shrink-0 skeleton-shimmer" />
           <div className="flex-1 flex flex-col gap-2 pt-1">
             <div className="h-[14px] skeleton-shimmer rounded w-[65%]" />
@@ -406,7 +464,11 @@ function HomePageContent() {
      casa. */
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [detailPlace, setDetailPlace] = useState<HomePlace | null>(null);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{
+    lat: number;
+    lng: number;
+    accuracy?: number;
+  } | null>(null);
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [routeOrigin, setRouteOrigin] = useState<RoutePoint | null>(null);
   const [routeDest, setRouteDest] = useState<HomePlace | null>(null);
@@ -434,12 +496,15 @@ function HomePageContent() {
      solo al iniciar sesión. Con la semilla síncrona el MapContainer nace
      directo en la ciudad correcta y, si /api/me confirma la misma, el guard de
      igualdad de MapChildren ni siquiera dispara el flyTo. */
-  const [initialCenter, setInitialCenter] = useState<[number, number] | null>(() => {
-    if (typeof window === "undefined") return null;
-    return preferredLocationCenter(readUserPreferences().location);
-  });
+  const [initialCenter, setInitialCenter] = useState<[number, number] | null>(
+    () => {
+      if (typeof window === "undefined") return null;
+      return preferredLocationCenter(readUserPreferences().location);
+    },
+  );
   const [disableAutoFit, setDisableAutoFit] = useState(initialCenter !== null);
-  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
+  const [userPreferences, setUserPreferences] =
+    useState<UserPreferences | null>(null);
   const [hasSavedProfileLocation, setHasSavedProfileLocation] = useState(false);
   const searchCtx = useSearchActions();
   const mapRef = useRef<HTMLDivElement | null>(null);
@@ -462,7 +527,9 @@ function HomePageContent() {
 
   useEffect(() => {
     let alive = true;
-    const resolveInitialCenter = (prefs: UserPreferences | null): [number, number] | null => {
+    const resolveInitialCenter = (
+      prefs: UserPreferences | null,
+    ): [number, number] | null => {
       const profileCenter = preferredLocationCenter(prefs?.location);
       if (profileCenter) return profileCenter;
 
@@ -472,40 +539,51 @@ function HomePageContent() {
 
     fetch("/api/me")
       .then((res) => res.json())
-      .then((data: {
-        authenticated?: boolean;
-        user?: {
-          id?: string;
-          locationCity?: string | null;
-          onboardingCompleted?: boolean;
-          preferences?: { interests?: string[]; moods?: string[]; currencies?: string[] } | null;
-        } | null;
-      }) => {
-        if (!alive) return;
+      .then(
+        (data: {
+          authenticated?: boolean;
+          user?: {
+            id?: string;
+            locationCity?: string | null;
+            onboardingCompleted?: boolean;
+            preferences?: {
+              interests?: string[];
+              moods?: string[];
+              currencies?: string[];
+            } | null;
+          } | null;
+        }) => {
+          if (!alive) return;
 
-        if (data.authenticated && data.user?.id) {
-          const storedPrefs = mergeRemoteUserPreferences(readUserPreferences(data.user.id), data.user);
-          writeUserPreferences(storedPrefs, data.user.id);
-          setUserPreferences(storedPrefs);
-          setHasSavedProfileLocation(Boolean(storedPrefs.location && storedPrefs.location !== "otra"));
+          if (data.authenticated && data.user?.id) {
+            const storedPrefs = mergeRemoteUserPreferences(
+              readUserPreferences(data.user.id),
+              data.user,
+            );
+            writeUserPreferences(storedPrefs, data.user.id);
+            setUserPreferences(storedPrefs);
+            setHasSavedProfileLocation(
+              Boolean(storedPrefs.location && storedPrefs.location !== "otra"),
+            );
 
-          const preferredCenter = resolveInitialCenter(storedPrefs);
-          if (preferredCenter) {
-            setInitialCenter(preferredCenter);
+            const preferredCenter = resolveInitialCenter(storedPrefs);
+            if (preferredCenter) {
+              setInitialCenter(preferredCenter);
+              setDisableAutoFit(true);
+            }
+            return;
+          }
+
+          setHasSavedProfileLocation(false);
+          const fallbackPrefs = readUserPreferences();
+          setUserPreferences(fallbackPrefs);
+          const fallbackCenter = resolveInitialCenter(fallbackPrefs);
+          if (fallbackCenter) {
+            setInitialCenter(fallbackCenter);
             setDisableAutoFit(true);
           }
-          return;
-        }
-
-        setHasSavedProfileLocation(false);
-        const fallbackPrefs = readUserPreferences();
-        setUserPreferences(fallbackPrefs);
-        const fallbackCenter = resolveInitialCenter(fallbackPrefs);
-        if (fallbackCenter) {
-          setInitialCenter(fallbackCenter);
-          setDisableAutoFit(true);
-        }
-      })
+        },
+      )
       .catch(() => {
         setHasSavedProfileLocation(false);
         const fallbackPrefs = readUserPreferences();
@@ -568,14 +646,19 @@ function HomePageContent() {
         lng: p.lng,
         category: p.category,
         icon: placeIcon(p.icon, p.category, categories),
-        image: p.mapImageUrl ?? p.photos?.find((photo) => photo.isCover)?.url ?? p.photos?.[0]?.url,
+        image:
+          p.mapImageUrl ??
+          p.photos?.find((photo) => photo.isCover)?.url ??
+          p.photos?.[0]?.url,
         offerPackages: p.offerPackages,
         barrio: p.barrio,
         rating: p.rating,
         distance: p.distanceLabel || p.address || p.barrio,
         price: p.priceLabel,
         tags: [
-          ...(p.isBoosted ? [{ label: "Destacado", variant: "open" as const }] : []),
+          ...(p.isBoosted
+            ? [{ label: "Destacado", variant: "open" as const }]
+            : []),
           ...(p.payments.includes("MLC")
             ? [{ label: "USD Clásica", variant: "mlc" as const }]
             : []),
@@ -590,19 +673,26 @@ function HomePageContent() {
        sin orden para quien no había dado permiso de ubicación — el mismo
        criterio que ya usa el desplegable de sugerencias del header. */
     const profileCenter = preferredLocationCenter(userPreferences?.location);
-    const origin = userLocation ?? getLastKnownPosition() ??
+    const origin =
+      userLocation ??
+      getLastKnownPosition() ??
       (profileCenter ? { lat: profileCenter[0], lng: profileCenter[1] } : null);
-    const ranked = userPreferences ? personalizePlaces(visiblePlaces, userPreferences) : visiblePlaces;
+    const ranked = userPreferences
+      ? personalizePlaces(visiblePlaces, userPreferences)
+      : visiblePlaces;
 
     const measured = ranked.map((place) => ({
       place,
-      distanceM: origin ? haversineM(origin, { lat: place.lat, lng: place.lng }) : null,
+      distanceM: origin
+        ? haversineM(origin, { lat: place.lat, lng: place.lng })
+        : null,
     }));
 
     if (origin) {
       measured.sort(
         (a, b) =>
-          (a.distanceM ?? Number.POSITIVE_INFINITY) - (b.distanceM ?? Number.POSITIVE_INFINITY),
+          (a.distanceM ?? Number.POSITIVE_INFINITY) -
+          (b.distanceM ?? Number.POSITIVE_INFINITY),
       );
     }
 
@@ -668,7 +758,9 @@ function HomePageContent() {
            filtro duro: si la consulta nombra otra provincia («restaurantes en
            La Habana»), el usuario la pidió explícitamente y no se recorta. */
         const province = userProvinceLabel(userPreferences);
-        const mentionsOther = province ? queryMentionsOtherProvince(query, province) : false;
+        const mentionsOther = province
+          ? queryMentionsOtherProvince(query, province)
+          : false;
         const pool =
           province && !mentionsOther
             ? places.filter((p) => placeInUserProvince(p, province))
@@ -699,7 +791,9 @@ function HomePageContent() {
               ? Math.round(haversineM(origin, { lat: p.lat, lng: p.lng }))
               : undefined,
           }))
-          .sort((a, b) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity));
+          .sort(
+            (a, b) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity),
+          );
         const res = await fetch("/api/ai/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -721,7 +815,9 @@ function HomePageContent() {
         if (!res.ok || !data || data.ok !== true) {
           throw new Error(data?.summary ? "" : "Búsqueda fallida");
         }
-        const matches = (data.matches ?? []).filter((m) => m && m.id).slice(0, 5);
+        const matches = (data.matches ?? [])
+          .filter((m) => m && m.id)
+          .slice(0, 5);
         for (const m of matches) trackPlaceMetric(m.id, "ai_match");
         /* Las razones se guardan aquí y no al abrir la ficha: la lista se
            ordena con ellas y luego se van con el estado del componente, así que
@@ -730,7 +826,11 @@ function HomePageContent() {
         saveAiRecommendations(query, matches);
         setAiState({ matches, summary: data.summary ?? "" });
         setSheetState(matches.length > 0 ? "results" : "no-results");
-        trackAiSearchCompleted(query, matches.length, matches.length > 0 ? "ok" : "empty");
+        trackAiSearchCompleted(
+          query,
+          matches.length,
+          matches.length > 0 ? "ok" : "empty",
+        );
       } catch {
         trackAiSearchCompleted(query, 0, "error");
         setSheetState("error");
@@ -799,10 +899,13 @@ function HomePageContent() {
     setCollapseKey((k) => k + 1);
   }, []);
 
-  const handleUserLocated = useCallback((lat: number, lng: number, accuracy?: number) => {
-    setUserLocation({ lat, lng, accuracy });
-    setSheetState("default");
-  }, []);
+  const handleUserLocated = useCallback(
+    (lat: number, lng: number, accuracy?: number) => {
+      setUserLocation({ lat, lng, accuracy });
+      setSheetState("default");
+    },
+    [],
+  );
 
   // Resuelve y dibuja la ruta desde la ubicación del usuario hasta un lugar.
   // Intenta OSRM primero; si no hay cobertura/red, usa línea recta como fallback.
@@ -891,7 +994,10 @@ function HomePageContent() {
     getCurrentPosition()
       .then((pos) => handleUserLocated(pos.lat, pos.lng, pos.accuracy))
       .catch((err: Error) => {
-        toast.error(err?.message || "No pudimos obtener tu ubicación para calcular la ruta.");
+        toast.error(
+          err?.message ||
+            "No pudimos obtener tu ubicación para calcular la ruta.",
+        );
       })
       .finally(() => {
         askingLocation.current = false;
@@ -972,6 +1078,22 @@ function HomePageContent() {
     };
   }, [handleUserLocated, hasSavedProfileLocation, userPreferences]);
 
+  // Show session notice if coming from login
+  useEffect(() => {
+    if (searchParams.get("showSessionNotice") === "1") {
+      // Only show once per session
+      if (
+        typeof window !== "undefined" &&
+        !sessionStorage.getItem("sessionNoticeShown")
+      ) {
+        toast.info(
+          "Tu sesión permanecerá activa por 30 días en este dispositivo. Cuando vuelvas entrarás directo al home de tu cuenta.",
+        );
+        sessionStorage.setItem("sessionNoticeShown", "true");
+      }
+    }
+  }, [searchParams]);
+
   const sheetInfo = SHEET_TITLES[sheetState];
   const showBadge = sheetState === "default" || sheetState === "results";
 
@@ -997,23 +1119,25 @@ function HomePageContent() {
     return picked;
   }, [aiState, filteredPlaces]);
   const recommendationCount = filteredPlaces.length;
-  const shownCount = sheetState === "results" ? resultPlaces.length : recommendationCount;
+  const shownCount =
+    sheetState === "results" ? resultPlaces.length : recommendationCount;
 
-  const resultsBannerText = sheetState === "results"
-    ? `Encontré <strong>4 lugares tranquilos</strong> cerca de ti. <strong>Hotel Casa Granda</strong> es el más cercano, en el Centro histórico.`
-    : `Según tu ubicación en <strong>Santiago de Cuba</strong>, encontré <strong>${places.length} lugares</strong> que podrían gustarte. El mejor match es <strong>Castillo del Morro</strong>, a la entrada de la bahía.`;
+  const resultsBannerText =
+    sheetState === "results"
+      ? `Encontré <strong>4 lugares tranquilos</strong> cerca de ti. <strong>Hotel Casa Granda</strong> es el más cercano, en el Centro histórico.`
+      : `Según tu ubicación en <strong>Santiago de Cuba</strong>, encontré <strong>${places.length} lugares</strong> que podrían gustarte. El mejor match es <strong>Castillo del Morro</strong>, a la entrada de la bahía.`;
 
   return (
     <div className="fixed inset-0 pt-[var(--header-h)] font-lv text-ink">
-<MapView
-          ref={mapRef}
-          places={mapPlaces}
-          selectedPlaceId={selectedId}
-          initialCenter={initialCenter ?? undefined}
-          initialZoom={disableAutoFit ? 13 : undefined}
-          disableAutoFit={disableAutoFit}
-          onPlaceSelect={(place) => handleMarkerClick(place.id)}
-          onMapClick={handleDeselect}
+      <MapView
+        ref={mapRef}
+        places={mapPlaces}
+        selectedPlaceId={selectedId}
+        initialCenter={initialCenter ?? undefined}
+        initialZoom={disableAutoFit ? 13 : undefined}
+        disableAutoFit={disableAutoFit}
+        onPlaceSelect={(place) => handleMarkerClick(place.id)}
+        onMapClick={handleDeselect}
         onPlaceRoute={(place) => {
           const target = filteredPlaces.find((p) => p.id === place.id);
           if (target) handleRouteFromPopup(target);
@@ -1053,8 +1177,13 @@ function HomePageContent() {
             className="absolute left-1/2 -translate-x-1/2 z-[300] top-gap-sm flex items-center gap-[10px] rounded-full bg-white/95 backdrop-blur border border-ink/5 shadow-soft px-4 py-[10px]"
           >
             <span className="flex items-center gap-[6px] font-lv-display text-small font-medium text-ink">
-              <Navigation size={14} strokeWidth={1.8} className="text-verde-600" />
-              {formatDistanceM(route.distanceM)} · {formatDurationSec(route.durationSec)}
+              <Navigation
+                size={14}
+                strokeWidth={1.8}
+                className="text-verde-600"
+              />
+              {formatDistanceM(route.distanceM)} ·{" "}
+              {formatDurationSec(route.durationSec)}
             </span>
             <a
               href={googleMapsUrl(routeDest, userLocation)}
@@ -1104,7 +1233,11 @@ function HomePageContent() {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.08, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                transition={{
+                  delay: 0.08,
+                  duration: 0.4,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
                 className="recommendations-ai-banner flex items-start gap-gap-sm p-[14px] bg-verde-50 border border-verde-200 rounded-2xl mb-gap-md"
               >
                 <div className="size-9 rounded-xl bg-gradient-to-br from-verde-400 to-verde-600 grid place-items-center text-white shrink-0">
@@ -1191,7 +1324,11 @@ function HomePageContent() {
                     ? `No encontramos lugares que coincidan con “${searchingQuery}”. Intenta con otra búsqueda.`
                     : "No encontramos lugares que coincidan con tu búsqueda. Intenta con otras palabras."
                 }
-                actions={["Hoteles en el centro", "Playas cerca", "Lugares históricos"].map((s) => (
+                actions={[
+                  "Hoteles en el centro",
+                  "Playas cerca",
+                  "Lugares históricos",
+                ].map((s) => (
                   <button
                     key={s}
                     onClick={() => handleSearch(s)}
@@ -1229,7 +1366,9 @@ function HomePageContent() {
                 }
               />
               <div className="mx-5 mb-5 p-gap-sm bg-verde-50 border border-verde-200 rounded-2xl text-meta text-verde-700 text-left">
-                <strong>Tip para conexiones lentas:</strong> La Verde guarda tus búsquedas recientes en caché. Puedes ver los últimos resultados sin conexión.
+                <strong>Tip para conexiones lentas:</strong> La Verde guarda tus
+                búsquedas recientes en caché. Puedes ver los últimos resultados
+                sin conexión.
               </div>
             </motion.div>
           </AnimatePresence>

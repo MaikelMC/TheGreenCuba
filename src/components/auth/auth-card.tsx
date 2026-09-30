@@ -7,8 +7,15 @@ import { ArrowRight, Home, Loader2, Lock, Mail, Phone } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 import { messageFor } from "@/lib/auth/error-messages";
 import { TERMS_VERSION } from "@/lib/legal";
-import { readUserPreferences, writeUserPreferences } from "@/lib/user-preferences-store";
-import { identifyUser, trackUserLoggedIn, trackUserRegistered } from "@/lib/analytics";
+import {
+  readUserPreferences,
+  writeUserPreferences,
+} from "@/lib/user-preferences-store";
+import {
+  identifyUser,
+  trackUserLoggedIn,
+  trackUserRegistered,
+} from "@/lib/analytics";
 import { EASE } from "@/lib/motion";
 
 export type AuthMode = "login" | "register";
@@ -21,7 +28,10 @@ export type AuthMode = "login" | "register";
    Aquí había un `endpoint` por modo («/api/auth/login», «/api/auth/register»).
    Se fue con esas dos rutas: ahora el envío lo hace el cliente de Neon, que
    tiene su propia URL, y el `mode` solo elige qué método se llama. */
-const COPY: Record<AuthMode, { eyebrow: string; title: string; lead?: string; cta: string }> = {
+const COPY: Record<
+  AuthMode,
+  { eyebrow: string; title: string; lead?: string; cta: string }
+> = {
   login: {
     eyebrow: "Acceso",
     title: "Bienvenido de vuelta",
@@ -52,7 +62,6 @@ const COPY: Record<AuthMode, { eyebrow: string; title: string; lead?: string; ct
  * al entrar. La longitud mínima la pone Neon (8), y como su mensaje no trae
  * la cifra, el cliente la valida ANTES de enviar para poder decirla.
  */
-
 
 /* Campo con etiqueta visible, como los del perfil: un marcador que hace de
    etiqueta desaparece en cuanto se escribe y deja el campo sin nombre.
@@ -90,7 +99,9 @@ async function saveRegistration(phone: string): Promise<void> {
   /* `phone` solo viaja si hay algo. Mandarlo vacío **borra** el número en el
      servidor —así se distingue «lo vacié» de «no lo toqué»—, y dejarlo en blanco
      al registrarse no es pedir que se borre nada. */
-  const body: { termsVersion: string; phone?: string } = { termsVersion: TERMS_VERSION };
+  const body: { termsVersion: string; phone?: string } = {
+    termsVersion: TERMS_VERSION,
+  };
   if (value) body.phone = value;
 
   let userId: string | null = null;
@@ -107,11 +118,20 @@ async function saveRegistration(phone: string): Promise<void> {
   }
 
   if (value) {
-    writeUserPreferences({ ...readUserPreferences(userId), phone: value }, userId);
+    writeUserPreferences(
+      { ...readUserPreferences(userId), phone: value },
+      userId,
+    );
   }
 }
 
-export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }) {
+export function AuthCard({
+  mode,
+  next,
+}: {
+  mode: AuthMode;
+  next: string | null;
+}) {
   const copy = COPY[mode];
 
   const [email, setEmail] = useState("");
@@ -127,7 +147,9 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
   const handleGoogleSignIn = useCallback(async () => {
     if (loading) return;
     if (mode === "register" && !accepted) {
-      setError("Acepta los términos y la política de privacidad para registrarte.");
+      setError(
+        "Acepta los términos y la política de privacidad para registrarte.",
+      );
       return;
     }
 
@@ -136,11 +158,13 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
     setError(null);
     try {
       const callbackURL = new URL(
-        mode === "register" ? "/api/google-auth-complete" : next ?? "/home",
+        mode === "register" ? "/api/google-auth-complete" : (next ?? "/home"),
         window.location.origin,
       ).toString();
       const errorCallbackURL = new URL(
-        mode === "register" ? "/register?oauthError=google" : "/login?oauthError=google",
+        mode === "register"
+          ? "/register?oauthError=google"
+          : "/login?oauthError=google",
         window.location.origin,
       ).toString();
       const result = await authClient.signIn.social({
@@ -168,9 +192,10 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
          («Password too short»), y decirle «8» aquí no cuesta nada y se ahorra
          un viaje. La casilla de términos la corta antes el `required` nativo
          del propio checkbox, con el mensaje del navegador. */
-      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-      if (!emailOk) {
-        setError("Escribe un correo válido, por ejemplo usuario@laverde.cu");
+      const emailTrimmed = email.trim();
+      const isGmail = /^[^\s@]+@gmail\.com$/i.test(emailTrimmed);
+      if (!isGmail) {
+        setError("Solo se aceptan correos @gmail.com válidos");
         return;
       }
       if (mode === "register" && password.length < 8) {
@@ -221,8 +246,9 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
            de escribir Neon en el navegador y el App Router guarda en caché el
            árbol de la ruta: navegando por cliente se corre el riesgo de pintar
            la versión sin sesión. Una carga limpia no deja lugar a ello. */
-        const destination = mode === "register" ? next ?? "/onboarding" : next ?? "/home";
-        window.location.assign(destination);
+        const destinationBase =
+          mode === "register" ? (next ?? "/onboarding") : (next ?? "/home");
+        window.location.assign(`${destinationBase}?showSessionNotice=1`);
         return;
       } catch (error) {
         setError(messageFor(error, mode));
@@ -264,7 +290,11 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
         <label className="flex flex-col gap-gap-xs">
           <span className={LABEL}>Correo</span>
           <span className={FIELD}>
-            <Mail size={16} strokeWidth={1.8} className="text-ink-soft/75 shrink-0" />
+            <Mail
+              size={16}
+              strokeWidth={1.8}
+              className="text-ink-soft/75 shrink-0"
+            />
             <input
               type="email"
               value={email}
@@ -282,12 +312,18 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
         <label className="flex flex-col gap-gap-xs">
           <span className={LABEL}>Contraseña</span>
           <span className={FIELD}>
-            <Lock size={16} strokeWidth={1.8} className="text-ink-soft/75 shrink-0" />
+            <Lock
+              size={16}
+              strokeWidth={1.8}
+              className="text-ink-soft/75 shrink-0"
+            />
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              autoComplete={
+                mode === "login" ? "current-password" : "new-password"
+              }
               required
               aria-label="Contraseña"
               aria-invalid={error ? true : undefined}
@@ -306,7 +342,11 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
               Teléfono <span className="font-normal">(opcional)</span>
             </span>
             <span className={FIELD}>
-              <Phone size={16} strokeWidth={1.8} className="text-ink-soft/75 shrink-0" />
+              <Phone
+                size={16}
+                strokeWidth={1.8}
+                className="text-ink-soft/75 shrink-0"
+              />
               <input
                 type="tel"
                 value={phone}
@@ -385,7 +425,10 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
           {loading ? "Comprobando..." : copy.cta}
         </button>
 
-        <div className="flex items-center gap-gap-sm text-meta text-ink-soft/60" aria-hidden="true">
+        <div
+          className="flex items-center gap-gap-sm text-meta text-ink-soft/60"
+          aria-hidden="true"
+        >
           <span className="h-px flex-1 bg-ink/10" />
           <span>o continúa con</span>
           <span className="h-px flex-1 bg-ink/10" />
@@ -401,11 +444,28 @@ export function AuthCard({ mode, next }: { mode: AuthMode; next: string | null }
           {googleLoading ? (
             <Loader2 size={18} className="animate-spin" />
           ) : (
-            <svg aria-hidden="true" viewBox="0 0 48 48" className="size-5" focusable="false">
-              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.76 7.18l7.73 6c4.51-4.17 7.07-10.14 7.07-17.65z" />
-              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.91-5.8l-7.73-6c-2.14 1.44-4.89 2.3-8.18 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.97 6.19C6.51 42.62 14.62 48 24 48z" />
-              <path fill="#FBBC05" d="M10.53 28.59a14.4 14.4 0 0 1-.76-4.59c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.9 23.9 0 0 0 0 24c0 3.86.93 7.5 2.56 10.78l7.97-6.19z" />
-              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 48 48"
+              className="size-5"
+              focusable="false"
+            >
+              <path
+                fill="#4285F4"
+                d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.76 7.18l7.73 6c4.51-4.17 7.07-10.14 7.07-17.65z"
+              />
+              <path
+                fill="#34A853"
+                d="M24 48c6.48 0 11.93-2.13 15.91-5.8l-7.73-6c-2.14 1.44-4.89 2.3-8.18 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.97 6.19C6.51 42.62 14.62 48 24 48z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M10.53 28.59a14.4 14.4 0 0 1-.76-4.59c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.9 23.9 0 0 0 0 24c0 3.86.93 7.5 2.56 10.78l7.97-6.19z"
+              />
+              <path
+                fill="#EA4335"
+                d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+              />
             </svg>
           )}
           {googleLoading
