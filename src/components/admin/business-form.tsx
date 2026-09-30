@@ -410,9 +410,12 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                 id="bfInstagram"
                 value={instagram}
                 onChange={(e) => setInstagram(e.target.value)}
-                placeholder="Ej: @laverde"
+                placeholder="https://instagram.com/laverde"
                 className={INPUT}
               />
+              <p className="text-meta text-ink-soft/75">
+                Enlace directo al perfil compartido
+              </p>
             </div>
             <div className="flex flex-col gap-gap-xs">
               <label htmlFor="bfFacebook" className={LABEL}>
@@ -422,9 +425,12 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                 id="bfFacebook"
                 value={facebook}
                 onChange={(e) => setFacebook(e.target.value)}
-                placeholder="Ej: facebook.com/laverde"
+                placeholder="https://facebook.com/laverde"
                 className={INPUT}
               />
+              <p className="text-meta text-ink-soft/75">
+                Enlace directo al perfil compartido
+              </p>
             </div>
           </div>
         </FormSection>

@@ -21,7 +21,10 @@ import { EASE } from "@/lib/motion";
 import { CategoryIcon } from "@/components/admin/category-icon";
 import { FormSection } from "@/components/business/form-section";
 import { PaymentChips } from "@/components/business/payment-chips";
-import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
+import {
+  MapLocationPicker,
+  type LocationPoint,
+} from "@/components/map/MapLocationPicker";
 import { usePlaces } from "@/providers/places-provider";
 import { PLAN_LABEL, type PlacePlan } from "@/lib/places-store";
 import { focusProfileControl } from "@/components/profile/focus-profile-control";
@@ -62,7 +65,13 @@ interface BusinessSummary {
   payments: string[] | null;
 }
 
-const SCHEDULE_PRESETS = ["8:00 – 16:00", "9:00 – 18:00", "10:00 – 22:00", "12:00 – 24:00", "24 horas"];
+const SCHEDULE_PRESETS = [
+  "8:00 – 16:00",
+  "9:00 – 18:00",
+  "10:00 – 22:00",
+  "12:00 – 24:00",
+  "24 horas",
+];
 
 /**
  * Lo que la plataforma da, dicho **una sola vez**.
@@ -100,7 +109,8 @@ const PLANS = [
     id: "trial",
     badge: "Recomendado",
     title: "Eres nuevo",
-    tagline: "Un negocio nuevo disfruta de todos los servicios durante su primer mes, gratis.",
+    tagline:
+      "Un negocio nuevo disfruta de todos los servicios durante su primer mes, gratis.",
     price: "0 USD",
     period: "el primer mes",
     benefits: BENEFITS,
@@ -149,16 +159,25 @@ export function BusinessView() {
   const { categories, hydrated } = usePlaces();
 
   /* `null` = todavía no se sabe. Distinto de `false`, que es «no tiene». */
-  const [business, setBusiness] = useState<BusinessSummary | null | undefined>(undefined);
+  const [business, setBusiness] = useState<BusinessSummary | null | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
     let alive = true;
     fetch("/api/me")
       .then((res) => res.json())
-      .then((data: { authenticated: boolean; user: { business?: BusinessSummary | null } | null }) => {
-        if (!alive) return;
-        setBusiness(data.authenticated ? data.user?.business ?? null : null);
-      })
+      .then(
+        (data: {
+          authenticated: boolean;
+          user: { business?: BusinessSummary | null } | null;
+        }) => {
+          if (!alive) return;
+          setBusiness(
+            data.authenticated ? (data.user?.business ?? null) : null,
+          );
+        },
+      )
       .catch(() => {
         /* Sin red no se puede saber si tiene negocio. Se enseña el formulario,
            que es la suposición inofensiva: si ya tuviera uno, el `POST` lo
@@ -180,7 +199,10 @@ export function BusinessView() {
   }
 
   return business?.reviewStatus === "rejected" ? (
-    <BusinessForm initialBusiness={business} categoriesReady={hydrated && categories.length > 0} />
+    <BusinessForm
+      initialBusiness={business}
+      categoriesReady={hydrated && categories.length > 0}
+    />
   ) : business ? (
     <BusinessCard business={business} />
   ) : (
@@ -192,7 +214,7 @@ export function BusinessView() {
 function BusinessCard({ business }: { business: BusinessSummary }) {
   const pending = business.reviewStatus === "pending";
   return (
-  <div className="flex flex-col gap-gap-md">
+    <div className="flex flex-col gap-gap-md">
       {/* El nombre del negocio es el titular de esta vista; el título de
           sección («Tengo un negocio») ya lo pinta la barra superior. */}
       <header className="flex flex-col gap-gap-xs">
@@ -214,7 +236,9 @@ function BusinessCard({ business }: { business: BusinessSummary }) {
           <span
             className={cn(
               "grid size-11 shrink-0 place-items-center rounded-full",
-              business.isActive ? "bg-verde-50 text-verde-600" : "bg-sand text-ink-soft/75",
+              business.isActive
+                ? "bg-verde-50 text-verde-600"
+                : "bg-sand text-ink-soft/75",
             )}
           >
             {business.isActive ? (
@@ -225,7 +249,11 @@ function BusinessCard({ business }: { business: BusinessSummary }) {
           </span>
           <div className="min-w-0 flex-1">
             <p className="font-lv-display text-small font-semibold text-ink">
-              {business.isActive ? "Publicado" : pending ? "Pendiente de revisión" : "Revisión"}
+              {business.isActive
+                ? "Publicado"
+                : pending
+                  ? "Pendiente de revisión"
+                  : "Revisión"}
             </p>
             <p className="text-meta text-ink-soft/75">
               {business.isActive
@@ -262,7 +290,9 @@ function BusinessForm({
   const { categories } = usePlaces();
 
   const [name, setName] = useState(initialBusiness?.name ?? "");
-  const [categoryValue, setCategoryValue] = useState(initialBusiness?.category ?? "");
+  const [categoryValue, setCategoryValue] = useState(
+    initialBusiness?.category ?? "",
+  );
   const [barrio, setBarrio] = useState(initialBusiness?.barrio ?? "");
   const [address, setAddress] = useState(initialBusiness?.address ?? "");
   const [phone, setPhone] = useState(initialBusiness?.phone ?? "");
@@ -273,17 +303,25 @@ function BusinessForm({
   const [instagram, setInstagram] = useState(initialBusiness?.instagram ?? "");
   const [facebook, setFacebook] = useState(initialBusiness?.facebook ?? "");
   const [schedule, setSchedule] = useState(initialBusiness?.schedule ?? "");
-  const [description, setDescription] = useState(initialBusiness?.description ?? "");
-  const [payments, setPayments] = useState<string[]>(initialBusiness?.payments ?? []);
+  const [description, setDescription] = useState(
+    initialBusiness?.description ?? "",
+  );
+  const [payments, setPayments] = useState<string[]>(
+    initialBusiness?.payments ?? [],
+  );
   const [location, setLocation] = useState<LocationPoint | null>(
-    initialBusiness ? { lat: initialBusiness.lat, lng: initialBusiness.lng } : null,
+    initialBusiness
+      ? { lat: initialBusiness.lat, lng: initialBusiness.lng }
+      : null,
   );
   /* El plan se elige aquí y **viaja con el alta**: se guarda en la ficha, que
      es lo que lo hace persistente, y es lo que el administrador ve en la
      solicitud antes de aprobarla. No se cobra nada todavía. El mes de prueba
      viene marcado porque es el que quiere todo el mundo, y cambiarlo tiene que
      costar un clic, no dos. */
-  const [plan, setPlan] = useState<(typeof PLANS)[number]["id"]>(initialBusiness?.plan ?? "trial");
+  const [plan, setPlan] = useState<(typeof PLANS)[number]["id"]>(
+    initialBusiness?.plan ?? "trial",
+  );
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   /* `true` cuando la solicitud ya se registró y la pantalla pasa a la vista de
@@ -306,7 +344,9 @@ function BusinessForm({
       return;
     }
     if (!location) {
-      setError("Marca tu negocio en el mapa: toca el punto donde está o busca su dirección.");
+      setError(
+        "Marca tu negocio en el mapa: toca el punto donde está o busca su dirección.",
+      );
       return;
     }
 
@@ -315,7 +355,8 @@ function BusinessForm({
 
     /* La categoría viaja como **etiqueta** («Restaurante»), no como slug: es lo
        que espera `resolveCategoryId` en el servidor, que busca por nombre. */
-    const categoryLabel = categories.find((c) => c.value === categoryValue)?.label ?? "";
+    const categoryLabel =
+      categories.find((c) => c.value === categoryValue)?.label ?? "";
 
     try {
       const response = await fetch("/api/business", {
@@ -341,8 +382,13 @@ function BusinessForm({
       });
 
       if (!response.ok) {
-        const data = (await response.json().catch(() => ({}))) as { error?: string };
-        setError(data.error ?? "No se pudo dar de alta el negocio. Inténtalo otra vez.");
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        setError(
+          data.error ??
+            "No se pudo dar de alta el negocio. Inténtalo otra vez.",
+        );
         setSending(false);
         return;
       }
@@ -359,9 +405,13 @@ function BusinessForm({
            queda para no romper la serie que ya hay en PostHog. */
         photoCount: 0,
       });
-      toast.success("Tu negocio quedó enviado para revisión. Te avisaremos cuando sea revisado.");
+      toast.success(
+        "Tu negocio quedó enviado para revisión. Te avisaremos cuando sea revisado.",
+      );
     } catch {
-      setError("No hubo respuesta del servidor. Revisa tu conexión: no se cambió nada.");
+      setError(
+        "No hubo respuesta del servidor. Revisa tu conexión: no se cambió nada.",
+      );
       setSending(false);
     }
   }, [
@@ -382,7 +432,10 @@ function BusinessForm({
   ]);
 
   return (
-    <div className="flex flex-col gap-gap-md" onPointerDownCapture={focusProfileControl}>
+    <div
+      className="flex flex-col gap-gap-md"
+      onPointerDownCapture={focusProfileControl}
+    >
       {/* «Registra tu negocio» repetía el título de la sección que ya está en
           la barra superior; la introducción basta para orientar, también en el
           reenvío de una solicitud rechazada. */}
@@ -403,7 +456,10 @@ function BusinessForm({
         </p>
       </header>
 
-      <FormSection title="Lo esencial" icon={<Store size={18} strokeWidth={1.8} />}>
+      <FormSection
+        title="Lo esencial"
+        icon={<Store size={18} strokeWidth={1.8} />}
+      >
         <div className="flex flex-col gap-gap-md">
           <div className="flex flex-col gap-gap-xs">
             <label htmlFor="pbName" className={LABEL}>
@@ -428,7 +484,9 @@ function BusinessForm({
               disabled={!categoriesReady}
             >
               <SelectTrigger id="pbCategory">
-                <SelectValue placeholder={categoriesReady ? "Elige una" : "Cargando…"} />
+                <SelectValue
+                  placeholder={categoriesReady ? "Elige una" : "Cargando…"}
+                />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((c) => (
@@ -453,7 +511,10 @@ function BusinessForm({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Qué ofreces y qué te hace distinto. Es lo que el buscador usa para recomendarte."
-              className={cn(INPUT, "h-auto min-h-[80px] resize-y py-3 leading-relaxed")}
+              className={cn(
+                INPUT,
+                "h-auto min-h-[80px] resize-y py-3 leading-relaxed",
+              )}
             />
           </div>
 
@@ -474,7 +535,10 @@ function BusinessForm({
         </div>
       </FormSection>
 
-      <FormSection title="Dónde está" icon={<MapPin size={18} strokeWidth={1.8} />}>
+      <FormSection
+        title="Dónde está"
+        icon={<MapPin size={18} strokeWidth={1.8} />}
+      >
         <p className="mb-gap-sm text-meta text-ink-soft/75">
           Busca la dirección y ajusta el pin, o toca directamente el punto en el
           mapa. La dirección y el barrio se rellenan solos.
@@ -486,7 +550,9 @@ function BusinessForm({
             if (!r) return;
             /* No pisa una dirección escrita a mano con entre-calles («e/ A y B»),
                que es más precisa que la que devuelve el geocodificador. */
-            setAddress((prev) => (prev.trim() === "" || !/e\/|entre/i.test(prev) ? r.address : prev));
+            setAddress((prev) =>
+              prev.trim() === "" || !/e\/|entre/i.test(prev) ? r.address : prev,
+            );
             setBarrio((prev) => (prev.trim() ? prev : r.barrio));
           }}
         />
@@ -519,7 +585,10 @@ function BusinessForm({
         </div>
       </FormSection>
 
-      <FormSection title="Contacto" icon={<AtSign size={18} strokeWidth={1.8} />}>
+      <FormSection
+        title="Contacto"
+        icon={<AtSign size={18} strokeWidth={1.8} />}
+      >
         <p className="mb-gap-sm text-meta text-ink-soft/75">
           Todo opcional. Son los botones que aparecen en tu ficha: el que dejes
           vacío no se pinta.
@@ -564,9 +633,12 @@ function BusinessForm({
               id="pbInstagram"
               value={instagram}
               onChange={(e) => setInstagram(e.target.value)}
-              placeholder="Ej: @laverde"
+              placeholder="https://instagram.com/laverde"
               className={INPUT}
             />
+            <p className="text-meta text-ink-soft/75">
+              Enlace directo al perfil compartido
+            </p>
           </div>
           <div className="flex flex-col gap-gap-xs">
             <label htmlFor="pbFacebook" className={LABEL}>
@@ -576,14 +648,20 @@ function BusinessForm({
               id="pbFacebook"
               value={facebook}
               onChange={(e) => setFacebook(e.target.value)}
-              placeholder="Ej: facebook.com/laverde"
+              placeholder="https://facebook.com/laverde"
               className={INPUT}
             />
+            <p className="text-meta text-ink-soft/75">
+              Enlace directo al perfil compartido
+            </p>
           </div>
         </div>
       </FormSection>
 
-      <FormSection title="Cómo te encuentran" icon={<Clock size={18} strokeWidth={1.8} />}>
+      <FormSection
+        title="Cómo te encuentran"
+        icon={<Clock size={18} strokeWidth={1.8} />}
+      >
         <div className="flex flex-col gap-gap-sm">
           <div className="flex flex-col gap-gap-xs">
             <label htmlFor="pbSchedule" className={LABEL}>
@@ -618,9 +696,13 @@ function BusinessForm({
         </div>
       </FormSection>
 
-      <FormSection title="Métodos de pago" icon={<CreditCard size={18} strokeWidth={1.8} />}>
+      <FormSection
+        title="Métodos de pago"
+        icon={<CreditCard size={18} strokeWidth={1.8} />}
+      >
         <p className="mb-gap-sm text-meta text-ink-soft/75">
-          Las monedas que aceptas. Es uno de los filtros que más se usan al buscar.
+          Las monedas que aceptas. Es uno de los filtros que más se usan al
+          buscar.
         </p>
         <PaymentChips defaultSelected={payments} onChange={setPayments} />
       </FormSection>
@@ -628,7 +710,10 @@ function BusinessForm({
       {/* Va la última, después de los datos y el mapa, que es donde el usuario
           ya sabe qué está pidiendo. Radios nativos y no botones: el teclado y el
           lector de pantalla ya saben qué hacer con ellos. */}
-      <FormSection title="Tu plan" icon={<BadgeCheck size={18} strokeWidth={1.8} />}>
+      <FormSection
+        title="Tu plan"
+        icon={<BadgeCheck size={18} strokeWidth={1.8} />}
+      >
         <p className="mb-gap-sm text-meta text-ink-soft/75">
           Elige cómo empiezas. Se puede cambiar después.
         </p>
@@ -670,13 +755,17 @@ function BusinessForm({
                         </span>
                       )}
                     </div>
-                    <p className="mt-[2px] text-meta text-pretty text-ink-soft/75">{option.tagline}</p>
+                    <p className="mt-[2px] text-meta text-pretty text-ink-soft/75">
+                      {option.tagline}
+                    </p>
                   </div>
 
                   <span
                     className={cn(
                       "mt-[2px] grid size-5 shrink-0 place-items-center rounded-full border transition-colors duration-500 ease-outquint",
-                      selected ? "border-verde-500 bg-verde-500 text-white" : "border-ink/15 bg-white",
+                      selected
+                        ? "border-verde-500 bg-verde-500 text-white"
+                        : "border-ink/15 bg-white",
                     )}
                   >
                     {selected && <Check size={12} strokeWidth={3} />}
@@ -708,13 +797,17 @@ function BusinessForm({
                     <span className="font-lv-display text-body font-semibold tabular-nums text-ink">
                       {option.price}
                     </span>
-                    <span className="text-meta text-ink-soft/75">{option.period}</span>
+                    <span className="text-meta text-ink-soft/75">
+                      {option.period}
+                    </span>
                   </p>
                   {/* La línea del año va en verde y no en gris: es el argumento
                       de esta tarjeta contra la de al lado, y hasta ahora estaba
                       de nota al pie, del mismo color que un pie de foto. */}
                   {"note" in option && (
-                    <p className="mt-[4px] text-meta font-medium text-verde-700">{option.note}</p>
+                    <p className="mt-[4px] text-meta font-medium text-verde-700">
+                      {option.note}
+                    </p>
                   )}
                 </div>
               </label>
@@ -750,7 +843,8 @@ function BusinessForm({
                 Espera menos de 24 horas
               </p>
               <p className="mt-[2px] text-meta text-ink-soft/75">
-                Un administrador revisará tu solicitud y la publicará en el mapa cuando esté aprobada.
+                Un administrador revisará tu solicitud y la publicará en el mapa
+                cuando esté aprobada.
               </p>
             </div>
           </div>
