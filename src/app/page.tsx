@@ -62,6 +62,7 @@ async function loadStripPlaces(): Promise<PlaceStripPlace[]> {
       category: p.category,
       barrio: p.barrio || "",
       rating: p.rating,
+      province: p.province || "",
     }));
   } catch {
     return [];
@@ -78,21 +79,21 @@ export default async function LandingPage() {
         }}
       />
       <MotionConfig reducedMotion="user">
-      <div className="lv-grain flex min-h-screen min-h-dvh flex-col bg-sand font-lv text-ink">
-        <Header />
+        <div className="lv-grain flex min-h-screen min-h-dvh flex-col bg-sand font-lv text-ink">
+          <Header />
 
-        <main id="content" className="flex-1">
-          <Hero />
-          <HowItWorks />
-          <SearchExamples />
-          <Features />
-          <PlaceStrip places={await loadStripPlaces()} />
-          <CTASection />
-        </main>
+          <main id="content" className="flex-1">
+            <Hero />
+            <HowItWorks />
+            <SearchExamples />
+            <Features />
+            <PlaceStrip places={await loadStripPlaces()} />
+            <CTASection />
+          </main>
 
-        <Footer />
-      </div>
-    </MotionConfig>
+          <Footer />
+        </div>
+      </MotionConfig>
     </>
   );
 }

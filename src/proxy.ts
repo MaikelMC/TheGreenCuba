@@ -1,6 +1,12 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth/server";
+import {
+  DEV_COOKIE,
+  DEV_IDENTITY,
+  devAccessEnabled,
+  isDevCookie,
+} from "@/lib/dev-access";
 import { AUTH_USER_HEADER, isProtected, needsAppUser } from "@/lib/session";
 
 /**
@@ -49,6 +55,20 @@ export async function proxy(request: NextRequest) {
   headers.delete(AUTH_USER_HEADER);
 
   if (!wantsUser) return NextResponse.next({ request: { headers } });
+
+  /* Puerta de atrás del desarrollo (`/dev-login`): se salta la consulta a Neon
+     y se da por buena la identidad local. Va **antes** del `getSession` a
+     propósito —de nada sirve ahorrarse el login si se sigue pagando el viaje a
+     Neon en cada recarga—. En producción `devAccessEnabled()` es falso y esto
+     no se ejecuta nunca; el porqué del doble cierre está en
+     `src/lib/dev-access.ts`. */
+  if (
+    devAccessEnabled() &&
+    isDevCookie(request.cookies.get(DEV_COOKIE)?.value)
+  ) {
+    headers.set(AUTH_USER_HEADER, encodeUser(DEV_IDENTITY));
+    return NextResponse.next({ request: { headers } });
+  }
 
   /* La sesión se resuelve aquí y no dentro del render, que no puede escribir
      cookies. Ver `AUTH_USER_HEADER` en `src/lib/session.ts`. */

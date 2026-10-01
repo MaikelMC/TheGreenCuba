@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
 import Image from "next/image";
 import {
   ArrowLeft,
@@ -9,13 +10,11 @@ import {
   Utensils,
   Clock,
   Star,
-  Layers,
   MapPin,
   CreditCard,
   ChevronLeft,
   ChevronDown,
   ChevronRight,
-  ExternalLink,
   Facebook,
   Globe,
   Image as ImageIcon,
@@ -30,14 +29,11 @@ import {
   recordVisit,
   toggleSaved,
 } from "@/lib/activity-store";
-import {
-  readAiRecommendation,
-  type AiRecommendation,
-} from "@/lib/ai-recommendation-store";
 import { trackPlaceSaveToggled, trackPlaceViewed } from "@/lib/analytics";
 import { trackPlaceMetric } from "@/lib/place-metrics";
 import { PhotoCarousel, type Slide } from "./photo-carousel";
 import { InfoBar } from "./info-bar";
+import { PaymentsSection } from "./payments-section";
 import { ActionButtons } from "./action-buttons";
 import { MenuItem } from "./menu-item";
 import { OfferBanner } from "./offer-banner";
@@ -46,6 +42,8 @@ import { ReviewsSection } from "./reviews-section";
 import { Reveal } from "@/components/ui/reveal";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
+import { placeIcon } from "@/lib/places";
+import { resolveCategoryIcon } from "@/lib/category-icons";
 
 export type PlaceState = "normal" | "closed" | "no-photos" | "special-offer";
 
@@ -73,16 +71,18 @@ export interface PlaceData {
   distance: string;
   barrio: string;
   schedule: string;
+  address?: string;
   payments: string[];
   description: string;
   longDescription: string;
   isOpen: boolean;
   closedMessage?: string;
   /* Con esto se compone la tarjeta de recomendación. Son datos que la ficha no
-     enseña en ningún otro sitio: el ambiente, el precio y las etiquetas. */
+      enseña en ningún otro sitio: el ambiente, el precio y las etiquetas. */
   vibe: string[];
   aiTags: string[];
   priceLabel?: string;
+  icon?: string;
   isBoosted?: boolean;
   slides: Slide[];
   menu: PlaceMenu[];
@@ -151,6 +151,9 @@ export function PlaceDetail({
   );
   const [saved, setSaved] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  // Icon for category badge
+  const iconName = placeIcon(place.icon ?? undefined, place.category);
+  const Icon = resolveCategoryIcon(iconName);
 
   /* El diálogo vive aquí y no dentro de `ActionButtons` porque hay dos rejillas
      —la de escritorio y la de móvil— montadas a la vez: dentro habría dos
@@ -204,6 +207,21 @@ export function PlaceDetail({
   useEffect(() => {
     setSaved(isPlaceSaved(place.id, userId));
   }, [place.id, userId]);
+
+  /* Alto de dos líneas de la descripción, medido. Para animar el despliegue
+     hace falta un número: no se puede animar contra un `line-clamp`, y el
+     `line-height` sale del tema, así que no se escribe a mano. El `h-[2lh]`
+     del elemento cubre el fotograma de antes de que esto mida. */
+  const descRef = useRef<HTMLSpanElement>(null);
+  const [descClamp, setDescClamp] = useState<number | null>(null);
+  useEffect(() => {
+    const el = descRef.current;
+    if (!el) return;
+    const styles = getComputedStyle(el);
+    const lineHeight =
+      parseFloat(styles.lineHeight) || parseFloat(styles.fontSize) * 1.625;
+    setDescClamp(lineHeight * 2);
+  }, [place.longDescription]);
 
   const isClosed =
     !place.isProject &&
@@ -414,14 +432,26 @@ export function PlaceDetail({
           </div>
         ) : (
           <>
-            {/* Row 1: Photo Carousel (full width) with place name overlay */}
-            <Reveal className="relative mb-gap-lg">
+            {/* Row 1: Photo Carousel (full width) with place name overlay.
+
+                La máscara es del envoltorio entero, no de la foto: la banda
+                oscura que sostiene el nombre es hermana del carrusel, y si solo
+                se difuminara la imagen el canto recto seguiría ahí, ahora en
+                negro. Con la máscara en el padre se disuelven los dos, y con
+                ellos la esquina redondeada —que a partir de ahora no la dibuja
+                nadie, la hace el desvanecido—. */}
+            <Reveal className="relative mb-gap-lg [mask-image:linear-gradient(to_bottom,black_87%,transparent)]">
               <PhotoCarousel
                 slides={place.slides}
                 hasPhotos={hasPhotos}
                 className="aspect-[16/9] rounded-4xl overflow-hidden"
               />
-              <div className="absolute bottom-0 left-0 right-0 p-gap-xl bg-gradient-to-t from-ink/85 via-ink/40 to-transparent rounded-b-4xl pointer-events-none">
+              {/* `pb` en porcentaje y no en píxeles a propósito: el porcentaje
+                  de un padding vertical se calcula sobre el ancho, que aquí
+                  guarda proporción fija con el alto (16/9), así que el nombre
+                  se queda siempre al mismo 77% de la altura y el pie de la
+                  foto siempre le pasa por debajo vacío. */}
+              <div className="absolute bottom-0 left-0 right-0 px-gap-xl pt-gap-xl pb-[13%] bg-gradient-to-t from-ink/85 via-ink/40 to-transparent rounded-b-4xl pointer-events-none">
                 <h1 className="font-lv-display text-h1 font-bold text-white leading-tight tracking-[-0.02em] text-balance">
                   {place.name}
                 </h1>
@@ -472,59 +502,6 @@ export function PlaceDetail({
             >
               <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
                 {place.isProject ? (
-                  <CalendarDays
-                    size={14}
-                    strokeWidth={1.8}
-                    className="text-verde-600"
-                  />
-                ) : (
-                  <Clock
-                    size={14}
-                    strokeWidth={1.8}
-                    className="text-verde-600"
-                  />
-                )}
-                <span className="font-lv-display font-medium text-ink">
-                  {place.schedule}
-                </span>
-              </div>
-              <span className="text-ink/10">|</span>
-              <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
-                <MapPin
-                  size={14}
-                  strokeWidth={1.8}
-                  className="text-verde-600"
-                />
-                <span className="font-lv-display font-medium text-ink">
-                  {location ? `${location} · ${place.barrio}` : place.barrio}
-                </span>
-              </div>
-              {!place.isProject && (
-                <>
-                  <span className="text-ink/10">|</span>
-                  <div className="flex items-center gap-[4px] text-meta text-ink-soft/75">
-                    <CreditCard
-                      size={14}
-                      strokeWidth={1.8}
-                      className="text-verde-600"
-                    />
-                    {place.payments.map((c) => (
-                      <span
-                        key={c}
-                        className={cn(
-                          "px-[6px] py-[2px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.08em]",
-                          currencyStyles[c] ?? "bg-sand-deep text-ink-soft/75",
-                        )}
-                      >
-                        {currencyLabel(c)}
-                      </span>
-                    ))}
-                  </div>
-                </>
-              )}
-              <span className="text-ink/10">|</span>
-              <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
-                {place.isProject ? (
                   <Megaphone
                     size={14}
                     strokeWidth={1.8}
@@ -539,6 +516,19 @@ export function PlaceDetail({
                 )}
                 <span className="font-lv-display font-medium text-ink">
                   {place.category}
+                </span>
+              </div>
+              <span className="text-ink/10">|</span>
+              <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
+                <MapPin
+                  size={14}
+                  strokeWidth={1.8}
+                  className="text-verde-600"
+                />
+                <span className="font-lv-display font-medium text-ink">
+                  {place.address
+                    ? `${place.address}, ${place.barrio}`
+                    : place.barrio}
                 </span>
               </div>
             </Reveal>
@@ -561,8 +551,6 @@ export function PlaceDetail({
                 ningún enlace, y un proyecto no llega con `whatsapp` ni redes
                 mapeados, así que ahí simplemente no se pinta. */}
                 <ContactCard place={place} />
-
-                {!place.isProject && <WhyCard place={place} />}
 
                 {/* Special Offer */}
                 {showOffer && place.specialOffer && (
@@ -720,49 +708,93 @@ export function PlaceDetail({
       {/* ────────── Mobile Layout ────────── */}
       <div className="lg:hidden">
         <div className="flex flex-col gap-0">
-          {/* Photo Carousel */}
+          {/* Photo Carousel. El mismo desvanecido que en escritorio, aquí sobre
+              el carrusel solo: en móvil no hay banda oscura ni nombre encima,
+              así que no hay nada más que disolver. */}
           <Reveal>
-            <PhotoCarousel slides={place.slides} hasPhotos={hasPhotos} />
+            <PhotoCarousel
+              slides={place.slides}
+              hasPhotos={hasPhotos}
+              className="[mask-image:linear-gradient(to_bottom,black_87%,transparent)]"
+            />
           </Reveal>
 
-          {/* Place Info */}
+          {/* Place Info. Sin borde: la foto de arriba se disuelve en el fondo y
+              el canto de este bloque caía justo debajo del desvanecido, así que
+              la raya lo cortaba en seco. `sand-warm` y `sand` son casi el mismo
+              tono, así que quitando el borde el paso no se ve. */}
           <Reveal delay={0.05}>
-            <section className="p-gap-lg px-gutter bg-sand-warm border border-verde-200">
-              <div className="flex items-start justify-between gap-gap-sm mb-gap-sm">
-                <h1 className="font-lv-display text-h2 font-bold leading-tight tracking-[-0.015em] text-ink text-balance">
-                  {place.name}
-                </h1>
-                <span
-                  className={cn(
-                    "shrink-0 inline-flex items-center gap-[4px] px-[10px] py-[4px] rounded-full border font-lv-display text-xs font-semibold uppercase tracking-[0.06em]",
-                    isClosed
-                      ? "border-destructive/20 bg-destructive/10 text-destructive"
-                      : "border-verde-200 bg-verde-50 text-verde-600",
-                  )}
-                >
-                  {place.isProject ? (
-                    <Megaphone size={12} />
-                  ) : (
-                    <span
-                      className={cn(
-                        "size-[6px] rounded-full",
-                        isClosed ? "bg-destructive" : "bg-verde-400",
-                      )}
+            <section className="p-gap-lg px-gutter bg-sand-warm">
+              {/* Marca + nombre. El círculo no tiene columna propia en `places`:
+                  no hay dónde guardar un logo todavía, así que enseña la
+                  portada —la primera foto, que es la que el dueño ya sube— y
+                  cae al icono de la categoría cuando el negocio no tiene
+                  ninguna. El día que exista la columna, es cambiar de dónde
+                  sale la `url`. */}
+              <div className="flex items-start gap-gap-md">
+                <span className="relative block size-20 shrink-0 overflow-hidden rounded-full border border-ink/5 bg-white">
+                  {place.slides[0]?.url ? (
+                    <Image
+                      src={place.slides[0].url}
+                      alt=""
+                      fill
+                      sizes="80px"
+                      className="object-cover"
                     />
+                  ) : (
+                    <span className="grid h-full w-full place-items-center">
+                      <Icon size={28} strokeWidth={1.8} className="text-verde-600" />
+                    </span>
                   )}
-                  {place.isProject
-                    ? "Proyecto"
-                    : isClosed
-                      ? "Cerrado"
-                      : "Abierto"}
                 </span>
+                {/* `flex-1 min-w-0` para que una dirección larga rompa línea en
+                    vez de empujar el nombre fuera de la pantalla. */}
+                <div className="min-w-0 flex-1">
+                  <h1 className="font-lv-display text-h3 font-bold leading-tight tracking-[-0.015em] text-ink text-balance">
+                    {place.name}
+                  </h1>
+                  {/* Dos niveles y no una línea con un `·` en medio: la
+                      dirección es la que puede ocupar dos renglones, así que va
+                      arriba y con el icono alineado a su primera línea, no
+                      centrado contra el bloque. El horario no se veía en
+                      ninguna parte de la ficha en móvil: estaba solo en el
+                      bloque de proyecto de escritorio. */}
+                  <div className="mt-gap-xs flex flex-col gap-[2px] text-meta leading-relaxed text-ink-soft/75">
+                    <span className="flex items-start gap-1.5">
+                      <MapPin
+                        size={13}
+                        strokeWidth={1.8}
+                        className="mt-[3px] shrink-0 text-verde-600"
+                      />
+                      <span>
+                        {place.address
+                          ? `${place.address}, ${place.barrio}`
+                          : place.barrio}
+                      </span>
+                    </span>
+                    {place.schedule ? (
+                      <span className="flex items-start gap-1.5">
+                        <Clock
+                          size={13}
+                          strokeWidth={1.8}
+                          className="mt-[3px] shrink-0 text-verde-600"
+                        />
+                        <span>{place.schedule}</span>
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-gap-sm flex-wrap">
+              {/* `flex-wrap` porque las cuatro acciones no siempre caben en la
+                  misma línea que el chip de categoría: con una categoría larga
+                  bajan a un segundo renglón y el `ml-auto` las deja igualmente
+                  pegadas a la derecha. */}
+              <div className="mt-gap-md flex flex-wrap items-center gap-x-gap-sm gap-y-gap-xs">
                 <span className="inline-flex items-center gap-[4px] px-[10px] py-[3px] rounded-full bg-verde-50 border border-verde-200 text-verde-600 font-lv-display text-xs font-semibold uppercase tracking-[0.06em]">
                   {place.isProject ? (
                     <Megaphone size={12} strokeWidth={1.8} />
                   ) : (
-                    <Utensils size={12} strokeWidth={1.8} />
+                    <Icon size={12} strokeWidth={1.8} />
                   )}
                   {place.category}
                 </span>
@@ -772,18 +804,15 @@ export function PlaceDetail({
                     {place.rating}
                   </span>
                 )}
-                {/* El barrio lo dice la celda del `InfoBar`, justo debajo; aquí
-                    va la dirección, y solo cuando no es ya ese barrio. */}
-                {location && (
-                  <span className="inline-flex items-center gap-[4px] text-meta text-ink-soft/85">
-                    <MapPin
-                      size={14}
-                      strokeWidth={1.8}
-                      className="text-verde-600"
-                    />
-                    {location}
-                  </span>
-                )}
+                <ActionButtons
+                  compact
+                  className="ml-auto"
+                  isSaved={saved}
+                  onSave={handleSave}
+                  onNavigate={onNavigate}
+                  onShare={onShare}
+                  onReview={place.isProject ? undefined : () => setReviewOpen(true)}
+                />
               </div>
             </section>
           </Reveal>
@@ -808,98 +837,108 @@ export function PlaceDetail({
             </Reveal>
           )}
 
-          {/* Info Bar */}
-          <Reveal delay={0.05}>
-            <InfoBar
-              schedule={place.schedule}
-              barrio={place.barrio}
-              payments={place.payments}
-              isProject={place.isProject}
-            />
-          </Reveal>
+          {/* Aquí vivía la barra de «Categoría | Dirección». Se ha ido con el
+              nombre nuevo: la categoría está en su chip justo arriba y la
+              dirección bajo el nombre, así que las dos líneas se leían dos
+              veces seguidas. */}
 
-          {/* Action Buttons */}
-          <Reveal delay={0.05}>
-            <ActionButtons
-              isSaved={saved}
-              onSave={handleSave}
-              onNavigate={onNavigate}
-              onShare={onShare}
-              onReview={place.isProject ? undefined : () => setReviewOpen(true)}
-            />
-          </Reveal>
-
-          {/* Contacto */}
-          <Reveal delay={0.05}>
-            {/* `my-` y no `mt-`: la tarjeta tiene debajo la banda de 8 px que
-                separa secciones, y sin margen abajo su borde inferior quedaba
-                pegado a la banda. Mismo aire abajo que arriba. */}
-            <ContactCard place={place} className="mx-gutter my-gap-md" />
-          </Reveal>
-
-          {/* Divider */}
-          <div className="h-gap-xs bg-sand-warm" />
-
-          {/* AI Recommendation */}
+          {/* Descripción. Va justo debajo del nombre y por delante de pagos:
+              es lo que más se lee de una ficha y estaba enterrada al final,
+              tras la oferta. Sin `pt`: la cabecera de arriba ya baja con
+              `p-gap-lg` y entre las dos sumaban 64 px de hueco. */}
           <Reveal>
-            {!place.isProject && (
-              <WhyCard place={place} className="mx-gutter my-gap-md" />
-            )}
-          </Reveal>
-
-          {/* Special Offer Banner */}
-          {showOffer && place.specialOffer && (
-            <Reveal>
-              <OfferBanner
-                label={place.specialOffer.label}
-                text={place.specialOffer.text}
-                expiry={place.specialOffer.expiry}
-                visible
-              />
-            </Reveal>
-          )}
-
-          {/* Description */}
-          <Reveal>
-            <section className="p-gap-lg px-gutter bg-sand-warm">
+            <section className="pb-gap-lg px-gutter bg-sand-warm">
               <h2 className={cn(H2, "mb-gap-sm")}>
                 {place.isProject ? "Sobre el proyecto" : "Sobre este lugar"}
               </h2>
-              <p
-                className={cn(
-                  "text-body leading-relaxed text-ink whitespace-pre-wrap",
-                  !descExpanded && "line-clamp-3",
-                )}
+              {/* El texto **es** el botón. Antes el corte iba por número de
+                  caracteres —más de 180— y eso dejaba textos de tres líneas
+                  recortados a dos **sin botón**: se comían la última línea y no
+                  había forma de leerla. El corte ahora es siempre y el que
+                  sobra se abre tocando. El chevron de abajo es el aviso de que
+                  hay más; va en un `span` y no en un `div` porque un botón solo
+                  admite contenido en línea.
+
+                  Altura y no `line-clamp`: la línea de corte no se anima, así
+                  que el cambio era un salto. Con `height` el texto se despliega.
+                  Hasta que el efecto mide, `animate` va sin valor y manda el
+                  `h-[2lh]` del `className` —al medir ya anima, y como 2lh y lo
+                  medido son el mismo alto, el cambio no se ve—. */}
+              <button
+                type="button"
+                onClick={() => setDescExpanded((prev) => !prev)}
+                aria-expanded={descExpanded}
+                className="block w-full cursor-pointer text-left"
               >
-                {place.longDescription}
-              </p>
-              {place.longDescription.length > CLAMP_MIN_CHARS && (
-                <button
-                  type="button"
-                  onClick={() => setDescExpanded((prev) => !prev)}
-                  aria-expanded={descExpanded}
-                  className={cn(BTN_OUTLINE, "mt-gap-md")}
+                <motion.span
+                  ref={descRef}
+                  initial={false}
+                  animate={
+                    descClamp === null
+                      ? undefined
+                      : { height: descExpanded ? "auto" : descClamp }
+                  }
+                  transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                  className={cn(
+                    "block overflow-hidden text-body leading-relaxed text-ink whitespace-pre-wrap",
+                    descClamp === null && "h-[2lh]",
+                  )}
                 >
-                  {descExpanded ? "Leer menos" : "Leer más"}
+                  {place.longDescription}
+                </motion.span>
+                <span className="mt-gap-xs flex justify-end">
                   <ChevronDown
                     size={16}
                     strokeWidth={1.8}
-                    className={cn(CHEVRON, descExpanded && "rotate-180")}
+                    className={cn(
+                      CHEVRON,
+                      "text-verde-600",
+                      descExpanded && "rotate-180",
+                    )}
                   />
-                </button>
-              )}
+                </span>
+              </button>
             </section>
           </Reveal>
 
-          {/* Divider */}
-          <div className="h-gap-xs bg-sand-warm" />
+          {/* Payments. Con el tono y el relleno de la cabecera y sin margen
+              abajo: los dos bloques tienen que quedar pegados para leerse como
+              una sola banda, que es lo que eran antes de que la tarjeta blanca
+              de contacto los separara. */}
+          <Reveal delay={0.05}>
+            <PaymentsSection
+              payments={place.payments}
+              className="bg-sand-warm mb-0 px-gutter pb-gap-md"
+            />
+          </Reveal>
 
-          {/* Reviews */}
-          {!place.isProject && (
+          {/* Los cuatro botones se han ido a la cabecera, con la nota. */}
+
+          {/* Contacto. La tarjeta blanca se deshace en esta pantalla: sin
+              fondo propio, sin esquinas y sin sombra, porque aquí no es una
+              tarjeta sino la continuación de la banda de arriba. En escritorio
+              sigue siendo la tarjeta blanca de la columna lateral, que ahí sí
+              convive con otras del mismo tipo. */}
+          <Reveal delay={0.05}>
+            <ContactCard
+              place={place}
+              className="bg-sand-warm mx-0 my-0 rounded-none border-0 px-gutter pb-gap-lg shadow-none"
+            />
+          </Reveal>
+
+          {/* Special Offer Banner. El `div` es solo el fondo: la tarjeta seguía
+              sobre el `bg-sand` de la página y cortaba la banda. El relleno es
+              de arriba porque el `mb-gap-md` de la tarjeta ya deja el de abajo. */}
+          {showOffer && place.specialOffer && (
             <Reveal>
-              <section className="p-gap-lg px-gutter bg-sand-warm">
-                <ReviewsSection placeId={place.id} reloadKey={reviewsKey} />
-              </section>
+              <div className="bg-sand-warm pt-gap-md">
+                <OfferBanner
+                  label={place.specialOffer.label}
+                  text={place.specialOffer.text}
+                  expiry={place.specialOffer.expiry}
+                  visible
+                />
+              </div>
             </Reveal>
           )}
 
@@ -987,6 +1026,18 @@ export function PlaceDetail({
               )}
             </section>
           </Reveal>
+
+          {/* Reseñas, las últimas: arriba quedan el nombre, la descripción, los
+              pagos y el contacto, que es lo que se lee para decidir, y lo que
+              ofrece el negocio. Antes iban entre el menú y la oferta y partían
+              en dos esa parte. */}
+          {!place.isProject && (
+            <Reveal>
+              <section className="p-gap-lg px-gutter bg-sand-warm">
+                <ReviewsSection placeId={place.id} reloadKey={reviewsKey} />
+              </section>
+            </Reveal>
+          )}
 
           {footerSlot}
         </div>
@@ -1113,114 +1164,6 @@ function ProjectOfferList({ offers }: { offers: ProjectOfferPackage[] }) {
   );
 }
 
-/**
- * Por qué La Verde lo recomienda. Sale en el escritorio (columna lateral) y en
- * móvil (a lo ancho); el marcado es el mismo y solo cambian los márgenes, que
- * entran por `className`.
- *
- * Tiene dos formas, según cómo se llegó al lugar.
- *
- * Si se llegó por el buscador de lenguaje natural, la tarjeta cita lo que el
- * usuario escribió y **la razón que la IA dio para este lugar en concreto**.
- * Ese texto ya existía: el servidor lo devuelve como `matches[].reason` y hasta
- * ahora solo ordenaba la lista antes de perderse. Ver
- * `src/lib/ai-recommendation-store.ts` para dónde vive y por qué ahí.
- *
- * Si se llegó a mano —un pin del mapa, una URL compartida— no hay consulta que
- * citar, y la tarjeta se queda con lo que la ficha sabe de verdad del negocio:
- * categoría, barrio, precio y las etiquetas. Antes decía «Buscaste "buscar
- * restaurante en Cuba"» —una consulta fabricada que nadie escribió— y una razón
- * que venía de un campo sin columna en la base, así que salía siempre el mismo
- * relleno: «listo para ser recomendado». Ahora la consulta que se cita es una
- * que alguien escribió, porque solo se cita cuando la hay.
- *
- * Lo que se dice aquí es lo que no se ve en ninguna otra parte de la ficha: el
- * horario está en el `InfoBar`, la nota en la cabecera y la dirección en su
- * línea. Repetirlos sería volver a lo de antes.
- */
-function WhyCard({
-  place,
-  className,
-}: {
-  place: PlaceData;
-  className?: string;
-}) {
-  /* En efecto y no en el inicializador: en el servidor no hay `localStorage`, y
-     arrancar de ahí daría un HTML distinto al del cliente. Misma razón que el
-     `setSaved` de `PlaceDetail`. */
-  const [recommendation, setRecommendation] = useState<AiRecommendation | null>(
-    null,
-  );
-  useEffect(() => {
-    setRecommendation(readAiRecommendation(place.id));
-  }, [place.id]);
-
-  const lines = [
-    `${place.category} en ${place.barrio}`,
-    place.priceLabel ? `Precios de ${place.priceLabel}` : null,
-  ].filter((line): line is string => line !== null);
-
-  /* `Set` porque el mismo valor puede llegar por los dos lados: la siembra mete
-     «Todo el día» en `vibe` y el negocio puede tenerlo también en sus etiquetas. */
-  const chips = [
-    ...new Set([
-      ...(place.isBoosted ? ["Destacado"] : []),
-      ...place.vibe,
-      ...place.aiTags,
-    ]),
-  ];
-
-  return (
-    <div
-      className={cn(
-        "p-gap-md bg-verde-50 border border-verde-200 rounded-2xl",
-        className,
-      )}
-    >
-      <div className="flex items-center gap-gap-sm mb-gap-sm">
-        <div className="size-9 rounded-2xl bg-gradient-to-br from-verde-400 to-verde-600 grid place-items-center shrink-0">
-          <Layers size={18} strokeWidth={1.8} className="text-white" />
-        </div>
-        <div>
-          <div className="font-lv-display text-small font-bold text-ink">
-            Por qué La Verde te lo recomienda
-          </div>
-          <div className="text-meta text-ink-soft/75">
-            {recommendation ? "Según tu búsqueda" : "Datos del lugar"}
-          </div>
-        </div>
-      </div>
-
-      {recommendation ? (
-        /* La consulta y la razón van como texto de React, nunca como HTML: la
-           frase la escribe un modelo a partir de lo que tecleó el usuario. */
-        <div className="text-small leading-relaxed text-ink text-pretty">
-          <span className="text-ink-soft/75">
-            Buscaste «{recommendation.query}».{" "}
-          </span>
-          {recommendation.reason}
-        </div>
-      ) : (
-        <div className="text-small leading-relaxed text-ink text-pretty">
-          {lines.join(". ")}.
-        </div>
-      )}
-
-      {chips.length > 0 && (
-        <div className="flex gap-[6px] flex-wrap mt-gap-sm">
-          {chips.map((tag) => (
-            <span
-              key={tag}
-              className="px-[8px] py-[3px] rounded-full bg-white border border-verde-200 font-lv-display text-[10px] font-semibold text-verde-600 uppercase tracking-[0.08em]"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 /**
  * Los enlaces que el dueño rellenó en la sección «Contacto» de su formulario:
@@ -1265,29 +1208,27 @@ function ContactCard({
       <div className="font-lv-display text-small font-semibold text-ink mb-gap-sm">
         Contacto
       </div>
-      <div className="flex flex-col gap-[6px]">
+      {/* En fila y no apilados. Cuatro botones de 44 px uno debajo de otro son
+          200 px de alto para decir cuatro palabras; a 12 px y sin la flecha de
+          «se abre fuera» tres caben en la misma línea de un móvil —unos 300 de
+          los 350 px que quedan entre márgenes— y el cuarto baja solo. Los 36 px
+          de alto quedan por debajo de los 44 de un dedo pero por encima de los
+          24 que pide WCAG 2.5.8 AA, y el ancho lo compensa. */}
+      <div className="flex flex-wrap items-center gap-[6px]">
         {rows.map((row) => (
           <a
             key={row.label}
             href={row.href}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn(
-              BTN_OUTLINE,
-              "w-full justify-start gap-gap-sm px-gap-md",
-            )}
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-ink/10 bg-white px-3 font-lv-display text-[12px] font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
           >
             <row.icon
-              size={18}
+              size={15}
               strokeWidth={1.8}
               className="shrink-0 text-verde-600"
             />
             <span className="truncate">{row.label}</span>
-            <ExternalLink
-              size={15}
-              strokeWidth={1.8}
-              className="ml-auto shrink-0 text-ink-soft/75"
-            />
           </a>
         ))}
       </div>

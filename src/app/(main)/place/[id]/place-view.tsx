@@ -1,43 +1,36 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { MapPin, ArrowLeft } from "lucide-react";
-import { StateView } from "@/components/ui/state-view";
-import { LoadingState } from "@/components/ui/loading";
-import {
-  PlaceDetail,
-  type PlaceData,
-  type PlaceState,
-} from "@/components/place/place-detail";
-import { usePlaces } from "@/providers/places-provider";
-import { sharePlace } from "@/lib/share";
+import type { Metadata } from "next";
+import { cache } from "react";
+import { getPlaceById } from "@/lib/db/queries";
+import { placeJsonLd, placeUrl } from "@/lib/structured-data";
+import type {
+  UserPlace,
+  UserPlacePhoto,
+  UserPlaceMenuItem,
+} from "@/lib/places-store";
+import type { PlaceData } from "@/components/place/place-detail";
 import { contactLinks } from "@/lib/contact-links";
-import type { UserPlace } from "@/lib/places-store";
+import { useRouter } from "next/navigation";
+import { usePlaces } from "@/providers/places-provider";
+import { LoadingState } from "@/components/ui/loading";
+import { StateView } from "@/components/ui/state-view";
+import { MapPin, ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { PlaceDetail } from "@/components/place/place-detail";
+import { sharePlace } from "@/lib/share";
 
-/* Mismo par de degradados claros que usa el editor de fotos del panel de
-   negocio. Los anteriores eran verdes oscuros y el rótulo del carrusel —que va
-   en `verde-600`— no se leía encima.
-
-   El `url: null` es lo que los marca como relleno: `PhotoCarousel` pinta el
-   degradado en lugar de una imagen.
-
-   Los hex van a mano porque va dentro de un string CSS, pero son exactamente
-   los tokens `verde-50/100` y `sand/sand-deep` de tailwind.config: si un token
-   cambia, este par hay que alinearlo. */
-const GRADIENT_VERDE = "linear-gradient(160deg, #EAF7EF, #CEEEDB)"; // verde-50 → verde-100
-const GRADIENT_SAND = "linear-gradient(160deg, #F6F3EC, #EAE4D6)"; // sand → sand-deep
 const FALLBACK_SLIDES = [
   {
     url: null,
     alt: "",
-    gradient: GRADIENT_VERDE,
+    gradient: "linear-gradient(160deg, #EAF7EF, #CEEEDB)", // verde-50 → verde-100
     label: "El lugar",
   },
   {
     url: null,
     alt: "",
-    gradient: GRADIENT_SAND,
+    gradient: "linear-gradient(160deg, #F6F3EC, #EAE4D6)", // sand → sand-deep
     label: "Ambiente",
   },
 ];
@@ -49,13 +42,14 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
     name: p.name,
     category: p.category,
     isProject: p.isProject ?? false,
-    projectOffers: p.isProject ? p.offer?.text ?? null : null,
-    projectOfferPackages: p.isProject ? p.offerPackages ?? [] : [],
+    projectOffers: p.isProject ? (p.offer?.text ?? null) : null,
+    projectOfferPackages: p.isProject ? (p.offerPackages ?? []) : [],
     rating: p.rating ?? 0,
     /* Sin el respaldo "Ver en el mapa" que había aquí: cuando no hay ni
        distancia ni dirección el campo queda vacío y la ficha esconde la línea,
        en vez de anunciar un mapa que no lleva a ninguna parte. */
     distance: p.distanceLabel || p.address || "",
+    address: p.address,
     barrio: p.barrio || "Cuba",
     schedule: p.schedule || "Próximamente",
     payments: p.payments,
@@ -76,16 +70,27 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
     vibe: p.vibe ?? [],
     aiTags: p.aiTags ?? [],
     priceLabel: p.priceLabel,
+    icon: p.icon,
     isBoosted: p.isBoosted,
     /* Las fotos subidas mandan; el degradado solo rellena cuando el negocio
        todavía no tiene ninguna. */
     slides:
       p.photos && p.photos.length > 0
-        ? p.photos.map((photo, i) => ({
+        ? p.photos.map((photo: UserPlacePhoto, i: number) => ({
             url: photo.url,
             alt: photo.alt || `Foto ${i + 1} de ${p.name}`,
           }))
-        : FALLBACK_SLIDES.map((s) => ({ ...s, label: `${p.name}: ${s.label}` })),
+        : FALLBACK_SLIDES.map(
+            (s: {
+              url: null | string;
+              alt: string;
+              gradient: string;
+              label: string;
+            }) => ({
+              ...s,
+              label: `${p.name}: ${s.label}`,
+            }),
+          ),
     /* El precio pasa tal cual y la chapita también. Aquí estaba el corte de la
        cadena: `Number(item.price) || 0` convertía a cero todo precio que no
        fuese una cifra pelada —el campo es texto libre, el propio esquema pone
@@ -93,7 +98,7 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
        `tag` que el dueño había escrito. */
     menu: p.menu
       .filter((item) => item.name.trim().length > 0)
-      .map((item) => ({
+      .map((item: UserPlaceMenuItem) => ({
         name: item.name,
         description: item.description,
         price: item.price,
@@ -121,7 +126,9 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
   };
 }
 
-function placeState(p: UserPlace): PlaceState {
+function placeState(
+  p: UserPlace,
+): "normal" | "closed" | "no-photos" | "special-offer" {
   /* La oferta va primero y el orden importa: en `PlaceDetail` el banner solo se
      pinta con el estado `special-offer`, así que un negocio con fotos y oferta
      perdería el banner si las fotos se comprobaran antes. */

@@ -43,10 +43,10 @@ export function currencyLabel(code: string): string {
  * tenían el mapa copiado: cualquier ajuste había que hacerlo dos veces.
  */
 export const currencyStyles: Record<string, string> = {
-  MLC: "bg-verde-100 text-verde-700",
-  CUP: "bg-verde-50 text-verde-600",
-  USD: "bg-sand-deep text-ink-soft/75",
-  EUR: "bg-sand-deep text-ink-soft/75",
+  MLC: "bg-verde-100 text-verde-700 ring-verde-300/70",
+  CUP: "bg-verde-50 text-verde-600 ring-verde-200/80",
+  USD: "bg-sand-deep text-ink-soft ring-ink/10",
+  EUR: "bg-sand-deep text-ink-soft ring-ink/10",
 };
 
 /**

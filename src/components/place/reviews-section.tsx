@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Star, MessageSquare } from "lucide-react";
+import { motion } from "motion/react";
+import { ChevronDown, Star, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 /* `relativeDay` es una función pura de formato —"hoy", "ayer", "hace 3 días"— y
    vive en el store de actividad porque fue ahí donde hizo falta primero. El
@@ -47,6 +48,9 @@ export function ReviewsSection({
   /* Reintento manual: entra en las dependencias del efecto como si fuera otro
      lugar al que preguntar. */
   const [retry, setRetry] = useState(0);
+  /* Cerrada de entrada: son varias tarjetas y empujaban hacia abajo todo lo que
+     hay detrás. La lectura se pide tocando el título. */
+  const [open, setOpen] = useState(false);
 
   const load = useCallback(
     async (signal: AbortSignal) => {
@@ -93,64 +97,97 @@ export function ReviewsSection({
 
   return (
     <div className={className}>
-      <div className="flex items-center justify-between mb-gap-md">
+      {/* El título abre y cierra. Se queda con la nota y el número de opiniones
+          a la vista: eso es lo que se quiere saber sin desplegar nada. */}
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        className="flex w-full cursor-pointer items-center justify-between gap-gap-sm mb-gap-md text-left"
+      >
         <h2 className={H2}>Reseñas</h2>
-        {state.status === "ready" && count > 0 && (
-          <span className="inline-flex items-center gap-[6px] font-lv-display text-small font-semibold text-ink">
-            <Star size={14} strokeWidth={1.8} className="fill-verde-400 text-verde-400" />
-            {state.average.toFixed(1)}
-            {/* La media sola no dice sobre cuánta gente: con una sola opinión un
-                5,0 y un 4,9 no significan lo mismo. */}
-            <span className="font-normal text-ink-soft/75">
-              ({count === 1 ? "1 opinión" : `${count} opiniones`})
+        <span className="flex shrink-0 items-center gap-gap-sm">
+          {state.status === "ready" && count > 0 && (
+            <span className="inline-flex items-center gap-[6px] font-lv-display text-small font-semibold text-ink">
+              <Star
+                size={14}
+                strokeWidth={1.8}
+                className="fill-verde-400 text-verde-400"
+              />
+              {state.average.toFixed(1)}
+              {/* La media sola no dice sobre cuánta gente: con una sola opinión un
+                  5,0 y un 4,9 no significan lo mismo. */}
+              <span className="font-normal text-ink-soft/75">
+                ({count === 1 ? "1 opinión" : `${count} opiniones`})
+              </span>
             </span>
-          </span>
+          )}
+          <ChevronDown
+            size={18}
+            strokeWidth={1.8}
+            className={cn(
+              "text-verde-600 transition-transform duration-500 ease-outquint",
+              open && "rotate-180",
+            )}
+          />
+        </span>
+      </button>
+
+      {/* `height: 0` y no la lista desmontada: así se anima el despliegue y, al
+          plegar, las reseñas siguen cargadas y volver a abrir no vuelve a pedir
+          nada al servidor. `inert` mientras está cerrada para que el botón de
+          reintentar no se pueda tabular a escondidas. */}
+      <motion.div
+        initial={false}
+        animate={{ height: open ? "auto" : 0 }}
+        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        inert={!open}
+        className="overflow-hidden"
+      >
+        {state.status === "loading" && (
+          <div className="flex flex-col gap-gap-sm" aria-busy>
+            <Skeleton className="h-[96px] w-full" />
+            <Skeleton className="h-[96px] w-full" />
+          </div>
         )}
-      </div>
 
-      {state.status === "loading" && (
-        <div className="flex flex-col gap-gap-sm" aria-busy>
-          <Skeleton className="h-[96px] w-full" />
-          <Skeleton className="h-[96px] w-full" />
-        </div>
-      )}
+        {state.status === "error" && (
+          <div className="border border-dashed border-ink/10 rounded-2xl">
+            <StateView
+              icon={MessageSquare}
+              title="No se pudieron cargar las reseñas"
+              description="Puede ser la conexión. Prueba otra vez en un momento."
+              actions={
+                <button
+                  type="button"
+                  onClick={() => setRetry((k) => k + 1)}
+                  className={BTN_OUTLINE}
+                >
+                  Reintentar
+                </button>
+              }
+            />
+          </div>
+        )}
 
-      {state.status === "error" && (
-        <div className="border border-dashed border-ink/10 rounded-2xl">
-          <StateView
-            icon={MessageSquare}
-            title="No se pudieron cargar las reseñas"
-            description="Puede ser la conexión. Prueba otra vez en un momento."
-            actions={
-              <button
-                type="button"
-                onClick={() => setRetry((k) => k + 1)}
-                className={BTN_OUTLINE}
-              >
-                Reintentar
-              </button>
-            }
-          />
-        </div>
-      )}
+        {state.status === "ready" && count === 0 && (
+          <div className="border border-dashed border-ink/10 rounded-2xl">
+            <StateView
+              icon={MessageSquare}
+              title="Todavía no hay reseñas"
+              description="Sé el primero en contar qué te pareció este lugar."
+            />
+          </div>
+        )}
 
-      {state.status === "ready" && count === 0 && (
-        <div className="border border-dashed border-ink/10 rounded-2xl">
-          <StateView
-            icon={MessageSquare}
-            title="Todavía no hay reseñas"
-            description="Sé el primero en contar qué te pareció este lugar."
-          />
-        </div>
-      )}
-
-      {state.status === "ready" && count > 0 && (
-        <ul className="flex flex-col gap-gap-sm">
-          {state.reviews.map((review) => (
-            <ReviewItem key={review.id} review={review} />
-          ))}
-        </ul>
-      )}
+        {state.status === "ready" && count > 0 && (
+          <ul className="flex flex-col gap-gap-sm">
+            {state.reviews.map((review) => (
+              <ReviewItem key={review.id} review={review} />
+            ))}
+          </ul>
+        )}
+      </motion.div>
     </div>
   );
 }
@@ -208,7 +245,9 @@ function Stars({ value, className }: { value: number; className?: string }) {
           size={12}
           strokeWidth={1.8}
           aria-hidden
-          className={n <= value ? "fill-verde-400 text-verde-400" : "text-ink/20"}
+          className={
+            n <= value ? "fill-verde-400 text-verde-400" : "text-ink/20"
+          }
         />
       ))}
     </span>

@@ -2,6 +2,7 @@ import { and, asc, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import { businessOwners, categories, placeImages, places, reviews, savedPlaces } from "@/lib/db/schema";
+import { DEV_PLACE_ID, devPlace } from "@/lib/dev-place";
 import type { UserPlacePhoto } from "@/lib/places-store";
 import {
   toBusinessCategory,
@@ -141,6 +142,8 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
   if (options.categorySlug) filters.push(eq(categories.slug, options.categorySlug));
   if (options.onlyActive) filters.push(eq(places.isActive, true));
 
+  const limit = Math.min(options.limit ?? 200, 500);
+
   const rows = await db
     .select(SELECT_WITH_CATEGORY)
     .from(places)
@@ -163,13 +166,22 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
        El catálogo de la app no se apoya en este orden —reordena por distancia
        en el navegador—, así que aquí solo manda la presentación. */
     .orderBy(sql`${places.rating} desc nulls last`, asc(places.name))
-    .limit(Math.min(options.limit ?? 200, 500));
+    .limit(limit);
 
   const photos = await photosByPlace(rows.map((row) => row.place.id));
 
-  return rows.map((row) =>
+  const catalog = rows.map((row) =>
     toUserPlace({ ...unwrap(row), photos: photos.get(row.place.id) ?? [] }),
   );
+
+  /* Solo en la lista **pública** —la que pide el catálogo con `onlyActive:
+     true`—: el panel de administración pide todo lo que hay, y ahí un negocio
+     que no existe en la base solo sirve para que editar su ficha falle con un
+     404. Ver `src/lib/dev-place.ts`. */
+  const dev = options.onlyActive === true ? devPlace() : null;
+  if (!dev) return catalog;
+
+  return [dev, ...catalog].slice(0, limit);
 }, "places:list");
 
 /**
@@ -178,6 +190,13 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
  * etiqueta, que es por lo que no lleva una propia.
  */
 export const getPlaceById = cached(async (id: string) => {
+  /* Antes de tocar la base: así la URL directa `/place/dev-cafe-la-ceiba`
+     funciona igual que si la fila existiera, que es lo que hace falta para
+     recargar la página sin volver al mapa. Aquí no lleva la guarda de
+     `onlyActive` que sí tiene la lista: quien pide una ficha concreta ya sabe
+     qué id quiere. */
+  if (id === DEV_PLACE_ID) return devPlace();
+
   const [row] = await db
     .select(SELECT_WITH_CATEGORY)
     .from(places)

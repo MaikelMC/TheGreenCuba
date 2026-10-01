@@ -133,8 +133,16 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
 
       {/* Dots. El área táctil es 24x44 (cumple WCAG 2.5.8 AA) aunque el punto
           visible siga siendo de 7px: el botón alinea su contenido abajo para que
-          el punto no se mueva de sitio respecto al diseño anterior. */}
-      <div className="absolute bottom-gap-xs left-1/2 -translate-x-1/2 flex">
+          el punto no se mueva de sitio respecto al diseño anterior.
+
+          Van en tinta y no en blanco porque la ficha disuelve el borde inferior
+          de la foto en el fondo: a la altura del punto ya no hay imagen debajo,
+          hay arena, y unos puntos blancos sobre arena no se ven. Mismos colores
+          que los del carril de la portada.
+
+          El 13% los deja justo por encima del desvanecido, que en la ficha
+          arranca a esa misma altura: es la única cifra que comparten los dos. */}
+      <div className="absolute bottom-[13%] left-1/2 -translate-x-1/2 flex">
         {slides.map((_, i) => (
           <button
             key={i}
@@ -148,8 +156,8 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
               className={cn(
                 "block h-[7px] rounded-full transition-all duration-500 ease-outquint",
                 i === current
-                  ? "w-[20px] bg-white"
-                  : "w-[7px] bg-white/50 border border-white/30",
+                  ? "w-[20px] bg-verde-600"
+                  : "w-[7px] bg-ink/20",
               )}
             />
           </button>

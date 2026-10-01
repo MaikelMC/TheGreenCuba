@@ -1,8 +1,9 @@
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { DEV_COOKIE, DEV_IDENTITY, devAccessEnabled, isDevCookie } from "@/lib/dev-access";
 import { generateId } from "@/lib/utils";
 import { AUTH_USER_HEADER, type Role } from "@/lib/session";
 
@@ -112,6 +113,16 @@ async function readNeonIdentity(): Promise<NeonIdentity | null> {
          a medio parsear. */
       return null;
     }
+  }
+
+  /* Sin cabecera: o la petición no pasó por el proxy —las rutas de API están
+     fuera de su matcher— o es una que no pregunta por el usuario. Antes de
+     preguntarle a Neon, la puerta de atrás del desarrollo: si no, entrar con
+     `/dev-login` valdría para ver las páginas pero no para las rutas de API,
+     que seguirían viendo a nadie y es justo lo que hace que la mitad de la
+     interfaz parezca rota. Ver `src/lib/dev-access.ts`. */
+  if (devAccessEnabled() && isDevCookie((await cookies()).get(DEV_COOKIE)?.value)) {
+    return DEV_IDENTITY;
   }
 
   const { data: session } = await auth.getSession();

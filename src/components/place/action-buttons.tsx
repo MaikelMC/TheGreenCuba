@@ -13,14 +13,24 @@ interface ActionButtonsProps {
   onReview?: () => void;
   isSaved?: boolean;
   className?: string;
+  /**
+   * Versión pequeña y sin caja, para meterla dentro de una fila con otros
+   * datos —la cabecera de la ficha en móvil— en vez de ocupar su propio bloque.
+   *
+   * Los 40 px se quedan por debajo de los 44 que el sistema usa para un dedo.
+   * Es a propósito y tiene tope: cuatro botones en fila con el chip de
+   * categoría y la nota no caben a 44 en una pantalla de 390 px, y el que
+   * quedaría fuera sería justo el último. WCAG 2.5.8 AA pide 24, así que se
+   * cumple de sobra.
+   */
+  compact?: boolean;
 }
 
 /* Los cuatro botones comparten caja; solo cambian el color y el borde. Antes
-   cada uno repetía la ristra entera y `duration-fast` compilaba a cero, así que
-   el cambio de color era instantáneo. */
+    cada uno repetía la ristra entera y `duration-fast` compilaba a cero, así que
+    el cambio de color era instantáneo. */
 const BOX =
-  "flex flex-col items-center justify-center gap-[6px] py-gap-sm px-gap-xs rounded-2xl border min-h-[72px] min-w-[44px] transition-colors duration-500 ease-outquint";
-const LABEL = "font-lv-display text-xs font-semibold text-center leading-tight";
+  "flex items-center justify-center rounded-2xl border transition-colors duration-500 ease-outquint";
 
 export function ActionButtons({
   onNavigate,
@@ -29,7 +39,13 @@ export function ActionButtons({
   onReview,
   isSaved: controlledSaved,
   className,
+  compact = false,
 }: ActionButtonsProps) {
+  const box = cn(
+    BOX,
+    compact ? "size-10 rounded-xl" : "w-[48px] h-[48px]",
+  );
+  const icon = compact ? 20 : 28;
   const [internalSaved, setInternalSaved] = useState(controlledSaved ?? true);
   const saved = controlledSaved ?? internalSaved;
 
@@ -44,7 +60,9 @@ export function ActionButtons({
   return (
     <div
       className={cn(
-        "grid grid-cols-4 gap-gap-xs p-gap-md bg-sand-warm lg:rounded-2xl lg:border lg:border-ink/5 lg:p-gap-lg",
+        compact
+          ? "flex items-center gap-1.5"
+          : "grid grid-cols-4 gap-gap-xs p-gap-md bg-sand-warm lg:rounded-2xl lg:border lg:border-ink/5 lg:p-gap-lg",
         className,
       )}
     >
@@ -53,13 +71,13 @@ export function ActionButtons({
         type="button"
         whileTap={{ scale: 0.95 }}
         onClick={onNavigate}
+        title="Cómo llegar"
         className={cn(
-          BOX,
+          box,
           "border-verde-400 bg-verde-400 hover:border-verde-300 hover:bg-verde-300",
         )}
       >
-        <Navigation size={24} strokeWidth={1.8} className="text-verde-950" />
-        <span className={cn(LABEL, "text-verde-950")}>Cómo llegar</span>
+        <Navigation size={icon} strokeWidth={1.8} className="text-verde-950" />
       </motion.button>
 
       {/* Guardar */}
@@ -68,8 +86,9 @@ export function ActionButtons({
         whileTap={{ scale: 0.95 }}
         onClick={handleSave}
         aria-pressed={saved}
+        title={saved ? "Guardado" : "Guardar"}
         className={cn(
-          BOX,
+          box,
           saved
             ? "border-verde-400 bg-verde-50"
             : "border-ink/10 bg-white hover:border-verde-300 hover:bg-verde-50",
@@ -82,15 +101,12 @@ export function ActionButtons({
           transition={{ type: "spring", stiffness: 420, damping: 18 }}
         >
           <Heart
-            size={24}
+            size={icon}
             strokeWidth={1.8}
             className="text-verde-600"
             fill={saved ? "currentColor" : "none"}
           />
         </motion.span>
-        <span className={cn(LABEL, "text-ink")}>
-          {saved ? "Guardado" : "Guardar"}
-        </span>
       </motion.button>
 
       {/* Compartir */}
@@ -98,13 +114,13 @@ export function ActionButtons({
         type="button"
         whileTap={{ scale: 0.95 }}
         onClick={onShare}
+        title="Compartir"
         className={cn(
-          BOX,
+          box,
           "border-ink/10 bg-white hover:border-verde-300 hover:bg-verde-50",
         )}
       >
-        <Share2 size={24} strokeWidth={1.8} className="text-verde-600" />
-        <span className={cn(LABEL, "text-ink")}>Compartir</span>
+        <Share2 size={icon} strokeWidth={1.8} className="text-verde-600" />
       </motion.button>
 
       {/* Opinar */}
@@ -112,13 +128,13 @@ export function ActionButtons({
         type="button"
         whileTap={{ scale: 0.95 }}
         onClick={onReview}
+        title="Opinar"
         className={cn(
-          BOX,
+          box,
           "border-ink/10 bg-white hover:border-verde-300 hover:bg-verde-50",
         )}
       >
-        <Star size={24} strokeWidth={1.8} className="text-verde-600" />
-        <span className={cn(LABEL, "text-ink")}>Opinar</span>
+        <Star size={icon} strokeWidth={1.8} className="text-verde-600" />
       </motion.button>
     </div>
   );
