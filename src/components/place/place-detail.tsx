@@ -35,7 +35,7 @@ import { PhotoCarousel, type Slide } from "./photo-carousel";
 import { InfoBar } from "./info-bar";
 import { PaymentsSection } from "./payments-section";
 import { ActionButtons } from "./action-buttons";
-import { MenuItem } from "./menu-item";
+import { MenuPages } from "./menu-pages";
 import { OfferBanner } from "./offer-banner";
 import { ReviewDialog } from "./review-dialog";
 import { ReviewsSection } from "./reviews-section";
@@ -118,11 +118,22 @@ const H2 = "font-lv-display text-h3 font-bold text-ink";
 
 /* Cuándo el párrafo clampsado merece botón. El `line-clamp` no se puede medir
    desde CSS, así que se estima por caracteres: por debajo de esto el texto cabe
-   en las tres o cuatro líneas del recorte y el botón no tendría nada que
+   en las dos o tres líneas del recorte y el botón no tendría nada que
    desplegar. Se elige el umbral de los dos que había —220 y 180— y no el mayor,
    porque el error caro es el otro: un párrafo recortado sin botón deja texto
    que nadie puede leer, mientras que un botón de más solo se ve de más. */
 const CLAMP_MIN_CHARS = 180;
+
+/* El recorte de «Sobre este lugar»: dos líneas visibles y el resto al abrir.
+   Va en `style` y no en clases a propósito — ver el porqué en la sección—, así
+   que las tres constantes viven juntas y en un solo sitio. El alto recogido son
+   dos renglones de `leading-relaxed`, en `em` para medirlo contra el `font-size`
+   del propio párrafo y no contra la raíz. */
+const DESC_LINE_HEIGHT = 1.625;
+const DESC_COLLAPSED = `${DESC_LINE_HEIGHT * 2}em`;
+/* Tope de sobra para cualquier descripción real: sin un número no hay
+   transición, y `max-height: none` no se anima. */
+const DESC_EXPANDED = "40em";
 
 /* Mismo botón secundario que el resto del sistema —el `BTN_OUTLINE` del panel
    de negocio y del formulario de alta—. Antes estos dos eran texto verde suelto
@@ -217,17 +228,6 @@ export function PlaceDetail({
      hace falta un número: no se puede animar contra un `line-clamp`, y el
      `line-height` sale del tema, así que no se escribe a mano. El `h-[2lh]`
      del elemento cubre el fotograma de antes de que esto mida. */
-  const descRef = useRef<HTMLSpanElement>(null);
-  const [descClamp, setDescClamp] = useState<number | null>(null);
-  useEffect(() => {
-    const el = descRef.current;
-    if (!el) return;
-    const styles = getComputedStyle(el);
-    const lineHeight =
-      parseFloat(styles.lineHeight) || parseFloat(styles.fontSize) * 1.625;
-    setDescClamp(lineHeight * 2);
-  }, [place.longDescription]);
-
   const isClosed =
     !place.isProject &&
     (state === "closed" || (!place.isOpen && state !== "special-offer"));
@@ -597,10 +597,11 @@ export function PlaceDetail({
                         : "Sobre este lugar"}
                     </h2>
                     <p
-                      className={cn(
-                        "text-body leading-relaxed text-ink whitespace-pre-wrap",
-                        !descExpanded && "line-clamp-3",
-                      )}
+                      className="overflow-hidden text-body leading-relaxed text-ink whitespace-pre-wrap transition-[max-height] duration-500 ease-outquint"
+                      style={{
+                        maxHeight: descExpanded ? DESC_EXPANDED : DESC_COLLAPSED,
+                        lineHeight: DESC_LINE_HEIGHT,
+                      }}
                     >
                       {place.longDescription}
                     </p>
@@ -697,13 +698,8 @@ export function PlaceDetail({
                           />
                         </button>
                       </div>
-                      <div
-                        id="full-menu-list-desktop"
-                        className="grid grid-cols-2 gap-x-gap-lg"
-                      >
-                        {place.menu.map((item, i) => (
-                          <MenuItem key={i} index={i} {...item} />
-                        ))}
+                      <div id="full-menu-list-desktop">
+                        <MenuPages items={place.menu} variant="grid" />
                       </div>
                     </section>
                   )}
@@ -886,33 +882,38 @@ export function PlaceDetail({
                   hay más; va en un `span` y no en un `div` porque un botón solo
                   admite contenido en línea.
 
-                  Altura y no `line-clamp`: la línea de corte no se anima, así
-                  que el cambio era un salto. Con `height` el texto se despliega.
-                  Hasta que el efecto mide, `animate` va sin valor y manda el
-                  `h-[2lh]` del `className` —al medir ya anima, y como 2lh y lo
-                  medido son el mismo alto, el cambio no se ve—. */}
+                  `max-height` y no `line-clamp`: así el despliegue se anima, que
+                  con el corte de línea era un salto.
+
+                  El alto va en `style` y no en una clase. En clase se quedaba
+                  sin aplicar —el párrafo salía entero al entrar y el primer
+                  toque no cambiaba nada, porque el estado ya estaba recogido y
+                  lo único que faltaba era el tope—, y con el tope en línea no
+                  hay generador de CSS ni orden de hojas que lo tumbe. Por lo
+                  mismo el `lineHeight` va al lado del `maxHeight`: el valor está
+                  en `em` y tiene que medirse contra el mismo renglón que se
+                  pinta, no contra el que gane entre `text-body` y
+                  `leading-relaxed`. Las tres constantes están arriba, juntas.
+
+                  Antes esto lo hacía un `useEffect` que medía el `line-height`
+                  real y lo aplicaba con `motion`. Dependía de que la medida
+                  llegara y de que `animate`, que arrancaba sin valor, la
+                  aceptara; hasta entonces se veía el texto completo. */}
               <button
                 type="button"
                 onClick={() => setDescExpanded((prev) => !prev)}
                 aria-expanded={descExpanded}
                 className="block w-full cursor-pointer text-left"
               >
-                <motion.span
-                  ref={descRef}
-                  initial={false}
-                  animate={
-                    descClamp === null
-                      ? undefined
-                      : { height: descExpanded ? "auto" : descClamp }
-                  }
-                  transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                  className={cn(
-                    "block overflow-hidden text-body leading-relaxed text-ink whitespace-pre-wrap",
-                    descClamp === null && "h-[2lh]",
-                  )}
+                <span
+                  className="block overflow-hidden text-body leading-relaxed text-ink whitespace-pre-wrap transition-[max-height] duration-500 ease-outquint"
+                  style={{
+                    maxHeight: descExpanded ? DESC_EXPANDED : DESC_COLLAPSED,
+                    lineHeight: DESC_LINE_HEIGHT,
+                  }}
                 >
                   {place.longDescription}
-                </motion.span>
+                </span>
                 <span className="mt-gap-xs flex justify-end">
                   <ChevronDown
                     size={16}
@@ -1044,11 +1045,9 @@ export function PlaceDetail({
                       />
                     </button>
                   </div>
-                  <ul id="full-menu-list" className="flex flex-col gap-gap-sm">
-                    {place.menu.map((item, i) => (
-                      <MenuItem key={i} index={i} {...item} />
-                    ))}
-                  </ul>
+                  <div id="full-menu-list">
+                    <MenuPages items={place.menu} variant="list" />
+                  </div>
                 </>
               )}
             </section>

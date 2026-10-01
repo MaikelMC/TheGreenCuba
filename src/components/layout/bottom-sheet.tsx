@@ -114,7 +114,16 @@ export function BottomSheet({
       const style = getComputedStyle(sheet);
       const matrix = new DOMMatrixReadOnly(style.transform);
       startTranslate.current = matrix.m42;
-      sheet.setPointerCapture(e.pointerId);
+      /* `setPointerCapture` lanza `NotFoundError` si el puntero ya no está
+         activo, y dentro del WebView de Instagram pasa: la excepción cortaba el
+         manejador antes de registrar los escuchas y el toque no hacía nada. Sin
+         captura el gesto sigue entero —solo se pierde si el dedo se sale del
+         asa—, así que el fallo no se propaga. */
+      try {
+        sheet.setPointerCapture(e.pointerId);
+      } catch {
+        /* sin captura; el resto del gesto corre igual */
+      }
 
       const onMove = (ev: PointerEvent) => {
         const dy = ev.clientY - startY.current;
@@ -136,9 +145,14 @@ export function BottomSheet({
         setDragY(dragRef.current);
       };
 
-      const onUp = () => {
+      const cleanup = () => {
         sheet.removeEventListener("pointermove", onMove);
         sheet.removeEventListener("pointerup", onUp);
+        sheet.removeEventListener("pointercancel", onCancel);
+      };
+
+      const onUp = () => {
+        cleanup();
 
         if (didDrag.current) {
           // Umbral sobre la posición final, no sobre el recorrido: así da igual
@@ -156,8 +170,32 @@ export function BottomSheet({
         }
       };
 
+      /* El WebView de dentro de Instagram se queda el gesto y no manda el
+         `pointerup`: sin atender la cancelación los escuchas se quedaban
+         pegados al elemento, y el toque siguiente ejecutaba `onUp` dos veces.
+         Como `cycleState` alterna, la segunda llamada devolvía la hoja a `peek`
+         —abría y volvía a caer de golpe—, y cada gesto perdido dejaba un par
+         más, hasta que la hoja se quedaba recogida y rebotando. Recargar
+         arreglaba porque el componente arrancaba con la lista limpia. */
+      const onCancel = () => {
+        cleanup();
+
+        if (didDrag.current) {
+          // Gesto abortado a media: vuelve a reposo sin cambiar de estado.
+          didDrag.current = false;
+          setIsDragging(false);
+          setDragY(0);
+          return;
+        }
+
+        // Cancelado sin arrastre es un toque que el WebView se comió: no habrá
+        // `pointerup` (la cancelación lo sustituye), así que se atiende aquí.
+        cycleState();
+      };
+
       sheet.addEventListener("pointermove", onMove);
       sheet.addEventListener("pointerup", onUp);
+      sheet.addEventListener("pointercancel", onCancel);
     },
     [],
   );
@@ -183,7 +221,10 @@ export function BottomSheet({
     >
       {/* Handle */}
       <div
-        className="flex justify-center py-[10px] pb-[6px] cursor-grab active:cursor-grabbing shrink-0"
+        /* `touch-none`: el gesto es del asa, no del navegador. Sin esto el
+           WebView se lo adjudica al primer movimiento y responde con
+           `pointercancel`, que es de donde salían los toques perdidos. */
+        className="flex justify-center py-[10px] pb-[6px] cursor-grab active:cursor-grabbing shrink-0 touch-none"
         onPointerDown={handlePointerDown}
       >
         <div

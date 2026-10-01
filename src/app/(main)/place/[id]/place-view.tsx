@@ -194,6 +194,10 @@ export function PlaceView({
 
   return (
     <PlaceDetail
+      /* Al cambiar de ficha, React reutiliza la instancia y el estado de
+         despliegue —descripción, oferta del proyecto— viajaba de un lugar al
+         siguiente: entrabas en otro y salía abierto. La `key` la remonta. */
+      key={place.id}
       place={userPlaceToPlaceData(place)}
       state={placeState(place)}
       onBack={() => router.back()}
