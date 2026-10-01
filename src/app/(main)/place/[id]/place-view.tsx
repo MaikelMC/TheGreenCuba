@@ -50,6 +50,7 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
        en vez de anunciar un mapa que no lleva a ninguna parte. */
     distance: p.distanceLabel || p.address || "",
     address: p.address,
+    logoUrl: p.logoUrl,
     barrio: p.barrio || "Cuba",
     schedule: p.schedule || "Próximamente",
     payments: p.payments,

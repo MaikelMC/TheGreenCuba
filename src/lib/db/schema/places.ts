@@ -80,6 +80,11 @@ export const places = pgTable(
 
     /** Icono Lucide del pin de ESTE negocio. Vacío = el de su categoría. */
     icon: text("icon"),
+    /** Logotipo del negocio, en el bucket. Vacío = se enseña la portada, o el
+        icono de la categoría si tampoco hay fotos. Lo pinta `LogoUpload` desde
+        el formulario de administración, y lo usan el círculo de la ficha, la
+        miniatura de las tarjetas y el disco del pin. */
+    logoUrl: text("logo_url"),
     /** Franja horaria tal como la escribe el dueño («De noche», «Todo el día»). */
     schedule: text("schedule"),
     offerText: text("offer_text"),

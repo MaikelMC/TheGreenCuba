@@ -5,7 +5,6 @@ import { siteConfig } from "@/config/site";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { PostHogAnalytics } from "@/providers/posthog-provider";
 import { Providers } from "@/providers/auth-provider";
-import { InactivityGuard } from "@/components/auth/inactivity-guard";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -134,7 +133,6 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <Providers>
-            <InactivityGuard />
             <PostHogAnalytics />
             {children}
             {/* Avisos flotantes. La pastilla va en `ink` con texto blanco, como

@@ -69,6 +69,8 @@ export interface PlaceData {
   projectOfferPackages?: ProjectOfferPackage[];
   rating: number;
   distance: string;
+  /** Círculo de marca: el logo del negocio, y si no lo hay, la portada. */
+  logoUrl?: string;
   barrio: string;
   schedule: string;
   address?: string;
@@ -154,6 +156,9 @@ export function PlaceDetail({
   // Icon for category badge
   const iconName = placeIcon(place.icon ?? undefined, place.category);
   const Icon = resolveCategoryIcon(iconName);
+  /* La marca del negocio: el logo si lo subió, y si no la portada. Vale para el
+     círculo de móvil y para el de la banda de escritorio. */
+  const brandUrl = place.logoUrl || place.slides[0]?.url || null;
 
   /* El diálogo vive aquí y no dentro de `ActionButtons` porque hay dos rejillas
      —la de escritorio y la de móvil— montadas a la vez: dentro habría dos
@@ -452,45 +457,63 @@ export function PlaceDetail({
                   se queda siempre al mismo 77% de la altura y el pie de la
                   foto siempre le pasa por debajo vacío. */}
               <div className="absolute bottom-0 left-0 right-0 px-gap-xl pt-gap-xl pb-[13%] bg-gradient-to-t from-ink/85 via-ink/40 to-transparent rounded-b-4xl pointer-events-none">
-                <h1 className="font-lv-display text-h1 font-bold text-white leading-tight tracking-[-0.02em] text-balance">
-                  {place.name}
-                </h1>
-                <div className="flex items-center gap-gap-sm mt-gap-xs">
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-[4px] px-[10px] py-[4px] rounded-full font-lv-display text-xs font-semibold uppercase tracking-[0.06em]",
-                      isClosed
-                        ? "bg-destructive/90 text-white"
-                        : "bg-verde-400 text-verde-950",
-                    )}
-                  >
-                    {place.isProject ? (
-                      <Megaphone size={12} />
-                    ) : (
-                      <span
-                        className={cn(
-                          "size-[6px] rounded-full",
-                          isClosed ? "bg-white/80" : "bg-verde-950/60",
-                        )}
+                {/* La marca solo cuando la hay: sin logo ni fotos, un círculo
+                    con el icono de la categoría sobre la foto oscura sería un
+                    adorno que no dice nada que no diga la categoría de abajo. */}
+                <div className="flex items-center gap-gap-md">
+                  {brandUrl && (
+                    <span className="relative block size-16 shrink-0 overflow-hidden rounded-full border border-white/25 bg-white">
+                      <Image
+                        src={brandUrl}
+                        alt=""
+                        fill
+                        sizes="64px"
+                        className="object-cover"
                       />
-                    )}
-                    {place.isProject
-                      ? "Proyecto"
-                      : isClosed
-                        ? "Cerrado"
-                        : "Abierto"}
-                  </span>
-                  {place.rating > 0 && (
-                    <span className="inline-flex items-center gap-[4px] font-lv-display text-xs font-semibold text-white/80">
-                      <Star
-                        size={12}
-                        strokeWidth={1.8}
-                        className="text-verde-300"
-                        fill="currentColor"
-                      />
-                      {place.rating}
                     </span>
                   )}
+                  <div className="min-w-0">
+                    <h1 className="font-lv-display text-h1 font-bold text-white leading-tight tracking-[-0.02em] text-balance">
+                      {place.name}
+                    </h1>
+                    <div className="flex items-center gap-gap-sm mt-gap-xs">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-[4px] px-[10px] py-[4px] rounded-full font-lv-display text-xs font-semibold uppercase tracking-[0.06em]",
+                          isClosed
+                            ? "bg-destructive/90 text-white"
+                            : "bg-verde-400 text-verde-950",
+                        )}
+                      >
+                        {place.isProject ? (
+                          <Megaphone size={12} />
+                        ) : (
+                          <span
+                            className={cn(
+                              "size-[6px] rounded-full",
+                              isClosed ? "bg-white/80" : "bg-verde-950/60",
+                            )}
+                          />
+                        )}
+                        {place.isProject
+                          ? "Proyecto"
+                          : isClosed
+                            ? "Cerrado"
+                            : "Abierto"}
+                      </span>
+                      {place.rating > 0 && (
+                        <span className="inline-flex items-center gap-[4px] font-lv-display text-xs font-semibold text-white/80">
+                          <Star
+                            size={12}
+                            strokeWidth={1.8}
+                            className="text-verde-300"
+                            fill="currentColor"
+                          />
+                          {place.rating}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </Reveal>
@@ -725,17 +748,15 @@ export function PlaceDetail({
               tono, así que quitando el borde el paso no se ve. */}
           <Reveal delay={0.05}>
             <section className="p-gap-lg px-gutter bg-sand-warm">
-              {/* Marca + nombre. El círculo no tiene columna propia en `places`:
-                  no hay dónde guardar un logo todavía, así que enseña la
-                  portada —la primera foto, que es la que el dueño ya sube— y
-                  cae al icono de la categoría cuando el negocio no tiene
-                  ninguna. El día que exista la columna, es cambiar de dónde
-                  sale la `url`. */}
+              {/* Marca + nombre. El círculo enseña el logo del negocio, que es
+                  lo que se sube en «Fotos del lugar» del formulario; si no lo
+                  hay, cae a la portada —la primera foto, que es la que el dueño
+                  ya sube— y al icono de la categoría cuando tampoco hay fotos. */}
               <div className="flex items-start gap-gap-md">
                 <span className="relative block size-20 shrink-0 overflow-hidden rounded-full border border-ink/5 bg-white">
-                  {place.slides[0]?.url ? (
+                  {brandUrl ? (
                     <Image
-                      src={place.slides[0].url}
+                      src={brandUrl}
                       alt=""
                       fill
                       sizes="80px"
@@ -743,7 +764,11 @@ export function PlaceDetail({
                     />
                   ) : (
                     <span className="grid h-full w-full place-items-center">
-                      <Icon size={28} strokeWidth={1.8} className="text-verde-600" />
+                      <Icon
+                        size={28}
+                        strokeWidth={1.8}
+                        className="text-verde-600"
+                      />
                     </span>
                   )}
                 </span>
@@ -811,7 +836,9 @@ export function PlaceDetail({
                   onSave={handleSave}
                   onNavigate={onNavigate}
                   onShare={onShare}
-                  onReview={place.isProject ? undefined : () => setReviewOpen(true)}
+                  onReview={
+                    place.isProject ? undefined : () => setReviewOpen(true)
+                  }
                 />
               </div>
             </section>
@@ -1163,7 +1190,6 @@ function ProjectOfferList({ offers }: { offers: ProjectOfferPackage[] }) {
     </ul>
   );
 }
-
 
 /**
  * Los enlaces que el dueño rellenó en la sección «Contacto» de su formulario:

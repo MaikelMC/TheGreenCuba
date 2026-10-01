@@ -449,7 +449,7 @@ export default function OnboardingPage() {
       !sessionStorage.getItem("sessionNoticeShown")
     ) {
       toast.info(
-        "Tu sesión permanecerá activa por 30 días en este dispositivo. Cuando vuelvas entrarás directo al home de tu cuenta.",
+        "Tu sesión permanecerá activa por 7 días en este dispositivo. Cuando vuelvas entrarás directo al home de tu cuenta.",
       );
       sessionStorage.setItem("sessionNoticeShown", "true");
     }

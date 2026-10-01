@@ -90,6 +90,12 @@ export interface UserPlace {
    * (`src/lib/places.ts`), no aquí.
    */
   icon?: string;
+  /**
+   * Logotipo del negocio, en el bucket. Vacío o ausente significa «enseña la
+   * portada» y, si tampoco hay fotos, el icono de la categoría. Lo sube el
+   * formulario de administración con `LogoUpload`.
+   */
+  logoUrl?: string;
   lat: number;
   lng: number;
   address: string;

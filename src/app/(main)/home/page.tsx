@@ -128,6 +128,8 @@ interface HomePlace {
   price: string;
   /** Nombre del icono Lucide, ya resuelto con la reserva de la categoría. */
   icon: string;
+  /** Logo del negocio. Manda sobre el icono en la miniatura de la tarjeta. */
+  logoUrl?: string;
   tags: { label: string; variant?: "mlc" | "open" | "default" }[];
   desc: string;
   lat: number;
@@ -167,6 +169,7 @@ function userPlaceToHomePlace(
         : p.distanceLabel || p.address || p.barrio || "Ver en el mapa",
     price: p.priceLabel || "—",
     icon: placeIcon(p.icon, p.category, categories),
+    logoUrl: p.logoUrl,
     tags,
     desc: p.description || "Negocio agregado por su dueño en La Verde.",
     lat: p.lat,
@@ -433,6 +436,7 @@ const PlaceCardRow = memo(function PlaceCardRow({
         distance={place.distance}
         price={place.price}
         icon={place.icon}
+        logoUrl={place.logoUrl}
         tags={place.tags}
         selected={selected}
         liked={liked}
@@ -646,7 +650,11 @@ function HomePageContent() {
         lng: p.lng,
         category: p.category,
         icon: placeIcon(p.icon, p.category, categories),
+        /* El logo primero: es la marca del negocio y se reconoce mejor en un
+           disco de 15 px que una foto de fachada. Después la foto del mapa y la
+           portada, como antes. */
         image:
+          p.logoUrl ??
           p.mapImageUrl ??
           p.photos?.find((photo) => photo.isCover)?.url ??
           p.photos?.[0]?.url,
@@ -1087,7 +1095,7 @@ function HomePageContent() {
         !sessionStorage.getItem("sessionNoticeShown")
       ) {
         toast.info(
-          "Tu sesión permanecerá activa por 30 días en este dispositivo. Cuando vuelvas entrarás directo al home de tu cuenta.",
+          "Tu sesión permanecerá activa por 7 días en este dispositivo. Cuando vuelvas entrarás directo al home de tu cuenta.",
         );
         sessionStorage.setItem("sessionNoticeShown", "true");
       }

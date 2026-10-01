@@ -53,6 +53,7 @@ export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
     name: row.name,
     category: row.categoryName ?? "Otro",
     icon: row.icon ?? undefined,
+    logoUrl: row.logoUrl ?? undefined,
     lat: row.lat,
     lng: row.lng,
     address: row.address ?? "",
@@ -131,6 +132,9 @@ export function toPlaceValues(
   if (patch.name !== undefined) values.name = patch.name;
   if (categoryId !== null) values.categoryId = categoryId;
   if (patch.icon !== undefined) values.icon = patch.icon || null;
+  /* Vaciar el campo quita el logo —`|| null`—, que es lo que hace quien lo
+     borra a propósito: sin esto no habría forma de volver a la portada. */
+  if (patch.logoUrl !== undefined) values.logoUrl = patch.logoUrl || null;
   if (patch.lat !== undefined) values.lat = patch.lat;
   if (patch.lng !== undefined) values.lng = patch.lng;
   if (patch.address !== undefined) values.address = patch.address;

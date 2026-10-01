@@ -30,6 +30,7 @@ import { IconPicker } from "@/components/ui/icon-picker";
 import { placeIcon } from "@/lib/places";
 import { FormSection, FormSections } from "@/components/business/form-section";
 import { PhotoGrid } from "@/components/business/photo-grid";
+import { LogoUpload } from "@/components/business/logo-upload";
 import { pruneMenuImages } from "@/lib/menu-images";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { MenuItemEditor } from "@/components/business/menu-item-editor";
@@ -86,6 +87,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
      categoría. Guardar el vacío y no una copia evita que el icono se quede
      congelado con el de la categoría que estaba puesta al abrir el formulario. */
   const [icon, setIcon] = useState<string | null>(initial?.icon ?? null);
+  /* El logo se sube al bucket por su cuenta y aquí solo vive la URL; quien la
+     escribe en la base es el PATCH del formulario al guardar. */
+  const [logoUrl, setLogoUrl] = useState(initial?.logoUrl ?? "");
   const [barrio, setBarrio] = useState(initial?.barrio ?? "");
   const [address, setAddress] = useState(initial?.address ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
@@ -145,6 +149,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
       name: trimmedName,
       category,
       icon: icon ?? undefined,
+      logoUrl: logoUrl.trim(),
       lat: location.lat,
       lng: location.lng,
       address: address.trim(),
@@ -210,6 +215,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
     categoryValue,
     categories,
     icon,
+    logoUrl,
     address,
     barrio,
     phone,
@@ -260,6 +266,15 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
           title="Fotos del lugar"
           icon={<ImageIcon size={18} strokeWidth={1.8} />}
         >
+          {/* El logo va antes de la rejilla: es el que más se ve —círculo de la
+              ficha, miniatura de las tarjetas y disco del pin— y la rejilla ocupa
+              varios renglones, así que debajo quedaba enterrado. */}
+          <LogoUpload
+            placeId={initial?.id ?? null}
+            value={logoUrl}
+            onChange={setLogoUrl}
+            className="mb-gap-lg"
+          />
           <PhotoGrid
             placeId={initial?.id ?? null}
             placeName={name.trim() || "el negocio"}

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { MapPin, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,8 @@ export interface PlaceStripPlace {
   barrio: string;
   rating?: number;
   province: string;
+  /** Logo del negocio. Sin él, el icono de ubicación de siempre. */
+  logoUrl?: string;
 }
 
 /**
@@ -51,8 +54,21 @@ function PlaceCard({
       className="group flex w-[280px] shrink-0 transform flex-col gap-4 rounded-xl border border-ink/5 bg-white p-4 shadow-sm transition-all duration-300 ease-outquint hover:scale-[1.02] hover:border-verde-300 hover:shadow-card focus-visible:scale-[1.02]"
     >
       <div className="flex items-center gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-verde-50 text-verde-600">
-          <MapPin size={17} strokeWidth={1.8} />
+        {/* La marca del negocio si la subió, y si no el icono de ubicación. La
+            casilla lleva `overflow-hidden` para que la imagen no se salga de las
+            esquinas redondeadas. */}
+        <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-verde-50 text-verde-600">
+          {place.logoUrl ? (
+            <Image
+              src={place.logoUrl}
+              alt=""
+              fill
+              sizes="36px"
+              className="object-cover"
+            />
+          ) : (
+            <MapPin size={17} strokeWidth={1.8} />
+          )}
         </span>
         <div className="flex-1">
           <h3 className="font-lv-display text-base font-semibold tracking-[-0.01em] text-ink group-hover:text-verde-700">

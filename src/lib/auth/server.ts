@@ -17,6 +17,20 @@ import { createNeonAuth } from "@neondatabase/auth/next/server";
  * pide 32 caracteres o más. Se genera con:
  *   openssl rand -base64 32
  *
+ * `sessionDataTtl` vale por defecto **300 segundos**, y con ese valor la caché
+ * de sesión se quedaba fría cada cinco minutos: a partir de ahí cada navegación
+ * a una ruta privada obligaba al proxy a preguntarle a Neon en vivo —sin
+ * timeout— y una llamada que fallase se leía como «no hay sesión» y mandaba a
+ * `/login`. En una red como la de este proyecto eso es un cierre de sesión
+ * aleatorio cada pocos minutos.
+ *
+ * Se iguala a la vida de la sesión en Neon (7 días, es lo que dura la fila en
+ * `neon_auth.session`): la cookie firmada cubre la sesión entera y el proxy la
+ * valida en memoria, sin salir a la red. El precio es que una sesión revocada
+ * desde otro sitio sigue dando por buena la copia local hasta que expire; el
+ * cierre de sesión de la app borra las dos cookies, así que ese caso es el
+ * único que queda abierto.
+ *
  * El resto del servidor no debería importar este módulo para preguntar por el
  * usuario: para eso está `getAppUser()` en `src/lib/auth/user.ts`, que además
  * traduce a la fila de la tabla `users` del proyecto. Este archivo conoce a
@@ -24,5 +38,8 @@ import { createNeonAuth } from "@neondatabase/auth/next/server";
  */
 export const auth = createNeonAuth({
   baseUrl: process.env.NEON_AUTH_BASE_URL!,
-  cookies: { secret: process.env.NEON_AUTH_COOKIE_SECRET! },
+  cookies: {
+    secret: process.env.NEON_AUTH_COOKIE_SECRET!,
+    sessionDataTtl: 60 * 60 * 24 * 7,
+  },
 });

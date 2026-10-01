@@ -1,6 +1,7 @@
 "use client";
 
 import { Heart, ArrowRight, Star, MapPin } from "lucide-react";
+import Image from "next/image";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { CategoryIcon } from "@/components/admin/category-icon";
@@ -14,6 +15,8 @@ interface PlaceCardProps {
   tags: { label: string; variant?: "mlc" | "open" | "default" }[];
   /** Nombre del icono Lucide del negocio. Sin él, el genérico. */
   icon?: string;
+  /** Logo del negocio. Si lo hay manda sobre el icono. */
+  logoUrl?: string;
   selected?: boolean;
   liked?: boolean;
   index?: number;
@@ -39,6 +42,7 @@ export function PlaceCard({
   price,
   tags,
   icon,
+  logoUrl,
   selected,
   liked,
   index = 0,
@@ -73,9 +77,16 @@ export function PlaceCard({
       )}
     >
       {/* Thumbnail. Antes el emoji de la categoría a 28 px, que en Windows y en
-          Android se dibuja distinto; ahora el mismo icono del pin. */}
-      <div className="recommendation-place-thumb size-16 rounded-xl shrink-0 grid place-items-center bg-gradient-to-br from-verde-50 to-verde-100">
-        <CategoryIcon icon={icon} size={30} strokeWidth={1.6} className="text-verde-600" />
+          Android se dibuja distinto; después el mismo icono del pin. Ahora manda
+          el logo del negocio cuando lo hay: es su marca y se reconoce antes que
+          un icono genérico. `overflow-hidden` para que la foto no se salga de
+          las esquinas redondeadas. */}
+      <div className="recommendation-place-thumb relative size-16 rounded-xl shrink-0 grid place-items-center overflow-hidden bg-gradient-to-br from-verde-50 to-verde-100">
+        {logoUrl ? (
+          <Image src={logoUrl} alt="" fill sizes="64px" className="object-cover" />
+        ) : (
+          <CategoryIcon icon={icon} size={30} strokeWidth={1.6} className="text-verde-600" />
+        )}
       </div>
 
       {/* Info */}

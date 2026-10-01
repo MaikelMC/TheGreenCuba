@@ -63,6 +63,7 @@ async function loadStripPlaces(): Promise<PlaceStripPlace[]> {
       barrio: p.barrio || "",
       rating: p.rating,
       province: p.province || "",
+      logoUrl: p.logoUrl,
     }));
   } catch {
     return [];
