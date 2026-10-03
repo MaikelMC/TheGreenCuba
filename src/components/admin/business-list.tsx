@@ -12,6 +12,7 @@ import {
   Zap,
   MapPin,
   ChevronDown,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePlaces } from "@/providers/places-provider";
@@ -42,6 +43,23 @@ function statusInfo(status: PlaceStatus): { label: string; cls: string } {
 /* Misma píldora que la lista de solicitudes, para que el mismo negocio no se
    lea distinto en las dos pantallas. */
 const PENDING = { label: "Pendiente", cls: "bg-sand text-ink-soft/75" };
+
+/**
+ * Cuánto lleva registrado el negocio, en días.
+ *
+ * Junto a la categoría: el administrador mira esta lista para decidir qué
+ * atender, y una ficha de hoy no se lee igual que una de hace tres meses.
+ * `relativeDay` no sirve aquí —a partir de la semana cuenta en semanas y
+ * meses— y lo que se pide es el número de días. `since` va en el `title`, que
+ * es la fecha exacta sin ocupar sitio.
+ */
+function registeredIn(createdAt: number): { text: string; since: string } {
+  const days = Math.max(0, Math.floor((Date.now() - createdAt) / 86_400_000));
+  return {
+    text: days === 0 ? "Hoy" : days === 1 ? "1 día" : `${days} días`,
+    since: new Date(createdAt).toLocaleDateString("es-CU"),
+  };
+}
 
 /**
  * La píldora de la fila.
@@ -218,6 +236,7 @@ export function BusinessList() {
         <div className="flex flex-col gap-gap-sm">
           {filtered.map((p, i) => {
             const st = rowStatus(p);
+            const reg = registeredIn(p.createdAt);
             return (
               <motion.div
                 key={p.id}
@@ -263,8 +282,17 @@ export function BusinessList() {
                         </span>
                       )}
                     </div>
-                    <div className="font-lv-display text-meta text-ink-soft/75 truncate mt-[2px]">
-                      {p.category} · {p.barrio || p.address || "Cuba"}
+                    <div className="flex items-center gap-gap-xs mt-[2px] min-w-0">
+                      <span className="font-lv-display text-meta text-ink-soft/75 truncate">
+                        {p.category} · {p.barrio || p.address || "Cuba"}
+                      </span>
+                      <span
+                        title={`Registrado el ${reg.since}`}
+                        className="shrink-0 inline-flex items-center gap-[3px] rounded-full bg-sand px-[7px] py-[2px] font-lv-display text-[10px] font-semibold text-ink-soft/75"
+                      >
+                        <Clock size={10} strokeWidth={1.8} />
+                        {reg.text}
+                      </span>
                     </div>
                   </div>
                 </div>
