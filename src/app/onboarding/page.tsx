@@ -56,7 +56,7 @@ const CURRENCY_NAMES: Record<string, string> = {
   cup: "CUP",
   usd: "USD",
   eur: "EUR",
-  transfer: "Transferencia",
+  transfer: "Moneda nacional",
 };
 
 const categories = [
@@ -332,10 +332,10 @@ const moodOptions = [
 
 const currencyOptions = [
   { value: "mlc", code: "USD", name: "USD Clásica" },
-  { value: "cup", code: "CUP", name: "Efectivo y Transferencia" },
+  { value: "cup", code: "CUP", name: "Efectivo" },
   { value: "usd", code: "USD", name: "Dólar estadounidense" },
   { value: "eur", code: "EUR", name: "Euro" },
-  { value: "transfer", code: "TRANSFER", name: "Transferencia" },
+  { value: "transfer", code: "TRANSFER", name: "Moneda nacional" },
 ];
 
 const TOTAL_STEPS = 4;
