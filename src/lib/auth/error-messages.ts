@@ -11,6 +11,28 @@
 export type AuthErrorMode = "login" | "register";
 
 /**
+ * El código del error, en mayúsculas. `""` si no trae ninguno.
+ *
+ * Para quien tiene que **decidir** con el error en vez de traducirlo: el acceso,
+ * que manda a la pantalla del código cuando el suyo es `EMAIL_NOT_VERIFIED`, y
+ * esa misma pantalla, que distingue el código caducado del equivocado. La
+ * extracción es la misma que usa `messageFor` y vive fuera precisamente para no
+ * duplicarla: en dos sitios separados dejarían de coincidir.
+ *
+ * El error del SDK trae `code` en la raíz; el de una excepción lo trae dentro de
+ * `error`. Por eso se miran los dos.
+ */
+export function authErrorCode(error: unknown): string {
+  const value = error && typeof error === "object"
+    ? (error as Record<string, unknown>)
+    : {};
+  const nested = value.error && typeof value.error === "object"
+    ? (value.error as Record<string, unknown>)
+    : {};
+  return String(value.code ?? nested.code ?? "").toUpperCase();
+}
+
+/**
  * Texto del error que se enseña.
  *
  * El SDK devuelve `{ data, error }` y no lanza, así que el error de credenciales
@@ -34,7 +56,7 @@ export function messageFor(error: unknown, mode: AuthErrorMode): string {
   const nested = value.error && typeof value.error === "object"
     ? (value.error as Record<string, unknown>)
     : {};
-  const errorCode = String(value.code ?? nested.code ?? "").toUpperCase();
+  const errorCode = authErrorCode(error);
   const errorMessage = String(value.message ?? nested.message ?? "").toLowerCase();
   const errorText = `${errorCode} ${errorMessage} ${collectErrorText(error)}`.toLowerCase();
   const status = Number(value.status ?? nested.status ?? value.statusCode ?? nested.statusCode);

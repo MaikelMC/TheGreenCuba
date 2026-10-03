@@ -73,11 +73,37 @@ export async function proxy(request: NextRequest) {
   /* La sesión se resuelve aquí y no dentro del render, que no puede escribir
      cookies. Ver `AUTH_USER_HEADER` en `src/lib/session.ts`. */
   const { data: session } = await auth.getSession();
-  headers.set(AUTH_USER_HEADER, session?.user ? encodeUser(session.user) : "");
+  const user = session?.user ?? null;
+  headers.set(AUTH_USER_HEADER, user ? encodeUser(user) : "");
 
-  if (!isProtected(pathname) || session?.user) {
-    return NextResponse.next({ request: { headers } });
+  if (!isProtected(pathname)) return NextResponse.next({ request: { headers } });
+
+  /* Sesión abierta pero correo sin verificar. No es «no ha entrado»: Neon emite
+     la sesión en el alta aunque exija verificar el correo, así que sin esta
+     comprobación el registro no tendría puerta —la sesión ya existe y las rutas
+     privadas se abrirían antes de que nadie demuestre que el correo es suyo—.
+
+     Va aquí, sobre la sesión que se acaba de resolver, y no en el layout de cada
+     zona: es la misma pregunta que la de arriba y cuesta una línea. Quien entró
+     con Google no pasa por esto —`emailVerified` lo pone el proveedor—.
+
+     Ojo con la caché de la cookie de sesión: `verifyEmailOTP` la reescribe al
+     verificar, siempre que quien verifica tenga esa misma sesión abierta. Si no
+     la tiene —el caso del acceso, donde el intento anterior no llegó a abrir
+     sesión— verificará y volverá a entrar, y en ese acceso la sesión nace ya al
+     día. */
+  if (user && !user.emailVerified) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/verify-email";
+    url.search = "";
+    url.searchParams.set("email", user.email ?? "");
+    /* El destino se guarda para no perderlo: quien acaba de registrarse tiene
+       que caer en `/onboarding` después del código, no en el inicio. */
+    url.searchParams.set("next", `${pathname}${search}`);
+    return NextResponse.redirect(url);
   }
+
+  if (user) return NextResponse.next({ request: { headers } });
 
   /* Se guarda también la consulta: `/place/abc?foto=2` tiene que volver entero.
      No se emite `motivo=rol` desde aquí: quien llega sin sesión no tiene rol

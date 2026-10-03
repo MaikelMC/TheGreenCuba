@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Home, Loader2, Lock, Mail, Phone } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
-import { messageFor } from "@/lib/auth/error-messages";
+import { authErrorCode, messageFor } from "@/lib/auth/error-messages";
 import { TERMS_VERSION } from "@/lib/legal";
 import {
   readUserPreferences,
@@ -231,6 +231,22 @@ export function AuthCard({
               });
 
         if (result.error) {
+          /* El correo existe y la contraseña era la buena: lo que falta es el
+             código. El mensaje de siempre diría «correo o contraseña
+             incorrectos», que es justo lo contrario de lo que pasa, así que
+             esto se corta antes de traducir nada.
+
+             No hay que decirle a la pantalla que mande un código nuevo: lo hace
+             siempre que se abre, y aquí el anterior pudo perfectamente caducar. */
+          if (
+            mode === "login" &&
+            authErrorCode(result.error) === "EMAIL_NOT_VERIFIED"
+          ) {
+            window.location.assign(
+              `/verify-email?email=${encodeURIComponent(emailTrimmed)}&next=${encodeURIComponent(next ?? "/home")}`,
+            );
+            return;
+          }
           setError(messageFor(result.error, mode));
           return;
         }
@@ -250,13 +266,27 @@ export function AuthCard({
            lo que quede a medias. */
         if (mode === "register") await saveRegistration(phone, wantsNews);
 
+        /* El alta no aterriza en la app sino en la pantalla del código. La
+           sesión ya está emitida —Neon la da aunque exija verificar— pero el
+           proxy no deja pasar a una ruta privada con el correo sin verificar,
+           así que ir a `/onboarding` sería un rebote al mismo sitio. Se lleva
+           donde toca, con el destino guardado para después del código.
+
+           El acceso sí entra directo: si el correo estuviera sin verificar, el
+           `EMAIL_NOT_VERIFIED` de arriba no habría dejado llegar hasta aquí. */
+        if (mode === "register") {
+          const after = next ?? "/onboarding";
+          window.location.assign(
+            `/verify-email?email=${encodeURIComponent(emailTrimmed)}&next=${encodeURIComponent(after)}`,
+          );
+          return;
+        }
+
         /* Carga completa del documento, no `router.replace`. La cookie la acaba
            de escribir Neon en el navegador y el App Router guarda en caché el
            árbol de la ruta: navegando por cliente se corre el riesgo de pintar
            la versión sin sesión. Una carga limpia no deja lugar a ello. */
-        const destinationBase =
-          mode === "register" ? (next ?? "/onboarding") : (next ?? "/home");
-        window.location.assign(`${destinationBase}?showSessionNotice=1`);
+        window.location.assign(`${next ?? "/home"}?showSessionNotice=1`);
         return;
       } catch (error) {
         setError(messageFor(error, mode));
