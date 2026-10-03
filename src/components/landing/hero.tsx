@@ -210,9 +210,16 @@ export function Hero() {
               </div>
               {/* `min-h-11` iguala el botón con la fila del input: antes medía
                   40px contra 45px y en móvil se notaba el desnivel. */}
-              <button className="min-h-11 shrink-0 rounded-full bg-verde-400 px-5 text-sm font-semibold text-verde-950 transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] max-md:w-full max-md:text-center">
+              {/* La barra es decorativa —no hay campo que enviar—, así que el
+                  botón lleva al login, que es donde la búsqueda existe de
+                  verdad. `inline-flex` porque en un `<a>` el texto no se centra
+                  solo como se centraba en el `<button>`. */}
+              <Link
+                href="/login"
+                className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-verde-400 px-5 text-sm font-semibold text-verde-950 transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] max-md:w-full max-md:text-center"
+              >
                 Buscar
-              </button>
+              </Link>
             </motion.div>
           </motion.div>
         </div>
