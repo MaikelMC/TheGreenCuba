@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth/server";
+import { ensureContact } from "@/lib/contacts";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { DEV_COOKIE, DEV_IDENTITY, devAccessEnabled, isDevCookie } from "@/lib/dev-access";
@@ -32,6 +33,9 @@ import { AUTH_USER_HEADER, type Role } from "@/lib/session";
 export interface AppUser {
   /** Clave primaria de la tabla `users`. Es la que usan las claves foráneas. */
   id: string;
+  /** El id en `neon_auth`. Hace falta para leer de allí lo que la app no
+      guarda —hoy, si la cuenta viene de Google—. No sale de este proceso. */
+  authUserId: string | null;
   email: string;
   name: string;
   imageUrl: string | null;
@@ -134,6 +138,7 @@ async function readNeonIdentity(): Promise<NeonIdentity | null> {
 function toAppUser(row: typeof users.$inferSelect): AppUser {
   return {
     id: row.id,
+    authUserId: row.authUserId ?? null,
     email: row.email,
     /* `users.name` es opcional en la tabla; el menú lo pinta tal cual y un
        `null` dejaría el hueco en blanco. El correo sin dominio es un nombre
@@ -210,7 +215,20 @@ export async function getAppUser(): Promise<AppUser | null> {
     .onConflictDoNothing()
     .returning();
 
-  if (created) return toAppUser(created);
+  if (created) {
+    /* La fila de `contacts` nace aquí, sin novedades, y no más tarde: es el
+       único punto por el que pasa todo el mundo la primera vez —también quien
+       entra con Google, que no tiene contraseña—. Quien marque la casilla del
+       alta la sube a `true` un segundo después. Y no se deja que un fallo aquí
+       tumbe el alta: lo que se pierde es la constancia de una decisión, no la
+       cuenta. */
+    try {
+      await ensureContact(created.id, email);
+    } catch (error) {
+      console.error("No se pudo crear la fila de contacts:", error);
+    }
+    return toAppUser(created);
+  }
 
   /* Se adelantó otra petición entre el `select` y el `insert`. La fila ya está
      escrita; se lee la que ganó. */

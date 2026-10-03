@@ -93,14 +93,19 @@ const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
  * id o no. Si la red falla, cae en la de invitado y el número al menos no se
  * pierde.
  */
-async function saveRegistration(phone: string): Promise<void> {
+async function saveRegistration(phone: string, wantsNews: boolean): Promise<void> {
   const value = phone.trim();
 
   /* `phone` solo viaja si hay algo. Mandarlo vacío **borra** el número en el
      servidor —así se distingue «lo vacié» de «no lo toqué»—, y dejarlo en blanco
-     al registrarse no es pedir que se borre nada. */
-  const body: { termsVersion: string; phone?: string } = {
+     al registrarse no es pedir que se borre nada.
+
+     `marketingOptIn` sí viaja siempre, con su `true` o su `false`: aquí la
+     ausencia de decisión no existe —la casilla se ve y no está marcada—, y el
+     servidor necesita el «no» explícito para saber que ya se preguntó. */
+  const body: { termsVersion: string; phone?: string; marketingOptIn: boolean } = {
     termsVersion: TERMS_VERSION,
+    marketingOptIn: wantsNews,
   };
   if (value) body.phone = value;
 
@@ -140,6 +145,9 @@ export function AuthCard({
   const [phone, setPhone] = useState("");
   /* La casilla de los términos. Tampoco hace falta en el acceso. */
   const [accepted, setAccepted] = useState(false);
+  /* «Quiero recibir novedades». Opcional y sin marcar: es una decisión, no un
+     peaje para entrar. Solo la usa el alta. */
+  const [wantsNews, setWantsNews] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -240,7 +248,7 @@ export function AuthCard({
         /* El teléfono y la aceptación se guardan aquí, con la sesión ya emitida,
            y no después del salto: la carga limpia de abajo se lleva por delante
            lo que quede a medias. */
-        if (mode === "register") await saveRegistration(phone);
+        if (mode === "register") await saveRegistration(phone, wantsNews);
 
         /* Carga completa del documento, no `router.replace`. La cookie la acaba
            de escribir Neon en el navegador y el App Router guarda en caché el
@@ -256,7 +264,7 @@ export function AuthCard({
         setLoading(false);
       }
     },
-    [email, loading, mode, next, password, phone],
+    [email, loading, mode, next, password, phone, wantsNews],
   );
 
   return (
@@ -393,6 +401,23 @@ export function AuthCard({
           </label>
         )}
 
+        {/* «Quiero recibir novedades». Opcional y sin marcar, y sin `required`:
+            es la diferencia entre una decisión y un peaje. Al no marcarla no se
+            pierde nada —quien entra con Google ni la ve, y se le pregunta una vez
+            ya dentro—. Va después de los términos porque el orden es de más a
+            menos obligatorio. */}
+        {mode === "register" && (
+          <label className="flex items-start gap-gap-sm text-meta leading-relaxed text-ink-soft">
+            <input
+              type="checkbox"
+              checked={wantsNews}
+              onChange={(e) => setWantsNews(e.target.checked)}
+              className="mt-0.5 size-4 shrink-0 accent-verde-500"
+            />
+            <span>Quiero recibir novedades</span>
+          </label>
+        )}
+
         {/* El error va pegado a los campos, no en un aviso flotante: es donde
             está la mirada cuando el envío falla. `role="alert"` para que un
             lector de pantalla lo anuncie sin mover el foco. */}
@@ -424,6 +449,27 @@ export function AuthCard({
           )}
           {loading ? "Comprobando..." : copy.cta}
         </button>
+
+        {/* Aviso de las cuentas de Google, visible **siempre** en el acceso y no
+            solo cuando el envío falla: quien se registró con Google no tiene
+            contraseña, así que «correo o contraseña incorrectos» es lo único que
+            puede recibir y no le dice qué hacer. Con esto delante, el botón de
+            Google está a un renglón de distancia y el enlace resuelve el otro
+            camino —crear una contraseña desde el correo—. Va aquí, pegado al
+            botón de entrar y justo antes del separador que abre la vía de
+            Google. */}
+        {mode === "login" && (
+          <p className="rounded-xl border border-ink/10 bg-sand-warm px-gap-sm py-gap-xs text-meta leading-relaxed text-ink-soft/80">
+            ¿Te registraste con Google? Entra con Google o crea una contraseña
+            desde{" "}
+            <Link
+              href="/forgot-password"
+              className="font-semibold text-verde-600 underline underline-offset-2 transition-colors duration-500 ease-outquint hover:text-verde-700"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </p>
+        )}
 
         <div
           className="flex items-center gap-gap-sm text-meta text-ink-soft/60"

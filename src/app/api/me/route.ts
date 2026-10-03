@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth/server";
 import { getAppUser } from "@/lib/auth/user";
+import { isGoogleAccount, isMarketingOptedIn, setMarketingOptIn } from "@/lib/contacts";
 import { db } from "@/lib/db";
 import { businessOwners, categories, places, users } from "@/lib/db/schema";
 import { TERMS_VERSION } from "@/lib/legal";
@@ -93,6 +94,28 @@ async function businessFor(id: string, role: string): Promise<AppBusiness | null
 }
 
 /**
+ * Lo que la interfaz necesita saber del consentimiento de novedades.
+ *
+ * `isGoogle` viaja para poder pedir el consentimiento **una sola vez** a quien
+ * entró con Google: esa cuenta nunca pasó por la casilla del alta, así que su
+ * `marketing_opt_in` es `false` por defecto y no por decisión. A quien se
+ * registró con contraseña y dejó la casilla vacía no se le pregunta: ya la vio.
+ *
+ * La consulta a `neon_auth` solo se hace para quien la necesita —el cliente
+ * decide—, pero sale barata y va en paralelo con la de `contacts`.
+ */
+async function marketingState(user: {
+  id: string;
+  authUserId: string | null;
+}): Promise<{ optedIn: boolean; isGoogle: boolean }> {
+  const [optedIn, isGoogle] = await Promise.all([
+    isMarketingOptedIn(user.id),
+    user.authUserId ? isGoogleAccount(user.authUserId) : Promise.resolve(false),
+  ]);
+  return { optedIn, isGoogle };
+}
+
+/**
  * Quién ha iniciado sesión, para el menú de usuario.
  *
  * Sustituye a `/api/auth/session`, que leía la cookie firmada. El sitio bajo
@@ -119,6 +142,7 @@ export async function GET() {
   }
 
   return NextResponse.json({
+    marketing: await marketingState(user),
     authenticated: true,
     user: {
       id: user.id,
@@ -159,6 +183,11 @@ export async function POST(request: NextRequest) {
   const nextOnboarding = typeof payload.onboardingCompleted === "boolean" ? payload.onboardingCompleted : null;
   /* La aceptación de los términos, tal cual la manda el alta. */
   const nextTermsVersion = typeof payload.termsVersion === "string" ? payload.termsVersion.trim() : null;
+  /* `undefined` y no `false` cuando no viene: el perfil y el onboarding llaman
+     aquí sin este campo, y tratar la ausencia como un «no» daría de baja a
+     quien ya había dicho que sí. */
+  const nextMarketingOptIn =
+    typeof payload.marketingOptIn === "boolean" ? payload.marketingOptIn : null;
   const nextInterests = asStringArray(payload.interests);
   const nextMoods = asStringArray(payload.moods);
   const nextCurrencies = asStringArray(payload.currencies);
@@ -204,8 +233,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ authenticated: false, user: null }, { status: 404 });
   }
 
+  if (nextMarketingOptIn !== null) {
+    await setMarketingOptIn(user.id, user.email, nextMarketingOptIn);
+  }
+
   return NextResponse.json({
     authenticated: true,
+    marketing: await marketingState(user),
     user: {
       id: user.id,
       email: user.email,

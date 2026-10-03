@@ -95,6 +95,51 @@ type SheetState = "default" | "searching" | "results" | "no-results" | "error";
 const MENU_ITEMS_PER_PLACE = 12;
 
 /**
+ * Pide el consentimiento de novedades, una sola vez, a quien entró con Google.
+ *
+ * Quien se registró con Google nunca vio la casilla del alta, así que su
+ * `marketing_opt_in` es `false` por defecto y no por decisión. Se aprovecha el
+ * `/api/me` que el home ya pide —no hay una llamada de más— y el aviso se marca
+ * como visto en `localStorage` bajo la clave del usuario: «único» de verdad, no
+ * una vez por sesión.
+ *
+ * `optedIn` y `isGoogle` los decide el servidor (`/api/me`); aquí solo se pinta.
+ * Si el navegador bloquea `localStorage`, se calla en vez de repetir el aviso en
+ * cada carga.
+ */
+const MARKETING_ASKED_KEY = "la-verde:marketing-asked";
+
+function askMarketingConsentOnce(
+  userId: string,
+  marketing?: { optedIn?: boolean; isGoogle?: boolean },
+): void {
+  if (!marketing?.isGoogle || marketing.optedIn) return;
+
+  const key = `${MARKETING_ASKED_KEY}:${userId}`;
+  try {
+    if (window.localStorage.getItem(key)) return;
+    window.localStorage.setItem(key, "1");
+  } catch {
+    return;
+  }
+
+  toast("¿Te avisamos de lo que pasa en La Verde?", {
+    description: "Novedades de lugares y planes, de vez en cuando. Nada más.",
+    duration: 15000,
+    action: {
+      label: "Sí, quiero",
+      onClick: () => {
+        void fetch("/api/me", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ marketingOptIn: true }),
+        });
+      },
+    },
+  });
+}
+
+/**
  * La carta, en una línea por producto o servicio, para el catálogo que va al
  * modelo: «Ropa Vieja de Res: 12 MLC», «Mojito de la casa (2x1): 5 MLC».
  *
@@ -546,6 +591,7 @@ function HomePageContent() {
       .then(
         (data: {
           authenticated?: boolean;
+          marketing?: { optedIn?: boolean; isGoogle?: boolean };
           user?: {
             id?: string;
             locationCity?: string | null;
@@ -560,6 +606,10 @@ function HomePageContent() {
           if (!alive) return;
 
           if (data.authenticated && data.user?.id) {
+            /* Una sola vez por persona: a quien entró con Google se le pregunta
+               aquí, no en el alta, porque nunca vio la casilla. */
+            askMarketingConsentOnce(data.user.id, data.marketing);
+
             const storedPrefs = mergeRemoteUserPreferences(
               readUserPreferences(data.user.id),
               data.user,

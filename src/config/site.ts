@@ -1,4 +1,9 @@
-const canonicalAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://laverde.kynari.dev";
+/** Dominio de producción. Reserva de `NEXT_PUBLIC_APP_URL` y, además, a donde
+    apunta cualquier enlace que salga de la máquina. Se escribe una vez y
+    solo aquí. */
+const PRODUCTION_APP_URL = "https://laverde.kynari.dev";
+
+const canonicalAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || PRODUCTION_APP_URL;
 
 export const siteConfig = {
   name: "La Verde",
