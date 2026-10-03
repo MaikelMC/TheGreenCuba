@@ -30,9 +30,15 @@ export interface DevIdentity {
  * la primera vez que se usa esto, la crea. Es una fila más en la base de
  * desarrollo, con un correo que no existe en Neon — no hay sesión que la
  * respalde y por eso nada de aquí sirve fuera de local.
+ *
+ * Tiene forma de uuid a propósito, aunque no lo sea de nadie: `auth_user_id` es
+ * `text`, pero el esquema de Neon contra el que se compara sí es uuid, y sitios
+ * como `isGoogleAccount` castean sin preguntar. Un valor suelto aquí reventaba
+ * cualquier consulta a `neon_auth` —y la de las novedades se llevaba por delante
+ * el final del onboarding entero—.
  */
 export const DEV_IDENTITY: DevIdentity = {
-  id: "dev-local",
+  id: "00000000-0000-4000-8000-000000000000",
   email: "dev@local",
   name: "Sesión local",
 };
