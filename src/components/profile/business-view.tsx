@@ -793,101 +793,142 @@ export function BusinessForm({
     plan: (
       <>
         <p className="mb-gap-sm text-meta text-ink-soft/75">
-          Elige cómo empiezas. Se puede cambiar después.
+          Empiezas gratis: el mes de prueba incluye todo.
         </p>
 
         <fieldset className="grid grid-cols-1 gap-gap-sm lg:grid-cols-2">
           <legend className="sr-only">Plan</legend>
           {PLANS.map((option) => {
             const selected = plan === option.id;
+            /* El de pago todavía no existe: se enseña lo que será, difuminado y
+               sin poder elegirlo, para que el dueño vea que hay algo por encima
+               del mes de prueba sin que se lo cobren ni se lo prometan. */
+            const coming = option.id === "paid";
 
             return (
               <label
                 key={option.id}
                 className={cn(
-                  "flex cursor-pointer flex-col gap-gap-sm rounded-2xl border p-gap-md transition-all duration-500 ease-outquint focus-within:ring-2 focus-within:ring-verde-400/40",
-                  selected
-                    ? "border-verde-400 bg-verde-50/60 shadow-soft"
-                    : "border-ink/10 bg-white hover:border-verde-300",
+                  "relative flex flex-col gap-gap-sm rounded-2xl border p-gap-md transition-all duration-500 ease-outquint",
+                  coming
+                    ? "cursor-default border-ink/10 bg-white"
+                    : "cursor-pointer focus-within:ring-2 focus-within:ring-verde-400/40",
+                  !coming &&
+                    (selected
+                      ? "border-verde-400 bg-verde-50/60 shadow-soft"
+                      : "border-ink/10 bg-white hover:border-verde-300"),
                 )}
               >
-                <input
-                  type="radio"
-                  name="plan"
-                  value={option.id}
-                  checked={selected}
-                  onChange={() => setPlan(option.id)}
-                  className="sr-only"
-                />
+                {/* El contenido va envuelto en un solo nodo porque lo que se
+                    emborrona es **el bloque entero**, funcionalidades incluidas:
+                    con el precio borroso y la lista legible, el aviso diría justo
+                    lo contrario de lo que quiere decir. `flex-1` conserva el
+                    `mt-auto` del precio, que en pantalla ancha alinea las dos
+                    tarjetas por abajo. */}
+                <div
+                  aria-hidden={coming}
+                  className={cn(
+                    "flex flex-1 flex-col gap-gap-sm",
+                    coming &&
+                      "pointer-events-none select-none opacity-60 blur-[4px]",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="plan"
+                    value={option.id}
+                    checked={selected}
+                    disabled={coming}
+                    onChange={() => setPlan(option.id)}
+                    className="sr-only"
+                  />
 
-                <div className="flex items-start justify-between gap-gap-sm">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-gap-xs">
-                      <span className="font-lv-display text-small font-semibold text-ink">
-                        {option.title}
-                      </span>
-                      {"badge" in option && (
-                        <span className="inline-flex items-center gap-[4px] rounded-full bg-verde-400 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-verde-950">
-                          <BadgeCheck size={12} strokeWidth={2} />
-                          {option.badge}
+                  <div className="flex items-start justify-between gap-gap-sm">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-gap-xs">
+                        <span className="font-lv-display text-small font-semibold text-ink">
+                          {option.title}
                         </span>
-                      )}
+                        {"badge" in option && (
+                          <span className="inline-flex items-center gap-[4px] rounded-full bg-verde-400 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-verde-950">
+                            <BadgeCheck size={12} strokeWidth={2} />
+                            {option.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-[2px] text-meta text-pretty text-ink-soft/75">
+                        {option.tagline}
+                      </p>
                     </div>
-                    <p className="mt-[2px] text-meta text-pretty text-ink-soft/75">
-                      {option.tagline}
-                    </p>
+
+                    <span
+                      className={cn(
+                        "mt-[2px] grid size-5 shrink-0 place-items-center rounded-full border transition-colors duration-500 ease-outquint",
+                        selected
+                          ? "border-verde-500 bg-verde-500 text-white"
+                          : "border-ink/15 bg-white",
+                      )}
+                    >
+                      {selected && <Check size={12} strokeWidth={3} />}
+                    </span>
                   </div>
 
-                  <span
-                    className={cn(
-                      "mt-[2px] grid size-5 shrink-0 place-items-center rounded-full border transition-colors duration-500 ease-outquint",
-                      selected
-                        ? "border-verde-500 bg-verde-500 text-white"
-                        : "border-ink/15 bg-white",
-                    )}
-                  >
-                    {selected && <Check size={12} strokeWidth={3} />}
-                  </span>
-                </div>
-
-                {option.benefits.length > 0 && (
-                  <ul className="flex flex-col gap-[6px]">
-                    {option.benefits.map((benefit) => (
-                      <li
-                        key={benefit}
-                        className="flex items-start gap-gap-xs text-meta text-pretty text-ink-soft/75"
-                      >
-                        <Check
-                          size={14}
-                          strokeWidth={2}
-                          className="mt-[2px] shrink-0 text-verde-600"
-                        />
-                        {benefit}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                {/* `mt-auto`: en pantalla ancha las dos tarjetas miden lo mismo y
-                    el precio queda abajo en las dos, a la misma altura. */}
-                <div className="mt-auto border-t border-ink/5 pt-gap-sm">
-                  <p className="flex flex-wrap items-baseline gap-x-[6px]">
-                    <span className="font-lv-display text-body font-semibold tabular-nums text-ink">
-                      {option.price}
-                    </span>
-                    <span className="text-meta text-ink-soft/75">
-                      {option.period}
-                    </span>
-                  </p>
-                  {/* La línea del año va en verde y no en gris: es el argumento
-                      de esta tarjeta contra la de al lado, y hasta ahora estaba
-                      de nota al pie, del mismo color que un pie de foto. */}
-                  {"note" in option && (
-                    <p className="mt-[4px] text-meta font-medium text-verde-700">
-                      {option.note}
-                    </p>
+                  {option.benefits.length > 0 && (
+                    <ul className="flex flex-col gap-[6px]">
+                      {option.benefits.map((benefit) => (
+                        <li
+                          key={benefit}
+                          className="flex items-start gap-gap-xs text-meta text-pretty text-ink-soft/75"
+                        >
+                          <Check
+                            size={14}
+                            strokeWidth={2}
+                            className="mt-[2px] shrink-0 text-verde-600"
+                          />
+                          {benefit}
+                        </li>
+                      ))}
+                    </ul>
                   )}
+
+                  {/* `mt-auto`: en pantalla ancha las dos tarjetas miden lo mismo y
+                      el precio queda abajo en las dos, a la misma altura. */}
+                  <div className="mt-auto border-t border-ink/5 pt-gap-sm">
+                    <p className="flex flex-wrap items-baseline gap-x-[6px]">
+                      <span className="font-lv-display text-body font-semibold tabular-nums text-ink">
+                        {option.price}
+                      </span>
+                      <span className="text-meta text-ink-soft/75">
+                        {option.period}
+                      </span>
+                    </p>
+                    {/* La línea del año va en verde y no en gris: es el argumento
+                        de esta tarjeta contra la de al lado, y hasta ahora estaba
+                        de nota al pie, del mismo color que un pie de foto. */}
+                    {"note" in option && (
+                      <p className="mt-[4px] text-meta font-medium text-verde-700">
+                        {option.note}
+                      </p>
+                    )}
+                  </div>
                 </div>
+
+                {coming && (
+                  <div className="absolute inset-0 grid place-items-center rounded-2xl bg-white/60 p-gap-md text-center">
+                    <div className="flex flex-col gap-gap-xs">
+                      <span className="mx-auto grid size-9 place-items-center rounded-full bg-verde-50 text-verde-700">
+                        <Clock size={17} strokeWidth={1.8} />
+                      </span>
+                      <p className="font-lv-display text-small font-semibold text-ink">
+                        Planes según tu nivel de publicidad
+                      </p>
+                      <p className="text-meta text-pretty text-ink-soft/75">
+                        Estamos trabajando en ellos: próximamente. Por ahora,
+                        disfruta gratis de todo.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </label>
             );
           })}
