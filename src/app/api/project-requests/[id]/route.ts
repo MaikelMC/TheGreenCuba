@@ -180,3 +180,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   revalidateTag(CATALOG_TAG, "max");
   return NextResponse.json(updated);
 }
+
+/**
+ * Elimina un proyecto.
+ *
+ * Solo administración, y por eso la comprobación es de rol y no de propiedad
+ * como en el `PATCH`: el dueño tiene «devolverlo a solicitudes», que lo deja
+ * corregible; borrar es irreversible y no se le ofrece. Nada apunta a esta
+ * tabla —`notifications.place_id` es de `places`— así que el `delete` no deja
+ * filas colgando. Se invalida el catálogo porque el home lo cachea.
+ */
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getAppUser();
+  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (user.role !== "admin") {
+    return NextResponse.json({ error: "Solo administración puede eliminar proyectos." }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const [row] = await db
+    .delete(projectRequests)
+    .where(eq(projectRequests.id, id))
+    .returning({ id: projectRequests.id });
+
+  if (!row) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+
+  revalidateTag(CATALOG_TAG, "max");
+  return NextResponse.json({ id: row.id });
+}

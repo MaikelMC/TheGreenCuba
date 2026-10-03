@@ -193,6 +193,27 @@ export function ProjectList() {
     }
   }
 
+  async function deleteProject(project: Project) {
+    if (!window.confirm(`¿Eliminar el proyecto «${project.name}»? No se puede deshacer.`)) return;
+    setWorkingId(project.id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/project-requests/${project.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error ?? "No se pudo eliminar el proyecto.");
+      }
+      setProjects((current) => current.filter((item) => item.id !== project.id));
+      toast.success(`Se eliminó «${project.name}».`);
+    } catch (deleteError) {
+      const message = deleteError instanceof Error ? deleteError.message : "No se pudo eliminar el proyecto.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setWorkingId(null);
+    }
+  }
+
   async function returnToRequests(project: Project) {
     setWorkingId(project.id);
     try {
@@ -218,7 +239,7 @@ export function ProjectList() {
       <header>
         <p className="font-lv-display text-meta font-semibold uppercase tracking-[0.12em] text-verde-600">Catálogo</p>
         <h1 className="mt-gap-xs font-lv-display text-[clamp(28px,5vw,44px)] font-bold text-ink">Proyectos</h1>
-        <p className="mt-gap-sm text-body text-ink-soft/75">Edita los proyectos aprobados o devuélvelos a revisión.</p>
+        <p className="mt-gap-sm text-body text-ink-soft/75">Edita los proyectos aprobados, devuélvelos a revisión o elimínalos.</p>
       </header>
 
       <div className="flex flex-col gap-gap-sm sm:flex-row sm:items-center sm:justify-between">
@@ -260,6 +281,9 @@ export function ProjectList() {
                   </button>
                   <button type="button" disabled={workingId === project.id} onClick={() => void returnToRequests(project)} className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 px-gap-md font-lv-display text-small font-semibold text-ink-soft/75 hover:bg-sand disabled:opacity-50">
                     <RotateCcw size={15} /> Devolver a solicitudes
+                  </button>
+                  <button type="button" disabled={workingId === project.id} onClick={() => void deleteProject(project)} className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 px-gap-md font-lv-display text-small font-semibold text-destructive hover:bg-destructive/5 disabled:opacity-50">
+                    <Trash2 size={15} /> Eliminar
                   </button>
                 </div>
               </div>
