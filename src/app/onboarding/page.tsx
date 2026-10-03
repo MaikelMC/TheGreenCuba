@@ -8,12 +8,14 @@ import {
   StatusBar,
 } from "@/components/onboarding/onboarding-shell";
 import { WelcomeSplash } from "@/components/onboarding/welcome-splash";
-import { LocationPicker } from "@/components/onboarding/location-picker";
+import { LocationScreen } from "@/components/onboarding/location-screen";
+import { TypeChoice } from "@/components/onboarding/type-choice";
 import { PreferenceChip } from "@/components/onboarding/preference-chip";
 import { CurrencyToggle } from "@/components/onboarding/currency-toggle";
 import { StepBar, StepDots } from "@/components/onboarding/step-indicator";
 import { PreferencesScreen } from "@/components/onboarding/preferences-screen";
-import { ProvinceMap } from "@/components/onboarding/province-map";
+import { BusinessForm } from "@/components/profile/business-view";
+import { PlacesProvider } from "@/providers/places-provider";
 import { cn } from "@/lib/utils";
 import {
   readUserPreferences,
@@ -340,6 +342,9 @@ const currencyOptions = [
 
 const TOTAL_STEPS = 4;
 
+/** El asistente de negocio: la ciudad y las seis secciones, una por pantalla. */
+const BUSINESS_TOTAL_STEPS = 7;
+
 export default function OnboardingPage() {
   const router = useRouter();
   /* Nombre y correo de la sesión. Antes se guardaban los de
@@ -357,6 +362,16 @@ export default function OnboardingPage() {
   const [showPreferences, setShowPreferences] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [animTick, setAnimTick] = useState(0);
+  /* La bifurcación. `null` = todavía no eligió, y mientras lo sea se ve la
+     pantalla de elección. No cuenta como paso: no lleva barra de progreso ni se
+     vuelve a ella. */
+  const [path, setPath] = useState<"user" | "business" | null>(null);
+  /* El asistente de negocio. El 0 es la ciudad y del 1 al 6, las secciones del
+     formulario, que van numeradas desde cero dentro de `BusinessForm`. */
+  const [businessStep, setBusinessStep] = useState(0);
+  /* `true` cuando el negocio ya se envió: el asistente enseña su confirmación y
+     el armazón deja de pintar barra y pasos. */
+  const [businessDone, setBusinessDone] = useState(false);
 
   const [location, setLocation] = useState("otra");
   const [userId, setUserId] = useState<string | null>(null);
@@ -455,21 +470,32 @@ export default function OnboardingPage() {
     }
   }, []);
 
+  /* La detección por GPS se dispara una sola vez, cuando la pantalla de ciudad
+     aparece por primera vez. Vale para los dos caminos porque el cuerpo del paso
+     es el mismo: el paso 0 del onboarding de usuario y la primera pantalla del
+     asistente de negocio. */
+  const onLocationScreen =
+    path === "business"
+      ? businessStep === 0
+      : showOnboarding && currentStep === 0;
+
   useEffect(() => {
-    if (
-      !showOnboarding ||
-      currentStep !== 0 ||
-      locationDetectionStarted.current
-    )
-      return;
+    if (!onLocationScreen || locationDetectionStarted.current) return;
     locationDetectionStarted.current = true;
     void handleUseGPS();
-  }, [showOnboarding, currentStep]);
+  }, [onLocationScreen]);
 
   const handleSplashDone = useCallback(() => {
     setSplashDone(true);
-    setShowOnboarding(true);
     setAnimTick((t) => t + 1);
+  }, []);
+
+  /* Elegir camino no avanza: bifurca. Solo el de usuario enciende el onboarding
+     de siempre; el de negocio tiene su propio recorrido. */
+  const handleChoose = useCallback((next: "user" | "business") => {
+    setPath(next);
+    setAnimTick((t) => t + 1);
+    if (next === "user") setShowOnboarding(true);
   }, []);
 
   async function handleUseGPS() {
@@ -545,8 +571,14 @@ export default function OnboardingPage() {
     setShowPreferences(true);
   }
 
-  // Final del flujo: guarda una copia local y la versión persistente de la cuenta.
-  const handleDone = useCallback(async () => {
+  /* El guardado del remate, en un solo sitio.
+     Lo llaman los tres finales —el onboarding de usuario, el asistente de
+     negocio y la salida «Ahora no»—, y no es un detalle de estilo: `POST
+     /api/me` sobrescribe `locationCity`, `preferences` y `onboardingCompleted`
+     con lo que llegue, así que un cuerpo recortado deja al usuario sin la ciudad
+     que acaba de elegir y con el onboarding otra vez en `false`. Devuelve si se
+     guardó; quien llama decide si navega. */
+  const persistPreferences = useCallback(async (): Promise<boolean> => {
     /* El id se resuelve antes de armar las preferencias, y no después como
        antes: el teléfono —lo único que recoge el alta y el onboarding no vuelve
        a preguntar— está guardado bajo la clave de ese usuario, así que hay que
@@ -619,15 +651,36 @@ export default function OnboardingPage() {
 
       if (!response.ok) {
         toast.error("No pudimos guardar tus preferencias. Inténtalo de nuevo.");
-        return;
+        return false;
       }
     } catch {
       toast.error("No pudimos guardar tus preferencias. Revisa tu conexión.");
-      return;
+      return false;
     }
 
-    router.push("/home");
-  }, [router, identity, location, interests, moods, currencies, userId]);
+    return true;
+  }, [identity, location, interests, moods, currencies, userId]);
+
+  // Final del camino de usuario: guarda y entra al mapa.
+  const handleDone = useCallback(async () => {
+    if (await persistPreferences()) router.push("/home");
+  }, [persistPreferences, router]);
+
+  /* Final del camino de negocio. El negocio ya está creado —lo hizo el
+     formulario— y aquí solo se cierra el onboarding. **No navega**: la última
+     pantalla es la confirmación, y de ahí sale el usuario con su botón. Si el
+     guardado falla, el aviso lo dice y la confirmación sigue en pie. */
+  const handleBusinessSubmitted = useCallback(() => {
+    setBusinessDone(true);
+    void persistPreferences();
+  }, [persistPreferences]);
+
+  /* «Ahora no»: sale del asistente sin crear ningún negocio. Marca el onboarding
+     como completado igual, que es lo que evita que al volver a entrar se repita
+     el recorrido entero. */
+  const handleBusinessSkip = useCallback(async () => {
+    if (await persistPreferences()) router.push("/home");
+  }, [persistPreferences, router]);
 
   function handlePrefBack() {
     setShowPreferences(false);
@@ -641,7 +694,18 @@ export default function OnboardingPage() {
     <OnboardingShell>
       {!splashDone && <WelcomeSplash onComplete={handleSplashDone} />}
 
-      {showOnboarding && (
+      {/* La bifurcación, antes de todo lo demás. Aquí no hay «Saltar»: elegir
+          es la única salida, y las dos tarjetas caben en una pantalla. */}
+      {splashDone && path === null && (
+        <div className="flex h-full flex-col">
+          <StatusBar />
+          <div className="flex-1 overflow-y-auto scrollbar-hide px-5 py-4">
+            <TypeChoice onChoose={handleChoose} />
+          </div>
+        </div>
+      )}
+
+      {path === "user" && showOnboarding && (
         <div
           className="flex flex-col h-full"
           style={{ display: showOnboarding ? "flex" : "none" }}
@@ -664,50 +728,24 @@ export default function OnboardingPage() {
               className="flex h-full transition-transform [transition-duration:400ms] [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]"
               style={{ transform: `translateX(-${currentStep * 100}%)` }}
             >
-              {/* Step 0: Location */}
+              {/* Step 0: Location. El cuerpo lo comparte con el asistente de
+                  negocio; aquí se le pasa `SlideContent` para que cada capa
+                  entre con su retardo, como antes de extraerlo. */}
               <Slide
                 key={`slide-0-${animTick}`}
                 step={0}
                 currentStep={currentStep}
               >
-                <SlideContent delay={50}>
-                  <SlideIcon>
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={1.5}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M12 2a8 8 0 0 0-8 8c0 4.42 8 12 8 12s8-7.58 8-12a8 8 0 0 0-8-8z" />
-                      <circle cx="12" cy="10" r="3" />
-                    </svg>
-                  </SlideIcon>
-                </SlideContent>
-                <SlideContent delay={100}>
-                  <h1 className="font-lv-display text-h2 font-bold leading-tight tracking-[-0.02em] text-ink mb-1">
-                    ¿Dónde estás?
-                  </h1>
-                </SlideContent>
-                <SlideContent delay={150}>
-                  <p className="text-ink-soft/75 text-body leading-relaxed mb-6">
-                    Para recomendarte lugares cerca de ti, cuéntanos en qué zona
-                    de Cuba te encuentras.
-                  </p>
-                </SlideContent>
-                <SlideContent delay={200}>
-                  <ProvinceMap location={location} />
-                </SlideContent>
-                <SlideContent delay={250}>
-                  <LocationPicker
-                    selected={location}
-                    onSelect={setLocation}
-                    gpsDetected={gpsDetected}
-                    gpsLabel={detectedName ?? undefined}
-                    onUseGPS={handleUseGPS}
-                  />
-                </SlideContent>
+                <LocationScreen
+                  location={location}
+                  onSelect={setLocation}
+                  gpsDetected={gpsDetected}
+                  gpsLabel={detectedName ?? undefined}
+                  onUseGPS={handleUseGPS}
+                  layer={(content, delay) => (
+                    <SlideContent delay={delay}>{content}</SlideContent>
+                  )}
+                />
               </Slide>
 
               {/* Step 1: Interests */}
@@ -904,6 +942,79 @@ export default function OnboardingPage() {
             >
               {currentStep === TOTAL_STEPS - 1 ? "Comenzar" : "Continuar"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* El camino del negocio. Comparte armazón con el de usuario —carcasa,
+          barra de estado y barra de progreso, de 7 en vez de 4—, pero la
+          navegación la lleva el propio formulario, que es donde vive la
+          validación de cada paso. */}
+      {path === "business" && (
+        <div className="flex flex-col h-full">
+          <StatusBar />
+
+          {!businessDone && (
+            <StepBar
+              currentStep={businessStep}
+              totalSteps={BUSINESS_TOTAL_STEPS}
+            />
+          )}
+
+          {/* Los dos tramos van montados a la vez y se turnan con `hidden`. No
+              es un capricho: si «Atrás» desde la primera sección desmontara el
+              formulario, volver a la ciudad costaría todo lo escrito. */}
+          <div
+            className={cn(
+              "min-h-0 flex-1 flex-col",
+              businessStep === 0 ? "flex" : "hidden",
+            )}
+          >
+            <button
+              onClick={() => void handleBusinessSkip()}
+              className="absolute top-[48px] right-4 z-10 bg-none border-none font-lv-display text-small font-medium text-ink-soft/75 cursor-pointer px-3 py-2 rounded-full transition-colors duration-500 hover:text-verde-600"
+            >
+              Ahora no
+            </button>
+
+            <div className="flex-1 overflow-y-auto scrollbar-hide px-5 pt-1">
+              <LocationScreen
+                location={location}
+                onSelect={setLocation}
+                gpsDetected={gpsDetected}
+                gpsLabel={detectedName ?? undefined}
+                onUseGPS={handleUseGPS}
+              />
+            </div>
+
+            <div className="px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-4 bg-gradient-to-t from-sand-warm via-sand-warm to-transparent flex flex-shrink-0">
+              <button
+                onClick={() => setBusinessStep(1)}
+                className="inline-flex items-center justify-center gap-2 flex-1 px-6 py-3 rounded-full font-lv-display text-sm font-semibold bg-verde-400 text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint min-h-12 hover:bg-verde-300 active:scale-[0.98]"
+              >
+                Continuar
+              </button>
+            </div>
+          </div>
+
+          <div
+            className={cn(
+              "min-h-0 flex-1 flex-col",
+              businessStep === 0 ? "hidden" : "flex",
+            )}
+          >
+            {/* El catálogo se carga aquí mismo: este árbol está fuera de
+                `(main)`, que es donde vive el provider, y el desplegable de
+                categorías lo necesita. */}
+            <PlacesProvider>
+              <BusinessForm
+                variant="wizard"
+                onStepChange={(step) => setBusinessStep(step + 1)}
+                onBack={() => setBusinessStep(0)}
+                onSkip={() => void handleBusinessSkip()}
+                onSubmitted={handleBusinessSubmitted}
+              />
+            </PlacesProvider>
           </div>
         </div>
       )}

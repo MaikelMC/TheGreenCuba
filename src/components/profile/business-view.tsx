@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import {
   ArrowRight,
   AtSign,
   BadgeCheck,
   Check,
+  CheckCircle2,
   Clock,
   CreditCard,
   Loader2,
@@ -156,6 +157,24 @@ const SECTIONS = {
 } as const;
 
 type SectionId = keyof typeof SECTIONS;
+
+/**
+ * El orden de las secciones y su icono, derivados de `SECTIONS`.
+ *
+ * `Object.keys` de un literal va en orden de escritura, así que esta lista **es**
+ * la de arriba y no puede desincronizarse de ella. Se usa para las dos cosas: la
+ * vista de página recorre las seis y el asistente pinta la del paso activo.
+ */
+const SECTION_ORDER = Object.keys(SECTIONS) as SectionId[];
+
+const SECTION_ICONS: Record<SectionId, ReactNode> = {
+  esencial: <Store size={18} strokeWidth={1.8} />,
+  ubicacion: <MapPin size={18} strokeWidth={1.8} />,
+  contacto: <AtSign size={18} strokeWidth={1.8} />,
+  horario: <Clock size={18} strokeWidth={1.8} />,
+  pagos: <CreditCard size={18} strokeWidth={1.8} />,
+  plan: <BadgeCheck size={18} strokeWidth={1.8} />,
+};
 
 /** El aviso y las secciones que marca en rojo. Van juntos en un solo estado
     para que no puedan desincronizarse. */
@@ -306,15 +325,50 @@ function BusinessCard({ business }: { business: BusinessSummary }) {
   );
 }
 
-/** El alta. Un negocio por persona, y por eso no hay lista ni «añadir otro». */
-function BusinessForm({
+/**
+ * El alta. Un negocio por persona, y por eso no hay lista ni «añadir otro».
+ *
+ * Tiene dos formas de pintarse y **un solo juego de campos**: de página, con las
+ * seis secciones plegadas seguidas, que es lo que ve el perfil; y de asistente,
+ * una sección por pantalla con su navegación, que es por donde pasa quien acaba
+ * de registrarse y aún no sabe qué le van a pedir. Duplicar los campos para el
+ * asistente habría dejado dos listas que dicen lo mismo hasta que una cambie.
+ *
+ * En modo asistente el componente manda: la validación de cada paso solo puede
+ * vivir donde vive el estado, así que también es él quien pinta «Atrás» y
+ * «Continuar». El orquestador solo se entera del paso activo —para la barra de
+ * progreso— y del envío terminado.
+ */
+export function BusinessForm({
   categoriesReady,
   initialBusiness,
+  variant = "page",
+  onStepChange,
+  onSubmitted,
+  onBack,
+  onSkip,
 }: {
-  categoriesReady: boolean;
+  /** Si el catálogo ya está. Sin él, el desplegable de categoría está vacío. */
+  categoriesReady?: boolean;
   initialBusiness?: BusinessSummary;
+  /** `"page"` (por defecto) = las seis secciones seguidas; `"wizard"` = una por pantalla. */
+  variant?: "page" | "wizard";
+  /** Solo en `"wizard"`: el paso activo, 0-based, para que el padre pinte la barra. */
+  onStepChange?: (step: number) => void;
+  /** Solo en `"wizard"`: la solicitud ya está registrada. El padre cierra el onboarding. */
+  onSubmitted?: () => void;
+  /** Solo en `"wizard"`: «Atrás» en la primera sección, que devuelve a la ciudad. */
+  onBack?: () => void;
+  /** Solo en `"wizard"`: salir sin crear el negocio. */
+  onSkip?: () => void;
 }) {
-  const { categories } = usePlaces();
+  const wizard = variant === "wizard";
+  const { categories, hydrated } = usePlaces();
+  /* El asistente monta su propio provider y no recibe el dato; la vista de
+     página sí, porque el perfil ya lo tiene cargado. */
+  const ready = categoriesReady ?? (hydrated && categories.length > 0);
+  const reduceMotion = useReducedMotion();
+  const [step, setStep] = useState(0);
 
   const [name, setName] = useState(initialBusiness?.name ?? "");
   const [categoryValue, setCategoryValue] = useState(
@@ -435,6 +489,10 @@ function BusinessForm({
       setSubmitted(true);
       setSending(false);
       setError(null);
+      /* El negocio ya existe; el asistente remata aquí el onboarding. Va después
+         de `setSubmitted` para que el padre no pueda desmontar el formulario
+         antes de que la pantalla de confirmación esté en su sitio. */
+      onSubmitted?.();
       trackBusinessSubmitted({
         plan,
         category: categoryLabel,
@@ -469,118 +527,94 @@ function BusinessForm({
     facebook,
     schedule,
     payments,
+    /* `plan` faltaba: cambiarlo y enviar mandaba el valor viejo, porque el
+       `useCallback` no se rehacía por un cambio que no estaba en la lista. */
+    plan,
+    onSubmitted,
   ]);
 
-  return (
-    <div
-      className="flex flex-col gap-gap-md"
-      onPointerDownCapture={focusProfileControl}
-    >
-      {/* «Registra tu negocio» repetía el título de la sección que ya está en
-          la barra superior; la introducción basta para orientar, también en el
-          reenvío de una solicitud rechazada. */}
-      <header className="flex flex-col gap-gap-xs">
-        <p className="text-small text-pretty text-ink-soft/75">
-          {initialBusiness
-            ? "Actualiza los datos que indicó el administrador y vuelve a enviarla para revisión."
-            : "Completa los datos de tu negocio para enviarlo a revisión."}
-        </p>
-        <p className="text-small text-pretty text-ink-soft/75">
-          Con esto queda dado de alta.{" "}
-          <span className="font-semibold text-ink">
-            No se publica de inmediato
-          </span>{" "}
-          — un administrador lo revisa antes de que salga en el mapa, y el panel
-          se abre para completarlo (fotos, horarios, menú, ofertas) en cuanto lo
-          apruebe.
-        </p>
-      </header>
-
-      <FormSection
-        title={SECTIONS.esencial}
-        invalid={error?.sections.includes("esencial")}
-        icon={<Store size={18} strokeWidth={1.8} />}
-      >
-        <div className="flex flex-col gap-gap-md">
-          <div className="flex flex-col gap-gap-xs">
-            <label htmlFor="pbName" className={LABEL}>
-              Nombre del negocio
-            </label>
-            <input
-              id="pbName"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ej: Paladar El Sabroso"
-              className={INPUT}
-            />
-          </div>
-
-          <div className="flex flex-col gap-gap-xs">
-            <label htmlFor="pbCategory" className={LABEL}>
-              Categoría
-            </label>
-            <Select
-              value={categoryValue}
-              onValueChange={setCategoryValue}
-              disabled={!categoriesReady}
-            >
-              <SelectTrigger id="pbCategory">
-                <SelectValue
-                  placeholder={categoriesReady ? "Elige una" : "Cargando…"}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.value} value={c.value}>
-                    <span className="inline-flex items-center gap-2">
-                      <CategoryIcon icon={c.icon} size={16} strokeWidth={1.8} />
-                      {c.label}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex flex-col gap-gap-xs">
-            <label htmlFor="pbDesc" className={LABEL}>
-              Descripción
-            </label>
-            <textarea
-              id="pbDesc"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Qué ofreces y qué te hace distinto. Es lo que el buscador usa para recomendarte."
-              className={cn(
-                INPUT,
-                "h-auto min-h-[80px] resize-y py-3 leading-relaxed",
-              )}
-            />
-          </div>
-
-          <div className="flex flex-col gap-gap-xs">
-            <label htmlFor="pbPhone" className={LABEL}>
-              Teléfono <span className="font-normal">(opcional)</span>
-            </label>
-            <input
-              id="pbPhone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(sanitizePhone(e.target.value))}
-              autoComplete="tel"
-              placeholder="+53 5 123 4567"
-              className={INPUT}
-            />
-          </div>
+  /* El cuerpo de cada sección, en un solo sitio.
+     La vista de página las recorre las seis seguidas, dentro de su acordeón; el
+     asistente pinta solo la del paso activo, dentro del encabezado que le pone
+     la pantalla. Al ser los mismos nodos, no hay dos copias de los campos que
+     puedan separarse. */
+  const bodies: Record<SectionId, ReactNode> = {
+    esencial: (
+      <div className="flex flex-col gap-gap-md">
+        <div className="flex flex-col gap-gap-xs">
+          <label htmlFor="pbName" className={LABEL}>
+            Nombre del negocio
+          </label>
+          <input
+            id="pbName"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ej: Paladar El Sabroso"
+            className={INPUT}
+          />
         </div>
-      </FormSection>
 
-      <FormSection
-        title={SECTIONS.ubicacion}
-        invalid={error?.sections.includes("ubicacion")}
-        icon={<MapPin size={18} strokeWidth={1.8} />}
-      >
+        <div className="flex flex-col gap-gap-xs">
+          <label htmlFor="pbCategory" className={LABEL}>
+            Categoría
+          </label>
+          <Select
+            value={categoryValue}
+            onValueChange={setCategoryValue}
+            disabled={!ready}
+          >
+            <SelectTrigger id="pbCategory">
+              <SelectValue placeholder={ready ? "Elige una" : "Cargando…"} />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((c) => (
+                <SelectItem key={c.value} value={c.value}>
+                  <span className="inline-flex items-center gap-2">
+                    <CategoryIcon icon={c.icon} size={16} strokeWidth={1.8} />
+                    {c.label}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-gap-xs">
+          <label htmlFor="pbDesc" className={LABEL}>
+            Descripción
+          </label>
+          <textarea
+            id="pbDesc"
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Qué ofreces y qué te hace distinto. Es lo que el buscador usa para recomendarte."
+            className={cn(
+              INPUT,
+              "h-auto min-h-[80px] resize-y py-3 leading-relaxed",
+            )}
+          />
+        </div>
+
+        <div className="flex flex-col gap-gap-xs">
+          <label htmlFor="pbPhone" className={LABEL}>
+            Teléfono <span className="font-normal">(opcional)</span>
+          </label>
+          <input
+            id="pbPhone"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(sanitizePhone(e.target.value))}
+            autoComplete="tel"
+            placeholder="+53 5 123 4567"
+            className={INPUT}
+          />
+        </div>
+      </div>
+    ),
+
+    ubicacion: (
+      <>
         <p className="mb-gap-sm text-meta text-ink-soft/75">
           Busca la dirección y ajusta el pin, o toca directamente el punto en el
           mapa. La dirección y el barrio se rellenan solos.
@@ -625,13 +659,11 @@ function BusinessForm({
             />
           </div>
         </div>
-      </FormSection>
+      </>
+    ),
 
-      <FormSection
-        title={SECTIONS.contacto}
-        invalid={error?.sections.includes("contacto")}
-        icon={<AtSign size={18} strokeWidth={1.8} />}
-      >
+    contacto: (
+      <>
         <p className="mb-gap-sm text-meta text-ink-soft/75">
           Todo opcional. Son los botones que aparecen en tu ficha: el que dejes
           vacío no se pinta.
@@ -705,13 +737,11 @@ function BusinessForm({
             </p>
           </div>
         </div>
-      </FormSection>
+      </>
+    ),
 
-      <FormSection
-        title={SECTIONS.horario}
-        invalid={error?.sections.includes("horario")}
-        icon={<Clock size={18} strokeWidth={1.8} />}
-      >
+    horario: (
+      <>
         <div className="flex flex-col gap-gap-sm">
           <div className="flex flex-col gap-gap-xs">
             <label htmlFor="pbSchedule" className={LABEL}>
@@ -744,28 +774,24 @@ function BusinessForm({
             ))}
           </div>
         </div>
-      </FormSection>
+      </>
+    ),
 
-      <FormSection
-        title={SECTIONS.pagos}
-        invalid={error?.sections.includes("pagos")}
-        icon={<CreditCard size={18} strokeWidth={1.8} />}
-      >
+    pagos: (
+      <>
         <p className="mb-gap-sm text-meta text-ink-soft/75">
           Las monedas que aceptas. Es uno de los filtros que más se usan al
           buscar.
         </p>
         <PaymentChips defaultSelected={payments} onChange={setPayments} />
-      </FormSection>
+      </>
+    ),
 
-      {/* Va la última, después de los datos y el mapa, que es donde el usuario
-          ya sabe qué está pidiendo. Radios nativos y no botones: el teclado y el
-          lector de pantalla ya saben qué hacer con ellos. */}
-      <FormSection
-        title={SECTIONS.plan}
-        invalid={error?.sections.includes("plan")}
-        icon={<BadgeCheck size={18} strokeWidth={1.8} />}
-      >
+    /* Va la última, después de los datos y el mapa, que es donde el usuario ya
+       sabe qué está pidiendo. Radios nativos y no botones: el teclado y el
+       lector de pantalla ya saben qué hacer con ellos. */
+    plan: (
+      <>
         <p className="mb-gap-sm text-meta text-ink-soft/75">
           Elige cómo empiezas. Se puede cambiar después.
         </p>
@@ -866,7 +892,236 @@ function BusinessForm({
             );
           })}
         </fieldset>
-      </FormSection>
+      </>
+    ),
+  };
+
+  /* El asistente. La validación de cada paso vive aquí porque aquí vive el
+     estado; el padre solo recibe el número de paso, para pintar la barra. */
+  const activeId = SECTION_ORDER[step]!;
+  const lastStep = SECTION_ORDER.length - 1;
+
+  function stepIssue(id: SectionId): FormError | null {
+    if (id === "esencial")
+      return sectionMessage(SECTIONS, [
+        { section: "esencial", text: "falta el nombre de tu negocio" },
+      ]);
+    if (id === "ubicacion")
+      return sectionMessage(SECTIONS, [
+        {
+          section: "ubicacion",
+          text: "falta el punto en el mapa — búscalo por la dirección o tócalo directamente",
+        },
+      ]);
+    return null;
+  }
+
+  /* Los dos únicos obligatorios del formulario, y ni uno más: lo que no se
+     exigía de una vez no se puede empezar a exigir a trozos. */
+  function stepIsValid(id: SectionId) {
+    if (id === "esencial") return name.trim().length > 0;
+    if (id === "ubicacion") return location !== null;
+    return true;
+  }
+
+  function goToStep(next: number) {
+    setStep(next);
+    setError(null);
+    onStepChange?.(next);
+  }
+
+  function handleWizardNext() {
+    if (!stepIsValid(activeId)) {
+      setError(stepIssue(activeId));
+      /* El foco al campo que falta: el aviso va abajo, junto a «Continuar», y
+         sin llevarlo al campo se lee como un «no» que no dice dónde. */
+      if (activeId === "esencial") document.getElementById("pbName")?.focus();
+      return;
+    }
+    if (step === lastStep) {
+      void submit();
+      return;
+    }
+    goToStep(step + 1);
+  }
+
+  function handleWizardBack() {
+    if (step === 0) {
+      onBack?.();
+      return;
+    }
+    goToStep(step - 1);
+  }
+
+  /* El final del asistente. Es una pantalla entera y no el bloque de la vista de
+     página: aquí lo último que se ve tiene que leerse como un final, no como un
+     aviso más debajo del formulario. */
+  if (wizard && submitted) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col justify-center gap-gap-md px-5 pb-gap-lg animate-fade-up">
+        <span className="grid size-16 place-items-center rounded-full bg-verde-50 text-verde-700">
+          <CheckCircle2 size={28} strokeWidth={1.8} />
+        </span>
+        <h1 className="font-lv-display text-h2 font-bold leading-tight tracking-[-0.02em] text-ink">
+          Solicitud enviada
+        </h1>
+
+        <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+          <div className="flex items-start gap-gap-sm">
+            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-sand text-verde-600">
+              <Clock size={20} strokeWidth={1.8} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-lv-display text-small font-semibold text-ink">
+                Espera menos de 24 horas
+              </p>
+              <p className="mt-[2px] text-meta text-ink-soft/75">
+                Un administrador revisará tu solicitud y la publicará en el mapa
+                cuando esté aprobada.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <Link href="/home" className={cn(BTN_PRIMARY, "mt-gap-sm w-full")}>
+          Volver al mapa
+          <ArrowRight size={16} strokeWidth={1.8} />
+        </Link>
+      </div>
+    );
+  }
+
+  if (wizard) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex-1 overflow-y-auto scrollbar-hide px-5 pt-1">
+          {/* Una capa por paso, con el mismo fundido de entrada que el
+              onboarding. La `key` es el identificador de la sección: cambiar de
+              paso remonta solo este nodo, que es lo que hace que la animación
+              vuelva a correr. */}
+          <motion.div
+            key={activeId}
+            initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.28, ease: EASE }}
+            className="flex flex-col gap-gap-md pb-gap-md"
+          >
+            <header className="mt-2 flex items-center gap-gap-sm">
+              <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-verde-50 text-verde-700">
+                {SECTION_ICONS[activeId]}
+              </span>
+              <h1 className="font-lv-display text-h2 font-bold leading-tight tracking-[-0.02em] text-ink">
+                {SECTIONS[activeId]}
+              </h1>
+            </header>
+
+            {/* La tarjeta y no el acordeón: en el asistente la sección ya está
+                abierta —es la pantalla entera—, así que el asa de plegar no
+                tendría a qué plegar. */}
+            <div
+              className={cn(
+                "flex flex-col gap-gap-md rounded-2xl border bg-white p-gap-md shadow-soft",
+                error?.sections.includes(activeId)
+                  ? "border-destructive/40 ring-1 ring-destructive/15"
+                  : "border-ink/5",
+              )}
+            >
+              {bodies[activeId]}
+            </div>
+          </motion.div>
+        </div>
+
+        <div className="flex flex-shrink-0 flex-col gap-gap-sm bg-gradient-to-t from-sand-warm via-sand-warm to-transparent px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-4">
+          <AnimatePresence>
+            {error && (
+              <motion.p
+                key="pb-error"
+                role="alert"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: EASE }}
+                className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+              >
+                {error.message}
+              </motion.p>
+            )}
+          </AnimatePresence>
+
+          {onSkip && (
+            <button
+              type="button"
+              onClick={onSkip}
+              className="mx-auto -mb-1 rounded-full px-3 py-1 font-lv-display text-small font-medium text-ink-soft/75 transition-colors duration-500 ease-outquint hover:text-verde-600"
+            >
+              Ahora no
+            </button>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={handleWizardBack}
+              className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full border border-ink/10 bg-white px-6 py-3 font-lv-display text-sm font-semibold text-ink transition-all duration-500 ease-outquint hover:bg-verde-50 active:scale-[0.98]"
+            >
+              Atrás
+            </button>
+            <button
+              type="button"
+              onClick={handleWizardNext}
+              disabled={sending || (activeId === "esencial" && !ready)}
+              className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-verde-400 px-6 py-3 font-lv-display text-sm font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40"
+            >
+              {sending && (
+                <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
+              )}
+              {step === lastStep
+                ? sending
+                  ? "Enviando…"
+                  : "Enviar solicitud"
+                : "Continuar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex flex-col gap-gap-md"
+      onPointerDownCapture={focusProfileControl}
+    >
+      {/* «Registra tu negocio» repetía el título de la sección que ya está en
+          la barra superior; la introducción basta para orientar, también en el
+          reenvío de una solicitud rechazada. */}
+      <header className="flex flex-col gap-gap-xs">
+        <p className="text-small text-pretty text-ink-soft/75">
+          {initialBusiness
+            ? "Actualiza los datos que indicó el administrador y vuelve a enviarla para revisión."
+            : "Completa los datos de tu negocio para enviarlo a revisión."}
+        </p>
+        <p className="text-small text-pretty text-ink-soft/75">
+          Con esto queda dado de alta.{" "}
+          <span className="font-semibold text-ink">
+            No se publica de inmediato
+          </span>{" "}
+          — un administrador lo revisa antes de que salga en el mapa, y el panel
+          se abre para completarlo (fotos, horarios, menú, ofertas) en cuanto lo
+          apruebe.
+        </p>
+      </header>
+
+      {SECTION_ORDER.map((id) => (
+        <FormSection
+          key={id}
+          title={SECTIONS[id]}
+          icon={SECTION_ICONS[id]}
+          invalid={error?.sections.includes(id)}
+        >
+          {bodies[id]}
+        </FormSection>
+      ))}
 
       <AnimatePresence>
         {error && (
@@ -910,7 +1165,7 @@ function BusinessForm({
         <button
           type="button"
           onClick={submit}
-          disabled={sending || !categoriesReady}
+          disabled={sending || !ready}
           className={cn(BTN_PRIMARY, "w-full")}
         >
           {sending ? (
