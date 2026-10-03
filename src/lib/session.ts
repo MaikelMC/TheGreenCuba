@@ -37,6 +37,10 @@ export const PROTECTED_PREFIXES = [
   "/profile",
   "/onboarding",
   "/home",
+  /* La sección de afiliados. Aquí la puerta es «hay sesión» y nada más: quién es
+     afiliado se comprueba dentro de la página, contra su propio código, porque
+     el proxy no consulta la base a propósito. */
+  "/enlaces",
 ] as const;
 
 /** Compara por prefijo **de segmento**: `/adminx` no entra por `/admin`. */

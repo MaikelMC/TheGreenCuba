@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { User, Building2, ShieldCheck, LogOut, Bell, Megaphone } from "lucide-react";
+import { User, Building2, ShieldCheck, LogOut, Bell, Link2, Megaphone } from "lucide-react";
 import type { Role } from "@/lib/session";
 import { logout } from "@/lib/logout";
 import { readUserPreferences } from "@/lib/user-preferences-store";
@@ -34,6 +34,10 @@ interface SessionUser {
       enlace al panel ya tiene destino: mientras esté pendiente de aprobación,
       `/business` devuelve al perfil y ofrecerlo sería un enlace que rebota. */
   business?: { isActive: boolean } | null;
+  /** Si el administrador le activó el programa de afiliados. Con esto en falso
+      —o ausente, que es lo mismo cuando la respuesta es de antes— «Enlaces» no
+      se ofrece: la página rebotaría, porque no tendría código que enseñar. */
+  affiliateEnabled?: boolean;
 }
 
 interface UserNotification {
@@ -100,6 +104,12 @@ const ITEMS: {
     path: "/projects",
     label: "Administrar proyectos",
     icon: Megaphone,
+    roles: ["user", "owner", "admin"],
+  },
+  {
+    path: "/enlaces",
+    label: "Enlaces",
+    icon: Link2,
     roles: ["user", "owner", "admin"],
   },
   {
@@ -332,7 +342,11 @@ export function UserMenu({
           /* El panel de negocio no existe hasta que lo aprueban. El rol se
              concede al enviar la solicitud, así que por sí solo no basta: el
              negocio tiene que estar publicado. */
-          (i.path !== "/business" || Boolean(user.business?.isActive)),
+          (i.path !== "/business" || Boolean(user.business?.isActive)) &&
+          /* Y «Enlaces» no existe hasta que un administrador lo active. Ningún
+             rol lo implica: es un permiso suelto, y sin él la página rebotaría
+             al perfil. */
+          (i.path !== "/enlaces" || Boolean(user.affiliateEnabled)),
       )
     : [];
 

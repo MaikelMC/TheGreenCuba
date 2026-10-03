@@ -5,6 +5,7 @@ import { ensureContact } from "@/lib/contacts";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { DEV_COOKIE, DEV_IDENTITY, devAccessEnabled, isDevCookie } from "@/lib/dev-access";
+import { REFERRAL_COOKIE, referrerIdFor } from "@/lib/referral";
 import { generateId } from "@/lib/utils";
 import { AUTH_USER_HEADER, type Role } from "@/lib/session";
 
@@ -47,6 +48,9 @@ export interface AppUser {
   role: Role;
   locationCity: string | null;
   onboardingCompleted: boolean;
+  /** El código del programa de afiliados. `null` es «no es afiliado»: con él se
+      abre la sección «Enlaces» y sin él no existe. */
+  referralCode: string | null;
   preferences: {
     interests?: string[];
     moods?: string[];
@@ -135,6 +139,20 @@ async function readNeonIdentity(): Promise<NeonIdentity | null> {
   return { id: user.id, email: user.email ?? "", name: user.name ?? "" };
 }
 
+/**
+ * El padrino, si el alta llegó con un enlace de afiliado.
+ *
+ * La cookie la puso el proxy al abrir el enlace y sigue viva treinta días, así
+ * que aquí puede estar perfectamente aunque hayan pasado la verificación, el
+ * salto a Google y una recarga entera. Sin cookie no hay consulta: la mayoría de
+ * las filas se crean sin padrino, y preguntar por el vacío sería un viaje a Neon
+ * por cada alta normal.
+ */
+async function referrerFromCookie(): Promise<string | null> {
+  const code = (await cookies()).get(REFERRAL_COOKIE)?.value;
+  return code ? referrerIdFor(code) : null;
+}
+
 function toAppUser(row: typeof users.$inferSelect): AppUser {
   return {
     id: row.id,
@@ -150,6 +168,7 @@ function toAppUser(row: typeof users.$inferSelect): AppUser {
     role: isRole(row.role) ? row.role : "user",
     locationCity: row.locationCity ?? null,
     onboardingCompleted: row.onboardingCompleted,
+    referralCode: row.referralCode ?? null,
     preferences: row.preferences ?? null,
   };
 }
@@ -203,6 +222,14 @@ export async function getAppUser(): Promise<AppUser | null> {
   }
 
   const email = neonUser.email;
+  /* Se atribuye **aquí**, en la rama que crea la fila, y no en cada camino de
+     alta. Esta función es el único sitio por el que pasa todo el mundo la primera
+     vez, así que esto cubre por igual el alta con contraseña, la de Google y la
+     puerta de atrás del desarrollo, sin tocar ninguna de las tres. Ver
+     `src/lib/referral.ts` para de dónde sale el código y por qué se resuelve
+     ahora y no cuando llegó. */
+  const referredBy = await referrerFromCookie();
+
   const [created] = await db
     .insert(users)
     .values({
@@ -211,6 +238,7 @@ export async function getAppUser(): Promise<AppUser | null> {
       email,
       name: neonUser.name || null,
       role: bootstrapRole(email),
+      referredBy,
     })
     .onConflictDoNothing()
     .returning();

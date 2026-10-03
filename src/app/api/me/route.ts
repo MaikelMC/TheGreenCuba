@@ -155,6 +155,10 @@ export async function GET() {
       locationCity: user.locationCity,
       onboardingCompleted: user.onboardingCompleted,
       preferences: user.preferences,
+      /* Solo el «sí o no»: el menú decide con esto si enseña «Enlaces». El
+         código no viaja aquí porque la página lo lee del servidor, que es donde
+         se arma el enlace. */
+      affiliateEnabled: Boolean(user.referralCode),
       business: await businessFor(user.id, user.role),
     },
   });
@@ -251,6 +255,10 @@ export async function POST(request: NextRequest) {
       locationCity: user.locationCity,
       onboardingCompleted: user.onboardingCompleted,
       preferences: user.preferences,
+      /* Solo el «sí o no»: el menú decide con esto si enseña «Enlaces». El
+         código no viaja aquí porque la página lo lee del servidor, que es donde
+         se arma el enlace. */
+      affiliateEnabled: Boolean(user.referralCode),
       business: await businessFor(user.id, user.role),
     },
   });

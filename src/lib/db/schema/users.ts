@@ -7,6 +7,7 @@ import {
   jsonb,
   index,
   check,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -57,6 +58,23 @@ export const users = pgTable(
        hace falta la traza completa, eso es una tabla aparte. */
     termsVersion: text("terms_version"),
     termsAcceptedAt: timestamp("terms_accepted_at"),
+    /* El programa de afiliados. `referral_code` es a la vez la respuesta a «¿es
+       afiliado?» y el código que va en su enlace, así que las dos cosas no
+       pueden contradecirse. Nullable y no `notNull` con un `false` al lado: el
+       estado es la ausencia, y Postgres deja tantos `null` como haga falta bajo
+       el índice único.
+
+       Desactivar lo deja a `null`, o sea que **tira el código** y reactivar
+       emite uno nuevo. Es lo que se quiere —retirar a alguien tiene que cortarle
+       la atribución—; el día que haga falta pausar sin matar un enlace ya
+       repartido, eso es un `boolean` más. */
+    referralCode: text("referral_code").unique(),
+    /* Quién lo trajo, apuntando a otra fila de esta misma tabla. `set null` y no
+       `cascade`: que el afiliado borre su cuenta no puede llevarse por delante a
+       quien vino por su enlace. */
+    referredBy: text("referred_by").references((): AnyPgColumn => users.id, {
+      onDelete: "set null",
+    }),
     preferences: jsonb("preferences").$type<{
       interests?: string[];
       currencies?: string[];
@@ -70,6 +88,9 @@ export const users = pgTable(
        respalda es el que usa `getAppUser()`. El de apoyo era el mismo índice
        otra vez. */
     emailIdx: index("users_email_idx").on(table.email),
+    /* La lista de «Enlaces» pregunta por los referidos de uno. Sin índice eso es
+       un recorrido de la tabla entera cada vez que un afiliado abre su página. */
+    referredByIdx: index("users_referred_by_idx").on(table.referredBy),
     /* El rol se compara contra tres valores literales en cada guarda de acceso.
        Sin esta restricción, un `update` con una errata («admn») crea un rol que
        no abre nada y cuyo síntoma es un usuario al que no le funciona el panel,

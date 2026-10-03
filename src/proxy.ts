@@ -7,6 +7,11 @@ import {
   devAccessEnabled,
   isDevCookie,
 } from "@/lib/dev-access";
+import {
+  REFERRAL_COOKIE,
+  REFERRAL_COOKIE_OPTIONS,
+  REFERRAL_PARAM,
+} from "@/lib/referral";
 import { AUTH_USER_HEADER, isProtected, needsAppUser } from "@/lib/session";
 
 /**
@@ -35,8 +40,37 @@ import { AUTH_USER_HEADER, isProtected, needsAppUser } from "@/lib/session";
  * Lo público es la landing y la ficha de lugar. La ficha se queda fuera de las
  * reglas porque los enlaces se comparten: pedir cuenta para abrir un enlace
  * rompe el enlace.
+ *
+ * Y una cosa que no es una puerta sino un recado: `?ref=` —el código de un
+ * afiliado— se copia a una cookie. Va aquí porque este es el único sitio que
+ * puede escribir cookies antes del render, y se copia tal cual, sin resolverlo
+ * contra la base: quien lo resuelve es el alta, y así un código retirado por el
+ * camino deja de valer. Está contado en `src/lib/referral.ts`.
  */
 export async function proxy(request: NextRequest) {
+  const response = await handle(request);
+  return carryReferralCode(response, request);
+}
+
+/**
+ * La cookie del afiliado, si el enlace la trae.
+ *
+ * Se envuelve el manejo entero en vez de sembrar la escritura en cada `return`
+ * de abajo: las salidas son cinco y todas devuelven lo mismo o una redirección,
+ * así que un solo punto de salida ahorra cinco sitios donde acordarse.
+ */
+function carryReferralCode(
+  response: NextResponse,
+  request: NextRequest,
+): NextResponse {
+  const code = request.nextUrl.searchParams.get(REFERRAL_PARAM);
+  if (code) {
+    response.cookies.set(REFERRAL_COOKIE, code, REFERRAL_COOKIE_OPTIONS);
+  }
+  return response;
+}
+
+async function handle(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const wantsUser = needsAppUser(pathname);
 

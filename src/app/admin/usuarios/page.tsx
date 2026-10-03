@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { KeyRound, Pencil, Search, Shield, Trash2, UserRound } from "lucide-react";
+import { KeyRound, Link2, Pencil, Search, Shield, Trash2, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import type { Role } from "@/lib/session";
 
@@ -14,6 +14,8 @@ interface AdminUser {
   onboardingCompleted: boolean;
   createdAt: string;
   authUserId: string | null;
+  /** Null mientras no sea afiliado: tener código **es** estar activado. */
+  referralCode: string | null;
 }
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -78,6 +80,30 @@ export default function AdminUsersPage() {
     }
     setUsers((current) => current.map((item) => (item.id === user.id ? data.user! : item)));
     toast.success(`El rol de ${user.email} se actualizó a ${ROLE_LABELS[role]}.`);
+  }
+
+  async function toggleAffiliate(user: AdminUser) {
+    const enabling = !user.referralCode;
+    const response = await fetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: user.id, affiliate: enabling }),
+    });
+    const data = (await response.json()) as { user?: AdminUser; error?: string };
+    if (!response.ok || !data.user) {
+      setError(data.error ?? "No se pudo cambiar el programa de afiliados.");
+      toast.error(data.error ?? "No se pudo cambiar el programa de afiliados.");
+      return;
+    }
+    setUsers((current) => current.map((item) => (item.id === user.id ? data.user! : item)));
+    /* Desactivar no se puede decir sin decir lo que implica: el código se va con
+       la desactivación y el enlace que esa persona ya repartió deja de atribuir.
+       Reactivar emite uno nuevo, así que el que tenía no vuelve. */
+    toast.success(
+      enabling
+        ? `${user.email} ya es afiliado. Su enlace está en «Enlaces».`
+        : `${user.email} deja de ser afiliado. Su enlace ya no vale.`,
+    );
   }
 
   function startEditing(user: AdminUser) {
@@ -203,7 +229,15 @@ export default function AdminUsersPage() {
                     <>
                       <div className="font-lv-display text-small font-semibold text-ink">{user.name || "Sin nombre"}</div>
                       <div className="text-meta text-ink-soft/75">{user.email}</div>
-                      <div className="mt-1 text-meta text-ink-soft/60">{user.locationCity || "Sin ubicación"} · {user.onboardingCompleted ? "Onboarding completo" : "Onboarding pendiente"}</div>
+                      <div className="mt-1 text-meta text-ink-soft/60">
+                        {user.locationCity || "Sin ubicación"} · {user.onboardingCompleted ? "Onboarding completo" : "Onboarding pendiente"}
+                        {user.referralCode && (
+                          <>
+                            {" · "}
+                            <span className="font-semibold text-verde-700">Afiliado: {user.referralCode}</span>
+                          </>
+                        )}
+                      </div>
                     </>
                   )}
                 </div>
@@ -220,6 +254,16 @@ export default function AdminUsersPage() {
                     ))}
                   </select>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => void toggleAffiliate(user)}
+                  aria-pressed={Boolean(user.referralCode)}
+                  className={`grid size-9 place-items-center rounded-full border transition-colors ${user.referralCode ? "border-verde-200 bg-verde-50 text-verde-700 hover:bg-verde-100" : "border-ink/10 text-ink-soft hover:bg-sand"}`}
+                  aria-label={`${user.referralCode ? "Desactivar" : "Activar"} el programa de afiliados de ${user.email}`}
+                  title={user.referralCode ? "Quitar del programa de afiliados" : "Activar el programa de afiliados"}
+                >
+                  <Link2 size={16} strokeWidth={1.8} />
+                </button>
                 <button type="button" onClick={() => startEditing(user)} className="grid size-9 place-items-center rounded-full border border-ink/10 text-ink-soft transition-colors hover:bg-sand" aria-label={`Editar perfil de ${user.email}`} title="Editar perfil">
                   <Pencil size={16} strokeWidth={1.8} />
                 </button>

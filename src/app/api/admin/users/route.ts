@@ -38,6 +38,7 @@ function serializeUser(user: typeof users.$inferSelect) {
     onboardingCompleted: user.onboardingCompleted,
     createdAt: user.createdAt.toISOString(),
     authUserId: user.authUserId,
+    referralCode: user.referralCode,
   };
 }
 
@@ -84,12 +85,21 @@ export async function PATCH(request: NextRequest) {
     role?: unknown;
     name?: unknown;
     locationCity?: unknown;
+    affiliate?: unknown;
   } | null;
   const id = typeof body?.id === "string" ? body.id : "";
   const name = optionalText(body?.name);
   const locationCity = optionalText(body?.locationCity);
+  /* El interruptor del programa de afiliados. `null` es «no viene», que no es lo
+     mismo que `false` —«quítaselo»—: sin esta distinción, cualquier `PATCH` que
+     solo cambiara el rol le retiraría el código de paso. */
+  const affiliate = typeof body?.affiliate === "boolean" ? body.affiliate : null;
   const hasProfileChanges = body?.name !== undefined || body?.locationCity !== undefined;
-  if (!id || (!isRole(body?.role) && !hasProfileChanges)) {
+  /* `!body` delante y no `body?.` suelto: TypeScript deja de deducir que `body`
+     no es nulo en cuanto la condición encadena tres términos, y sin la deducción
+     todo lo de abajo —`body.role`, tres veces— pasa a ser un error. Pedirlo aquí
+     explícitamente cuesta un término y ahorra repetir la guarda. */
+  if (!body || !id || (!isRole(body.role) && !hasProfileChanges && affiliate === null)) {
     return NextResponse.json({ error: "Usuario o perfil inválido" }, { status: 400 });
   }
 
@@ -118,6 +128,15 @@ export async function PATCH(request: NextRequest) {
       ...(isRole(body.role) ? { role: body.role } : {}),
       ...(name !== undefined ? { name } : {}),
       ...(locationCity !== undefined ? { locationCity } : {}),
+      /* Activar genera el código si no lo tenía y **conserva el que ya hubiera**:
+         el afiliado puede haber repartido su enlace, y pulsar dos veces no puede
+         cambiárselo por debajo. Desactivar lo deja a `null`, que es lo que corta
+         la atribución de ese enlace —al resolverlo el alta contra la base, un
+         código que ya no está no casa—. Ver `src/lib/referral.ts`. */
+      ...(affiliate === true
+        ? { referralCode: target.referralCode ?? generateId() }
+        : {}),
+      ...(affiliate === false ? { referralCode: null } : {}),
       updatedAt: new Date(),
     })
     .where(eq(users.id, id))
