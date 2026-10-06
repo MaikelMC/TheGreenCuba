@@ -30,19 +30,28 @@ import posthog from "posthog-js";
    `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`. Se aceptan los dos para que re-ejecutar
    el wizard no deje la integración muda por un cambio de nombre. */
 const POSTHOG_KEY =
-  process.env.NEXT_PUBLIC_POSTHOG_KEY ?? process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
-const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com";
+  process.env.NEXT_PUBLIC_POSTHOG_KEY ??
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
+const POSTHOG_HOST =
+  process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com";
 
 /* Conservación de UTM (§28). Última fuente gana: una campaña nueva reemplaza a
    la anterior, como en cualquier herramienta de atribución. */
 const UTM_STORAGE_KEY = "lv_utm";
-const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_content"] as const;
+const UTM_KEYS = [
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_content",
+] as const;
 const UTM_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 type Utm = Partial<Record<(typeof UTM_KEYS)[number], string>>;
 
 function isInitialized(): boolean {
-  return Boolean(POSTHOG_KEY) && typeof window !== "undefined" && posthog.__loaded;
+  return (
+    Boolean(POSTHOG_KEY) && typeof window !== "undefined" && posthog.__loaded
+  );
 }
 
 /**
@@ -116,6 +125,8 @@ function storeUtm(utm: Utm): void {
       UTM_STORAGE_KEY,
       JSON.stringify({ savedAt: Date.now(), utm }),
     );
+    // Also store in cookie for server-side access
+    document.cookie = `lv_utm=${JSON.stringify({ savedAt: Date.now(), utm })};path=/;max-age=${UTM_TTL_MS / 1000}`;
   } catch {
     // Almacenamiento lleno o bloqueado: se pierde la atribución, no la página.
   }
@@ -154,7 +165,11 @@ export function trackAiSearchCompleted(
   status: "ok" | "empty" | "error",
 ): void {
   if (!isInitialized()) return;
-  posthog.capture("ai_search_completed", { query, result_count: resultCount, status });
+  posthog.capture("ai_search_completed", {
+    query,
+    result_count: resultCount,
+    status,
+  });
 }
 
 export function trackCategorySelect(value: string): void {
@@ -215,12 +230,22 @@ export function trackPlaceShared(
   method: "native" | "clipboard",
 ): void {
   if (!isInitialized()) return;
-  posthog.capture("place_shared", { place_id: placeId, place_name: placeName, method });
+  posthog.capture("place_shared", {
+    place_id: placeId,
+    place_name: placeName,
+    method,
+  });
 }
 
-export function trackDirectionsRequested(placeId: string, placeName: string): void {
+export function trackDirectionsRequested(
+  placeId: string,
+  placeName: string,
+): void {
   if (!isInitialized()) return;
-  posthog.capture("directions_requested", { place_id: placeId, place_name: placeName });
+  posthog.capture("directions_requested", {
+    place_id: placeId,
+    place_name: placeName,
+  });
 }
 
 export function trackPlaceSaveToggled(

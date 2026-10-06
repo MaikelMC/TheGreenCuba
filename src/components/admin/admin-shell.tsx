@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useState, useEffect } from "react";
 import {
+  BarChart3,
   LayoutDashboard,
   Store,
   Tags,
@@ -45,6 +46,12 @@ const NAV_ITEMS: AdminNavItem[] = [
     short: "Dashboard",
     icon: LayoutDashboard,
     exact: true,
+  },
+  {
+    href: "/admin/analytics",
+    label: "Analytics",
+    short: "Analytics",
+    icon: BarChart3,
   },
   {
     href: "/admin/negocios",

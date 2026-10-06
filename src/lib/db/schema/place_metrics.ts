@@ -1,4 +1,11 @@
-import { pgTable, text, integer, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  integer,
+  timestamp,
+  jsonb,
+  index,
+} from "drizzle-orm/pg-core";
 import { places } from "./places";
 
 /**
@@ -29,6 +36,11 @@ export const placeMetrics = pgTable(
       .unique()
       .references(() => places.id, { onDelete: "cascade" }),
 
+    /** Provincia del negocio (desnormalizada para filtros eficientes). */
+    province: text("province").notNull(),
+    /** Categoría del negocio (desnormalizada para filtros eficientes). */
+    categoryId: text("category_id").notNull(),
+
     /** Veces que se abrió la ficha del negocio. */
     views: integer("views").notNull().default(0),
     /** Veces que se tocó su pin en el mapa. */
@@ -43,12 +55,18 @@ export const placeMetrics = pgTable(
     shares: integer("shares").notNull().default(0),
 
     meta: jsonb("meta").$type<Record<string, unknown>>(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
     /* El dashboard ordena por la suma de los contadores: sin índice, Postgres
        haría el cálculo completo y ordenaría en memoria en cada apertura. */
     viewsIdx: index("place_metrics_views_idx").on(table.views),
+    /* Índices para filtrado eficiente por provincia y categoría. */
+    provinceIdx: index("place_metrics_province_idx").on(table.province),
+    categoryIdx: index("place_metrics_category_idx").on(table.categoryId),
   }),
 );

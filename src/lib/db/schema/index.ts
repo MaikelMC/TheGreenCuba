@@ -14,3 +14,4 @@ export * from "./place_metrics";
 export * from "./support_tickets";
 export * from "./admin_broadcasts";
 export * from "./contacts";
+export * from "./analytics";
