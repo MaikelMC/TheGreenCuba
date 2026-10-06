@@ -124,6 +124,7 @@ export function PlacesView() {
         labels={dayLabels()}
         title="Lugares abiertos por día"
         period="Últimos 14 días"
+        unit="lugares"
         className="activity-surface shadow-none"
       />
 
