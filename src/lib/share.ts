@@ -1,10 +1,12 @@
 /**
  * Compartir la ficha pública de un lugar.
  *
- * Lo usan las dos superficies que tienen botón "Compartir": el overlay de
- * detalle del home y la ficha de `/place/[id]`. Hasta ahora el de la ficha
- * estaba vacío —`onShare={() => {}}`—, así que este helper también le da
- * destino al botón.
+ * Lo usan las superficies que tienen botón "Compartir": el overlay de detalle
+ * del home, la ficha de `/place/[id]` y la tarjeta «Tu menú online» del panel
+ * del negocio —esta última con `options`, porque lo que comparte el dueño es el
+ * enlace de la carta y no el de la ficha—. Hasta ahora el de la ficha estaba
+ * vacío —`onShare={() => {}}`—, así que este helper también le da destino al
+ * botón.
  *
  * El enlace lleva UTM propio (`utm_source=share`): si quien lo recibe acaba
  * registrándose, el evento de alta conserva la atribución de que llegó por
@@ -18,14 +20,25 @@ import { toast } from "sonner";
 import { trackPlaceShared } from "@/lib/analytics";
 import { trackPlaceMetric } from "@/lib/place-metrics";
 
-export async function sharePlace(placeId: string, placeName: string): Promise<void> {
-  const url = `${window.location.origin}/place/${placeId}?utm_source=share&utm_medium=referral&utm_campaign=place_share`;
+export async function sharePlace(
+  placeId: string,
+  placeName: string,
+  /**
+   * Destino distinto de la ficha. Lo usa la carta: el enlace que comparte el
+   * dueño desde su panel es el del menú, no el de la ficha, y el texto que
+   * acompaña tiene que decir lo mismo que el enlace.
+   */
+  options?: { path?: string; campaign?: string; text?: string },
+): Promise<void> {
+  const path = options?.path ?? `/place/${placeId}`;
+  const campaign = options?.campaign ?? "place_share";
+  const url = `${window.location.origin}${path}?utm_source=share&utm_medium=referral&utm_campaign=${campaign}`;
 
   try {
     if (navigator.share) {
       await navigator.share({
         title: placeName,
-        text: `Mira ${placeName} en La Verde`,
+        text: options?.text ?? `Mira ${placeName} en La Verde`,
         url,
       });
       trackPlaceMetric(placeId, "share");

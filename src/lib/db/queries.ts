@@ -2,7 +2,7 @@ import { and, asc, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import { businessOwners, categories, placeImages, places, reviews, savedPlaces } from "@/lib/db/schema";
-import { DEV_PLACE_ID, devPlace } from "@/lib/dev-place";
+import { DEV_PLACE_ID, devPlace, devPlaceEnabled } from "@/lib/dev-place";
 import type { UserPlacePhoto } from "@/lib/places-store";
 import {
   toBusinessCategory,
@@ -134,6 +134,19 @@ export interface ListPlacesOptions {
       un negocio cerrado tiene que seguir apareciendo para poder reabrirlo. */
   onlyActive?: boolean;
   limit?: number;
+  /**
+   * Cuela el negocio de prueba en la lista.
+   *
+   * Va de parámetro por lo mismo que en `getPlaceById`: esta función está
+   * cacheada y la sesión —que es lo que decide— no se puede leer dentro de una
+   * caché. Sin especificar manda `NODE_ENV`, así que en desarrollo entra solo y
+   * en producción no entra para nadie.
+   *
+   * Aquí sí hace falta, a diferencia de la ficha: el mapa y el home se pintan
+   * con esta lista, y sin esto el pin del negocio de prueba no habría forma de
+   * verlo en producción.
+   */
+  includeDev?: boolean;
 }
 
 export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
@@ -178,7 +191,17 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
      true`—: el panel de administración pide todo lo que hay, y ahí un negocio
      que no existe en la base solo sirve para que editar su ficha falle con un
      404. Ver `src/lib/dev-place.ts`. */
-  const dev = options.onlyActive === true ? devPlace() : null;
+  /* La guarda de producción vive aquí y no en `devPlace()`, que ya no la lleva:
+     esa función solo construye los datos. Ver el porqué en `dev-place.ts`.
+
+     `includeDev` lo pone quien sabe si hay sesión —la ruta de API—; sin él
+     manda `NODE_ENV`. El `onlyActive` sigue siendo obligatorio: el panel de
+     administración pide la lista entera y ahí un negocio que no está en la base
+     solo serviría para que editarlo fallara con un 404. */
+  const dev =
+    options.onlyActive === true && (options.includeDev ?? devPlaceEnabled())
+      ? devPlace()
+      : null;
   if (!dev) return catalog;
 
   return [dev, ...catalog].slice(0, limit);
@@ -189,13 +212,26 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
  * y las previsualizaciones la piden sin parar— y se invalida con la misma
  * etiqueta, que es por lo que no lleva una propia.
  */
-export const getPlaceById = cached(async (id: string) => {
+export const getPlaceById = cached(
+  async (id: string, options: { includeDev?: boolean } = {}) => {
   /* Antes de tocar la base: así la URL directa `/place/dev-cafe-la-ceiba`
      funciona igual que si la fila existiera, que es lo que hace falta para
      recargar la página sin volver al mapa. Aquí no lleva la guarda de
      `onlyActive` que sí tiene la lista: quien pide una ficha concreta ya sabe
-     qué id quiere. */
-  if (id === DEV_PLACE_ID) return devPlace();
+     qué id quiere.
+
+     `includeDev` es lo que la deja abierta **en producción** para las cuentas
+     de `DEV_PLACE_VIEWERS`. Por defecto manda `NODE_ENV`, así que en desarrollo
+     todo sigue igual sin que nadie pase nada. Va de parámetro y no se resuelve
+     aquí dentro porque esta función está cacheada, y la sesión —que es lo que
+     hace falta para decidir— no se puede leer dentro de una caché.
+
+     El parámetro entra en la clave de la caché, así que la respuesta con el
+     negocio de prueba y la respuesta sin él son dos entradas distintas y no se
+     pisan. */
+  if (id === DEV_PLACE_ID) {
+    return (options.includeDev ?? devPlaceEnabled()) ? devPlace() : null;
+  }
 
   const [row] = await db
     .select(SELECT_WITH_CATEGORY)
@@ -208,7 +244,9 @@ export const getPlaceById = cached(async (id: string) => {
 
   const photos = await photosByPlace([row.place.id]);
   return toUserPlace({ ...unwrap(row), photos: photos.get(row.place.id) ?? [] });
-}, "places:get");
+  },
+  "places:get",
+);
 
 /** Clave foránea a partir de la etiqueta («Restaurante»). `null` si no existe. */
 export async function resolveCategoryId(label: string | null | undefined): Promise<string | null> {

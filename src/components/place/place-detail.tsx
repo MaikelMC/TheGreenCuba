@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   ArrowLeft,
+  ArrowUpRight,
   CalendarDays,
   Megaphone,
   Utensils,
@@ -17,7 +19,6 @@ import {
   ChevronRight,
   Facebook,
   Globe,
-  Image as ImageIcon,
   Instagram,
   MessageCircle,
 } from "lucide-react";
@@ -34,7 +35,6 @@ import { trackClientEvent } from "@/lib/analytics/client";
 import type { AnalyticsEventType } from "@/lib/analytics/events";
 import { trackPlaceMetric } from "@/lib/place-metrics";
 import { PhotoCarousel, type Slide } from "./photo-carousel";
-import { InfoBar } from "./info-bar";
 import { PaymentsSection } from "./payments-section";
 import { ActionButtons } from "./action-buttons";
 import { MenuPages } from "./menu-pages";
@@ -56,6 +56,8 @@ interface PlaceMenu {
   price: string;
   currency: string;
   tag?: string;
+  /** Familia del producto. Ver `UserPlaceMenuItem`. */
+  category?: string;
   imageEmoji?: string;
   /** URL de la foto del producto en el bucket. Si no hay, el hueco queda con
       el icono de siempre. */
@@ -109,7 +111,6 @@ interface PlaceDetailProps {
   state?: PlaceState;
   onBack?: () => void;
   onShare?: () => void;
-  onMenuSeeAll?: () => void;
   onNavigate?: () => void;
   footerSlot?: React.ReactNode;
   className?: string;
@@ -153,14 +154,12 @@ export function PlaceDetail({
   state = "normal",
   onBack,
   onShare,
-  onMenuSeeAll,
   onNavigate,
   footerSlot,
   className,
 }: PlaceDetailProps) {
   const [descExpanded, setDescExpanded] = useState(false);
   const [projectOffersExpanded, setProjectOffersExpanded] = useState(false);
-  const [menuExpanded, setMenuExpanded] = useState(false);
   const [projectPhotoIndex, setProjectPhotoIndex] = useState<number | null>(
     null,
   );
@@ -242,12 +241,24 @@ export function PlaceDetail({
       ? null
       : (projectPhotos[projectPhotoIndex] ?? null);
 
-  /* `distance` es un cajón de sastre: trae la distancia, la dirección o el
-     barrio, lo que haya. El barrio se pinta por su cuenta, así que aquí solo
-     queda lo que no sea ya el barrio. Sin esta guarda la línea decía
-     "Centro Habana · Centro Habana", y en móvil además repetía la celda del
-     `InfoBar`. */
-  const location = place.distance === place.barrio ? "" : place.distance;
+  /* La franja bajo la portada, en escritorio. Un lugar enseña de qué es y
+     dónde está; un proyecto, cuándo es y dónde —su categoría es literalmente
+     «Proyecto», que ya lo dice el chip de la portada, y lo que se decide con
+     una mirada son las fechas—. Dos pares distintos con la misma forma. */
+  const infoSegments = place.isProject
+    ? [
+        { icon: CalendarDays, text: place.schedule },
+        { icon: MapPin, text: place.barrio },
+      ]
+    : [
+        { icon: Utensils, text: place.category },
+        {
+          icon: MapPin,
+          text: place.address
+            ? `${place.address}, ${place.barrio}`
+            : place.barrio,
+        },
+      ];
 
   function handleSave() {
     const next = toggleSaved(place.id, userId);
@@ -279,81 +290,184 @@ export function PlaceDetail({
       </header>
 
       {/* ────────── Desktop Layout ────────── */}
-      {/* La carcasa de alto fijo y `overflow-hidden` es solo del proyecto: sus
-          dos columnas traen su propio scroll interno (`overflow-y-auto`) y
-          necesitan una altura que las limite. La ficha normal no tiene ningún
-          contenedor que scrolle dentro, así que con la carcasa puesta el
-          contenido de debajo —contacto, descripción, menú, reseñas— se recortaba
-          contra el borde y no había forma de bajarlo: el bloque medía justo el
-          viewport y la página no scrolleaba. */}
-      <div
-        className={cn(
-          "hidden lg:block lg:max-w-container lg:mx-auto lg:px-gutter-lg lg:py-gap-xl",
-          place.isProject &&
-            "lg:h-[calc(100dvh_-_var(--header-h))] lg:overflow-hidden",
-        )}
-      >
-        {place.isProject ? (
-          <div className="grid h-full min-h-0 grid-cols-[minmax(300px,0.8fr)_minmax(0,1.2fr)] grid-rows-[minmax(0,1fr)] items-stretch gap-gap-xl">
-            <div className="flex h-full min-h-0 flex-col gap-gap-md overflow-y-auto overscroll-contain pr-gap-xs scrollbar-hide">
-              <Reveal>
-                <header className="flex flex-col gap-gap-sm">
-                  <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-verde-200 bg-verde-50 px-3 py-1 font-lv-display text-xs font-semibold uppercase tracking-[0.06em] text-verde-700">
-                    <Megaphone size={13} /> Proyecto
-                  </span>
-                  <h1 className="font-lv-display text-h1 font-bold leading-tight text-ink text-balance">
-                    {place.name}
-                  </h1>
-                  <div className="flex flex-wrap gap-gap-xs">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-small font-medium text-ink-soft/80">
-                      <CalendarDays size={15} className="text-verde-600" />{" "}
-                      {place.schedule}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-small font-medium text-ink-soft/80">
-                      <MapPin size={15} className="text-verde-600" />{" "}
-                      {place.barrio}
-                    </span>
-                  </div>
-                  <ActionButtons
-                    isSaved={saved}
-                    onSave={handleSave}
-                    onNavigate={onNavigate}
-                    onShare={onShare}
-                  />
-                </header>
-              </Reveal>
+      {/* Proyecto y lugar comparten la maqueta: portada a sangre con el nombre
+          encima, franja de datos y dos columnas. El proyecto tenía la suya —una
+          carcasa de alto fijo y una rejilla de afiches donde el lugar pone la
+          portada—, así que el nombre salía en texto plano contra una foto grande
+          con el nombre en blanco: se leía como otra aplicación. Lo único propio
+          que se queda es la tarjeta «Fotos y afiches», en la columna derecha. */}
+      <div className="hidden lg:block lg:max-w-container lg:mx-auto lg:px-gutter-lg lg:py-gap-xl">
+        {/* Row 1: Photo Carousel (full width) with place name overlay.
 
-              <Reveal>
-                <section className={CARD}>
-                  <h2 className={cn(H2, "mb-gap-sm")}>Sobre el proyecto</h2>
-                  <p
+                La máscara es del envoltorio entero, no de la foto: la banda
+                oscura que sostiene el nombre es hermana del carrusel, y si solo
+                se difuminara la imagen el canto recto seguiría ahí, ahora en
+                negro. Con la máscara en el padre se disuelven los dos, y con
+                ellos la esquina redondeada —que a partir de ahora no la dibuja
+                nadie, la hace el desvanecido—. */}
+        <Reveal className="relative mb-gap-lg [mask-image:linear-gradient(to_bottom,black_87%,transparent)]">
+          <PhotoCarousel
+            slides={place.slides}
+            hasPhotos={hasPhotos}
+            className="aspect-[16/9] rounded-4xl overflow-hidden"
+          />
+          {/* `pb` en porcentaje y no en píxeles a propósito: el porcentaje
+                  de un padding vertical se calcula sobre el ancho, que aquí
+                  guarda proporción fija con el alto (16/9), así que el nombre
+                  se queda siempre al mismo 77% de la altura y el pie de la
+                  foto siempre le pasa por debajo vacío. */}
+          <div className="absolute bottom-0 left-0 right-0 px-gap-xl pt-gap-xl pb-[13%] bg-gradient-to-t from-ink/85 via-ink/40 to-transparent rounded-b-4xl pointer-events-none">
+            {/* La marca solo cuando la hay: sin logo ni fotos, un círculo
+                    con el icono de la categoría sobre la foto oscura sería un
+                    adorno que no dice nada que no diga la categoría de abajo. */}
+            <div className="flex items-center gap-gap-md">
+              {brandUrl && (
+                <span className="relative block size-16 shrink-0 overflow-hidden rounded-full border border-white/25 bg-white">
+                  <Image
+                    src={brandUrl}
+                    alt=""
+                    fill
+                    sizes="64px"
+                    className="object-cover"
+                  />
+                </span>
+              )}
+              <div className="min-w-0">
+                <h1 className="font-lv-display text-h1 font-bold text-white leading-tight tracking-[-0.02em] text-balance">
+                  {place.name}
+                </h1>
+                <div className="flex items-center gap-gap-sm mt-gap-xs">
+                  <span
                     className={cn(
-                      "whitespace-pre-wrap text-body leading-relaxed text-ink",
-                      !descExpanded && "line-clamp-4",
+                      "inline-flex items-center gap-[4px] px-[10px] py-[4px] rounded-full font-lv-display text-xs font-semibold uppercase tracking-[0.06em]",
+                      isClosed
+                        ? "bg-destructive/90 text-white"
+                        : "bg-verde-400 text-verde-950",
                     )}
                   >
-                    {place.longDescription}
-                  </p>
-                  {place.longDescription.length > CLAMP_MIN_CHARS && (
-                    <button
-                      type="button"
-                      onClick={() => setDescExpanded((expanded) => !expanded)}
-                      aria-expanded={descExpanded}
-                      className={cn(BTN_OUTLINE, "mt-gap-md")}
-                    >
-                      {descExpanded ? "Leer menos" : "Leer más"}
-                      <ChevronDown
-                        size={16}
-                        className={cn(CHEVRON, descExpanded && "rotate-180")}
+                    {place.isProject ? (
+                      <Megaphone size={12} />
+                    ) : (
+                      <span
+                        className={cn(
+                          "size-[6px] rounded-full",
+                          isClosed ? "bg-white/80" : "bg-verde-950/60",
+                        )}
                       />
-                    </button>
+                    )}
+                    {place.isProject
+                      ? "Proyecto"
+                      : isClosed
+                        ? "Cerrado"
+                        : "Abierto"}
+                  </span>
+                  {place.rating > 0 && (
+                    <span className="inline-flex items-center gap-[4px] font-lv-display text-xs font-semibold text-white/80">
+                      <Star
+                        size={12}
+                        strokeWidth={1.8}
+                        className="text-verde-300"
+                        fill="currentColor"
+                      />
+                      {place.rating}
+                    </span>
                   )}
-                </section>
-              </Reveal>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Reveal>
 
-              <Reveal>
+        {/* Row 2: Info Strip (compact) */}
+        <Reveal
+          delay={0.05}
+          className="flex flex-wrap items-center gap-x-gap-lg gap-y-gap-xs mb-gap-lg px-gap-md"
+        >
+          {infoSegments.map((segment, index) => (
+            <Fragment key={index}>
+              {index > 0 && <span className="text-ink/10">|</span>}
+              <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
+                <segment.icon
+                  size={14}
+                  strokeWidth={1.8}
+                  className="text-verde-600"
+                />
+                <span className="font-lv-display font-medium text-ink">
+                  {segment.text}
+                </span>
+              </div>
+            </Fragment>
+          ))}
+        </Reveal>
+
+        {/* Row 3: Two columns */}
+        <div className="grid grid-cols-[350px_1fr] gap-gap-lg items-start">
+          {/* ── Left Column (sticky sidebar) ── */}
+          <Reveal className="sticky top-[calc(var(--header-h)+var(--gap-lg))] flex flex-col gap-gap-md">
+            <ActionButtons
+              isSaved={saved}
+              onSave={handleSave}
+              onNavigate={onNavigate}
+              onShare={onShare}
+              onReview={place.isProject ? undefined : () => setReviewOpen(true)}
+            />
+
+            {/* Sin condición: `ContactCard` ya devuelve `null` cuando no hay
+                ningún enlace, y un proyecto no llega con `whatsapp` ni redes
+                mapeados, así que ahí simplemente no se pinta. */}
+            <ContactCard place={place} />
+
+            {/* Special Offer */}
+            {showOffer && place.specialOffer && (
+              <OfferBanner
+                label={place.specialOffer.label}
+                text={place.specialOffer.text}
+                expiry={place.specialOffer.expiry}
+                visible
+              />
+            )}
+          </Reveal>
+
+          {/* ── Right Column (main content) ── */}
+          <div className="flex flex-col gap-gap-lg">
+            {/* Description */}
+            <Reveal>
+              <section className={CARD}>
+                <h2 className={cn(H2, "mb-gap-sm")}>
+                  {place.isProject ? "Sobre el proyecto" : "Sobre este lugar"}
+                </h2>
+                <p
+                  className="overflow-hidden text-body leading-relaxed text-ink whitespace-pre-wrap transition-[max-height] duration-500 ease-outquint"
+                  style={{
+                    maxHeight: descExpanded ? DESC_EXPANDED : DESC_COLLAPSED,
+                    lineHeight: DESC_LINE_HEIGHT,
+                  }}
+                >
+                  {place.longDescription}
+                </p>
+                {place.longDescription.length > CLAMP_MIN_CHARS && (
+                  <button
+                    type="button"
+                    onClick={() => setDescExpanded((prev) => !prev)}
+                    aria-expanded={descExpanded}
+                    className={cn(BTN_OUTLINE, "mt-gap-md")}
+                  >
+                    {descExpanded ? "Leer menos" : "Leer más"}
+                    <ChevronDown
+                      size={16}
+                      strokeWidth={1.8}
+                      className={cn(CHEVRON, descExpanded && "rotate-180")}
+                    />
+                  </button>
+                )}
+              </section>
+            </Reveal>
+
+            {/* A project describes its offer as text, not as a business menu. */}
+            <Reveal>
+              {place.isProject ? (
                 <section className={CARD}>
-                  <h2 className={cn(H2, "mb-gap-sm")}>
+                  <h2 className={cn(H2, "mb-gap-md")}>
                     Qué ofrece el proyecto
                   </h2>
                   {place.projectOfferPackages?.length ? (
@@ -363,7 +477,7 @@ export function PlaceDetail({
                       <p
                         className={cn(
                           "whitespace-pre-wrap text-body leading-relaxed text-ink",
-                          !projectOffersExpanded && "line-clamp-4",
+                          !projectOffersExpanded && "line-clamp-3",
                         )}
                       >
                         {place.projectOffers}
@@ -380,6 +494,7 @@ export function PlaceDetail({
                           {projectOffersExpanded ? "Ver menos" : "Ver todo"}
                           <ChevronDown
                             size={16}
+                            strokeWidth={1.8}
                             className={cn(
                               CHEVRON,
                               projectOffersExpanded && "rotate-180",
@@ -395,337 +510,96 @@ export function PlaceDetail({
                     </p>
                   )}
                 </section>
-              </Reveal>
-            </div>
-
-            <Reveal className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-gap-xs scrollbar-hide">
-              <section
-                aria-label={`Fotos y afiches de ${place.name}`}
-                className="grid grid-cols-2 gap-gap-sm"
-              >
-                {projectPhotos.map((slide, index) => (
-                  <figure
-                    key={`${slide.url}-${index}`}
-                    className={cn(
-                      "relative overflow-hidden rounded-2xl bg-sand-deep",
-                      index === 0 ? "col-span-2 aspect-[4/3]" : "aspect-square",
-                    )}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setProjectPhotoIndex(index)}
-                      aria-label={`Ampliar foto ${index + 1} de ${place.name}`}
-                      className="absolute inset-0 z-10 cursor-zoom-in focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-verde-400"
-                    />
-                    <Image
-                      src={slide.url!}
-                      alt={slide.alt || `${place.name}, imagen ${index + 1}`}
-                      fill
-                      sizes="(min-width: 1280px) 700px, 55vw"
-                      className="object-cover"
-                    />
-                  </figure>
-                ))}
-                {projectPhotos.length === 0 && (
-                  <div className="col-span-2 flex aspect-[4/3] flex-col items-center justify-center gap-gap-sm rounded-2xl border border-dashed border-ink/15 bg-white text-center text-ink-soft/70">
-                    <ImageIcon size={32} strokeWidth={1.5} />
-                    <p className="font-lv-display text-small font-medium">
-                      Fotos y afiches del proyecto
-                    </p>
-                  </div>
-                )}
-              </section>
-            </Reveal>
-          </div>
-        ) : (
-          <>
-            {/* Row 1: Photo Carousel (full width) with place name overlay.
-
-                La máscara es del envoltorio entero, no de la foto: la banda
-                oscura que sostiene el nombre es hermana del carrusel, y si solo
-                se difuminara la imagen el canto recto seguiría ahí, ahora en
-                negro. Con la máscara en el padre se disuelven los dos, y con
-                ellos la esquina redondeada —que a partir de ahora no la dibuja
-                nadie, la hace el desvanecido—. */}
-            <Reveal className="relative mb-gap-lg [mask-image:linear-gradient(to_bottom,black_87%,transparent)]">
-              <PhotoCarousel
-                slides={place.slides}
-                hasPhotos={hasPhotos}
-                className="aspect-[16/9] rounded-4xl overflow-hidden"
-              />
-              {/* `pb` en porcentaje y no en píxeles a propósito: el porcentaje
-                  de un padding vertical se calcula sobre el ancho, que aquí
-                  guarda proporción fija con el alto (16/9), así que el nombre
-                  se queda siempre al mismo 77% de la altura y el pie de la
-                  foto siempre le pasa por debajo vacío. */}
-              <div className="absolute bottom-0 left-0 right-0 px-gap-xl pt-gap-xl pb-[13%] bg-gradient-to-t from-ink/85 via-ink/40 to-transparent rounded-b-4xl pointer-events-none">
-                {/* La marca solo cuando la hay: sin logo ni fotos, un círculo
-                    con el icono de la categoría sobre la foto oscura sería un
-                    adorno que no dice nada que no diga la categoría de abajo. */}
-                <div className="flex items-center gap-gap-md">
-                  {brandUrl && (
-                    <span className="relative block size-16 shrink-0 overflow-hidden rounded-full border border-white/25 bg-white">
-                      <Image
-                        src={brandUrl}
-                        alt=""
-                        fill
-                        sizes="64px"
-                        className="object-cover"
-                      />
-                    </span>
-                  )}
-                  <div className="min-w-0">
-                    <h1 className="font-lv-display text-h1 font-bold text-white leading-tight tracking-[-0.02em] text-balance">
-                      {place.name}
-                    </h1>
-                    <div className="flex items-center gap-gap-sm mt-gap-xs">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-[4px] px-[10px] py-[4px] rounded-full font-lv-display text-xs font-semibold uppercase tracking-[0.06em]",
-                          isClosed
-                            ? "bg-destructive/90 text-white"
-                            : "bg-verde-400 text-verde-950",
-                        )}
-                      >
-                        {place.isProject ? (
-                          <Megaphone size={12} />
-                        ) : (
-                          <span
-                            className={cn(
-                              "size-[6px] rounded-full",
-                              isClosed ? "bg-white/80" : "bg-verde-950/60",
-                            )}
-                          />
-                        )}
-                        {place.isProject
-                          ? "Proyecto"
-                          : isClosed
-                            ? "Cerrado"
-                            : "Abierto"}
-                      </span>
-                      {place.rating > 0 && (
-                        <span className="inline-flex items-center gap-[4px] font-lv-display text-xs font-semibold text-white/80">
-                          <Star
-                            size={12}
-                            strokeWidth={1.8}
-                            className="text-verde-300"
-                            fill="currentColor"
-                          />
-                          {place.rating}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Reveal>
-
-            {/* Row 2: Info Strip (compact) */}
-            <Reveal
-              delay={0.05}
-              className="flex items-center gap-gap-lg mb-gap-lg px-gap-md"
-            >
-              <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
-                {place.isProject ? (
-                  <Megaphone
-                    size={14}
-                    strokeWidth={1.8}
-                    className="text-verde-600"
-                  />
-                ) : (
-                  <Utensils
-                    size={14}
-                    strokeWidth={1.8}
-                    className="text-verde-600"
-                  />
-                )}
-                <span className="font-lv-display font-medium text-ink">
-                  {place.category}
-                </span>
-              </div>
-              <span className="text-ink/10">|</span>
-              <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
-                <MapPin
-                  size={14}
-                  strokeWidth={1.8}
-                  className="text-verde-600"
-                />
-                <span className="font-lv-display font-medium text-ink">
-                  {place.address
-                    ? `${place.address}, ${place.barrio}`
-                    : place.barrio}
-                </span>
-              </div>
-            </Reveal>
-
-            {/* Row 3: Two columns */}
-            <div className="grid grid-cols-[350px_1fr] gap-gap-lg items-start">
-              {/* ── Left Column (sticky sidebar) ── */}
-              <Reveal className="sticky top-[calc(var(--header-h)+var(--gap-lg))] flex flex-col gap-gap-md">
-                <ActionButtons
-                  isSaved={saved}
-                  onSave={handleSave}
-                  onNavigate={onNavigate}
-                  onShare={onShare}
-                  onReview={
-                    place.isProject ? undefined : () => setReviewOpen(true)
-                  }
-                />
-
-                {/* Sin condición: `ContactCard` ya devuelve `null` cuando no hay
-                ningún enlace, y un proyecto no llega con `whatsapp` ni redes
-                mapeados, así que ahí simplemente no se pinta. */}
-                <ContactCard place={place} />
-
-                {/* Special Offer */}
-                {showOffer && place.specialOffer && (
-                  <OfferBanner
-                    label={place.specialOffer.label}
-                    text={place.specialOffer.text}
-                    expiry={place.specialOffer.expiry}
-                    visible
-                  />
-                )}
-              </Reveal>
-
-              {/* ── Right Column (main content) ── */}
-              <div className="flex flex-col gap-gap-lg">
-                {/* Description */}
-                <Reveal>
-                  <section className={CARD}>
-                    <h2 className={cn(H2, "mb-gap-sm")}>
-                      {place.isProject
-                        ? "Sobre el proyecto"
-                        : "Sobre este lugar"}
-                    </h2>
-                    <p
-                      className="overflow-hidden text-body leading-relaxed text-ink whitespace-pre-wrap transition-[max-height] duration-500 ease-outquint"
-                      style={{
-                        maxHeight: descExpanded
-                          ? DESC_EXPANDED
-                          : DESC_COLLAPSED,
-                        lineHeight: DESC_LINE_HEIGHT,
-                      }}
-                    >
-                      {place.longDescription}
-                    </p>
-                    {place.longDescription.length > CLAMP_MIN_CHARS && (
-                      <button
-                        type="button"
-                        onClick={() => setDescExpanded((prev) => !prev)}
-                        aria-expanded={descExpanded}
-                        className={cn(BTN_OUTLINE, "mt-gap-md")}
-                      >
-                        {descExpanded ? "Leer menos" : "Leer más"}
-                        <ChevronDown
-                          size={16}
-                          strokeWidth={1.8}
-                          className={cn(CHEVRON, descExpanded && "rotate-180")}
-                        />
-                      </button>
-                    )}
-                  </section>
-                </Reveal>
-
-                {/* A project describes its offer as text, not as a business menu. */}
-                <Reveal>
-                  {place.isProject ? (
-                    <section className={CARD}>
-                      <h2 className={cn(H2, "mb-gap-md")}>
-                        Qué ofrece el proyecto
-                      </h2>
-                      {place.projectOfferPackages?.length ? (
-                        <ProjectOfferList offers={place.projectOfferPackages} />
-                      ) : place.projectOffers ? (
-                        <>
-                          <p
-                            className={cn(
-                              "whitespace-pre-wrap text-body leading-relaxed text-ink",
-                              !projectOffersExpanded && "line-clamp-3",
-                            )}
-                          >
-                            {place.projectOffers}
-                          </p>
-                          {place.projectOffers.length > CLAMP_MIN_CHARS && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setProjectOffersExpanded(
-                                  (expanded) => !expanded,
-                                )
-                              }
-                              aria-expanded={projectOffersExpanded}
-                              className={cn(BTN_OUTLINE, "mt-gap-md")}
-                            >
-                              {projectOffersExpanded ? "Ver menos" : "Ver todo"}
-                              <ChevronDown
-                                size={16}
-                                strokeWidth={1.8}
-                                className={cn(
-                                  CHEVRON,
-                                  projectOffersExpanded && "rotate-180",
-                                )}
-                              />
-                            </button>
-                          )}
-                        </>
-                      ) : (
-                        <p className="text-small leading-relaxed text-ink-soft/75">
-                          Este proyecto aún no ha añadido información sobre lo
-                          que ofrece.
-                        </p>
-                      )}
-                    </section>
-                  ) : (
-                    <section className={CARD}>
-                      <div className="flex items-center justify-between mb-gap-md">
-                        {/* «Menú» solo valía para restaurantes. En la app hay mercados,
+              ) : (
+                <section className={CARD}>
+                  <div className="flex items-center justify-between gap-gap-xs mb-gap-md">
+                    {/* «Menú» solo valía para restaurantes. En la app hay mercados,
                     mipymes y vendedores independientes, y lo que enseñan es un
                     producto o un servicio, no un plato. */}
-                        <h2 className={H2}>Lo que ofrece</h2>
+                    <h2 className={H2}>Lo que ofrece</h2>
+                    {/* Aquí había un «Ver todo» que no hacía nada: su único
+                        llamador pasaba `onMenuSeeAll={() => {}}` y el estado que
+                        conmutaba no lo leía nadie. El paginado real es de
+                        `MenuPages` —flechas en escritorio, arrastre en móvil—,
+                        y con cuatro entradas o menos ni eso: se ve la lista
+                        entera y no hay nada que desplegar. */}
+                    {place.menu.length > 0 && (
+                      <Link
+                        href={`/place/${place.id}/carta`}
+                        className={cn(BTN_OUTLINE, "group")}
+                      >
+                        Ver la carta
+                        <ArrowUpRight
+                          size={16}
+                          strokeWidth={1.8}
+                          className={cn(
+                            CHEVRON,
+                            "group-hover:translate-x-[2px] group-hover:-translate-y-[2px]",
+                          )}
+                        />
+                      </Link>
+                    )}
+                  </div>
+                  <div id="full-menu-list-desktop">
+                    <MenuPages items={place.menu} variant="grid" />
+                  </div>
+                </section>
+              )}
+            </Reveal>
+
+            {/* Los afiches, además del carrusel de la portada: el carrusel
+                    enseña uno a uno y esta rejilla los deja ver todos de golpe,
+                    que es como se leen unos afiches. Cada uno abre el visor a
+                    pantalla completa. */}
+            {place.isProject && projectPhotos.length > 0 && (
+              <Reveal>
+                <section className={CARD}>
+                  <h2 className={cn(H2, "mb-gap-md")}>Fotos y afiches</h2>
+                  <div className="grid grid-cols-2 gap-gap-sm">
+                    {projectPhotos.map((slide, index) => (
+                      <figure
+                        key={`${slide.url}-${index}`}
+                        className={cn(
+                          "relative overflow-hidden rounded-2xl bg-sand-deep",
+                          index === 0
+                            ? "col-span-2 aspect-[4/3]"
+                            : "aspect-square",
+                        )}
+                      >
                         <button
                           type="button"
-                          id="menu-see-all-trigger-desktop"
-                          onClick={onMenuSeeAll}
-                          aria-expanded="false"
-                          aria-controls="full-menu-list-desktop"
-                          className={cn(BTN_OUTLINE, "group")}
-                        >
-                          Ver todo
-                          <ChevronRight
-                            size={16}
-                            strokeWidth={1.8}
-                            className={cn(
-                              CHEVRON,
-                              "group-hover:translate-x-[2px]",
-                            )}
-                          />
-                        </button>
-                      </div>
-                      <div id="full-menu-list-desktop">
-                        <MenuPages items={place.menu} variant="grid" />
-                      </div>
-                    </section>
-                  )}
-                </Reveal>
+                          onClick={() => setProjectPhotoIndex(index)}
+                          aria-label={`Ampliar foto ${index + 1} de ${place.name}`}
+                          className="absolute inset-0 z-10 cursor-zoom-in focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-verde-400"
+                        />
+                        <Image
+                          src={slide.url!}
+                          alt={
+                            slide.alt || `${place.name}, imagen ${index + 1}`
+                          }
+                          fill
+                          sizes="(min-width: 1280px) 640px, 45vw"
+                          className="object-cover"
+                        />
+                      </figure>
+                    ))}
+                  </div>
+                </section>
+              </Reveal>
+            )}
 
-                {/* Reviews */}
-                {!place.isProject && (
-                  <Reveal>
-                    <section className={CARD}>
-                      <ReviewsSection
-                        placeId={place.id}
-                        reloadKey={reviewsKey}
-                      />
-                    </section>
-                  </Reveal>
-                )}
+            {/* Reviews */}
+            {!place.isProject && (
+              <Reveal>
+                <section className={CARD}>
+                  <ReviewsSection placeId={place.id} reloadKey={reviewsKey} />
+                </section>
+              </Reveal>
+            )}
 
-                {footerSlot}
-              </div>
-            </div>
-          </>
-        )}
+            {footerSlot}
+          </div>
+        </div>
       </div>
 
       {/* ────────── Mobile Layout ────────── */}
@@ -1025,29 +899,31 @@ export function PlaceDetail({
                 </>
               ) : (
                 <>
-                  <div className="flex items-center justify-between mb-gap-md">
+                  <div className="flex items-center justify-between gap-gap-xs mb-gap-md">
                     {/* «Menú» solo valía para restaurantes. En la app hay mercados,
                     mipymes y vendedores independientes, y lo que enseñan es un
                     producto o un servicio, no un plato. */}
                     <h2 className={H2}>Lo que ofrece</h2>
-                    <button
-                      type="button"
-                      id="menu-see-all-trigger"
-                      onClick={() => {
-                        setMenuExpanded(!menuExpanded);
-                        onMenuSeeAll?.();
-                      }}
-                      aria-expanded={menuExpanded}
-                      aria-controls="full-menu-list"
-                      className={cn(BTN_OUTLINE, "group")}
-                    >
-                      Ver todo
-                      <ChevronRight
-                        size={16}
-                        strokeWidth={1.8}
-                        className={cn(CHEVRON, "group-hover:translate-x-[2px]")}
-                      />
-                    </button>
+                    {/* El «Ver todo» que había aquí conmutaba un estado que solo
+                        leía su propio `aria-expanded`: no desplegaba nada. El
+                        paginado es de `MenuPages`, por arrastre en esta
+                        variante, y con cuatro entradas o menos cabe todo. */}
+                    {place.menu.length > 0 && (
+                      <Link
+                        href={`/place/${place.id}/carta`}
+                        className={cn(BTN_OUTLINE, "group")}
+                      >
+                        Ver la carta
+                        <ArrowUpRight
+                          size={16}
+                          strokeWidth={1.8}
+                          className={cn(
+                            CHEVRON,
+                            "group-hover:translate-x-[2px] group-hover:-translate-y-[2px]",
+                          )}
+                        />
+                      </Link>
+                    )}
                   </div>
                   <div id="full-menu-list">
                     <MenuPages items={place.menu} variant="list" />

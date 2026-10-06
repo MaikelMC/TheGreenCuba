@@ -39,6 +39,7 @@ import { DashboardStats } from "@/components/business/dashboard-stats";
 import { PhotoGrid } from "@/components/business/photo-grid";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { MenuItemEditor } from "@/components/business/menu-item-editor";
+import { MenuLinkCard } from "@/components/business/menu-link-card";
 import { pruneMenuImages } from "@/lib/menu-images";
 import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
 import { usePlaces } from "@/providers/places-provider";
@@ -81,13 +82,22 @@ const INPUT =
  * de importar poco: quien acaba de registrar su negocio entra aquí y tiene que
  * ver **el suyo**.
  */
-export function BusinessPanel({ place, stats }: { place: UserPlace; stats: PlaceStats }) {
+export function BusinessPanel({
+  place,
+  stats,
+  menuUrl,
+}: {
+  place: UserPlace;
+  stats: PlaceStats;
+  /** La URL absoluta de la carta, que resuelve el servidor. Ver `menuUrl`. */
+  menuUrl: string;
+}) {
   return (
     <PanelShell>
       {(view) => {
         switch (view) {
           case "dashboard":
-            return <DashboardView place={place} stats={stats} />;
+            return <DashboardView place={place} stats={stats} menuUrl={menuUrl} />;
           case "editor":
             return <EditorView place={place} />;
           case "settings":
@@ -115,7 +125,15 @@ function ViewLead({ title, subtitle }: { title: string; subtitle: string }) {
  * rellenar su negocio y es donde se preguntaría por qué no aparece en el mapa.
  * Decirlo aquí responde a la pregunta en el sitio donde se la hace.
  */
-function DashboardView({ place, stats }: { place: UserPlace; stats: PlaceStats }) {
+function DashboardView({
+  place,
+  stats,
+  menuUrl,
+}: {
+  place: UserPlace;
+  stats: PlaceStats;
+  menuUrl: string;
+}) {
   const offering = [place.description].filter(Boolean).join(" ");
 
   return (
@@ -180,12 +198,21 @@ function DashboardView({ place, stats }: { place: UserPlace; stats: PlaceStats }
                 Es uno de los filtros que más se usan al buscar.
               </li>
             )}
+            {place.menu.length === 0 && (
+              <li>
+                <span className="font-semibold text-ink">Publica tu carta.</span>{" "}
+                Se añade en «Lo que ofreces» y se comparte con un enlace que
+                cualquiera abre, sin cuenta.
+              </li>
+            )}
             <li>
               <span className="font-semibold text-ink">Revisa tu ficha.</span>{" "}
               Ábrela en el mapa y mírala tal como la ve quien te busca.
             </li>
           </ul>
         </section>
+
+        <MenuLinkCard placeId={place.id} placeName={place.name} url={menuUrl} />
       </div>
     </>
   );
@@ -260,8 +287,9 @@ function EditorView({ place }: { place: UserPlace }) {
       schedule: schedule.trim(),
       status,
       payments,
-      /* `tag` e `image` van con el resto: sin ellos cada guardado borraba la
-         chapita que ya tenía puesta y la foto recién subida. */
+      /* `tag`, `image` y `category` van con el resto: esto es una lista blanca
+         de campos escrita a mano, así que lo que no se nombre aquí se pierde en
+         cada guardado —la chapita y la foto ya se perdieron una vez—. */
       menu: menu
         .filter((item) => item.name.trim().length > 0)
         .map((item) => ({
@@ -270,6 +298,7 @@ function EditorView({ place }: { place: UserPlace }) {
           price: item.price,
           currency: item.currency,
           tag: item.tag,
+          category: item.category?.trim() || undefined,
           image: item.image || undefined,
         })),
       offer:

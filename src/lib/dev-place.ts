@@ -1,3 +1,4 @@
+import { getAppUser } from "@/lib/auth/user";
 import type { UserPlace } from "@/lib/places-store";
 
 /**
@@ -22,9 +23,78 @@ export function devPlaceEnabled(): boolean {
   return process.env.NODE_ENV !== "production";
 }
 
-export function devPlace(): UserPlace | null {
-  if (!devPlaceEnabled()) return null;
+/**
+ * Las cuentas que ven este negocio **en producción**.
+ *
+ * Fuera de desarrollo la ficha no existe para nadie: `devPlaceEnabled()` apaga
+ * la inyección entera. Esta lista es la única excepción, y es para poder abrir
+ * la ficha y la carta contra datos reales sin que el negocio de mentira acabe
+ * en el catálogo de nadie más.
+ *
+ * Es un literal y no una variable de entorno a propósito: una variable más es
+ * una cosa más que puede quedar sin poner en el despliegue, y el fallo entonces
+ * es mudo —«no sale la ficha y no sé por qué»—. Esto no es un secreto, es un
+ * interruptor.
+ *
+ * Lo que abre, además: **la carta, a todo el mundo**. No es una excepción a
+ * esta lista sino lo contrario —la carta es lo que se reparte, por WhatsApp o
+ * en un QR pegado a una mesa, y un menú que solo abre su dueño no se puede
+ * repartir—. Su enlace no lleva sesión: lo decide la propia carta, en
+ * `carta/page.tsx`.
+ *
+ * Lo que abre **además, y solo para** estas cuentas: el pin en el mapa y el
+ * negocio en el home. El catálogo es público y no pregunta por la sesión, pero
+ * `/api/places` sí mira —y solo cuando la petición trae cookie de sesión, que
+ * para un anónimo es no mirar nada— para poder colar este negocio en la lista de
+ * quien lo mantiene. Así se prueba el mapa en producción con datos de verdad
+ * alrededor.
+ *
+ * Lo que **no** abre: la ficha (solo estas cuentas, y `sitemap` no la ve
+ * nunca). A la ficha se llega por la URL.
+ */
+const DEV_PLACE_VIEWERS = ["maikelcanario0@gmail.com"];
 
+/** ¿Este correo puede ver el negocio de desarrollo? */
+export function canViewDevPlace(email: string | null | undefined): boolean {
+  if (devPlaceEnabled()) return true;
+  const normalized = email?.trim().toLowerCase();
+  return Boolean(normalized && DEV_PLACE_VIEWERS.includes(normalized));
+}
+
+/**
+ * Lo mismo, con la sesión delante: es lo que llaman las páginas.
+ *
+ * El `id` va de parámetro para poder salir antes de preguntar por el usuario.
+ * Leer la sesión cuesta un viaje a Neon, y esto se llama en la ficha pública:
+ * sin esta salida, cada visita anónima a cualquier negocio lo pagaría.
+ */
+export async function mayViewDevPlace(id: string): Promise<boolean> {
+  if (id !== DEV_PLACE_ID) return false;
+  if (devPlaceEnabled()) return true;
+  const user = await getAppUser();
+  return canViewDevPlace(user?.email);
+}
+
+/**
+ * ¿Esta ficha puede entrar en el índice de un buscador?
+ *
+ * La del negocio de prueba, nunca: fuera de desarrollo es una ficha privada a
+ * la que se llega por URL, y una URL que se filtre —o que alguien comparta—
+ * metería un negocio de mentira en Google con su marcado estructurado y todo.
+ * En desarrollo da igual, no la rastrea nadie.
+ */
+export function devPlaceIndexable(id: string): boolean {
+  return id !== DEV_PLACE_ID || devPlaceEnabled();
+}
+
+/**
+ * La ficha de mentira, ya construida.
+ *
+ * **Sin guarda propia**, y es a propósito: quién puede verla lo deciden
+ * `mayViewDevPlace` y `devPlaceEnabled` en `queries.ts`, que es donde se sabe
+ * si hay sesión. Aquí solo están los datos.
+ */
+export function devPlace(): UserPlace {
   return {
     id: DEV_PLACE_ID,
     name: "Café La Ceiba (local)",
@@ -45,6 +115,9 @@ export function devPlace(): UserPlace | null {
     schedule: "Todo el día",
     vibe: ["Tranquilo", "Con música"],
     payments: ["Efectivo (CUP)", "Efectivo (MLC)", "Transferencia"],
+    /* Cuatro categorías y doce entradas a propósito: es lo que hace falta para
+       ver la barra de filtros de la carta —que solo aparece con más de una— y
+       para que «Lo que ofrece» de la ficha tenga tres páginas que paginar. */
     menu: [
       {
         name: "Café de la casa",
@@ -52,18 +125,87 @@ export function devPlace(): UserPlace | null {
         price: "150",
         currency: "CUP",
         tag: "Popular",
+        category: "Cafés",
       },
       {
         name: "Colada",
         description: "Para llevar en termo.",
         price: "400",
         currency: "CUP",
+        category: "Cafés",
+      },
+      {
+        name: "Cortadito",
+        description: "Mitad café, mitad leche evaporada.",
+        price: "200",
+        currency: "CUP",
+        category: "Cafés",
+      },
+      {
+        name: "Café con leche",
+        description: "En taza grande, con leche de vaca.",
+        price: "250",
+        currency: "CUP",
+        category: "Cafés",
       },
       {
         name: "Sándwich de jamón",
         description: "Pan de la panadería de enfrente.",
         price: "2.50",
         currency: "MLC",
+        category: "Para picar",
+      },
+      {
+        name: "Croqueta de jamón",
+        description: "Frita al momento, dos por ración.",
+        price: "120",
+        currency: "CUP",
+        category: "Para picar",
+      },
+      {
+        name: "Tostada con mantequilla",
+        description: "Pan de flauta a la plancha.",
+        price: "180",
+        currency: "CUP",
+        category: "Para picar",
+      },
+      {
+        name: "Flan de la casa",
+        description: "Con caramelo de la olla, cuajado de un día.",
+        price: "350",
+        currency: "CUP",
+        tag: "Nuevo",
+        category: "Dulces",
+      },
+      {
+        name: "Tortica de chocolate",
+        description: "Bizcocho húmedo, sin relleno.",
+        price: "2",
+        currency: "MLC",
+        category: "Dulces",
+      },
+      {
+        name: "Refresco",
+        description: "Lata fría, varias marcas.",
+        price: "250",
+        currency: "CUP",
+        category: "Bebidas frías",
+      },
+      {
+        name: "Jugo natural",
+        description: "Del día: mango, guayaba o fruta bomba.",
+        price: "3",
+        currency: "MLC",
+        category: "Bebidas frías",
+      },
+      {
+        /* Sin precio a propósito: es el caso de un servicio, y enseña que la
+           fila se sostiene con la categoría sola. Ver `MenuItem`. */
+        name: "Wi-Fi gratis",
+        description: "Contraseña en el mostrador.",
+        price: "",
+        currency: "CUP",
+        category: "Servicios",
       },
     ],
     offer: {

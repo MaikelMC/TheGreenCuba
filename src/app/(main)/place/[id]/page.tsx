@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cache } from "react";
 import { getPlaceById } from "@/lib/db/queries";
+import { devPlaceIndexable, mayViewDevPlace } from "@/lib/dev-place";
 import { placeJsonLd, placeUrl } from "@/lib/structured-data";
 import { PlaceView } from "./place-view";
 
@@ -33,7 +34,10 @@ import { PlaceView } from "./place-view";
  */
 const getPlace = cache(async (id: string) => {
   try {
-    return await getPlaceById(id);
+    /* `mayViewDevPlace` sale antes de preguntar por la sesión cuando el id no
+       es el del negocio de prueba, así que una ficha normal no paga nada por
+       esto. Ver `dev-place.ts`. */
+    return await getPlaceById(id, { includeDev: await mayViewDevPlace(id) });
   } catch {
     return null;
   }
@@ -91,8 +95,13 @@ export async function generateMetadata({
     },
     twitter: { card: "summary_large_image", title, description },
     /* Un negocio cerrado se enseña —el enlace está compartido y tiene que
-       abrir—, pero no se ofrece al índice: es una página que dice «cerrado». */
-    robots: place.status === "active" ? undefined : { index: false, follow: true },
+       abrir—, pero no se ofrece al índice: es una página que dice «cerrado».
+       Y el negocio de prueba no se indexa nunca, ni siquiera en producción
+       cuando su dueño puede verlo. Ver `devPlaceIndexable`. */
+    robots:
+      place.status === "active" && devPlaceIndexable(place.id)
+        ? undefined
+        : { index: false, follow: true },
   };
 }
 

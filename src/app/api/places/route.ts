@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
+import { NEON_AUTH_SESSION_COOKIE_NAME } from "@neondatabase/auth/server";
 import { isAdminRequest } from "@/lib/admin-server";
+import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { places, projectRequests } from "@/lib/db/schema";
 import { toNewPlaceValues, toUserPlace } from "@/lib/db/mappers";
 import { CATALOG_TAG, listPlaces, resolveCategoryId } from "@/lib/db/queries";
+import { canViewDevPlace } from "@/lib/dev-place";
 import { generateId } from "@/lib/utils";
 import type { UserPlace } from "@/lib/places-store";
 
@@ -24,6 +27,23 @@ import type { UserPlace } from "@/lib/places-store";
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
+  /* Quién pregunta, pero **solo para el negocio de prueba**: el catálogo se
+     sirve igual a todo el mundo y esto no es una puerta.
+
+     La sesión se lee únicamente si la petición trae la cookie de sesión. Sin
+     ella no hay usuario que resolver, y preguntarlo de todos modos costaría una
+     ida y vuelta al servidor de auth de Neon en **cada** carga del catálogo
+     —y quien más lo carga es un anónimo, porque la ficha se comparte por
+     WhatsApp y desde ella se pide esta ruta—. Con la cookie delante, la sesión
+     va firmada dentro y se valida en memoria, sin salir a la red.
+
+     El nombre de la cookie se importa y no se escribe a mano: es de Neon, no
+     nuestro, y una copia literal dejaría de valer en cuanto el paquete lo
+     cambie —en silencio, que es la peor forma—. */
+  const email = req.cookies.has(NEON_AUTH_SESSION_COOKIE_NAME)
+    ? (await getAppUser())?.email
+    : null;
+
   const items = await listPlaces({
     city: searchParams.get("city"),
     categorySlug: searchParams.get("category"),
@@ -38,6 +58,9 @@ export async function GET(req: NextRequest) {
 
        El panel de administración lo necesita todo y por eso pide `?all=true`. */
     onlyActive: searchParams.get("all") !== "true",
+    /* El pin del negocio de prueba, solo en el mapa de quien lo mantiene. Ver
+       `dev-place.ts`. */
+    includeDev: canViewDevPlace(email),
     limit: Number(searchParams.get("limit") ?? 200) || 200,
   });
 

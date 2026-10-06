@@ -11,6 +11,7 @@ import type {
 } from "@/lib/places-store";
 import type { PlaceData } from "@/components/place/place-detail";
 import { contactLinks } from "@/lib/contact-links";
+import { formatDateRange } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { usePlaces } from "@/providers/places-provider";
 import { LoadingState } from "@/components/ui/loading";
@@ -52,7 +53,12 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
     address: p.address,
     logoUrl: p.logoUrl,
     barrio: p.barrio || "Cuba",
-    schedule: p.schedule || "Próximamente",
+    /* Las fechas de un proyecto, legibles: la base las guarda como
+       «2026-08-12 a 2026-08-20» y ese es el dato por el que se decide si ir. */
+    schedule:
+      p.isProject && p.schedule
+        ? formatDateRange(p.schedule)
+        : p.schedule || "Próximamente",
     payments: p.payments,
     description: p.description,
     longDescription:
@@ -105,6 +111,7 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
         price: item.price,
         currency: item.currency || "MLC",
         tag: item.tag,
+        category: item.category,
         image: item.image,
       })),
     specialOffer: p.offer
@@ -202,7 +209,6 @@ export function PlaceView({
       state={placeState(place)}
       onBack={() => router.back()}
       onShare={() => sharePlace(place.id, place.name)}
-      onMenuSeeAll={() => {}}
       onNavigate={() => router.push(`/home?lugar=${place.id}`)}
     />
   );

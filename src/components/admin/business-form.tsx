@@ -162,8 +162,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
       description: description.trim(),
       schedule: schedule.trim(),
       payments,
-      /* `tag` e `image` van con el resto: sin ellos cada guardado borraba la
-         chapita que el dueño ya tenía puesta y la foto recién subida. */
+      /* `tag`, `image` y `category` van con el resto: esto es una lista blanca
+         de campos escrita a mano, así que lo que no se nombre aquí se pierde en
+         cada guardado —la chapita y la foto ya se perdieron una vez—. */
       menu: menu
         .filter((item) => item.name.trim().length > 0)
         .map((item) => ({
@@ -172,6 +173,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
           price: item.price,
           currency: item.currency,
           tag: item.tag,
+          category: item.category?.trim() || undefined,
           image: item.image || undefined,
         })),
       offer:

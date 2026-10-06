@@ -46,6 +46,19 @@ export interface UserPlaceMenuItem {
   /** Chapita del producto («Popular», «Nuevo», «2x1»). Vacío = sin chapita. */
   tag?: string;
   /**
+   * Familia del producto: «Entrantes», «Bebidas», «Servicios». Texto libre, no
+   * una clave foránea — es lo que el dueño escribe en su panel para agrupar su
+   * propia carta, y dos negocios no tienen por qué llamar igual a lo mismo.
+   *
+   * Vive aquí y no en la tabla `place_menu_items` porque `menu` es el jsonb que
+   * la app lee de verdad: la tabla existe, guarda el precio como número y
+   * pierde el texto libre («3–5 USD») que este campo acompaña.
+   *
+   * Opcional: media carta ya guardada no tiene categoría, y sin ninguna —o con
+   * una sola— no hay navegación que ofrecer, así que la carta se lee igual.
+   */
+  category?: string;
+  /**
    * Una sola foto por producto, la que se elige tocando el icono de imagen en
    * «Lo que ofrece».
    *

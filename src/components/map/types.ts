@@ -15,6 +15,9 @@ export interface MapPlace {
   rating?: number;
   distance?: string;
   price?: string;
+  /** Fechas ya legibles de un proyecto («12 ago – 20 ago»). Los negocios no
+      tienen: su horario vive en `schedule` de `UserPlace` y no viaja al pin. */
+  schedule?: string;
   image?: string;
   offerPackages?: ProjectOfferPackage[];
   tags?: { label: string; variant?: string }[];

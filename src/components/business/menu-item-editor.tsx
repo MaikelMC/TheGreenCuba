@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useId, useRef } from "react";
 import Image from "next/image";
 import { Image as ImageIcon, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,8 @@ interface MenuItemData {
   price: string;
   currency: string;
   tag?: string;
+  /** Familia del producto («Entrantes», «Bebidas»). Ver `UserPlaceMenuItem`. */
+  category?: string;
   gradient?: string;
   /** URL de la foto en el bucket, **una sola** por producto. Vacío = sin foto. */
   image?: string;
@@ -63,6 +65,10 @@ export function MenuItemEditor({
   /* A qué producto apunta el input: hay **un** selector para la lista entera,
      porque montar uno por fila obligaría a sincronizarlos con `items`. */
   const targetId = useRef<string | null>(null);
+  /* Un id por instancia: este editor se monta a la vez en el panel del dueño y
+     en el formulario de administración, y dos `datalist` con el mismo id se
+     pisan entre sí. */
+  const categoryListId = useId();
 
   /* El `onChange` va fuera del `setState`, y no dentro como estaba en los tres.
      React ejecuta el actualizador durante el render —y dos veces en modo
@@ -164,6 +170,17 @@ export function MenuItemEditor({
     [menuItems, update],
   );
 
+  /* Las categorías que esta carta ya usa, para no teclear «Bebidas» dos veces
+     con dos acentos distintos. `Set` conserva el orden de inserción, así que
+     salen en el orden en que el dueño fue creando sus grupos, no alfabéticas. */
+  const categories = [
+    ...new Set(
+      menuItems
+        .map((item) => item.category?.trim())
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ];
+
   return (
     <div className={cn("flex flex-col", className)}>
       {/* Mismo aviso que `PhotoGrid` en el alta nueva: sin ficha no hay dónde
@@ -191,6 +208,15 @@ export function MenuItemEditor({
           void upload(file);
         }}
       />
+
+      {/* Sugerencias y no una lista cerrada: la categoría la inventa el dueño
+          —una cafetería no agrupa como una ferretería— y esto es un `<datalist>`
+          nativo, que filtra según escribe y no cuesta ni una dependencia. */}
+      <datalist id={categoryListId}>
+        {categories.map((category) => (
+          <option key={category} value={category} />
+        ))}
+      </datalist>
 
       {menuItems.map((item) => (
         <div
@@ -262,6 +288,18 @@ export function MenuItemEditor({
                 móvil. Con `flex-wrap` la etiqueta cae a la línea de abajo
                 cuando no cabe, en vez de empujar. */}
             <div className="flex flex-wrap gap-gap-xs items-center">
+              <input
+                type="text"
+                value={item.category ?? ""}
+                onChange={(e) => update(item.id, "category", e.target.value)}
+                placeholder="Categoría"
+                list={categoryListId}
+                aria-label="Categoría del producto"
+                className={cn(
+                  INPUT,
+                  "w-[124px] sm:w-[148px] min-w-0 h-10 border-ink/10 text-meta text-ink-soft/75",
+                )}
+              />
               <input
                 type="text"
                 value={item.price}

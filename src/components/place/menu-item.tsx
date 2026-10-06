@@ -12,6 +12,9 @@ interface MenuItemProps {
   price: string;
   currency: string;
   tag?: string;
+  /** Familia del producto («Entrantes», «Bebidas»). Opcional: media carta no
+      la tiene, y sin ella la fila se lee igual. Ver `UserPlaceMenuItem`. */
+  category?: string;
   imageEmoji?: string;
   /**
    * Foto que el dueño puso al producto desde «Lo que ofrece».
@@ -44,6 +47,7 @@ export function MenuItem({
   price,
   currency,
   tag,
+  category,
   imageEmoji,
   image,
   className,
@@ -85,14 +89,21 @@ export function MenuItem({
         <div className="text-meta text-ink-soft/75 leading-snug line-clamp-2">
           {description}
         </div>
-        {/* Sin precio ni chapita no hay fila: `formatMenuPrice` devuelve cadena
-            vacía cuando el dueño no puso precio, que es el caso de un servicio
-            como «Wi-Fi gratis». */}
-        {(priceText || tag) && (
-          <div className="flex items-center justify-between mt-[6px]">
+        {/* Sin precio, chapita ni categoría no hay fila: `formatMenuPrice`
+            devuelve cadena vacía cuando el dueño no puso precio, que es el caso
+            de un servicio como «Wi-Fi gratis». */}
+        {(priceText || tag || category) && (
+          <div className="flex items-center gap-gap-xs mt-[6px]">
             {priceText && (
               <span className="font-lv-display text-small font-semibold text-ink">
                 {priceText}
+              </span>
+            )}
+            {/* La categoría en gris y no en verde: es una etiqueta de orden, no
+                un reclamo. El verde está reservado para lo que vende. */}
+            {category && (
+              <span className="px-[8px] py-[2px] rounded-full bg-sand font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-soft/75">
+                {category}
               </span>
             )}
             {tag && (

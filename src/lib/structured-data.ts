@@ -39,6 +39,21 @@ export function placeUrl(id: string): string {
   return `${siteConfig.url.replace(/\/$/, "")}/place/${id}`;
 }
 
+/**
+ * La carta pública del negocio: la ruta que se comparte y la que va dentro del
+ * QR de la mesa.
+ *
+ * Cuelga de la ficha —`/place/{id}/carta`— y no de un `/carta/{slug}` propio.
+ * El `slug` existe, es único y hoy no cambia, pero el id no depende de ninguna
+ * regla: un QR impreso y pegado en una mesa no se puede romper porque alguien
+ * decida mañana rehacer los slugs. Y la ruta cuelga de `/place`, que es la que
+ * el proxy deja abierta a propósito, así que no hay que tocar el control de
+ * acceso.
+ */
+export function menuUrl(id: string): string {
+  return `${placeUrl(id)}/carta`;
+}
+
 export function placeJsonLd(place: UserPlace): Record<string, unknown> {
   const url = placeUrl(place.id);
 

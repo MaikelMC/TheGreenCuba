@@ -26,7 +26,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { cn } from "@/lib/utils";
+import { cn, formatDateRange } from "@/lib/utils";
 import { fadeUp, popIn, staggerContainer } from "@/lib/motion";
 import { CategoryBar } from "@/components/layout/category-bar";
 import { BottomSheet } from "@/components/layout/bottom-sheet";
@@ -709,7 +709,8 @@ function HomePageContent() {
   );
 
   const visiblePlaces = useMemo(
-    () => provinceScopedPlaces.filter((p) => matchesPlaceFilters(p, filterContext)),
+    () =>
+      provinceScopedPlaces.filter((p) => matchesPlaceFilters(p, filterContext)),
     [provinceScopedPlaces, filterContext],
   );
 
@@ -736,6 +737,10 @@ function HomePageContent() {
         rating: p.rating,
         distance: p.distanceLabel || p.address || p.barrio,
         price: p.priceLabel,
+        /* El popup de un proyecto enseña sus fechas en lugar del precio: es el
+           dato que decide si se va, y el proyecto no tiene precio de carta. */
+        schedule:
+          p.isProject && p.schedule ? formatDateRange(p.schedule) : undefined,
         tags: [
           ...(p.isBoosted
             ? [{ label: "Destacado", variant: "open" as const }]

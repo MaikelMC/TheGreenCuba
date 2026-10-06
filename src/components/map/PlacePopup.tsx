@@ -2,7 +2,14 @@
 
 import { Fragment, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Check, ChevronRight, Navigation, Star, Ticket } from "lucide-react";
+import {
+  CalendarDays,
+  Check,
+  ChevronRight,
+  Navigation,
+  Star,
+  Ticket,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { placeIcon } from "@/lib/places";
 import { CategoryIcon } from "@/components/admin/category-icon";
@@ -41,7 +48,13 @@ export function PlacePopup({
     /* El icono del negocio, el mismo que el del pin: el popup sale del pin, y
        ver un emoji aquí después de haber tocado un icono allí era cambiar de
        dibujo a mitad de camino. */
-    <span key="cat" className={cn(META, "inline-flex items-center gap-[3px] font-medium text-ink")}>
+    <span
+      key="cat"
+      className={cn(
+        META,
+        "inline-flex items-center gap-[3px] font-medium text-ink",
+      )}
+    >
       <CategoryIcon
         icon={placeIcon(place.icon, place.category)}
         size={12}
@@ -55,7 +68,13 @@ export function PlacePopup({
 
   if (place.rating) {
     segments.push(
-      <span key="rating" className={cn(META, "inline-flex items-center gap-[3px] font-semibold text-verde-600")}>
+      <span
+        key="rating"
+        className={cn(
+          META,
+          "inline-flex items-center gap-[3px] font-semibold text-verde-600",
+        )}
+      >
         <Star size={11} fill="currentColor" className="shrink-0" />
         {place.rating}
       </span>,
@@ -65,6 +84,23 @@ export function PlacePopup({
     segments.push(
       <span key="dist" className={cn(META, "text-ink-soft/75")}>
         {place.distance}
+      </span>,
+    );
+  }
+  /* Las fechas, y solo en un proyecto: un negocio no tiene una, tiene horario,
+     que no cabe en una línea de popup. Para un proyecto son el dato que decide
+     si se va, así que van donde el negocio pone el precio. */
+  if (place.isProject && place.schedule) {
+    segments.push(
+      <span
+        key="dates"
+        className={cn(
+          META,
+          "inline-flex items-center gap-[3px] font-medium text-verde-700",
+        )}
+      >
+        <CalendarDays size={11} strokeWidth={2} className="shrink-0" />
+        {place.schedule}
       </span>,
     );
   }
@@ -121,13 +157,25 @@ export function PlacePopup({
           <div className="flex items-center gap-1 text-[10px] font-semibold uppercase text-verde-700">
             <Ticket size={12} /> Oferta principal
           </div>
-          <p className="mt-0.5 truncate font-lv-display text-small font-semibold text-ink">{featuredOffer.title}</p>
+          <p className="mt-0.5 truncate font-lv-display text-small font-semibold text-ink">
+            {featuredOffer.title}
+          </p>
           <p className="mt-0.5 truncate text-meta text-ink-soft/75">
-            {[featuredOffer.price, featuredOffer.capacity ? `${featuredOffer.capacity} personas` : "", featuredOffer.includes[0] ?? ""]
+            {[
+              featuredOffer.price,
+              featuredOffer.capacity
+                ? `${featuredOffer.capacity} personas`
+                : "",
+              featuredOffer.includes[0] ?? "",
+            ]
               .filter(Boolean)
               .join(" · ")}
           </p>
-          {(place.offerPackages?.length ?? 0) > 1 && <p className="mt-1 text-meta font-medium text-verde-700">+{place.offerPackages!.length - 1} ofertas más</p>}
+          {(place.offerPackages?.length ?? 0) > 1 && (
+            <p className="mt-1 text-meta font-medium text-verde-700">
+              +{place.offerPackages!.length - 1} ofertas más
+            </p>
+          )}
         </div>
       )}
 
@@ -177,7 +225,10 @@ export function PlacePopup({
         <Link
           href={`/place/${place.id}`}
           data-place-id={place.id}
-          className={cn(ACTION, "bg-verde-400 !text-verde-950 hover:bg-verde-300")}
+          className={cn(
+            ACTION,
+            "bg-verde-400 !text-verde-950 hover:bg-verde-300",
+          )}
         >
           {place.isProject ? "Ver proyecto" : "Ver más"}
           <ChevronRight size={15} strokeWidth={1.8} />

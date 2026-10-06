@@ -10,6 +10,57 @@ export function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(1)} km`;
 }
 
+const MONTH_SHORT = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "sep",
+  "oct",
+  "nov",
+  "dic",
+];
+
+/**
+ * Las fechas de un proyecto, legibles.
+ *
+ * La base las guarda como `YYYY-MM-DD` —salen de un `<input type="date">`— y la
+ * API las une en una cadena «2026-08-12 a 2026-08-20» que viajaba cruda a la
+ * ficha. Ese es el dato por el que se decide si ir a un proyecto, así que se
+ * enseña como se lee: «12 ago – 20 ago», o «12 ago 2026 – 20 ago 2026» cuando
+ * cruza de año, porque ahí el año ya no es el mismo para las dos.
+ *
+ * Sin `Date`: `new Date("2026-08-12")` se interpreta como UTC y en un navegador
+ * al oeste de Greenwich devuelve el día anterior. La cadena ya viene partida, así
+ * que se formatea a mano y no hay huso que la mueva.
+ *
+ * Lo que no encaje —otro separador, un texto escrito a mano— se devuelve tal
+ * cual: es preferible una fecha fea a una fecha inventada.
+ */
+export function formatDateRange(value: string): string {
+  const [start, end] = value.split(/\s+a\s+/);
+  if (!start || !end) return value;
+
+  const parts = (iso: string) => {
+    const [year, month, day] = iso.split("-").map(Number);
+    if (!year || !month || !day || month > 12) return null;
+    return `${day} ${MONTH_SHORT[month - 1]}`;
+  };
+
+  const from = parts(start);
+  const to = parts(end);
+  if (!from || !to) return value;
+
+  const sameYear = start.slice(0, 4) === end.slice(0, 4);
+  const year = sameYear ? "" : ` ${start.slice(0, 4)}`;
+  const yearTo = sameYear ? "" : ` ${end.slice(0, 4)}`;
+  return `${from}${year} – ${to}${yearTo}`;
+}
+
 /**
  * Etiqueta visible de una moneda. MLC se muestra como "USD Clásica"
  * (mantenemos el valor interno "MLC" para compatibilidad con datos guardados).
@@ -64,7 +115,12 @@ export function formatMenuPrice(price: string, currency: string): string {
 }
 
 export function formatPrice(price: number, currency = "MLC"): string {
-  const symbols: Record<string, string> = { MLC: "USD", CUP: "$", USD: "USD", EUR: "€" };
+  const symbols: Record<string, string> = {
+    MLC: "USD",
+    CUP: "$",
+    USD: "USD",
+    EUR: "€",
+  };
   return `${price.toFixed(2)} ${symbols[currency] ?? currency}`;
 }
 

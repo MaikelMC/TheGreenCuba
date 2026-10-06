@@ -27,8 +27,12 @@ interface PhotoCarouselProps {
   className?: string;
 }
 
+/** Cada cuánto pasa sola la diapositiva, en milisegundos. */
+const AUTOPLAY_MS = 3000;
+
 export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCarouselProps) {
   const [current, setCurrent] = useState(0);
+  const [paused, setPaused] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef(0);
   const touchDeltaX = useRef(0);
@@ -48,9 +52,43 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
     }
   }, [current]);
 
+  /* Avance solo. Se para con el puntero encima o con el foco del teclado dentro
+     —un carrusel que no se puede detener es un fallo de accesibilidad (WCAG
+     2.2.2)— y no arranca siquiera si el sistema pide movimiento reducido. El
+     gesto táctil también lo para mientras dura, y al soltar el contador vuelve
+     a empezar: así no te cambia la foto justo después de haberla movido tú.
+     Solo desde la segunda foto tiene sentido, y `total` lo decide. */
+  useEffect(() => {
+    if (paused || total < 2) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const id = setInterval(
+      () => setCurrent((c) => (c + 1) % total),
+      AUTOPLAY_MS,
+    );
+    return () => clearInterval(id);
+  }, [paused, total]);
+
+  /* El tipo de puntero y no el evento a secas: en táctil el navegador emula
+     `mouseenter` sobre lo que acabas de tocar, y con eso el carrusel se quedaba
+     parado hasta el siguiente toque en otro sitio. */
+  const pauseForMouse = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === "mouse") setPaused(true);
+  }, []);
+  const resumeForMouse = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === "mouse") setPaused(false);
+  }, []);
+  /* Y `:focus-visible` y no el foco a secas, por lo mismo: pulsar una flecha con
+     el ratón también enfoca el botón, y el foco se queda ahí después de irte. */
+  const pauseForKeyboard = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
+    if (e.target instanceof HTMLElement && e.target.matches(":focus-visible")) {
+      setPaused(true);
+    }
+  }, []);
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
     if (!touch) return;
+    setPaused(true);
     touchStartX.current = touch.clientX;
     touchDeltaX.current = 0;
     isDragging.current = true;
@@ -69,6 +107,7 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
 
   const handleTouchEnd = useCallback(() => {
     isDragging.current = false;
+    setPaused(false);
     if (trackRef.current) trackRef.current.style.transition = "";
     if (Math.abs(touchDeltaX.current) > 50) {
       goTo(touchDeltaX.current > 0 ? current - 1 : current + 1);
@@ -92,6 +131,11 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+      onPointerEnter={pauseForMouse}
+      onPointerLeave={resumeForMouse}
+      onFocus={pauseForKeyboard}
+      onBlur={() => setPaused(false)}
     >
       {/* `duration-slow` no existe en la escala de Tailwind: compilaba a cero y
           el carril saltaba de golpe en vez de deslizar. */}

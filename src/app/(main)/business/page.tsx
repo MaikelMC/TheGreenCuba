@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAppUser } from "@/lib/auth/user";
 import { getPlaceById, ownerPlaceId, placeStats } from "@/lib/db/queries";
+import { menuUrl } from "@/lib/structured-data";
 import { BusinessPanel } from "@/components/business/business-panel";
 import { BusinessEntry } from "@/components/business/business-entry";
 
@@ -50,5 +51,10 @@ export default async function BusinessPage() {
      publicación, no otra consulta aquí. */
   if (!place.isActive) redirect("/profile?seccion=negocio");
 
-  return <BusinessPanel place={place} stats={stats} />;
+  /* La URL absoluta de la carta se resuelve aquí y no en el cliente: el QR
+     necesita la dirección entera, y `window.location.origin` en el panel de un
+     despliegue de prueba generaría un QR que apunta a la prueba. */
+  return (
+    <BusinessPanel place={place} stats={stats} menuUrl={menuUrl(place.id)} />
+  );
 }
