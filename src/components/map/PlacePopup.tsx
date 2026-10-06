@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Check, ChevronRight, Navigation, Star, Ticket } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,6 +33,8 @@ export function PlacePopup({
   routeFixed,
   onRouteClear,
 }: PlacePopupProps) {
+  const [coverFailed, setCoverFailed] = useState(false);
+
   // Una sola línea de datos. El barrio se omite a propósito: el mapa ya dice
   // dónde está, y la distancia es la que aporta algo.
   const segments: ReactNode[] = [
@@ -76,6 +78,23 @@ export function PlacePopup({
 
   return (
     <div className="w-[260px] font-lv text-ink">
+      {/* Portada: la foto del negocio antes de entrar a la ficha. Es la misma
+          que ya lleva el pin —logo, foto del mapa o portada, en ese orden—,
+          solo que aquí cabe entera. Si la URL falla, el hueco desaparece en
+          vez de dejar un rectángulo roto: la tarjeta sigue siendo la misma
+          sin ella. */}
+      {place.image && !coverFailed && (
+        <div className="lv-popup-cover h-[84px] w-full border-b border-ink/5 bg-sand-deep">
+          <img
+            src={place.image}
+            alt=""
+            loading="lazy"
+            onError={() => setCoverFailed(true)}
+            className="h-full w-full object-cover"
+          />
+        </div>
+      )}
+
       {/* El `pr` deja libre el botón de cerrar de Leaflet, que va posicionado
           encima de la esquina superior derecha. */}
       <div className="px-[14px] pt-[14px] pr-[36px]">
@@ -174,9 +193,11 @@ export function getPlacePopupOptions() {
     closeButton: true,
     maxWidth: 300,
     minWidth: 260,
-    // Sin margen el popup quedaba pegado al borde superior, por debajo del
-    // header fijo, y el botón de cerrar caía fuera de la zona alcanzable.
-    autoPanPadding: [16, 20] as [number, number],
+    // 68 px arriba, no los 20 de antes: el header fijo mide 56–60 y el popup
+    // —ahora con portada— es más alto, así que con el margen viejo su cabecera
+    // se metía debajo del header y la tarjeta se veía a medias. El margen la
+    // deja entera dentro de la zona visible.
+    autoPanPadding: [16, 68] as [number, number],
     // La hoja de recomendaciones recogida sigue tapando los últimos 120 px del
     // mapa. Sin este margen Leaflet daba por bueno un popup pegado al borde
     // inferior y el pin —que cuelga justo debajo de él— quedaba detrás de la

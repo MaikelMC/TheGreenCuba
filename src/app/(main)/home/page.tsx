@@ -33,6 +33,7 @@ import { BottomSheet } from "@/components/layout/bottom-sheet";
 import { PlaceCard } from "@/components/layout/place-card";
 import { SearchingAnimation } from "@/components/layout/searching-animation";
 import { MapView } from "@/components/map/MapView";
+import { MapNotifications } from "@/components/map/map-notifications";
 import { PlaceFilters } from "@/components/place/place-filters";
 import { StateView } from "@/components/ui/state-view";
 import { CategoryIcon } from "@/components/admin/category-icon";
@@ -564,15 +565,37 @@ function HomePageContent() {
      de una categoría no movía ni un pin del mapa. */
   const { places, categories, hydrated } = usePlaces();
 
+  /* La provincia del perfil recorta el catálogo, y lo recorta **una sola vez**
+     para todo lo que el home pinta: los pines, la lista de recomendaciones y
+     los chips. Hasta ahora la regla solo existía en la búsqueda con IA y, como
+     mucho, sumaba 3 puntos de desempate en el ranking — así que quien había
+     elegido Santiago seguía viendo los negocios de La Habana en la lista, solo
+     que más abajo.
+
+     Lleva la misma red que la búsqueda: si la provincia elegida no tiene ni un
+     negocio en el catálogo, pasa el catálogo entero. Un home vacío por un dato
+     mal escrito en una fila es peor que una recomendación de más.
+
+     Sin provincia —«otra», valor viejo, o perfil sin ubicación— no se recorta
+     nada: no saber dónde está el usuario no es estar fuera de su provincia. */
+  const provinceScopedPlaces = useMemo(() => {
+    const province = userProvinceLabel(userPreferences);
+    if (!province) return places;
+    const pool = places.filter((p) => placeInUserProvince(p, province));
+    return pool.length > 0 ? pool : places;
+  }, [places, userPreferences]);
+
   /* Solo categorías con al menos un negocio en el catálogo. Con la lista
      completa, la barra ofrecía 12 chips y 7 llevaban a «sin resultados» —
      cada opción muerta cuesta tiempo de decisión (Ley de Hick) y confianza.
      Se recalcula con el catálogo: cuando se apruebe el primer restaurante,
      el chip vuelve solo. Mientras el catálogo carga solo queda «Todo». */
   const categoriesWithPlaces = useMemo(() => {
-    const present = new Set(places.map((p) => p.category.toLowerCase()));
+    const present = new Set(
+      provinceScopedPlaces.map((p) => p.category.toLowerCase()),
+    );
     return categories.filter((c) => present.has(c.label.toLowerCase()));
-  }, [places, categories]);
+  }, [provinceScopedPlaces, categories]);
 
   useEffect(() => {
     let alive = true;
@@ -686,8 +709,8 @@ function HomePageContent() {
   );
 
   const visiblePlaces = useMemo(
-    () => places.filter((p) => matchesPlaceFilters(p, filterContext)),
-    [places, filterContext],
+    () => provinceScopedPlaces.filter((p) => matchesPlaceFilters(p, filterContext)),
+    [provinceScopedPlaces, filterContext],
   );
 
   const mapPlaces = useMemo<MapPlace[]>(
@@ -1180,11 +1203,6 @@ function HomePageContent() {
   const shownCount =
     sheetState === "results" ? resultPlaces.length : recommendationCount;
 
-  const resultsBannerText =
-    sheetState === "results"
-      ? `Encontré <strong>4 lugares tranquilos</strong> cerca de ti. <strong>Hotel Casa Granda</strong> es el más cercano, en el Centro histórico.`
-      : `Según tu ubicación en <strong>Santiago de Cuba</strong>, encontré <strong>${places.length} lugares</strong> que podrían gustarte. El mejor match es <strong>Castillo del Morro</strong>, a la entrada de la bahía.`;
-
   return (
     <div className="fixed inset-0 pt-[var(--header-h)] font-lv text-ink">
       <MapView
@@ -1222,6 +1240,7 @@ function HomePageContent() {
           onToggle={toggleFilter}
           hasLocation={userLocation !== null}
         />
+        <MapNotifications />
       </MapView>
 
       {/* Chip de ruta activa (sin ficha abierta) */}
@@ -1306,7 +1325,7 @@ function HomePageContent() {
                     ? aiState.summary
                     : !hydrated
                       ? "Estoy viendo qué hay cerca de ti…"
-                      : `Según tu ubicación en Santiago de Cuba, encontré ${places.length} lugares que podrían gustarte. Explora el mapa o busca con lenguaje natural.`}
+                      : `Según tu ubicación en ${userProvinceLabel(userPreferences) ?? "Cuba"}, encontré ${provinceScopedPlaces.length} lugares que podrían gustarte. Explora el mapa o busca con lenguaje natural.`}
                 </p>
               </motion.div>
 

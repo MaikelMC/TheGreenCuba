@@ -1017,6 +1017,32 @@ html[data-theme="dark"]
   background: #eaf7ef; /* verde-50 */
 }
 
+/* Con portada, la X cae encima de la foto y no de la tarjeta blanca: necesita
+   su propio fondo o desaparece sobre una imagen oscura. Disco oscuro y
+   traslúcido con desenfoque —el color del glifo ya lo fija el tema oscuro con
+   `!important`, y ahí también es el correcto—, así sirve en los dos temas y
+   sobre fotos claras u oscuras. El `:has` ata el cambio a que la portada
+   exista de verdad: si la imagen falla, el hueco no se pinta y la X vuelve a
+   su fondo de verde-50. */
+.leaflet-container
+  .custom-leaflet-popup:has(.lv-popup-cover)
+  .leaflet-popup-close-button {
+  color: #ffffff;
+  background: rgba(8, 19, 13, 0.55);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 1px 4px rgba(8, 19, 13, 0.3);
+}
+
+.leaflet-container
+  .custom-leaflet-popup:has(.lv-popup-cover)
+  .leaflet-popup-close-button:hover,
+.leaflet-container
+  .custom-leaflet-popup:has(.lv-popup-cover)
+  .leaflet-popup-close-button:focus-visible {
+  color: #ffffff;
+  background: rgba(8, 19, 13, 0.78);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .custom-leaflet-popup .leaflet-popup-content-wrapper {
     animation: none;
