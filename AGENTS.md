@@ -24,33 +24,42 @@ Source code lives in `/src`:
 
 Run from repository root.
 
-| Command               | Purpose                                                                  |
-| --------------------- | ------------------------------------------------------------------------ |
-| `npm run dev`         | Start Next.js dev server (http://localhost:3000)                         |
-| `npm run build`       | Production build                                                         |
-| `npm run start`       | Start production server                                                  |
-| `npm run lint`        | Run ESLint via Next.js (`next lint`)                                     |
-| `npm run typecheck`   | Type‑check only (`tsc --noEmit`)                                         |
-| `npm run format`      | Format with Prettier (`prettier --write \"src/**/*.{ts,tsx,css,json}\"`) |
-| `npm run db:generate` | Generate Drizzle migrations                                              |
-| `npm run db:push`     | Push schema changes                                                      |
-| `npm run db:migrate`  | Apply migrations                                                         |
-| `npm run db:studio`   | Launch Drizzle Studio                                                    |
-| `npm run db:seed`     | Seed database with sample data                                           |
+| Command                    | Purpose                                                                  |
+| -------------------------- | ------------------------------------------------------------------------ |
+| `npm run dev`              | Start Next.js dev server (http://localhost:3000)                         |
+| `npm run build`            | Production build                                                         |
+| `npm run start`            | Start production server                                                  |
+| `npm run lint`             | Run ESLint via Next.js (`next lint`)                                     |
+| `npm run typecheck`        | Type‑check only (`tsc --noEmit`)                                         |
+| `npm run format`           | Format with Prettier (`prettier --write \"src/**/*.{ts,tsx,css,json}\"`) |
+| `npm run db:generate`      | Generate Drizzle migrations                                              |
+| `npm run db:push`          | Push schema changes                                                      |
+| `npm run db:migrate`       | Apply migrations                                                         |
+| `npm run db:studio`        | Launch Drizzle Studio                                                    |
+| `npm run db:seed`          | Seed database with sample data                                           |
+| `node --import tsx --test` | Run all tests (Node.js test runner with tsx loader)                      |
 
 ### Running a Single Test
 
-No test framework is configured yet. If you add Vitest (recommended) or Jest:
+To run a single test file, use:
 
 ```bash
-# Vitest
-npx vitest run src/lib/utils.test.ts -t "should return formatted date"
-
-# Jest
-npm test -- src/lib/utils.test.ts -t "should return formatted date"
+node --import tsx --test src/lib/analytics/csv.test.ts
 ```
 
-Otherwise rely on manual verification and type‑checking.
+Replace the path with the desired test file. The test framework is Node.js built-in test runner, executed via `tsx` loader to handle TypeScript.
+
+Otherwise, you can add a test script to `package.json` for convenience:
+
+```json
+{
+  "scripts": {
+    "test": "node --import tsx --test"
+  }
+}
+```
+
+Then run with `npm test` or `npm test -- src/lib/analytics/csv.test.ts` for a single file.
 
 ---
 
@@ -104,11 +113,11 @@ Otherwise rely on manual verification and type‑checking.
 - Internal functions: concise inline comment only when intent unclear.
 - TODO/FIXME: `// TODO:` or `// FIXME:` with ticket reference if possible.
 
-### 3.7 Testing Practices (when added)
+### 3.7 Testing Practices
 
 - Unit tests for pure utilities (`lib/`, `hooks/`).
 - Component tests with React Testing Library; avoid testing implementation details.
-- Mock external APIs (Clerk, AI SDK, DB) with `jest.mock()` or `vi.mock()`.
+- Mock external APIs (Clerk, AI SDK, DB) with `jest.mock()` or `vi.mock()` if using Vitest/Jest; for Node.js test runner, use `jest`-like mocks or manual mocking.
 - Target 80%+ coverage on critical paths (auth, search, transactions).
 
 ### 3.8 Git & Commit Guidelines
@@ -141,7 +150,31 @@ All visual standards (colors, typography, spacing, radii, shadows, transitions) 
 
 ---
 
-## 7. Adding a Test Framework (Recommendation)
+## 7. Using the Test Framework
+
+The project uses Node.js built-in test runner with `tsx` loader for TypeScript support.
+
+To run all tests:
+
+```bash
+node --import tsx --test
+```
+
+To run tests with a specific pattern (e.g., only utils):
+
+```bash
+node --import tsx --test src/lib/**/*.test.ts
+```
+
+To run a single test file (see section 2).
+
+If you prefer Vitest or Jest, see the “Adding a Test Framework” section below.
+
+---
+
+## 8. Adding a Test Framework (Alternative)
+
+If you wish to replace the Node.js test runner with Vitest or Jest:
 
 1. Install Vitest: `npm i -D vitest @vitest/coverage-v8 happy-dom`
 2. Add `vitest.config.ts`:
@@ -159,14 +192,17 @@ All visual standards (colors, typography, spacing, radii, shadows, transitions) 
 3. Add npm script: `"test": "vitest run"`.
 4. Create test files (`*.test.ts`) alongside source or in `__tests__`.
 
+For Jest, follow analogous steps.
+
 ---
 
-## 8. Reminder for Agents
+## 9. Reminder for Agents
 
 - Prioritize type safety and design‑token usage over custom CSS.
 - Keep components small, reusable; compose from Radix primitives.
 - Validate inputs with `zod` in server actions/API routes; handle errors gracefully.
 - Run `npm run lint && npm run typecheck && npm run format` before submitting changes.
+- For testing, use `node --import tsx --test` (or `npm test` if you added the script).
 
 ---
 
