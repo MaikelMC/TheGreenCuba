@@ -49,7 +49,38 @@ import { AUTH_USER_HEADER, isProtected, needsAppUser } from "@/lib/session";
  */
 export async function proxy(request: NextRequest) {
   const response = await handle(request);
+  dropDevAccess(response, request);
   return carryReferralCode(response, request);
+}
+
+/**
+ * La puerta de atrás se retira al pasar por `/login` o `/register`.
+ *
+ * Abrir el formulario de acceso —o el de alta— es querer una cuenta de verdad, y
+ * mientras la cookie de desarrollo esté puesta el proxy contesta con la
+ * identidad local pase lo que pase: se escribía la contraseña de la cuenta de
+ * administración y se seguía dentro como `dev@local`, porque la cookie gana a la
+ * sesión de Neon y nada la borraba en treinta días. Ahora se borra al salir de
+ * esas dos rutas y, para que el propio formulario no se pinte como «ya has
+ * entrado», en `handle` se salta el atajo cuando la ruta es `/login`.
+ *
+ * Va aquí, envolviendo, y no en cada `return` de `handle`: las salidas son
+ * varias y `handle` ni siquiera se molesta con `/register`, que no pregunta por
+ * el usuario.
+ */
+function dropDevAccess(
+  response: NextResponse,
+  request: NextRequest,
+): NextResponse {
+  const { pathname } = request.nextUrl;
+  if (
+    (pathname === "/login" || pathname === "/register") &&
+    devAccessEnabled() &&
+    isDevCookie(request.cookies.get(DEV_COOKIE)?.value)
+  ) {
+    response.cookies.delete(DEV_COOKIE);
+  }
+  return response;
 }
 
 /**
@@ -95,9 +126,16 @@ async function handle(request: NextRequest) {
      propósito —de nada sirve ahorrarse el login si se sigue pagando el viaje a
      Neon en cada recarga—. En producción `devAccessEnabled()` es falso y esto
      no se ejecuta nunca; el porqué del doble cierre está en
-     `src/lib/dev-access.ts`. */
+     `src/lib/dev-access.ts`.
+
+     En `/login` no se aplica: ese formulario existe justo para entrar con otra
+     cuenta, y con el atajo puesto la pantalla contestaba con la identidad local
+     —hasta en el aviso de rol, «has entrado como usuario con dev@local»—. Ahí se
+     sigue de largo hacia la sesión de Neon, y la cookie se borra al salir (ver
+     `dropDevAccess`). */
   if (
     devAccessEnabled() &&
+    pathname !== "/login" &&
     isDevCookie(request.cookies.get(DEV_COOKIE)?.value)
   ) {
     headers.set(AUTH_USER_HEADER, encodeUser(DEV_IDENTITY));
