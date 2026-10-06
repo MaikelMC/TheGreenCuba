@@ -30,6 +30,8 @@ import {
   toggleSaved,
 } from "@/lib/activity-store";
 import { trackPlaceSaveToggled, trackPlaceViewed } from "@/lib/analytics";
+import { trackClientEvent } from "@/lib/analytics/client";
+import type { AnalyticsEventType } from "@/lib/analytics/events";
 import { trackPlaceMetric } from "@/lib/place-metrics";
 import { PhotoCarousel, type Slide } from "./photo-carousel";
 import { InfoBar } from "./info-bar";
@@ -599,7 +601,9 @@ export function PlaceDetail({
                     <p
                       className="overflow-hidden text-body leading-relaxed text-ink whitespace-pre-wrap transition-[max-height] duration-500 ease-outquint"
                       style={{
-                        maxHeight: descExpanded ? DESC_EXPANDED : DESC_COLLAPSED,
+                        maxHeight: descExpanded
+                          ? DESC_EXPANDED
+                          : DESC_COLLAPSED,
                         lineHeight: DESC_LINE_HEIGHT,
                       }}
                     >
@@ -1212,14 +1216,43 @@ function ContactCard({
 }) {
   const { website, whatsapp, instagram, facebook } = place.contact;
 
-  const rows: { label: string; href: string; icon: LucideIcon }[] = [];
+  /* Cada enlace lleva su evento: el clic es la única señal de que este contacto
+     sirvió, y solo existe aquí, en el navegador. `business_contact_clicked`
+     resume el gesto; los tipos concretos permiten desglosarlo por canal. */
+  const rows: {
+    label: string;
+    href: string;
+    icon: LucideIcon;
+    event: AnalyticsEventType;
+  }[] = [];
   if (whatsapp)
-    rows.push({ label: "WhatsApp", href: whatsapp, icon: MessageCircle });
-  if (website) rows.push({ label: "Sitio web", href: website, icon: Globe });
+    rows.push({
+      label: "WhatsApp",
+      href: whatsapp,
+      icon: MessageCircle,
+      event: "business_whatsapp_clicked",
+    });
+  if (website)
+    rows.push({
+      label: "Sitio web",
+      href: website,
+      icon: Globe,
+      event: "business_website_clicked",
+    });
   if (instagram)
-    rows.push({ label: "Instagram", href: instagram, icon: Instagram });
+    rows.push({
+      label: "Instagram",
+      href: instagram,
+      icon: Instagram,
+      event: "business_social_clicked",
+    });
   if (facebook)
-    rows.push({ label: "Facebook", href: facebook, icon: Facebook });
+    rows.push({
+      label: "Facebook",
+      href: facebook,
+      icon: Facebook,
+      event: "business_social_clicked",
+    });
 
   if (rows.length === 0) return null;
 
@@ -1246,6 +1279,9 @@ function ContactCard({
             href={row.href}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() =>
+              trackClientEvent(row.event, { businessId: place.id })
+            }
             className="inline-flex h-9 items-center gap-1.5 rounded-full border border-ink/10 bg-white px-3 font-lv-display text-[12px] font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
           >
             <row.icon

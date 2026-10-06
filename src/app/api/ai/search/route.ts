@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recommendPlaces, type CatalogPlace } from "@/lib/ai";
+import { getAppUser } from "@/lib/auth/user";
+import { trackEvent } from "@/lib/analytics/events";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -152,16 +154,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const candidates = catalogForQuery(query, places);
-    if (candidates.length === 0) {
-      return NextResponse.json({
-        ok: true,
-        matches: [],
-        summary: "No encontré lugares que coincidan con esa ubicación y categoría en el catálogo de La Verde.",
-        provider: "catalog-filter",
-      });
-    }
-
     /* La provincia del usuario viaja con la consulta: es la pieza que falta
        cuando no hay GPS —sin distancia ni provincia el modelo elegía por
        puro parecido semántico y recomendaba negocios de otra provincia a
@@ -171,11 +163,57 @@ export async function POST(req: NextRequest) {
         ? cleanString(body.userProvince).trim()
         : null;
 
+    /* Quién busca, para poder contar usuarios únicos por búsqueda. En
+       anónimo devuelve `null` y el evento va sin usuario, que es lo normal.
+       Un fallo resolviendo la sesión no puede tumbar una búsqueda: se sigue
+       sin usuario. */
+    const user = await getAppUser().catch(() => null);
+    const baseEvent = {
+      userId: user?.id ?? null,
+      searchQuery: query,
+      province: userProvince,
+    };
+
+    /* El evento de intento se registra antes de llamar al modelo: una búsqueda
+       que revienta después también ocurrió, y saber cuántas fallan es parte
+       del dato. */
+    trackEvent({ type: "search_performed", ...baseEvent });
+
+    const candidates = catalogForQuery(query, places);
+    if (candidates.length === 0) {
+      trackEvent({ type: "search_no_results", ...baseEvent, resultCount: 0 });
+      return NextResponse.json({
+        ok: true,
+        matches: [],
+        summary: "No encontré lugares que coincidan con esa ubicación y categoría en el catálogo de La Verde.",
+        provider: "catalog-filter",
+      });
+    }
+
     const { data, provider } = await recommendPlaces(query, candidates, userProvince);
 
     // Solo devolver ids de lugares que realmente existen en el catálogo enviado.
     const validIds = new Set(candidates.map((p) => p.id));
     const matches = (data.matches ?? []).filter((m) => validIds.has(m.id)).slice(0, 5);
+
+    /* La categoría que más se repite entre los resultados, si la hay. Es la
+       demanda por categoría sin tener que mandar la lista entera: una sola
+       etiqueta por búsqueda, no un array. */
+    const categoryById = new Map(candidates.map((p) => [p.id, p.category]));
+    const categoryTally = new Map<string, number>();
+    for (const match of matches) {
+      const label = categoryById.get(match.id);
+      if (label) categoryTally.set(label, (categoryTally.get(label) ?? 0) + 1);
+    }
+    const topCategory =
+      [...categoryTally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+    trackEvent({
+      type: matches.length > 0 ? "search_results_shown" : "search_no_results",
+      ...baseEvent,
+      resultCount: matches.length,
+      metadata: topCategory ? { category: topCategory } : null,
+    });
 
     return NextResponse.json({
       ok: true,

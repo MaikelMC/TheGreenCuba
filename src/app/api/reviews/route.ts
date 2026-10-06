@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { desc, eq, sql } from "drizzle-orm";
+import { trackEvent } from "@/lib/analytics/events";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { places, reviews, users } from "@/lib/db/schema";
@@ -39,7 +40,10 @@ function bad(error: string, status = 400): NextResponse {
 
 function tooMany(retryAfterSeconds?: number): NextResponse {
   return NextResponse.json(
-    { ok: false, error: "Demasiadas opiniones seguidas. Intenta en un momento." },
+    {
+      ok: false,
+      error: "Demasiadas opiniones seguidas. Intenta en un momento.",
+    },
     {
       status: 429,
       headers: { "Retry-After": String(retryAfterSeconds ?? 60) },
@@ -140,7 +144,10 @@ export async function POST(req: NextRequest) {
     .where(eq(places.id, placeId))
     .limit(1);
   if (!place) {
-    return NextResponse.json({ ok: false, error: "Ese lugar no existe." }, { status: 404 });
+    return NextResponse.json(
+      { ok: false, error: "Ese lugar no existe." },
+      { status: 404 },
+    );
   }
 
   const values = {
@@ -159,6 +166,8 @@ export async function POST(req: NextRequest) {
       set: values,
     })
     .returning();
+
+  trackEvent({ type: "review_created", userId: user.id, businessId: placeId });
 
   return NextResponse.json({
     ok: true,

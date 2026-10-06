@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
+import { trackEvent } from "@/lib/analytics/events";
 import { db } from "@/lib/db";
 import { businessOwners, notifications, places, users } from "@/lib/db/schema";
 import { generateId } from "@/lib/utils";
@@ -170,6 +171,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         });
       }
     }
+
+    trackEvent({
+      type: "business_approved",
+      businessId: id,
+      userId: owner?.userId ?? null,
+    });
   }
 
   /* Antes de releer, y no después: `getPlaceById` está cacheado, así que sin
@@ -244,6 +251,12 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       .update(places)
       .set({ reviewStatus: "rejected", isActive: false, updatedAt: new Date() })
       .where(eq(places.id, id));
+
+    trackEvent({
+      type: "business_rejected",
+      businessId: id,
+      userId: owner.userId,
+    });
 
     revalidateTag(CATALOG_TAG, "max");
     return NextResponse.json({ id, rejected: true });

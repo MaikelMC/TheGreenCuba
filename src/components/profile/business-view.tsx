@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { trackClientEvent } from "@/lib/analytics/client";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
@@ -417,6 +418,15 @@ export function BusinessForm({
     if (categoryValue || categories.length === 0) return;
     setCategoryValue(categories[0]!.value);
   }, [categories, categoryValue]);
+
+  /* El alta **empieza** al abrir el formulario, no al enviarlo: es la señal de
+     cuántas personas se ponen a rellenarlo y no terminan. Solo cuando no hay
+     negocio previo —editar una ficha existente no es un alta—, y una vez por
+     montaje. Esto sí es solo del cliente: no hay ruta que lo vea. */
+  useEffect(() => {
+    if (!initialBusiness) trackClientEvent("business_registration_started");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const submit = useCallback(async () => {
     const trimmed = name.trim();

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
+import { trackEvent } from "@/lib/analytics/events";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { businessOwners, notifications, places, users } from "@/lib/db/schema";
@@ -157,6 +158,17 @@ export async function POST(req: NextRequest) {
         .where(eq(places.id, existing.placeId));
 
       revalidateTag(CATALOG_TAG, "max");
+
+      /* Reenvío de una solicitud rechazada: es un alta completada otra vez. La
+         categoría viaja tal como la resolvió el servidor, no como la mandó el
+         navegador. */
+      trackEvent({
+        type: "business_registration_completed",
+        userId: user.id,
+        businessId: existing.placeId,
+        categoryId,
+      });
+
       return NextResponse.json(
         { id: existing.placeId, name: input.name, isActive: false },
         { status: 200 },
@@ -232,6 +244,13 @@ export async function POST(req: NextRequest) {
   });
 
   revalidateTag(CATALOG_TAG, "max");
+
+  trackEvent({
+    type: "business_registration_completed",
+    userId: user.id,
+    businessId: placeId,
+    categoryId,
+  });
 
   return NextResponse.json(
     { id: placeId, name: input.name, isActive: false },

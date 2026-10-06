@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Home, Loader2, Lock, Mail, Phone } from "lucide-react";
+import { trackClientEvent } from "@/lib/analytics/client";
 import { authClient } from "@/lib/auth/client";
 import { authErrorCode, messageFor } from "@/lib/auth/error-messages";
 import { TERMS_VERSION } from "@/lib/legal";
@@ -93,7 +94,10 @@ const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
  * id o no. Si la red falla, cae en la de invitado y el número al menos no se
  * pierde.
  */
-async function saveRegistration(phone: string, wantsNews: boolean): Promise<void> {
+async function saveRegistration(
+  phone: string,
+  wantsNews: boolean,
+): Promise<void> {
   const value = phone.trim();
 
   /* `phone` solo viaja si hay algo. Mandarlo vacío **borra** el número en el
@@ -103,7 +107,11 @@ async function saveRegistration(phone: string, wantsNews: boolean): Promise<void
      `marketingOptIn` sí viaja siempre, con su `true` o su `false`: aquí la
      ausencia de decisión no existe —la casilla se ve y no está marcada—, y el
      servidor necesita el «no» explícito para saber que ya se preguntó. */
-  const body: { termsVersion: string; phone?: string; marketingOptIn: boolean } = {
+  const body: {
+    termsVersion: string;
+    phone?: string;
+    marketingOptIn: boolean;
+  } = {
     termsVersion: TERMS_VERSION,
     marketingOptIn: wantsNews,
   };
@@ -259,6 +267,11 @@ export function AuthCard({
           trackUserRegistered(Boolean(sessionUserId));
         } else {
           trackUserLoggedIn(Boolean(sessionUserId));
+          /* El único sitio donde se puede saber que alguien **entró**: el alta
+             de la fila la registra el servidor por su cuenta, pero entrar con
+             una cuenta que ya existía no pasa por ninguna ruta nuestra. Solo en
+             `login`; el alta la cuenta `getAppUser` en el servidor. */
+          trackClientEvent("user_login");
         }
 
         /* El teléfono y la aceptación se guardan aquí, con la sesión ya emitida,

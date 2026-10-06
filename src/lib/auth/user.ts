@@ -1,5 +1,6 @@
 import { cookies, headers } from "next/headers";
 import { eq } from "drizzle-orm";
+import { trackEvent } from "@/lib/analytics/events";
 import { auth } from "@/lib/auth/server";
 import { ensureContact } from "@/lib/contacts";
 import { db } from "@/lib/db";
@@ -255,6 +256,14 @@ export async function getAppUser(): Promise<AppUser | null> {
     } catch (error) {
       console.error("No se pudo crear la fila de contacts:", error);
     }
+
+    /* El alta real. Se registra aquí y no en el formulario porque este es el
+       único punto por el que pasa todo el mundo la primera vez —también quien
+       entra con Google o por el login de desarrollo—. `after()` no existe
+       dentro de un render de servidor, así que `trackEvent` cae al registro
+       inmediato: es un alta, no un bucle, y no pasa por cada página. */
+    trackEvent({ type: "user_registered", userId: created.id });
+
     return toAppUser(created);
   }
 
