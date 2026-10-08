@@ -59,6 +59,7 @@ import type { MapPlace } from "@/components/map/types";
 import { usePlaces } from "@/providers/places-provider";
 import { placeIcon, type BusinessCategory } from "@/lib/places";
 import { matchesPlaceFilters } from "@/lib/place-filters";
+import { energiaParaIA } from "@/lib/energia";
 import type { UserPlace, UserPlaceMenuItem } from "@/lib/places-store";
 import {
   readUserPreferences,
@@ -70,7 +71,7 @@ import {
 } from "@/lib/user-preferences-store";
 import { personalizePlaces } from "@/lib/personalized-recommendations";
 import {
-  placeInUserProvince,
+  placeOutsideUserProvince,
   queryMentionsOtherProvince,
   userProvinceLabel,
 } from "@/lib/user-province";
@@ -565,23 +566,29 @@ function HomePageContent() {
      de una categoría no movía ni un pin del mapa. */
   const { places, categories, hydrated } = usePlaces();
 
-  /* La provincia del perfil recorta el catálogo, y lo recorta **una sola vez**
-     para todo lo que el home pinta: los pines, la lista de recomendaciones y
-     los chips. Hasta ahora la regla solo existía en la búsqueda con IA y, como
-     mucho, sumaba 3 puntos de desempate en el ranking — así que quien había
-     elegido Santiago seguía viendo los negocios de La Habana en la lista, solo
-     que más abajo.
+  /* La provincia del perfil recorta el catálogo, y lo recorta **para dos
+     sitios y solo dos**: la lista de recomendaciones y el catálogo que viaja a
+     la búsqueda con IA. Lo que se recorta es lo que se **recomienda**, no lo
+     que se **enseña**: el mapa dibuja el catálogo entero, porque un negocio que
+     existe no debe desaparecer del mapa por la provincia de quien mira. Antes
+     este recorte alimentaba también los pines, y quien elegía Santiago veía un
+     mapa con la mitad de la ciudad.
 
      Lleva la misma red que la búsqueda: si la provincia elegida no tiene ni un
      negocio en el catálogo, pasa el catálogo entero. Un home vacío por un dato
      mal escrito en una fila es peor que una recomendación de más.
 
      Sin provincia —«otra», valor viejo, o perfil sin ubicación— no se recorta
-     nada: no saber dónde está el usuario no es estar fuera de su provincia. */
+     nada: no saber dónde está el usuario no es estar fuera de su provincia.
+
+     Y por eso se recorta con `placeOutsideUserProvince` y no con
+     `!placeInUserProvince`: lo segundo echaba fuera los negocios cuya ficha no
+     trae ciudad ni provincia —los que nacen del alta del perfil, que no las
+     pregunta—, que es justo lo contrario de «no saber no recorta». */
   const provinceScopedPlaces = useMemo(() => {
     const province = userProvinceLabel(userPreferences);
     if (!province) return places;
-    const pool = places.filter((p) => placeInUserProvince(p, province));
+    const pool = places.filter((p) => !placeOutsideUserProvince(p, province));
     return pool.length > 0 ? pool : places;
   }, [places, userPreferences]);
 
@@ -589,13 +596,15 @@ function HomePageContent() {
      completa, la barra ofrecía 12 chips y 7 llevaban a «sin resultados» —
      cada opción muerta cuesta tiempo de decisión (Ley de Hick) y confianza.
      Se recalcula con el catálogo: cuando se apruebe el primer restaurante,
-     el chip vuelve solo. Mientras el catálogo carga solo queda «Todo». */
+     el chip vuelve solo. Mientras el catálogo carga solo queda «Todo».
+
+     Va con el catálogo entero y no con el recortado por provincia: los chips
+     filtran el mapa, y ofrecer solo las categorías de tu provincia dejaba
+     pines en el mapa que ningún chip alcanzaba. */
   const categoriesWithPlaces = useMemo(() => {
-    const present = new Set(
-      provinceScopedPlaces.map((p) => p.category.toLowerCase()),
-    );
+    const present = new Set(places.map((p) => p.category.toLowerCase()));
     return categories.filter((c) => present.has(c.label.toLowerCase()));
-  }, [provinceScopedPlaces, categories]);
+  }, [places, categories]);
 
   useEffect(() => {
     let alive = true;
@@ -708,7 +717,19 @@ function HomePageContent() {
     [activeCategory, categories, activeFilters, userLocation],
   );
 
-  const visiblePlaces = useMemo(
+  /* Los pines: el catálogo **entero** con los chips del usuario encima. Lo
+     único que los puede quitar del mapa es un chip que el propio usuario
+     encendió —ni la provincia del perfil ni nada que no haya pedido él—. */
+  const mapVisiblePlaces = useMemo(
+    () => places.filter((p) => matchesPlaceFilters(p, filterContext)),
+    [places, filterContext],
+  );
+
+  /* Y la lista del panel, que es la que recomienda: ahí sí manda la provincia,
+     con los mismos chips encima. Son dos universos a propósito —el mapa
+     enseña, la lista sugiere— y por eso el recorte provincial ya no puede
+     colarse en los pines. */
+  const listVisiblePlaces = useMemo(
     () =>
       provinceScopedPlaces.filter((p) => matchesPlaceFilters(p, filterContext)),
     [provinceScopedPlaces, filterContext],
@@ -716,7 +737,7 @@ function HomePageContent() {
 
   const mapPlaces = useMemo<MapPlace[]>(
     () =>
-      visiblePlaces.map((p) => ({
+      mapVisiblePlaces.map((p) => ({
         id: p.id,
         name: p.name,
         isProject: p.isProject,
@@ -737,6 +758,10 @@ function HomePageContent() {
         rating: p.rating,
         distance: p.distanceLabel || p.address || p.barrio,
         price: p.priceLabel,
+        /* La energía viaja al popup y al pin: es lo que decide si alguien va
+           durante un apagón, y en el mapa se ve antes que en la ficha. */
+        energiaRespaldo: p.energiaRespaldo ?? null,
+        notaApagon: p.notaApagon,
         /* El popup de un proyecto enseña sus fechas en lugar del precio: es el
            dato que decide si se va, y el proyecto no tiene precio de carta. */
         schedule:
@@ -750,7 +775,7 @@ function HomePageContent() {
             : []),
         ],
       })),
-    [visiblePlaces, categories],
+    [mapVisiblePlaces, categories],
   );
 
   const filteredPlaces = useMemo<HomePlace[]>(() => {
@@ -764,8 +789,8 @@ function HomePageContent() {
       getLastKnownPosition() ??
       (profileCenter ? { lat: profileCenter[0], lng: profileCenter[1] } : null);
     const ranked = userPreferences
-      ? personalizePlaces(visiblePlaces, userPreferences)
-      : visiblePlaces;
+      ? personalizePlaces(listVisiblePlaces, userPreferences)
+      : listVisiblePlaces;
 
     const measured = ranked.map((place) => ({
       place,
@@ -785,7 +810,7 @@ function HomePageContent() {
     return measured.map(({ place, distanceM }) =>
       userPlaceToHomePlace(place, categories, distanceM),
     );
-  }, [visiblePlaces, categories, userLocation, userPreferences]);
+  }, [listVisiblePlaces, categories, userLocation, userPreferences]);
 
   const handleLike = useCallback((id: string) => {
     setLikedIds((prev) => {
@@ -849,7 +874,7 @@ function HomePageContent() {
           : false;
         const pool =
           province && !mentionsOther
-            ? places.filter((p) => placeInUserProvince(p, province))
+            ? places.filter((p) => !placeOutsideUserProvince(p, province))
             : places;
 
         const catalog = (pool.length > 0 ? pool : places)
@@ -871,6 +896,12 @@ function HomePageContent() {
                línea por plato y fuera van la foto y la descripción de cada uno,
                que es donde se iba el peso. */
             menu: menuLines(p.menu),
+            /* La energía va en palabras y **solo cuando hay algo que decir**:
+               `energiaParaIA` calla el «ninguna» y el hueco, porque contarle al
+               modelo «este NO tiene corriente» en una consulta que busca sitios
+               con corriente solo sirve para que lo descarte dos veces. Ver
+               `src/lib/energia.ts`. */
+            energia: energiaParaIA(p.energiaRespaldo) ?? undefined,
             /* Sin ubicación el campo no viaja, y el modelo lo lee como
                «distancia desconocida», que es exactamente la verdad. */
             distanceM: origin
@@ -1045,6 +1076,23 @@ function HomePageContent() {
     [drawRoute],
   );
 
+  /* El negocio de un id, venga de donde venga, para dibujar una ruta.
+   *
+   * Busca en el catálogo **entero** y no en la lista de recomendaciones. Antes
+   * las dos entradas de ruta —la ficha por `?lugar=<id>` y el botón del popup—
+   * buscaban en `filteredPlaces`, que iba recortado por provincia: con el mapa
+   * enseñando ya todos los pines, tocar el de otra provincia y pedirle la ruta
+   * se quedaba en nada, sin error y sin decir por qué. El mapa y estos dos
+   * atajos tienen que mirar el mismo universo. */
+  const placeById = useCallback(
+    (id: string | null): HomePlace | null => {
+      if (!id) return null;
+      const found = places.find((p) => p.id === id);
+      return found ? userPlaceToHomePlace(found, categories, null) : null;
+    },
+    [places, categories],
+  );
+
   /* Al llegar desde el botón "Cómo llegar" de la ficha (`?lugar=<id>`) la ruta
      se dibuja sola, y sin abrir la ficha: el usuario viene justo de ella, lo
      que quiere ver es el mapa.
@@ -1055,8 +1103,8 @@ function HomePageContent() {
      decir por qué. Nadie toca "Cómo llegar" para no ir a ningún sitio. */
   const placeIdFromUrl = searchParams.get("lugar");
   const pendingPlace = useMemo(
-    () => filteredPlaces.find((p) => p.id === placeIdFromUrl) ?? null,
-    [placeIdFromUrl, filteredPlaces],
+    () => placeById(placeIdFromUrl),
+    [placeIdFromUrl, placeById],
   );
 
   /* Guarda el id ya dibujado, no un booleano: si el usuario vuelve a la ficha y
@@ -1220,7 +1268,7 @@ function HomePageContent() {
         onPlaceSelect={(place) => handleMarkerClick(place.id)}
         onMapClick={handleDeselect}
         onPlaceRoute={(place) => {
-          const target = filteredPlaces.find((p) => p.id === place.id);
+          const target = placeById(place.id);
           if (target) handleRouteFromPopup(target);
         }}
         userLocation={userLocation}

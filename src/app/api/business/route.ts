@@ -9,6 +9,7 @@ import { toNewPlaceValues, toPlaceValues } from "@/lib/db/mappers";
 import { CATALOG_TAG, resolveCategoryId } from "@/lib/db/queries";
 import { notifyAdminsBusinessSubmission } from "@/lib/email";
 import { crearSuscripcion } from "@/lib/plans-server";
+import { isKnownLocation, locationLabel } from "@/lib/user-preferences-store";
 import { generateId } from "@/lib/utils";
 import type { UserPlace } from "@/lib/places-store";
 
@@ -99,6 +100,18 @@ export async function POST(req: NextRequest) {
 
   const input = curatedInput(body);
 
+  /* La ciudad y la provincia salen del **perfil del dueño**, no del formulario,
+     que no las pregunta: ya las eligió al darse de alta en la app y volver a
+     pedirlas es una pregunta más con una respuesta peor. Sin esto la ficha
+     nacía con las dos columnas vacías, y ese hueco el recorte por provincia lo
+     leía como «está fuera» — ver `placeInUserProvince`.
+     `isKnownLocation` descarta «otra» y cualquier valor viejo: preferimos el
+     hueco a escribir una provincia inventada. */
+  const ciudad =
+    user.locationCity && isKnownLocation(user.locationCity)
+      ? locationLabel(user.locationCity)
+      : "";
+
   if (!input.name) {
     return NextResponse.json(
       { error: "El nombre del negocio es obligatorio" },
@@ -155,6 +168,10 @@ export async function POST(req: NextRequest) {
           isActive: false,
           reviewStatus: "pending",
           updatedAt: new Date(),
+          /* Solo cuando se sabe: una solicitud rechazada pudo nacer antes de que
+             esto existiera, y reenviarla es la ocasión de rellenar el hueco.
+             Con la ubicación del dueño en «otra» se deja lo que hubiera. */
+          ...(ciudad ? { city: ciudad, province: ciudad } : {}),
         })
         .where(eq(places.id, existing.placeId));
 
@@ -200,6 +217,10 @@ export async function POST(req: NextRequest) {
     isActive: false,
     reviewStatus: "pending",
     createdBy: user.id,
+    /* La ciudad y la provincia, del perfil del dueño (ver arriba). Van también
+       después del volcado: `toNewPlaceValues` las deja en `""` porque su
+       formulario no las manda. */
+    ...(ciudad ? { city: ciudad, province: ciudad } : {}),
   });
 
   await db.insert(businessOwners).values({

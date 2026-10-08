@@ -74,6 +74,27 @@ export const places = pgTable(
 
     imageUrls: text("image_urls").array(),
 
+    /* ── Energía de respaldo ────────────────────────────────────────────
+       En Cuba un apagón es el clima, no una avería, y «¿tienen corriente?» es
+       la pregunta que hoy se hace negocio por negocio. Va en columna y no en
+       el jsonb `features` —donde ya hay un `enchufes` booleano— porque el
+       buscador filtra por ella: un `where` sobre jsonb obliga a un índice
+       aparte y a conocer la forma del JSON en SQL, mientras que aquí es una
+       comparación de texto y un `in`.
+
+       Nullable y **sin `default`**: `null` es «no lo dijo» y `ninguna` es «lo
+       dijo y no tiene». Media tabla se dio de alta antes de que esto existiera
+       y marcarlas a `ninguna` habría convertido un hueco en una afirmación
+       falsa —y la ficha anuncia lo que dice el dueño, no lo que supone el
+       sistema—. Ver `src/lib/energia.ts`. */
+    energiaRespaldo: text("energia_respaldo", {
+      enum: ["ninguna", "planta", "inversor", "ambas"],
+    }),
+    /** Frase corta del dueño sobre cómo lo lleva («La planta solo cubre el
+        salón», «Los apagones de la noche los pasamos con el inversor»).
+        Opcional: la mayoría no la escribe y sin ella la etiqueta se sostiene. */
+    notaApagon: text("nota_apagon"),
+
     /* ── Campos que la UI edita y que antes no tenían dónde ir ──
        Sin estas columnas, el formulario del admin dejaba guardar y al recargar
        se perdía lo escrito, porque el mapeo a la base no tenía destino. */

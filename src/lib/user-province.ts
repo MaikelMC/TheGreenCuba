@@ -58,12 +58,44 @@ function placeProvince(p: UserPlace): string {
  * base dice «Santiago de Cuba» en casi toda la siembra pero «Vista Alegre» en
  * una fila —el dueño escribió su barrio como ciudad—, y una igualdad estricta
  * dejaría fuera fichas que sí son de aquí.
+ *
+ * Una ficha **sin provincia devuelve `false`**, y está bien: es la pregunta
+ * positiva —«¿es de aquí?»— y sin el dato no se puede afirmar. Para lo que sí
+ * no vale es para **ocultar**, que es lo que pregunta el filtro duro del home:
+ * de eso se encarga `placeOutsideUserProvince`, y la diferencia tiene su
+ * porqué escrito allí.
  */
 export function placeInUserProvince(place: UserPlace, provinceLabel: string): boolean {
   const placeP = normalize(placeProvince(place));
   if (!placeP) return false;
   const target = normalize(provinceLabel);
   return placeP.includes(target) || target.includes(placeP);
+}
+
+/**
+ * `true` solo cuando se **sabe** que el negocio está en otra provincia.
+ *
+ * Esta es la forma que quieren los filtros duros —el recorte del catálogo del
+ * home y el del catálogo que viaja a la búsqueda con IA—: responden «¿lo
+ * oculto?», y ahí un hueco no es una negación.
+ *
+ * No es una distinción teórica. El alta desde el perfil no pregunta ciudad ni
+ * provincia, así que las fichas nacían con las dos columnas vacías; con la
+ * pregunta positiva —`!placeInUserProvince(...)`— esos negocios quedaban fuera
+ * del mapa y del home de **cualquiera con sesión y provincia guardada**, aunque
+ * lo tuviera al lado, y el respaldo de «si no queda ni uno, pasa el catálogo
+ * entero» no llegaba a dispararse porque las demás fichas sí encajaban. Lo
+ * mismo que ya se decidió para el usuario en `home/page.tsx`: no saber dónde
+ * está no es estar fuera.
+ *
+ * La pregunta positiva sigue mandando donde hace falta afirmar algo: el
+ * desempate por provincia del ranking y el selector de provincias del panel de
+ * administración, que sin esto ofrecería las dieciséis provincias en cuanto
+ * hubiera una solicitud sin rellenar.
+ */
+export function placeOutsideUserProvince(place: UserPlace, provinceLabel: string): boolean {
+  if (!normalize(placeProvince(place))) return false;
+  return !placeInUserProvince(place, provinceLabel);
 }
 
 /**

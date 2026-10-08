@@ -193,6 +193,17 @@ export interface CatalogPlace {
    */
   menu?: string[];
   /**
+   * Energía de respaldo, en palabras: `"planta eléctrica"`, `"inversor"` o
+   * `"planta eléctrica e inversor"`. **Ausente cuando no hay nada que contar**
+   * —ni si el dueño dijo «ninguna» ni si no lo rellenó—: ver `ENERGIA_IA` en
+   * `energia.ts`, donde está el porqué.
+   *
+   * Es una cadena legible y no el código del campo porque el modelo no conoce
+   * el vocabulario de la base: con `"planta"` a secas acertaría, pero con un
+   * código futuro no.
+   */
+  energia?: string;
+  /**
    * Distancia en metros a quien consulta, calculada en el navegador. Ausente si
    * no hay ubicación. El catálogo llega ordenado de menor a mayor.
    */
@@ -238,6 +249,16 @@ Reglas:
 - La cercanía desempata, no descarta. Entre dos lugares que encajen igual de bien,
   pon primero el más cercano. No dejes fuera uno que encaje claramente mejor solo
   por estar más lejos, y si los que encajan están lejos, dilo en el "summary".
+- Cada lugar puede traer "energia": su respaldo eléctrico, ya en palabras
+  ("planta eléctrica", "inversor", "planta eléctrica e inversor"). En Cuba los
+  apagones son lo normal y esta es una de las preguntas que más se hacen, así que
+  trátala como un requisito fuerte cuando aparezca en la consulta: «con planta»,
+  «que tenga corriente», «donde pueda trabajar si se va la luz», «con inversor»,
+  «sin apagones». Un lugar SIN el campo "energia" no cumple esas consultas: no
+  significa «no tiene», significa que el dueño no lo dijo, pero para lo que el
+  usuario necesita —saber dónde habrá corriente— tampoco sirve. Si nada encaja,
+  dilo y explica que los negocios pueden añadirlo desde su panel. Cuando la
+  consulta no habla de energía, el campo no se usa para nada.
 - El usuario tiene una provincia de residencia. Si el mensaje trae "userProvince",
   los lugares de ESA provincia van primero, siempre: para alguien de Santiago de
   Cuba, un negocio de La Habana no es una recomendación sino un error, aunque el
@@ -269,17 +290,35 @@ export async function parseNaturalLanguageQuery(
   query: string,
 ): Promise<{
   cleanedQuery: string;
-  filters?: { category?: string; city?: string; vibe?: string[]; currency?: string[] };
+  filters?: {
+    category?: string;
+    city?: string;
+    vibe?: string[];
+    currency?: string[];
+    /** Respaldo eléctrico pedido: `planta`, `inversor` o `ambas`. */
+    energia?: string;
+  };
 }> {
   const system = `Analiza la consulta del usuario sobre lugares en Cuba y extrae:
 1. La consulta limpia (sin palabras de filtro)
-2. Filtros implícitos: categoría, ciudad, ambiente, moneda
+2. Filtros implícitos: categoría, ciudad, ambiente, moneda, energía
+
+Para "energia" usa uno de estos tres valores, o ninguno si la consulta no habla de apagones:
+- "planta": pide planta eléctrica («con planta», «planta propia»)
+- "inversor": pide inversor («con inversor», «que aguante con batería»)
+- "ambas": da igual cuál, solo pide tener corriente («que tenga corriente», «sin apagones», «donde pueda trabajar si se va la luz»)
 
 Responde SOLO con JSON:
-{ "cleanedQuery": "...", "filters": { "category": "...", "city": "...", "vibe": ["..."], "currency": ["..."] } }`;
+{ "cleanedQuery": "...", "filters": { "category": "...", "city": "...", "vibe": ["..."], "currency": ["..."], "energia": "..." } }`;
   const { data } = await chatJSON<{
     cleanedQuery: string;
-    filters?: { category?: string; city?: string; vibe?: string[]; currency?: string[] };
+    filters?: {
+      category?: string;
+      city?: string;
+      vibe?: string[];
+      currency?: string[];
+      energia?: string;
+    };
   }>({ system, user: query, temperature: 0.1 });
   return data;
 }

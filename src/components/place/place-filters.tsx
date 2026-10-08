@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Navigation, Clock, Eye, Music } from "lucide-react";
+import { Navigation, Clock, Eye, Music, Zap } from "lucide-react";
 
 /**
  * Los filtros acumulables del mapa.
@@ -14,6 +14,10 @@ import { Navigation, Clock, Eye, Music } from "lucide-react";
 const FILTERS = [
   { value: "distancia", label: "Cercanos", icon: Navigation },
   { value: "abierto", label: "Abiertos ahora", icon: Clock },
+  /* «Con corriente» y no «Con respaldo»: es como se pregunta en la calle, y
+     cubre las tres formas —planta, inversor y las dos— sin obligar a elegir
+     cuál. Ver `place-filters.ts`. */
+  { value: "energia", label: "Con corriente", icon: Zap },
   { value: "tranquilo", label: "Tranquilo", icon: Eye },
   { value: "musica", label: "Con música", icon: Music },
 ];

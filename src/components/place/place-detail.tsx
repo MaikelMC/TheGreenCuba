@@ -47,6 +47,8 @@ import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
 import { placeIcon } from "@/lib/places";
 import { resolveCategoryIcon } from "@/lib/category-icons";
 import type { Disponibilidad } from "@/lib/disponibilidad";
+import type { EnergiaRespaldo } from "@/lib/energia";
+import { EnergiaBadge } from "./energia-badge";
 
 export type PlaceState = "normal" | "closed" | "no-photos" | "special-offer";
 
@@ -94,6 +96,10 @@ export interface PlaceData {
   vibe: string[];
   aiTags: string[];
   priceLabel?: string;
+  /** Energía de respaldo. `null`/ausente = el dueño no lo dijo. */
+  energiaRespaldo?: EnergiaRespaldo | null;
+  /** Nota corta sobre los apagones, para el `title` de la etiqueta. */
+  notaApagon?: string;
   icon?: string;
   isBoosted?: boolean;
   slides: Slide[];
@@ -404,6 +410,13 @@ export function PlaceDetail({
               </div>
             </Fragment>
           ))}
+          {/* La energía se suma a la franja en vez de tener la suya: es un dato
+              más del lugar, como la categoría o la dirección. La ficha se
+              calla si el dueño no dijo nada —ver `EnergiaBadge`—. */}
+          <EnergiaBadge
+            energia={place.energiaRespaldo}
+            nota={place.notaApagon}
+          />
         </Reveal>
 
         {/* Row 3: Two columns */}
@@ -688,6 +701,11 @@ export function PlaceDetail({
                       </span>
                     ) : null}
                   </div>
+                  <EnergiaBadge
+                    energia={place.energiaRespaldo}
+                    nota={place.notaApagon}
+                    className="mt-gap-xs"
+                  />
                 </div>
               </div>
               {/* `flex-wrap` porque las cuatro acciones no siempre caben en la

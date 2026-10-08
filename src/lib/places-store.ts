@@ -15,6 +15,7 @@
 
 import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
 import type { Disponibilidad } from "@/lib/disponibilidad";
+import type { EnergiaRespaldo } from "@/lib/energia";
 
 export type PlaceStatus = "active" | "closed" | "temporary_closed";
 export type PlaceReviewStatus = "pending" | "approved" | "rejected";
@@ -170,6 +171,18 @@ export interface UserPlace {
   facebook?: string;
   description: string;
   schedule: string;
+  /**
+   * Energía de respaldo: qué tiene el negocio para seguir con luz durante un
+   * apagón. `null`/ausente significa «el dueño no lo dijo», que no es lo mismo
+   * que `"ninguna"` —eso es decirlo y no tener—. Ver `src/lib/energia.ts`,
+   * donde vive la regla de cuándo se pinta la etiqueta.
+   */
+  energiaRespaldo?: EnergiaRespaldo | null;
+  /**
+   * Frase corta del dueño sobre cómo lo lleva durante los apagones. Opcional, y
+   * sin ella la etiqueta de energía se sostiene sola.
+   */
+  notaApagon?: string;
   /**
    * Ambiente del lugar («Tranquilo», «Musical», «Céntrico»). La base ya lo
    * guardaba desde la primera siembra y el mapeo no lo pasaba, así que los

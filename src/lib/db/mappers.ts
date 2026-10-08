@@ -79,6 +79,12 @@ export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
     facebook: row.facebook ?? undefined,
     description: row.description ?? row.shortDescription ?? "",
     schedule: row.schedule ?? "",
+    /* Sin respaldo y sin dato viajan igual —`null`/`undefined`— y la ficha los
+       trata igual: no pinta nada. La distinción entre «no lo dijo» y «dijo que
+       no» se pierde aquí a propósito, porque para pintar no cambia nada; quien
+       la necesita —el filtro del buscador— pregunta por `tieneRespaldo`. */
+    energiaRespaldo: row.energiaRespaldo ?? null,
+    notaApagon: row.notaApagon ?? undefined,
     /* La base lo guarda desde la primera siembra; sin esto los filtros de
        «Tranquilo» y «Con música» del mapa no tenían nada que mirar. */
     vibe: row.vibe ?? [],
@@ -157,6 +163,14 @@ export function toPlaceValues(
   if (patch.facebook !== undefined) values.facebook = patch.facebook || null;
   if (patch.description !== undefined) values.description = patch.description;
   if (patch.schedule !== undefined) values.schedule = patch.schedule;
+  /* `?? null` y no `|| null`: los cuatro valores son cadenas no vacías, así que
+     el `||` daría lo mismo, pero aquí un `""` no es un valor válido y
+     convertirlo en `null` sí es lo correcto —el formulario manda cadena vacía
+     cuando no se elige—. Se pasa por `esEnergia` en la ruta, no aquí. */
+  if (patch.energiaRespaldo !== undefined) {
+    values.energiaRespaldo = patch.energiaRespaldo || null;
+  }
+  if (patch.notaApagon !== undefined) values.notaApagon = patch.notaApagon || null;
   if (patch.payments !== undefined) values.paymentMethods = patch.payments;
   if (patch.menu !== undefined) values.menu = patch.menu;
   if (patch.offer !== undefined) {

@@ -1,4 +1,5 @@
 import { haversineM } from "@/lib/map/routing";
+import { tieneRespaldo } from "@/lib/energia";
 import type { UserPlace } from "@/lib/places-store";
 
 /**
@@ -15,7 +16,13 @@ import type { UserPlace } from "@/lib/places-store";
  * y «Restaurantes» a la vez no devolviera nada.
  */
 
-export const PLACE_FILTERS = ["distancia", "abierto", "tranquilo", "musica"] as const;
+export const PLACE_FILTERS = [
+  "distancia",
+  "abierto",
+  "energia",
+  "tranquilo",
+  "musica",
+] as const;
 
 export type PlaceFilter = (typeof PLACE_FILTERS)[number];
 
@@ -64,6 +71,14 @@ export interface FilterContext {
 
 export function matchesPlaceFilters(place: UserPlace, ctx: FilterContext): boolean {
   if (ctx.categoryLabel && place.category !== ctx.categoryLabel) return false;
+
+  /* Un solo chip para las tres formas de respaldo —planta, inversor y ambas—:
+     quien pregunta por «corriente» quiere cualquiera de las tres, y separarlas
+     obligaría a marcar dos casillas para ver el mapa entero. Un negocio que
+     dijo «ninguna» y uno que no lo dijo se filtran igual: fuera. */
+  if (ctx.filters.has("energia") && !tieneRespaldo(place.energiaRespaldo)) {
+    return false;
+  }
 
   const vibe = place.vibe ?? [];
   if (ctx.filters.has("tranquilo") && !vibe.includes("Tranquilo")) return false;

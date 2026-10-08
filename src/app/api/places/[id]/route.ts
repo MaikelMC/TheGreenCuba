@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
+import { esEnergia } from "@/lib/energia";
 import { getAppUser } from "@/lib/auth/user";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
 import { saveDevPlaceOverride } from "@/lib/dev-place-server";
@@ -52,6 +53,31 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       { error: "Cuerpo JSON inválido" },
       { status: 400 },
     );
+  }
+
+  /* La energía de respaldo es una de cuatro cadenas, o nada. La columna es
+     `text` sin restricción —drizzle no genera el `check` al declararla con
+     `enum`—, así que esta es la única puerta que impide guardar un valor
+     inventado. Cadena vacía o `null` significan «quítalo», que es lo que manda
+     el formulario al elegir lo contrario; cualquier otra cosa es un 400 y no un
+     silencio: un valor que se cae sin decir nada deja al dueño creyendo que
+     guardó lo que escribió. Va antes de la rama del negocio de prueba para que
+     el fixture reciba la misma comprobación. */
+  /* `unknown` y no el tipo del campo, aunque el cast de arriba diga que ya es
+     `EnergiaRespaldo`: el cuerpo viene del navegador y una cadena vacía —que el
+     formulario manda al elegir lo contrario— es un valor que TypeScript no ve
+     por ningún lado. Tratarlo como lo que es, un dato sin comprobar, es lo que
+     hace que esta guarda siga teniendo sentido. */
+  const energia: unknown = body.energiaRespaldo;
+  if (energia !== undefined) {
+    if (energia === null || energia === "") {
+      body.energiaRespaldo = null;
+    } else if (!esEnergia(energia)) {
+      return NextResponse.json(
+        { error: "La energía de respaldo no es uno de los valores válidos." },
+        { status: 400 },
+      );
+    }
   }
 
   /* El negocio de prueba no tiene fila en `places`, así que su edición no es un

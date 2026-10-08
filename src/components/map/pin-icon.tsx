@@ -81,10 +81,37 @@ function imageClipId(imageUrl: string): string {
   return `lv-pin-photo-${(hash >>> 0).toString(36)}`;
 }
 
-function buildPin(variant: PlacePinVariant, iconKey: string, imageUrl?: string) {
+/**
+ * El rayo del pin: un disco blanco con el símbolo dentro, solapado al hombro
+ * derecho de la gota.
+ *
+ * Va en el pin y no en el popup porque el pin es lo que se mira desde lejos,
+ * con el mapa sin tocar: quien busca corriente tiene que poder recorrer el mapa
+ * con la vista en vez de abrir ficha por ficha. El disco es blanco y el rayo
+ * oscuro —el mismo `#08130D` de los iconos— porque la paleta no tiene ámbar y
+ * un color inventado aquí se saldría del sistema.
+ *
+ * Las coordenadas están en unidades del `viewBox` (24×36), no en píxeles: el
+ * icono se escala con el ancho y el alto de cada variante y el rayo tiene que
+ * escalar con él. Se coloca con el canto derecho dentro del `viewBox` —
+ * `cx 19.2` + `r 4.4` = 23.6 < 24— para que no lo recorte el SVG en la variante
+ * más pequeña.
+ */
+const ENERGIA_BADGE_MARKUP = `
+  <g>
+    <circle cx="19.2" cy="5.4" r="4.4" fill="white" stroke="#08130D" stroke-width="0.9"/>
+    <path d="M19.9 3.3 17.8 6.05h1.5l-.9 1.75L20.6 5.1h-1.5z" fill="#08130D"/>
+  </g>`;
+
+function buildPin(
+  variant: PlacePinVariant,
+  iconKey: string,
+  imageUrl?: string,
+  conEnergia = false,
+) {
   const { width, height, discR, ring, top, bottom } = PIN_STYLES[variant];
   const key = isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON;
-  const id = `lv-pin-${variant}-${key}`;
+  const id = `lv-pin-${variant}-${key}${conEnergia ? "-e" : ""}`;
   const photoRadius = Math.max(3, discR - 1);
   const clipId = imageUrl ? imageClipId(imageUrl) : "";
   const centerContent = imageUrl
@@ -106,6 +133,7 @@ function buildPin(variant: PlacePinVariant, iconKey: string, imageUrl?: string) 
         <circle cx="12" cy="12" r="${discR}" fill="white"/>
         ${centerContent}
         ${ring ? `<circle cx="12" cy="12" r="8" fill="none" stroke="${PIN_STYLES[variant].ringColor ?? "rgba(53,175,109,0.4)"}" stroke-width="2"/>` : ""}
+        ${conEnergia ? ENERGIA_BADGE_MARKUP : ""}
       </svg>
     </div>`;
 
@@ -117,17 +145,19 @@ function buildPin(variant: PlacePinVariant, iconKey: string, imageUrl?: string) 
   });
 }
 
-/* La clave lleva la variante y el icono: dos negocios distintos comparten
-   variante pero no dibujo. */
+/* La clave lleva la variante, el icono, la foto y el rayo: dos negocios
+   distintos comparten variante pero no dibujo. */
 const ICON_CACHE: Record<string, ReturnType<typeof buildPin>> = {};
 
-/** Icono de lugar para el mapa, cacheado por variante e icono. */
+/** Icono de lugar para el mapa, cacheado por variante, icono y respaldo. */
 export function createPlacePinIcon(
   variant: PlacePinVariant = "default",
   iconKey: string = DEFAULT_CATEGORY_ICON,
   imageUrl?: string,
+  /** Si el negocio tiene energía de respaldo. Ver `src/lib/energia.ts`. */
+  conEnergia = false,
 ) {
-  const cacheKey = `${variant}:${isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON}:${imageUrl ?? ""}`;
-  ICON_CACHE[cacheKey] ??= buildPin(variant, iconKey, imageUrl);
+  const cacheKey = `${variant}:${isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON}:${imageUrl ?? ""}:${conEnergia ? "e" : ""}`;
+  ICON_CACHE[cacheKey] ??= buildPin(variant, iconKey, imageUrl, conEnergia);
   return ICON_CACHE[cacheKey]!;
 }

@@ -13,6 +13,8 @@ import {
 import { cn } from "@/lib/utils";
 import { placeIcon } from "@/lib/places";
 import { CategoryIcon } from "@/components/admin/category-icon";
+import { EnergiaBadge } from "@/components/place/energia-badge";
+import { etiquetaEnergia } from "@/lib/energia";
 import { type MapPlace } from "./types";
 
 interface PlacePopupProps {
@@ -151,6 +153,19 @@ export function PlacePopup({
           </Fragment>
         ))}
       </div>
+
+      {/* La energía de respaldo baja al popup por lo mismo que el precio: en el
+          mapa se decide a dónde ir, y «¿tienen corriente?» es una de las
+          preguntas. Va en su línea y no entre los separadores de arriba, porque
+          es una pastilla y no un dato suelto. */}
+      {etiquetaEnergia(place.energiaRespaldo) && (
+        <div className="px-[14px] pt-[8px]">
+          <EnergiaBadge
+            energia={place.energiaRespaldo}
+            nota={place.notaApagon}
+          />
+        </div>
+      )}
 
       {featuredOffer && (
         <div className="mx-[14px] mt-2 rounded-lg border border-verde-200 bg-verde-50 px-2.5 py-2">

@@ -5,6 +5,7 @@ import { Marker, Popup } from "react-leaflet";
 import { PlacePopup, getPlacePopupOptions } from "./PlacePopup";
 import { createPlacePinIcon, type PlacePinVariant } from "./pin-icon";
 import { placeIcon } from "@/lib/places";
+import { tieneRespaldo } from "@/lib/energia";
 import type { MapPlace } from "./types";
 
 interface MapMarkersProps {
@@ -44,6 +45,9 @@ const MarkerItem = memo(function MarkerItem({
     markerVariant(isSelected, isBoosted, place.isProject ?? false),
     placeIcon(place.icon, place.category),
     place.image,
+    /* El rayo del pin. Un proyecto no lo lleva: su energía no es un dato que
+       tenga sentido, y el pin de proyecto ya se distingue por su color. */
+    !place.isProject && tieneRespaldo(place.energiaRespaldo),
   );
 
   const handleClick = useCallback(() => {

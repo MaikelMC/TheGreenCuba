@@ -78,6 +78,11 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
     vibe: p.vibe ?? [],
     aiTags: p.aiTags ?? [],
     priceLabel: p.priceLabel,
+    /* La reconstrucción es explícita, así que cada campo nuevo hay que nombrarlo
+       aquí o se cae al pintar. La energía de respaldo, sin ir más lejos: sin
+       esto el dueño la guardaba y la ficha no la enseñaba. */
+    energiaRespaldo: p.energiaRespaldo ?? null,
+    notaApagon: p.notaApagon,
     icon: p.icon,
     isBoosted: p.isBoosted,
     /* Las fotos subidas mandan; el degradado solo rellena cuando el negocio

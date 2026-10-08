@@ -16,6 +16,7 @@ import {
   Tag,
   Utensils,
   User as UserIcon,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SUPPORT_EMAIL } from "@/lib/legal";
@@ -47,6 +48,11 @@ import {
   type NegocioPanel,
 } from "@/components/business/business-switcher";
 import { PLAN_LABEL, incluye, type Plan } from "@/lib/plans";
+import {
+  ENERGIA_LABEL,
+  ENERGIA_ORDER,
+  type EnergiaRespaldo,
+} from "@/lib/energia";
 import { pruneMenuImages } from "@/lib/menu-images";
 import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
 import { usePlaces } from "@/providers/places-provider";
@@ -320,6 +326,14 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
   const [status, setStatus] = useState<PlaceStatus>(place.status);
   const [payments, setPayments] = useState<string[]>(place.payments);
   const [menu, setMenu] = useState(place.menu);
+  /* `"sin"` es «prefiero no decirlo», que no es un valor del dominio sino la
+     opción vacía del `Select` —Radix no admite un `SelectItem` con valor `""`—.
+     Al guardar se traduce a `null`, que es lo que la base entiende por «no lo
+     dijo». */
+  const [energia, setEnergia] = useState<EnergiaRespaldo | "sin">(
+    place.energiaRespaldo ?? "sin",
+  );
+  const [notaApagon, setNotaApagon] = useState(place.notaApagon ?? "");
   const [offerEnabled, setOfferEnabled] = useState(Boolean(place.offer));
   const [offerText, setOfferText] = useState(place.offer?.text ?? "");
   const [offerExpiry, setOfferExpiry] = useState(place.offer?.expiry ?? "");
@@ -385,6 +399,10 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
         offerEnabled && offerText.trim()
           ? { text: offerText.trim(), expiry: offerExpiry.trim() }
           : null,
+      /* La energía va aquí por lo mismo que la disponibilidad: es una lista
+         blanca y lo que no se nombre se pierde en cada guardado. */
+      energiaRespaldo: energia === "sin" ? null : energia,
+      notaApagon: notaApagon.trim(),
     };
 
     const saved = await updatePlace(place.id, values);
@@ -417,6 +435,8 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
     status,
     payments,
     menu,
+    energia,
+    notaApagon,
     offerEnabled,
     offerText,
     offerExpiry,
@@ -665,6 +685,52 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
             </AnimatePresence>
           </FormSection>
         </div>
+
+        <FormSection
+          title="Energía de respaldo"
+          icon={<Zap size={18} strokeWidth={1.8} />}
+        >
+          <p className="mb-gap-sm text-meta text-ink-soft/75">
+            Cuando se va la luz, ¿qué tienes para seguir? Se enseña en tu ficha y
+            en tu pin del mapa, y quien busque «con corriente» te encuentra por
+            esto. Si no lo rellenas, no se dice nada — un hueco no es lo mismo
+            que un «no».
+          </p>
+          <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
+            <div className="flex flex-col gap-gap-xs">
+              <Label htmlFor="bizEnergia">Respaldo</Label>
+              <Select
+                value={energia}
+                onValueChange={(value) =>
+                  setEnergia(value as EnergiaRespaldo | "sin")
+                }
+              >
+                <SelectTrigger id="bizEnergia">
+                  <SelectValue placeholder="Elige" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sin">Prefiero no decirlo</SelectItem>
+                  {ENERGIA_ORDER.map((valor) => (
+                    <SelectItem key={valor} value={valor}>
+                      {ENERGIA_LABEL[valor]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-gap-xs">
+              <Label htmlFor="bizNotaApagon">Cómo lo llevas (opcional)</Label>
+              <Input
+                id="bizNotaApagon"
+                className={INPUT}
+                maxLength={140}
+                value={notaApagon}
+                onChange={(e) => setNotaApagon(e.target.value)}
+                placeholder="Ej: la planta cubre el salón y la cocina"
+              />
+            </div>
+          </div>
+        </FormSection>
 
         <FormSection title="Estado del negocio" icon={<Store size={18} strokeWidth={1.8} />}>
           <p className="mb-gap-sm text-meta text-ink-soft/75">
