@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { businessOwners } from "@/lib/db/schema";
-import { DEV_PLACE_ID, canViewDevPlace } from "@/lib/dev-place";
+import { DEV_PLACE_ID, ownsDevPlace } from "@/lib/dev-place";
 
 /** Clave de administración. Falla en seco si no está configurada (sin fallback). */
 export function getAdminKey(): string | null {
@@ -89,10 +89,12 @@ export async function canManagePlace(req: NextRequest, placeId: string): Promise
   if (user.role === "admin") return true;
 
   /* El negocio de prueba no tiene fila en `business_owners` que consultar: su
-     "propiedad" es la lista de cuentas que pueden verlo (`dev-place.ts`). Quien
-     puede verlo, puede editarlo. En desarrollo entra cualquiera con sesión, que
-     es el mismo criterio con el que el fixture es visible allí. */
-  if (placeId === DEV_PLACE_ID) return canViewDevPlace(user.email);
+     "propiedad" es la lista de cuentas dueñas (`dev-place.ts`). Se pregunta por
+     `ownsDevPlace` y no por `canViewDevPlace` a propósito: editar es de quien lo
+     lleva, no de quien puede verlo, y en desarrollo `canViewDevPlace` dice que sí
+     a cualquiera —así cualquier cuenta con sesión podía escribir en el fixture—.
+     Un administrador ya ha pasado por la rama de arriba. */
+  if (placeId === DEV_PLACE_ID) return ownsDevPlace(user.email);
 
   const [row] = await db
     .select({ placeId: businessOwners.placeId })

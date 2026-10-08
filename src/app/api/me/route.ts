@@ -5,7 +5,7 @@ import { getAppUser } from "@/lib/auth/user";
 import { isGoogleAccount, isMarketingOptedIn, setMarketingOptIn } from "@/lib/contacts";
 import { db } from "@/lib/db";
 import { businessOwners, categories, places, users } from "@/lib/db/schema";
-import { canViewDevPlace, devPlace } from "@/lib/dev-place";
+import { devPlace, ownsDevPlace } from "@/lib/dev-place";
 import { TERMS_VERSION } from "@/lib/legal";
 import type { PlacePlan } from "@/lib/places-store";
 
@@ -120,10 +120,11 @@ async function businessFor(
   email: string,
 ): Promise<AppBusiness | null> {
   /* El negocio de prueba no tiene fila en `business_owners`, así que no lo
-     encuentra `businessOf`. Para quien puede verlo —la cuenta autorizada, y
-     cualquiera en desarrollo— se devuelve el fixture, para que el menú de
-     usuario enseñe «Mi negocio» igual que con uno real. */
-  const dev = canViewDevPlace(email) ? devBusiness() : null;
+     encuentra `businessOf`. Se devuelve el fixture a su **dueño** —la cuenta
+     autorizada— para que el menú de usuario enseñe «Mi negocio» igual que con
+     uno real. `ownsDevPlace` y no `canViewDevPlace`: esto es «¿es tu negocio?»,
+     no «¿puedes verlo?», y en desarrollo lo segundo vale para cualquiera. */
+  const dev = ownsDevPlace(email) ? devBusiness() : null;
   if (role !== "owner" && role !== "admin") return dev;
   return (await businessOf(id)) ?? dev;
 }

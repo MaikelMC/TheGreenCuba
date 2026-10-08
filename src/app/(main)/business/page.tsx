@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAppUser } from "@/lib/auth/user";
 import { getPlaceById, ownerPlaces, placeStats } from "@/lib/db/queries";
-import { DEV_PLACE_ID, canViewDevPlace, devPlace } from "@/lib/dev-place";
+import { DEV_PLACE_ID, devPlace, ownsDevPlace } from "@/lib/dev-place";
 import { planEfectivoDe } from "@/lib/plans-server";
 import { menuUrl } from "@/lib/structured-data";
 import { BusinessPanel } from "@/components/business/business-panel";
@@ -45,7 +45,10 @@ export default async function BusinessPage({
   const propios = await ownerPlaces(user.id);
   const negocios: NegocioPanel[] = [
     ...propios.map((p) => ({ id: p.id, nombre: p.name, esPrueba: false })),
-    ...(canViewDevPlace(user.email)
+    /* `ownsDevPlace` y no `canViewDevPlace`: el selector es de **propiedad**, y
+       en desarrollo `canViewDevPlace` contesta que sí a cualquiera, que es como
+       el negocio de prueba acababa saliéndole en el panel a cuentas ajenas. */
+    ...(ownsDevPlace(user.email)
       ? [{ id: DEV_PLACE_ID, nombre: devPlace().name, esPrueba: true }]
       : []),
   ];

@@ -1,4 +1,3 @@
-import { getAppUser } from "@/lib/auth/user";
 import type { UserPlace } from "@/lib/places-store";
 
 /**
@@ -57,6 +56,28 @@ const DEV_PLACE_VIEWERS = ["maikelcanario0@gmail.com"];
 /** ¿Este correo puede ver el negocio de desarrollo? */
 export function canViewDevPlace(email: string | null | undefined): boolean {
   if (devPlaceEnabled()) return true;
+  return ownsDevPlace(email);
+}
+
+/**
+ * ¿Este correo es el **dueño** del negocio de prueba?
+ *
+ * Es distinto de `canViewDevPlace`, y la diferencia es la que separa «ver» de
+ * «ser tuyo»:
+ *
+ * - `canViewDevPlace` responde a «¿se puede ver el fixture **aquí**?». En
+ *   desarrollo dice que sí a todo el mundo, porque el fixture existe para eso
+ *   —verlo sin montar nada, ni cuenta—.
+ * - Esta responde a «¿este negocio es **suyo**?», y ahí el entorno no pinta
+ *   nada: la lista de arriba es la respuesta entera, en local y en producción.
+ *
+ * La usan las puertas que deciden **propiedad**, no visibilidad: el panel
+ * (`/business`), `/api/me` y `canManagePlace`. Antes esas tres miraban a
+ * `canViewDevPlace`, así que en desarrollo cualquier cuenta veía el negocio de
+ * prueba como propio — le salía en el selector de negocios y podía editarlo—.
+ * Ver un negocio y llevarlo no son lo mismo, y aquí no pueden confundirse.
+ */
+export function ownsDevPlace(email: string | null | undefined): boolean {
   const normalized = email?.trim().toLowerCase();
   return Boolean(normalized && DEV_PLACE_VIEWERS.includes(normalized));
 }
@@ -71,6 +92,14 @@ export function canViewDevPlace(email: string | null | undefined): boolean {
 export async function mayViewDevPlace(id: string): Promise<boolean> {
   if (id !== DEV_PLACE_ID) return false;
   if (devPlaceEnabled()) return true;
+  /* La sesión se importa **aquí** y no arriba: `auth/user` arrastra la base y la
+     configuración de Neon, que exigen variables de entorno al cargar. Con el
+     import estático, este archivo no se podía importar sin montar todo eso, y
+     sus funciones puras (`ownsDevPlace`, `devPlaceEnabled`, `devPlace`) no se
+     podían probar —que es justo lo que hace `dev-place.test.ts`—. El coste es
+     cero: en desarrollo se sale antes por la línea de arriba y en producción la
+     resolución del import se resuelve una vez. */
+  const { getAppUser } = await import("@/lib/auth/user");
   const user = await getAppUser();
   return canViewDevPlace(user?.email);
 }
