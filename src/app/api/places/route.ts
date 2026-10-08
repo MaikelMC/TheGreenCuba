@@ -9,6 +9,7 @@ import { places, projectRequests } from "@/lib/db/schema";
 import { toNewPlaceValues, toUserPlace } from "@/lib/db/mappers";
 import { CATALOG_TAG, listPlaces, resolveCategoryId } from "@/lib/db/queries";
 import { canViewDevPlace } from "@/lib/dev-place";
+import { crearSuscripcion } from "@/lib/plans-server";
 import { generateId } from "@/lib/utils";
 import type { UserPlace } from "@/lib/places-store";
 
@@ -163,6 +164,11 @@ export async function POST(req: NextRequest) {
     .insert(places)
     .values(toNewPlaceValues(body, categoryId, generateId()))
     .returning();
+
+  /* Misma regla que el alta del perfil: negocio nuevo, gratis con 30 días de
+     Pro de prueba. Sin esto, una ficha creada desde el panel nacería gratis y
+     sin prueba, y su dueño vería menos que quien se dio de alta solo. */
+  await crearSuscripcion(row!.id);
 
   revalidateTag(CATALOG_TAG, "max");
 

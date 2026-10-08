@@ -1,7 +1,8 @@
 # La Verde
 
-Plataforma de descubrimiento de lugares en Cuba, con búsqueda por lenguaje
-natural. Next.js 16 con App Router, Neon (Postgres) y autenticación en Neon.
+Proyecto: La Verde (Next.js 16 App Router, React 19, TS, Neon Postgres + drizzle-orm, Neon Auth). Usuarios cubanos con datos móviles limitados y negocios sin WiFi propio: todo debe ser ligero.
+Reglas: respeta CLAUDE.md. Lee solo lo necesario (schema, rutas del negocio y del menú) antes de escribir. Reusa lo existente. Cambios mínimos, sin dependencias nuevas salvo que el prompt las pida. Migraciones con drizzle. Validación server-side siempre; nunca confíes en el cliente para permisos de plan. UI en español.
+Al terminar: lista de archivos tocados + 3 a 5 pasos para probar. Sin explicaciones largas.
 
 ---
 

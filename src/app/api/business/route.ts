@@ -8,6 +8,7 @@ import { businessOwners, notifications, places, users } from "@/lib/db/schema";
 import { toNewPlaceValues, toPlaceValues } from "@/lib/db/mappers";
 import { CATALOG_TAG, resolveCategoryId } from "@/lib/db/queries";
 import { notifyAdminsBusinessSubmission } from "@/lib/email";
+import { crearSuscripcion } from "@/lib/plans-server";
 import { generateId } from "@/lib/utils";
 import type { UserPlace } from "@/lib/places-store";
 
@@ -157,6 +158,11 @@ export async function POST(req: NextRequest) {
         })
         .where(eq(places.id, existing.placeId));
 
+      /* Se asegura la fila: una ficha rechazada pudo darse de alta antes de que
+         existieran las suscripciones, y sin ella su plan sería gratis sin
+         prueba. Idempotente, así que repetirla aquí no hace nada. */
+      await crearSuscripcion(existing.placeId);
+
       revalidateTag(CATALOG_TAG, "max");
 
       /* Reenvío de una solicitud rechazada: es un alta completada otra vez. La
@@ -205,6 +211,11 @@ export async function POST(req: NextRequest) {
        negocio. El campo existe para las invitaciones, que no es este camino. */
     acceptedAt: new Date(),
   });
+
+  /* Negocio nuevo = gratis con 30 días de Pro de prueba. Va después del vínculo
+     porque la fila apunta a la ficha, y la ficha ya existe desde el `insert`
+     de arriba. */
+  await crearSuscripcion(placeId);
 
   /* El alta del negocio solo debe subir a un usuario normal al rol `owner`.
      Un admin no debe perder su acceso al panel por probar un flujo de negocio.

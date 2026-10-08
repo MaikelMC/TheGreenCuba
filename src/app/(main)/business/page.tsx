@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAppUser } from "@/lib/auth/user";
 import { getPlaceById, ownerPlaceId, placeStats } from "@/lib/db/queries";
+import { planEfectivoDe } from "@/lib/plans-server";
 import { menuUrl } from "@/lib/structured-data";
 import { BusinessPanel } from "@/components/business/business-panel";
 import { BusinessEntry } from "@/components/business/business-entry";
@@ -34,7 +35,11 @@ export default async function BusinessPage() {
      sigue viviendo en el perfil hasta que exista el formulario de campañas. */
   if (!placeId) return <BusinessEntry />;
 
-  const [place, stats] = await Promise.all([getPlaceById(placeId), placeStats(placeId)]);
+  const [place, stats, plan] = await Promise.all([
+    getPlaceById(placeId),
+    placeStats(placeId),
+    planEfectivoDe(placeId),
+  ]);
 
   if (!place) redirect("/profile?seccion=negocio");
 
@@ -55,6 +60,11 @@ export default async function BusinessPage() {
      necesita la dirección entera, y `window.location.origin` en el panel de un
      despliegue de prueba generaría un QR que apunta a la prueba. */
   return (
-    <BusinessPanel place={place} stats={stats} menuUrl={menuUrl(place.id)} />
+    <BusinessPanel
+      place={place}
+      stats={stats}
+      menuUrl={menuUrl(place.id)}
+      plan={plan}
+    />
   );
 }

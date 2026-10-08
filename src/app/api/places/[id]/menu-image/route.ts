@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { canManagePlace } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema";
+import { limite } from "@/lib/plans-server";
 import { S3_BUCKET, s3Client } from "@/lib/storage/s3";
 import {
   keyFromUrl,
@@ -47,14 +48,31 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   /* El negocio primero: `places/{id}/…` es la clave, y un id inventado
-     subiría un objeto a una carpeta que nadie va a leer. */
+     subiría un objeto a una carpeta que nadie va a leer. Se trae también la
+     carta, que es donde viven las URLs: esta tabla no tiene filas, así que
+     contar las fotos de producto es contar los platos que llevan una. */
   const [place] = await db
-    .select({ id: places.id })
+    .select({ id: places.id, menu: places.menu })
     .from(places)
     .where(eq(places.id, id))
     .limit(1);
   if (!place) {
     return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
+  }
+
+  /* El tope de fotos de producto, antes de gastar una subida al bucket. Solo
+     corta las nuevas: las que ya están siguen ahí aunque el plan haya bajado. */
+  const tope = await limite(id, "fotos_productos_max");
+  if (tope !== null) {
+    const conFoto = (place.menu ?? []).filter((item) => item.image).length;
+    if (conFoto >= tope) {
+      return NextResponse.json(
+        {
+          error: `Tu plan permite hasta ${tope} fotos de producto. Mejora tu plan para subir más.`,
+        },
+        { status: 400 },
+      );
+    }
   }
 
   /* De la configuración al bucket, en una llamada. El `FormData` no trae nada

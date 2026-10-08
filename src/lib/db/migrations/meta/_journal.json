@@ -148,6 +148,20 @@
       "when": 1791132781390,
       "tag": "0020_legal_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791437807944,
+      "tag": "0021_add_suscripciones",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791438178857,
+      "tag": "0022_lame_wind_dancer",
+      "breakpoints": true
     }
   ]
 }

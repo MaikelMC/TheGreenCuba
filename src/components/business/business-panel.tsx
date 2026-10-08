@@ -40,6 +40,8 @@ import { PhotoGrid } from "@/components/business/photo-grid";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { MenuItemEditor } from "@/components/business/menu-item-editor";
 import { MenuLinkCard } from "@/components/business/menu-link-card";
+import { PlanCard } from "@/components/business/plan-card";
+import { PLAN_LABEL, type Plan } from "@/lib/plans";
 import { pruneMenuImages } from "@/lib/menu-images";
 import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
 import { usePlaces } from "@/providers/places-provider";
@@ -86,22 +88,32 @@ export function BusinessPanel({
   place,
   stats,
   menuUrl,
+  plan,
 }: {
   place: UserPlace;
   stats: PlaceStats;
   /** La URL absoluta de la carta, que resuelve el servidor. Ver `menuUrl`. */
   menuUrl: string;
+  /** El plan efectivo, resuelto en el servidor. Ver `planEfectivoDe`. */
+  plan: Plan;
 }) {
   return (
     <PanelShell>
       {(view) => {
         switch (view) {
           case "dashboard":
-            return <DashboardView place={place} stats={stats} menuUrl={menuUrl} />;
+            return (
+              <DashboardView
+                place={place}
+                stats={stats}
+                menuUrl={menuUrl}
+                plan={plan}
+              />
+            );
           case "editor":
             return <EditorView place={place} />;
           case "settings":
-            return <SettingsView place={place} />;
+            return <SettingsView place={place} plan={plan} />;
         }
       }}
     </PanelShell>
@@ -129,10 +141,12 @@ function DashboardView({
   place,
   stats,
   menuUrl,
+  plan,
 }: {
   place: UserPlace;
   stats: PlaceStats;
   menuUrl: string;
+  plan: Plan;
 }) {
   const offering = [place.description].filter(Boolean).join(" ");
 
@@ -213,6 +227,8 @@ function DashboardView({
         </section>
 
         <MenuLinkCard placeId={place.id} placeName={place.name} url={menuUrl} />
+
+        <PlanCard plan={plan} />
       </div>
     </>
   );
@@ -653,7 +669,7 @@ function EditorView({ place }: { place: UserPlace }) {
   );
 }
 
-function SettingsView({ place }: { place: UserPlace }) {
+function SettingsView({ place, plan }: { place: UserPlace; plan: Plan }) {
   return (
     <>
       <ViewLead title="Ajustes" subtitle="Configuración de tu negocio" />
@@ -673,7 +689,9 @@ function SettingsView({ place }: { place: UserPlace }) {
               retiran en vez de dejarlos mintiendo. Volverán cuando exista dónde
               escribirlos, y con ellos su ruta. */}
           <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
-            <Row label="Plan actual" value="Básico (gratis)" />
+            {/* Estaba escrito a fuego «Básico (gratis)» para todo el mundo. Ahora
+                es el plan que hay de verdad, resuelto en el servidor. */}
+            <Row label="Plan actual" value={PLAN_LABEL[plan]} />
             <Row label="Contacto de soporte" value={SUPPORT_EMAIL} />
             <Row label="Versión de la ficha" value={place.id} />
           </div>

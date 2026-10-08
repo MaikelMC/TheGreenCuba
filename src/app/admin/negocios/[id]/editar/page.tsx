@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { MapPin, ArrowLeft } from "lucide-react";
 import { BusinessForm } from "@/components/admin/business-form";
+import { SuscripcionEditor } from "@/components/admin/suscripcion-editor";
 import { StateView } from "@/components/ui/state-view";
 import { LoadingState } from "@/components/ui/loading";
 import { usePlaces } from "@/providers/places-provider";
@@ -44,10 +45,18 @@ export default function EditarNegocioPage() {
   }
 
   return (
-    <BusinessForm
-      key={place.id}
-      initial={place}
-      onDone={() => router.push("/admin/negocios")}
-    />
+    <>
+      <BusinessForm
+        key={place.id}
+        initial={place}
+        onDone={() => router.push("/admin/negocios")}
+      />
+      {/* El plan va aparte del formulario de la ficha y no dentro: se guarda
+          contra otra tabla y con otra ruta, así que meterlo en el `save` de la
+          ficha habría atado dos escrituras que no tienen nada que ver. */}
+      <div className="mt-gap-lg">
+        <SuscripcionEditor placeId={place.id} />
+      </div>
+    </>
   );
 }

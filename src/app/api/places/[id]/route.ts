@@ -8,6 +8,7 @@ import { businessOwners, notifications, places, users } from "@/lib/db/schema";
 import { generateId } from "@/lib/utils";
 import { toPlaceValues, toUserPlace } from "@/lib/db/mappers";
 import { CATALOG_TAG, getPlaceById, resolveCategoryId } from "@/lib/db/queries";
+import { limite } from "@/lib/plans-server";
 import {
   notifyAdminsBusinessSubmission,
   notifyOwnerBusinessApproved,
@@ -88,6 +89,33 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
   if (body.lng !== undefined && !Number.isFinite(body.lng)) {
     return NextResponse.json({ error: "Longitud inválida" }, { status: 400 });
+  }
+
+  /* El tope de productos, solo al **crecer**.
+   *
+   * Comparar contra el menú que ya había y no contra el tope a secas importa:
+   * el formulario manda la carta entera en cada guardado, así que un negocio
+   * que bajó de plan teniendo más productos de los que el plan permite no
+   * podría guardar ni el horario. Se le deja como está y solo se le corta
+   * cuando intenta añadir. */
+  if (Array.isArray(body.menu)) {
+    const tope = await limite(id, "productos_max");
+    if (tope !== null && body.menu.length > tope) {
+      const [actual] = await db
+        .select({ menu: places.menu })
+        .from(places)
+        .where(eq(places.id, id))
+        .limit(1);
+
+      if (body.menu.length > (actual?.menu?.length ?? 0)) {
+        return NextResponse.json(
+          {
+            error: `Tu plan permite hasta ${tope} productos en la carta. Quita alguno para guardar, o mejora tu plan.`,
+          },
+          { status: 400 },
+        );
+      }
+    }
   }
 
   /* Solo se resuelve la categoría si el cuerpo la trae. Si no viene, `values`
