@@ -60,14 +60,13 @@ function curatedInput(body: Partial<UserPlace>): Partial<UserPlace> {
     barrio: text(body.barrio),
     schedule: text(body.schedule),
     phone: text(body.phone) || undefined,
-    /* Sección «Contacto». Van con `text()` y no con `|| undefined` como el
-       teléfono: aquí vaciar el campo es un dato —«ya no tengo web»— y con
-       `undefined` el reenvío de una solicitud rechazada no tocaría la columna
-       y dejaría la dirección vieja en la ficha. */
-    website: text(body.website),
-    whatsapp: text(body.whatsapp),
-    instagram: text(body.instagram),
-    facebook: text(body.facebook),
+    /* `website`, `whatsapp`, `instagram` y `facebook` **no están aquí**, y es a
+       propósito: este formulario ya no los pide. Los cuatro se editan en el
+       panel —Ajustes → «Cómo te contactan»—, que es donde el dueño ve su ficha
+       funcionando. Dejarlos en la lista blanca con `text()` tendría un efecto
+       peor que no tenerlos: el reenvío de una solicitud rechazada manda el
+       objeto entero, y un campo que ya no viaja llegaría como `""` y la
+       columna se vaciaría sin que nadie lo pidiera. */
     lat: body.lat,
     lng: body.lng,
     payments: list(body.payments),
@@ -118,6 +117,7 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
+
   /* El rango además de `isFinite`: esto viene del navegador y termina en un pin
      del mapa compartido. Un `lat` de 500 no revienta nada, simplemente sitúa el
      negocio en ningún sitio. */

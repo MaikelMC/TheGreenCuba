@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
+import { normalizarWhatsappCubano } from "@/lib/contact-links";
 import { esEnergia } from "@/lib/energia";
 import { getAppUser } from "@/lib/auth/user";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
@@ -80,6 +81,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
   }
 
+  /* El interruptor de los pedidos es un booleano, y `Boolean("false")` es
+     `true`: sin esta guarda, un cuerpo con `"false"` como cadena encendería lo
+     que venía a apagar. Va antes de la rama del fixture para que el negocio de
+     prueba reciba la misma comprobación. */
+  if (
+    body.pedidosWhatsapp !== undefined &&
+    typeof body.pedidosWhatsapp !== "boolean"
+  ) {
+    return NextResponse.json(
+      { error: "El interruptor de pedidos tiene que ser verdadero o falso." },
+      { status: 400 },
+    );
+  }
+
   /* El negocio de prueba no tiene fila en `places`, así que su edición no es un
      `update` sino la copia personal del usuario (`place_overrides`). Va aquí,
      antes de toda la lógica de abajo, porque cada bloque siguiente consulta o
@@ -132,6 +147,23 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
   if (body.lng !== undefined && !Number.isFinite(body.lng)) {
     return NextResponse.json({ error: "Longitud inválida" }, { status: 400 });
+  }
+
+  /* Igual que en el alta: el WhatsApp se guarda normalizado (`+53XXXXXXXX`).
+     Vacío vale —borrar el número es un dato—, y lo que no se entiende se
+     rechaza en vez de guardarse, porque de ahí sale el enlace de los pedidos. */
+  if (typeof body.whatsapp === "string" && body.whatsapp.trim()) {
+    const numero = normalizarWhatsappCubano(body.whatsapp);
+    if (!numero) {
+      return NextResponse.json(
+        {
+          error:
+            "El número de WhatsApp no parece cubano. Escríbelo como +53 5 123 4567.",
+        },
+        { status: 400 },
+      );
+    }
+    body.whatsapp = numero;
   }
 
   /* El tope de productos, solo al **crecer**.

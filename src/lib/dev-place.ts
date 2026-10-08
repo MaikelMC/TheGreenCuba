@@ -252,6 +252,10 @@ export function devPlace(): UserPlace {
       expiry: "31 de diciembre, 2026",
     },
     status: "active",
+    /* El fixture nace con los pedidos encendidos, como cualquier ficha: el
+       interruptor vive en Ajustes y su dueño lo apaga desde ahí si quiere ver
+       cómo queda la carta sin carrito. */
+    pedidosWhatsapp: true,
     isActive: true,
     reviewStatus: "approved",
     isBoosted: false,

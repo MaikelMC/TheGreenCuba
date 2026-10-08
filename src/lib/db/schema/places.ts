@@ -159,6 +159,18 @@ export const places = pgTable(
       .default("active")
       .notNull(),
 
+    /* ── Pedidos por WhatsApp ──────────────────────────────────────────
+       El plan (`whatsapp_pedido`, Básico+) **enciende** la función; esto es el
+       interruptor del dueño para apagarla en su carta sin bajar de plan. Son
+       dos cosas distintas a propósito: el plan es lo que se paga y esto es lo
+       que el negocio quiere hoy —un día sin existencias, unas vacaciones—.
+
+       Nace en `true` y por eso lleva `default`: quien paga la función la
+       quiere, salvo que diga lo contrario, y así el día de la migración las
+       fichas que ya tenían plan no se quedan apagadas sin que nadie lo pidiera.
+       El tope sigue estando arriba: sin el plan, esto no importa. */
+    pedidosWhatsapp: boolean("pedidos_whatsapp").default(true).notNull(),
+
     /* El plan que eligió el dueño al dar de alta su negocio.
        Nulo a propósito, y sin `default`: solo lo escribe el formulario del
        perfil, así que las fichas de la siembra y las que crea administración

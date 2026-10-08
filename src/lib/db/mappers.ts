@@ -94,6 +94,7 @@ export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
       ? { text: row.offerText, expiry: row.offerExpiry ?? "" }
       : null,
     status: row.status,
+    pedidosWhatsapp: row.pedidosWhatsapp,
     plan: row.plan,
     isActive: row.isActive,
     reviewStatus: row.reviewStatus,
@@ -178,6 +179,9 @@ export function toPlaceValues(
     values.offerExpiry = patch.offer?.expiry ?? null;
   }
   if (patch.status !== undefined) values.status = patch.status;
+  if (patch.pedidosWhatsapp !== undefined) {
+    values.pedidosWhatsapp = patch.pedidosWhatsapp;
+  }
   if (patch.plan !== undefined) values.plan = patch.plan ?? null;
   if (patch.isActive !== undefined) values.isActive = patch.isActive;
   if (patch.reviewStatus !== undefined) values.reviewStatus = patch.reviewStatus;

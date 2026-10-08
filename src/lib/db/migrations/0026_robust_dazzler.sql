@@ -1,0 +1,1 @@
+ALTER TABLE "places" ADD COLUMN "pedidos_whatsapp" boolean DEFAULT true NOT NULL;

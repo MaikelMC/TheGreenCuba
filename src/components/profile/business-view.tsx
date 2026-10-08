@@ -7,7 +7,6 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import {
   ArrowRight,
-  AtSign,
   BadgeCheck,
   Check,
   CheckCircle2,
@@ -57,13 +56,11 @@ interface BusinessSummary {
   address: string | null;
   barrio: string | null;
   phone: string | null;
-  /* La sección «Contacto». Los cuatro llegan desde `/api/me` y vuelven en el
-     `POST`, para que una solicitud rechazada se reenvíe con lo que ya se había
-     escrito en vez de con los campos en blanco. */
-  website: string | null;
-  whatsapp: string | null;
-  instagram: string | null;
-  facebook: string | null;
+  /* Tuvo aquí los cuatro campos de «Contacto» —web, WhatsApp, Instagram y
+     Facebook—, que este formulario pedía y ya no: se editan en el panel, en
+     Ajustes → «Cómo te contactan». Se quedan fuera del resumen porque tampoco
+     se mandan en el `POST`, y `/api/business` ya no los acepta: un campo que
+     viaja vacío porque el formulario dejó de pedirlo vaciaría la columna. */
   schedule: string | null;
   lat: number;
   lng: number;
@@ -151,7 +148,6 @@ const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
 const SECTIONS = {
   esencial: "Lo esencial",
   ubicacion: "Dónde está",
-  contacto: "Contacto",
   horario: "Cómo te encuentran",
   pagos: "Métodos de pago",
   plan: "Tu plan",
@@ -171,7 +167,6 @@ const SECTION_ORDER = Object.keys(SECTIONS) as SectionId[];
 const SECTION_ICONS: Record<SectionId, ReactNode> = {
   esencial: <Store size={18} strokeWidth={1.8} />,
   ubicacion: <MapPin size={18} strokeWidth={1.8} />,
-  contacto: <AtSign size={18} strokeWidth={1.8} />,
   horario: <Clock size={18} strokeWidth={1.8} />,
   pagos: <CreditCard size={18} strokeWidth={1.8} />,
   plan: <BadgeCheck size={18} strokeWidth={1.8} />,
@@ -378,12 +373,6 @@ export function BusinessForm({
   const [barrio, setBarrio] = useState(initialBusiness?.barrio ?? "");
   const [address, setAddress] = useState(initialBusiness?.address ?? "");
   const [phone, setPhone] = useState(initialBusiness?.phone ?? "");
-  /* Sección «Contacto». Ninguno es obligatorio: un negocio sin web o sin
-     redes es el caso normal, y la ficha no pinta el botón que falte. */
-  const [website, setWebsite] = useState(initialBusiness?.website ?? "");
-  const [whatsapp, setWhatsapp] = useState(initialBusiness?.whatsapp ?? "");
-  const [instagram, setInstagram] = useState(initialBusiness?.instagram ?? "");
-  const [facebook, setFacebook] = useState(initialBusiness?.facebook ?? "");
   const [schedule, setSchedule] = useState(initialBusiness?.schedule ?? "");
   const [description, setDescription] = useState(
     initialBusiness?.description ?? "",
@@ -469,10 +458,6 @@ export function BusinessForm({
           address: address.trim(),
           barrio: barrio.trim(),
           phone: phone.trim(),
-          website: website.trim(),
-          whatsapp: whatsapp.trim(),
-          instagram: instagram.trim(),
-          facebook: facebook.trim(),
           schedule: schedule.trim(),
           payments,
           lat: location.lat,
@@ -531,10 +516,6 @@ export function BusinessForm({
     address,
     barrio,
     phone,
-    website,
-    whatsapp,
-    instagram,
-    facebook,
     schedule,
     payments,
     /* `plan` faltaba: cambiarlo y enviar mandaba el valor viejo, porque el
@@ -544,7 +525,7 @@ export function BusinessForm({
   ]);
 
   /* El cuerpo de cada sección, en un solo sitio.
-     La vista de página las recorre las seis seguidas, dentro de su acordeón; el
+     La vista de página las recorre todas seguidas, dentro de su acordeón; el
      asistente pinta solo la del paso activo, dentro del encabezado que le pone
      la pantalla. Al ser los mismos nodos, no hay dos copias de los campos que
      puedan separarse. */
@@ -667,84 +648,6 @@ export function BusinessForm({
               placeholder="Ej: Centro histórico"
               className={INPUT}
             />
-          </div>
-        </div>
-      </>
-    ),
-
-    contacto: (
-      <>
-        <p className="mb-gap-sm text-meta text-ink-soft/75">
-          Todo opcional. Son los botones que aparecen en tu ficha: el que dejes
-          vacío no se pinta.
-        </p>
-        <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-          <div className="flex flex-col gap-gap-xs">
-            <label htmlFor="pbWebsite" className={LABEL}>
-              Sitio web
-            </label>
-            <input
-              id="pbWebsite"
-              type="url"
-              inputMode="url"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              placeholder="Ej: https://laverde.cu"
-              className={INPUT}
-            />
-          </div>
-          <div className="flex flex-col gap-gap-xs">
-            <label htmlFor="pbWhatsapp" className={LABEL}>
-              WhatsApp
-            </label>
-            <input
-              id="pbWhatsapp"
-              type="tel"
-              autoComplete="tel"
-              value={whatsapp}
-              onChange={(e) => setWhatsapp(sanitizePhone(e.target.value))}
-              placeholder="+53 5 123 4567"
-              className={INPUT}
-            />
-            {/* El teléfono ya está en «Lo esencial» y sin esta frase los dos
-                campos se leían como el mismo dato escrito dos veces. */}
-            <p className="text-meta text-ink-soft/75">
-              El número con el que te escriben: abre WhatsApp desde tu ficha.
-            </p>
-          </div>
-          <div className="flex flex-col gap-gap-xs">
-            <label htmlFor="pbInstagram" className={LABEL}>
-              Instagram
-            </label>
-            <input
-              id="pbInstagram"
-              type="url"
-              inputMode="url"
-              value={instagram}
-              onChange={(e) => setInstagram(e.target.value)}
-              placeholder="https://instagram.com/laverde"
-              className={INPUT}
-            />
-            <p className="text-meta text-ink-soft/75">
-              Enlace directo al perfil compartido
-            </p>
-          </div>
-          <div className="flex flex-col gap-gap-xs">
-            <label htmlFor="pbFacebook" className={LABEL}>
-              Facebook
-            </label>
-            <input
-              id="pbFacebook"
-              type="url"
-              inputMode="url"
-              value={facebook}
-              onChange={(e) => setFacebook(e.target.value)}
-              placeholder="https://facebook.com/laverde"
-              className={INPUT}
-            />
-            <p className="text-meta text-ink-soft/75">
-              Enlace directo al perfil compartido
-            </p>
           </div>
         </div>
       </>

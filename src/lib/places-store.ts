@@ -195,6 +195,15 @@ export interface UserPlace {
   offerPackages?: ProjectOfferPackage[];
   status: PlaceStatus;
   /**
+   * Si el negocio quiere pedidos por WhatsApp en su carta.
+   *
+   * Es **el interruptor del dueño**, no el permiso: la función la enciende el
+   * plan (`whatsapp_pedido`, Básico+) y esto la apaga cuando al negocio no le
+   * conviene ese día. Los dos tienen que estar en «sí» para que el carrito
+   * aparezca en `/m/{slug}`. Ver `src/lib/plans.ts` y la página del menú.
+   */
+  pedidosWhatsapp: boolean;
+  /**
    * El plan que eligió el dueño al dar de alta el negocio, y que se queda con
    * la ficha: es lo que el administrador ve en la solicitud antes de aprobarla.
    *
@@ -239,10 +248,14 @@ export interface UserPlace {
    es obligatorio en el tipo de la izquierda. Dejando `isActive` en el `Omit`,
    `Partial<Pick<...>>` no lo hace opcional y cada formulario que crea un
    negocio tendría que declarar si se publica, que es una decisión del servidor
-   y no suya. */
+   y no suya.
+
+   `pedidosWhatsapp` se queda fuera del todo —ni en el `Omit` ni en el
+   `Partial`—: no lo elige quien da de alta el negocio, y sin declararlo no se
+   le exige. Lo pone el `default` de la columna. */
 export type NewUserPlace = Omit<
   UserPlace,
-  "id" | "slug" | "createdAt" | "updatedAt" | "status" | "isActive" | "reviewStatus" | "isBoosted" | "boostExpiresAt"
+  "id" | "slug" | "createdAt" | "updatedAt" | "status" | "isActive" | "reviewStatus" | "isBoosted" | "boostExpiresAt" | "pedidosWhatsapp"
 > &
   Partial<Pick<UserPlace, "status" | "isActive" | "isBoosted" | "boostExpiresAt">>;
 

@@ -183,6 +183,20 @@
       "when": 1791448406255,
       "tag": "0025_futuristic_warpath",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791501567942,
+      "tag": "0026_robust_dazzler",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1791501960458,
+      "tag": "0027_smart_sinister_six",
+      "breakpoints": true
     }
   ]
 }

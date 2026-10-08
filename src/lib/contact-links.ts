@@ -49,6 +49,28 @@ export function whatsappHref(value: string): string {
 }
 
 /**
+ * Un número de WhatsApp escrito a la cubana → `+53XXXXXXXX`, o `null` si no lo
+ * es.
+ *
+ * El `+53` es del país, así que se acepta escrito o no —`+53 5 123 4567`,
+ * `53 51234567`, `0053 51234567`, `5 123 4567`— y siempre sale normalizado con
+ * el prefijo puesto: quien lee la ficha no tiene que adivinar de dónde es el
+ * número, y el enlace de `wa.me` sale igual con las dos formas.
+ *
+ * El largo del número local es lo único que se comprueba (6 a 8 dígitos, que
+ * cubre el móvil de 8, La Habana de 7 y las provincias de 6). **No** se mira el
+ * prefijo de operador: las series cambian, y rechazar un número bueno por una
+ * lista desactualizada es peor que aceptar uno raro —el dueño lo ve en su ficha
+ * y lo corrige—.
+ */
+export function normalizarWhatsappCubano(value: string): string | null {
+  const digits = value.replace(/\D/g, "").replace(/^00/, "");
+  const local = digits.startsWith("53") ? digits.slice(2) : digits;
+  if (!/^\d{6,8}$/.test(local)) return null;
+  return `+53${local}`;
+}
+
+/**
  * Un usuario o una URL de red social → la URL del perfil.
  *
  * Admite las dos formas en que la gente lo escribe: `@laverde` o `laverde` —que

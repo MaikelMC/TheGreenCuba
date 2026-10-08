@@ -60,6 +60,7 @@ function mkPlace(overrides: Partial<UserPlace> = {}): UserPlace {
     menu: [],
     offer: null,
     status: "active",
+    pedidosWhatsapp: true,
     isActive: true,
     reviewStatus: "approved",
     isBoosted: false,

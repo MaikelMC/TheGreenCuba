@@ -10,8 +10,12 @@ import { getAppUser } from "@/lib/auth/user";
 import { whatsappHref } from "@/lib/contact-links";
 import { menuUrl } from "@/lib/structured-data";
 import { categoryEmoji } from "@/lib/places";
+import { incluye } from "@/lib/plans";
+import { planEfectivoDe } from "@/lib/plans-server";
 import { cn, currencyLabel, formatMenuPrice, slugify } from "@/lib/utils";
 import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
+import { BotonAgregar, PedidoProvider } from "@/components/menu/pedido-whatsapp";
+import { EventosMenu } from "@/components/menu/eventos-menu";
 
 /**
  * El menú público: la URL corta y estable que se reparte.
@@ -27,11 +31,15 @@ import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
  * mayoría de las veces se mira una sola vez, todo eso es peso muerto. Aquí solo
  * se hereda el layout raíz.
  *
- * **Sin `"use client"` y sin componentes de cliente.** La versión anterior
- * montaba `CartaMenu` (`useState`) y `MenuItem` (`motion/react`): con dos
- * platos ya había JavaScript que no hacía falta. Aquí la carta entera se
- * resuelve en el servidor y las categorías son anclas —enlaces del navegador, no
- * estado de React—.
+ * **La carta entera se resuelve en el servidor** y las categorías son anclas
+ * —enlaces del navegador, no estado de React—. La versión anterior montaba
+ * `CartaMenu` (`useState`) y `MenuItem` (`motion/react`): con dos platos ya
+ * había JavaScript que no hacía falta.
+ *
+ * La **única** isla de cliente es `EventosMenu`, y no pinta nada: cuenta las
+ * visitas, los clics de contacto y los productos que entran en pantalla. Pide
+ * un beacon por visita, no uno por producto, porque la carta la abre gente con
+ * datos contados.
  *
  * El tope `productos_max` no se aplica al pintar: es antiabuso y ya corta al
  * guardar (ver `PATCH /api/places/[id]`). El menú se enseña completo.
@@ -104,6 +112,8 @@ export async function generateMetadata({
 /** Una entrada del menú, resuelta en el servidor. Sin `motion` ni estado. */
 function MenuRow({
   item,
+  productoId,
+  pedible,
 }: {
   item: {
     name: string;
@@ -116,6 +126,10 @@ function MenuRow({
     disponibilidad?: Disponibilidad;
     agotadoHasta?: number | null;
   };
+  /** Identificador estable del producto, para el carrito. */
+  productoId: string;
+  /** `true` si el plan incluye pedidos y el producto se puede pedir hoy. */
+  pedible: boolean;
 }) {
   const priceText = formatMenuPrice(item.price, item.currency);
   /* Agotado no es «no está»: el producto sigue en la carta, apagado y con la
@@ -125,6 +139,9 @@ function MenuRow({
 
   return (
     <div
+      /* `data-producto` lo lee la isla de eventos para contar qué se ve. Es el
+         nombre y no el id porque el id puede faltar en las entradas viejas. */
+      data-producto={item.name}
       className={cn(
         "flex gap-gap-md border-b border-ink/5 py-gap-md last:border-b-0",
         agotado && "opacity-60",
@@ -181,6 +198,19 @@ function MenuRow({
           </div>
         )}
       </div>
+
+      {pedible && (
+        <div className="self-center">
+          <BotonAgregar
+            producto={{
+              id: productoId,
+              name: item.name,
+              price: item.price,
+              currency: item.currency,
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -206,6 +236,22 @@ export default async function MenuPage({
   const showFichaLink =
     place.id !== DEV_PLACE_ID || canViewDevPlace(devUser?.email);
 
+  /* El carrito necesita **tres** síes, y se comprueban aquí, en el servidor: el
+     navegador solo pinta lo que le llega.
+
+     1. El plan lo incluye (`whatsapp_pedido`, Básico+).
+     2. El dueño no lo ha apagado en Ajustes (`pedidosWhatsapp`).
+     3. Hay número al que mandar el pedido.
+
+     El orden importa: los dos que no cuestan nada van primero, así que una
+     carta vacía o un negocio sin número —que son la mayoría— no pagan la
+     consulta del plan. */
+  const puedePedir =
+    place.menu.length > 0 &&
+    place.pedidosWhatsapp &&
+    Boolean(place.whatsapp?.trim()) &&
+    incluye(await planEfectivoDe(place.id), "whatsapp_pedido");
+
   /* Agrupación estable por categoría, en el orden en que el dueño la escribió.
      `Map` conserva la inserción, así que «Entrantes» sale antes que «Postres»
      sin ordenar alfabéticamente. Las entradas sin categoría caen en un grupo
@@ -226,8 +272,10 @@ export default async function MenuPage({
   }
   const namedGroups = groups.filter((group) => group.name !== null);
 
-  return (
+  const carta = (
     <div className="mx-auto w-full max-w-[680px] px-gutter py-gap-lg">
+      {/* La isla que cuenta la carta. No pinta nada; ver `EventosMenu`. */}
+      <EventosMenu negocioId={place.id} />
       <div className="flex items-center justify-between gap-gap-sm pb-gap-md">
         <Link
           href="/"
@@ -297,6 +345,7 @@ export default async function MenuPage({
                 href={whatsapp}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-evento="click_whatsapp"
                 className="inline-flex h-11 items-center gap-gap-xs rounded-full bg-verde-400 px-gap-md font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300"
               >
                 <MessageCircle size={16} strokeWidth={1.8} />
@@ -306,6 +355,7 @@ export default async function MenuPage({
             {phone && (
               <a
                 href={`tel:${phone.replace(/[^\d+]/g, "")}`}
+                data-evento="click_llamar"
                 className="inline-flex h-11 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
               >
                 <Phone size={16} strokeWidth={1.8} />
@@ -359,7 +409,14 @@ export default async function MenuPage({
                 )}
                 <div className="rounded-3xl border border-ink/5 bg-white px-gap-md shadow-soft">
                   {group.items.map((item, index) => (
-                    <MenuRow key={`${item.name}-${index}`} item={item} />
+                    <MenuRow
+                      key={`${item.name}-${index}`}
+                      item={item}
+                      /* Las entradas nuevas ya traen `id`; las viejas no, y ahí
+                         el nombre con su posición es lo único estable que hay. */
+                      productoId={item.id ?? `${item.name}-${index}`}
+                      pedible={puedePedir && !estaAgotado(item)}
+                    />
                   ))}
                 </div>
               </div>
@@ -373,5 +430,21 @@ export default async function MenuPage({
         los pedidos: se hacen por WhatsApp o por teléfono, como siempre.
       </footer>
     </div>
+  );
+
+  /* Sin el plan, sin número o en una carta vacía, el carrito no existe: se
+     devuelve la carta tal cual y no se manda ni un byte de JavaScript de más. */
+  if (!puedePedir) return carta;
+
+  return (
+    <PedidoProvider
+      placeId={place.id}
+      negocio={place.name}
+      /* `puedePedir` ya garantiza que hay número; el `?? ""` es para que
+         TypeScript lo sepa. */
+      whatsapp={place.whatsapp ?? ""}
+    >
+      {carta}
+    </PedidoProvider>
   );
 }

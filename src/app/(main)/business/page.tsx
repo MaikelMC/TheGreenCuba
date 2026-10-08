@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAppUser } from "@/lib/auth/user";
 import { getPlaceById, ownerPlaces, placeStats } from "@/lib/db/queries";
+import { statsVisitas } from "@/lib/eventos-server";
 import { DEV_PLACE_ID, devPlace, ownsDevPlace } from "@/lib/dev-place";
 import { planEfectivoDe } from "@/lib/plans-server";
 import { menuUrl } from "@/lib/structured-data";
@@ -77,6 +78,11 @@ export default async function BusinessPage({
 
   if (!place) redirect("/profile?seccion=negocio");
 
+  /* Las estadísticas se piden **después** del plan porque el plan decide hasta
+     dónde se consulta: un negocio Gratis no paga las otras consultas y lo que no
+     entra en su plan no llega a salir de la base. Ver `statsVisitas`. */
+  const visitas = await statsVisitas(place.id, plan);
+
   /* El panel se abre cuando un administrador aprueba la solicitud, no al
      enviarla. Antes se abría al momento —el dueño podía rellenar su ficha
      mientras esperaba— y eso dejaba dos puertas para lo mismo: la solicitud
@@ -97,6 +103,7 @@ export default async function BusinessPage({
     <BusinessPanel
       place={place}
       stats={stats}
+      visitas={visitas}
       menuUrl={menuUrl(place.slug)}
       plan={plan}
       /* El negocio de prueba es el único con selector de plan propio: los demás

@@ -34,6 +34,7 @@ import { trackPlaceSaveToggled, trackPlaceViewed } from "@/lib/analytics";
 import { trackClientEvent } from "@/lib/analytics/client";
 import type { AnalyticsEventType } from "@/lib/analytics/events";
 import { trackPlaceMetric } from "@/lib/place-metrics";
+import { trackEvento } from "@/lib/eventos-client";
 import { PhotoCarousel, type Slide } from "./photo-carousel";
 import { PaymentsSection } from "./payments-section";
 import { ActionButtons } from "./action-buttons";
@@ -221,6 +222,9 @@ export function PlaceDetail({
         userId,
       );
       trackPlaceMetric(place.id, "view");
+      /* La misma visita, para el panel del dueño. `trackPlaceMetric` alimenta el
+         ranking de administración; esto, las estadísticas que ve el negocio. */
+      trackEvento({ tipo: "vista_perfil", negocioId: place.id });
       trackPlaceViewed({
         id: place.id,
         name: place.name,
@@ -277,6 +281,13 @@ export function PlaceDetail({
     setSaved(next);
     trackPlaceMetric(place.id, "save");
     trackPlaceSaveToggled(place.id, place.name, next);
+  }
+
+  /* «Cómo llegar» sale de la ficha, así que el clic se cuenta antes de
+     delegar: el padre navega y esta hoja puede desmontarse. */
+  function handleNavigate() {
+    trackEvento({ tipo: "click_como_llegar", negocioId: place.id });
+    onNavigate?.();
   }
 
   // Aquí va `min-h-dvh` solo: `cn` usa twMerge, que colapsaría el par
@@ -426,7 +437,7 @@ export function PlaceDetail({
             <ActionButtons
               isSaved={saved}
               onSave={handleSave}
-              onNavigate={onNavigate}
+              onNavigate={handleNavigate}
               onShare={onShare}
               onReview={place.isProject ? undefined : () => setReviewOpen(true)}
             />
@@ -732,7 +743,7 @@ export function PlaceDetail({
                   className="ml-auto"
                   isSaved={saved}
                   onSave={handleSave}
-                  onNavigate={onNavigate}
+                  onNavigate={handleNavigate}
                   onShare={onShare}
                   onReview={
                     place.isProject ? undefined : () => setReviewOpen(true)
@@ -1179,9 +1190,15 @@ function ContactCard({
             href={row.href}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() =>
-              trackClientEvent(row.event, { businessId: place.id })
-            }
+            onClick={() => {
+              trackClientEvent(row.event, { businessId: place.id });
+              /* WhatsApp es el gesto que el dueño quiere contar —es por donde
+                 le llegan los pedidos—, así que además de la analítica interna
+                 alimenta sus estadísticas. El resto de enlaces no. */
+              if (row.event === "business_whatsapp_clicked") {
+                trackEvento({ tipo: "click_whatsapp", negocioId: place.id });
+              }
+            }}
             className="inline-flex h-9 items-center gap-1.5 rounded-full border border-ink/10 bg-white px-3 font-lv-display text-[12px] font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
           >
             <row.icon
