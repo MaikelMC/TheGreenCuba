@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
 import { getAppUser } from "@/lib/auth/user";
-import { getPlaceById, ownerPlaceId, placeStats } from "@/lib/db/queries";
-import { DEV_PLACE_ID, canViewDevPlace } from "@/lib/dev-place";
+import { getPlaceById, ownerPlaces, placeStats } from "@/lib/db/queries";
+import { DEV_PLACE_ID, canViewDevPlace, devPlace } from "@/lib/dev-place";
 import { planEfectivoDe } from "@/lib/plans-server";
 import { menuUrl } from "@/lib/structured-data";
 import { BusinessPanel } from "@/components/business/business-panel";
 import { BusinessEntry } from "@/components/business/business-entry";
+import type { NegocioPanel } from "@/components/business/business-switcher";
 
 /**
  * El panel del negocio, resuelto en el servidor.
@@ -27,20 +28,39 @@ import { BusinessEntry } from "@/components/business/business-entry";
  * Reutiliza `getPlaceById`, que está cacheada y la comparten la ficha pública y
  * el `sitemap`: no hay una segunda forma de leer un negocio.
  */
-export default async function BusinessPage() {
+export default async function BusinessPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ negocio?: string }>;
+}) {
   const user = await getAppUser();
   if (!user) redirect("/login?next=/business");
 
-  /* El negocio de prueba no está en `business_owners` —no tiene fila en
-     `places`—, así que para la cuenta autorizada (y para cualquiera en
-     desarrollo) cuenta como suyo. Es lo que permite abrir el panel con él y
-     editarlo como un negocio normal. Ver `dev-place.ts`. */
-  const ownId = await ownerPlaceId(user.id);
-  const placeId = ownId ?? (canViewDevPlace(user.email) ? DEV_PLACE_ID : null);
+  const { negocio: pedido } = await searchParams;
+
+  /* Los negocios que se pueden abrir aquí, en orden: primero los que reclama
+     en `business_owners`, y luego el negocio de prueba, que no está en esa
+     tabla —ni en `places`— pero cuenta como suyo para la cuenta autorizada (y
+     para cualquiera en desarrollo). Ver `dev-place.ts`. */
+  const propios = await ownerPlaces(user.id);
+  const negocios: NegocioPanel[] = [
+    ...propios.map((p) => ({ id: p.id, nombre: p.name, esPrueba: false })),
+    ...(canViewDevPlace(user.email)
+      ? [{ id: DEV_PLACE_ID, nombre: devPlace().name, esPrueba: true }]
+      : []),
+  ];
+
+  /* Quién manda: el `?negocio=` **solo si es uno de los suyos**. Un id ajeno en
+     la URL no puede abrir la ficha de otro, así que se descarta y se cae al
+     primero. Sin query, el primero es el negocio propio si lo hay —el orden de
+     arriba—, que es el comportamiento de siempre para quien no tiene fixture. */
+  const elegido =
+    negocios.find((n) => n.id === pedido) ?? negocios[0] ?? null;
   /* La entrada ahora ofrece los dos caminos de creación. El alta de negocio
      sigue viviendo en el perfil hasta que exista el formulario de campañas. */
-  if (!placeId) return <BusinessEntry />;
+  if (!elegido) return <BusinessEntry />;
 
+  const placeId = elegido.id;
   const isDev = placeId === DEV_PLACE_ID;
   const [place, stats, plan] = await Promise.all([
     getPlaceById(placeId, {
@@ -79,6 +99,7 @@ export default async function BusinessPage() {
       /* El negocio de prueba es el único con selector de plan propio: los demás
          cambian por la pasarela o por administración. */
       puedeElegirPlan={isDev}
+      negocios={negocios}
     />
   );
 }

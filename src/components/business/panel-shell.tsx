@@ -14,6 +14,15 @@ export type PanelView = "dashboard" | "editor" | "planes" | "settings";
 interface PanelShellProps {
   businessName?: string;
   defaultView?: PanelView;
+  /**
+   * Contenido que va **encima de la vista**, en las cuatro secciones.
+   *
+   * Lo usa el selector de negocio: elegir qué negocio miras no es una sección
+   * más, tiene que seguir a la vista —si estás editando la ficha y cambias de
+   * negocio, sigues editando, pero la otra— y por eso no puede vivir dentro de
+   * ninguna de ellas.
+   */
+  above?: React.ReactNode;
   children: (
     activeView: PanelView,
     setView: (view: PanelView) => void,
@@ -48,6 +57,7 @@ const SIDEBAR_ITEMS: NavItem[] = [
 export function PanelShell({
   businessName,
   defaultView = "dashboard",
+  above,
   children,
   className,
 }: PanelShellProps) {
@@ -159,6 +169,7 @@ export function PanelShell({
               visible (`lg:hidden`). Por eso cada eje va por su cuenta y el único
               relleno de abajo es el del dock hasta `lg`. */}
           <div className="px-gap-sm pt-gap-sm pb-dock-clear sm:px-gap-md sm:pt-gap-md lg:px-gap-xl lg:pt-gap-xl lg:pb-gap-xl flex flex-col min-h-full">
+            {above}
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeView}

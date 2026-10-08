@@ -42,6 +42,10 @@ import { MenuItemEditor } from "@/components/business/menu-item-editor";
 import { MenuLinkCard } from "@/components/business/menu-link-card";
 import { PlanCard } from "@/components/business/plan-card";
 import { PlansSection } from "@/components/business/plans-section";
+import {
+  BusinessSwitcher,
+  type NegocioPanel,
+} from "@/components/business/business-switcher";
 import { PLAN_LABEL, incluye, type Plan } from "@/lib/plans";
 import { pruneMenuImages } from "@/lib/menu-images";
 import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
@@ -91,6 +95,7 @@ export function BusinessPanel({
   menuUrl,
   plan,
   puedeElegirPlan,
+  negocios,
 }: {
   place: UserPlace;
   stats: PlaceStats;
@@ -100,9 +105,24 @@ export function BusinessPanel({
   plan: Plan;
   /** Solo el negocio de prueba: puede cambiarse de plan a voluntad. */
   puedeElegirPlan: boolean;
+  /**
+   * Los negocios que esta cuenta puede abrir, para el selector de arriba.
+   *
+   * Con uno solo el selector no se pinta; con dos o más —el propio y el de
+   * prueba— permite cambiar sin salir del panel. `place.id` ya dice cuál está
+   * activo, así que la lista no repite esa información.
+   */
+  negocios: NegocioPanel[];
 }) {
+  /* `businessName` sale de la ficha que se está viendo y no de `/api/me`: con el
+     selector, «la tuya» puede ser el negocio de prueba, y `/api/me` solo conoce
+     el que está en `business_owners`. El selector va en `above` —encima de la
+     vista— para que siga a las cuatro secciones sin pertenecer a ninguna. */
   return (
-    <PanelShell>
+    <PanelShell
+      businessName={place.name}
+      above={<BusinessSwitcher negocios={negocios} seleccionado={place.id} />}
+    >
       {(view, setView) => {
         switch (view) {
           case "dashboard":
@@ -120,11 +140,18 @@ export function BusinessPanel({
           case "editor":
             /* El plan baja al editor porque «Hoy hay» es una función de pago: los
                interruptores de disponibilidad solo se pintan si entra. El
-               servidor lo vuelve a comprobar de todas formas. */
-            return <EditorView place={place} plan={plan} />;
+               servidor lo vuelve a comprobar de todas formas.
+
+               La `key` remonta el editor al cambiar de negocio: siembra su
+               estado del `place` y a propósito **no** lo resincroniza —eso
+               borraría lo escrito en cada `router.refresh()`—, así que sin ella
+               cambiar de negocio dejaría en el formulario los datos del
+               anterior. */
+            return <EditorView key={place.id} place={place} plan={plan} />;
           case "planes":
             return (
               <PlansSection
+                key={place.id}
                 plan={plan}
                 negocio={place.name}
                 placeId={place.id}

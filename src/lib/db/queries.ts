@@ -328,20 +328,36 @@ export async function findCategoryBySlug(slug: string) {
   return row ?? null;
 }
 
+/** Un negocio que lleva el usuario, con lo justo para nombrarlo. */
+export interface OwnedPlace {
+  id: string;
+  name: string;
+}
+
 /**
- * El negocio que lleva esta persona, o `null`.
+ * Todos los negocios que lleva esta persona, del nombre y el id, o `[]`.
  *
- * Es el id y no la ficha entera a propósito: quien llama casi siempre quiere
- * después `getPlaceById`, que está cacheada, y duplicar aquí el `select` con
- * join dejaría dos formas de leer lo mismo que se separan en cuanto una cambie.
+ * **Todos y no el primero.** Antes había un `ownerPlaceId` que devolvía uno con
+ * un `limit(1)`, porque el panel siempre enseñó uno. En cuanto pueden convivir
+ * dos —el propio y el negocio de prueba, que no está en `business_owners`— el
+ * panel necesita ofrecerlos, y el `limit(1)` dejaba al segundo inalcanzable.
+ *
+ * Se devuelven el id y el nombre, no la ficha entera: quien llama quiere después
+ * `getPlaceById`, que está cacheada y la comparten la ficha pública y el `sitemap`,
+ * y duplicar aquí el `select` con join dejaría dos formas de leer lo mismo que se
+ * separan en cuanto una cambie.
+ *
+ * El negocio de prueba lo añade quien llama: aquí no se mezcla, porque esta
+ * consulta es de la relación real entre usuarios y negocios, y el fixture no
+ * tiene ninguna.
  */
-export async function ownerPlaceId(userId: string): Promise<string | null> {
-  const [row] = await db
-    .select({ placeId: businessOwners.placeId })
+export async function ownerPlaces(userId: string): Promise<OwnedPlace[]> {
+  return db
+    .select({ id: places.id, name: places.name })
     .from(businessOwners)
+    .innerJoin(places, eq(places.id, businessOwners.placeId))
     .where(eq(businessOwners.userId, userId))
-    .limit(1);
-  return row?.placeId ?? null;
+    .orderBy(asc(places.name));
 }
 
 export interface PlaceStats {
