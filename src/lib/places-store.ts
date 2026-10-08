@@ -14,6 +14,7 @@
  */
 
 import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
+import type { Disponibilidad } from "@/lib/disponibilidad";
 
 export type PlaceStatus = "active" | "closed" | "temporary_closed";
 export type PlaceReviewStatus = "pending" | "approved" | "rejected";
@@ -34,6 +35,15 @@ export const PLAN_LABEL: Record<PlacePlan, string> = {
 };
 
 export interface UserPlaceMenuItem {
+  /**
+   * Identificador estable del producto dentro de la carta.
+   *
+   * Es lo que usa `setDisponibilidad(negocioId, productoId, …)` para señalar
+   * **un** producto sin depender de su posición en el array —que cambia en
+   * cuanto el dueño borra una entrada de en medio—. Se genera al guardar la
+   * carta si la entrada no lo tiene, y no se recalcula después.
+   */
+  id?: string;
   name: string;
   description: string;
   /**
@@ -58,6 +68,18 @@ export interface UserPlaceMenuItem {
    * una sola— no hay navegación que ofrecer, así que la carta se lee igual.
    */
   category?: string;
+  /**
+   * «Hoy hay»: si el producto está disponible o agotado ahora.
+   *
+   * Ojo: es el valor **guardado**, no el efectivo. Un producto marcado como
+   * `agotado` con `agotadoHasta` ya vencido se lee como disponible al pintar
+   * —`estaAgotado` en `disponibilidad.ts` lo resuelve—, sin cron ni escritura.
+   * Opcional: todo lo guardado antes de esta función no lo tiene y equivale a
+   * `disponible`.
+   */
+  disponibilidad?: Disponibilidad;
+  /** Cuándo vuelve solo a estar disponible, en epoch ms. `null` = sin fecha. */
+  agotadoHasta?: number | null;
   /**
    * Una sola foto por producto, la que se elige tocando el icono de imagen en
    * «Lo que ofrece».

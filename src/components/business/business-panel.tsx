@@ -115,7 +115,10 @@ export function BusinessPanel({
               />
             );
           case "editor":
-            return <EditorView place={place} />;
+            /* El plan baja al editor porque «Hoy hay» es una función de pago: los
+               interruptores de disponibilidad solo se pintan si entra. El
+               servidor lo vuelve a comprobar de todas formas. */
+            return <EditorView place={place} plan={plan} />;
           case "planes":
             return <PlansSection plan={plan} negocio={place.name} />;
           case "settings":
@@ -259,9 +262,10 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function EditorView({ place }: { place: UserPlace }) {
+function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
   const router = useRouter();
   const { categories, updatePlace } = usePlaces();
+  const canHoyHay = incluye(plan, "hoy_hay");
 
   /* El estado se siembra del negocio y no se vuelve a sincronizar: a partir de
      aquí manda lo que escriba el dueño. Sincronizarlo con el `place` que llega
@@ -325,6 +329,11 @@ function EditorView({ place }: { place: UserPlace }) {
       menu: menu
         .filter((item) => item.name.trim().length > 0)
         .map((item) => ({
+          /* `id` se persiste: es lo que permite señalar un producto concreto
+             desde `setDisponibilidad` —y desde el asistente de Telegram— sin
+             depender de su posición. Los tres campos de «Hoy hay» van aquí para
+             que un guardado normal no los borre: la lista es una lista blanca. */
+          id: item.id,
           name: item.name,
           description: item.description,
           price: item.price,
@@ -332,6 +341,8 @@ function EditorView({ place }: { place: UserPlace }) {
           tag: item.tag,
           category: item.category?.trim() || undefined,
           image: item.image || undefined,
+          disponibilidad: item.disponibilidad,
+          agotadoHasta: item.agotadoHasta ?? null,
         })),
       offer:
         offerEnabled && offerText.trim()
@@ -557,7 +568,11 @@ function EditorView({ place }: { place: UserPlace }) {
             </p>
             <MenuItemEditor
               placeId={place.id}
-              items={(place.menu ?? []).map((m, i) => ({ ...m, id: String(i) }))}
+              canHoyHay={canHoyHay}
+              /* Se conserva el `id` guardado y solo se recurre al índice para
+                 las entradas viejas que todavía no tienen uno: regenerarlo en
+                 cada carga cambiaría el identificador que el asistente usa. */
+              items={(place.menu ?? []).map((m, i) => ({ ...m, id: m.id ?? String(i) }))}
               onChange={setMenu}
             />
           </FormSection>

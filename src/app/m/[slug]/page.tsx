@@ -9,7 +9,8 @@ import { DEV_PLACE_ID, devPlaceIndexable, mayViewDevPlace } from "@/lib/dev-plac
 import { whatsappHref } from "@/lib/contact-links";
 import { menuUrl } from "@/lib/structured-data";
 import { categoryEmoji } from "@/lib/places";
-import { currencyLabel, formatMenuPrice, slugify } from "@/lib/utils";
+import { cn, currencyLabel, formatMenuPrice, slugify } from "@/lib/utils";
+import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
 
 /**
  * El menú público: la URL corta y estable que se reparte.
@@ -105,13 +106,29 @@ function MenuRow({
     tag?: string;
     category?: string;
     image?: string;
+    disponibilidad?: Disponibilidad;
+    agotadoHasta?: number | null;
   };
 }) {
   const priceText = formatMenuPrice(item.price, item.currency);
+  /* Agotado no es «no está»: el producto sigue en la carta, apagado y con la
+     etiqueta, para que quien lo buscaba sepa que hoy no hay sin creer que
+     desapareció del menú. */
+  const agotado = estaAgotado(item);
 
   return (
-    <div className="flex gap-gap-md border-b border-ink/5 py-gap-md last:border-b-0">
-      <div className="relative grid size-[72px] shrink-0 place-items-center overflow-hidden rounded-2xl bg-sand-deep text-verde-600">
+    <div
+      className={cn(
+        "flex gap-gap-md border-b border-ink/5 py-gap-md last:border-b-0",
+        agotado && "opacity-60",
+      )}
+    >
+      <div
+        className={cn(
+          "relative grid size-[72px] shrink-0 place-items-center overflow-hidden rounded-2xl bg-sand-deep text-verde-600",
+          agotado && "grayscale",
+        )}
+      >
         {item.image ? (
           <Image
             src={item.image}
@@ -127,8 +144,15 @@ function MenuRow({
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="mb-[2px] font-lv-display text-small font-semibold text-ink">
-          {item.name}
+        <div className="mb-[2px] flex flex-wrap items-center gap-gap-xs">
+          <span className="font-lv-display text-small font-semibold text-ink">
+            {item.name}
+          </span>
+          {agotado && (
+            <span className="rounded-full bg-destructive/10 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-destructive">
+              Agotado
+            </span>
+          )}
         </div>
         {item.description && (
           <div className="text-meta leading-snug text-ink-soft/75">

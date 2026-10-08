@@ -46,6 +46,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
 import { placeIcon } from "@/lib/places";
 import { resolveCategoryIcon } from "@/lib/category-icons";
+import type { Disponibilidad } from "@/lib/disponibilidad";
 
 export type PlaceState = "normal" | "closed" | "no-photos" | "special-offer";
 
@@ -62,6 +63,9 @@ interface PlaceMenu {
   /** URL de la foto del producto en el bucket. Si no hay, el hueco queda con
       el icono de siempre. */
   image?: string;
+  /** «Hoy hay». Ver `UserPlaceMenuItem` y `disponibilidad.ts`. */
+  disponibilidad?: Disponibilidad;
+  agotadoHasta?: number | null;
 }
 
 export interface PlaceData {

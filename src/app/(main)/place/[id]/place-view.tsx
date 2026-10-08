@@ -114,6 +114,11 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
         tag: item.tag,
         category: item.category,
         image: item.image,
+        /* «Hoy hay»: sin esto la ficha perdería el estado y un producto agotado
+           se vería como disponible. La reconstrucción es explícita, así que
+           todo lo que no se nombre aquí se cae. */
+        disponibilidad: item.disponibilidad,
+        agotadoHasta: item.agotadoHasta,
       })),
     specialOffer: p.offer
       ? {

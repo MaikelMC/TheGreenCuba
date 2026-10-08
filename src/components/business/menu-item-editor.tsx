@@ -2,9 +2,14 @@
 
 import { useState, useCallback, useId, useRef } from "react";
 import Image from "next/image";
-import { Image as ImageIcon, Loader2, Plus, X } from "lucide-react";
+import { Clock, Image as ImageIcon, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prepareImage } from "@/lib/storage/compress";
+import {
+  estaAgotado,
+  hastaManana,
+  type Disponibilidad,
+} from "@/lib/disponibilidad";
 
 interface MenuItemData {
   id: string;
@@ -18,6 +23,9 @@ interface MenuItemData {
   gradient?: string;
   /** URL de la foto en el bucket, **una sola** por producto. Vacío = sin foto. */
   image?: string;
+  /** «Hoy hay»: estado guardado del producto. Ver `disponibilidad.ts`. */
+  disponibilidad?: Disponibilidad;
+  agotadoHasta?: number | null;
 }
 
 interface MenuItemEditorProps {
@@ -30,6 +38,8 @@ interface MenuItemEditorProps {
    * que avisa de que hay que guardar primero.
    */
   placeId?: string | null;
+  /** «Hoy hay» solo entra desde Básico. Sin esto no se pintan los controles. */
+  canHoyHay?: boolean;
   className?: string;
 }
 
@@ -51,15 +61,75 @@ const TAG_STYLES: Record<string, string> = {
 const INPUT =
   "px-gap-sm border rounded-xl font-lv text-small bg-white text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 
+/* Botón pequeño de «Hoy hay»: misma familia que el resto del editor, en tamaño
+   de utilidad porque va dentro de la fila de un producto. */
+const AVAIL_BTN =
+  "inline-flex items-center gap-[4px] rounded-full border border-ink/10 bg-white px-[10px] py-[4px] " +
+  "font-lv-display text-[11px] font-medium text-ink-soft/75 transition-colors duration-500 ease-outquint " +
+  "hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 disabled:pointer-events-none disabled:opacity-50 cursor-pointer";
+
+/**
+ * El control de disponibilidad de un producto.
+ *
+ * Enseña el estado **efectivo** —un producto agotado cuya fecha de vuelta ya
+ * pasó se lee como disponible— y ofrece las dos acciones rápidas: alternar y
+ * «hasta mañana». El estado tarda en confirmarse contra el servidor, así que el
+ * botón se desactiva mientras tanto en vez de dejar pulsar dos veces.
+ */
+function AvailabilityControl({
+  item,
+  busy,
+  onSet,
+}: {
+  item: MenuItemData;
+  busy: boolean;
+  onSet: (estado: Disponibilidad, hasta?: number | null) => void;
+}) {
+  const agotado = estaAgotado(item);
+  return (
+    <div className="mt-gap-xs flex flex-wrap items-center gap-gap-xs">
+      <span
+        className={cn(
+          "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em]",
+          agotado ? "bg-destructive/10 text-destructive" : "bg-verde-50 text-verde-600",
+        )}
+      >
+        {agotado ? "Agotado" : "Disponible"}
+      </span>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onSet(agotado ? "disponible" : "agotado")}
+        className={AVAIL_BTN}
+      >
+        {busy && <Loader2 size={13} strokeWidth={1.8} className="animate-spin" />}
+        {agotado ? "Marcar disponible" : "Marcar agotado"}
+      </button>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onSet("agotado", hastaManana())}
+        className={AVAIL_BTN}
+      >
+        <Clock size={13} strokeWidth={1.8} />
+        Hasta mañana
+      </button>
+    </div>
+  );
+}
+
 export function MenuItemEditor({
   items = DEFAULT_ITEMS,
   onChange,
   placeId = null,
+  canHoyHay = false,
   className,
 }: MenuItemEditorProps) {
   const [menuItems, setMenuItems] = useState(items);
   /* Producto que está subiendo, para girar solo su icono y no toda la lista. */
   const [busyId, setBusyId] = useState<string | null>(null);
+  /* Producto cuya disponibilidad se está cambiando ahora mismo. */
+  const [estadoBusyId, setEstadoBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   /* A qué producto apunta el input: hay **un** selector para la lista entera,
@@ -75,13 +145,63 @@ export function MenuItemEditor({
      estricto—, así que avisar ahí al padre es actualizar otro componente mientras
      se pinta este: «Cannot update a component while rendering a different
      component». El actualizador calcula; el aviso es del clic. */
-  const update = useCallback(
-    (id: string, field: keyof MenuItemData, value: string) => {
-      const next = menuItems.map((item) => (item.id === id ? { ...item, [field]: value } : item));
+  /** Aplica un cambio parcial a un producto y avisa al padre. */
+  const patch = useCallback(
+    (id: string, fields: Partial<MenuItemData>) => {
+      const next = menuItems.map((item) => (item.id === id ? { ...item, ...fields } : item));
       setMenuItems(next);
       onChange?.(next);
     },
     [menuItems, onChange],
+  );
+
+  const update = useCallback(
+    (id: string, field: keyof MenuItemData, value: string) => {
+      patch(id, { [field]: value } as Partial<MenuItemData>);
+    },
+    [patch],
+  );
+
+  /**
+   * Cambia la disponibilidad de un producto contra el servidor.
+   *
+   * Va directo a `/api/places/[id]/disponibilidad` en vez de esperar a guardar:
+   * el dueño marca «agotado» cuando se le acaba el plato, no al final de un
+   * formulario. El servidor decide (comprueba el plan) y aquí se refleja su
+   * respuesta; si falla, el estado local no se toca —nada de mentir en pantalla—.
+   */
+  const setEstado = useCallback(
+    async (
+      id: string,
+      estado: Disponibilidad,
+      hasta?: number | null,
+    ) => {
+      if (!placeId) return;
+      setEstadoBusyId(id);
+      setError(null);
+      try {
+        const res = await fetch(`/api/places/${placeId}/disponibilidad`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productoId: id, estado, hasta: hasta ?? null }),
+        });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(data?.error ?? "No se pudo cambiar la disponibilidad.");
+        }
+        patch(id, {
+          disponibilidad: estado,
+          agotadoHasta: estado === "agotado" ? (hasta ?? null) : null,
+        });
+      } catch (e) {
+        setError(
+          e instanceof Error ? e.message : "No se pudo cambiar la disponibilidad.",
+        );
+      } finally {
+        setEstadoBusyId(null);
+      }
+    },
+    [placeId, patch],
   );
 
   const remove = useCallback(
@@ -328,6 +448,16 @@ export function MenuItemEditor({
                 </span>
               )}
             </div>
+
+            {/* «Hoy hay»: solo con el plan que lo incluye. Sin ficha todavía
+                (`placeId` nulo) no hay dónde escribirlo. */}
+            {placeId && canHoyHay && (
+              <AvailabilityControl
+                item={item}
+                busy={estadoBusyId === item.id}
+                onSet={(estado, hasta) => void setEstado(item.id, estado, hasta)}
+              />
+            )}
           </div>
 
           <button

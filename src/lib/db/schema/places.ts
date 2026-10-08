@@ -96,10 +96,16 @@ export const places = pgTable(
         precision`: guardarlo ahí perdería lo que el dueño escribió. */
     menu: jsonb("menu").$type<
       {
+        /** Identificador estable del producto. Ver `UserPlaceMenuItem`. */
+        id?: string;
         name: string;
         description: string;
         price: string;
         currency: string;
+        /** «Hoy hay». Los dos campos viven en el jsonb, no en columnas: los
+            productos son entradas de la carta, no filas de una tabla. */
+        disponibilidad?: "disponible" | "agotado";
+        agotadoHasta?: number | null;
         /** Chapita del producto («Popular», «Nuevo», «2x1»). El panel ya la
             guardaba y el tipo no la declaraba, así que quien lo leyera con
             TypeScript no podía saber que estaba ahí. `$type` no genera

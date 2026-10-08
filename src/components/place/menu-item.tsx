@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import Image from "next/image";
 import { Image as ImageIcon } from "lucide-react";
 import { cn, formatMenuPrice } from "@/lib/utils";
+import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
 
 interface MenuItemProps {
   name: string;
@@ -23,6 +24,9 @@ interface MenuItemProps {
    * era el relleno de cuando no había con qué llenar este hueco.
    */
   image?: string;
+  /** «Hoy hay»: estado guardado del producto. Ver `disponibilidad.ts`. */
+  disponibilidad?: Disponibilidad;
+  agotadoHasta?: number | null;
   className?: string;
   index?: number;
 }
@@ -50,10 +54,15 @@ export function MenuItem({
   category,
   imageEmoji,
   image,
+  disponibilidad,
+  agotadoHasta,
   className,
   index = 0,
 }: MenuItemProps) {
   const priceText = formatMenuPrice(price, currency);
+  /* El estado efectivo, no el guardado: uno marcado como agotado con la fecha
+     de vuelta ya pasada se lee como disponible. */
+  const agotado = estaAgotado({ disponibilidad, agotadoHasta });
 
   return (
     <motion.div
@@ -62,10 +71,21 @@ export function MenuItem({
       viewport={{ once: true, margin: "-32px" }}
       transition={{ delay: index * 0.04, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       whileHover={{ x: 4 }}
-      className={cn("flex gap-gap-md py-gap-md border-b border-ink/5 last:border-b-0", className)}
+      className={cn(
+        "flex gap-gap-md py-gap-md border-b border-ink/5 last:border-b-0",
+        /* Agotado no desaparece: se apaga. El producto sigue en la carta —quien
+           ya lo conocía lo busca— pero se lee que hoy no hay. */
+        agotado && "opacity-60",
+        className,
+      )}
     >
       {/* Hueco de la foto: la imagen subida, o el emoji, o el icono. */}
-      <div className="relative size-[72px] rounded-2xl bg-sand-deep shrink-0 grid place-items-center overflow-hidden text-verde-600">
+      <div
+        className={cn(
+          "relative size-[72px] rounded-2xl bg-sand-deep shrink-0 grid place-items-center overflow-hidden text-verde-600",
+          agotado && "grayscale",
+        )}
+      >
         {image ? (
           <Image
             src={image}
@@ -83,8 +103,15 @@ export function MenuItem({
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <div className="font-lv-display text-small font-semibold text-ink mb-[2px]">
-          {name}
+        <div className="mb-[2px] flex flex-wrap items-center gap-gap-xs">
+          <span className="font-lv-display text-small font-semibold text-ink">
+            {name}
+          </span>
+          {agotado && (
+            <span className="rounded-full bg-destructive/10 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-destructive">
+              Agotado
+            </span>
+          )}
         </div>
         <div className="text-meta text-ink-soft/75 leading-snug line-clamp-2">
           {description}

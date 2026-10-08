@@ -137,6 +137,10 @@ export function devPlace(): UserPlace {
         price: "400",
         currency: "CUP",
         category: "Cafés",
+        /* Agotado con fecha de vuelta ya pasada: se lee como disponible, que es
+           justo lo que comprueba `estaAgotado`. */
+        disponibilidad: "agotado",
+        agotadoHasta: 1,
       },
       {
         name: "Cortadito",
@@ -180,6 +184,8 @@ export function devPlace(): UserPlace {
         currency: "CUP",
         tag: "Nuevo",
         category: "Dulces",
+        /* Agotado sin fecha de vuelta: sigue en la carta, apagado. */
+        disponibilidad: "agotado",
       },
       {
         name: "Tortica de chocolate",

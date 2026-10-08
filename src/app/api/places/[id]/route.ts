@@ -8,7 +8,7 @@ import { businessOwners, notifications, places, users } from "@/lib/db/schema";
 import { generateId } from "@/lib/utils";
 import { toPlaceValues, toUserPlace } from "@/lib/db/mappers";
 import { CATALOG_TAG, getPlaceById, resolveCategoryId } from "@/lib/db/queries";
-import { limite } from "@/lib/plans-server";
+import { limite, puede } from "@/lib/plans-server";
 import {
   notifyAdminsBusinessSubmission,
   notifyOwnerBusinessApproved,
@@ -116,6 +116,31 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         );
       }
     }
+  }
+
+  /* «Hoy hay» es una función de pago, y este `PATCH` escribe la carta entera: sin
+     esto, un plan que no lo incluye podría cambiar la disponibilidad colando los
+     campos en el guardado normal. En vez de rechazar el guardado entero —el
+     dueño está corrigiendo un precio, no la disponibilidad—, se **conservan**
+     los valores que ya había, emparejando por `id` y, para las entradas viejas
+     sin id, por posición. El interruptor de verdad es `setDisponibilidad`, que
+     sí comprueba el plan. */
+  if (Array.isArray(body.menu) && !(await puede(id, "hoy_hay"))) {
+    const [actual] = await db
+      .select({ menu: places.menu })
+      .from(places)
+      .where(eq(places.id, id))
+      .limit(1);
+    const prev = actual?.menu ?? [];
+    body.menu = body.menu.map((item, i) => {
+      const before =
+        (item.id ? prev.find((p) => p.id === item.id) : undefined) ?? prev[i];
+      return {
+        ...item,
+        disponibilidad: before?.disponibilidad,
+        agotadoHasta: before?.agotadoHasta,
+      };
+    });
   }
 
   /* Solo se resuelve la categoría si el cuerpo la trae. Si no viene, `values`
