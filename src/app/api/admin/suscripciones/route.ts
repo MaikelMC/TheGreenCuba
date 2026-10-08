@@ -9,10 +9,8 @@ import { generateId } from "@/lib/utils";
 /**
  * El plan de un negocio, para administración.
  *
- * Es la única puerta que escribe `suscripciones` a mano. El cobro es manual
- * —una transferencia— así que no hay pasarela de por medio: aquí solo se
- * apunta lo que se acordó, y el plan efectivo lo deduce `planEfectivo` de las
- * fechas.
+ * Es la única puerta que escribe `suscripciones` a mano: aquí solo se apunta el
+ * plan y sus fechas, y el plan efectivo lo deduce `planEfectivo` de ellas.
  *
  * Cuando la prueba vence o el pago se pasa de fecha, el plan cae a gratis solo.
  * **No se borra nada**: lo que el negocio escribió sigue ahí, y vuelve a

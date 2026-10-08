@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   FEATURES_POR_PLAN,
+  FEATURES_QUE_ANADE,
   LIMITES,
   PLAN_ORDER,
+  PRECIO_MENSUAL,
   enTrial,
   incluye,
   limiteDe,
@@ -77,6 +79,23 @@ test("cada plan incluye todo lo del anterior", () => {
   }
   assert.ok(!incluye("gratis", "flyers"));
   assert.ok(incluye("pro", "flyers"));
+});
+
+/* Si esto se rompe, las tarjetas mienten: enseñarían una función como «lo que
+   añade Pro» cuando en realidad ya venía en Gratis, o no la enseñarían nunca.
+   El reparto tiene que cubrir el catálogo entero y sin repetir. */
+test("lo que añade cada plan reparte el catálogo: nada repetido, nada perdido", () => {
+  const repartido = PLAN_ORDER.flatMap((plan) => [...FEATURES_QUE_ANADE[plan]]);
+  assert.deepEqual(repartido, [...FEATURES_POR_PLAN.pro]);
+  assert.equal(new Set(repartido).size, repartido.length);
+});
+
+/* Un plan de arriba más barato que el de abajo no se nota en el código: se nota
+   en la tarjeta, y para entonces ya está publicado. */
+test("los precios suben con el plan y el gratis es cero", () => {
+  assert.equal(PRECIO_MENSUAL.gratis, 0);
+  assert.ok(PRECIO_MENSUAL.basico > PRECIO_MENSUAL.gratis);
+  assert.ok(PRECIO_MENSUAL.pro > PRECIO_MENSUAL.basico);
 });
 
 test("el candado nombra el plan que abre la función", () => {

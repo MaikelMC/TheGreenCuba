@@ -41,6 +41,7 @@ import { PaymentChips } from "@/components/business/payment-chips";
 import { MenuItemEditor } from "@/components/business/menu-item-editor";
 import { MenuLinkCard } from "@/components/business/menu-link-card";
 import { PlanCard } from "@/components/business/plan-card";
+import { PlansSection } from "@/components/business/plans-section";
 import { PLAN_LABEL, type Plan } from "@/lib/plans";
 import { pruneMenuImages } from "@/lib/menu-images";
 import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
@@ -99,7 +100,7 @@ export function BusinessPanel({
 }) {
   return (
     <PanelShell>
-      {(view) => {
+      {(view, setView) => {
         switch (view) {
           case "dashboard":
             return (
@@ -108,10 +109,15 @@ export function BusinessPanel({
                 stats={stats}
                 menuUrl={menuUrl}
                 plan={plan}
+                /* El botón de la tarjeta de plan navega dentro del panel, no
+                   fuera: la sección de planes es una vista más del armazón. */
+                onVerPlanes={() => setView("planes")}
               />
             );
           case "editor":
             return <EditorView place={place} />;
+          case "planes":
+            return <PlansSection plan={plan} negocio={place.name} />;
           case "settings":
             return <SettingsView place={place} plan={plan} />;
         }
@@ -142,11 +148,13 @@ function DashboardView({
   stats,
   menuUrl,
   plan,
+  onVerPlanes,
 }: {
   place: UserPlace;
   stats: PlaceStats;
   menuUrl: string;
   plan: Plan;
+  onVerPlanes: () => void;
 }) {
   const offering = [place.description].filter(Boolean).join(" ");
 
@@ -228,7 +236,7 @@ function DashboardView({
 
         <MenuLinkCard placeId={place.id} placeName={place.name} url={menuUrl} />
 
-        <PlanCard plan={plan} />
+        <PlanCard plan={plan} onVerPlanes={onVerPlanes} />
       </div>
     </>
   );

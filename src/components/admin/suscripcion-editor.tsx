@@ -10,11 +10,9 @@ import { PLAN_LABEL, PLAN_ORDER, type Plan } from "@/lib/plans";
 /**
  * El plan de un negocio, para administración.
  *
- * Es el único sitio donde se cambia un plan a mano, y lo es a propósito: el
- * cobro es una transferencia, no hay pasarela de por medio, así que lo que hay
- * que apuntar son las fechas que se acordaron. El resto sale solo —
- * `planEfectivo` decide con ellas si el negocio está en Pro, en Básico o en
- * gratis—.
+ * Es el único sitio donde se cambia un plan a mano, y lo es a propósito: aquí
+ * lo que se apunta son las fechas, y el resto sale solo — `planEfectivo` decide
+ * con ellas si el negocio está en Pro, en Básico o en gratis—.
  *
  * **Bajar de plan no borra nada.** Aquí solo se escribe esta fila; los
  * productos, las fotos y el resto de la ficha se quedan donde están, y lo que
@@ -110,11 +108,10 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
   }, [placeId, plan, estado, trial, vence, descuento]);
 
   return (
-    <FormSection title="Plan y cobro" icon={<BadgeCheck size={18} strokeWidth={1.8} />}>
+    <FormSection title="Plan y vigencia" icon={<BadgeCheck size={18} strokeWidth={1.8} />}>
       <p className="text-meta text-ink-soft/75">
-        El cobro es manual, por transferencia. Aquí se apunta lo acordado y el
-        plan entra solo. La prueba de Pro manda sobre el plan contratado
-        mientras siga viva.
+        Aquí se apunta el plan y sus fechas, y el plan entra solo. La prueba de
+        Pro manda sobre el plan contratado mientras siga viva.
       </p>
 
       {data && (

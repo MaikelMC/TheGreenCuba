@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { LayoutDashboard, Edit, Settings, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Edit, Sparkles, Settings, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { UserMenu } from "@/components/layout/user-menu";
 import { MobileDock } from "@/components/layout/mobile-dock";
 import { EASE } from "@/lib/motion";
 
-export type PanelView = "dashboard" | "editor" | "settings";
+export type PanelView = "dashboard" | "editor" | "planes" | "settings";
 
 interface PanelShellProps {
   businessName?: string;
@@ -27,15 +27,21 @@ interface NavItem {
   icon: typeof LayoutDashboard;
 }
 
+/* Dos listas y no una con etiqueta corta: al dock le cabe «Editar» y a la barra
+   lateral «Editar ficha», y son las dos el mismo destino. «Planes» va pegado a
+   «Ajustes» porque es de la misma familia —lo que se configura de la cuenta, no
+   el día a día de la ficha—. */
 const NAV_ITEMS: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "editor", label: "Editar", icon: Edit },
+  { id: "planes", label: "Planes", icon: Sparkles },
   { id: "settings", label: "Ajustes", icon: Settings },
 ];
 
 const SIDEBAR_ITEMS: NavItem[] = [
   { id: "dashboard" as PanelView, label: "Dashboard", icon: LayoutDashboard },
   { id: "editor" as PanelView, label: "Editar ficha", icon: Edit },
+  { id: "planes" as PanelView, label: "Planes", icon: Sparkles },
   { id: "settings" as PanelView, label: "Ajustes", icon: Settings },
 ];
 

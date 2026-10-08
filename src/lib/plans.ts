@@ -101,6 +101,45 @@ export const FEATURE_TEXTO: Record<Feature, string> = {
   stats_completas: "Estadísticas completas y comparativas",
 };
 
+/* ── Lo que se enseña al dueño ───────────────────────────────────────────────
+   Texto, no permisos: nada de esto decide qué se puede hacer. Vive aquí y no en
+   los componentes porque es lo que cambia cuando cambia la oferta, y tenerlo
+   al lado de los planes evita que la tarjeta y el mapa de permisos se separen. */
+
+/** Una frase por plan. Es el titular de su tarjeta. */
+export const PLAN_LEMA: Record<Plan, string> = {
+  gratis: "Para que te encuentren.",
+  basico: "Para que te elijan a ti.",
+  pro: "Para crecer sin depender de nadie.",
+};
+
+/**
+ * Lo que **añade** cada plan sobre el anterior, no todo lo que incluye.
+ *
+ * Las tarjetas se leen de un vistazo y en una fila de tres: repetir las seis
+ * funciones de Gratis dentro de Básico y otra vez dentro de Pro convertiría la
+ * comparación en veinte líneas iguales. Se enseña el salto y el encabezado de
+ * la tarjeta dice de dónde viene —«Todo lo de Básico, y además»—.
+ */
+export const FEATURES_QUE_ANADE: Record<Plan, readonly Feature[]> = {
+  gratis: GRATIS,
+  basico: BASICO_EXTRA,
+  pro: PRO_EXTRA,
+};
+
+/**
+ * El precio mensual, en USD. `0` es gratis.
+ *
+ * En dólares porque así están acordados los precios. Cambiar una cifra aquí la
+ * cambia en las tres tarjetas a la vez, que es lo que se quiere: el precio no
+ * puede vivir en el componente.
+ */
+export const PRECIO_MENSUAL: Record<Plan, number> = {
+  gratis: 0,
+  basico: 5,
+  pro: 10,
+};
+
 /** En qué plan entra una función. Es lo que escribe el candado. */
 export function planDeFeature(feature: Feature): Plan {
   for (const plan of PLAN_ORDER) {
@@ -170,8 +209,7 @@ export interface Suscripcion {
  *    entra con `plan: gratis` y `trial_hasta` a 30 días, y esos 30 días valen
  *    Pro entero.
  * 4. Plan de pago vencido = gratis. `vence_en` nulo significa «sin
- *    vencimiento»: el cobro aquí es manual y quien no tiene fecha es porque no
- *    la necesita.
+ *    vencimiento»: quien no tiene fecha es porque no la necesita.
  */
 export function planEfectivo(
   suscripcion: Suscripcion | null,
