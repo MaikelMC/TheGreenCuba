@@ -1,6 +1,9 @@
 "use client";
 
-import { Check, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Check, Loader2, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { SUPPORT_EMAIL } from "@/lib/legal";
 import {
@@ -29,18 +32,60 @@ import {
  *
  * No hay pasarela todavía, y no se finge una: el botón abre el correo con el
  * asunto ya puesto, que es lo que de verdad funciona hoy.
+ *
+ * La excepción es el **negocio de prueba**: `puedeElegirPlan` enciende un
+ * selector que guarda el plan sin más, porque su único propósito es poder ver las
+ * funciones de cada plan sin pagar ni esperar a que administración lo cambie.
  */
 export function PlansSection({
   plan,
   negocio,
+  placeId,
+  puedeElegirPlan = false,
 }: {
   /** El plan efectivo del negocio, resuelto en el servidor. */
   plan: Plan;
   /** Para que el correo diga de qué negocio se trata sin preguntarlo. */
   negocio: string;
+  /** El id del negocio, para saber a qué ruta pedir el cambio de plan. */
+  placeId: string;
+  /** Solo el negocio de prueba cambia de plan a voluntad. */
+  puedeElegirPlan?: boolean;
 }) {
+  const router = useRouter();
+  const [pendiente, setPendiente] = useState<Plan | null>(null);
+
   const indice = PLAN_ORDER.indexOf(plan);
   const siguiente = PLAN_ORDER[indice + 1] ?? null;
+
+  /* El cambio de plan es un POST a la ruta del fixture y luego un `refresh`:
+     el plan llega resuelto del servidor a todo el panel —el candado de «Hoy
+     hay», la tarjeta del dashboard—, así que refrescar es lo que hace que el
+     resto de la vista se entere de que hay plan nuevo. */
+  async function elegir(p: Plan) {
+    if (pendiente) return;
+    setPendiente(p);
+    try {
+      const res = await fetch(`/api/places/${placeId}/plan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: p }),
+      });
+      const data = (await res.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      if (!res.ok) {
+        toast.error(data?.error ?? "No se pudo cambiar el plan.");
+        return;
+      }
+      toast.success(`Plan ${PLAN_LABEL[p]} activado.`);
+      router.refresh();
+    } catch {
+      toast.error("No se pudo cambiar el plan.");
+    } finally {
+      setPendiente(null);
+    }
+  }
 
   return (
     <section>
@@ -52,6 +97,14 @@ export function PlansSection({
         </p>
       </div>
 
+      {puedeElegirPlan && (
+        <p className="mb-gap-md rounded-2xl border border-verde-200 bg-verde-50/60 px-gap-md py-gap-sm text-small text-verde-900">
+          <span className="font-semibold">Negocio de prueba.</span> Elige
+          cualquier plan y se aplica al momento, para ver sus funciones sin
+          pasar por la pasarela.
+        </p>
+      )}
+
       <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-3">
         {PLAN_ORDER.map((p) => (
           <PlanTile
@@ -60,6 +113,10 @@ export function PlansSection({
             actual={plan}
             destacado={p === siguiente}
             negocio={negocio}
+            puedeElegirPlan={puedeElegirPlan}
+            cargando={pendiente === p}
+            bloqueado={pendiente !== null && pendiente !== p}
+            onElegir={() => elegir(p)}
           />
         ))}
       </div>
@@ -92,11 +149,19 @@ function PlanTile({
   actual,
   destacado,
   negocio,
+  puedeElegirPlan,
+  cargando,
+  bloqueado,
+  onElegir,
 }: {
   plan: Plan;
   actual: Plan;
   destacado: boolean;
   negocio: string;
+  puedeElegirPlan: boolean;
+  cargando: boolean;
+  bloqueado: boolean;
+  onElegir: () => void;
 }) {
   const esActual = plan === actual;
   const indice = PLAN_ORDER.indexOf(plan);
@@ -168,6 +233,27 @@ function PlanTile({
           <p className="flex h-11 items-center justify-center rounded-full border border-verde-200 bg-verde-50 font-lv-display text-small font-semibold text-verde-700">
             Es el que tienes
           </p>
+        ) : puedeElegirPlan ? (
+          <button
+            type="button"
+            onClick={onElegir}
+            disabled={cargando || bloqueado}
+            className={cn(
+              "flex h-11 w-full items-center justify-center gap-gap-xs rounded-full font-lv-display text-small font-semibold transition-all duration-500 ease-outquint disabled:cursor-not-allowed disabled:opacity-60",
+              destacado
+                ? "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300 active:scale-[0.98]"
+                : "border border-ink/10 bg-white text-ink hover:border-verde-300 hover:text-verde-700",
+            )}
+          >
+            {cargando ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Activando…
+              </>
+            ) : (
+              `Usar ${PLAN_LABEL[plan]}`
+            )}
+          </button>
         ) : (
           <a
             href={`mailto:${SUPPORT_EMAIL}?subject=${asunto}`}

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowUpRight, CreditCard, MessageCircle, Phone } from "lucide-react";
 import { getPlaceBySlug } from "@/lib/db/queries";
-import { DEV_PLACE_ID, devPlaceIndexable, mayViewDevPlace } from "@/lib/dev-place";
+import { DEV_PLACE_ID, canViewDevPlace, devPlaceIndexable } from "@/lib/dev-place";
+import { getAppUser } from "@/lib/auth/user";
 import { whatsappHref } from "@/lib/contact-links";
 import { menuUrl } from "@/lib/structured-data";
 import { categoryEmoji } from "@/lib/places";
@@ -41,9 +42,15 @@ import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
  */
 export const revalidate = 300;
 
-const getPlace = cache(async (slug: string) => {
+const getPlace = cache(async (slug: string, overrideFor?: string) => {
   try {
-    return await getPlaceBySlug(slug, { includeDev: slug === DEV_PLACE_ID });
+    /* La carta del negocio de prueba es pública a propósito (se reparte por QR);
+       `overrideFor` solo añade encima la copia personal de quien la mira, si es
+       su dueño autorizado. Ver `dev-place-server.ts`. */
+    return await getPlaceBySlug(slug, {
+      includeDev: slug === DEV_PLACE_ID,
+      overrideFor,
+    });
   } catch {
     return null;
   }
@@ -184,7 +191,12 @@ export default async function MenuPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const place = await getPlace(slug);
+  /* Solo el negocio de prueba pregunta por la sesión; el resto de cartas no
+     paga nada por esto. */
+  const devUser = slug === DEV_PLACE_ID ? await getAppUser() : null;
+  const overrideFor =
+    devUser?.id && canViewDevPlace(devUser.email) ? devUser.id : undefined;
+  const place = await getPlace(slug, overrideFor);
   if (!place) notFound();
 
   const brand = place.logoUrl ?? place.photos?.[0]?.url ?? null;
@@ -192,7 +204,7 @@ export default async function MenuPage({
   const phone = place.phone?.trim() ?? "";
   const closed = place.status !== "active";
   const showFichaLink =
-    place.id !== DEV_PLACE_ID || (await mayViewDevPlace(place.id));
+    place.id !== DEV_PLACE_ID || canViewDevPlace(devUser?.email);
 
   /* Agrupación estable por categoría, en el orden en que el dueño la escribió.
      `Map` conserva la inserción, así que «Entrantes» sale antes que «Postres»

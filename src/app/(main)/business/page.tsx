@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAppUser } from "@/lib/auth/user";
 import { getPlaceById, ownerPlaceId, placeStats } from "@/lib/db/queries";
+import { DEV_PLACE_ID, canViewDevPlace } from "@/lib/dev-place";
 import { planEfectivoDe } from "@/lib/plans-server";
 import { menuUrl } from "@/lib/structured-data";
 import { BusinessPanel } from "@/components/business/business-panel";
@@ -30,13 +31,23 @@ export default async function BusinessPage() {
   const user = await getAppUser();
   if (!user) redirect("/login?next=/business");
 
-  const placeId = await ownerPlaceId(user.id);
+  /* El negocio de prueba no está en `business_owners` —no tiene fila en
+     `places`—, así que para la cuenta autorizada (y para cualquiera en
+     desarrollo) cuenta como suyo. Es lo que permite abrir el panel con él y
+     editarlo como un negocio normal. Ver `dev-place.ts`. */
+  const ownId = await ownerPlaceId(user.id);
+  const placeId = ownId ?? (canViewDevPlace(user.email) ? DEV_PLACE_ID : null);
   /* La entrada ahora ofrece los dos caminos de creación. El alta de negocio
      sigue viviendo en el perfil hasta que exista el formulario de campañas. */
   if (!placeId) return <BusinessEntry />;
 
+  const isDev = placeId === DEV_PLACE_ID;
   const [place, stats, plan] = await Promise.all([
-    getPlaceById(placeId),
+    getPlaceById(placeId, {
+      includeDev: isDev,
+      /* La copia personal del fixture, para que el dueño vea sus ediciones. */
+      overrideFor: isDev ? user.id : undefined,
+    }),
     placeStats(placeId),
     planEfectivoDe(placeId),
   ]);
@@ -65,6 +76,9 @@ export default async function BusinessPage() {
       stats={stats}
       menuUrl={menuUrl(place.slug)}
       plan={plan}
+      /* El negocio de prueba es el único con selector de plan propio: los demás
+         cambian por la pasarela o por administración. */
+      puedeElegirPlan={isDev}
     />
   );
 }

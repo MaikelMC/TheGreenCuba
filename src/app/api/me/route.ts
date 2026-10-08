@@ -5,6 +5,7 @@ import { getAppUser } from "@/lib/auth/user";
 import { isGoogleAccount, isMarketingOptedIn, setMarketingOptIn } from "@/lib/contacts";
 import { db } from "@/lib/db";
 import { businessOwners, categories, places, users } from "@/lib/db/schema";
+import { canViewDevPlace, devPlace } from "@/lib/dev-place";
 import { TERMS_VERSION } from "@/lib/legal";
 import type { PlacePlan } from "@/lib/places-store";
 
@@ -88,9 +89,43 @@ async function businessOf(userId: string): Promise<AppBusiness | null> {
  * administradora puede haber dado de alta su propio negocio y seguir siendo
  * `admin`, y si esto mirara solo `owner` su perfil diría que no tiene ninguno.
  */
-async function businessFor(id: string, role: string): Promise<AppBusiness | null> {
-  if (role !== "owner" && role !== "admin") return null;
-  return businessOf(id);
+/** El negocio de prueba, con la forma que espera el menú de usuario. */
+function devBusiness(): AppBusiness {
+  const d = devPlace();
+  return {
+    id: d.id,
+    name: d.name,
+    isActive: d.isActive,
+    reviewStatus: d.reviewStatus,
+    plan: d.plan ?? null,
+    category: d.category,
+    description: d.description || null,
+    address: d.address || null,
+    barrio: d.barrio || null,
+    phone: d.phone ?? null,
+    website: d.website ?? null,
+    whatsapp: d.whatsapp ?? null,
+    instagram: d.instagram ?? null,
+    facebook: d.facebook ?? null,
+    schedule: d.schedule || null,
+    lat: d.lat,
+    lng: d.lng,
+    payments: d.payments ?? null,
+  };
+}
+
+async function businessFor(
+  id: string,
+  role: string,
+  email: string,
+): Promise<AppBusiness | null> {
+  /* El negocio de prueba no tiene fila en `business_owners`, así que no lo
+     encuentra `businessOf`. Para quien puede verlo —la cuenta autorizada, y
+     cualquiera en desarrollo— se devuelve el fixture, para que el menú de
+     usuario enseñe «Mi negocio» igual que con uno real. */
+  const dev = canViewDevPlace(email) ? devBusiness() : null;
+  if (role !== "owner" && role !== "admin") return dev;
+  return (await businessOf(id)) ?? dev;
 }
 
 /**
@@ -159,7 +194,7 @@ export async function GET() {
          código no viaja aquí porque la página lo lee del servidor, que es donde
          se arma el enlace. */
       affiliateEnabled: Boolean(user.referralCode),
-      business: await businessFor(user.id, user.role),
+      business: await businessFor(user.id, user.role, user.email),
     },
   });
 }
@@ -259,7 +294,7 @@ export async function POST(request: NextRequest) {
          código no viaja aquí porque la página lo lee del servidor, que es donde
          se arma el enlace. */
       affiliateEnabled: Boolean(user.referralCode),
-      business: await businessFor(user.id, user.role),
+      business: await businessFor(user.id, user.role, user.email),
     },
   });
 }

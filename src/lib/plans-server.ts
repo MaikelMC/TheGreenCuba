@@ -1,6 +1,8 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { suscripciones } from "@/lib/db/schema";
+import { DEV_PLACE_ID } from "@/lib/dev-place";
+import { readDevPlacePlan } from "@/lib/dev-place-server";
 import {
   FEATURES_POR_PLAN,
   LIMITES,
@@ -41,8 +43,18 @@ export async function suscripcionDe(
   return row ?? null;
 }
 
-/** El plan que manda. Sin fila, o con la prueba vencida, es `gratis`. */
+/**
+ * El plan que manda. Sin fila, o con la prueba vencida, es `gratis`.
+ *
+ * El negocio de prueba es la excepción: no tiene fila en `suscripciones`, y su
+ * plan se elige a voluntad desde el panel para poder probar cada plan (ver
+ * `place_overrides.plan`). En cuanto el dueño lo cambia, todo lo que cuelga de
+ * aquí —`puede`, `limite`, las funciones del panel— responde al plan nuevo.
+ */
 export async function planEfectivoDe(negocioId: string): Promise<Plan> {
+  if (negocioId === DEV_PLACE_ID) {
+    return (await readDevPlacePlan()) ?? "gratis";
+  }
   return planEfectivo(await suscripcionDe(negocioId));
 }
 

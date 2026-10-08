@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { eq } from "drizzle-orm";
 import { canManagePlace } from "@/lib/admin-server";
+import { DEV_PLACE_ID } from "@/lib/dev-place";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema";
 import { limite } from "@/lib/plans-server";
@@ -45,6 +46,16 @@ export async function POST(req: NextRequest, { params }: Params) {
   /* Mismo permiso que el resto del negocio: el dueño concreto o un admin. */
   if (!(await canManagePlace(req, id))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  /* El negocio de prueba no tiene fila que consultar ni tope que contar: su
+     carta vive en la copia personal del usuario (`place_overrides`). Se sube
+     igual, al mismo prefijo `places/{id}/menu/`, y la URL acaba en esa copia
+     cuando el panel guarda. */
+  if (id === DEV_PLACE_ID) {
+    const upload = await uploadImage(req, menuPrefix(id), { optimize: true });
+    if (!upload.ok) return uploadErrorResponse(upload);
+    return NextResponse.json({ url: upload.url }, { status: 201 });
   }
 
   /* El negocio primero: `places/{id}/…` es la clave, y un id inventado

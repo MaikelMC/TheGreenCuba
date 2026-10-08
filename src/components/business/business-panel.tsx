@@ -90,6 +90,7 @@ export function BusinessPanel({
   stats,
   menuUrl,
   plan,
+  puedeElegirPlan,
 }: {
   place: UserPlace;
   stats: PlaceStats;
@@ -97,6 +98,8 @@ export function BusinessPanel({
   menuUrl: string;
   /** El plan efectivo, resuelto en el servidor. Ver `planEfectivoDe`. */
   plan: Plan;
+  /** Solo el negocio de prueba: puede cambiarse de plan a voluntad. */
+  puedeElegirPlan: boolean;
 }) {
   return (
     <PanelShell>
@@ -120,7 +123,14 @@ export function BusinessPanel({
                servidor lo vuelve a comprobar de todas formas. */
             return <EditorView place={place} plan={plan} />;
           case "planes":
-            return <PlansSection plan={plan} negocio={place.name} />;
+            return (
+              <PlansSection
+                plan={plan}
+                negocio={place.name}
+                placeId={place.id}
+                puedeElegirPlan={puedeElegirPlan}
+              />
+            );
           case "settings":
             return <SettingsView place={place} plan={plan} />;
         }

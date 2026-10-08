@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
+import { getAppUser } from "@/lib/auth/user";
+import { DEV_PLACE_ID } from "@/lib/dev-place";
+import { saveDevPlaceOverride } from "@/lib/dev-place-server";
 import { trackEvent } from "@/lib/analytics/events";
 import { db } from "@/lib/db";
 import { businessOwners, notifications, places, users } from "@/lib/db/schema";
@@ -49,6 +52,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       { error: "Cuerpo JSON inválido" },
       { status: 400 },
     );
+  }
+
+  /* El negocio de prueba no tiene fila en `places`, así que su edición no es un
+     `update` sino la copia personal del usuario (`place_overrides`). Va aquí,
+     antes de toda la lógica de abajo, porque cada bloque siguiente consulta o
+     escribe la tabla `places` y el fixture no está allí. `canManagePlace` ya ha
+     dejado pasar solo a quien puede verlo. */
+  if (id === DEV_PLACE_ID) {
+    const user = await getAppUser();
+    if (!user) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+    const saved = await saveDevPlaceOverride(user.id, body);
+    return NextResponse.json(saved);
   }
 
   /* Publicar es cosa de administración, y por eso se tira el campo si quien

@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import { businessOwners, categories, placeImages, places, reviews, savedPlaces } from "@/lib/db/schema";
 import { DEV_PLACE_ID, devPlace, devPlaceEnabled } from "@/lib/dev-place";
+import { getDevPlaceFor } from "@/lib/dev-place-server";
 import type { UserPlacePhoto } from "@/lib/places-store";
 import {
   toBusinessCategory,
@@ -213,7 +214,7 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
  * etiqueta, que es por lo que no lleva una propia.
  */
 export const getPlaceById = cached(
-  async (id: string, options: { includeDev?: boolean } = {}) => {
+  async (id: string, options: { includeDev?: boolean; overrideFor?: string } = {}) => {
   /* Antes de tocar la base: así la URL directa `/place/dev-cafe-la-ceiba`
      funciona igual que si la fila existiera, que es lo que hace falta para
      recargar la página sin volver al mapa. Aquí no lleva la guarda de
@@ -230,7 +231,14 @@ export const getPlaceById = cached(
      negocio de prueba y la respuesta sin él son dos entradas distintas y no se
      pisan. */
   if (id === DEV_PLACE_ID) {
-    return (options.includeDev ?? devPlaceEnabled()) ? devPlace() : null;
+    if (!(options.includeDev ?? devPlaceEnabled())) return null;
+    /* `overrideFor` aplica la copia personal del fixture (ver
+       `dev-place-server.ts`). Va de parámetro y entra en la clave de la caché,
+       así que la copia de un usuario nunca se sirve a otro. En producción solo
+       el dueño autorizado llega aquí, y en desarrollo no hay caché. */
+    return options.overrideFor
+      ? getDevPlaceFor(options.overrideFor)
+      : devPlace();
   }
 
   const [row] = await db
@@ -258,9 +266,12 @@ export const getPlaceById = cached(
  * una fila real detrás.
  */
 export const getPlaceBySlug = cached(
-  async (slug: string, options: { includeDev?: boolean } = {}) => {
+  async (slug: string, options: { includeDev?: boolean; overrideFor?: string } = {}) => {
     if (slug === DEV_PLACE_ID) {
-      return (options.includeDev ?? devPlaceEnabled()) ? devPlace() : null;
+      if (!(options.includeDev ?? devPlaceEnabled())) return null;
+      return options.overrideFor
+        ? getDevPlaceFor(options.overrideFor)
+        : devPlace();
     }
 
     const [row] = await db

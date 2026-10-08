@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { cache } from "react";
 import { getPlaceById } from "@/lib/db/queries";
-import { devPlaceIndexable, mayViewDevPlace } from "@/lib/dev-place";
+import { getAppUser } from "@/lib/auth/user";
+import { DEV_PLACE_ID, canViewDevPlace, devPlaceIndexable } from "@/lib/dev-place";
 import { placeJsonLd, placeUrl } from "@/lib/structured-data";
 import { PlaceView } from "./place-view";
 
@@ -34,10 +35,16 @@ import { PlaceView } from "./place-view";
  */
 const getPlace = cache(async (id: string) => {
   try {
-    /* `mayViewDevPlace` sale antes de preguntar por la sesión cuando el id no
-       es el del negocio de prueba, así que una ficha normal no paga nada por
-       esto. Ver `dev-place.ts`. */
-    return await getPlaceById(id, { includeDev: await mayViewDevPlace(id) });
+    /* Solo el negocio de prueba pregunta por la sesión, y solo él recibe su
+       copia personal (`overrideFor`): una ficha normal no paga nada por esto.
+       Ver `dev-place.ts` y `dev-place-server.ts`. */
+    const isDev = id === DEV_PLACE_ID;
+    const viewer = isDev ? await getAppUser() : null;
+    const includeDev = canViewDevPlace(viewer?.email);
+    return await getPlaceById(id, {
+      includeDev: isDev ? includeDev : false,
+      overrideFor: includeDev ? (viewer?.id ?? undefined) : undefined,
+    });
   } catch {
     return null;
   }

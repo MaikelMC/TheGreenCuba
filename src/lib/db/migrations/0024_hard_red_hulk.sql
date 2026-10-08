@@ -1,0 +1,1 @@
+ALTER TABLE "place_overrides" ADD COLUMN "plan" text;

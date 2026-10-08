@@ -16,3 +16,4 @@ export * from "./admin_broadcasts";
 export * from "./contacts";
 export * from "./analytics";
 export * from "./suscripciones";
+export * from "./place_overrides";
