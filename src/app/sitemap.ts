@@ -41,6 +41,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: "weekly",
         priority: 0.8,
       });
+      /* La URL corta del menú se indexa aparte: es la que lleva el QR y la que se
+         comparte, y su contenido —precios, fotos— es propio. */
+      entries.push({
+        url: `${base}/m/${place.slug}`,
+        lastModified: place.updatedAt ? new Date(place.updatedAt) : undefined,
+        changeFrequency: "weekly",
+        priority: 0.6,
+      });
     }
   } catch {
     /* Si Neon no contesta —y desde esta red eso pasa por rachas—, se sirve la

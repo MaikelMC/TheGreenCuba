@@ -82,6 +82,11 @@ if (isProd) {
 
 const nextConfig: NextConfig = {
   images: {
+    /* Next 16 exige declarar aquí cualquier `quality` que no sea la de defecto
+       (75) o rechaza la petición. El menú público pide 70 —es la carta que se
+       abre desde un QR con datos móviles— y el resto del sitio sigue con 75, así
+       que las dos tienen que estar en la lista. */
+    qualities: [70, 75],
     remotePatterns: [
       /* De aquí salen las fotos de los negocios: Neon sirve los objetos de un
          bucket `public_read` desde el endpoint de la rama. Sin esta línea

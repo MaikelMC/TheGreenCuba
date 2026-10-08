@@ -63,7 +63,7 @@ export default async function BusinessPage() {
     <BusinessPanel
       place={place}
       stats={stats}
-      menuUrl={menuUrl(place.id)}
+      menuUrl={menuUrl(place.slug)}
       plan={plan}
     />
   );

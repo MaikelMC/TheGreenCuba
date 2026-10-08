@@ -248,6 +248,36 @@ export const getPlaceById = cached(
   "places:get",
 );
 
+/**
+ * Una ficha por su `slug`: es lo que resuelve la URL corta del menú.
+ *
+ * Misma caché y misma etiqueta que `getPlaceById` —el `slug` es de la misma fila,
+ * así que un cambio en el negocio tiene que invalidar las dos—. El negocio de
+ * prueba entra por la misma puerta que en `getPlaceById`: su `slug` es su propio
+ * id (ver `dev-place.ts`), y así `/m/dev-cafe-la-ceiba` funciona en local sin
+ * una fila real detrás.
+ */
+export const getPlaceBySlug = cached(
+  async (slug: string, options: { includeDev?: boolean } = {}) => {
+    if (slug === DEV_PLACE_ID) {
+      return (options.includeDev ?? devPlaceEnabled()) ? devPlace() : null;
+    }
+
+    const [row] = await db
+      .select(SELECT_WITH_CATEGORY)
+      .from(places)
+      .leftJoin(categories, eq(categories.id, places.categoryId))
+      .where(eq(places.slug, slug))
+      .limit(1);
+
+    if (!row) return null;
+
+    const photos = await photosByPlace([row.place.id]);
+    return toUserPlace({ ...unwrap(row), photos: photos.get(row.place.id) ?? [] });
+  },
+  "places:get-by-slug",
+);
+
 /** Clave foránea a partir de la etiqueta («Restaurante»). `null` si no existe. */
 export async function resolveCategoryId(label: string | null | undefined): Promise<string | null> {
   const name = label?.trim();

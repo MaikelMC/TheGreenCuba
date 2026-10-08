@@ -66,6 +66,8 @@ interface PlaceMenu {
 
 export interface PlaceData {
   id: string;
+  /** Identificador estable del menú: es lo que arma el enlace corto `/m/{slug}`. */
+  slug: string;
   name: string;
   category: string;
   isProject?: boolean;
@@ -525,7 +527,7 @@ export function PlaceDetail({
                         entera y no hay nada que desplegar. */}
                     {place.menu.length > 0 && (
                       <Link
-                        href={`/place/${place.id}/carta`}
+                        href={`/m/${place.slug}`}
                         className={cn(BTN_OUTLINE, "group")}
                       >
                         Ver la carta
@@ -910,7 +912,7 @@ export function PlaceDetail({
                         variante, y con cuatro entradas o menos cabe todo. */}
                     {place.menu.length > 0 && (
                       <Link
-                        href={`/place/${place.id}/carta`}
+                        href={`/m/${place.slug}`}
                         className={cn(BTN_OUTLINE, "group")}
                       >
                         Ver la carta

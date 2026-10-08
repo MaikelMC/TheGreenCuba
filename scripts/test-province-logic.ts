@@ -47,6 +47,7 @@ function mkPrefs(overrides: Partial<UserPreferences> = {}): UserPreferences {
 function mkPlace(overrides: Partial<UserPlace> = {}): UserPlace {
   return {
     id: "p",
+    slug: "lugar",
     name: "Lugar",
     category: "Restaurante",
     lat: 20.01,

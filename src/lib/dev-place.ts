@@ -39,8 +39,8 @@ export function devPlaceEnabled(): boolean {
  * Lo que abre, además: **la carta, a todo el mundo**. No es una excepción a
  * esta lista sino lo contrario —la carta es lo que se reparte, por WhatsApp o
  * en un QR pegado a una mesa, y un menú que solo abre su dueño no se puede
- * repartir—. Su enlace no lleva sesión: lo decide la propia carta, en
- * `carta/page.tsx`.
+ * repartir—. Su enlace no lleva sesión: lo decide el propio menú, en
+ * `m/[slug]/page.tsx`.
  *
  * Lo que abre **además, y solo para** estas cuentas: el pin en el mapa y el
  * negocio en el home. El catálogo es público y no pregunta por la sesión, pero
@@ -97,6 +97,10 @@ export function devPlaceIndexable(id: string): boolean {
 export function devPlace(): UserPlace {
   return {
     id: DEV_PLACE_ID,
+    /* El mismo valor que el id: es un negocio que no vive en la base, así que
+       `getPlaceBySlug` lo resuelve comparando contra `DEV_PLACE_ID` y la URL
+       `/m/${DEV_PLACE_ID}` funciona sin tocar ninguna fila. */
+    slug: DEV_PLACE_ID,
     name: "Café La Ceiba (local)",
     category: "Cafetería",
     icon: "Coffee",

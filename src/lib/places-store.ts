@@ -94,6 +94,15 @@ export interface UserPlacePhoto {
 
 export interface UserPlace {
   id: string;
+  /**
+   * Identificador legible y **estable** del negocio. Es la URL corta del menú
+   * (`/m/{slug}`) y la que va dentro de un QR impreso.
+   *
+   * Se calcula una sola vez, al crear la ficha (`toNewPlaceValues`), y no se
+   * recalcula al renombrar: cambiar el slug rompería un QR ya pegado en una mesa.
+   * `toPlaceValues` lo ignora a propósito, así que ningún `PATCH` lo mueve.
+   */
+  slug: string;
   name: string;
   isProject?: boolean;
   category: string;
@@ -198,7 +207,7 @@ export interface UserPlace {
    y no suya. */
 export type NewUserPlace = Omit<
   UserPlace,
-  "id" | "createdAt" | "updatedAt" | "status" | "isActive" | "reviewStatus" | "isBoosted" | "boostExpiresAt"
+  "id" | "slug" | "createdAt" | "updatedAt" | "status" | "isActive" | "reviewStatus" | "isBoosted" | "boostExpiresAt"
 > &
   Partial<Pick<UserPlace, "status" | "isActive" | "isBoosted" | "boostExpiresAt">>;
 

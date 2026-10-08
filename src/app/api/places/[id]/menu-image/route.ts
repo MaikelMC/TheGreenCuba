@@ -76,8 +76,11 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   /* De la configuración al bucket, en una llamada. El `FormData` no trae nada
-     más que la imagen aquí, así que se descarta lo que devuelve. */
-  const upload = await uploadImage(req, menuPrefix(place.id));
+     más que la imagen aquí, así que se descarta lo que devuelve. `optimize`
+     garantiza el tope de ≤150 KB en el servidor: la compresión del navegador
+     puede fallar (un formato que no sabe decodificar) y la foto del producto no
+     puede llegar al bucket sin comprimir. */
+  const upload = await uploadImage(req, menuPrefix(place.id), { optimize: true });
   if (!upload.ok) return uploadErrorResponse(upload);
 
   return NextResponse.json({ url: upload.url }, { status: 201 });

@@ -42,7 +42,7 @@ import { MenuItemEditor } from "@/components/business/menu-item-editor";
 import { MenuLinkCard } from "@/components/business/menu-link-card";
 import { PlanCard } from "@/components/business/plan-card";
 import { PlansSection } from "@/components/business/plans-section";
-import { PLAN_LABEL, type Plan } from "@/lib/plans";
+import { PLAN_LABEL, incluye, type Plan } from "@/lib/plans";
 import { pruneMenuImages } from "@/lib/menu-images";
 import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
 import { usePlaces } from "@/providers/places-provider";
@@ -234,7 +234,15 @@ function DashboardView({
           </ul>
         </section>
 
-        <MenuLinkCard placeId={place.id} placeName={place.name} url={menuUrl} />
+        {/* La marca del QR la decide el plan. Se deriva de `incluye` y no se
+            consulta al servidor: es cosmético, no un permiso que escriba nada,
+            y el plan ya viene resuelto desde `/business/page.tsx`. */}
+        <MenuLinkCard
+          placeId={place.id}
+          placeName={place.name}
+          url={menuUrl}
+          sinMarca={incluye(plan, "menu_qr_sin_marca")}
+        />
 
         <PlanCard plan={plan} onVerPlanes={onVerPlanes} />
       </div>

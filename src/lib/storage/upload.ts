@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { S3_BUCKET, S3_PUBLIC_URL, s3Client, s3ConfigProblem } from "./s3";
 import { EXTENSION, MAX_UPLOAD_BYTES, sniffImageType } from "./image";
+import { optimizeImage } from "./optimize";
 import { generateId } from "@/lib/utils";
 
 /**
@@ -20,7 +21,9 @@ import { generateId } from "@/lib/utils";
  * que verlo antes de la subida, no escondido detrás.
  *
  * El archivo llega ya comprimido a WebP desde el navegador, en `prepareImage()`.
- * Aquí no se recomprime: se comprueba y se guarda.
+ * Con `options.optimize` se rehace además en el servidor (`optimize.ts`), porque
+ * la compresión del navegador es best-effort y el tope de peso tiene que
+ * cumplirse igual. Sin la opción solo se comprueba y se guarda.
  */
 
 export type UploadResult =
@@ -59,6 +62,7 @@ export function keyFromUrl(url: string): string | null {
 export async function uploadImage(
   req: NextRequest,
   prefix: string,
+  options: { optimize?: boolean } = {},
 ): Promise<UploadResult> {
   const configProblem = s3ConfigProblem();
   if (configProblem) return { ok: false, error: configProblem, status: 500 };
@@ -78,15 +82,35 @@ export async function uploadImage(
     return { ok: false, error: "La imagen es demasiado grande.", status: 413 };
   }
 
-  const bytes = new Uint8Array(await file.arrayBuffer());
+  const originalBytes = new Uint8Array(await file.arrayBuffer());
 
-  const contentType = sniffImageType(bytes);
-  if (!contentType) {
+  const detected = sniffImageType(originalBytes);
+  if (!detected) {
     return {
       ok: false,
       error: "El archivo no es una imagen JPEG, PNG o WebP.",
       status: 415,
     };
+  }
+
+  /* `optimize` es la red de seguridad del tope de peso del servidor: el
+     navegador ya comprime, pero si no supo decodificar el archivo subiría el
+     original. Aquí se rehace a WebP por debajo del tope. Si `sharp` no puede
+     leer la entrada, se cae al original —que ya pasó el tope de tamaño— en vez
+     de tumbar la subida. */
+  /* `Uint8Array<ArrayBufferLike>` y no el `ArrayBuffer` que infiere
+     `file.arrayBuffer()`: `optimizeImage` devuelve un buffer de `sharp`, que no
+     está respaldado por un `ArrayBuffer` sino por memoria compartida. El tipo
+     explícito deja que los dos encajen en la misma variable. */
+  let bytes: Uint8Array<ArrayBufferLike> = originalBytes;
+  let contentType = detected;
+  if (options.optimize) {
+    try {
+      bytes = await optimizeImage(originalBytes);
+      contentType = "image/webp";
+    } catch (error) {
+      console.error("No se pudo recomprimir la imagen en el servidor:", error);
+    }
   }
 
   /* La clave lleva un id aleatorio y nunca se reescribe, así que el objeto es

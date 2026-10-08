@@ -43,15 +43,13 @@ export function placeUrl(id: string): string {
  * La carta pública del negocio: la ruta que se comparte y la que va dentro del
  * QR de la mesa.
  *
- * Cuelga de la ficha —`/place/{id}/carta`— y no de un `/carta/{slug}` propio.
- * El `slug` existe, es único y hoy no cambia, pero el id no depende de ninguna
- * regla: un QR impreso y pegado en una mesa no se puede romper porque alguien
- * decida mañana rehacer los slugs. Y la ruta cuelga de `/place`, que es la que
- * el proxy deja abierta a propósito, así que no hay que tocar el control de
- * acceso.
+ * Es la URL corta `/m/{slug}`. Se apoya en el `slug` y no en el id a propósito:
+ * es único, se calcula una sola vez y no se recalcula al renombrar, así que un
+ * QR impreso y pegado en una mesa no se rompe aunque el negocio cambie de
+ * nombre. La ruta `/place/{id}/carta` de antes redirige aquí con un 301.
  */
-export function menuUrl(id: string): string {
-  return `${placeUrl(id)}/carta`;
+export function menuUrl(slug: string): string {
+  return `${siteConfig.url.replace(/\/$/, "")}/m/${slug}`;
 }
 
 export function placeJsonLd(place: UserPlace): Record<string, unknown> {

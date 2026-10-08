@@ -50,6 +50,10 @@ export type PlaceRowWithCategory = PlaceRow & {
 export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
   return {
     id: row.id,
+    /* El `slug` ya existe en `places` desde la primera siembra y hasta ahora no
+       salía del servidor: sin esto la app no podía construir la URL corta del
+       menú (`/m/{slug}`) ni el QR que la lleva. */
+    slug: row.slug,
     name: row.name,
     category: row.categoryName ?? "Otro",
     icon: row.icon ?? undefined,

@@ -40,6 +40,7 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
   const isOpen = p.status === "active";
   return {
     id: p.id,
+    slug: p.slug,
     name: p.name,
     category: p.category,
     isProject: p.isProject ?? false,
