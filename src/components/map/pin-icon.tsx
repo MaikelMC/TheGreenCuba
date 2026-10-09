@@ -65,6 +65,9 @@ function iconMarkup(iconKey: string, style: PinStyle): string {
   return `<g transform="translate(12 12) scale(${scale.toFixed(4)}) translate(-12 -12)">${glyph}</g>`;
 }
 
+/* El `src` de la foto va dentro de una cadena de HTML que se inserta con
+   `innerHTML`, así que una URL con comillas rompería el atributo. El juego de
+   caracteres que hay que escapar es el mismo en HTML y en XML. */
 function escapeXmlAttribute(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -72,14 +75,6 @@ function escapeXmlAttribute(value: string): string {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll("'", "&apos;");
-}
-
-function imageClipId(imageUrl: string): string {
-  let hash = 2166136261;
-  for (let index = 0; index < imageUrl.length; index += 1) {
-    hash = Math.imul(hash ^ imageUrl.charCodeAt(index), 16777619);
-  }
-  return `lv-pin-photo-${(hash >>> 0).toString(36)}`;
 }
 
 /**
@@ -137,12 +132,38 @@ function buildPin(
   const key = isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON;
   const id = `lv-pin-${variant}-${key}${conEnergia ? "-e" : ""}${conOferta ? "-o" : ""}`;
   const photoRadius = Math.max(3, discR - 1);
-  const clipId = imageUrl ? imageClipId(imageUrl) : "";
-  const centerContent = imageUrl
-    ? `<image href="${escapeXmlAttribute(imageUrl)}" x="${12 - photoRadius}" y="${12 - photoRadius}" width="${photoRadius * 2}" height="${photoRadius * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/><circle cx="12" cy="12" r="${photoRadius}" fill="none" stroke="white" stroke-width="1"/>`
-    : iconMarkup(key, PIN_STYLES[variant]);
+  const ringColor = PIN_STYLES[variant].ringColor ?? "rgba(53,175,109,0.4)";
+
+  /* La foto es un `<img>` de HTML superpuesto al SVG, **no** un `<image>` de
+     SVG como antes. El pin era el único sitio de la app que pintaba una foto
+     por dentro de un SVG, y ahí la carga es asíncrona: el SVG se rasteriza al
+     insertarse y algunas imágenes se quedaban sin repintar cuando terminaban de
+     llegar, con la gota y el disco ya pintados y el hueco en blanco —el
+     «aparece que va a cargar y no carga»—. Un `<img>` es el mismo elemento que
+     ya usa el popup, la ficha y las tarjetas, y repinta solo.
+
+     La geometría sale del `viewBox` (24×36) y no de constantes a mano: el SVG
+     escala con `xMidYMid meet`, así que el factor es el menor de los dos y el
+     contenido va centrado —en `project`, 38×56 no es 2:3 exacto y sobra medio
+     píxel por lado, que es justo lo que descuadraría una cuenta fija—. */
+  const scale = Math.min(width / 24, height / 36);
+  const photoSize = photoRadius * 2 * scale;
+  const photoLeft = (width - 24 * scale) / 2 + (12 - photoRadius) * scale;
+  const photoTop = (height - 36 * scale) / 2 + (12 - photoRadius) * scale;
+
+  /* El aro blanco y el de la variante `selected` van en el `box-shadow` porque
+     los dibujaba el SVG *encima* de la foto, y ahora la foto es una capa de
+     HTML por encima de todo el SVG: sin esto el aro desaparecería debajo. Los
+     radios coinciden —el aro del SVG es `r=8` con trazo 2, o sea de 7 a 9, y el
+     disco de la foto es `photoRadius`, que en `selected` son 9—. */
+  const photo = imageUrl
+    ? `<img src="${escapeXmlAttribute(imageUrl)}" alt="" style="position:absolute;left:${photoLeft.toFixed(2)}px;top:${photoTop.toFixed(2)}px;width:${photoSize.toFixed(2)}px;height:${photoSize.toFixed(2)}px;border-radius:50%;object-fit:cover;box-shadow:inset 0 0 0 ${scale.toFixed(2)}px rgba(255,255,255,0.9)${
+        ring ? `,inset 0 0 0 ${(2 * scale).toFixed(2)}px ${ringColor}` : ""
+      }">`
+    : "";
+
   const html = `
-    <div style="width:${width}px;height:${height}px;filter:drop-shadow(0 3px 6px rgba(8,19,13,0.45));${
+    <div style="position:relative;width:${width}px;height:${height}px;filter:drop-shadow(0 3px 6px rgba(8,19,13,0.45));${
       variant === "boosted" || variant === "project" ? "animation:pulse-ring 2s ease-in-out infinite;" : ""
     }">
       <svg viewBox="0 0 24 36" width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg" style="display:block">
@@ -151,15 +172,15 @@ function buildPin(
             <stop offset="0" stop-color="${top}"/>
             <stop offset="1" stop-color="${bottom}"/>
           </linearGradient>
-          ${imageUrl ? `<clipPath id="${clipId}"><circle cx="12" cy="12" r="${photoRadius}"/></clipPath>` : ""}
         </defs>
         <path d="${TEARDROP_PATH}" fill="url(#${id})"/>
         <circle cx="12" cy="12" r="${discR}" fill="white"/>
-        ${centerContent}
-        ${ring ? `<circle cx="12" cy="12" r="8" fill="none" stroke="${PIN_STYLES[variant].ringColor ?? "rgba(53,175,109,0.4)"}" stroke-width="2"/>` : ""}
+        ${imageUrl ? "" : iconMarkup(key, PIN_STYLES[variant])}
+        ${ring && !imageUrl ? `<circle cx="12" cy="12" r="8" fill="none" stroke="${ringColor}" stroke-width="2"/>` : ""}
         ${conEnergia ? ENERGIA_BADGE_MARKUP : ""}
         ${conOferta ? ofertaBadgeMarkup() : ""}
       </svg>
+      ${photo}
     </div>`;
 
   return divIcon({

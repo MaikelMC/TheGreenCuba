@@ -20,7 +20,17 @@ export interface MapPlace {
   /** Fechas ya legibles de un proyecto («12 ago – 20 ago»). Los negocios no
       tienen: su horario vive en `schedule` de `UserPlace` y no viaja al pin. */
   schedule?: string;
+  /** Foto del pin. El logo del negocio manda: en un disco de 15 px se reconoce
+      antes una marca que una foto de fachada. */
   image?: string;
+  /**
+   * Foto del popup, que no es la misma que la del pin.
+   *
+   * El popup enseña una tarjeta ancha, y ahí lo que vende es la portada del
+   * negocio; el logo cae bien en el pin pero recortado en 84 px de alto se lee
+   * como un cuadro suelto. Cae al logo cuando no hay ninguna foto subida.
+   */
+  coverImage?: string;
   offerPackages?: ProjectOfferPackage[];
   tags?: { label: string; variant?: string }[];
   /** Energía de respaldo del negocio. `null`/ausente = el dueño no lo dijo. */

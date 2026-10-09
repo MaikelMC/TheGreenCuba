@@ -760,6 +760,13 @@ function HomePageContent() {
           p.mapImageUrl ??
           p.photos?.find((photo) => photo.isCover)?.url ??
           p.photos?.[0]?.url,
+        /* Y el popup al revés: la portada primero, que en una tarjeta ancha la
+           foto del lugar dice más que la marca, y el logo solo cuando no hay
+           ninguna foto subida. */
+        coverImage:
+          p.photos?.find((photo) => photo.isCover)?.url ??
+          p.photos?.[0]?.url ??
+          p.logoUrl,
         offerPackages: p.offerPackages,
         barrio: p.barrio,
         rating: p.rating,

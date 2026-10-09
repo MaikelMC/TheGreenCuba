@@ -49,17 +49,30 @@ export function PhotoGrid({ placeId, placeName, className }: PhotoGridProps) {
      misma sesión la enseñaría sin ella. */
   const { refreshPlaces } = usePlaces();
 
-  const load = useCallback(async () => {
+  /* Cuántas fotos hay, para el recuento de más abajo. Va en un ref y no se lee
+     de `images`: `upload` está memorizado sin `images` en las dependencias, así
+     que la copia que cierra se queda vieja en cuanto sube la primera foto. */
+  const countRef = useRef(0);
+  useEffect(() => {
+    countRef.current = images.length;
+  }, [images.length]);
+
+  /* Devuelve la lista, y no solo la pinta: quien sube la necesita para saber si
+     una petición que no contestó llegó a escribir de todas formas. */
+  const load = useCallback(async (): Promise<PlaceImage[]> => {
     if (!placeId) {
       setImages([]);
-      return;
+      return [];
     }
     setLoading(true);
     try {
       const res = await fetch(`/api/places/${placeId}/images`);
-      setImages(res.ok ? ((await res.json()) as PlaceImage[]) : []);
+      const rows = res.ok ? ((await res.json()) as PlaceImage[]) : [];
+      setImages(rows);
+      return rows;
     } catch {
       setError("No se pudieron cargar las fotos.");
+      return [];
     } finally {
       setLoading(false);
     }
@@ -74,37 +87,63 @@ export function PhotoGrid({ placeId, placeName, className }: PhotoGridProps) {
       if (!placeId || files.length === 0) return;
       setBusy(true);
       setError(null);
+
+      const before = countRef.current;
+      let failed = 0;
+
       try {
         for (const file of files) {
-          const prepared = await prepareImage(file);
+          /* `try` por archivo y no alrededor del bucle entero: con el de fuera,
+             una sola foto que fallara —demasiado grande, o un formato que el
+             navegador no sabe leer— dejaba a las demás sin subir, y había que
+             volver a elegirlas de una en una. */
+          try {
+            const prepared = await prepareImage(file);
 
-          const form = new FormData();
-          form.append("file", prepared.blob, prepared.name);
-          form.append("alt", `Foto de ${placeName}`);
-          /* Las dimensiones solo sirven para reservar el hueco antes de que la
-             imagen cargue. Si no se pudieron leer, se omiten. */
-          if (prepared.width) form.append("width", String(prepared.width));
-          if (prepared.height) form.append("height", String(prepared.height));
+            const form = new FormData();
+            form.append("file", prepared.blob, prepared.name);
+            form.append("alt", `Foto de ${placeName}`);
+            /* Las dimensiones solo sirven para reservar el hueco antes de que la
+               imagen cargue. Si no se pudieron leer, se omiten. */
+            if (prepared.width) form.append("width", String(prepared.width));
+            if (prepared.height) form.append("height", String(prepared.height));
 
-          const res = await fetch(`/api/places/${placeId}/images`, {
-            method: "POST",
-            body: form,
-          });
-          if (!res.ok) {
-            const data = (await res.json().catch(() => null)) as { error?: string } | null;
-            throw new Error(data?.error ?? "No se pudo subir la foto.");
+            const res = await fetch(`/api/places/${placeId}/images`, {
+              method: "POST",
+              body: form,
+            });
+            if (!res.ok) {
+              const data = (await res.json().catch(() => null)) as { error?: string } | null;
+              throw new Error(data?.error ?? "No se pudo subir la foto.");
+            }
+            const created = (await res.json()) as PlaceImage;
+            setImages((prev) => [...prev, created]);
+            void refreshPlaces();
+          } catch {
+            failed += 1;
           }
-          const created = (await res.json()) as PlaceImage;
-          setImages((prev) => [...prev, created]);
-          void refreshPlaces();
         }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "No se pudo subir la foto.");
       } finally {
         setBusy(false);
       }
+
+      if (failed === 0) return;
+
+      /* Una petición cortada por el camino deja la fila escrita igual: el
+         servidor inserta antes de contestar, y aquí la red se corta. Así que
+         antes de decir que falló se relee la lista del servidor y se cuentan.
+         Si llegaron todas, lo que se perdió fue la respuesta y avisar sería
+         mentir; si no, falta alguna de verdad y sí hay que decirlo. */
+      const current = await load();
+      if (current.length - before >= files.length) return;
+
+      setError(
+        failed === 1
+          ? "No se pudo subir una de las fotos. Vuelve a elegirla."
+          : `No se pudieron subir ${failed} de las fotos. Vuelve a elegirlas.`,
+      );
     },
-    [placeId, placeName, refreshPlaces],
+    [placeId, placeName, refreshPlaces, load],
   );
 
   const remove = useCallback(

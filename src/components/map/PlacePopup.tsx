@@ -44,6 +44,10 @@ export function PlacePopup({
 }: PlacePopupProps) {
   const [coverFailed, setCoverFailed] = useState(false);
 
+  /* La portada del popup, con el logo como último recurso. Ver `coverImage` en
+     `./types.ts`: no es la misma foto que la del pin a propósito. */
+  const cover = place.coverImage ?? place.image;
+
   // Una sola línea de datos. El barrio se omite a propósito: el mapa ya dice
   // dónde está, y la distancia es la que aporta algo.
   const segments: ReactNode[] = [
@@ -116,15 +120,16 @@ export function PlacePopup({
 
   return (
     <div className="w-[260px] font-lv text-ink">
-      {/* Portada: la foto del negocio antes de entrar a la ficha. Es la misma
-          que ya lleva el pin —logo, foto del mapa o portada, en ese orden—,
-          solo que aquí cabe entera. Si la URL falla, el hueco desaparece en
-          vez de dejar un rectángulo roto: la tarjeta sigue siendo la misma
-          sin ella. */}
-      {place.image && !coverFailed && (
+      {/* Portada: la foto del negocio antes de entrar a la ficha. Es la
+          portada, no la misma que lleva el pin —ahí manda el logo, que se
+          reconoce mejor en un disco pequeño—; el logo solo sale aquí cuando el
+          negocio no tiene ninguna foto subida. Si la URL falla, el hueco
+          desaparece en vez de dejar un rectángulo roto: la tarjeta sigue siendo
+          la misma sin ella. */}
+      {cover && !coverFailed && (
         <div className="lv-popup-cover h-[84px] w-full border-b border-ink/5 bg-sand-deep">
           <img
-            src={place.image}
+            src={cover}
             alt=""
             loading="lazy"
             onError={() => setCoverFailed(true)}
