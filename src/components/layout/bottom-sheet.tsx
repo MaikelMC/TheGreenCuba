@@ -1,6 +1,12 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { cn } from "@/lib/utils";
 
 type SheetState = "collapsed" | "peek" | "full";
@@ -29,6 +35,16 @@ interface BottomSheetProps {
   forceOpen?: boolean;
   /** Cada valor nuevo recoge el sheet a `collapsed`, para dejar ver el mapa. */
   collapseSignal?: number;
+  /**
+   * Cada valor nuevo baja el sheet a `peek`: la mitad recogida, con el titular
+   * y el asa a la vista.
+   *
+   * `collapseSignal` baja hasta el asa —20 px— y eso, para algo que no es un
+   * gesto sobre el mapa, esconde la sección entera: al abrir las sugerencias del
+   * buscador la hoja desaparecía en vez de apartarse. Con `peek` sigue ahí, más
+   * abajo, y se entiende que volverá.
+   */
+  peekSignal?: number;
   /** Cada valor nuevo abre el sheet en `full` —mismo patrón que `collapseSignal`,
       pero para abrir: con solo `forceOpen` la segunda búsqueda no disparaba el
       efecto, porque el booleano ya estaba en `true` desde la búsqueda anterior. */
@@ -44,14 +60,23 @@ export function BottomSheet({
   defaultState = "peek",
   forceOpen = false,
   collapseSignal,
+  peekSignal,
   openSignal,
 }: BottomSheetProps) {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [state, setState] = useState<SheetState>(defaultState);
   const sheetRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
   const startTranslate = useRef(0);
+  /* El tope del arrastre hacia abajo, en píxeles: la posición recogida —el asa
+     asomando—, el mismo `calc(100% - 20px)` del estado `collapsed`. Sin tope,
+     tirar del asa hacia abajo mandaba la hoja más abajo del asa, fuera de la
+     pantalla, y si el gesto se perdía por el camino se quedaba ahí. Se mide al
+     empezar el gesto para no leer `offsetHeight` en cada `pointermove`. */
+  const floorY = useRef(0);
   const didDrag = useRef(false);
   const dragRef = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -86,10 +111,24 @@ export function BottomSheet({
      con los resultados recién llegidos. Solo importa la señal fresca. */
   const lastCollapseKey = useRef(collapseSignal ?? 0);
   useEffect(() => {
-    if (collapseSignal === undefined || collapseSignal === lastCollapseKey.current) return;
+    if (
+      collapseSignal === undefined ||
+      collapseSignal === lastCollapseKey.current
+    )
+      return;
     lastCollapseKey.current = collapseSignal;
     if (!forceOpen) setState("collapsed");
   }, [collapseSignal, forceOpen]);
+
+  /* El mismo recuerdo que arriba y por el mismo motivo: el efecto también corre
+     al cambiar `forceOpen`, y una señal vieja no debe mover la hoja al terminar
+     una búsqueda. */
+  const lastPeekKey = useRef(peekSignal ?? 0);
+  useEffect(() => {
+    if (peekSignal === undefined || peekSignal === lastPeekKey.current) return;
+    lastPeekKey.current = peekSignal;
+    if (!forceOpen) setState("peek");
+  }, [peekSignal, forceOpen]);
 
   const translateY = isDragging
     ? `${dragY}px`
@@ -104,101 +143,102 @@ export function BottomSheet({
     setState((prev) => (prev === "full" ? "peek" : "full"));
   }
 
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      const sheet = sheetRef.current;
-      if (!sheet) return;
-      startY.current = e.clientY;
-      didDrag.current = false;
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    startY.current = e.clientY;
+    didDrag.current = false;
 
-      const style = getComputedStyle(sheet);
-      const matrix = new DOMMatrixReadOnly(style.transform);
-      startTranslate.current = matrix.m42;
-      /* `setPointerCapture` lanza `NotFoundError` si el puntero ya no está
+    const style = getComputedStyle(sheet);
+    const matrix = new DOMMatrixReadOnly(style.transform);
+    startTranslate.current = matrix.m42;
+    floorY.current = sheet.offsetHeight - 20;
+    /* `setPointerCapture` lanza `NotFoundError` si el puntero ya no está
          activo, y dentro del WebView de Instagram pasa: la excepción cortaba el
          manejador antes de registrar los escuchas y el toque no hacía nada. Sin
          captura el gesto sigue entero —solo se pierde si el dedo se sale del
          asa—, así que el fallo no se propaga. */
-      try {
-        sheet.setPointerCapture(e.pointerId);
-      } catch {
-        /* sin captura; el resto del gesto corre igual */
+    try {
+      sheet.setPointerCapture(e.pointerId);
+    } catch {
+      /* sin captura; el resto del gesto corre igual */
+    }
+
+    const onMove = (ev: PointerEvent) => {
+      const dy = ev.clientY - startY.current;
+      // Solo se entra en modo arrastre cuando el dedo supera el umbral. El
+      // arrastre desactiva la transición CSS, así que activarlo en el
+      // pointerdown hacía que un simple toque saltara la hoja a
+      // `dragRef.current` de golpe. Ese era el arranque brusco al abrir.
+      if (!didDrag.current) {
+        if (Math.abs(dy) <= 5) return;
+        didDrag.current = true;
+        setIsDragging(true);
       }
+      // `translateY` se mide desde la posición abierta: 0 = abierta, positivo
+      // = más abajo. El `Math.min(0, ...)` anterior recortaba a 0 todo valor
+      // positivo, así que mover el dedo 6 px hacia arriba abría la hoja de
+      // golpe. Un dedo real casi siempre supera el umbral de 5 px, de modo
+      // que un toque normal caía justo en ese salto.
+      dragRef.current = Math.min(
+        floorY.current,
+        Math.max(0, startTranslate.current + dy),
+      );
+      setDragY(dragRef.current);
+    };
 
-      const onMove = (ev: PointerEvent) => {
-        const dy = ev.clientY - startY.current;
-        // Solo se entra en modo arrastre cuando el dedo supera el umbral. El
-        // arrastre desactiva la transición CSS, así que activarlo en el
-        // pointerdown hacía que un simple toque saltara la hoja a
-        // `dragRef.current` de golpe. Ese era el arranque brusco al abrir.
-        if (!didDrag.current) {
-          if (Math.abs(dy) <= 5) return;
-          didDrag.current = true;
-          setIsDragging(true);
-        }
-        // `translateY` se mide desde la posición abierta: 0 = abierta, positivo
-        // = más abajo. El `Math.min(0, ...)` anterior recortaba a 0 todo valor
-        // positivo, así que mover el dedo 6 px hacia arriba abría la hoja de
-        // golpe. Un dedo real casi siempre supera el umbral de 5 px, de modo
-        // que un toque normal caía justo en ese salto.
-        dragRef.current = Math.max(0, startTranslate.current + dy);
-        setDragY(dragRef.current);
-      };
+    const cleanup = () => {
+      sheet.removeEventListener("pointermove", onMove);
+      sheet.removeEventListener("pointerup", onUp);
+      sheet.removeEventListener("pointercancel", onCancel);
+    };
 
-      const cleanup = () => {
-        sheet.removeEventListener("pointermove", onMove);
-        sheet.removeEventListener("pointerup", onUp);
-        sheet.removeEventListener("pointercancel", onCancel);
-      };
+    const onUp = () => {
+      cleanup();
 
-      const onUp = () => {
-        cleanup();
+      if (didDrag.current) {
+        // Umbral sobre la posición final, no sobre el recorrido: así da igual
+        // desde qué estado arrancó el gesto. `offsetHeight - 120` es el mismo
+        // `calc(100% - 120px)` del estado peek, porque el porcentaje de
+        // `translateY` se resuelve contra la altura del propio elemento.
+        const peekY = sheet.offsetHeight - 120;
+        setIsDragging(false);
+        setState(dragRef.current < peekY / 2 ? "full" : "peek");
+      } else {
+        // Toque sin arrastre: `isDragging` nunca se tocó, la transición CSS
+        // siguió activa todo el tiempo y el cambio de estado anima igual que
+        // al cerrar.
+        cycleState();
+      }
+    };
 
-        if (didDrag.current) {
-          // Umbral sobre la posición final, no sobre el recorrido: así da igual
-          // desde qué estado arrancó el gesto. `offsetHeight - 120` es el mismo
-          // `calc(100% - 120px)` del estado peek, porque el porcentaje de
-          // `translateY` se resuelve contra la altura del propio elemento.
-          const peekY = sheet.offsetHeight - 120;
-          setIsDragging(false);
-          setState(dragRef.current < peekY / 2 ? "full" : "peek");
-        } else {
-          // Toque sin arrastre: `isDragging` nunca se tocó, la transición CSS
-          // siguió activa todo el tiempo y el cambio de estado anima igual que
-          // al cerrar.
-          cycleState();
-        }
-      };
-
-      /* El WebView de dentro de Instagram se queda el gesto y no manda el
+    /* El WebView de dentro de Instagram se queda el gesto y no manda el
          `pointerup`: sin atender la cancelación los escuchas se quedaban
          pegados al elemento, y el toque siguiente ejecutaba `onUp` dos veces.
          Como `cycleState` alterna, la segunda llamada devolvía la hoja a `peek`
          —abría y volvía a caer de golpe—, y cada gesto perdido dejaba un par
          más, hasta que la hoja se quedaba recogida y rebotando. Recargar
          arreglaba porque el componente arrancaba con la lista limpia. */
-      const onCancel = () => {
-        cleanup();
+    const onCancel = () => {
+      cleanup();
 
-        if (didDrag.current) {
-          // Gesto abortado a media: vuelve a reposo sin cambiar de estado.
-          didDrag.current = false;
-          setIsDragging(false);
-          setDragY(0);
-          return;
-        }
+      if (didDrag.current) {
+        // Gesto abortado a media: vuelve a reposo sin cambiar de estado.
+        didDrag.current = false;
+        setIsDragging(false);
+        setDragY(0);
+        return;
+      }
 
-        // Cancelado sin arrastre es un toque que el WebView se comió: no habrá
-        // `pointerup` (la cancelación lo sustituye), así que se atiende aquí.
-        cycleState();
-      };
+      // Cancelado sin arrastre es un toque que el WebView se comió: no habrá
+      // `pointerup` (la cancelación lo sustituye), así que se atiende aquí.
+      cycleState();
+    };
 
-      sheet.addEventListener("pointermove", onMove);
-      sheet.addEventListener("pointerup", onUp);
-      sheet.addEventListener("pointercancel", onCancel);
-    },
-    [],
-  );
+    sheet.addEventListener("pointermove", onMove);
+    sheet.addEventListener("pointerup", onUp);
+    sheet.addEventListener("pointercancel", onCancel);
+  }, []);
 
   return (
     <div

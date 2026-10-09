@@ -515,6 +515,10 @@ function HomePageContent() {
      `true` desde la primera— y los resultados quedaban escondidos bajo la hoja
      recogida. */
   const [openKey, setOpenKey] = useState(0);
+  /* Y este, tercero, para las sugerencias del buscador: no se recoge hasta el
+     asa como con un pin —ahí hace falta ver el mapa entero—, sino hasta la
+     mitad, que la sección siga a la vista. */
+  const [suggestionsKey, setSuggestionsKey] = useState(0);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set(["6"]));
   const [activeCategory, setActiveCategory] = useState("all");
   /* Filtros acumulables del mapa. Viven aquí y no dentro de `PlaceFilters`
@@ -1005,6 +1009,15 @@ function HomePageContent() {
     });
   }, [searchCtx]);
 
+  /* El buscador abre sus sugerencias y la hoja se aparta. El desplegable sale
+     por debajo de ella —la hoja va en z-300 y él en z-250—, así que con la hoja
+     de recomendaciones delante media lista quedaba tapada. Baja a `peek` y no
+     al asa: el gesto aquí no es sobre el mapa, y esconder la sección entera se
+     lee como que se cerró. */
+  useEffect(() => {
+    searchCtx.registerSuggestionsHandler(() => setSuggestionsKey((k) => k + 1));
+  }, [searchCtx]);
+
   const handleRetry = useCallback(() => {
     if (searchingQuery) {
       handleSearch(searchingQuery);
@@ -1377,6 +1390,7 @@ function HomePageContent() {
         badge={showBadge ? String(shownCount) : undefined}
         forceOpen={sheetState === "searching"}
         collapseSignal={collapseKey}
+        peekSignal={suggestionsKey}
         openSignal={openKey}
       >
         {/* Default / Results state */}

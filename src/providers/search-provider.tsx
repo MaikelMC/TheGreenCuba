@@ -29,6 +29,15 @@ interface SearchActions {
   /** Volar el mapa del home a una dirección (sin pasar por la IA). */
   onLocateAddress: (target: LocateAddressTarget) => void;
   registerLocateHandler: (handler: (t: LocateAddressTarget) => void) => void;
+  /**
+   * Avisa de que el campo de búsqueda está enseñando sus sugerencias.
+   *
+   * La hoja de recomendaciones del home ocupa media pantalla en el móvil y su
+   * z-index es mayor que el del desplegable, así que con la hoja abierta las
+   * sugerencias salían por debajo y no se veían. Quien escucha esto la recoge.
+   */
+  onSuggestionsOpen: () => void;
+  registerSuggestionsHandler: (handler: () => void) => void;
 }
 
 const SearchStateContext = createContext<SearchState | null>(null);
@@ -60,6 +69,16 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const suggestionsRef = useRef<(() => void) | null>(null);
+
+  const onSuggestionsOpen = useCallback(() => {
+    suggestionsRef.current?.();
+  }, []);
+
+  const registerSuggestionsHandler = useCallback((h: () => void) => {
+    suggestionsRef.current = h;
+  }, []);
+
   // Acciones estables: los consumidores que solo llaman a la IA
   // (home) o leen isSearching (header) NO se re-renderizan cuando
   // cambia `query`.
@@ -71,8 +90,17 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       registerSearchHandler,
       onLocateAddress,
       registerLocateHandler,
+      onSuggestionsOpen,
+      registerSuggestionsHandler,
     }),
-    [onSearch, registerSearchHandler, onLocateAddress, registerLocateHandler],
+    [
+      onSearch,
+      registerSearchHandler,
+      onLocateAddress,
+      registerLocateHandler,
+      onSuggestionsOpen,
+      registerSuggestionsHandler,
+    ],
   );
 
   const state = useMemo<SearchState>(() => ({ query, isSearching }), [query, isSearching]);

@@ -256,6 +256,10 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
             onFocus={() => {
               setFocused(true);
               setShowSuggestions(true);
+              /* El desplegable sale por debajo de la hoja de recomendaciones
+                 —su z es mayor—, así que al abrirse las sugerencias la hoja se
+                 recoge. Sin esto, en el móvil media lista se quedaba tapada. */
+              actions?.onSuggestionsOpen();
               /* Se relee en cada apertura: el historial lo escribe el home al
                  buscar, y este header sigue montado mientras eso pasa. */
               setRecent(readRecentSearches());
