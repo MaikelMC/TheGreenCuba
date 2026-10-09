@@ -17,6 +17,7 @@ import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
 import { ofertaDe, ofertasVigentes, precioConOferta } from "@/lib/ofertas";
 import { BotonAgregar, PedidoProvider } from "@/components/menu/pedido-whatsapp";
 import { EventosMenu } from "@/components/menu/eventos-menu";
+import { Logo } from "@/components/layout/logo";
 
 /**
  * El menú público: la URL corta y estable que se reparte.
@@ -310,10 +311,20 @@ export default async function MenuPage({
       {/* La isla que cuenta la carta. No pinta nada; ver `EventosMenu`. */}
       <EventosMenu negocioId={place.id} />
       <div className="flex items-center justify-between gap-gap-sm pb-gap-md">
+        {/* El logotipo al lado del nombre, como en la cabecera del mapa: el
+            dibujo se reconoce y el texto lo dice, que en una carta que se abre
+            una vez y sin conocer la marca hace falta.
+
+            Con pastilla de botón —borde, fondo blanco y 44 px de alto—, no
+            suelto: el nombre en verde sobre el fondo se leía como un rótulo más
+            de la carta y no como lo que es, el único enlace que sale del
+            negocio. Es la misma pastilla secundaria que «Llamar» en la ficha de
+            abajo, así que el gesto se aprende una vez. */}
         <Link
           href="/"
-          className="font-lv-display text-small font-bold tracking-[-0.02em] text-verde-700"
+          className="inline-flex h-11 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-verde-700 shadow-soft transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
         >
+          <Logo className="h-[22px] w-auto shrink-0" />
           La Verde
         </Link>
         {showFichaLink && (
@@ -468,9 +479,30 @@ export default async function MenuPage({
         )}
       </section>
 
-      <footer className="mt-gap-lg border-t border-ink/5 pt-gap-md text-meta leading-relaxed text-ink-soft/75">
-        Los precios y la disponibilidad los pone el negocio. La Verde no gestiona
-        los pedidos: se hacen por WhatsApp o por teléfono, como siempre.
+      <footer className="mt-gap-lg border-t border-ink/5 pt-gap-md">
+        {/* La invitación a unirse, en una línea y sin tarjeta: quien llega por
+            un QR viene a ver la carta de un negocio, no a que le vendan una
+            cuenta. El enlace es el mismo gesto que «Ver la ficha completa» de
+            arriba —texto con flecha—, no un botón que compita con la carta. */}
+        <div className="flex flex-wrap items-center justify-between gap-gap-sm">
+          <p className="text-small text-ink-soft/75">
+            Únete a La Verde, descubre lugares en Cuba y obtén tu propio
+            catálogo online.
+          </p>
+          <Link
+            href="/register"
+            className="inline-flex items-center gap-[3px] font-lv-display text-small font-semibold text-verde-700 transition-colors duration-500 ease-outquint hover:text-verde-600"
+          >
+            Crear cuenta
+            <ArrowUpRight size={13} strokeWidth={2} />
+          </Link>
+        </div>
+
+        <p className="mt-gap-md text-meta leading-relaxed text-ink-soft/75">
+          Los precios y la disponibilidad los pone el negocio. La Verde no
+          gestiona los pedidos: se hacen por WhatsApp o por teléfono, como
+          siempre.
+        </p>
       </footer>
     </div>
   );
