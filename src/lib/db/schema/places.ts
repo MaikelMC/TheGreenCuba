@@ -171,6 +171,25 @@ export const places = pgTable(
        El tope sigue estando arriba: sin el plan, esto no importa. */
     pedidosWhatsapp: boolean("pedidos_whatsapp").default(true).notNull(),
 
+    /* ── Sello de negocio verificado ────────────────────────────────────
+       Lo enciende **solo la administración**: la lista blanca del `PATCH`
+       (`toPlaceValues`) lo mapea y la ruta lo tira si quien escribe no es
+       admin, igual que `isActive` y `reviewStatus`. El dueño no puede
+       ponerse el sello a sí mismo.
+
+       `default false` y `notNull`, a diferencia de `energiaRespaldo`: aquí
+       `false` no afirma nada sobre el negocio, solo dice que nadie lo ha
+       verificado todavía —y eso es cierto para toda la tabla anterior a
+       esta columna—.
+
+       La columna **no decide si el sello se pinta**: eso lo cierra el plan
+       (la función `verificado`, Básico+). Ver `selloVerificado` en el
+       mapeo, que es la conjunción de las dos cosas. */
+    verificado: boolean("verificado").default(false).notNull(),
+    /** Cuándo se verificó. Se sella al encender `verificado` y se borra al
+        apagarlo, en `toPlaceValues`; `null` = nunca. */
+    verificadoEn: timestamp("verificado_en"),
+
     /* El plan que eligió el dueño al dar de alta su negocio.
        Nulo a propósito, y sin `default`: solo lo escribe el formulario del
        perfil, así que las fichas de la siembra y las que crea administración

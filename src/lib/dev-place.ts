@@ -17,6 +17,19 @@ import type { UserPlace } from "@/lib/places-store";
  */
 export const DEV_PLACE_ID = "dev-cafe-la-ceiba";
 
+/**
+ * Las fechas del fixture, fijas y no `Date.now()`.
+ *
+ * Una oferta flash se decide por fecha, así que el fixture necesita fechas para
+ * enseñar el tachado —y una ya caducada, para poder ver que el panel la conserva
+ * y la ficha no la pinta—. Escritas a mano y no calculadas: el diff de este
+ * archivo no puede cambiar solo, y una oferta de prueba que caducara en una
+ * semana dejaría de probar nada el mes que viene.
+ */
+const ENERO_2026 = 1767225600000;
+const JUNIO_2026 = 1782782400000;
+const ANIO_2100 = 4102444800000;
+
 /** El nombre de la categoría tiene que existir en `BUSINESS_CATEGORIES`. */
 export function devPlaceEnabled(): boolean {
   return process.env.NODE_ENV !== "production";
@@ -153,6 +166,11 @@ export function devPlace(): UserPlace {
        para que «Lo que ofrece» de la ficha tenga tres páginas que paginar. */
     menu: [
       {
+        /* Con `id` porque lleva encima una oferta flash: es a este `id` al que
+           apunta `ofertas[].productoId`, y sin él el tachado no tendría a qué
+           agarrarse. El resto de la carta va sin `id`, que es como nace lo que
+           escribe el dueño hasta que le cuelga una oferta. */
+        id: "cafe-casa",
         name: "Café de la casa",
         description: "Tostado aquí, molido al momento.",
         price: "150",
@@ -186,6 +204,7 @@ export function devPlace(): UserPlace {
         category: "Cafés",
       },
       {
+        id: "sandwich-jamon",
         name: "Sándwich de jamón",
         description: "Pan de la panadería de enfrente.",
         price: "2.50",
@@ -251,6 +270,37 @@ export function devPlace(): UserPlace {
       text: "Dos cafés por el precio de uno, de 3 a 5 de la tarde.",
       expiry: "31 de diciembre, 2026",
     },
+    /* Dos vivas y una caducada: la primera prueba el tachado por porcentaje, la
+       segunda el precio escrito a mano, y la tercera que el panel conserva lo
+       que la ficha ya no pinta. */
+    ofertas: [
+      {
+        id: "oferta-cafe",
+        productoId: "cafe-casa",
+        titulo: "Café de la casa, 20% menos",
+        descripcion: "Solo por la mañana, hasta agotar el tostado del día.",
+        descuentoPct: 20,
+        inicia: ENERO_2026,
+        termina: ANIO_2100,
+      },
+      {
+        id: "oferta-sandwich",
+        productoId: "sandwich-jamon",
+        titulo: "Sándwich a 2 USD",
+        precioOferta: "2",
+        inicia: ENERO_2026,
+        termina: ANIO_2100,
+      },
+      {
+        id: "oferta-caducada",
+        productoId: "cafe-casa",
+        titulo: "Colada rebajada (ya terminó)",
+        descripcion: "Se quedó aquí para poder reutilizarla cambiándole la fecha.",
+        descuentoPct: 30,
+        inicia: ENERO_2026,
+        termina: JUNIO_2026,
+      },
+    ],
     status: "active",
     /* El fixture nace con los pedidos encendidos, como cualquier ficha: el
        interruptor vive en Ajustes y su dueño lo apaga desde ahí si quiere ver
@@ -258,6 +308,12 @@ export function devPlace(): UserPlace {
     pedidosWhatsapp: true,
     isActive: true,
     reviewStatus: "approved",
+    /* Nace verificado para poder probar el sello **sin tocar la columna**: con
+       el plan del fixture en Gratis no se pinta, y al subirlo a Básico o Pro
+       desde el panel aparece. Es el camino más corto para ver la regla entera
+       —verificado y plan— funcionando. Ver `conSelloVerificado` en
+       `dev-place-server.ts`, que es quien resuelve `selloVerificado`. */
+    verificado: true,
     isBoosted: false,
     boostExpiresAt: "",
     rating: 4.9,

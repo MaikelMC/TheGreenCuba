@@ -6,6 +6,7 @@ import { PlacePopup, getPlacePopupOptions } from "./PlacePopup";
 import { createPlacePinIcon, type PlacePinVariant } from "./pin-icon";
 import { placeIcon } from "@/lib/places";
 import { tieneRespaldo } from "@/lib/energia";
+import { hayOferta } from "@/lib/ofertas";
 import type { MapPlace } from "./types";
 
 interface MapMarkersProps {
@@ -48,6 +49,9 @@ const MarkerItem = memo(function MarkerItem({
     /* El rayo del pin. Un proyecto no lo lleva: su energía no es un dato que
        tenga sentido, y el pin de proyecto ya se distingue por su color. */
     !place.isProject && tieneRespaldo(place.energiaRespaldo),
+    /* Y el `%` de la oferta, al otro hombro. Mismo criterio: una oferta flash
+       rebaja un precio de la carta, y un proyecto no tiene precios que rebajar. */
+    !place.isProject && hayOferta(place.ofertas),
   );
 
   const handleClick = useCallback(() => {

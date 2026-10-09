@@ -13,6 +13,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema/places";
 import { categories } from "@/lib/db/schema/categories";
+import { incluye, planEfectivo, type Plan } from "@/lib/plans";
 import {
   EMBEDDING_DIM,
   generateEmbedding,
@@ -313,6 +314,25 @@ export interface SearchOptions {
 const DEFAULT_CANDIDATES = 30;
 const DEFAULT_LIMIT = 5;
 
+/**
+ * Cuánto sube el score un negocio con la función `prioridad_ia` (Básico y Pro).
+ *
+ * Es un porcentaje **relativo y pequeño** a propósito: la relevancia manda, y
+ * este número solo puede desempatar. Con `0.1`, un lugar con prioridad adelanta
+ * a otro únicamente si venían a menos del 10% de distancia en el score; uno
+ * claramente más relevante —el que la búsqueda encontró mejor— gana igual.
+ * Subirlo mucho rompe esa garantía. Este es el único sitio donde se ajusta.
+ */
+export const BOOST_PRIORIDAD_IA = 0.1;
+
+/** La fila de la consulta: `SearchResultRow` más las columnas de la suscripción. */
+type FilaCandidata = SearchResultRow & {
+  susc_plan: Plan | null;
+  susc_estado: "activa" | "cancelada" | null;
+  susc_trial_hasta: Date | null;
+  susc_vence_en: Date | null;
+};
+
 export async function semanticGeoSearch(
   query: string,
   opts: SearchOptions = {},
@@ -335,7 +355,12 @@ export async function semanticGeoSearch(
       ))))`
     : sql`NULL::double precision`;
 
-  const rows = await db.execute<SearchResultRow>(sql`
+  /* La suscripción se une **solo para el boost de prioridad**: el orden de la
+     consulta sigue siendo la distancia al vector y el `LIMIT` se aplica antes
+     de mirar planes, así que un negocio con prioridad tiene que haber entrado
+     ya entre los `candidates` por su propio parecido. El boost reordena lo que
+     la búsqueda encontró, no mete nada que no estuviera. */
+  const rows = await db.execute<FilaCandidata>(sql`
     SELECT
       p.id,
       p.name,
@@ -343,9 +368,14 @@ export async function semanticGeoSearch(
       p.short_description AS description,
       p.neighborhood,
       ${distanceExpr} AS distance_m,
-      1 - (p.embedding <=> ${literal}::vector) AS similarity
+      1 - (p.embedding <=> ${literal}::vector) AS similarity,
+      s.plan AS susc_plan,
+      s.estado AS susc_estado,
+      s.trial_hasta AS susc_trial_hasta,
+      s.vence_en AS susc_vence_en
     FROM places p
     JOIN categories c ON c.id = p.category_id
+    LEFT JOIN suscripciones s ON s.negocio_id = p.id
     WHERE p.is_active = true
       AND p.embedding IS NOT NULL
       ${origin && opts.radiusM ? sql`AND ${distanceExpr} <= ${opts.radiusM}` : sql``}
@@ -360,18 +390,47 @@ export async function semanticGeoSearch(
      `undefined / 2000` es NaN, el score salía NaN para todas las filas y el
      reordenado por cercanía se quedaba en nada — en silencio, porque las filas
      sí llegaban. */
-  const scored = found
-    .map((p) => ({
-      ...p,
-      score:
-        p.distance_m === null
-          ? p.similarity
-          : p.similarity * 0.6 + (1 / (1 + p.distance_m / 2000)) * 0.4,
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
+  const scored = found.map((p) => {
+    /* Las columnas de la suscripción se quedan aquí: cuentan para ordenar, no
+       para lo que se devuelve. */
+    const { susc_plan, susc_estado, susc_trial_hasta, susc_vence_en, ...place } =
+      p;
 
-  return scored.map(({ score: _score, ...rest }) => rest);
+    const base =
+      place.distance_m === null
+        ? place.similarity
+        : place.similarity * 0.6 + (1 / (1 + place.distance_m / 2000)) * 0.4;
+
+    /* Sin fila en `suscripciones` el plan es gratis, y esa regla —como la de
+       prueba viva o la de pago vencido— no se reescribe aquí: la decide
+       `planEfectivo`, que es la misma que usa el resto del servidor. */
+    const plan = planEfectivo(
+      susc_plan
+        ? {
+            plan: susc_plan,
+            estado: susc_estado === "cancelada" ? "cancelada" : "activa",
+            trialHasta: susc_trial_hasta,
+            venceEn: susc_vence_en,
+          }
+        : null,
+    );
+
+    const conPrioridad = incluye(plan, "prioridad_ia");
+    const score = conPrioridad ? base * (1 + BOOST_PRIORIDAD_IA) : base;
+
+    if (process.env.NODE_ENV !== "production") {
+      console.debug(
+        `[prioridad_ia] ${place.name}: ${base.toFixed(4)} → ${score.toFixed(4)}${conPrioridad ? " (prioridad)" : ""}`,
+      );
+    }
+
+    return { ...place, score };
+  });
+
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(({ score: _score, ...rest }) => rest);
 }
 
 export { places };

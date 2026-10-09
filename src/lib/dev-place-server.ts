@@ -2,7 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { placeOverrides } from "@/lib/db/schema";
 import { DEV_PLACE_ID, devPlace } from "@/lib/dev-place";
-import type { Plan } from "@/lib/plans";
+import { muestraSelloVerificado, type Plan } from "@/lib/plans";
 import type { UserPlace } from "@/lib/places-store";
 
 /**
@@ -42,9 +42,31 @@ export function mergeDevPlace(
   return { ...base, ...override, id: base.id, slug: base.slug };
 }
 
-/** El fixture con la copia del usuario ya aplicada. */
+/**
+ * El sello del fixture, resuelto igual que en el catálogo.
+ *
+ * Hace falta porque el fixture no pasa por `toUserPlace`: los demás negocios
+ * llegan al cliente ya mapeados y este se construye a mano, así que sin esto su
+ * `selloVerificado` no existiría y la ficha del negocio de prueba nunca lo
+ * pintaría.
+ *
+ * Va **después** de fundir la copia del usuario —`verificado` puede venir de
+ * ahí— y es `async` porque el plan vive en `place_overrides` y `mergeDevPlace`
+ * no puede leerlo.
+ */
+export async function conSelloVerificado(place: UserPlace): Promise<UserPlace> {
+  const plan = (await readDevPlacePlan()) ?? "gratis";
+  return {
+    ...place,
+    selloVerificado: muestraSelloVerificado(Boolean(place.verificado), plan),
+  };
+}
+
+/** El fixture con la copia del usuario y su sello ya aplicados. */
 export async function getDevPlaceFor(userId: string): Promise<UserPlace> {
-  return mergeDevPlace(devPlace(), await readDevPlaceOverride(userId));
+  return conSelloVerificado(
+    mergeDevPlace(devPlace(), await readDevPlaceOverride(userId)),
+  );
 }
 
 /**
@@ -73,7 +95,7 @@ export async function saveDevPlaceOverride(
       set: { data, updatedAt: new Date() },
     });
 
-  return mergeDevPlace(devPlace(), data as Partial<UserPlace>);
+  return conSelloVerificado(mergeDevPlace(devPlace(), data as Partial<UserPlace>));
 }
 
 /**

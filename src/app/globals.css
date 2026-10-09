@@ -1165,3 +1165,21 @@ html[data-theme="dark"]
     transform: none;
   }
 }
+
+/* Avisos flotantes: solo los nuestros.
+   `NeonAuthUIProvider` —de `@neondatabase/auth-ui`— monta **su propio**
+   `<Toaster />` de sonner además del de `layout.tsx`, y envuelve toda la app.
+   Los dos leen el mismo almacén de sonner, así que cada `toast()` se pintaba
+   dos veces: una pastilla por cada toaster.
+
+   El que se queda es el de `layout.tsx`, el único con el diseño del sistema y
+   con el `mobileOffset` que lo sube por encima de la barra inferior. Al del
+   paquete se le esconde, y `.lv-toaster` es la marca que los distingue —el
+   `className` del `<Toaster>` acaba justo en este `<ol>`—.
+
+   Y no hay más salida: el toaster de dentro del proveedor está escrito a fuego
+   en su código (`children: [children, jsx(Toaster, {})]`) y no acepta nada por
+   props que lo apague. */
+[data-sonner-toaster]:not(.lv-toaster) {
+  display: none;
+}

@@ -14,6 +14,7 @@ import { incluye } from "@/lib/plans";
 import { planEfectivoDe } from "@/lib/plans-server";
 import { cn, currencyLabel, formatMenuPrice, slugify } from "@/lib/utils";
 import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
+import { ofertaDe, ofertasVigentes, precioConOferta } from "@/lib/ofertas";
 import { BotonAgregar, PedidoProvider } from "@/components/menu/pedido-whatsapp";
 import { EventosMenu } from "@/components/menu/eventos-menu";
 
@@ -114,6 +115,7 @@ function MenuRow({
   item,
   productoId,
   pedible,
+  oferta,
 }: {
   item: {
     name: string;
@@ -130,8 +132,14 @@ function MenuRow({
   productoId: string;
   /** `true` si el plan incluye pedidos y el producto se puede pedir hoy. */
   pedible: boolean;
+  /**
+   * El precio de la oferta flash, ya resuelto arriba. `undefined` cuando no hay
+   * ninguna viva sobre este producto o cuando no hay cifra que tachar.
+   */
+  oferta?: { de: string; por: string };
 }) {
   const priceText = formatMenuPrice(item.price, item.currency);
+  const enOferta = Boolean(oferta && priceText);
   /* Agotado no es «no está»: el producto sigue en la carta, apagado y con la
      etiqueta, para que quien lo buscaba sepa que hoy no hay sin creer que
      desapareció del menú. */
@@ -172,6 +180,11 @@ function MenuRow({
           <span className="font-lv-display text-small font-semibold text-ink">
             {item.name}
           </span>
+          {enOferta && (
+            <span className="rounded-full bg-verde-400 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-verde-950">
+              Oferta
+            </span>
+          )}
           {agotado && (
             <span className="rounded-full bg-destructive/10 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-destructive">
               Agotado
@@ -185,10 +198,21 @@ function MenuRow({
         )}
         {(priceText || item.tag) && (
           <div className="mt-[6px] flex items-center gap-gap-xs">
-            {priceText && (
-              <span className="font-lv-display text-small font-semibold text-ink">
-                {priceText}
+            {enOferta && oferta ? (
+              <span className="flex items-baseline gap-gap-xs">
+                <span className="font-lv-display text-meta text-ink-soft/60 line-through">
+                  {formatMenuPrice(oferta.de, item.currency)}
+                </span>
+                <span className="font-lv-display text-small font-semibold text-verde-600">
+                  {formatMenuPrice(oferta.por, item.currency)}
+                </span>
               </span>
+            ) : (
+              priceText && (
+                <span className="font-lv-display text-small font-semibold text-ink">
+                  {priceText}
+                </span>
+              )
             )}
             {item.tag && (
               <span className="ml-auto rounded-full bg-verde-100 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-verde-700">
@@ -205,7 +229,10 @@ function MenuRow({
             producto={{
               id: productoId,
               name: item.name,
-              price: item.price,
+              /* El precio que va al pedido es el de la oferta: el carrito arma
+                 el mensaje de WhatsApp con esta cifra, y mandarle el de la
+                 carta sería pedirle al cliente que pague de más. */
+              price: enOferta && oferta ? oferta.por : item.price,
               currency: item.currency,
             }}
           />
@@ -251,6 +278,12 @@ export default async function MenuPage({
     place.pedidosWhatsapp &&
     Boolean(place.whatsapp?.trim()) &&
     incluye(await planEfectivoDe(place.id), "whatsapp_pedido");
+
+  /* Las ofertas vivas, filtradas una vez con el «ahora» de esta petición. La
+     carta se sirve sin caché de Next —esta página no está en `unstable_cache`—
+     así que una oferta que caduque deja de salir en la siguiente visita, sin
+     cron y sin escribir nada. Ver `src/lib/ofertas.ts`. */
+  const ofertas = ofertasVigentes(place.ofertas);
 
   /* Agrupación estable por categoría, en el orden en que el dueño la escribió.
      `Map` conserva la inserción, así que «Entrantes» sale antes que «Postres»
@@ -408,16 +441,26 @@ export default async function MenuPage({
                   </h3>
                 )}
                 <div className="rounded-3xl border border-ink/5 bg-white px-gap-md shadow-soft">
-                  {group.items.map((item, index) => (
-                    <MenuRow
-                      key={`${item.name}-${index}`}
-                      item={item}
-                      /* Las entradas nuevas ya traen `id`; las viejas no, y ahí
-                         el nombre con su posición es lo único estable que hay. */
-                      productoId={item.id ?? `${item.name}-${index}`}
-                      pedible={puedePedir && !estaAgotado(item)}
-                    />
-                  ))}
+                  {group.items.map((item, index) => {
+                    /* El mismo emparejado que hace la ficha: por `id` del
+                       producto, que es lo que guarda la oferta. */
+                    const oferta = item.id ? ofertaDe(ofertas, item.id) : undefined;
+                    return (
+                      <MenuRow
+                        key={`${item.name}-${index}`}
+                        item={item}
+                        /* Las entradas nuevas ya traen `id`; las viejas no, y ahí
+                           el nombre con su posición es lo único estable que hay. */
+                        productoId={item.id ?? `${item.name}-${index}`}
+                        pedible={puedePedir && !estaAgotado(item)}
+                        oferta={
+                          oferta
+                            ? (precioConOferta(item.price, oferta) ?? undefined)
+                            : undefined
+                        }
+                      />
+                    );
+                  })}
                 </div>
               </div>
             ))}

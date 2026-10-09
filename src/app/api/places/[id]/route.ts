@@ -9,8 +9,9 @@ import { DEV_PLACE_ID } from "@/lib/dev-place";
 import { saveDevPlaceOverride } from "@/lib/dev-place-server";
 import { trackEvent } from "@/lib/analytics/events";
 import { db } from "@/lib/db";
-import { businessOwners, notifications, places, users } from "@/lib/db/schema";
+import { businessOwners, notifications, ofertas, places, users } from "@/lib/db/schema";
 import { generateId } from "@/lib/utils";
+import { validarOferta } from "@/lib/ofertas";
 import { toPlaceValues, toUserPlace } from "@/lib/db/mappers";
 import { CATALOG_TAG, getPlaceById, resolveCategoryId } from "@/lib/db/queries";
 import { limite, puede } from "@/lib/plans-server";
@@ -19,7 +20,7 @@ import {
   notifyOwnerBusinessApproved,
   notifyOwnerBusinessRejected,
 } from "@/lib/email";
-import type { UserPlace } from "@/lib/places-store";
+import type { UserPlace, UserPlaceOferta } from "@/lib/places-store";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -122,17 +123,23 @@ export async function PATCH(req: NextRequest, { params }: Params) {
      que un plan abra funciones de pago este es el `PATCH` que se regalaría el
      ascenso.
 
+     `verificado` también: el sello lo pone la administración, y el dueño que lo
+     mandara desde la consola se lo colgaría sin que nadie lo revisara. El
+     formulario del admin —el único que lo escribe— sí pasa la comprobación.
+
      La comprobación va solo cuando alguno de los dos campos viene, que es el
      caso raro: la aprobación desde `/admin` y los scripts con `x-admin-key`. */
   if (
     (body.isActive !== undefined ||
       body.plan !== undefined ||
-      body.reviewStatus !== undefined) &&
+      body.reviewStatus !== undefined ||
+      body.verificado !== undefined) &&
     !(await isAdminRequest(req))
   ) {
     delete body.isActive;
     delete body.plan;
     delete body.reviewStatus;
+    delete body.verificado;
   }
 
   const name = typeof body.name === "string" ? body.name.trim() : undefined;
@@ -216,6 +223,78 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         agotadoHasta: before?.agotadoHasta,
       };
     });
+  }
+
+  /* Las ofertas flash viven en su propia tabla, así que no pasan por
+     `toPlaceValues` —que escribe columnas de `places`— y se guardan aquí
+     aparte, igual que el menú. El panel manda la lista entera en cada guardado,
+     así que se **reemplaza**: borrar las del negocio e insertar las que vienen.
+     Los `id` son del cliente y estables, pero el `createdAt` se reescribe en
+     cada guardado; no se enseña por ningún lado.
+
+     ponytail: dos sentencias y no una transacción —que el driver HTTP de Neon
+     no ofrece—. Si el proceso muere entre las dos, el negocio se queda sin
+     ofertas y el panel lo dice al no recibir respuesta. */
+  if (Array.isArray(body.ofertas)) {
+    const limpias: UserPlaceOferta[] = [];
+    for (const entrada of body.ofertas) {
+      const resultado = validarOferta(entrada);
+      if (typeof resultado === "string") {
+        return NextResponse.json({ error: resultado }, { status: 400 });
+      }
+      limpias.push(resultado);
+    }
+
+    /* Las comprobaciones de plan solo cuando queda alguna oferta, y esto no es
+       un atajo: el panel manda la lista entera en **cada** guardado, así que un
+       negocio en Gratis —cuyo tope es 0— no podría guardar ni el horario por
+       llevar `ofertas: []` en el cuerpo. Vaciar la lista vale siempre; es el
+       estado al que apunta bajar de plan. */
+    if (limpias.length > 0) {
+      /* Primero el permiso, después el tope. Los dos van juntos porque el tope
+         solo no basta: en Gratis y Básico `ofertas_vigentes_max` es 0, y el
+         dueño leería «tu plan permite hasta 0 ofertas», que no explica nada. */
+      if (!(await puede(id, "ofertas_flash"))) {
+        return NextResponse.json(
+          { error: "Las ofertas flash están disponibles en el plan Pro." },
+          { status: 403 },
+        );
+      }
+
+      /* El tope cuenta las que **no han caducado**, no solo las vivas: una
+         oferta programada para mañana ocupa el mismo sitio que una de hoy, y
+         contarla aparte dejaría colar una lista entera de futuras. */
+      const tope = await limite(id, "ofertas_vigentes_max");
+      if (tope !== null) {
+        const ahora = Date.now();
+        const enPie = limpias.filter((o) => o.termina > ahora).length;
+        if (enPie > tope) {
+          return NextResponse.json(
+            {
+              error: `Tu plan permite ${tope} ofertas a la vez. Quita alguna o espera a que caduque.`,
+            },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
+    await db.delete(ofertas).where(eq(ofertas.negocioId, id));
+    if (limpias.length > 0) {
+      await db.insert(ofertas).values(
+        limpias.map((o) => ({
+          ...o,
+          negocioId: id,
+          descripcion: o.descripcion ?? null,
+          precioOferta: o.precioOferta ?? null,
+          descuentoPct: o.descuentoPct ?? null,
+          /* Epoch en ms en el cliente, `Date` en la columna: el mapeo lo hace
+             aquí porque esta es la única puerta de escritura. */
+          inicia: new Date(o.inicia),
+          termina: new Date(o.termina),
+        })),
+      );
+    }
   }
 
   /* Solo se resuelve la categoría si el cuerpo la trae. Si no viene, `values`

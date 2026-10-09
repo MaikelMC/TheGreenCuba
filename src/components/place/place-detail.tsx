@@ -50,10 +50,13 @@ import { resolveCategoryIcon } from "@/lib/category-icons";
 import type { Disponibilidad } from "@/lib/disponibilidad";
 import type { EnergiaRespaldo } from "@/lib/energia";
 import { EnergiaBadge } from "./energia-badge";
+import { SelloVerificado } from "./sello-verificado";
 
-export type PlaceState = "normal" | "closed" | "no-photos" | "special-offer";
+export type PlaceState = "normal" | "closed" | "no-photos" | "oferta";
 
 interface PlaceMenu {
+  /** El `id` de la entrada original. Es lo que enlaza la oferta con su fila. */
+  id?: string;
   name: string;
   description: string;
   /** Texto libre. Ver `UserPlaceMenuItem`: no es un número. */
@@ -69,6 +72,26 @@ interface PlaceMenu {
   /** «Hoy hay». Ver `UserPlaceMenuItem` y `disponibilidad.ts`. */
   disponibilidad?: Disponibilidad;
   agotadoHasta?: number | null;
+  /**
+   * El precio que se tacha y el rebajado, ya resueltos —con la moneda puesta—
+   * por `precioConOferta` al construir el `PlaceData`. La fila no calcula nada.
+   */
+  oferta?: { de: string; por: string };
+}
+
+/**
+ * Una oferta flash ya resuelta para pintar: sin fechas crudas y sin carta a
+ * mano. Ver `ofertas` en `PlaceData`.
+ */
+export interface PlaceOffer {
+  id: string;
+  titulo: string;
+  descripcion?: string;
+  /** «Termina el 12 de octubre, 19:30», ya en texto. */
+  termina: string;
+  /** El precio de antes y el de ahora, con la moneda. Sin cifra que tachar, no
+      viene —y la tarjeta se sostiene con el título y la fecha—. */
+  precio?: { de: string; por: string };
 }
 
 export interface PlaceData {
@@ -103,6 +126,12 @@ export interface PlaceData {
   notaApagon?: string;
   icon?: string;
   isBoosted?: boolean;
+  /**
+   * Sello de negocio verificado, **ya resuelto**: la administración lo verificó
+   * y el plan lo incluye. La ficha solo lo pinta; la decisión está en el servidor
+   * (ver `SelloVerificado` y `selloVerificado` en el mapeo).
+   */
+  selloVerificado?: boolean;
   slides: Slide[];
   menu: PlaceMenu[];
   /**
@@ -112,11 +141,14 @@ export interface PlaceData {
    * bloque vacío en su ficha.
    */
   contact: ContactLinks;
-  specialOffer?: {
-    label: string;
-    text: string;
-    expiry: string;
-  };
+  /**
+   * Las ofertas flash vivas del negocio, ya resueltas.
+   *
+   * Llegan solo las vigentes y en orden de caducidad —lo hace `ofertasVigentes`
+   * al construir el `PlaceData`—, así que aquí no hay nada que filtrar ni que
+   * ordenar: si hay alguna, se pintan todas.
+   */
+  ofertas?: PlaceOffer[];
 }
 
 interface PlaceDetailProps {
@@ -247,10 +279,9 @@ export function PlaceDetail({
      del elemento cubre el fotograma de antes de que esto mida. */
   const isClosed =
     !place.isProject &&
-    (state === "closed" || (!place.isOpen && state !== "special-offer"));
+    (state === "closed" || (!place.isOpen && state !== "oferta"));
   const hasPhotos = state !== "no-photos" && place.slides.length > 0;
-  const showOffer =
-    !place.isProject && state === "special-offer" && place.specialOffer;
+  const ofertas = place.isProject ? [] : (place.ofertas ?? []);
   const projectPhotos = place.slides.filter((slide) => Boolean(slide.url));
   const activeProjectPhoto =
     projectPhotoIndex === null
@@ -428,6 +459,11 @@ export function PlaceDetail({
             energia={place.energiaRespaldo}
             nota={place.notaApagon}
           />
+          {/* El sello va al lado de la energía y no sobre el nombre: la franja es
+              donde la ficha acumula los datos que deciden, y el nombre ya lleva
+              la pastilla de abierto/cerrado. Sin `selloVerificado` no pinta
+              nada. */}
+          {place.selloVerificado && <SelloVerificado />}
         </Reveal>
 
         {/* Row 3: Two columns */}
@@ -447,15 +483,21 @@ export function PlaceDetail({
                 mapeados, así que ahí simplemente no se pinta. */}
             <ContactCard place={place} />
 
-            {/* Special Offer */}
-            {showOffer && place.specialOffer && (
+            {/* Ofertas flash */}
+            {ofertas.map((oferta) => (
               <OfferBanner
-                label={place.specialOffer.label}
-                text={place.specialOffer.text}
-                expiry={place.specialOffer.expiry}
+                key={oferta.id}
+                label="Oferta"
+                text={oferta.titulo}
+                description={oferta.descripcion}
+                precio={oferta.precio}
+                expiry={oferta.termina}
                 visible
+                /* En la barra lateral la tarjeta ya viene con su margen; el
+                   `mb-gap-md` de serie duplicaría la separación del `gap`. */
+                className="mb-0"
               />
-            )}
+            ))}
           </Reveal>
 
           {/* ── Right Column (main content) ── */}
@@ -717,6 +759,11 @@ export function PlaceDetail({
                     nota={place.notaApagon}
                     className="mt-gap-xs"
                   />
+                  {/* Móvil: la franja de datos de escritorio no existe aquí, así
+                      que el sello viaja con la energía bajo el nombre. */}
+                  {place.selloVerificado && (
+                    <SelloVerificado className="mt-gap-xs" />
+                  )}
                 </div>
               </div>
               {/* `flex-wrap` porque las cuatro acciones no siempre caben en la
@@ -867,18 +914,23 @@ export function PlaceDetail({
             />
           </Reveal>
 
-          {/* Special Offer Banner. El `div` es solo el fondo: la tarjeta seguía
+          {/* Ofertas flash. El `div` es solo el fondo: la tarjeta seguía
               sobre el `bg-sand` de la página y cortaba la banda. El relleno es
               de arriba porque el `mb-gap-md` de la tarjeta ya deja el de abajo. */}
-          {showOffer && place.specialOffer && (
+          {ofertas.length > 0 && (
             <Reveal>
               <div className="bg-sand-warm pt-gap-md">
-                <OfferBanner
-                  label={place.specialOffer.label}
-                  text={place.specialOffer.text}
-                  expiry={place.specialOffer.expiry}
-                  visible
-                />
+                {ofertas.map((oferta) => (
+                  <OfferBanner
+                    key={oferta.id}
+                    label="Oferta"
+                    text={oferta.titulo}
+                    description={oferta.descripcion}
+                    precio={oferta.precio}
+                    expiry={oferta.termina}
+                    visible
+                  />
+                ))}
               </div>
             </Reveal>
           )}

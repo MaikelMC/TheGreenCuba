@@ -100,6 +100,39 @@ export interface UserPlaceOffer {
 }
 
 /**
+ * Una oferta flash: la rebaja de un producto de la carta, con fecha de
+ * caducidad.
+ *
+ * Es lo que sustituye al cartel de texto de `UserPlaceOffer`, que sigue vivo
+ * **solo para los proyectos** —que ofrecen un paquete, no un plato—.
+ *
+ * Las fechas van en **epoch ms**, como el resto del tipo (`createdAt`): el mapeo
+ * corre en el servidor y el cliente no ve nunca un `Date`.
+ */
+export interface UserPlaceOferta {
+  id: string;
+  /**
+   * El `id` de la entrada de `menu` a la que apunta. La carta no es una tabla,
+   * así que esto es una referencia de convención y no una clave foránea: un
+   * producto borrado deja la oferta huérfana hasta que el dueño la quite.
+   */
+  productoId: string;
+  titulo: string;
+  descripcion?: string;
+  /**
+   * Precio rebajado, tal como lo escribe el dueño —texto, como el de la carta—.
+   * Es **uno de los dos**: o esto o `descuentoPct`.
+   */
+  precioOferta?: string;
+  /** Rebaja en tanto por ciento (1–99). La alternativa a `precioOferta`. */
+  descuentoPct?: number;
+  /** Cuándo empieza a valer. */
+  inicia: number;
+  /** Cuándo deja de valer. Exclusivo: en ese instante ya no está vigente. */
+  termina: number;
+}
+
+/**
  * Una foto subida del negocio.
  *
  * La `url` es la del bucket, entera. El cliente no sabe nada de R2: no ve la
@@ -192,6 +225,13 @@ export interface UserPlace {
   payments: string[];
   menu: UserPlaceMenuItem[];
   offer: UserPlaceOffer | null;
+  /**
+   * Las ofertas flash del negocio, **con las caducadas dentro**: el filtro por
+   * vigencia se hace al leer (`ofertasVigentes`), así que una oferta terminada
+   * sigue en la lista y el dueño la puede reutilizar cambiándole la fecha. La
+   * base no borra nada al caducar.
+   */
+  ofertas?: UserPlaceOferta[];
   offerPackages?: ProjectOfferPackage[];
   status: PlaceStatus;
   /**
@@ -226,6 +266,23 @@ export interface UserPlace {
    */
   isActive: boolean;
   reviewStatus: PlaceReviewStatus;
+  /**
+   * Si la administración ha verificado el negocio. **Es la columna cruda**: la
+   * escribe solo el panel de administración —`toPlaceValues` la mapea y la ruta
+   * se la tira a cualquier otro—, así que un `PATCH` del dueño no se pone el
+   * sello a sí mismo.
+   *
+   * No es lo mismo que `selloVerificado`, y por eso son dos campos: esta dice lo
+   * que decidió la administración, la otra lo que se pinta. El panel edita esta.
+   */
+  verificado?: boolean;
+  /**
+   * Lo que decide si el sello se pinta: `verificado` **y** que el plan del
+   * negocio incluya la función (Básico+). Lo calcula el servidor al mapear la
+   * fila, así que un negocio que baja de plan pierde el sello sin que nadie
+   * toque la columna —y sin que un cliente pueda encenderlo por su cuenta—.
+   */
+  selloVerificado?: boolean;
   isBoosted: boolean;
   boostExpiresAt: string;
   rating?: number;

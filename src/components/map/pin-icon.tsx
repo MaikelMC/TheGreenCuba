@@ -1,5 +1,6 @@
 import { divIcon } from "leaflet";
 import { renderToStaticMarkup } from "react-dom/server";
+import { Percent } from "lucide-react";
 import {
   DEFAULT_CATEGORY_ICON,
   isKnownIcon,
@@ -103,15 +104,38 @@ const ENERGIA_BADGE_MARKUP = `
     <path d="M19.9 3.3 17.8 6.05h1.5l-.9 1.75L20.6 5.1h-1.5z" fill="#08130D"/>
   </g>`;
 
+/**
+ * El símbolo de la oferta: un disco blanco con un `%`, en el hombro **izquierdo**
+ * de la gota.
+ *
+ * Al lado contrario del rayo, y no es un detalle: un negocio puede tener las dos
+ * cosas a la vez —planta eléctrica y oferta— y apiladas en el mismo hombro el
+ * segundo disco taparía al primero. El símbolo sale del mismo Lucide que los
+ * iconos de categoría y se convierte igual, para no dibujar a mano un `%` que ya
+ * existe en la librería.
+ */
+function ofertaBadgeMarkup(): string {
+  const glyph = renderToStaticMarkup(
+    <Percent size={24} strokeWidth={3} color="#08130D" />,
+  );
+  const scale = 5 / 24;
+  return `
+  <g>
+    <circle cx="4.8" cy="5.4" r="4.4" fill="white" stroke="#08130D" stroke-width="0.9"/>
+    <g transform="translate(4.8 5.4) scale(${scale.toFixed(4)}) translate(-12 -12)">${glyph}</g>
+  </g>`;
+}
+
 function buildPin(
   variant: PlacePinVariant,
   iconKey: string,
   imageUrl?: string,
   conEnergia = false,
+  conOferta = false,
 ) {
   const { width, height, discR, ring, top, bottom } = PIN_STYLES[variant];
   const key = isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON;
-  const id = `lv-pin-${variant}-${key}${conEnergia ? "-e" : ""}`;
+  const id = `lv-pin-${variant}-${key}${conEnergia ? "-e" : ""}${conOferta ? "-o" : ""}`;
   const photoRadius = Math.max(3, discR - 1);
   const clipId = imageUrl ? imageClipId(imageUrl) : "";
   const centerContent = imageUrl
@@ -134,6 +158,7 @@ function buildPin(
         ${centerContent}
         ${ring ? `<circle cx="12" cy="12" r="8" fill="none" stroke="${PIN_STYLES[variant].ringColor ?? "rgba(53,175,109,0.4)"}" stroke-width="2"/>` : ""}
         ${conEnergia ? ENERGIA_BADGE_MARKUP : ""}
+        ${conOferta ? ofertaBadgeMarkup() : ""}
       </svg>
     </div>`;
 
@@ -145,19 +170,21 @@ function buildPin(
   });
 }
 
-/* La clave lleva la variante, el icono, la foto y el rayo: dos negocios
-   distintos comparten variante pero no dibujo. */
+/* La clave lleva la variante, el icono, la foto, el rayo y la oferta: dos
+   negocios distintos comparten variante pero no dibujo. */
 const ICON_CACHE: Record<string, ReturnType<typeof buildPin>> = {};
 
-/** Icono de lugar para el mapa, cacheado por variante, icono y respaldo. */
+/** Icono de lugar para el mapa, cacheado por variante, icono, respaldo y oferta. */
 export function createPlacePinIcon(
   variant: PlacePinVariant = "default",
   iconKey: string = DEFAULT_CATEGORY_ICON,
   imageUrl?: string,
   /** Si el negocio tiene energía de respaldo. Ver `src/lib/energia.ts`. */
   conEnergia = false,
+  /** Si tiene alguna oferta flash viva. Ver `hayOferta` en `src/lib/ofertas.ts`. */
+  conOferta = false,
 ) {
-  const cacheKey = `${variant}:${isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON}:${imageUrl ?? ""}:${conEnergia ? "e" : ""}`;
-  ICON_CACHE[cacheKey] ??= buildPin(variant, iconKey, imageUrl, conEnergia);
+  const cacheKey = `${variant}:${isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON}:${imageUrl ?? ""}:${conEnergia ? "e" : ""}:${conOferta ? "o" : ""}`;
+  ICON_CACHE[cacheKey] ??= buildPin(variant, iconKey, imageUrl, conEnergia, conOferta);
   return ICON_CACHE[cacheKey]!;
 }

@@ -17,4 +17,5 @@ export * from "./contacts";
 export * from "./analytics";
 export * from "./eventos";
 export * from "./suscripciones";
+export * from "./ofertas";
 export * from "./place_overrides";

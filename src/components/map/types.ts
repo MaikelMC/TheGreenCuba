@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { RouteResult, RoutePoint } from "@/lib/map/routing";
 import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
 import type { EnergiaRespaldo } from "@/lib/energia";
+import type { UserPlaceOferta } from "@/lib/places-store";
 
 export interface MapPlace {
   id: string;
@@ -24,6 +25,14 @@ export interface MapPlace {
   tags?: { label: string; variant?: string }[];
   /** Energía de respaldo del negocio. `null`/ausente = el dueño no lo dijo. */
   energiaRespaldo?: EnergiaRespaldo | null;
+  /**
+   * Las ofertas flash del negocio, **todas** —también las caducadas—.
+   *
+   * El pin solo pregunta si hay alguna viva (`hayOferta`), y lo pregunta con el
+   * «ahora» del render: el catálogo del cliente se refresca sin recargar la
+   * página, así que un pin puede perder su `%` solo, sin volver a pedir nada.
+   */
+  ofertas?: UserPlaceOferta[];
   /** Nota corta sobre los apagones, para el `title` de la etiqueta. */
   notaApagon?: string;
 }

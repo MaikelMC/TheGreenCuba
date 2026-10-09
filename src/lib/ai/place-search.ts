@@ -29,7 +29,9 @@ import { explicitRadiusM } from "./query-radius";
  *    extracción antes sería pagar dos veces por lo mismo y añadir un punto de
  *    fallo.
  * 2. **La cercanía manda sobre la similitud.** De eso se encarga el score de
- *    `semanticGeoSearch`; aquí no se vuelve a reordenar.
+ *    `semanticGeoSearch`; aquí no se vuelve a reordenar. El único ajuste de
+ *    plan que lleva ese score —la prioridad de `prioridad_ia`— también vive
+ *    allí, para que no haya dos listas ordenadas por reglas distintas.
  */
 
 export interface SearchResult {

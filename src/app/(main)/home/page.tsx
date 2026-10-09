@@ -59,6 +59,7 @@ import type { MapPlace } from "@/components/map/types";
 import { usePlaces } from "@/providers/places-provider";
 import { placeIcon, type BusinessCategory } from "@/lib/places";
 import { matchesPlaceFilters } from "@/lib/place-filters";
+import { hayOferta } from "@/lib/ofertas";
 import { energiaParaIA } from "@/lib/energia";
 import type { UserPlace, UserPlaceMenuItem } from "@/lib/places-store";
 import {
@@ -200,6 +201,12 @@ function userPlaceToHomePlace(
       variant: p.status === "active" ? "open" : "default",
     },
   ];
+  if (p.selloVerificado)
+    tags.push({ label: "Verificado", variant: "open" });
+  /* Va antes que «Destacado» y «USD Clásica» a propósito: de una tarjeta se
+     leen dos o tres chapitas, y una oferta que caduca hoy importa más que el
+     medio de pago. */
+  if (hayOferta(p.ofertas)) tags.push({ label: "Oferta", variant: "open" });
   if (p.isBoosted) tags.push({ label: "Destacado" });
   if (p.payments.includes("MLC"))
     tags.push({ label: "USD Clásica", variant: "mlc" });
@@ -762,16 +769,32 @@ function HomePageContent() {
            durante un apagón, y en el mapa se ve antes que en la ficha. */
         energiaRespaldo: p.energiaRespaldo ?? null,
         notaApagon: p.notaApagon,
+        /* Las ofertas viajan enteras al pin: quién decide si hay alguna viva es
+           `hayOferta`, en el marcador, para que el `%` desaparezca solo cuando
+           caduque sin volver a pedir el catálogo. */
+        ofertas: p.ofertas,
         /* El popup de un proyecto enseña sus fechas en lugar del precio: es el
            dato que decide si se va, y el proyecto no tiene precio de carta. */
         schedule:
           p.isProject && p.schedule ? formatDateRange(p.schedule) : undefined,
         tags: [
+          /* Mismo sello que en la lista de resultados, y por el mismo motivo:
+             `selloVerificado` es lo que ya decidió el servidor —verificado y plan
+             que lo incluye—. En el popup del mapa se ve antes que en la ficha. */
+          ...(p.selloVerificado
+            ? [{ label: "Verificado", variant: "open" as const }]
+            : []),
           ...(p.isBoosted
             ? [{ label: "Destacado", variant: "open" as const }]
             : []),
           ...(p.payments.includes("MLC")
             ? [{ label: "USD Clásica", variant: "mlc" as const }]
+            : []),
+          /* «Oferta» en verde y no en arena: es lo que hace mirar la ficha
+             ahora mismo. Solo si hay alguna viva —una caducada no anuncia
+             nada—. Ver `hayOferta`. */
+          ...(hayOferta(p.ofertas)
+            ? [{ label: "Oferta", variant: "open" as const }]
             : []),
         ],
       })),

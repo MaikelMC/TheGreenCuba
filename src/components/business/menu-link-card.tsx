@@ -16,8 +16,43 @@ const INK = "#08130D";
 /** Zona de silencio del QR, en módulos. Cuatro por lado, como manda el estándar. */
 const QUIET = 4;
 
-/** El texto que va bajo el QR cuando el plan no quita la marca. */
+/** El rótulo que va bajo el QR en pantalla. */
 const BRAND_TEXT = "Encuéntranos en La Verde";
+
+/* La paleta del sticker, en hex y no en clases de Tailwind: esto se dibuja fuera
+   de React y acaba impreso, así que no hay CSS que valga. Son `verde-400` y
+   `verde-950` del sistema. */
+const VERDE = "#35AF6D";
+const VERDE_TINTA = "#052017";
+
+/* El marco, medido en **módulos del QR** —la unidad que ya usa el código del
+   propio QR—. Así crece solo con la versión del código y no hay ni un número
+   elegido a ojo contra un tamaño de pantalla. */
+const MARGEN = 4; // verde alrededor del panel blanco
+const BANDA_ARRIBA = 9; // el nombre del negocio
+const BANDA_ABAJO = 9; // la firma
+const RADIO = 6; // esquinas del marco
+const RADIO_PANEL = 3; // esquinas del panel blanco
+
+/* La firma de abajo: el logotipo y el nombre, centrados. */
+const ETIQUETA = "La Verde";
+const ALTO_LOGO = 4.2; // alto del logotipo, en módulos
+const RELACION_LOGO = 256 / 267; // la proporción de `public/logo.png`
+const HUECO = 1.2; // entre el logotipo y el nombre
+const CUERPO_FIRMA = 3.4; // el nombre de la firma
+const PADDING_PASTILLA = 1.4; // alrededor del contenido, dentro de la pastilla
+const PADDING_VERTICAL = 1.1;
+
+/* La display del design system, la misma de los titulares. El nombre de familia
+   suelto no vale —`next/font` la registra con un hash—, así que dentro del SVG
+   se declara otra vez con `@font-face` y este es el nombre que se le da. Las
+   que van detrás son el relevo: si el archivo no llegó a incrustarse, el texto
+   sigue saliendo. */
+const FAMILIA = "LVDisplay";
+const FUENTE = `${FAMILIA}, 'Space Grotesk', system-ui, sans-serif`;
+
+/** El ancho del PNG, en píxeles. El alto sale de la proporción del sticker. */
+const ANCHO_PNG = 1024;
 
 /** Botón de la casa: los mismos 44 px y el mismo borde que el resto del panel. */
 const BTN =
@@ -43,39 +78,251 @@ function qrModules(svg: SVGSVGElement): number {
 }
 
 /**
- * El SVG final, con su zona de silencio y —si toca— la marca.
+ * Las medidas del sticker, en módulos del QR.
  *
- * Se envuelve el SVG del componente en otro mayor en vez de retocarlo: el
- * original solo pinta los cuadros, así que el margen blanco y el texto van
- * fuera, en unidades de módulo, y así el resultado escala limpio a cualquier
- * tamaño.
+ * Una sola vez para los dos formatos: el SVG escribe estos números como
+ * atributos y el PNG los usa para calcular el lienzo. Con dos juegos de cuentas
+ * el PNG y el SVG se separarían al primer retoque del marco.
+ *
+ * `x` e `y` son la esquina del panel blanco —el que **es** la zona de silencio
+ * del QR—, y son lo único que cambia entre las dos versiones: con marco el panel
+ * va metido dentro —banda arriba para el nombre, margen verde alrededor—, y sin
+ * marco el panel es ya todo el sticker.
  */
-function buildSvgString(svg: SVGSVGElement, branded: boolean): string {
-  const modules = qrModules(svg);
-  const total = modules + QUIET * 2;
-  const captionH = branded ? 7 : 0;
-  const height = total + captionH;
+function medidas(modulos: number, marco: boolean) {
+  const panel = modulos + QUIET * 2;
+  const x = marco ? MARGEN : 0;
+  const y = marco ? BANDA_ARRIBA : 0;
+  return {
+    /** El panel blanco. **Es** la zona de silencio del QR, no un adorno. */
+    panel,
+    x,
+    y,
+    ancho: panel + x * 2,
+    alto: y + panel + BANDA_ABAJO,
+  };
+}
 
-  const inner = svg.cloneNode(true) as SVGSVGElement;
-  inner.removeAttribute("height");
-  inner.removeAttribute("width");
-  inner.setAttribute("x", String(QUIET));
-  inner.setAttribute("y", String(QUIET));
-  inner.setAttribute("width", String(modules));
-  inner.setAttribute("height", String(modules));
+/**
+ * El ancho de un texto, en em.
+ *
+ * ponytail: se **mide** con un lienzo en vez de estimarlo con un ancho medio por
+ * letra. En el SVG el texto es una cadena y no hay nada que medir, y con dos
+ * cuentas distintas —una a ojo para el SVG y otra real para el PNG— el archivo y
+ * la pantalla saldrían descuadrados entre sí. El lienzo sí puede medir, y mide
+ * con la misma familia que se incrusta, así que el número vale para los dos.
+ *
+ * A 100px de cuerpo para que el resultado salga ya en em y sirva para cualquier
+ * tamaño. El lienzo se crea y se tira: no se guarda, mide un par de cadenas.
+ */
+function anchoEm(texto: string, peso: number): number {
+  const ctx = document.createElement("canvas").getContext("2d");
+  /* Sin lienzo no hay medida; la estimación por letra es el último recurso. */
+  if (!ctx) return texto.length * 0.6;
+  const display = getComputedStyle(document.body)
+    .getPropertyValue("--font-lv-display")
+    .trim();
+  /* El nombre con hash de `next/font` es el único que el navegador conoce. */
+  ctx.font = `${peso} 100px ${display || FUENTE}`;
+  return ctx.measureText(texto).width / 100;
+}
 
-  const caption = branded
-    ? `<text x="${total / 2}" y="${total + 5}" text-anchor="middle" ` +
-      `font-family="DM Sans, system-ui, sans-serif" font-size="3.2" ` +
-      `font-weight="600" fill="${INK}">${BRAND_TEXT}</text>`
+/**
+ * El nombre del negocio, en mayúsculas y con el tamaño que le deja la banda.
+ *
+ * Los cuerpos bajan de golpe en vez de calcularse: son cinco y el que salga
+ * tiene que verse entero, no al milímetro.
+ */
+function ajustarNombre(nombre: string, ancho: number) {
+  const texto = nombre.toUpperCase();
+  const em = anchoEm(texto, 700);
+  for (const tamano of [4.2, 3.7, 3.2, 2.8, 2.4]) {
+    if (em * tamano <= ancho) return { texto, tamano };
+  }
+  /* Ni con el cuerpo más pequeño cabe: se recorta y se dice que se recortó. */
+  const tamano = 2.4;
+  const caben = Math.max(3, Math.floor(ancho / (em * tamano)) - 1);
+  return { texto: `${texto.slice(0, caben)}…`, tamano };
+}
+
+/** Lo mínimo para que un nombre con `&` o `<` no rompa el XML. */
+function escapa(texto: string): string {
+  return texto
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** Lo que se incrusta dentro del SVG y que no puede venir del propio SVG. */
+interface Recursos {
+  /** La display, en data URL. `null` si no se pudo traer. */
+  fuente: string | null;
+  /** El logotipo, en data URL. `null` si no se pudo traer. */
+  logo: string | null;
+}
+
+/** Un archivo de `public/` en data URL. `null` en vez de excepción: el sticker
+    sale igual, sin ese adorno, y quien descarga no tiene por qué enterarse. */
+async function dataUrl(ruta: string): Promise<string | null> {
+  try {
+    const res = await fetch(ruta);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const lector = new FileReader();
+      lector.onload = () => resolve(String(lector.result));
+      lector.onerror = () => reject(new Error(ruta));
+      lector.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * La tipografía y el logotipo, listos para incrustar.
+ *
+ * Se piden **al pulsar Descargar**, no al montar la tarjeta: son ~50 KB que solo
+ * paga quien de verdad se lleva el archivo. Metidos en el bundle los pagaría
+ * todo el que abra el panel, aunque nunca descargue el QR.
+ *
+ * Es también lo que hace que el PNG salga con la tipografía buena: un `Image` no
+ * carga las fuentes de la página, pero sí las que van dentro del propio SVG.
+ */
+async function traerRecursos(): Promise<Recursos> {
+  /* `fonts.ready` antes de medir: si el nombre se midiera contra la fuente de
+     reserva, el cuerpo que saliera no sería el que luego se pinta. */
+  await document.fonts?.ready;
+  const [fuente, logo] = await Promise.all([
+    dataUrl("/fonts/space-grotesk.woff2"),
+    dataUrl("/logo.png"),
+  ]);
+  return {
+    /* El `data:` de un woff2 puede llegar con el tipo que ponga el servidor; se
+       reescribe a `font/woff2` porque `@font-face` sí mira ese tipo. */
+    fuente: fuente?.replace(/^data:[^;]+;/, "data:font/woff2;") ?? null,
+    logo,
+  };
+}
+
+/**
+ * La firma: el logotipo y «La Verde», centrados.
+ *
+ * La pastilla no es adorno. Con marco, el logotipo es verde y el fondo también,
+ * así que suelto se perdería; sin marco el fondo ya es blanco y la pastilla
+ * sobra. El nombre va en oscuro en los dos casos, que es como se lee.
+ *
+ * El ancho se **mide** (ver `anchoEm`) y el conjunto se centra con esa cuenta:
+ * centrar a ojo es justo lo que deja una firma descuadrada.
+ */
+function firmaDeMarca(
+  ancho: number,
+  alto: number,
+  logo: string | null,
+  pastilla: boolean,
+): string {
+  const centroY = alto - BANDA_ABAJO / 2;
+  const anchoLogo = logo ? ALTO_LOGO * RELACION_LOGO : 0;
+  const hueco = logo ? HUECO : 0;
+  const anchoTexto = anchoEm(ETIQUETA, 700) * CUERPO_FIRMA;
+  const contenido = anchoLogo + hueco + anchoTexto;
+  const inicio = (ancho - contenido) / 2;
+
+  const altoPastilla = ALTO_LOGO + PADDING_VERTICAL * 2;
+
+  const fondo = pastilla
+    ? `<rect x="${inicio - PADDING_PASTILLA}" y="${centroY - altoPastilla / 2}" ` +
+      `width="${contenido + PADDING_PASTILLA * 2}" height="${altoPastilla}" ` +
+      `rx="${altoPastilla / 2}" fill="#ffffff"/>`
+    : "";
+
+  /* Sin logotipo queda solo el nombre, igual de centrado: el ancho que se le
+     resta al conjunto es cero y la cuenta sale sola. */
+  const logotipo = logo
+    ? `<image x="${inicio}" y="${centroY - ALTO_LOGO / 2}" width="${anchoLogo}" ` +
+      `height="${ALTO_LOGO}" preserveAspectRatio="xMidYMid meet" href="${logo}"/>`
     : "";
 
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${height}" ` +
-    `width="${total}" height="${height}">` +
-    `<rect width="100%" height="100%" fill="#ffffff"/>` +
-    new XMLSerializer().serializeToString(inner) +
-    caption +
+    fondo +
+    logotipo +
+    `<text x="${inicio + anchoLogo + hueco}" y="${centroY + CUERPO_FIRMA * 0.35}" ` +
+    `text-anchor="start" fill="${VERDE_TINTA}" font-size="${CUERPO_FIRMA}" ` +
+    `font-weight="700">${escapa(ETIQUETA)}</text>`
+  );
+}
+
+/**
+ * El sticker entero, en SVG. Dos versiones, y la diferencia es `marco`:
+ *
+ * - **Con marco** (`qr_sticker`, Básico+): fondo verde redondeado, el nombre del
+ *   negocio en una banda arriba, el QR sobre su panel blanco y la firma abajo.
+ * - **Sin marco** (Gratis): el panel blanco y la firma. El QR tal cual, sin
+ *   adorno alrededor.
+ *
+ * Se envuelve el SVG del componente dentro de otro mayor en vez de retocarlo: el
+ * original solo pinta los cuadros, así que el marco y los textos van fuera, en
+ * unidades de módulo, y el conjunto escala limpio a cualquier tamaño.
+ *
+ * El QR entra **a su tamaño exacto** —`modulos` módulos— y no estirado hasta los
+ * bordes del panel: el blanco que sobra es la zona de silencio, y sin ella el
+ * lector no engancha el código.
+ *
+ * La tipografía no viaja con el archivo por su cuenta: el SVG es autónomo —lo
+ * abre un programa de dibujo, o lo rasteriza un `Image` que no ve las fuentes de
+ * la página—, así que va dentro, en un `@font-face` con el woff2 en data URL.
+ * Es lo que hace que el PNG salga con la display del sistema y no con la sans
+ * que el navegador tenga por defecto.
+ *
+ * La firma del pie va en las dos versiones y **en todos los planes**: es la
+ * marca de quien imprime el QR, no un anuncio que se pueda quitar.
+ */
+function stickerSvg(
+  svg: SVGSVGElement,
+  nombre: string,
+  { fuente, logo }: Recursos,
+  marco: boolean,
+): string {
+  const modulos = qrModules(svg);
+  const { panel, x, y, ancho, alto } = medidas(modulos, marco);
+  const { texto, tamano } = ajustarNombre(nombre, panel);
+
+  const qr = svg.cloneNode(true) as SVGSVGElement;
+  qr.removeAttribute("height");
+  qr.removeAttribute("width");
+  qr.setAttribute("x", String(x + QUIET));
+  qr.setAttribute("y", String(y + QUIET));
+  qr.setAttribute("width", String(modulos));
+  qr.setAttribute("height", String(modulos));
+
+  const estilo = fuente
+    ? `<defs><style>@font-face{font-family:${FAMILIA};` +
+      `src:url("${fuente}") format("woff2");font-weight:300 700;}</style></defs>`
+    : "";
+
+  /* La banda del nombre va con el marco y no sin él: el texto es blanco y sin el
+     verde detrás no se vería. */
+  const banda = marco
+    ? `<text x="${ancho / 2}" y="${BANDA_ARRIBA / 2 + tamano * 0.35}" ` +
+      `text-anchor="middle" fill="#ffffff" font-size="${tamano}" ` +
+      `font-weight="700">${escapa(texto)}</text>`
+    : "";
+
+  /* `y` es la línea base, y sale del centro de la banda a mano. Nada de
+     `dominant-baseline`: los rasterizadores de SVG —el `Image` que hace el
+     PNG— no lo tratan todos igual, y ahí el texto acaba descentrado. */
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${ancho} ${alto}" ` +
+    `width="${ancho}" height="${alto}" font-family="${FUENTE}">` +
+    estilo +
+    `<rect width="${ancho}" height="${alto}" rx="${RADIO}" ` +
+    `fill="${marco ? VERDE : "#ffffff"}"/>` +
+    `<rect x="${x}" y="${y}" width="${panel}" height="${panel}" ` +
+    `rx="${RADIO_PANEL}" fill="#ffffff"/>` +
+    new XMLSerializer().serializeToString(qr) +
+    banda +
+    firmaDeMarca(ancho, alto, logo, marco) +
     `</svg>`
   );
 }
@@ -91,55 +338,63 @@ function buildSvgString(svg: SVGSVGElement, branded: boolean): string {
  * con una imagen; el SVG para quien va a imprimir en grande o retocar el
  * archivo, que es donde un vectorial manda.
  *
- * `sinMarca` lo decide el plan en el servidor (`menu_qr_sin_marca`, Básico+).
- * En Gratis el QR lleva debajo «Encuéntranos en La Verde», tanto en pantalla
- * como en los dos archivos; en Básico y Pro sale limpio.
+ * La marca de La Verde va en **todos los planes**, en pantalla y en los dos
+ * archivos: el rótulo bajo el QR y la firma del pie —el logotipo y el nombre—.
+ * No es un anuncio que se pueda quitar, es de quién es el QR.
+ *
+ * Lo que sí es del plan es el marco verde (`qr_sticker`, Básico+): es lo que
+ * convierte el QR pelado en un sticker con el nombre del negocio. En pantalla la
+ * tarjeta es la misma para todos; el plan se nota en el archivo que se descarga.
+ *
+ * La tipografía y el logotipo se piden a `public/` al pulsar Descargar. El woff2
+ * es una copia del de `src/fonts/`, la misma que declara `next/font`: aquí hace
+ * falta una ruta estable, y `next/font` sirve el suyo con el nombre hasheado.
  */
 export function MenuLinkCard({
   placeId,
   placeName,
   url,
-  sinMarca = false,
+  sticker = false,
 }: {
   placeId: string;
   placeName: string;
   /** La URL absoluta de la carta, resuelta en el servidor. */
   url: string;
-  /** `true` si el plan quita la marca del QR (`menu_qr_sin_marca`). */
-  sinMarca?: boolean;
+  /** `true` si el plan lleva el marco verde (`qr_sticker`, Básico+). */
+  sticker?: boolean;
 }) {
   const qrBoxRef = useRef<HTMLDivElement>(null);
-  const branded = !sinMarca;
   /* Ruta relativa derivada de la URL absoluta: la comparte `sharePlace`, que le
      añade la query de atribución. Así el enlace compartido es el mismo que el
      del QR y no uno construido a mano que se quede atrás. */
   const path = url.replace(/^https?:\/\/[^/]+/, "");
 
-  const downloadSvg = useCallback(() => {
+  const downloadSvg = useCallback(async () => {
     const svg = qrBoxRef.current?.querySelector("svg");
     if (!svg) return;
     try {
-      const blob = new Blob([buildSvgString(svg, branded)], {
-        type: "image/svg+xml;charset=utf-8",
-      });
+      const blob = new Blob(
+        [stickerSvg(svg, placeName, await traerRecursos(), sticker)],
+        { type: "image/svg+xml;charset=utf-8" },
+      );
       downloadBlob(blob, `qr-${slugify(placeName) || placeId}.svg`);
     } catch {
       toast.error("No se pudo descargar el QR.");
     }
-  }, [branded, placeId, placeName]);
+  }, [placeId, placeName, sticker]);
 
   const downloadPng = useCallback(async () => {
     const svg = qrBoxRef.current?.querySelector("svg");
     if (!svg) return;
 
-    const size = 1024;
-    const modules = qrModules(svg);
-    const unit = size / (modules + QUIET * 2);
-    const inner = unit * modules;
-    const captionH = branded ? Math.round(size * 0.1) : 0;
+    const { ancho, alto } = medidas(qrModules(svg), sticker);
+    const escala = ANCHO_PNG / ancho;
 
+    /* Se rasteriza **el sticker entero**, no el QR suelto con el marco dibujado
+       a mano encima: así el PNG no puede separarse del SVG por un retoque que se
+       haga en uno solo. */
     const svgUrl = URL.createObjectURL(
-      new Blob([new XMLSerializer().serializeToString(svg)], {
+      new Blob([stickerSvg(svg, placeName, await traerRecursos(), sticker)], {
         type: "image/svg+xml;charset=utf-8",
       }),
     );
@@ -153,21 +408,11 @@ export function MenuLinkCard({
       });
 
       const canvas = document.createElement("canvas");
-      canvas.width = size;
-      canvas.height = size + captionH;
+      canvas.width = Math.round(ancho * escala);
+      canvas.height = Math.round(alto * escala);
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Sin contexto 2D");
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(image, unit * QUIET, unit * QUIET, inner, inner);
-
-      if (branded) {
-        ctx.fillStyle = INK;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.font = `600 ${Math.round(size * 0.045)}px "DM Sans", system-ui, sans-serif`;
-        ctx.fillText(BRAND_TEXT, size / 2, size + captionH / 2);
-      }
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
       const png = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, "image/png"),
@@ -179,7 +424,7 @@ export function MenuLinkCard({
     } finally {
       URL.revokeObjectURL(svgUrl);
     }
-  }, [branded, placeId, placeName]);
+  }, [placeId, placeName, sticker]);
 
   return (
     <section className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft lg:col-span-2">
@@ -228,30 +473,28 @@ export function MenuLinkCard({
             {/* Nivel M y no el L por defecto: esto se imprime, se pega en una
                 mesa y se mancha. M tolera ~15% de daño sin dejar de leerse. */}
             <QRCode value={url} size={148} level="M" fgColor={INK} />
-            {branded && (
-              <span className="font-lv-display text-[11px] font-semibold text-ink">
-                {BRAND_TEXT}
-              </span>
-            )}
+            <span className="font-lv-display text-[11px] font-semibold text-ink">
+              {BRAND_TEXT}
+            </span>
           </div>
           <div className="flex flex-wrap justify-center gap-gap-xs">
-            <button type="button" onClick={() => void downloadPng()} className={BTN}>
+            <button
+              type="button"
+              onClick={() => void downloadPng()}
+              className={BTN}
+            >
               <Download size={15} strokeWidth={1.8} />
               PNG
             </button>
-            <button type="button" onClick={downloadSvg} className={BTN}>
+            <button
+              type="button"
+              onClick={() => void downloadSvg()}
+              className={BTN}
+            >
               <Download size={15} strokeWidth={1.8} />
               SVG
             </button>
           </div>
-          {branded && (
-            <p className="max-w-[22ch] text-center text-meta text-ink-soft/75">
-              Tu plan añade la marca de La Verde bajo el QR.{" "}
-              <span className="font-semibold text-ink">
-                Se quita con Básico.
-              </span>
-            </p>
-          )}
         </div>
       </div>
     </section>

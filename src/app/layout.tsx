@@ -143,6 +143,10 @@ export default function RootLayout({
                   en móvil el panel de negocio y el de admin la tienen fija, y el
                   aviso se posaba justo encima de las pestañas. */}
             <Toaster
+              /* Lo marca `globals.css` como *el* toaster: `NeonAuthUIProvider`
+                 monta otro por dentro y, sin esta clase, cada aviso salía dos
+                 veces. El porqué entero está allí. */
+              className="lv-toaster"
               position="bottom-center"
               toastOptions={{
                 style: {

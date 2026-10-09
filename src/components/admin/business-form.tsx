@@ -111,6 +111,11 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
     initial?.status ?? "active",
   );
   const [isBoosted, setIsBoosted] = useState(initial?.isBoosted ?? false);
+  /* La columna cruda, no `selloVerificado`: el panel enseña y edita **lo que
+     decidió la administración**, aunque el plan del negocio no deje pintarlo
+     todavía. Sembrar el toggle con el valor ya filtrado por el plan haría que
+     guardar otra cosa cualquiera quitara el sello sin querer. */
+  const [verificado, setVerificado] = useState(initial?.verificado ?? false);
   const [boostExpiresAt, setBoostExpiresAt] = useState(
     initial?.boostExpiresAt ?? "",
   );
@@ -183,6 +188,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
       status,
       isBoosted,
       boostExpiresAt: boostExpiresAt.trim(),
+      /* El sello lo escribe solo el panel de administración: el `PATCH` le tira
+         el campo a cualquier otro, así que aquí es donde se enciende. */
+      verificado,
     };
 
     /* Se espera a la base antes de decir nada. El `toast` de éxito y el cierre
@@ -235,6 +243,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
     status,
     isBoosted,
     boostExpiresAt,
+    verificado,
     location,
     initial,
     addPlace,
@@ -633,6 +642,18 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            {/* El sello lo enciende la administración y **solo se pinta** si el
+                negocio tiene plan Básico o superior: la casilla no promete que
+                la chapita se vea hoy, y el texto lo dice para que nadie lo
+                reporte como fallo. Ver `selloVerificado` en el mapeo. */}
+            <div className="mt-gap-sm">
+              <ToggleRow
+                label="Sello Verificado"
+                hint="Muestra la chapita «Verificado» en la ficha, la tarjeta y los resultados. Solo se ve en negocios con plan Básico o superior."
+                checked={verificado}
+                onChange={() => setVerificado((prev) => !prev)}
+              />
             </div>
           </FormSection>
 

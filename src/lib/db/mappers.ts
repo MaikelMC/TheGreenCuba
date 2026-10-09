@@ -1,6 +1,12 @@
 import type { categories, places } from "@/lib/db/schema";
 import type { BusinessCategory } from "@/lib/places";
-import type { UserPlace, UserPlaceMenuItem, UserPlacePhoto } from "@/lib/places-store";
+import type {
+  UserPlace,
+  UserPlaceMenuItem,
+  UserPlaceOferta,
+  UserPlacePhoto,
+} from "@/lib/places-store";
+import { muestraSelloVerificado, planEfectivo, type Suscripcion } from "@/lib/plans";
 import { slugify } from "@/lib/utils";
 
 /**
@@ -45,6 +51,26 @@ type CategoryRow = typeof categories.$inferSelect;
 export type PlaceRowWithCategory = PlaceRow & {
   categoryName: string | null;
   photos?: UserPlacePhoto[];
+  /**
+   * Las ofertas flash del negocio, **todas**, también las caducadas.
+   *
+   * Llegan de su propia tabla, en el segundo viaje del catálogo. La vigencia se
+   * filtra al pintar y no aquí, por dos motivos: el panel necesita ver las
+   * terminadas para poder reutilizarlas, y el catálogo cacheado sirve la misma
+   * respuesta durante cinco minutos —filtrar en la consulta dejaría viva una
+   * oferta que ya caducó—. Ver `src/lib/ofertas.ts`.
+   */
+  ofertas?: UserPlaceOferta[];
+  /**
+   * La fila de `suscripciones` del negocio, o `null`/ausente si nunca tuvo una.
+   *
+   * La traen las consultas del catálogo con un `leftJoin` y **no** las rutas que
+   * responden con la fila que acaban de escribir: allí ausente y `null` dan lo
+   * mismo, que es lo que significa «sin fila» —un plan gratis—. Decide si el
+   * sello verificado se pinta, que es la única cosa de aquí abajo que depende
+   * del plan.
+   */
+  suscripcion?: Suscripcion | null;
 };
 
 export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
@@ -90,14 +116,30 @@ export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
     vibe: row.vibe ?? [],
     payments: row.paymentMethods ?? [],
     menu: (row.menu ?? []) as UserPlaceMenuItem[],
+    /* El cartel de texto que había aquí se sustituye por las ofertas flash. Las
+       columnas `offer_text`/`offer_expiry` siguen en la tabla y siguen
+       llegando, porque **los proyectos sí las usan** —ofrecen un paquete, no un
+       plato—; lo que se retira es la «Oferta especial» del panel de negocio. */
     offer: row.offerText
       ? { text: row.offerText, expiry: row.offerExpiry ?? "" }
       : null,
+    ofertas: row.ofertas ?? [],
     status: row.status,
     pedidosWhatsapp: row.pedidosWhatsapp,
     plan: row.plan,
     isActive: row.isActive,
     reviewStatus: row.reviewStatus,
+    /* El sello son **dos cosas a la vez**: que la administración haya verificado
+       el negocio —la columna cruda— y que su plan incluya la función. Se resuelve
+       aquí, en el servidor, y no en los componentes: decidirlo en el navegador
+       dejaría el sello puesto en un negocio que dejó de pagarlo, y el mapa de
+       planes no viaja por ficha. El `verificado` crudo sale igual para que el
+       panel de administración enseñe y edite la verdad. */
+    verificado: row.verificado,
+    selloVerificado: muestraSelloVerificado(
+      row.verificado,
+      planEfectivo(row.suscripcion ?? null),
+    ),
     isBoosted: row.isBoosted,
     boostExpiresAt: row.boostExpiresAt ?? "",
     rating: row.rating ?? undefined,
@@ -185,6 +227,13 @@ export function toPlaceValues(
   if (patch.plan !== undefined) values.plan = patch.plan ?? null;
   if (patch.isActive !== undefined) values.isActive = patch.isActive;
   if (patch.reviewStatus !== undefined) values.reviewStatus = patch.reviewStatus;
+  /* El sello es cosa de administración —la ruta le tira el campo a todo el que
+     no lo sea— y la fecha se sella sola: nadie la escribe a mano, y encender el
+     sello dejando la fecha vieja —o apagarlo dejándola puesta— sería mentir. */
+  if (patch.verificado !== undefined) {
+    values.verificado = patch.verificado;
+    values.verificadoEn = patch.verificado ? new Date() : null;
+  }
   if (patch.isBoosted !== undefined) values.isBoosted = patch.isBoosted;
   if (patch.boostExpiresAt !== undefined) values.boostExpiresAt = patch.boostExpiresAt;
   if (patch.rating !== undefined) values.rating = patch.rating ?? null;

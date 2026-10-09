@@ -41,7 +41,7 @@ const GRATIS = [
 
 /** Lo que añade el plan Básico. */
 const BASICO_EXTRA = [
-  "menu_qr_sin_marca",
+  "qr_sticker",
   "prioridad_ia",
   "hoy_hay",
   "whatsapp_pedido",
@@ -85,11 +85,11 @@ export const FEATURE_TEXTO: Record<Feature, string> = {
   busqueda_ia: "Te encuentran buscando con sus propias palabras",
   energia_respaldo: "Señal de energía de respaldo en tu ficha",
   stats_resumen: "Resumen de visitas del mes",
-  menu_qr_sin_marca: "Tu carta, sin la marca de La Verde",
+  qr_sticker: "QR de catálogo con estilo sticker atractivo",
   prioridad_ia: "Prioridad cuando la IA recomienda",
   hoy_hay: "«Hoy hay»: publica lo que tienes del día",
   whatsapp_pedido: "Pedidos por WhatsApp desde tu ficha",
-  publicaciones_fb: "Publicaciones automáticas en Facebook",
+  publicaciones_fb: "Publicaciones de tu contenido en Facebook",
   stats_basicas: "Estadísticas de visitas y llamadas",
   verificado: "Sello de negocio verificado",
   asistente_ia: "Asistente de IA para escribir y responder",
@@ -217,7 +217,10 @@ export function planEfectivo(
 ): Plan {
   if (!suscripcion) return "gratis";
   if (suscripcion.estado === "cancelada") return "gratis";
-  if (suscripcion.trialHasta && suscripcion.trialHasta.getTime() > ahora.getTime()) {
+  if (
+    suscripcion.trialHasta &&
+    suscripcion.trialHasta.getTime() > ahora.getTime()
+  ) {
     return "pro";
   }
   if (suscripcion.plan === "gratis") return "gratis";
@@ -234,13 +237,28 @@ export function enTrial(
 ): boolean {
   return Boolean(
     suscripcion &&
-      suscripcion.estado === "activa" &&
-      suscripcion.trialHasta &&
-      suscripcion.trialHasta.getTime() > ahora.getTime(),
+    suscripcion.estado === "activa" &&
+    suscripcion.trialHasta &&
+    suscripcion.trialHasta.getTime() > ahora.getTime(),
   );
 }
 
 /** ¿Esta función entra en este plan? Sin tocar la base. */
 export function incluye(plan: Plan, feature: Feature): boolean {
   return (FEATURES_POR_PLAN[plan] as readonly Feature[]).includes(feature);
+}
+
+/**
+ * ¿Se pinta el sello de negocio verificado?
+ *
+ * Son **dos cosas a la vez**: que la administración haya verificado el negocio
+ * —la columna `places.verificado`— y que su plan incluya la función. Se escriben
+ * juntas aquí y no repartidas porque las usan dos sitios que no se hablan: el
+ * mapeo del catálogo y el negocio de prueba, que no pasa por él.
+ */
+export function muestraSelloVerificado(
+  verificado: boolean,
+  plan: Plan,
+): boolean {
+  return verificado && incluye(plan, "verificado");
 }

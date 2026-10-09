@@ -43,6 +43,7 @@ import { EstadisticasPanel } from "@/components/business/estadisticas-panel";
 import { PhotoGrid } from "@/components/business/photo-grid";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { MenuItemEditor } from "@/components/business/menu-item-editor";
+import { OfertasEditor } from "@/components/business/ofertas-editor";
 import { MenuLinkCard } from "@/components/business/menu-link-card";
 import { PlanCard } from "@/components/business/plan-card";
 import { PlansSection } from "@/components/business/plans-section";
@@ -50,17 +51,31 @@ import {
   BusinessSwitcher,
   type NegocioPanel,
 } from "@/components/business/business-switcher";
-import { PLAN_LABEL, incluye, textoBloqueo, type Plan } from "@/lib/plans";
+import {
+  PLAN_LABEL,
+  incluye,
+  limiteDe,
+  textoBloqueo,
+  type Plan,
+} from "@/lib/plans";
 import {
   ENERGIA_LABEL,
   ENERGIA_ORDER,
   type EnergiaRespaldo,
 } from "@/lib/energia";
 import { pruneMenuImages } from "@/lib/menu-images";
-import { MapLocationPicker, type LocationPoint } from "@/components/map/MapLocationPicker";
+import {
+  MapLocationPicker,
+  type LocationPoint,
+} from "@/components/map/MapLocationPicker";
 import { usePlaces } from "@/providers/places-provider";
 import type { VisitasPanel } from "@/lib/eventos";
-import type { PlaceStatus, UserPlace, UserPlacePatch } from "@/lib/places-store";
+import type {
+  PlaceStatus,
+  UserPlace,
+  UserPlaceOferta,
+  UserPlacePatch,
+} from "@/lib/places-store";
 
 /** Los tres números reales que el panel puede contar. Se declaran aquí y no se
     importan de `queries.ts`: ese módulo arrastra la base de datos y la caché de
@@ -73,12 +88,30 @@ interface PlaceStats {
   photos: number;
 }
 
-const SCHEDULE_PRESETS = ["8:00 – 16:00", "9:00 – 18:00", "10:00 – 22:00", "12:00 – 24:00", "24 horas"];
+const SCHEDULE_PRESETS = [
+  "8:00 – 16:00",
+  "9:00 – 18:00",
+  "10:00 – 22:00",
+  "12:00 – 24:00",
+  "24 horas",
+];
 
 const STATUS_OPTIONS: { value: PlaceStatus; label: string; hint: string }[] = [
-  { value: "active", label: "Abierto", hint: "Es lo que se enseña por defecto." },
-  { value: "temporary_closed", label: "Cerrado temporalmente", hint: "La ficha avisa de que ahora no abre." },
-  { value: "closed", label: "Cerrado", hint: "La ficha se sigue viendo, marcada como cerrada." },
+  {
+    value: "active",
+    label: "Abierto",
+    hint: "Es lo que se enseña por defecto.",
+  },
+  {
+    value: "temporary_closed",
+    label: "Cerrado temporalmente",
+    hint: "La ficha avisa de que ahora no abre.",
+  },
+  {
+    value: "closed",
+    label: "Cerrado",
+    hint: "La ficha se sigue viendo, marcada como cerrada.",
+  },
 ];
 
 /* Mismas clases que el resto de formularios del proyecto. */
@@ -161,7 +194,14 @@ export function BusinessPanel({
                borraría lo escrito en cada `router.refresh()`—, así que sin ella
                cambiar de negocio dejaría en el formulario los datos del
                anterior. */
-            return <EditorView key={place.id} place={place} plan={plan} />;
+            return (
+              <EditorView
+                key={place.id}
+                place={place}
+                plan={plan}
+                onVerPlanes={() => setView("planes")}
+              />
+            );
           case "planes":
             return (
               <PlansSection
@@ -223,10 +263,7 @@ function DashboardView({
 
   return (
     <>
-      <ViewLead
-        title="Dashboard"
-        subtitle={`Resumen de ${place.name}`}
-      />
+      <ViewLead title="Dashboard" subtitle={`Resumen de ${place.name}`} />
 
       {/* Tres cifras y ninguna inventada. Aquí había «342 visitas esta semana,
           +18%», «87 clics en Cómo llegar» y «156 recomendaciones IA»: no existe
@@ -239,7 +276,10 @@ function DashboardView({
           { label: "Guardados", value: String(stats.saved) },
           { label: "Reseñas", value: String(stats.reviews) },
           { label: "Fotos", value: String(stats.photos) },
-          { label: "Valoración", value: place.rating ? place.rating.toFixed(1) : "—" },
+          {
+            label: "Valoración",
+            value: place.rating ? place.rating.toFixed(1) : "—",
+          },
         ]}
       />
 
@@ -265,7 +305,10 @@ function DashboardView({
               label="Punto en el mapa"
               value={formatCoordinates({ lat: place.lat, lng: place.lng })}
             />
-            <Row label="Ficha publicada" value={place.isActive ? "Sí" : "Todavía no"} />
+            <Row
+              label="Ficha publicada"
+              value={place.isActive ? "Sí" : "Todavía no"}
+            />
           </dl>
         </section>
 
@@ -276,25 +319,34 @@ function DashboardView({
           <ul className="flex flex-col gap-gap-xs text-small text-ink-soft">
             {stats.photos === 0 && (
               <li>
-                <span className="font-semibold text-ink">Sube tus primeras fotos.</span>{" "}
-                Un negocio sin fotos se ve mucho menos que uno con tres o cuatro.
+                <span className="font-semibold text-ink">
+                  Sube tus primeras fotos.
+                </span>{" "}
+                Un negocio sin fotos se ve mucho menos que uno con tres o
+                cuatro.
               </li>
             )}
             {!offering && (
               <li>
-                <span className="font-semibold text-ink">Escribe tu descripción.</span>{" "}
+                <span className="font-semibold text-ink">
+                  Escribe tu descripción.
+                </span>{" "}
                 Es el texto que el buscador usa para recomendarte.
               </li>
             )}
             {place.payments.length === 0 && (
               <li>
-                <span className="font-semibold text-ink">Marca qué monedas aceptas.</span>{" "}
+                <span className="font-semibold text-ink">
+                  Marca qué monedas aceptas.
+                </span>{" "}
                 Es uno de los filtros que más se usan al buscar.
               </li>
             )}
             {place.menu.length === 0 && (
               <li>
-                <span className="font-semibold text-ink">Publica tu carta.</span>{" "}
+                <span className="font-semibold text-ink">
+                  Publica tu carta.
+                </span>{" "}
                 Se añade en «Lo que ofreces» y se comparte con un enlace que
                 cualquiera abre, sin cuenta.
               </li>
@@ -306,14 +358,14 @@ function DashboardView({
           </ul>
         </section>
 
-        {/* La marca del QR la decide el plan. Se deriva de `incluye` y no se
-            consulta al servidor: es cosmético, no un permiso que escriba nada,
-            y el plan ya viene resuelto desde `/business/page.tsx`. */}
+        {/* El marco verde del QR lo decide el plan. Se deriva de `incluye` y no
+            se consulta al servidor: es cosmético, no un permiso que escriba
+            nada, y el plan ya viene resuelto desde `/business/page.tsx`. */}
         <MenuLinkCard
           placeId={place.id}
           placeName={place.name}
           url={menuUrl}
-          sinMarca={incluye(plan, "menu_qr_sin_marca")}
+          sticker={incluye(plan, "qr_sticker")}
         />
 
         <PlanCard plan={plan} onVerPlanes={onVerPlanes} />
@@ -331,10 +383,20 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
+function EditorView({
+  place,
+  plan,
+  onVerPlanes,
+}: {
+  place: UserPlace;
+  plan: Plan;
+  onVerPlanes: () => void;
+}) {
   const router = useRouter();
   const { categories, updatePlace } = usePlaces();
   const canHoyHay = incluye(plan, "hoy_hay");
+  const puedeOfertas = incluye(plan, "ofertas_flash");
+  const maxOfertas = limiteDe(plan, "ofertas_vigentes_max");
 
   /* El estado se siembra del negocio y no se vuelve a sincronizar: a partir de
      aquí manda lo que escriba el dueño. Sincronizarlo con el `place` que llega
@@ -360,14 +422,22 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
     place.energiaRespaldo ?? "sin",
   );
   const [notaApagon, setNotaApagon] = useState(place.notaApagon ?? "");
-  const [offerEnabled, setOfferEnabled] = useState(Boolean(place.offer));
-  const [offerText, setOfferText] = useState(place.offer?.text ?? "");
-  const [offerExpiry, setOfferExpiry] = useState(place.offer?.expiry ?? "");
-  const [location, setLocation] = useState<LocationPoint | null>({ lat: place.lat, lng: place.lng });
+  /* Las ofertas flash sustituyen al cartel de texto que había aquí. `place.offer`
+     sigue existiendo en el tipo —lo usan los proyectos— pero el panel de negocio
+     ya no lo escribe: se manda la lista entera y lo que no se nombre en el
+     `PATCH` se queda como estaba. */
+  const [ofertas, setOfertas] = useState<UserPlaceOferta[]>(
+    place.ofertas ?? [],
+  );
+  const [location, setLocation] = useState<LocationPoint | null>({
+    lat: place.lat,
+    lng: place.lng,
+  });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const categoryLabel = categories.find((c) => c.value === categoryValue)?.label ?? place.category;
+  const categoryLabel =
+    categories.find((c) => c.value === categoryValue)?.label ?? place.category;
   const resolvedIcon = placeIcon(icon ?? undefined, categoryLabel, categories);
 
   const save = useCallback(async () => {
@@ -421,10 +491,11 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
           disponibilidad: item.disponibilidad,
           agotadoHasta: item.agotadoHasta ?? null,
         })),
-      offer:
-        offerEnabled && offerText.trim()
-          ? { text: offerText.trim(), expiry: offerExpiry.trim() }
-          : null,
+      /* Las ofertas flash van enteras en cada guardado, como la carta: la ruta
+         las escribe en su tabla y comprueba el plan. `offer` ya no se manda, y
+         eso **no borra** el cartel viejo del negocio que lo tuviera: sin el
+         campo, `toPlaceValues` no toca las columnas. Ver el mapeo. */
+      ofertas,
       /* La energía va aquí por lo mismo que la disponibilidad: es una lista
          blanca y lo que no se nombre se pierde en cada guardado. */
       energiaRespaldo: energia === "sin" ? null : energia,
@@ -435,7 +506,9 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
     setSaving(false);
 
     if (!saved) {
-      setError("No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada.");
+      setError(
+        "No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada.",
+      );
       return;
     }
 
@@ -463,9 +536,7 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
     menu,
     energia,
     notaApagon,
-    offerEnabled,
-    offerText,
-    offerExpiry,
+    ofertas,
     place.id,
     updatePlace,
     router,
@@ -479,11 +550,17 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
       />
 
       <FormSections>
-        <FormSection title="Fotos del lugar" icon={<ImageIcon size={18} strokeWidth={1.8} />}>
+        <FormSection
+          title="Fotos del lugar"
+          icon={<ImageIcon size={18} strokeWidth={1.8} />}
+        >
           <PhotoGrid placeId={place.id} placeName={name || place.name} />
         </FormSection>
 
-        <FormSection title="Información básica" icon={<UserIcon size={18} strokeWidth={1.8} />}>
+        <FormSection
+          title="Información básica"
+          icon={<UserIcon size={18} strokeWidth={1.8} />}
+        >
           <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
             <div className="flex flex-col gap-gap-xs">
               <Label htmlFor="bizName">Nombre del negocio</Label>
@@ -505,7 +582,11 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
                   {categories.map((c) => (
                     <SelectItem key={c.value} value={c.value}>
                       <span className="inline-flex items-center gap-2">
-                        <CategoryIcon icon={c.icon} size={16} strokeWidth={1.8} />
+                        <CategoryIcon
+                          icon={c.icon}
+                          size={16}
+                          strokeWidth={1.8}
+                        />
                         {c.label}
                       </span>
                     </SelectItem>
@@ -561,7 +642,9 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
             onResolved={(r) => {
               if (!r) return;
               setAddress((prev) =>
-                prev.trim() === "" || !/e\/|entre/i.test(prev) ? r.address : prev,
+                prev.trim() === "" || !/e\/|entre/i.test(prev)
+                  ? r.address
+                  : prev,
               );
               setBarrio((prev) => (prev.trim() ? prev : r.barrio));
             }}
@@ -570,7 +653,9 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
 
         <FormSection
           title="Icono del negocio"
-          icon={<CategoryIcon icon={resolvedIcon} size={18} strokeWidth={1.8} />}
+          icon={
+            <CategoryIcon icon={resolvedIcon} size={18} strokeWidth={1.8} />
+          }
         >
           <p className="mb-gap-sm text-meta text-ink-soft/75">
             Es el dibujo que llevas en el pin del mapa, en el popup y en tu
@@ -594,7 +679,10 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
         </FormSection>
 
         <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-          <FormSection title="Horario" icon={<Clock size={18} strokeWidth={1.8} />}>
+          <FormSection
+            title="Horario"
+            icon={<Clock size={18} strokeWidth={1.8} />}
+          >
             {/* Aquí había un `HoursEditor` con un horario por día que **no se
                 guardaba en ninguna parte**: la tabla `place_hours` existe, pero
                 no hay ruta que la escriba, así que el dueño lo editaba y se
@@ -638,16 +726,24 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
             icon={<CreditCard size={18} strokeWidth={1.8} />}
           >
             <p className="mb-gap-sm text-meta text-ink-soft/75">
-              Las monedas y métodos que aceptas. Aparecen en tu ficha y en los filtros.
+              Las monedas y métodos que aceptas. Aparecen en tu ficha y en los
+              filtros.
             </p>
-            <PaymentChips defaultSelected={place.payments} onChange={setPayments} />
+            <PaymentChips
+              defaultSelected={place.payments}
+              onChange={setPayments}
+            />
           </FormSection>
         </div>
 
         <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-          <FormSection title="Lo que ofreces" icon={<Utensils size={18} strokeWidth={1.8} />}>
+          <FormSection
+            title="Lo que ofreces"
+            icon={<Utensils size={18} strokeWidth={1.8} />}
+          >
             <p className="mb-gap-sm text-meta text-ink-soft/75">
-              Tus productos o servicios más populares. Aparecen en la ficha del lugar.
+              Tus productos o servicios más populares. Aparecen en la ficha del
+              lugar.
             </p>
             <MenuItemEditor
               placeId={place.id}
@@ -655,60 +751,50 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
               /* Se conserva el `id` guardado y solo se recurre al índice para
                  las entradas viejas que todavía no tienen uno: regenerarlo en
                  cada carga cambiaría el identificador que el asistente usa. */
-              items={(place.menu ?? []).map((m, i) => ({ ...m, id: m.id ?? String(i) }))}
+              items={(place.menu ?? []).map((m, i) => ({
+                ...m,
+                id: m.id ?? String(i),
+              }))}
               onChange={setMenu}
             />
           </FormSection>
 
-          <FormSection title="Oferta especial" icon={<Tag size={18} strokeWidth={1.8} />}>
-            <div className="flex items-center justify-between gap-gap-sm border-b border-ink/5 py-gap-sm">
-              <div className="min-w-0 flex-1">
-                <div className="text-small font-medium text-ink">Oferta activa</div>
-                <div className="text-meta text-ink-soft/75">
-                  Muestra un banner de oferta en tu ficha
-                </div>
-              </div>
-              <Switch
-                checked={offerEnabled}
-                onToggle={() => setOfferEnabled((prev) => !prev)}
-                label="Oferta activa"
+          <FormSection
+            title="Ofertas flash"
+            icon={<Tag size={18} strokeWidth={1.8} />}
+          >
+            {/* La sección se cierra entera sin el plan, en vez de enseñar el
+                formulario con un candado encima: el tope en Gratis y Básico es
+                0, así que no hay nada que rellenar y sí una frase que explica
+                cómo se abre. El servidor lo vuelve a comprobar de todas formas
+                —el cuerpo del `PATCH` se puede escribir a mano—. */}
+            {puedeOfertas ? (
+              <OfertasEditor
+                ofertas={ofertas}
+                onChange={setOfertas}
+                menu={(place.menu ?? []).map((m, i) => ({
+                  ...m,
+                  id: m.id ?? String(i),
+                }))}
+                max={maxOfertas}
               />
-            </div>
-            <AnimatePresence initial={false}>
-              {offerEnabled && (
-                <motion.div
-                  key="offer-fields"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                  className="overflow-hidden"
+            ) : (
+              <div className="flex flex-col gap-gap-xs">
+                <p className="text-meta text-ink-soft/75">
+                  {textoBloqueo("ofertas_flash", plan)}: rebaja un producto de
+                  tu carta por tiempo limitado y sale con el precio tachado en
+                  tu ficha, además de la chapita «Oferta» en la tarjeta y en el
+                  pin del mapa.
+                </p>
+                <button
+                  type="button"
+                  onClick={onVerPlanes}
+                  className="cursor-pointer self-start rounded-full border border-ink/10 bg-white px-gap-md py-2 font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-600"
                 >
-                  <div className="mt-gap-sm space-y-gap-xs">
-                    <div className="flex flex-col gap-gap-xs">
-                      <Label htmlFor="offerTitle">Texto de la oferta</Label>
-                      <Input
-                        id="offerTitle"
-                        className={INPUT}
-                        value={offerText}
-                        onChange={(e) => setOfferText(e.target.value)}
-                        placeholder="Ej: 2x1 en bebidas, Almuerzo del día..."
-                      />
-                    </div>
-                    <div className="flex flex-col gap-gap-xs">
-                      <Label htmlFor="offerExpiry">Válido hasta</Label>
-                      <Input
-                        id="offerExpiry"
-                        className={INPUT}
-                        value={offerExpiry}
-                        onChange={(e) => setOfferExpiry(e.target.value)}
-                        placeholder="Ej: 31 de agosto, 2026"
-                      />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  Ver planes
+                </button>
+              </div>
+            )}
           </FormSection>
         </div>
 
@@ -717,10 +803,10 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
           icon={<Zap size={18} strokeWidth={1.8} />}
         >
           <p className="mb-gap-sm text-meta text-ink-soft/75">
-            Cuando se va la luz, ¿qué tienes para seguir? Se enseña en tu ficha y
-            en tu pin del mapa, y quien busque «con corriente» te encuentra por
-            esto. Si no lo rellenas, no se dice nada — un hueco no es lo mismo
-            que un «no».
+            Cuando se va la luz, ¿qué tienes para seguir? Se enseña en tu ficha
+            y en tu pin del mapa, y quien busque «con corriente» te encuentra
+            por esto. Si no lo rellenas, no se dice nada — un hueco no es lo
+            mismo que un «no».
           </p>
           <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
             <div className="flex flex-col gap-gap-xs">
@@ -758,14 +844,20 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
           </div>
         </FormSection>
 
-        <FormSection title="Estado del negocio" icon={<Store size={18} strokeWidth={1.8} />}>
+        <FormSection
+          title="Estado del negocio"
+          icon={<Store size={18} strokeWidth={1.8} />}
+        >
           <p className="mb-gap-sm text-meta text-ink-soft/75">
             Si ahora mismo estás abierto. La ficha se sigue viendo aunque estés
             cerrado —los enlaces se comparten— pero avisa de que no abres.
           </p>
           <div className="flex flex-col gap-gap-xs">
             <Label htmlFor="bizStatus">Estado</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as PlaceStatus)}>
+            <Select
+              value={status}
+              onValueChange={(v) => setStatus(v as PlaceStatus)}
+            >
               <SelectTrigger id="bizStatus">
                 <SelectValue />
               </SelectTrigger>
@@ -774,7 +866,9 @@ function EditorView({ place, plan }: { place: UserPlace; plan: Plan }) {
                   <SelectItem key={s.value} value={s.value}>
                     <span className="inline-flex flex-col">
                       <span>{s.label}</span>
-                      <span className="text-meta text-ink-soft/75">{s.hint}</span>
+                      <span className="text-meta text-ink-soft/75">
+                        {s.hint}
+                      </span>
                     </span>
                   </SelectItem>
                 ))}
@@ -884,7 +978,9 @@ function SettingsView({
     setCambiandoPedidos(true);
     setPedidos(siguiente);
 
-    const guardado = await updatePlace(place.id, { pedidosWhatsapp: siguiente });
+    const guardado = await updatePlace(place.id, {
+      pedidosWhatsapp: siguiente,
+    });
 
     setCambiandoPedidos(false);
     if (!guardado) {
@@ -954,7 +1050,11 @@ function SettingsView({
         <section className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
           <div className="flex flex-wrap items-center justify-between gap-gap-sm">
             <h2 className="flex items-center gap-gap-xs font-lv-display text-body font-semibold text-ink">
-              <MessageCircle size={18} strokeWidth={1.8} className="text-verde-600" />
+              <MessageCircle
+                size={18}
+                strokeWidth={1.8}
+                className="text-verde-600"
+              />
               Pedidos por WhatsApp
             </h2>
             <span
@@ -972,10 +1072,10 @@ function SettingsView({
           </div>
 
           <p className="mt-gap-xs max-w-[62ch] text-small text-ink-soft/75">
-            Quien abre tu carta añade productos a un carrito y el pedido te llega
-            escrito por WhatsApp, con las cantidades y el total. El carrito no
-            pasa por La Verde: el mensaje sale de su teléfono al tuyo, y tú
-            contestas como siempre.
+            Quien abre tu carta añade productos a un carrito y el pedido te
+            llega escrito por WhatsApp, con las cantidades y el total. El
+            carrito no pasa por La Verde: el mensaje sale de su teléfono al
+            tuyo, y tú contestas como siempre.
           </p>
 
           {bloqueo ? (
@@ -1034,14 +1134,17 @@ function SettingsView({
             Cómo te contactan
           </h2>
           <p className="mt-gap-xs max-w-[62ch] text-small text-ink-soft/75">
-            Esto es lo que sale en tu ficha. Lo que dejes vacío, no se pinta:
-            un negocio sin Instagram no tiene por qué enseñar un hueco.
+            Esto es lo que sale en tu ficha. Lo que dejes vacío, no se pinta: un
+            negocio sin Instagram no tiene por qué enseñar un hueco.
           </p>
 
           <div className="mt-gap-md grid grid-cols-1 gap-gap-md lg:grid-cols-2">
             <div className="flex flex-col gap-gap-xs">
               <Label htmlFor="ajWhatsapp">
-                WhatsApp <span className="text-verde-700">(con él llegan los pedidos)</span>
+                WhatsApp{" "}
+                <span className="text-verde-700">
+                  (con él llegan los pedidos)
+                </span>
               </Label>
               <Input
                 id="ajWhatsapp"
@@ -1144,8 +1247,14 @@ function SettingsView({
           <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
             <Row label="Nombre del negocio" value={place.name} />
             <Row label="Categoría" value={place.category} />
-            <Row label="Ubicación" value={formatCoordinates({ lat: place.lat, lng: place.lng })} />
-            <Row label="Ficha publicada" value={place.isActive ? "Sí" : "Todavía no"} />
+            <Row
+              label="Ubicación"
+              value={formatCoordinates({ lat: place.lat, lng: place.lng })}
+            />
+            <Row
+              label="Ficha publicada"
+              value={place.isActive ? "Sí" : "Todavía no"}
+            />
           </div>
 
           <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">

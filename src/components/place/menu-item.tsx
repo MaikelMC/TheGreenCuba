@@ -27,6 +27,15 @@ interface MenuItemProps {
   /** «Hoy hay»: estado guardado del producto. Ver `disponibilidad.ts`. */
   disponibilidad?: Disponibilidad;
   agotadoHasta?: number | null;
+  /**
+   * El precio con oferta flash: el de antes, para tacharlo, y el de ahora.
+   *
+   * Viene **ya resuelto** y sin la moneda —la pone la fila, que es quien la
+   * tiene—. Lo calcula `precioConOferta` al construir el `PlaceData`, y solo
+   * llega cuando de verdad hay algo que tachar: un descuento por porcentaje
+   * sobre un precio que no es una cifra («3–5 USD») no puede con él.
+   */
+  oferta?: { de: string; por: string };
   className?: string;
   index?: number;
 }
@@ -56,6 +65,7 @@ export function MenuItem({
   image,
   disponibilidad,
   agotadoHasta,
+  oferta,
   className,
   index = 0,
 }: MenuItemProps) {
@@ -63,6 +73,7 @@ export function MenuItem({
   /* El estado efectivo, no el guardado: uno marcado como agotado con la fecha
      de vuelta ya pasada se lee como disponible. */
   const agotado = estaAgotado({ disponibilidad, agotadoHasta });
+  const enOferta = Boolean(oferta && priceText);
 
   return (
     <motion.div
@@ -107,6 +118,11 @@ export function MenuItem({
           <span className="font-lv-display text-small font-semibold text-ink">
             {name}
           </span>
+          {enOferta && (
+            <span className="rounded-full bg-verde-400 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-verde-950">
+              Oferta
+            </span>
+          )}
           {agotado && (
             <span className="rounded-full bg-destructive/10 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-destructive">
               Agotado
@@ -121,10 +137,23 @@ export function MenuItem({
             de un servicio como «Wi-Fi gratis». */}
         {(priceText || tag || category) && (
           <div className="flex items-center gap-gap-xs mt-[6px]">
-            {priceText && (
-              <span className="font-lv-display text-small font-semibold text-ink">
-                {priceText}
+            {/* Con oferta se enseña el de antes tachado y el de ahora en verde:
+                el precio de siempre no se pinta, o serían tres precios. */}
+            {enOferta && oferta ? (
+              <span className="flex items-baseline gap-gap-xs">
+                <span className="font-lv-display text-meta text-ink-soft/60 line-through">
+                  {formatMenuPrice(oferta.de, currency)}
+                </span>
+                <span className="font-lv-display text-small font-semibold text-verde-600">
+                  {formatMenuPrice(oferta.por, currency)}
+                </span>
               </span>
+            ) : (
+              priceText && (
+                <span className="font-lv-display text-small font-semibold text-ink">
+                  {priceText}
+                </span>
+              )
             )}
             {/* La categoría en gris y no en verde: es una etiqueta de orden, no
                 un reclamo. El verde está reservado para lo que vende. */}

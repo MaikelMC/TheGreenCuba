@@ -41,7 +41,10 @@ test("la prueba viva vale Pro aunque el plan contratado sea gratis", () => {
 });
 
 test("la prueba vencida no deja nada: se cae al plan contratado", () => {
-  assert.equal(planEfectivo(susc({ plan: "gratis", trialHasta: AYER }), AHORA), "gratis");
+  assert.equal(
+    planEfectivo(susc({ plan: "gratis", trialHasta: AYER }), AHORA),
+    "gratis",
+  );
   assert.equal(
     planEfectivo(susc({ plan: "basico", trialHasta: AYER }), AHORA),
     "basico",
@@ -50,7 +53,12 @@ test("la prueba vencida no deja nada: se cae al plan contratado", () => {
 });
 
 test("cancelar corta en el acto, aunque queden días de prueba o de pago", () => {
-  const s = susc({ plan: "pro", estado: "cancelada", trialHasta: MANANA, venceEn: MANANA });
+  const s = susc({
+    plan: "pro",
+    estado: "cancelada",
+    trialHasta: MANANA,
+    venceEn: MANANA,
+  });
   assert.equal(planEfectivo(s, AHORA), "gratis");
 });
 
@@ -59,9 +67,18 @@ test("un plan de pago sin fecha no vence", () => {
 });
 
 test("un plan de pago pasado de fecha cae a gratis", () => {
-  assert.equal(planEfectivo(susc({ plan: "pro", venceEn: AYER }), AHORA), "gratis");
-  assert.equal(planEfectivo(susc({ plan: "basico", venceEn: AYER }), AHORA), "gratis");
-  assert.equal(planEfectivo(susc({ plan: "pro", venceEn: MANANA }), AHORA), "pro");
+  assert.equal(
+    planEfectivo(susc({ plan: "pro", venceEn: AYER }), AHORA),
+    "gratis",
+  );
+  assert.equal(
+    planEfectivo(susc({ plan: "basico", venceEn: AYER }), AHORA),
+    "gratis",
+  );
+  assert.equal(
+    planEfectivo(susc({ plan: "pro", venceEn: MANANA }), AHORA),
+    "pro",
+  );
 });
 
 test("la prueba dura 30 días", () => {
@@ -100,12 +117,12 @@ test("los precios suben con el plan y el gratis es cero", () => {
 
 test("el candado nombra el plan que abre la función", () => {
   assert.equal(planDeFeature("menu_qr"), "gratis");
-  assert.equal(planDeFeature("menu_qr_sin_marca"), "basico");
+  assert.equal(planDeFeature("prioridad_ia"), "basico");
   assert.equal(planDeFeature("flyers"), "pro");
 
   assert.equal(textoBloqueo("flyers", "gratis"), "Disponible en Pro");
-  assert.equal(textoBloqueo("menu_qr_sin_marca", "gratis"), "Disponible en Básico");
-  assert.equal(textoBloqueo("menu_qr_sin_marca", "basico"), null);
+  assert.equal(textoBloqueo("prioridad_ia", "gratis"), "Disponible en Básico");
+  assert.equal(textoBloqueo("prioridad_ia", "basico"), null);
   assert.equal(textoBloqueo("menu_qr", "pro"), null);
 });
 

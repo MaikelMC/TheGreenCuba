@@ -1,10 +1,11 @@
 import { and, asc, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
-import { businessOwners, categories, placeImages, places, reviews, savedPlaces } from "@/lib/db/schema";
+import { businessOwners, categories, ofertas, placeImages, places, reviews, savedPlaces, suscripciones } from "@/lib/db/schema";
 import { DEV_PLACE_ID, devPlace, devPlaceEnabled } from "@/lib/dev-place";
-import { getDevPlaceFor } from "@/lib/dev-place-server";
-import type { UserPlacePhoto } from "@/lib/places-store";
+import { conSelloVerificado, getDevPlaceFor } from "@/lib/dev-place-server";
+import type { UserPlaceOferta, UserPlacePhoto } from "@/lib/places-store";
+import type { Suscripcion } from "@/lib/plans";
 import {
   toBusinessCategory,
   toUserPlace,
@@ -83,10 +84,56 @@ function cached<A extends unknown[], R>(
  */
 const { embedding: _embedding, ...PLACE_COLUMNS } = getTableColumns(places);
 
-const SELECT_WITH_CATEGORY = { place: PLACE_COLUMNS, categoryName: categories.name };
+/**
+ * Las cuatro columnas que deciden el plan, tal como las devuelve el `leftJoin`.
+ *
+ * Todas admiten `null` porque sin coincidencia el join las devuelve así; quien
+ * las normaliza es `unwrap`.
+ */
+type SuscripcionRow = {
+  plan: Suscripcion["plan"] | null;
+  estado: Suscripcion["estado"] | null;
+  trialHasta: Date | null;
+  venceEn: Date | null;
+} | null;
 
-function unwrap(row: { place: PlaceRow; categoryName: string | null }): PlaceRowWithCategory {
-  return { ...row.place, categoryName: row.categoryName };
+const SELECT_WITH_CATEGORY = {
+  place: PLACE_COLUMNS,
+  categoryName: categories.name,
+  /* La suscripción se trae **con el catálogo** y no en una consulta aparte: es
+     una fila por negocio (`suscripciones_negocio_unique`), así que el join no
+     duplica nada, y sin ella el sello verificado no se podría decidir al pintar
+     la lista. Va por `negocioId` y no por `places.plan`, que es otro dato —qué
+     eligió el dueño al darse de alta— y no dice nada de los permisos. */
+  suscripcion: {
+    plan: suscripciones.plan,
+    estado: suscripciones.estado,
+    trialHasta: suscripciones.trialHasta,
+    venceEn: suscripciones.venceEn,
+  },
+};
+
+function unwrap(row: {
+  place: PlaceRow;
+  categoryName: string | null;
+  suscripcion: SuscripcionRow;
+}): PlaceRowWithCategory {
+  const s = row.suscripcion;
+  return {
+    ...row.place,
+    categoryName: row.categoryName,
+    /* Sin fila, el join deja las cuatro columnas a `null` y eso se lee como
+       «sin suscripción» —gratis—, que es lo que `planEfectivo` espera. */
+    suscripcion:
+      s?.plan && s.estado
+        ? {
+            plan: s.plan,
+            estado: s.estado,
+            trialHasta: s.trialHasta,
+            venceEn: s.venceEn,
+          }
+        : null,
+  };
 }
 
 /**
@@ -127,6 +174,52 @@ async function photosByPlace(ids: string[]): Promise<Map<string, UserPlacePhoto[
   return grouped;
 }
 
+/**
+ * Las ofertas flash de varios negocios, agrupadas por negocio.
+ *
+ * Mismo segundo viaje que `photosByPlace` y por lo mismo: un uno-a-varios en un
+ * `select` plano duplica la fila del negocio por cada oferta, y `inArray` deja
+ * el catálogo entero en una sola consulta.
+ *
+ * **Trae también las caducadas, a propósito.** Aquí se decidió no filtrar por
+ * fecha, y no es un olvido: el panel las necesita para poder reutilizarlas, y
+ * `getPlaceById` está cacheado —filtrar aquí congelaría la respuesta y una
+ * oferta que caduca dentro de la ventana de caché seguiría saliendo hasta cinco
+ * minutos más—. Las fechas viajan al cliente y el filtro lo hace `estaVigente`
+ * al pintar, con el «ahora» de cada petición. Ver `src/lib/ofertas.ts`.
+ *
+ * El orden es el de `termina`: la que antes caduca delante, que es el mismo que
+ * quiere el cartel de la ficha.
+ */
+async function ofertasByPlace(ids: string[]): Promise<Map<string, UserPlaceOferta[]>> {
+  const grouped = new Map<string, UserPlaceOferta[]>();
+  if (ids.length === 0) return grouped;
+
+  const rows = await db
+    .select()
+    .from(ofertas)
+    .where(inArray(ofertas.negocioId, ids))
+    .orderBy(asc(ofertas.termina));
+
+  for (const row of rows) {
+    const oferta: UserPlaceOferta = {
+      id: row.id,
+      productoId: row.productoId,
+      titulo: row.titulo,
+      descripcion: row.descripcion ?? undefined,
+      precioOferta: row.precioOferta ?? undefined,
+      descuentoPct: row.descuentoPct ?? undefined,
+      inicia: row.inicia.getTime(),
+      termina: row.termina.getTime(),
+    };
+    const list = grouped.get(row.negocioId);
+    if (list) list.push(oferta);
+    else grouped.set(row.negocioId, [oferta]);
+  }
+
+  return grouped;
+}
+
 export interface ListPlacesOptions {
   city?: string | null;
   /** Slug de la categoría («restaurante»), no su etiqueta. */
@@ -162,6 +255,7 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
     .select(SELECT_WITH_CATEGORY)
     .from(places)
     .leftJoin(categories, eq(categories.id, places.categoryId))
+    .leftJoin(suscripciones, eq(suscripciones.negocioId, places.id))
     /* Un solo `where` con `and(...)`. Antes se llamaba a `.where()` dos veces y
        en drizzle la segunda **sustituye** a la primera, así que filtrar por
        ciudad y categoría a la vez aplicaba solo la categoría y devolvía
@@ -182,10 +276,18 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
     .orderBy(sql`${places.rating} desc nulls last`, asc(places.name))
     .limit(limit);
 
-  const photos = await photosByPlace(rows.map((row) => row.place.id));
+  const ids = rows.map((row) => row.place.id);
+  const [photos, ofertasPorNegocio] = await Promise.all([
+    photosByPlace(ids),
+    ofertasByPlace(ids),
+  ]);
 
   const catalog = rows.map((row) =>
-    toUserPlace({ ...unwrap(row), photos: photos.get(row.place.id) ?? [] }),
+    toUserPlace({
+      ...unwrap(row),
+      photos: photos.get(row.place.id) ?? [],
+      ofertas: ofertasPorNegocio.get(row.place.id) ?? [],
+    }),
   );
 
   /* Solo en la lista **pública** —la que pide el catálogo con `onlyActive:
@@ -201,7 +303,7 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
      solo serviría para que editarlo fallara con un 404. */
   const dev =
     options.onlyActive === true && (options.includeDev ?? devPlaceEnabled())
-      ? devPlace()
+      ? await conSelloVerificado(devPlace())
       : null;
   if (!dev) return catalog;
 
@@ -238,20 +340,28 @@ export const getPlaceById = cached(
        el dueño autorizado llega aquí, y en desarrollo no hay caché. */
     return options.overrideFor
       ? getDevPlaceFor(options.overrideFor)
-      : devPlace();
+      : conSelloVerificado(devPlace());
   }
 
   const [row] = await db
     .select(SELECT_WITH_CATEGORY)
     .from(places)
     .leftJoin(categories, eq(categories.id, places.categoryId))
+    .leftJoin(suscripciones, eq(suscripciones.negocioId, places.id))
     .where(eq(places.id, id))
     .limit(1);
 
   if (!row) return null;
 
-  const photos = await photosByPlace([row.place.id]);
-  return toUserPlace({ ...unwrap(row), photos: photos.get(row.place.id) ?? [] });
+  const [photos, ofertasPorNegocio] = await Promise.all([
+    photosByPlace([row.place.id]),
+    ofertasByPlace([row.place.id]),
+  ]);
+  return toUserPlace({
+    ...unwrap(row),
+    photos: photos.get(row.place.id) ?? [],
+    ofertas: ofertasPorNegocio.get(row.place.id) ?? [],
+  });
   },
   "places:get",
 );
@@ -278,13 +388,21 @@ export const getPlaceBySlug = cached(
       .select(SELECT_WITH_CATEGORY)
       .from(places)
       .leftJoin(categories, eq(categories.id, places.categoryId))
+      .leftJoin(suscripciones, eq(suscripciones.negocioId, places.id))
       .where(eq(places.slug, slug))
       .limit(1);
 
     if (!row) return null;
 
-    const photos = await photosByPlace([row.place.id]);
-    return toUserPlace({ ...unwrap(row), photos: photos.get(row.place.id) ?? [] });
+    const [photos, ofertasPorNegocio] = await Promise.all([
+      photosByPlace([row.place.id]),
+      ofertasByPlace([row.place.id]),
+    ]);
+    return toUserPlace({
+      ...unwrap(row),
+      photos: photos.get(row.place.id) ?? [],
+      ofertas: ofertasPorNegocio.get(row.place.id) ?? [],
+    });
   },
   "places:get-by-slug",
 );

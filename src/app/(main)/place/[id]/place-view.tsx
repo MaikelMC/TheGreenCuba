@@ -11,7 +11,8 @@ import type {
 } from "@/lib/places-store";
 import type { PlaceData } from "@/components/place/place-detail";
 import { contactLinks } from "@/lib/contact-links";
-import { formatDateRange } from "@/lib/utils";
+import { formatDateRange, formatMenuPrice } from "@/lib/utils";
+import { ofertaDe, ofertasVigentes, precioConOferta } from "@/lib/ofertas";
 import { useRouter } from "next/navigation";
 import { usePlaces } from "@/providers/places-provider";
 import { LoadingState } from "@/components/ui/loading";
@@ -38,6 +39,13 @@ const FALLBACK_SLIDES = [
 
 function userPlaceToPlaceData(p: UserPlace): PlaceData {
   const isOpen = p.status === "active";
+
+  /* Las ofertas vivas, resueltas **aquí** y no en `PlaceDetail`: esto es traducir
+     lo de la base —emparejar la oferta con su producto y sacar el tachado— y la
+     ficha solo pinta. Es el mismo reparto que con el contacto y el horario.
+     El filtro por fecha se hace en este punto, con el «ahora» de la petición. */
+  const vigentes = ofertasVigentes(p.ofertas);
+
   return {
     id: p.id,
     slug: p.slug,
@@ -85,6 +93,9 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
     notaApagon: p.notaApagon,
     icon: p.icon,
     isBoosted: p.isBoosted,
+    /* El sello ya viene resuelto del servidor —verificado **y** plan que lo
+       incluye—; aquí no se comprueba nada, solo se pasa. */
+    selloVerificado: p.selloVerificado ?? false,
     /* Las fotos subidas mandan; el degradado solo rellena cuando el negocio
        todavía no tiene ninguna. */
     slides:
@@ -111,27 +122,47 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
        `tag` que el dueño había escrito. */
     menu: p.menu
       .filter((item) => item.name.trim().length > 0)
-      .map((item: UserPlaceMenuItem) => ({
-        name: item.name,
-        description: item.description,
-        price: item.price,
-        currency: item.currency || "MLC",
-        tag: item.tag,
-        category: item.category,
-        image: item.image,
-        /* «Hoy hay»: sin esto la ficha perdería el estado y un producto agotado
-           se vería como disponible. La reconstrucción es explícita, así que
-           todo lo que no se nombre aquí se cae. */
-        disponibilidad: item.disponibilidad,
-        agotadoHasta: item.agotadoHasta,
-      })),
-    specialOffer: p.offer
-      ? {
-          label: "Oferta especial",
-          text: p.offer.text,
-          expiry: p.offer.expiry,
-        }
-      : undefined,
+      .map((item: UserPlaceMenuItem) => {
+        /* El `id` **se conserva**: es lo que enlaza la oferta con su producto, y
+           sin él al salir de aquí no habría forma de saber a qué fila tachar el
+           precio. Antes se caía en esta reconstrucción. */
+        const oferta = item.id ? ofertaDe(vigentes, item.id) : undefined;
+        const precios = oferta ? precioConOferta(item.price, oferta) : null;
+        return {
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          price: item.price,
+          currency: item.currency || "MLC",
+          tag: item.tag,
+          category: item.category,
+          image: item.image,
+          /* «Hoy hay»: sin esto la ficha perdería el estado y un producto agotado
+             se vería como disponible. La reconstrucción es explícita, así que
+             todo lo que no se nombre aquí se cae. */
+          disponibilidad: item.disponibilidad,
+          agotadoHasta: item.agotadoHasta,
+          /* El par de precios ya resuelto, o nada: la fila no calcula, pinta. */
+          oferta: precios ?? undefined,
+        };
+      }),
+    ofertas: vigentes.map((oferta) => {
+      const producto = p.menu.find((item) => item.id === oferta.productoId);
+      const precios = producto ? precioConOferta(producto.price, oferta) : null;
+      return {
+        id: oferta.id,
+        titulo: oferta.titulo,
+        descripcion: oferta.descripcion,
+        termina: `Termina el ${fechaLarga(oferta.termina)}`,
+        precio:
+          precios && producto
+            ? {
+                de: formatMenuPrice(precios.de, producto.currency || "MLC"),
+                por: formatMenuPrice(precios.por, producto.currency || "MLC"),
+              }
+            : undefined,
+      };
+    }),
     /* Aquí y no en `PlaceDetail`: normalizar es traducir lo de la base, y la
        ficha solo pinta. El `whatsapp` no cae al teléfono de la ficha, aunque
        parezcan lo mismo: el botón promete una conversación y un teléfono fijo
@@ -145,13 +176,28 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
   };
 }
 
-function placeState(
-  p: UserPlace,
-): "normal" | "closed" | "no-photos" | "special-offer" {
-  /* La oferta va primero y el orden importa: en `PlaceDetail` el banner solo se
-     pinta con el estado `special-offer`, así que un negocio con fotos y oferta
-     perdería el banner si las fotos se comprobaran antes. */
-  if (p.offer) return "special-offer";
+/**
+ * «12 de octubre, 19:30»: la fecha de caducidad de una oferta, para leerla de un
+ * vistazo. Con hora porque una oferta flash dura horas, no días.
+ */
+function fechaLarga(ms: number): string {
+  return new Date(ms).toLocaleString("es-CU", {
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function placeState(p: UserPlace): "normal" | "closed" | "no-photos" | "oferta" {
+  /* La oferta va primero y el orden importa: en `PlaceDetail` el cartel solo se
+     pinta con el estado `oferta`, así que un negocio con fotos y oferta perdería
+     el cartel si las fotos se comprobaran antes.
+
+     La columna del proyecto sigue siendo `p.offer`; quien mira una oferta flash
+     es `p.ofertas`, y solo cuentan las vivas —una caducada no puede dejar la
+     ficha en estado de oferta—. */
+  if (ofertasVigentes(p.ofertas).length > 0) return "oferta";
   if (p.photos && p.photos.length > 0) return "normal";
   return "no-photos";
 }
