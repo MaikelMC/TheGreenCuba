@@ -8,6 +8,8 @@ import { getPlaceBySlug } from "@/lib/db/queries";
 import { DEV_PLACE_ID, canViewDevPlace, devPlaceIndexable } from "@/lib/dev-place";
 import { getAppUser } from "@/lib/auth/user";
 import { whatsappHref } from "@/lib/contact-links";
+import { configReserva } from "@/lib/reserva";
+import { configSeguidores } from "@/lib/seguidores";
 import { menuUrl } from "@/lib/structured-data";
 import { categoryEmoji } from "@/lib/places";
 import { incluye } from "@/lib/plans";
@@ -17,6 +19,8 @@ import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
 import { ofertaDe, ofertasVigentes, precioConOferta } from "@/lib/ofertas";
 import { BotonAgregar, PedidoProvider } from "@/components/menu/pedido-whatsapp";
 import { EventosMenu } from "@/components/menu/eventos-menu";
+import { ReservaWhatsApp } from "@/components/place/reserva-whatsapp";
+import { SeguidorBoton } from "@/components/place/seguidor-boton";
 import { Logo } from "@/components/layout/logo";
 
 /**
@@ -286,6 +290,14 @@ export default async function MenuPage({
      cron y sin escribir nada. Ver `src/lib/ofertas.ts`. */
   const ofertas = ofertasVigentes(place.ofertas);
 
+  /* El botón de reserva, resuelto con el mismo ayudante que la ficha. El plan lo
+     decidió `reservaHabilitada` en el mapeo; aquí solo se traduce a botón. */
+  const reserva = configReserva(place);
+  /* Y el de los avisos, con el mismo reparto: el enlace solo llega resuelto si
+     el plan lo incluye y hay bot. La carta es donde alguien ve las ofertas, así
+     que aquí el botón vale el doble. */
+  const seguidores = configSeguidores(place);
+
   /* Agrupación estable por categoría, en el orden en que el dueño la escribió.
      `Map` conserva la inserción, así que «Entrantes» sale antes que «Postres»
      sin ordenar alfabéticamente. Las entradas sin categoría caen en un grupo
@@ -382,8 +394,20 @@ export default async function MenuPage({
           </p>
         )}
 
-        {(whatsapp || phone) && (
+        {(reserva || seguidores || whatsapp || phone) && (
           <div className="mt-gap-md flex flex-wrap gap-gap-xs">
+            {/* La reserva va primero: es el gesto que más vale para el negocio
+                y el que conviene encontrar sin buscarlo. */}
+            {reserva && (
+              <ReservaWhatsApp reserva={reserva} negocioId={place.id} />
+            )}
+            {seguidores && (
+              <SeguidorBoton
+                seguidores={seguidores}
+                negocioId={place.id}
+                variant={reserva ? "outline" : "primary"}
+              />
+            )}
             {whatsapp && (
               <a
                 href={whatsapp}

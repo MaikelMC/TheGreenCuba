@@ -38,6 +38,10 @@ interface SessionUser {
       —o ausente, que es lo mismo cuando la respuesta es de antes— «Enlaces» no
       se ofrece: la página rebotaría, porque no tendría código que enseñar. */
   affiliateEnabled?: boolean;
+  /** Si ya tiene algún proyecto. Sin ninguno, «Administrar proyectos» no se
+      ofrece: el panel solo enseñaría el estado vacío que manda a «Tengo un
+      negocio» del perfil, y ese camino ya está en el perfil. */
+  hasProjects?: boolean;
 }
 
 interface UserNotification {
@@ -346,7 +350,11 @@ export function UserMenu({
           /* Y «Enlaces» no existe hasta que un administrador lo active. Ningún
              rol lo implica: es un permiso suelto, y sin él la página rebotaría
              al perfil. */
-          (i.path !== "/enlaces" || Boolean(user.affiliateEnabled)),
+          (i.path !== "/enlaces" || Boolean(user.affiliateEnabled)) &&
+          /* «Administrar proyectos» solo aparece con el primero ya creado. El
+             rol no lo implica —cualquier usuario puede tener proyectos— y el
+             alta se hace desde «Tengo un negocio», en el perfil. */
+          (i.path !== "/projects" || Boolean(user.hasProjects)),
       )
     : [];
 

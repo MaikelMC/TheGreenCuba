@@ -1,6 +1,7 @@
 export * from "./users";
 export * from "./categories";
 export * from "./places";
+export * from "./reservas";
 export * from "./place_images";
 export * from "./place_hours";
 export * from "./place_menu_items";
@@ -18,4 +19,8 @@ export * from "./analytics";
 export * from "./eventos";
 export * from "./suscripciones";
 export * from "./ofertas";
+export * from "./publicaciones";
+export * from "./seguidores";
+export * from "./asistente";
 export * from "./place_overrides";
+export * from "./ranking";

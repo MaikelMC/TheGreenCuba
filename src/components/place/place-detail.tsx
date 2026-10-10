@@ -51,6 +51,11 @@ import type { Disponibilidad } from "@/lib/disponibilidad";
 import type { EnergiaRespaldo } from "@/lib/energia";
 import { EnergiaBadge } from "./energia-badge";
 import { SelloVerificado } from "./sello-verificado";
+import { TopDelMes } from "./top-del-mes";
+import { ReservaWhatsApp } from "./reserva-whatsapp";
+import { SeguidorBoton } from "./seguidor-boton";
+import type { SeguidorConfig } from "@/lib/seguidores";
+import type { ReservaConfig } from "@/lib/reserva";
 
 export type PlaceState = "normal" | "closed" | "no-photos" | "oferta";
 
@@ -132,6 +137,11 @@ export interface PlaceData {
    * (ver `SelloVerificado` y `selloVerificado` en el mapeo).
    */
   selloVerificado?: boolean;
+  /**
+   * Insignia «Top del mes», **ya resuelta** por el servidor contra
+   * `ranking_mensual`. La ficha solo la pinta (ver `TopDelMes`).
+   */
+  topDelMes?: boolean;
   slides: Slide[];
   menu: PlaceMenu[];
   /**
@@ -141,6 +151,20 @@ export interface PlaceData {
    * bloque vacío en su ficha.
    */
   contact: ContactLinks;
+  /**
+   * Lo que hace falta para pintar el botón de reserva, **ya resuelto**: solo
+   * viene cuando el plan incluye la función, el dueño la acepta y hay número
+   * (ver `reservaHabilitada` en el mapeo). Sin esto no hay botón, y la ficha no
+   * comprueba ningún permiso.
+   */
+  reserva?: ReservaConfig;
+  /**
+   * Lo que hace falta para el botón «Avísame de ofertas», **ya resuelto**: solo
+   * viene cuando el plan incluye los avisos (Pro) y hay bot configurado (ver
+   * `enlaceSeguidores` en el mapeo). Sin esto no hay botón, y la ficha no
+   * comprueba ningún permiso.
+   */
+  seguidores?: SeguidorConfig;
   /**
    * Las ofertas flash vivas del negocio, ya resueltas.
    *
@@ -464,6 +488,9 @@ export function PlaceDetail({
               la pastilla de abierto/cerrado. Sin `selloVerificado` no pinta
               nada. */}
           {place.selloVerificado && <SelloVerificado />}
+          {/* La insignia viaja con el sello: las dos son distinciones y la
+              franja es donde la ficha las acumula. */}
+          {place.topDelMes && <TopDelMes />}
         </Reveal>
 
         {/* Row 3: Two columns */}
@@ -764,6 +791,7 @@ export function PlaceDetail({
                   {place.selloVerificado && (
                     <SelloVerificado className="mt-gap-xs" />
                   )}
+                  {place.topDelMes && <TopDelMes className="mt-gap-xs" />}
                 </div>
               </div>
               {/* `flex-wrap` porque las cuatro acciones no siempre caben en la
@@ -1217,7 +1245,11 @@ function ContactCard({
       event: "business_social_clicked",
     });
 
-  if (rows.length === 0) return null;
+  /* La tarjeta existe también sin enlaces si hay reserva o avisos: son cosas
+     distintas —cómo contactar, qué reservar y que te avisen— y las dos acciones
+     son el gesto fuerte, así que encabezan la misma tarjeta. */
+  const acciones = Boolean(place.reserva || place.seguidores);
+  if (rows.length === 0 && !acciones) return null;
 
   return (
     <div
@@ -1226,42 +1258,68 @@ function ContactCard({
         className,
       )}
     >
-      <div className="font-lv-display text-small font-semibold text-ink mb-gap-sm">
-        Contacto
-      </div>
-      {/* En fila y no apilados. Cuatro botones de 44 px uno debajo de otro son
-          200 px de alto para decir cuatro palabras; a 12 px y sin la flecha de
-          «se abre fuera» tres caben en la misma línea de un móvil —unos 300 de
-          los 350 px que quedan entre márgenes— y el cuarto baja solo. Los 36 px
-          de alto quedan por debajo de los 44 de un dedo pero por encima de los
-          24 que pide WCAG 2.5.8 AA, y el ancho lo compensa. */}
-      <div className="flex flex-wrap items-center gap-[6px]">
-        {rows.map((row) => (
-          <a
-            key={row.label}
-            href={row.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => {
-              trackClientEvent(row.event, { businessId: place.id });
-              /* WhatsApp es el gesto que el dueño quiere contar —es por donde
-                 le llegan los pedidos—, así que además de la analítica interna
-                 alimenta sus estadísticas. El resto de enlaces no. */
-              if (row.event === "business_whatsapp_clicked") {
-                trackEvento({ tipo: "click_whatsapp", negocioId: place.id });
-              }
-            }}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-ink/10 bg-white px-3 font-lv-display text-[12px] font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
-          >
-            <row.icon
-              size={15}
-              strokeWidth={1.8}
-              className="shrink-0 text-verde-600"
-            />
-            <span className="truncate">{row.label}</span>
-          </a>
-        ))}
-      </div>
+      {place.reserva && (
+        <ReservaWhatsApp
+          reserva={place.reserva}
+          negocioId={place.id}
+          className={cn(
+            "w-full",
+            (rows.length > 0 || place.seguidores) && "mb-gap-sm",
+          )}
+        />
+      )}
+
+      {/* El aviso de ofertas debajo de la reserva: la reserva es el gesto del
+          momento y esto es el de después —quedarse para la próxima—. */}
+      {place.seguidores && (
+        <SeguidorBoton
+          seguidores={place.seguidores}
+          negocioId={place.id}
+          variant={place.reserva ? "outline" : "primary"}
+          className={cn("w-full", rows.length > 0 && "mb-gap-sm")}
+        />
+      )}
+
+      {rows.length > 0 && (
+        <>
+          <div className="font-lv-display text-small font-semibold text-ink mb-gap-sm">
+            Contacto
+          </div>
+          {/* En fila y no apilados. Cuatro botones de 44 px uno debajo de otro son
+              200 px de alto para decir cuatro palabras; a 12 px y sin la flecha de
+              «se abre fuera» tres caben en la misma línea de un móvil —unos 300 de
+              los 350 px que quedan entre márgenes— y el cuarto baja solo. Los 36 px
+              de alto quedan por debajo de los 44 de un dedo pero por encima de los
+              24 que pide WCAG 2.5.8 AA, y el ancho lo compensa. */}
+          <div className="flex flex-wrap items-center gap-[6px]">
+            {rows.map((row) => (
+              <a
+                key={row.label}
+                href={row.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  trackClientEvent(row.event, { businessId: place.id });
+                  /* WhatsApp es el gesto que el dueño quiere contar —es por donde
+                     le llegan los pedidos—, así que además de la analítica interna
+                     alimenta sus estadísticas. El resto de enlaces no. */
+                  if (row.event === "business_whatsapp_clicked") {
+                    trackEvento({ tipo: "click_whatsapp", negocioId: place.id });
+                  }
+                }}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-ink/10 bg-white px-3 font-lv-display text-[12px] font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
+              >
+                <row.icon
+                  size={15}
+                  strokeWidth={1.8}
+                  className="shrink-0 text-verde-600"
+                />
+                <span className="truncate">{row.label}</span>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

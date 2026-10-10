@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth/server";
 import { getAppUser } from "@/lib/auth/user";
 import { isGoogleAccount, isMarketingOptedIn, setMarketingOptIn } from "@/lib/contacts";
 import { db } from "@/lib/db";
-import { businessOwners, categories, places, users } from "@/lib/db/schema";
+import { businessOwners, categories, places, projectRequests, users } from "@/lib/db/schema";
 import { devPlace, ownsDevPlace } from "@/lib/dev-place";
 import { TERMS_VERSION } from "@/lib/legal";
 import type { PlacePlan } from "@/lib/places-store";
@@ -130,6 +130,25 @@ async function businessFor(
 }
 
 /**
+ * Si esta persona ya tiene algún proyecto.
+ *
+ * El menú decide con esto si enseña «Administrar proyectos»: sin ninguno, el
+ * panel solo pinta el estado vacío que manda a «Tengo un negocio» del perfil, y
+ * ese camino ya está en el perfil. A diferencia del negocio —que exige rol—,
+ * cualquier usuario puede tener proyectos, así que aquí no hay guarda que ahorre
+ * la consulta: es un `limit(1)` sobre el índice de `user_id`.
+ */
+async function userHasProjects(userId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: projectRequests.id })
+    .from(projectRequests)
+    .where(eq(projectRequests.userId, userId))
+    .limit(1);
+
+  return Boolean(row);
+}
+
+/**
  * Lo que la interfaz necesita saber del consentimiento de novedades.
  *
  * `isGoogle` viaja para poder pedir el consentimiento **una sola vez** a quien
@@ -177,6 +196,13 @@ export async function GET() {
     return NextResponse.json({ authenticated: false, user: null });
   }
 
+  /* Las dos consultas a la vez y no encadenadas: el menú llama aquí en **cada**
+     página, así que un viaje de red de más se paga en todas. */
+  const [business, hasProjects] = await Promise.all([
+    businessFor(user.id, user.role, user.email),
+    userHasProjects(user.id),
+  ]);
+
   return NextResponse.json({
     marketing: await marketingState(user),
     authenticated: true,
@@ -195,7 +221,10 @@ export async function GET() {
          código no viaja aquí porque la página lo lee del servidor, que es donde
          se arma el enlace. */
       affiliateEnabled: Boolean(user.referralCode),
-      business: await businessFor(user.id, user.role, user.email),
+      /* Solo el «sí o no»: el menú decide con esto si enseña «Administrar
+         proyectos». */
+      hasProjects,
+      business,
     },
   });
 }
@@ -277,6 +306,11 @@ export async function POST(request: NextRequest) {
     await setMarketingOptIn(user.id, user.email, nextMarketingOptIn);
   }
 
+  const [business, hasProjects] = await Promise.all([
+    businessFor(user.id, user.role, user.email),
+    userHasProjects(user.id),
+  ]);
+
   return NextResponse.json({
     authenticated: true,
     marketing: await marketingState(user),
@@ -295,7 +329,10 @@ export async function POST(request: NextRequest) {
          código no viaja aquí porque la página lo lee del servidor, que es donde
          se arma el enlace. */
       affiliateEnabled: Boolean(user.referralCode),
-      business: await businessFor(user.id, user.role, user.email),
+      /* Solo el «sí o no»: el menú decide con esto si enseña «Administrar
+         proyectos». */
+      hasProjects,
+      business,
     },
   });
 }

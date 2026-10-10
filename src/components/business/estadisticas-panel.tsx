@@ -75,23 +75,74 @@ export function EstadisticasPanel({
         </Bloqueado>
       )}
 
-      {/* Gráfico y productos. Pro. */}
+      {/* Gráfico, productos y reservas. Pro. */}
       {completas ? (
-        <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-          <MiniChart
-            data={completas.serie.map((d) => d.conteo)}
-            title="Visitas por día"
-            period="Últimos 14 días"
-            unit="visitas"
-          />
-          <TopProductos productos={completas.topProductos} />
+        <div className="flex flex-col gap-gap-md">
+          <Reservas reservas={completas.reservas} />
+          <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
+            <MiniChart
+              data={completas.serie.map((d) => d.conteo)}
+              title="Visitas por día"
+              period="Últimos 14 días"
+              unit="visitas"
+            />
+            <TopProductos productos={completas.topProductos} />
+          </div>
         </div>
       ) : (
         <Bloqueado feature="stats_completas" plan={plan} onVerPlanes={onVerPlanes}>
-          El gráfico día a día y tus 5 productos más vistos.
+          El gráfico día a día, tus 5 productos más vistos y las reservas.
         </Bloqueado>
       )}
     </section>
+  );
+}
+
+/**
+ * Los toques al botón de reservar, a 7 y 30 días.
+ *
+ * Cuenta el **gesto**, no la reserva: La Verde no guarda ni confirma nada, así
+ * que lo que enseña esta tarjeta es cuánta gente abrió el formulario y saltó a
+ * WhatsApp. La reserva que se cierra —o no— la sabe el dueño por su teléfono,
+ * y por eso el pie lo dice en vez de dejar creer que son reservas cerradas.
+ */
+function Reservas({
+  reservas,
+}: {
+  reservas: { corto: number; largo: number };
+}) {
+  const cifras = [
+    { label: "Últimos 7 días", valor: reservas.corto },
+    { label: "Últimos 30 días", valor: reservas.largo },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+      <div className="flex flex-wrap items-center justify-between gap-gap-sm">
+        <span className="font-lv-display text-small font-semibold text-ink">
+          Reservas por WhatsApp
+        </span>
+        <span className="rounded-full bg-sand-deep px-[10px] py-[3px] font-lv-display text-meta text-ink-soft/75">
+          Toques al botón
+        </span>
+      </div>
+
+      <div className="mt-gap-sm flex gap-gap-lg">
+        {cifras.map(({ label, valor }) => (
+          <div key={label} className="flex flex-col">
+            <span className="font-lv-display text-h3 font-bold tabular-nums leading-none text-ink">
+              {valor.toLocaleString("es-CU")}
+            </span>
+            <span className="mt-[2px] text-meta text-ink-soft/75">{label}</span>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-gap-sm text-meta text-ink-soft/75">
+        Son los que abrieron el formulario y pasaron a WhatsApp. La reserva la
+        cierras tú por ahí: esto no cuenta las que se confirmaron.
+      </p>
+    </div>
   );
 }
 

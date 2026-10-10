@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
-import { businessOwners, categories, ofertas, placeImages, places, reviews, savedPlaces, suscripciones } from "@/lib/db/schema";
+import { businessOwners, categories, ofertas, placeImages, places, rankingMensual, reviews, savedPlaces, suscripciones } from "@/lib/db/schema";
 import { DEV_PLACE_ID, devPlace, devPlaceEnabled } from "@/lib/dev-place";
 import { conSelloVerificado, getDevPlaceFor } from "@/lib/dev-place-server";
 import type { UserPlaceOferta, UserPlacePhoto } from "@/lib/places-store";
@@ -111,16 +111,29 @@ const SELECT_WITH_CATEGORY = {
     trialHasta: suscripciones.trialHasta,
     venceEn: suscripciones.venceEn,
   },
+  /* La insignia «Top del mes» en la misma consulta que el resto del catálogo.
+     Va como `exists` y no como un segundo viaje por negocio porque la lista
+     pinta treinta fichas de golpe: treinta consultas para saber quién ganó el
+     mes sería justo lo que el catálogo cacheado existe para evitar. El `max`
+     del periodo deja «el último mes calculado», que es el que enseña la
+     insignia —el job cierra un mes al empezar el siguiente—. */
+  topDelMes: sql<boolean>`exists (
+    select 1 from ${rankingMensual}
+    where ${rankingMensual.negocioId} = ${places.id}
+      and ${rankingMensual.periodo} = (select max(${rankingMensual.periodo}) from ${rankingMensual})
+  )`,
 };
 
 function unwrap(row: {
   place: PlaceRow;
   categoryName: string | null;
   suscripcion: SuscripcionRow;
+  topDelMes: boolean;
 }): PlaceRowWithCategory {
   const s = row.suscripcion;
   return {
     ...row.place,
+    topDelMes: row.topDelMes === true,
     categoryName: row.categoryName,
     /* Sin fila, el join deja las cuatro columnas a `null` y eso se lee como
        «sin suscripción» —gratis—, que es lo que `planEfectivo` espera. */

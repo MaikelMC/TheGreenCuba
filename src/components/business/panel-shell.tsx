@@ -2,20 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { LayoutDashboard, Edit, Sparkles, Settings, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Edit, Megaphone, Sparkles, Settings, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { UserMenu } from "@/components/layout/user-menu";
 import { MobileDock } from "@/components/layout/mobile-dock";
 import { EASE } from "@/lib/motion";
 
-export type PanelView = "dashboard" | "editor" | "planes" | "settings";
+export type PanelView =
+  | "dashboard"
+  | "editor"
+  | "publicaciones"
+  | "planes"
+  | "settings";
 
 interface PanelShellProps {
   businessName?: string;
   defaultView?: PanelView;
   /**
-   * Contenido que va **encima de la vista**, en las cuatro secciones.
+   * Contenido que va **encima de la vista**, en todas las secciones.
    *
    * Lo usa el selector de negocio: elegir qué negocio miras no es una sección
    * más, tiene que seguir a la vista —si estás editando la ficha y cambias de
@@ -43,6 +48,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "editor", label: "Editar", icon: Edit },
+  { id: "publicaciones", label: "Publicar", icon: Megaphone },
   { id: "planes", label: "Planes", icon: Sparkles },
   { id: "settings", label: "Ajustes", icon: Settings },
 ];
@@ -50,6 +56,7 @@ const NAV_ITEMS: NavItem[] = [
 const SIDEBAR_ITEMS: NavItem[] = [
   { id: "dashboard" as PanelView, label: "Dashboard", icon: LayoutDashboard },
   { id: "editor" as PanelView, label: "Editar ficha", icon: Edit },
+  { id: "publicaciones" as PanelView, label: "Publicaciones", icon: Megaphone },
   { id: "planes" as PanelView, label: "Planes", icon: Sparkles },
   { id: "settings" as PanelView, label: "Ajustes", icon: Settings },
 ];
@@ -68,7 +75,7 @@ export function PanelShell({
      Antes estaba fijo en "St. Pauli Restaurant-Bar", luego salió del campo
      `business` de la cuenta de demo; con la autenticación de Neon lo que hay es
      la fila que dice quién lleva qué sitio. Se pide aquí y no en cada página
-     porque este armazón ya envuelve las cuatro vistas.
+     porque este armazón ya envuelve todas las vistas.
 
      Mientras esa tabla no tenga filas —nadie ha reclamado un negocio todavía—
      `/api/me` devuelve `null` y se cae al nombre de la persona. */

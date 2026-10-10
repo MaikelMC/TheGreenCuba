@@ -5,6 +5,7 @@ import Image from "next/image";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { CategoryIcon } from "@/components/admin/category-icon";
+import { TopDelMes } from "@/components/place/top-del-mes";
 
 interface PlaceCardProps {
   name: string;
@@ -17,6 +18,8 @@ interface PlaceCardProps {
   icon?: string;
   /** Logo del negocio. Si lo hay manda sobre el icono. */
   logoUrl?: string;
+  /** Insignia «Top del mes», ya resuelta por el servidor. Ver `TopDelMes`. */
+  topDelMes?: boolean;
   selected?: boolean;
   liked?: boolean;
   index?: number;
@@ -43,6 +46,7 @@ export function PlaceCard({
   tags,
   icon,
   logoUrl,
+  topDelMes,
   selected,
   liked,
   index = 0,
@@ -126,6 +130,7 @@ export function PlaceCard({
             ))}
           </div>
         )}
+        {topDelMes && <TopDelMes className="mt-[6px]" />}
       </div>
 
       {/* Actions */}

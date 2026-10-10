@@ -1,12 +1,20 @@
-import type { categories, places } from "@/lib/db/schema";
+import type { categories, places, publicaciones } from "@/lib/db/schema";
 import type { BusinessCategory } from "@/lib/places";
+import type { EstadoPublicacion } from "@/lib/publicaciones";
 import type {
   UserPlace,
   UserPlaceMenuItem,
   UserPlaceOferta,
   UserPlacePhoto,
 } from "@/lib/places-store";
-import { muestraSelloVerificado, planEfectivo, type Suscripcion } from "@/lib/plans";
+import {
+  incluye,
+  muestraSelloVerificado,
+  planEfectivo,
+  type Suscripcion,
+} from "@/lib/plans";
+import { enlaceSeguidores } from "@/lib/seguidores";
+import { siteConfig } from "@/config/site";
 import { slugify } from "@/lib/utils";
 
 /**
@@ -71,6 +79,15 @@ export type PlaceRowWithCategory = PlaceRow & {
    * del plan.
    */
   suscripcion?: Suscripcion | null;
+  /**
+   * Si el negocio está en el podio del último mes calculado.
+   *
+   * Lo trae la consulta del catálogo con un `exists` contra `ranking_mensual`
+   * (ver `SELECT_WITH_CATEGORY`). Ausente en las rutas que responden con la fila
+   * que acaban de escribir, y ahí significa lo mismo que `false`: una fila
+   * recién creada no ha ganado ningún mes todavía.
+   */
+  topDelMes?: boolean;
 };
 
 export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
@@ -126,6 +143,27 @@ export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
     ofertas: row.ofertas ?? [],
     status: row.status,
     pedidosWhatsapp: row.pedidosWhatsapp,
+    /* Las reservas viajan crudas por lo mismo que los pedidos —el panel edita
+       `aceptaReservas` y elige el tipo— y resueltas en `reservaHabilitada`, que
+       es lo único que miran la ficha y la carta. */
+    aceptaReservas: row.aceptaReservas,
+    tipoReserva: row.tipoReserva,
+    aforoMaxPersonas: row.aforoMaxPersonas ?? null,
+    aforoDiarioPersonas: row.aforoDiarioPersonas ?? null,
+    plantillaReserva: row.plantillaReserva ?? null,
+    reservaHabilitada:
+      row.aceptaReservas &&
+      Boolean(row.whatsapp?.trim()) &&
+      incluye(planEfectivo(row.suscripcion ?? null), "reservas_whatsapp"),
+    /* El botón «Avísame de ofertas»: la función es de Pro y hace falta que haya
+       bot configurado. Como el sello y la reserva, la decisión viaja ya tomada
+       —el nombre del bot no es asunto del navegador— y sin enlace no se pinta
+       nada. */
+    enlaceSeguidores: enlaceSeguidores(
+      siteConfig.telegramBot,
+      row.id,
+      planEfectivo(row.suscripcion ?? null),
+    ),
     plan: row.plan,
     isActive: row.isActive,
     reviewStatus: row.reviewStatus,
@@ -140,6 +178,9 @@ export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
       row.verificado,
       planEfectivo(row.suscripcion ?? null),
     ),
+    /* Sin el dato —ruta que no pasó por el catálogo— es `false`, que es lo que
+       significa no estar en el ranking. */
+    topDelMes: row.topDelMes === true,
     isBoosted: row.isBoosted,
     boostExpiresAt: row.boostExpiresAt ?? "",
     rating: row.rating ?? undefined,
@@ -151,6 +192,41 @@ export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
     photos: row.photos ?? [],
     createdAt: row.createdAt.getTime(),
     updatedAt: row.updatedAt.getTime(),
+  };
+}
+
+/**
+ * Una publicación de la cola de Facebook, ya lista para el cliente.
+ *
+ * El `timestamp` se convierte a epoch ms, como el resto de tipos que salen al
+ * navegador, y `publicadaEn` puede ser `null` —lo normal hasta que se postea—.
+ * Vive aquí y no en cada ruta porque la leen las dos —la de la cola y la de la
+ * publicación suelta— y una sola forma de traducir la fila evita que la pantalla
+ * reciba el mismo dato con dos formas distintas.
+ */
+export interface Publicacion {
+  id: string;
+  texto: string;
+  imagenUrl: string | null;
+  estado: EstadoPublicacion;
+  semana: string;
+  enlace: string | null;
+  publicadaEn: number | null;
+  createdAt: number;
+}
+
+type PublicacionRow = typeof publicaciones.$inferSelect;
+
+export function toPublicacion(row: PublicacionRow): Publicacion {
+  return {
+    id: row.id,
+    texto: row.texto,
+    imagenUrl: row.imagenUrl,
+    estado: row.estado,
+    semana: row.semana,
+    enlace: row.enlace,
+    publicadaEn: row.publicadaEn ? row.publicadaEn.getTime() : null,
+    createdAt: row.createdAt.getTime(),
   };
 }
 
@@ -223,6 +299,23 @@ export function toPlaceValues(
   if (patch.status !== undefined) values.status = patch.status;
   if (patch.pedidosWhatsapp !== undefined) {
     values.pedidosWhatsapp = patch.pedidosWhatsapp;
+  }
+  /* Las reservas entran por la misma lista blanca: lo que no se nombre aquí se
+     cae en cada guardado del panel. `?? null` en el aforo y `|| null` en la
+     plantilla porque vaciar el campo es un dato —«sin tope», «vuelve a la
+     plantilla por defecto»—, no un hueco. */
+  if (patch.aceptaReservas !== undefined) {
+    values.aceptaReservas = patch.aceptaReservas;
+  }
+  if (patch.tipoReserva !== undefined) values.tipoReserva = patch.tipoReserva;
+  if (patch.aforoMaxPersonas !== undefined) {
+    values.aforoMaxPersonas = patch.aforoMaxPersonas ?? null;
+  }
+  if (patch.aforoDiarioPersonas !== undefined) {
+    values.aforoDiarioPersonas = patch.aforoDiarioPersonas ?? null;
+  }
+  if (patch.plantillaReserva !== undefined) {
+    values.plantillaReserva = patch.plantillaReserva || null;
   }
   if (patch.plan !== undefined) values.plan = patch.plan ?? null;
   if (patch.isActive !== undefined) values.isActive = patch.isActive;

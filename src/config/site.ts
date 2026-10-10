@@ -7,6 +7,18 @@ const canonicalAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || PRODUCTION_AP
 
 export const siteConfig = {
   name: "La Verde",
+  /**
+   * El usuario del bot de Telegram que manda los avisos a los seguidores, sin
+   * `@`. **Público a propósito**: viaja dentro del enlace que abre la ficha
+   * (`https://t.me/<bot>?start=seg_<negocioId>`), así que no es un secreto —el
+   * token del bot, que sí lo es, vive en `TELEGRAM_BOT_TOKEN` y solo lo ve el
+   * servidor—.
+   *
+   * Vacío = **no hay botón de avisos en ninguna ficha**, y eso es lo correcto:
+   * sin bot configurado un botón solo llevaría a una conversación que no
+   * existe. El panel del dueño lo dice con su propia frase.
+   */
+  telegramBot: process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME?.trim().replace(/^@/, "") ?? "",
   description: "Encuentra los mejores lugares en Cuba con ayuda de inteligencia artificial",
   slogan: "Tu guía de Cuba",
   /* La reserva es el dominio de producción y no `localhost`, que es lo que era.

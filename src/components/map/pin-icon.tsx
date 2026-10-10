@@ -49,10 +49,9 @@ const PIN_STYLES: Record<PlacePinVariant, PinStyle> = {
 const TEARDROP_PATH =
   "M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24C24 5.37 18.63 0 12 0z";
 
-/* El icono de Lucide ocupa 24×24 y va centrado en (12,12) de la gota, que es
-   donde estaba el punto blanco. Se escala con un `transform` y no con
-   width/height: las medidas del SVG de Lucide ya vienen en 24 y así el trazo
-   se mantiene proporcional. */
+/* El icono de Lucide ocupa 24×24 y va centrado en (12,12) de la gota. Se
+   escala con un `transform` y no con width/height: las medidas del SVG de
+   Lucide ya vienen en 24 y así el trazo se mantiene proporcional. */
 function iconMarkup(iconKey: string, style: PinStyle): string {
   const key = isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON;
   const Icon = resolveCategoryIcon(key);
@@ -63,18 +62,6 @@ function iconMarkup(iconKey: string, style: PinStyle): string {
   const scale = style.icon / 24;
 
   return `<g transform="translate(12 12) scale(${scale.toFixed(4)}) translate(-12 -12)">${glyph}</g>`;
-}
-
-/* El `src` de la foto va dentro de una cadena de HTML que se inserta con
-   `innerHTML`, así que una URL con comillas rompería el atributo. El juego de
-   caracteres que hay que escapar es el mismo en HTML y en XML. */
-function escapeXmlAttribute(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll("'", "&apos;");
 }
 
 /**
@@ -124,43 +111,13 @@ function ofertaBadgeMarkup(): string {
 function buildPin(
   variant: PlacePinVariant,
   iconKey: string,
-  imageUrl?: string,
   conEnergia = false,
   conOferta = false,
 ) {
   const { width, height, discR, ring, top, bottom } = PIN_STYLES[variant];
   const key = isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON;
   const id = `lv-pin-${variant}-${key}${conEnergia ? "-e" : ""}${conOferta ? "-o" : ""}`;
-  const photoRadius = Math.max(3, discR - 1);
   const ringColor = PIN_STYLES[variant].ringColor ?? "rgba(53,175,109,0.4)";
-
-  /* La foto es un `<img>` de HTML superpuesto al SVG, **no** un `<image>` de
-     SVG como antes. El pin era el único sitio de la app que pintaba una foto
-     por dentro de un SVG, y ahí la carga es asíncrona: el SVG se rasteriza al
-     insertarse y algunas imágenes se quedaban sin repintar cuando terminaban de
-     llegar, con la gota y el disco ya pintados y el hueco en blanco —el
-     «aparece que va a cargar y no carga»—. Un `<img>` es el mismo elemento que
-     ya usa el popup, la ficha y las tarjetas, y repinta solo.
-
-     La geometría sale del `viewBox` (24×36) y no de constantes a mano: el SVG
-     escala con `xMidYMid meet`, así que el factor es el menor de los dos y el
-     contenido va centrado —en `project`, 38×56 no es 2:3 exacto y sobra medio
-     píxel por lado, que es justo lo que descuadraría una cuenta fija—. */
-  const scale = Math.min(width / 24, height / 36);
-  const photoSize = photoRadius * 2 * scale;
-  const photoLeft = (width - 24 * scale) / 2 + (12 - photoRadius) * scale;
-  const photoTop = (height - 36 * scale) / 2 + (12 - photoRadius) * scale;
-
-  /* El aro blanco y el de la variante `selected` van en el `box-shadow` porque
-     los dibujaba el SVG *encima* de la foto, y ahora la foto es una capa de
-     HTML por encima de todo el SVG: sin esto el aro desaparecería debajo. Los
-     radios coinciden —el aro del SVG es `r=8` con trazo 2, o sea de 7 a 9, y el
-     disco de la foto es `photoRadius`, que en `selected` son 9—. */
-  const photo = imageUrl
-    ? `<img src="${escapeXmlAttribute(imageUrl)}" alt="" style="position:absolute;left:${photoLeft.toFixed(2)}px;top:${photoTop.toFixed(2)}px;width:${photoSize.toFixed(2)}px;height:${photoSize.toFixed(2)}px;border-radius:50%;object-fit:cover;box-shadow:inset 0 0 0 ${scale.toFixed(2)}px rgba(255,255,255,0.9)${
-        ring ? `,inset 0 0 0 ${(2 * scale).toFixed(2)}px ${ringColor}` : ""
-      }">`
-    : "";
 
   const html = `
     <div style="position:relative;width:${width}px;height:${height}px;filter:drop-shadow(0 3px 6px rgba(8,19,13,0.45));${
@@ -175,12 +132,11 @@ function buildPin(
         </defs>
         <path d="${TEARDROP_PATH}" fill="url(#${id})"/>
         <circle cx="12" cy="12" r="${discR}" fill="white"/>
-        ${imageUrl ? "" : iconMarkup(key, PIN_STYLES[variant])}
-        ${ring && !imageUrl ? `<circle cx="12" cy="12" r="8" fill="none" stroke="${ringColor}" stroke-width="2"/>` : ""}
+        ${iconMarkup(key, PIN_STYLES[variant])}
+        ${ring ? `<circle cx="12" cy="12" r="8" fill="none" stroke="${ringColor}" stroke-width="2"/>` : ""}
         ${conEnergia ? ENERGIA_BADGE_MARKUP : ""}
         ${conOferta ? ofertaBadgeMarkup() : ""}
       </svg>
-      ${photo}
     </div>`;
 
   return divIcon({
@@ -191,21 +147,20 @@ function buildPin(
   });
 }
 
-/* La clave lleva la variante, el icono, la foto, el rayo y la oferta: dos
-   negocios distintos comparten variante pero no dibujo. */
+/* La clave lleva la variante, el icono, el rayo y la oferta: dos negocios
+   distintos comparten variante pero no dibujo. */
 const ICON_CACHE: Record<string, ReturnType<typeof buildPin>> = {};
 
 /** Icono de lugar para el mapa, cacheado por variante, icono, respaldo y oferta. */
 export function createPlacePinIcon(
   variant: PlacePinVariant = "default",
   iconKey: string = DEFAULT_CATEGORY_ICON,
-  imageUrl?: string,
   /** Si el negocio tiene energía de respaldo. Ver `src/lib/energia.ts`. */
   conEnergia = false,
   /** Si tiene alguna oferta flash viva. Ver `hayOferta` en `src/lib/ofertas.ts`. */
   conOferta = false,
 ) {
-  const cacheKey = `${variant}:${isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON}:${imageUrl ?? ""}:${conEnergia ? "e" : ""}:${conOferta ? "o" : ""}`;
-  ICON_CACHE[cacheKey] ??= buildPin(variant, iconKey, imageUrl, conEnergia, conOferta);
+  const cacheKey = `${variant}:${isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON}:${conEnergia ? "e" : ""}:${conOferta ? "o" : ""}`;
+  ICON_CACHE[cacheKey] ??= buildPin(variant, iconKey, conEnergia, conOferta);
   return ICON_CACHE[cacheKey]!;
 }

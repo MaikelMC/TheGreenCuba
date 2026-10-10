@@ -16,6 +16,7 @@ import {
   Megaphone,
   LifeBuoy,
   BellRing,
+  Send,
   Menu,
   X,
   ChevronRight,
@@ -64,6 +65,12 @@ const NAV_ITEMS: AdminNavItem[] = [
     label: "Solicitudes",
     short: "Solicitudes",
     icon: ClipboardList,
+  },
+  {
+    href: "/admin/publicaciones",
+    label: "Publicaciones",
+    short: "Publicar",
+    icon: Send,
   },
   {
     href: "/admin/proyectos",

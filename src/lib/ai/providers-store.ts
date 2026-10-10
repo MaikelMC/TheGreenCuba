@@ -51,6 +51,7 @@ const DEFAULT_MODELS = {
   gemini: "gemini-flash-lite-latest",
   groq: "openai/gpt-oss-120b",
   cerebras: "gpt-oss-120b",
+  deepseek: "deepseek-chat",
 } as const;
 
 function makeId(name: string): string {
@@ -147,6 +148,24 @@ function buildEnvProviders(): AiProvider[] {
       model: process.env.CEREBRAS_MODEL?.trim() || DEFAULT_MODELS.cerebras,
       enabled: true,
       priority: 6,
+    });
+  }
+  // DeepSeek: compatible con OpenAI (Bearer + /chat/completions) y admite
+  // `response_format: json_object`, así que entra por el camino `openai`. Va el
+  // último para no mover el orden ya medido de la cadena: probado el 10/10/2026
+  // desde aquí dio 8,8 s, en la liga de Groq (8,7 s) y muy por delante de
+  // OpenRouter (27,7 s), así que subirlo estaría justificado —una línea, o desde
+  // el panel de proveedores—, pero eso es una decisión aparte de darlo de alta.
+  if (process.env.DEEPSEEK_API_KEY) {
+    providers.push({
+      id: makeId("DeepSeek"),
+      name: "DeepSeek",
+      vendor: "openai",
+      baseURL: "https://api.deepseek.com/v1",
+      apiKey: process.env.DEEPSEEK_API_KEY,
+      model: process.env.DEEPSEEK_MODEL?.trim() || DEFAULT_MODELS.deepseek,
+      enabled: true,
+      priority: 7,
     });
   }
   return providers;

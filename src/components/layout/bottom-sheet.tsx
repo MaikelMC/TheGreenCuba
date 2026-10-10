@@ -9,20 +9,23 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 
-type SheetState = "collapsed" | "peek" | "full";
+type SheetState = "peek" | "full";
 
 /**
  * Lo que asoma en cada estado reposado.
  *
- * `collapsed` deja justo el asa (20 px: los 10 de arriba más los 6 de abajo más
- * los 4 de la barra). Recortar más abajo cortaría el titular por la mitad en
- * lugar de esconderlo, que es peor que no esconderlo.
+ * `peek` es la vista más baja que existe —el asa con el titular y el subtítulo—
+ * y además la que la hoja tiene al abrir el home. No hay estado por debajo: la
+ * recogida hasta dejar solo el asa la pegaba al borde inferior de la pantalla y
+ * la sección desaparecía. Ningún gesto baja de aquí.
  */
 const RESTING_OFFSET: Record<SheetState, string> = {
-  collapsed: "calc(100% - 20px)",
   peek: "calc(100% - 120px)",
   full: "0px",
 };
+
+/** Lo que asoma en `peek`, en píxeles. Es el tope del arrastre hacia abajo. */
+const PEEK_INSET = 120;
 
 interface BottomSheetProps {
   children: ReactNode;
@@ -33,19 +36,17 @@ interface BottomSheetProps {
   defaultState?: SheetState;
   /** Cuando es true, fuerza el sheet abierto (full) para revelar su contenido. */
   forceOpen?: boolean;
-  /** Cada valor nuevo recoge el sheet a `collapsed`, para dejar ver el mapa. */
-  collapseSignal?: number;
   /**
-   * Cada valor nuevo baja el sheet a `peek`: la mitad recogida, con el titular
-   * y el asa a la vista.
+   * Cada valor nuevo baja el sheet a `peek`: su vista más baja, con el titular
+   * y el asa todavía a la vista, para dejar ver el mapa.
    *
-   * `collapseSignal` baja hasta el asa —20 px— y eso, para algo que no es un
-   * gesto sobre el mapa, esconde la sección entera: al abrir las sugerencias del
-   * buscador la hoja desaparecía en vez de apartarse. Con `peek` sigue ahí, más
-   * abajo, y se entiende que volverá.
+   * Es la única bajada que existe. Antes había una segunda señal que la recogía
+   * hasta dejar solo el asa —20 px—, y esa, para algo que no es un gesto sobre
+   * el mapa, escondía la sección entera: al abrir las sugerencias del buscador,
+   * o al tocar una tarjeta, la hoja desaparecía en vez de apartarse.
    */
   peekSignal?: number;
-  /** Cada valor nuevo abre el sheet en `full` —mismo patrón que `collapseSignal`,
+  /** Cada valor nuevo abre el sheet en `full` —mismo patrón que `peekSignal`,
       pero para abrir: con solo `forceOpen` la segunda búsqueda no disparaba el
       efecto, porque el booleano ya estaba en `true` desde la búsqueda anterior. */
   openSignal?: number;
@@ -59,7 +60,6 @@ export function BottomSheet({
   className,
   defaultState = "peek",
   forceOpen = false,
-  collapseSignal,
   peekSignal,
   openSignal,
 }: BottomSheetProps) {
@@ -71,11 +71,11 @@ export function BottomSheet({
   const sheetRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
   const startTranslate = useRef(0);
-  /* El tope del arrastre hacia abajo, en píxeles: la posición recogida —el asa
-     asomando—, el mismo `calc(100% - 20px)` del estado `collapsed`. Sin tope,
-     tirar del asa hacia abajo mandaba la hoja más abajo del asa, fuera de la
-     pantalla, y si el gesto se perdía por el camino se quedaba ahí. Se mide al
-     empezar el gesto para no leer `offsetHeight` en cada `pointermove`. */
+  /* El tope del arrastre hacia abajo, en píxeles: la posición de `peek`, lo
+     mismo que asoma al abrir el home. Sin tope, tirar del asa hacia abajo
+     mandaba la hoja al borde inferior de la pantalla y ahí se quedaba si el
+     gesto se perdía por el camino. Se mide al empezar el gesto para no leer
+     `offsetHeight` en cada `pointermove`. */
   const floorY = useRef(0);
   const didDrag = useRef(false);
   const dragRef = useRef(0);
@@ -91,38 +91,24 @@ export function BottomSheet({
   // animación y luego los resultados. Con solo `forceOpen` la apertura dependía
   // de una transición del booleano —false→true—, así que la segunda búsqueda
   // no volvía a abrir la hoja si el usuario la había recogido. `openSignal`
-  // repite el patrón de `collapseSignal`: cada valor nuevo es un gesto nuevo.
+  // repite el patrón de `peekSignal`: cada valor nuevo es un gesto nuevo.
   useEffect(() => {
     if (openSignal) setState("full");
   }, [openSignal]);
 
-  // Recoge la hoja hasta dejar solo el asa, para que el mapa y el pin tocado
+  // Baja la hoja a `peek` —su vista más baja— para que el mapa y el pin tocado
   // queden a la vista. Es un contador y no un booleano porque el gesto se
   // repite —con un `true` que ya estaba, el segundo pin tocado no disparaba
-  // nada— y porque recogida no es un estado al que quedarse: el asa sigue ahí y
+  // nada— y porque `peek` no es un estado al que quedarse: el asa sigue ahí y
   // el usuario puede tocarla o estirarla cuando quiera.
   //
-  // `forceOpen` manda: durante una búsqueda la hoja la gobierna ella, y
-  // recogerla dejaría los resultados sin ver. La apertura, en cambio, la pide
-  // cada búsqueda con `openSignal`.
+  // `forceOpen` manda: durante una búsqueda la hoja la gobierna ella, y bajarla
+  // dejaría los resultados sin ver. La apertura, en cambio, la pide cada
+  // búsqueda con `openSignal`.
   /* Guarda la última señal atendida: el efecto también corre cuando cambia
      `forceOpen`, y sin este recuerdo una señal vieja —un pin tocado justo
-     antes de buscar— se re-aplicaba al terminar la búsqueda y recogía la hoja
-     con los resultados recién llegidos. Solo importa la señal fresca. */
-  const lastCollapseKey = useRef(collapseSignal ?? 0);
-  useEffect(() => {
-    if (
-      collapseSignal === undefined ||
-      collapseSignal === lastCollapseKey.current
-    )
-      return;
-    lastCollapseKey.current = collapseSignal;
-    if (!forceOpen) setState("collapsed");
-  }, [collapseSignal, forceOpen]);
-
-  /* El mismo recuerdo que arriba y por el mismo motivo: el efecto también corre
-     al cambiar `forceOpen`, y una señal vieja no debe mover la hoja al terminar
-     una búsqueda. */
+     antes de buscar— se re-aplicaba al terminar la búsqueda y bajaba la hoja
+     con los resultados recién llegados. Solo importa la señal fresca. */
   const lastPeekKey = useRef(peekSignal ?? 0);
   useEffect(() => {
     if (peekSignal === undefined || peekSignal === lastPeekKey.current) return;
@@ -136,9 +122,8 @@ export function BottomSheet({
       ? "100%"
       : RESTING_OFFSET[state];
 
-  // `collapsed` no está en el ciclo: sube a `full` de una, que es lo que se pide
-  // al tocar un asa que asoma 20 px. Bajar hasta `collapsed` solo lo hace el
-  // gesto que lo pide, tocar un pin.
+  // El ciclo reposado es `peek` ↔ `full`: el asa alterna entre la vista de
+  // apertura y la hoja entera. No hay nada por debajo de `peek`.
   function cycleState() {
     setState((prev) => (prev === "full" ? "peek" : "full"));
   }
@@ -152,7 +137,7 @@ export function BottomSheet({
     const style = getComputedStyle(sheet);
     const matrix = new DOMMatrixReadOnly(style.transform);
     startTranslate.current = matrix.m42;
-    floorY.current = sheet.offsetHeight - 20;
+    floorY.current = sheet.offsetHeight - PEEK_INSET;
     /* `setPointerCapture` lanza `NotFoundError` si el puntero ya no está
          activo, y dentro del WebView de Instagram pasa: la excepción cortaba el
          manejador antes de registrar los escuchas y el toque no hacía nada. Sin
@@ -201,7 +186,7 @@ export function BottomSheet({
         // desde qué estado arrancó el gesto. `offsetHeight - 120` es el mismo
         // `calc(100% - 120px)` del estado peek, porque el porcentaje de
         // `translateY` se resuelve contra la altura del propio elemento.
-        const peekY = sheet.offsetHeight - 120;
+        const peekY = sheet.offsetHeight - PEEK_INSET;
         setIsDragging(false);
         setState(dragRef.current < peekY / 2 ? "full" : "peek");
       } else {
@@ -252,7 +237,7 @@ export function BottomSheet({
         // Al cerrar vuelve antes que al abrir: entrar despacio da sensación de
         // continuidad, salir despacio se hace pesado. El `data-state` ya cambió
         // cuando arranca la transición, así que cada dirección usa su duración.
-        "data-[state=peek]:[transition-duration:300ms] data-[state=collapsed]:[transition-duration:300ms]",
+        "data-[state=peek]:[transition-duration:300ms]",
         mounted && "bottom-sheet-desktop",
         isDragging && "!transition-none",
         className,

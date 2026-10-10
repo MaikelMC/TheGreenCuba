@@ -306,6 +306,12 @@ export function devPlace(): UserPlace {
        interruptor vive en Ajustes y su dueño lo apaga desde ahí si quiere ver
        cómo queda la carta sin carrito. */
     pedidosWhatsapp: true,
+    /* El fixture nace con las reservas encendidas y tipo mesa, para poder ver el
+       botón en cuanto se le ponga plan Pro desde el panel; en Gratis no se pinta
+       aunque estén encendidas. Ver `conSelloVerificado`. */
+    aceptaReservas: true,
+    tipoReserva: "mesa",
+    aforoMaxPersonas: 8,
     isActive: true,
     reviewStatus: "approved",
     /* Nace verificado para poder probar el sello **sin tocar la columna**: con

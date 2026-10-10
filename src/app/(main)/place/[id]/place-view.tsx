@@ -11,6 +11,8 @@ import type {
 } from "@/lib/places-store";
 import type { PlaceData } from "@/components/place/place-detail";
 import { contactLinks } from "@/lib/contact-links";
+import { configReserva } from "@/lib/reserva";
+import { configSeguidores } from "@/lib/seguidores";
 import { formatDateRange, formatMenuPrice } from "@/lib/utils";
 import { ofertaDe, ofertasVigentes, precioConOferta } from "@/lib/ofertas";
 import { useRouter } from "next/navigation";
@@ -96,6 +98,8 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
     /* El sello ya viene resuelto del servidor —verificado **y** plan que lo
        incluye—; aquí no se comprueba nada, solo se pasa. */
     selloVerificado: p.selloVerificado ?? false,
+    /* La insignia del ranking también viene resuelta; aquí solo se pasa. */
+    topDelMes: p.topDelMes ?? false,
     /* Las fotos subidas mandan; el degradado solo rellena cuando el negocio
        todavía no tiene ninguna. */
     slides:
@@ -173,6 +177,14 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
       instagram: p.instagram,
       facebook: p.facebook,
     }),
+    /* El botón de reserva, si el servidor ya lo dio por habilitado. Se construye
+       con el mismo ayudante que la carta para que las dos superficies decidan
+       igual el tipo por defecto y el caso del apartado sin carta. */
+    reserva: configReserva(p),
+    /* El botón «Avísame de ofertas», con el mismo ayudante que la carta. Aquí no
+       se comprueba el plan: el enlace solo llega si el servidor ya decidió que
+       se puede ofrecer. */
+    seguidores: configSeguidores(p),
   };
 }
 

@@ -183,6 +183,8 @@ interface HomePlace {
   lat: number;
   lng: number;
   boosted?: boolean;
+  /** Insignia «Top del mes», ya resuelta por el servidor. Ver `TopDelMes`. */
+  topDelMes?: boolean;
 }
 
 function userPlaceToHomePlace(
@@ -229,6 +231,7 @@ function userPlaceToHomePlace(
     lat: p.lat,
     lng: p.lng,
     boosted: p.isBoosted,
+    topDelMes: p.topDelMes,
   };
 }
 
@@ -491,6 +494,7 @@ const PlaceCardRow = memo(function PlaceCardRow({
         price={place.price}
         icon={place.icon}
         logoUrl={place.logoUrl}
+        topDelMes={place.topDelMes}
         tags={place.tags}
         selected={selected}
         liked={liked}
@@ -508,17 +512,16 @@ function HomePageContent() {
   const searchParams = useSearchParams();
   const [sheetState, setSheetState] = useState<SheetState>("default");
   const [selectedId, setSelectedId] = useState<string>("6");
-  /* Contador, no booleano: cada pin tocado pide otra vez recoger la hoja. */
-  const [collapseKey, setCollapseKey] = useState(0);
+  /* Contador, no booleano: cada gesto pide otra vez bajar la hoja a su vista
+     más baja —la que tiene al abrir el home— para dejar ver el mapa. Un solo
+     contador para todos los gestos que la bajan: bajarla no tiene profundidades
+     distintas, y con dos contadores acabaron haciendo lo mismo. */
+  const [peekKey, setPeekKey] = useState(0);
   /* Contador también: cada búsqueda pide abrir la hoja de nuevo. Con solo
      `forceOpen` la segunda búsqueda no reabría nada —el booleano ya estaba en
      `true` desde la primera— y los resultados quedaban escondidos bajo la hoja
      recogida. */
   const [openKey, setOpenKey] = useState(0);
-  /* Y este, tercero, para las sugerencias del buscador: no se recoge hasta el
-     asa como con un pin —ahí hace falta ver el mapa entero—, sino hasta la
-     mitad, que la sección siga a la vista. */
-  const [suggestionsKey, setSuggestionsKey] = useState(0);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set(["6"]));
   const [activeCategory, setActiveCategory] = useState("all");
   /* Filtros acumulables del mapa. Viven aquí y no dentro de `PlaceFilters`
@@ -855,11 +858,11 @@ function HomePageContent() {
     });
   }, []);
 
-  /* Tocar una card de recomendaciones recoge la hoja hasta dejar el asa: el
+  /* Tocar una card de recomendaciones baja la hoja a su vista más baja: el
      negocio se queda resaltado en el mapa, y con la lista delante no se veía. */
   const handleSelect = useCallback((id: string) => {
     setSelectedId(id);
-    setCollapseKey((k) => k + 1);
+    setPeekKey((k) => k + 1);
   }, []);
 
   // Tocar el fondo del mapa quita la selección, como en cualquier mapa.
@@ -1011,11 +1014,11 @@ function HomePageContent() {
 
   /* El buscador abre sus sugerencias y la hoja se aparta. El desplegable sale
      por debajo de ella —la hoja va en z-300 y él en z-250—, así que con la hoja
-     de recomendaciones delante media lista quedaba tapada. Baja a `peek` y no
-     al asa: el gesto aquí no es sobre el mapa, y esconder la sección entera se
-     lee como que se cerró. */
+     de recomendaciones delante media lista quedaba tapada. Baja a su vista más
+     baja —la de apertura—: el gesto aquí no es sobre el mapa, y esconder la
+     sección entera se lee como que se cerró. */
   useEffect(() => {
-    searchCtx.registerSuggestionsHandler(() => setSuggestionsKey((k) => k + 1));
+    searchCtx.registerSuggestionsHandler(() => setPeekKey((k) => k + 1));
   }, [searchCtx]);
 
   const handleRetry = useCallback(() => {
@@ -1045,9 +1048,9 @@ function HomePageContent() {
   }, []);
 
   /* Vuela el mapa hasta un lugar al tocar su botón de ubicación —el 📍 "Ver en
-     el mapa" de la card—, lo resalta y recoge la hoja. Las tres cosas van
-     juntas: sin vuelo no se llega, sin resaltado el pin se pierde entre los
-     demás, y sin recogerla el negocio queda justo detrás de la lista. */
+     el mapa" de la card—, lo resalta y baja la hoja a su vista más baja. Las
+     tres cosas van juntas: sin vuelo no se llega, sin resaltado el pin se pierde
+     entre los demás, y sin bajarla el negocio queda justo detrás de la lista. */
   const handleLocate = useCallback((place: HomePlace) => {
     trackMapLocate(place.id);
     setSelectedId(place.id);
@@ -1056,7 +1059,7 @@ function HomePageContent() {
       lng: place.lng,
       key: (prev?.key ?? 0) + 1,
     }));
-    setCollapseKey((k) => k + 1);
+    setPeekKey((k) => k + 1);
   }, []);
 
   const handleUserLocated = useCallback(
@@ -1379,18 +1382,17 @@ function HomePageContent() {
       </AnimatePresence>
 
       {/* Bottom Sheet. Solo `searching` fuerza la hoja abierta: al llegar los
-          resultados tiene que poder recogerse —pin 📍 o card tocada— para
+          resultados tiene que poder bajarse —pin 📍 o card tocada— para
           dejar ver el mapa y el negocio, igual que en la vista inicial. Con
           `!== "default"` la guarda de forceOpen seguía viva en `results` y la
-          recogida no hacía nada después de una búsqueda. */}
+          bajada no hacía nada después de una búsqueda. */}
       <BottomSheet
         className="home-bottom-sheet"
         title={sheetInfo.title}
         subtitle={sheetSubtitle}
         badge={showBadge ? String(shownCount) : undefined}
         forceOpen={sheetState === "searching"}
-        collapseSignal={collapseKey}
-        peekSignal={suggestionsKey}
+        peekSignal={peekKey}
         openSignal={openKey}
       >
         {/* Default / Results state */}

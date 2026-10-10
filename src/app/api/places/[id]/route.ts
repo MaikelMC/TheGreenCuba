@@ -4,6 +4,9 @@ import { eq } from "drizzle-orm";
 import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
 import { normalizarWhatsappCubano } from "@/lib/contact-links";
 import { esEnergia } from "@/lib/energia";
+import { esTipoReserva } from "@/lib/reserva";
+import { avisosPorCambios } from "@/lib/seguidores";
+import { avisarCambios } from "@/lib/seguidores-server";
 import { getAppUser } from "@/lib/auth/user";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
 import { saveDevPlaceOverride } from "@/lib/dev-place-server";
@@ -20,9 +23,86 @@ import {
   notifyOwnerBusinessApproved,
   notifyOwnerBusinessRejected,
 } from "@/lib/email";
-import type { UserPlace, UserPlaceOferta } from "@/lib/places-store";
+import type {
+  PlaceStatus,
+  UserPlace,
+  UserPlaceMenuItem,
+  UserPlaceOferta,
+} from "@/lib/places-store";
 
 type Params = { params: Promise<{ id: string }> };
+
+/**
+ * La ficha como estaba antes del `PATCH`, para poder comparar.
+ *
+ * Es lo que separa «oferta nueva» de «la misma oferta reeditada» y «producto
+ * nuevo» de «la carta que ya estaba». Se lee de una vez —las dos consultas en
+ * paralelo— y solo cuando el cuerpo trae algo que puede disparar un aviso: el
+ * guardado normal del horario no paga este viaje.
+ */
+async function leerFichaPrevia(id: string): Promise<{
+  menu: UserPlaceMenuItem[];
+  status: PlaceStatus;
+  ofertaIds: Set<string>;
+}> {
+  const [filas, ofertasPrevias] = await Promise.all([
+    db
+      .select({ menu: places.menu, status: places.status })
+      .from(places)
+      .where(eq(places.id, id))
+      .limit(1),
+    db
+      .select({ id: ofertas.id })
+      .from(ofertas)
+      .where(eq(ofertas.negocioId, id)),
+  ]);
+
+  /* `[0]` y no un destructuring directo: dentro de un `Promise.all` cada
+     consulta resuelve a su lista de filas —una, por el `limit`—, no a la fila
+     suelta. */
+  const fila = filas[0];
+
+  return {
+    menu: fila?.menu ?? [],
+    /* El respaldo no adivina nada: sin fila, el `update` de abajo responde 404 y
+       no hay ningún aviso que mandar. */
+    status: fila?.status ?? "active",
+    ofertaIds: new Set(ofertasPrevias.map((f) => f.id)),
+  };
+}
+
+/**
+ * Los productos de la carta que antes no estaban.
+ *
+ * Se empareja por `id` cuando lo hay y por nombre cuando no: media carta se
+ * guardó antes de que los productos tuvieran id, y comparar solo por id diría
+ * que una carta vieja entera es nueva en el primer guardado. El precio de
+ * emparejar por nombre es que renombrar un producto sin id cuenta como uno
+ * nuevo; se acepta, porque el aviso de más solo molesta una vez.
+ */
+function nuevosProductos(
+  menu: UserPlace["menu"] | undefined,
+  previo: UserPlaceMenuItem[],
+): string[] {
+  if (!Array.isArray(menu)) return [];
+
+  const antes = new Set(
+    previo.map((p) => (p.id ?? p.name).trim().toLowerCase()),
+  );
+  const vistos = new Set<string>();
+  const nuevos: string[] = [];
+
+  for (const item of menu) {
+    const nombre = item.name?.trim();
+    if (!nombre) continue;
+    const clave = (item.id ?? item.name).trim().toLowerCase();
+    if (antes.has(clave) || vistos.has(clave)) continue;
+    vistos.add(clave);
+    nuevos.push(nombre);
+  }
+
+  return nuevos;
+}
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
@@ -93,6 +173,99 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json(
       { error: "El interruptor de pedidos tiene que ser verdadero o falso." },
       { status: 400 },
+    );
+  }
+
+  /* ── Reservas por WhatsApp ────────────────────────────────────────────
+     Tres guardas de forma, las tres antes de la rama del negocio de prueba
+     para que el fixture reciba lo mismo que una ficha real:
+
+     1. `aceptaReservas` es booleano. Mismo motivo que los pedidos: sin esto,
+        un cuerpo con `"false"` como cadena —que es `true`— enciende lo que
+        venía a apagar.
+     2. `tipoReserva` es una de las tres cadenas. La columna es `text` sin
+        `check`, así que esta es la única puerta que impide guardar un tipo
+        inventado que luego el botón no sabría pintar.
+     3. El aforo es un entero positivo, o nada. `null` es «sin tope», que es
+        distinto de `0` («no admite a nadie»), y por eso el vacío se acepta.
+
+     Y el candado del plan: sin `reservas_whatsapp` (Pro) no se escribe nada de
+     esto. El panel ya lo pinta bloqueado; esto es lo que impide que desde la
+     consola alguien se encienda la función que no paga. */
+  if (
+    body.aceptaReservas !== undefined &&
+    typeof body.aceptaReservas !== "boolean"
+  ) {
+    return NextResponse.json(
+      { error: "El interruptor de reservas tiene que ser verdadero o falso." },
+      { status: 400 },
+    );
+  }
+
+  const tipoReserva: unknown = body.tipoReserva;
+  if (tipoReserva !== undefined && !esTipoReserva(tipoReserva)) {
+    return NextResponse.json(
+      {
+        error:
+          "El tipo de reserva tiene que ser mesa, apartado o cita.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const aforo: unknown = body.aforoMaxPersonas;
+  if (
+    aforo !== undefined &&
+    aforo !== null &&
+    (!Number.isInteger(aforo) || (aforo as number) < 1 || (aforo as number) > 1000)
+  ) {
+    return NextResponse.json(
+      { error: "El aforo tiene que ser un número entero de personas." },
+      { status: 400 },
+    );
+  }
+
+  /* El cupo del día lleva la misma guarda que el aforo: entero positivo o
+     nada, porque `null` es «sin tope» y el `0` sería «no admite a nadie», que
+     es un estado que no se ofrece. */
+  const aforoDiario: unknown = body.aforoDiarioPersonas;
+  if (
+    aforoDiario !== undefined &&
+    aforoDiario !== null &&
+    (!Number.isInteger(aforoDiario) ||
+      (aforoDiario as number) < 1 ||
+      (aforoDiario as number) > 1000)
+  ) {
+    return NextResponse.json(
+      { error: "El cupo diario tiene que ser un número entero de personas." },
+      { status: 400 },
+    );
+  }
+
+  if (
+    body.plantillaReserva !== undefined &&
+    body.plantillaReserva !== null &&
+    typeof body.plantillaReserva !== "string"
+  ) {
+    return NextResponse.json(
+      { error: "La plantilla de la reserva tiene que ser texto." },
+      { status: 400 },
+    );
+  }
+
+  const tocaReservas =
+    body.aceptaReservas !== undefined ||
+    body.tipoReserva !== undefined ||
+    body.aforoMaxPersonas !== undefined ||
+    body.aforoDiarioPersonas !== undefined ||
+    body.plantillaReserva !== undefined;
+  if (tocaReservas && !(await puede(id, "reservas_whatsapp"))) {
+    return NextResponse.json(
+      {
+        error:
+          "Las reservas por WhatsApp están disponibles en el plan Pro.",
+      },
+      { status: 403 },
     );
   }
 
@@ -225,6 +398,21 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     });
   }
 
+  /* Lo que había antes, una sola vez para los tres avisos. Se lee aquí, con los
+     cambios de tipo ya filtrados y antes de tocar las ofertas —que es el único
+     bloque de abajo que borra—, y solo si el cuerpo trae algo que avisa. */
+  const previo =
+    Array.isArray(body.ofertas) ||
+    Array.isArray(body.menu) ||
+    body.status !== undefined
+      ? await leerFichaPrevia(id)
+      : null;
+
+  /* Las ofertas que se van a guardar y no estaban: son las que avisan. Se llena
+     dentro del bloque de abajo y se lee al final, cuando ya se sabe que el
+     guardado entró. */
+  let ofertasNuevas: UserPlaceOferta[] = [];
+
   /* Las ofertas flash viven en su propia tabla, así que no pasan por
      `toPlaceValues` —que escribe columnas de `places`— y se guardan aquí
      aparte, igual que el menú. El panel manda la lista entera en cada guardado,
@@ -243,6 +431,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         return NextResponse.json({ error: resultado }, { status: 400 });
       }
       limpias.push(resultado);
+    }
+
+    if (previo) {
+      const ahora = Date.now();
+      ofertasNuevas = limpias.filter(
+        (o) => !previo.ofertaIds.has(o.id) && o.termina > ahora,
+      );
     }
 
     /* Las comprobaciones de plan solo cuando queda alguna oferta, y esto no es
@@ -384,6 +579,30 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       businessId: id,
       userId: owner?.userId ?? null,
     });
+  }
+
+  /* ── Los avisos a seguidores ────────────────────────────────────────────
+
+     Se dispara al publicar una oferta flash, al añadir un producto a la carta o
+     al volver a abrir. Qué merece un aviso lo decide `avisosPorCambios`, que es
+     puro y está probado; aquí solo se junta lo que había con lo que llega.
+
+     Va **fuera del camino de la respuesta** y después de escribir: el aviso
+     sale por Telegram, y el dueño está guardando su ficha, no esperando a que
+     salga. `avisarCambios` es quien comprueba el plan (Pro) y el tope de tres
+     por semana, y no lanza nunca: un aviso que no sale no puede tumbar un
+     guardado que sí entró. */
+  if (previo) {
+    const avisos = avisosPorCambios({
+      negocio: row.name,
+      ofertasNuevas: ofertasNuevas.map((o) => ({
+        titulo: o.titulo,
+        descripcion: o.descripcion,
+      })),
+      productosNuevos: nuevosProductos(body.menu, previo.menu),
+      reabre: body.status === "active" && previo.status !== "active",
+    });
+    if (avisos.length > 0) void avisarCambios(id, avisos);
   }
 
   /* Antes de releer, y no después: `getPlaceById` está cacheado, así que sin

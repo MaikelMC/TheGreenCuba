@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import {
+  CalendarDays,
   Clock,
   CreditCard,
   Image as ImageIcon,
@@ -47,6 +48,8 @@ import { OfertasEditor } from "@/components/business/ofertas-editor";
 import { MenuLinkCard } from "@/components/business/menu-link-card";
 import { PlanCard } from "@/components/business/plan-card";
 import { PlansSection } from "@/components/business/plans-section";
+import { PublicacionesView } from "@/components/business/publicaciones-view";
+import { SeguidoresCard } from "@/components/business/seguidores-card";
 import {
   BusinessSwitcher,
   type NegocioPanel,
@@ -63,6 +66,14 @@ import {
   ENERGIA_ORDER,
   type EnergiaRespaldo,
 } from "@/lib/energia";
+import {
+  PLANTILLA_POR_DEFECTO,
+  RESERVA_LABEL,
+  TIPOS_RESERVA,
+  fechaLocalIso,
+  plantillaEfectiva,
+  type TipoReserva,
+} from "@/lib/reserva";
 import { pruneMenuImages } from "@/lib/menu-images";
 import {
   MapLocationPicker,
@@ -163,7 +174,7 @@ export function BusinessPanel({
   /* `businessName` sale de la ficha que se está viendo y no de `/api/me`: con el
      selector, «la tuya» puede ser el negocio de prueba, y `/api/me` solo conoce
      el que está en `business_owners`. El selector va en `above` —encima de la
-     vista— para que siga a las cuatro secciones sin pertenecer a ninguna. */
+     vista— para que siga a todas las secciones sin pertenecer a ninguna. */
   return (
     <PanelShell
       businessName={place.name}
@@ -181,6 +192,18 @@ export function BusinessPanel({
                 plan={plan}
                 /* El botón de la tarjeta de plan navega dentro del panel, no
                    fuera: la sección de planes es una vista más del armazón. */
+                onVerPlanes={() => setView("planes")}
+              />
+            );
+          case "publicaciones":
+            /* El plan decide si la sección se abre o enseña el candado, igual
+               que en las ofertas flash del editor. El servidor lo comprueba
+               otra vez: el candado del cliente es información, no permiso. */
+            return (
+              <PublicacionesView
+                key={place.id}
+                placeId={place.id}
+                plan={plan}
                 onVerPlanes={() => setView("planes")}
               />
             );
@@ -951,6 +974,32 @@ function SettingsView({
 
   const [pedidos, setPedidos] = useState(place.pedidosWhatsapp);
   const [cambiandoPedidos, setCambiandoPedidos] = useState(false);
+  /* Reservas: el interruptor y el formulario van separados como en los pedidos
+     —el interruptor escribe al momento, lo demás con su botón— porque el tipo y
+     la plantilla se escriben a medias y guardar en cada tecla dejaría la ficha
+     con un mensaje incompleto. */
+  const [reservas, setReservas] = useState(place.aceptaReservas ?? false);
+  const [reservaTipo, setReservaTipo] = useState<TipoReserva>(
+    place.tipoReserva ?? "mesa",
+  );
+  const [aforo, setAforo] = useState(
+    place.aforoMaxPersonas ? String(place.aforoMaxPersonas) : "",
+  );
+  const [plantilla, setPlantilla] = useState(place.plantillaReserva ?? "");
+  const [cupoDia, setCupoDia] = useState(
+    place.aforoDiarioPersonas ? String(place.aforoDiarioPersonas) : "",
+  );
+  const [cambiandoReservas, setCambiandoReservas] = useState(false);
+  const [guardandoReservas, setGuardandoReservas] = useState(false);
+  const [errorReservas, setErrorReservas] = useState<string | null>(null);
+
+  /* El cupo que va gastado, por fecha. Se lee del mismo endpoint que usa el
+     formulario del cliente —es la misma cifra— y sirve para dos cosas: decir
+     «hoy van 12 de 40» y saber qué se libera al pulsar. `null` = todavía sin
+     leer, que se pinta como «—» y no como cero. */
+  const [ocupacion, setOcupacion] = useState<Record<string, number> | null>(null);
+  const [fechaCupo, setFechaCupo] = useState(() => fechaLocalIso(new Date()));
+  const [liberando, setLiberando] = useState(false);
   const [whatsapp, setWhatsapp] = useState(place.whatsapp ?? "");
   const [phone, setPhone] = useState(place.phone ?? "");
   const [website, setWebsite] = useState(place.website ?? "");
@@ -962,6 +1011,7 @@ function SettingsView({
   /* `null` si el plan ya lo incluye. Es el mismo texto que usa el candado de
      «Hoy hay»: una sola forma de decir «esto se sube de plan». */
   const bloqueo = textoBloqueo("whatsapp_pedido", plan);
+  const bloqueoReservas = textoBloqueo("reservas_whatsapp", plan);
   const tieneNumero = Boolean(whatsapp.trim());
 
   /**
@@ -993,6 +1043,128 @@ function SettingsView({
         ? "Pedidos por WhatsApp activados en tu carta."
         : "Pedidos por WhatsApp desactivados. Tu carta sigue igual, sin carrito.",
     );
+  }
+
+  /** El interruptor de reservas escribe al momento, igual que el de pedidos. */
+  async function alternarReservas() {
+    if (bloqueoReservas || cambiandoReservas) return;
+    const siguiente = !reservas;
+    setCambiandoReservas(true);
+    setReservas(siguiente);
+
+    const guardado = await updatePlace(place.id, {
+      aceptaReservas: siguiente,
+    });
+
+    setCambiandoReservas(false);
+    if (!guardado) {
+      setReservas(!siguiente);
+      toast.error("No se pudo cambiar. Revisa la conexión: no se cambió nada.");
+      return;
+    }
+    toast.success(
+      siguiente
+        ? `Reservas activadas: tus clientes verán «${RESERVA_LABEL[reservaTipo]}».`
+        : "Reservas desactivadas. Tu ficha sigue igual, sin el botón.",
+    );
+  }
+
+  /**
+   * El tipo, el aforo y la plantilla se guardan de una vez.
+   *
+   * No escriben al teclear: la plantilla es un texto largo que se escribe a
+   * medias y mandar cada pulsación dejaría a los clientes leyendo un mensaje
+   * incompleto mientras el dueño lo redacta.
+   */
+  async function guardarReservas() {
+    const aforoNum = aforo.trim() === "" ? null : Number(aforo);
+    if (
+      aforoNum !== null &&
+      (!Number.isInteger(aforoNum) || aforoNum < 1 || aforoNum > 1000)
+    ) {
+      setErrorReservas(
+        "El aforo tiene que ser un número entero de personas, o quedar vacío.",
+      );
+      return;
+    }
+
+    const cupoNum = cupoDia.trim() === "" ? null : Number(cupoDia);
+    if (
+      cupoNum !== null &&
+      (!Number.isInteger(cupoNum) || cupoNum < 1 || cupoNum > 1000)
+    ) {
+      setErrorReservas(
+        "El cupo diario tiene que ser un número entero de personas, o quedar vacío.",
+      );
+      return;
+    }
+
+    setErrorReservas(null);
+    setGuardandoReservas(true);
+    const guardado = await updatePlace(place.id, {
+      tipoReserva: reservaTipo,
+      /* El aforo y el cupo solo tienen sentido con mesa: al cambiar de tipo se
+         limpian, para no dejar un tope olvidado que el formulario ya no enseña. */
+      aforoMaxPersonas: reservaTipo === "mesa" ? aforoNum : null,
+      aforoDiarioPersonas: reservaTipo === "mesa" ? cupoNum : null,
+      plantillaReserva: plantilla.trim() || null,
+    });
+    setGuardandoReservas(false);
+
+    if (!guardado) {
+      setErrorReservas(
+        "No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada.",
+      );
+      return;
+    }
+    toast.success("Reservas guardadas");
+  }
+
+  /** Lee el cupo gastado por fecha. Best-effort: sin red no se pinta cifra. */
+  const cargarOcupacion = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `/api/reservas?negocioId=${encodeURIComponent(place.id)}`,
+      );
+      if (!res.ok) return;
+      const data = (await res.json()) as { dias?: Record<string, number> };
+      setOcupacion(data.dias ?? {});
+    } catch {
+      /* Sin red el dueño ve «—»: no saber la cifra no es un error suyo. */
+    }
+  }, [place.id]);
+
+  useEffect(() => {
+    void cargarOcupacion();
+  }, [cargarOcupacion]);
+
+  /**
+   * Devuelve el día a su cupo entero. Es el «a voluntad»: cancelaciones, sitio
+   * extra, o volver a empezar la cuenta porque se llevaba mal.
+   */
+  async function liberarFecha() {
+    if (liberando) return;
+    setLiberando(true);
+    try {
+      const res = await fetch(
+        `/api/reservas?negocioId=${encodeURIComponent(place.id)}&fecha=${encodeURIComponent(fechaCupo)}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        toast.error("No se pudo liberar. Revisa la conexión: no se cambió nada.");
+        return;
+      }
+      setOcupacion((o) => {
+        const copia = { ...(o ?? {}) };
+        delete copia[fechaCupo];
+        return copia;
+      });
+      toast.success("Cupo liberado: ese día vuelve a estar entero.");
+    } catch {
+      toast.error("No se pudo liberar. Revisa la conexión: no se cambió nada.");
+    } finally {
+      setLiberando(false);
+    }
   }
 
   /**
@@ -1124,6 +1296,258 @@ function SettingsView({
             </>
           )}
         </section>
+
+        {/* ── Reservas por WhatsApp ───────────────────────────────────────
+            Mismo reparto que los pedidos: el plan (Pro) enciende la función y
+            el dueño la enciende o la apaga. Sin plan, la tarjeta se enseña
+            bloqueada para que se sepa que existe y qué plan la abre. */}
+        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+          <div className="flex flex-wrap items-center justify-between gap-gap-sm">
+            <h2 className="flex items-center gap-gap-xs font-lv-display text-body font-semibold text-ink">
+              <CalendarDays
+                size={18}
+                strokeWidth={1.8}
+                className="text-verde-600"
+              />
+              Reservas por WhatsApp
+            </h2>
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em]",
+                bloqueoReservas
+                  ? "border border-ink/10 bg-sand text-ink-soft/75"
+                  : reservas
+                    ? "border border-verde-200 bg-verde-50 text-verde-700"
+                    : "border border-ink/10 bg-sand text-ink-soft/75",
+              )}
+            >
+              {bloqueoReservas ?? (reservas ? "Activo" : "Desactivado")}
+            </span>
+          </div>
+
+          <p className="mt-gap-xs max-w-[62ch] text-small text-ink-soft/75">
+            Quien mira tu ficha rellena su nombre, la fecha y la hora —y las
+            personas o el producto— y el mensaje te llega por WhatsApp. La Verde
+            no guarda ni confirma la reserva: la cierras tú por ahí, como
+            siempre.
+          </p>
+
+          {bloqueoReservas ? (
+            <div className="mt-gap-md flex flex-wrap items-center gap-gap-sm">
+              <button
+                type="button"
+                onClick={onVerPlanes}
+                className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+              >
+                Ver los planes
+              </button>
+              <p className="text-meta text-ink-soft/75">
+                Tu ficha se comparte igual; solo le falta el botón de reservar.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="mt-gap-md flex items-center justify-between gap-gap-sm border-t border-ink/5 pt-gap-sm">
+                <div className="min-w-0 flex-1">
+                  <div className="text-small font-medium text-ink">
+                    Aceptar reservas
+                  </div>
+                  <div className="text-meta text-ink-soft/75">
+                    {reservas
+                      ? "El botón aparece en tu ficha y en tu carta."
+                      : "El botón está oculto; el resto de la ficha se ve igual."}
+                  </div>
+                </div>
+                <Switch
+                  checked={reservas}
+                  onToggle={() => void alternarReservas()}
+                  label="Aceptar reservas"
+                />
+              </div>
+
+              {/* Con el plan puesto y las reservas encendidas, el único motivo
+                  por el que el botón no sale es que falte el número. */}
+              {reservas && !tieneNumero && (
+                <p className="mt-gap-sm rounded-xl border border-amber-200 bg-amber-50 px-3 py-[7px] text-meta font-medium text-amber-800">
+                  Falta tu número de WhatsApp: sin él no hay a dónde mandar la
+                  reserva y el botón no se enseña. Añádelo en «Cómo te
+                  contactan», aquí abajo.
+                </p>
+              )}
+
+              <div className="mt-gap-md flex flex-col gap-gap-md border-t border-ink/5 pt-gap-sm">
+                <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
+                  <div className="flex flex-col gap-gap-xs">
+                    <Label htmlFor="ajReservaTipo">Qué se reserva</Label>
+                    <Select
+                      value={reservaTipo}
+                      onValueChange={(v) => setReservaTipo(v as TipoReserva)}
+                    >
+                      <SelectTrigger id="ajReservaTipo">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TIPOS_RESERVA.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {RESERVA_LABEL[t]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-meta text-ink-soft/75">
+                      Decide el texto del botón y lo que pide el formulario.
+                    </p>
+                  </div>
+
+                  {reservaTipo === "mesa" && (
+                    <div className="flex flex-col gap-gap-xs">
+                      <Label htmlFor="ajAforo">
+                        Aforo máximo (opcional)
+                      </Label>
+                      <Input
+                        id="ajAforo"
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        value={aforo}
+                        onChange={(e) => setAforo(e.target.value)}
+                        placeholder="Ej: 8"
+                        className={INPUT}
+                      />
+                      <p className="text-meta text-ink-soft/75">
+                        Tope de personas por reserva. Vacío = sin tope.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {reservaTipo === "mesa" && (
+                  <div className="flex flex-col gap-gap-xs">
+                    <Label htmlFor="ajCupoDia">Cupo diario (opcional)</Label>
+                    <Input
+                      id="ajCupoDia"
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      value={cupoDia}
+                      onChange={(e) => setCupoDia(e.target.value)}
+                      placeholder="Ej: 40"
+                      className={INPUT}
+                    />
+                    <p className="text-meta text-ink-soft/75">
+                      Personas que caben en total cada día. Cuando se llena, el
+                      formulario no deja reservar esa fecha y avisa de cuánto
+                      queda. Vacío = sin cupo. Se recarga solo cada día, y aquí
+                      abajo puedes liberar uno a mano.
+                    </p>
+                  </div>
+                )}
+
+                {/* Liberar el cupo de un día: lo que el dueño hace «a voluntad»
+                    cuando le cancelan o cuando quiere volver a empezar la
+                    cuenta. Solo con un cupo puesto —sin él no hay nada que
+                    liberar—, y se enseña lo ocupado para saber qué se suelta. */}
+                {reservaTipo === "mesa" && cupoDia.trim() !== "" && (
+                  <div className="rounded-2xl border border-ink/5 bg-sand-warm px-4 py-3">
+                    <div className="font-lv-display text-meta font-semibold text-ink-soft/75">
+                      Cupo de un día
+                    </div>
+                    <div className="mt-gap-xs flex flex-wrap items-center gap-gap-sm">
+                      <Input
+                        type="date"
+                        value={fechaCupo}
+                        onChange={(e) => setFechaCupo(e.target.value)}
+                        aria-label="Día a liberar"
+                        className={cn(INPUT, "w-auto")}
+                      />
+                      <span className="text-small tabular-nums text-ink-soft">
+                        {ocupacion === null
+                          ? "—"
+                          : `${ocupacion[fechaCupo] ?? 0} de ${Number(cupoDia) || 0} ocupadas`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void liberarFecha()}
+                        disabled={liberando}
+                        className="inline-flex h-10 cursor-pointer items-center rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+                      >
+                        {liberando ? "Liberando…" : "Liberar ese día"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-gap-xs">
+                  <Label htmlFor="ajPlantilla">Mensaje que te llega</Label>
+                  <textarea
+                    id="ajPlantilla"
+                    rows={3}
+                    value={plantilla}
+                    onChange={(e) => setPlantilla(e.target.value)}
+                    placeholder={PLANTILLA_POR_DEFECTO[reservaTipo]}
+                    className={cn(
+                      INPUT,
+                      "h-auto min-h-[84px] resize-y py-3 leading-relaxed",
+                    )}
+                  />
+                  <p className="text-meta text-ink-soft/75">
+                    Usa {"{nombre}"} {"{fecha}"} {"{hora}"} {"{personas}"}
+                    {" "}y, para apartados, {"{producto}"} y {"{cantidad}"}. Vacío
+                    = el mensaje de siempre.
+                  </p>
+                </div>
+
+                {/* La vista previa usa la plantilla efectiva: con el campo
+                    vacío enseña la de por defecto ya rellena con los huecos, que
+                    es lo que verá el cliente. */}
+                <p className="whitespace-pre-wrap rounded-2xl border border-ink/5 bg-sand-warm px-4 py-3 text-small leading-relaxed text-ink-soft">
+                  {plantillaEfectiva(reservaTipo, plantilla)}
+                </p>
+
+                <AnimatePresence>
+                  {errorReservas && (
+                    <motion.p
+                      key="aj-reservas-error"
+                      role="alert"
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                      className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+                    >
+                      {errorReservas}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+
+                <button
+                  type="button"
+                  onClick={() => void guardarReservas()}
+                  disabled={guardandoReservas}
+                  className="inline-flex h-11 cursor-pointer items-center gap-gap-xs self-start rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+                >
+                  {guardandoReservas ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Guardando…
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} strokeWidth={1.8} />
+                      Guardar reservas
+                    </>
+                  )}
+                </button>
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* ── Avisos a seguidores ─────────────────────────────────────────
+            La tarjeta vive en su propio archivo —con su lectura y su estado—
+            porque el panel ya es largo y esto es una pieza cerrada: se le da el
+            negocio y el plan, y ella resuelve lo demás. */}
+        <SeguidoresCard place={place} plan={plan} onVerPlanes={onVerPlanes} />
 
         {/* ── Contacto ────────────────────────────────────────────────────
             Los cuatro campos que hasta ahora solo se podían cambiar en el

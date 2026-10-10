@@ -142,7 +142,9 @@ export async function statsVisitas(
   if (!incluye(plan, "stats_basicas")) return panel;
 
   /* Las dos ventanas en una sola consulta: `filter` deja cada suma en su
-     columna, así que el viaje es uno y no dos. */
+     columna, así que el viaje es uno y no dos. `click_reserva` viaja de más
+     —es una cifra de Pro y este tramo lo ve Básico también— porque una fila
+     agregada más no cuesta un viaje: se le asigna solo en el tramo Pro. */
   const desde7 = diaUtc(6);
   const desde30 = diaUtc(29);
   const filas = await db
@@ -156,7 +158,11 @@ export async function statsVisitas(
       and(
         eq(eventosDiarios.negocioId, negocioId),
         gte(eventosDiarios.fecha, desde30),
-        inArray(eventosDiarios.tipo, ["vista_perfil", "click_llamar"]),
+        inArray(eventosDiarios.tipo, [
+          "vista_perfil",
+          "click_llamar",
+          "click_reserva",
+        ]),
       ),
     )
     .groupBy(eventosDiarios.tipo);
@@ -214,9 +220,12 @@ export async function statsVisitas(
     .orderBy(desc(sql`coalesce(sum(${eventosDiarios.conteo}), 0)`))
     .limit(5);
 
+  const reservas = filas.find((f) => f.tipo === "click_reserva");
+
   panel.completas = {
     serie: completa,
     topProductos: top.filter((f) => f.nombre !== ""),
+    reservas: { corto: reservas?.corto ?? 0, largo: reservas?.largo ?? 0 },
   };
 
   return panel;

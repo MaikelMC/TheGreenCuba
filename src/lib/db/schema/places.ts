@@ -171,6 +171,42 @@ export const places = pgTable(
        El tope sigue estando arriba: sin el plan, esto no importa. */
     pedidosWhatsapp: boolean("pedidos_whatsapp").default(true).notNull(),
 
+    /* ── Reservas por WhatsApp ─────────────────────────────────────────
+       Misma pareja que los pedidos: el plan (`reservas_whatsapp`, Pro)
+       **enciende** la función y `acepta_reservas` es el interruptor del dueño
+       para apagarla sin bajar de plan. Sin plan no se enseña el botón y el
+       panel lo pinta bloqueado; con plan y el interruptor encendido, quien
+       mira la ficha arma un mensaje y lo manda por WhatsApp.
+
+       `acepta_reservas` nace en `false` y por eso lleva `default`: al revés que
+       los pedidos —donde el carrito es aditivo— una reserva es un compromiso, y
+       la migración no puede encender reservas en fichas que nunca las pidieron.
+       El dueño las activa desde Ajustes, que es donde se elige el tipo.
+
+       `tipo_reserva` decide el botón —«Reservar mesa», «Apartar», «Pedir
+       cita»— y qué pide el formulario: personas, un producto y su cantidad, o
+       solo la cita. `aforo_max_personas` es opcional: `null` = sin tope, y solo
+       se usa con `mesa`.
+
+       `aforo_diario_personas` es el cupo del día: cuántas personas admite el
+       local **en total** para una misma fecha, no por reserva. `null` = sin
+       tope, y como `aforo_max_personas` solo se usa con `mesa`, que es el único
+       tipo donde el cliente dice cuántas personas vienen. Lo que va ocupando
+       vive en `reservas_dias` —una fila por negocio y fecha—, así que el cupo
+       se recarga solo al cambiar el día y el dueño puede liberarlo a mano desde
+       el panel. Ver `src/lib/reservas-server.ts`.
+
+       `plantilla_reserva` guarda el mensaje del dueño, con {nombre} {fecha}
+       {hora} {personas} como huecos. `null`/vacío = la plantilla por defecto,
+       que se resuelve al armar el mensaje (`src/lib/reserva.ts`), no aquí. */
+    aceptaReservas: boolean("acepta_reservas").default(false).notNull(),
+    tipoReserva: text("tipo_reserva", { enum: ["mesa", "apartado", "cita"] })
+      .default("mesa")
+      .notNull(),
+    aforoMaxPersonas: integer("aforo_max_personas"),
+    aforoDiarioPersonas: integer("aforo_diario_personas"),
+    plantillaReserva: text("plantilla_reserva"),
+
     /* ── Sello de negocio verificado ────────────────────────────────────
        Lo enciende **solo la administración**: la lista blanca del `PATCH`
        (`toPlaceValues`) lo mapea y la ruta lo tira si quien escribe no es

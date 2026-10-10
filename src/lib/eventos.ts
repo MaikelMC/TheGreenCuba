@@ -20,6 +20,8 @@ export const TIPOS_EVENTO = [
   "click_como_llegar",
   /** Se tocó el botón de reserva (función de Pro). */
   "click_reserva",
+  /** Alguien abrió el bot para seguir al negocio (función de Pro). */
+  "click_seguidor",
   /** Un producto de la carta entró en pantalla. `dimension` = su nombre. */
   "producto_visto",
 ] as const;
@@ -93,11 +95,13 @@ export interface VisitasPanel {
     visitas30: number;
     llamadas30: number;
   };
-  /** Serie diaria y productos más vistos. Pro. */
+  /** Serie diaria, productos más vistos y reservas. Pro. */
   completas?: {
     /** Últimos 14 días, sin huecos: los días sin datos van a cero. */
     serie: { fecha: string; conteo: number }[];
     /** Los cinco productos que más se han visto en 30 días. */
     topProductos: { nombre: string; conteo: number }[];
+    /** Toques al botón de reservar, a 7 y 30 días. Va en Pro como la función. */
+    reservas: { corto: number; largo: number };
   };
 }

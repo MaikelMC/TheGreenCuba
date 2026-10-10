@@ -42,10 +42,13 @@ const MarkerItem = memo(function MarkerItem({
   routeFixed: boolean;
   onRouteClear: () => void;
 }) {
+  /* Sin foto: el pin lleva el icono de la categoría. La foto del negocio sigue
+     en el popup, en la ficha y en las tarjetas de recomendaciones; en el pin
+     no, porque a ese tamaño el logo es una mancha y deja de distinguir un
+     restaurante de una playa, que es lo que el pin existe para hacer. */
   const icon = createPlacePinIcon(
     markerVariant(isSelected, isBoosted, place.isProject ?? false),
     placeIcon(place.icon, place.category),
-    place.image,
     /* El rayo del pin. Un proyecto no lo lleva: su energía no es un dato que
        tenga sentido, y el pin de proyecto ya se distingue por su color. */
     !place.isProject && tieneRespaldo(place.energiaRespaldo),

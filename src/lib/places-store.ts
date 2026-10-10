@@ -16,6 +16,7 @@
 import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
 import type { Disponibilidad } from "@/lib/disponibilidad";
 import type { EnergiaRespaldo } from "@/lib/energia";
+import type { TipoReserva } from "@/lib/reserva";
 
 export type PlaceStatus = "active" | "closed" | "temporary_closed";
 export type PlaceReviewStatus = "pending" | "approved" | "rejected";
@@ -244,6 +245,65 @@ export interface UserPlace {
    */
   pedidosWhatsapp: boolean;
   /**
+   * Si el negocio acepta reservas por WhatsApp.
+   *
+   * Mismo reparto que los pedidos: la función la enciende el plan
+   * (`reservas_whatsapp`, Pro) y esto la apaga cuando al negocio no le conviene.
+   * Los dos tienen que estar en «sí» —y hace falta el número de WhatsApp— para
+   * que el botón aparezca en la ficha y en la carta; eso lo resuelve el servidor
+   * en `reservaHabilitada`, que es lo que miran los componentes.
+   *
+   * Opcional porque media tabla se dio de alta antes de que esto existiera y el
+   * `default` de la columna ya la siembra en `false`.
+   */
+  aceptaReservas?: boolean;
+  /**
+   * Qué se reserva: una mesa, un apartado de la carta o una cita. Decide el
+   * texto del botón y qué pide el formulario. `undefined` se lee como `mesa`.
+   */
+  tipoReserva?: TipoReserva;
+  /** Tope de personas por reserva. `null`/ausente = sin tope. Solo para `mesa`. */
+  aforoMaxPersonas?: number | null;
+  /**
+   * Cupo del día: personas que caben **en total** en una misma fecha.
+   * `null`/ausente = sin tope, y el formulario no consulta ni bloquea nada.
+   * Solo para `mesa`, como el aforo por reserva.
+   *
+   * Lo que se va gastando vive en `reservas_dias`, una fila por negocio y fecha
+   * (ver `src/lib/reservas-server.ts`). Como la clave es la fecha **reservada**,
+   * el cupo se recarga solo al cambiar de día y el dueño puede liberar uno a
+   * mano; no hay contador diario que reiniciar.
+   */
+  aforoDiarioPersonas?: number | null;
+  /**
+   * El mensaje del dueño, con `{nombre}` `{fecha}` `{hora}` `{personas}` como
+   * huecos. `null`/vacío = la plantilla por defecto de su tipo, que se resuelve
+   * al armar el mensaje (ver `src/lib/reserva.ts`), no al guardar.
+   */
+  plantillaReserva?: string | null;
+  /**
+   * Lo que decide si el botón de reservar se pinta: el dueño lo aceptó **y**
+   * hay número **y** el plan incluye la función (Pro). Lo calcula el servidor al
+   * mapear la fila, igual que `selloVerificado`: un negocio que baja de plan
+   * pierde el botón sin que nadie toque la columna, y —lo que importa— el
+   * navegador no puede encenderlo por su cuenta.
+   */
+  reservaHabilitada?: boolean;
+  /**
+   * El enlace al bot de avisos, **ya montado** (`https://t.me/<bot>?start=seg_<id>`),
+   * o `null`/ausente si no hay enlace que ofrecer.
+   *
+   * Es la conjunción que decide el botón «Avísame de ofertas»: el plan incluye la
+   * función (Pro) **y** hay bot configurado. Se resuelve en el servidor al mapear
+   * la fila, como `reservaHabilitada` y `selloVerificado`, para que el navegador
+   * no tenga que conocer los planes ni el nombre del bot.
+   *
+   * Que llegue un enlace no significa que el cliente pueda suscribirse: pulsar
+   * «Iniciar» en Telegram es lo que da el consentimiento y lo que crea la fila
+   * (ver el webhook del bot). Aquí solo se ofrece el camino.
+   */
+  enlaceSeguidores?: string | null;
+  /**
    * El plan que eligió el dueño al dar de alta el negocio, y que se queda con
    * la ficha: es lo que el administrador ve en la solicitud antes de aprobarla.
    *
@@ -283,6 +343,16 @@ export interface UserPlace {
    * toque la columna —y sin que un cliente pueda encenderlo por su cuenta—.
    */
   selloVerificado?: boolean;
+  /**
+   * Insignia «Top del mes»: el negocio está en el podio de su categoría y su
+   * municipio en el último mes calculado.
+   *
+   * Lo resuelve el servidor al mapear la fila —un `exists` contra
+   * `ranking_mensual` dentro de la consulta del catálogo—, no el navegador: el
+   * mismo motivo que `selloVerificado`, que la decisión viaje ya tomada y no
+   * obligue a cargar la tabla del ranking en el cliente.
+   */
+  topDelMes?: boolean;
   isBoosted: boolean;
   boostExpiresAt: string;
   rating?: number;

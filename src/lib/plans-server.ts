@@ -61,9 +61,10 @@ export async function planEfectivoDe(negocioId: string): Promise<Plan> {
 /**
  * ¿Puede este negocio usar esta función?
  *
- * Es la comprobación que se llama en las rutas que escriben. Las que aún no
- * existen —publicaciones, flyers, ofertas flash— no tienen dónde llamarla
- * todavía; cuando las haya, este es el guardián que va delante.
+ * Es la comprobación que se llama en las rutas que escriben. Hoy la usan las
+ * publicaciones de Facebook —desde el panel del negocio y desde administración—
+ * y las ofertas flash; las que aún no existen —flyers— la llamarán cuando las
+ * haya, y este es el guardián que va delante.
  */
 export async function puede(
   negocioId: string,

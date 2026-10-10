@@ -32,6 +32,11 @@ import { FormSection, FormSections } from "@/components/business/form-section";
 import { PhotoGrid } from "@/components/business/photo-grid";
 import { LogoUpload } from "@/components/business/logo-upload";
 import { pruneMenuImages } from "@/lib/menu-images";
+import {
+  ENERGIA_LABEL,
+  ENERGIA_ORDER,
+  type EnergiaRespaldo,
+} from "@/lib/energia";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { MenuItemEditor } from "@/components/business/menu-item-editor";
 import {
@@ -110,15 +115,18 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
   const [status, setStatus] = useState<PlaceStatus>(
     initial?.status ?? "active",
   );
-  const [isBoosted, setIsBoosted] = useState(initial?.isBoosted ?? false);
   /* La columna cruda, no `selloVerificado`: el panel enseña y edita **lo que
      decidió la administración**, aunque el plan del negocio no deje pintarlo
      todavía. Sembrar el toggle con el valor ya filtrado por el plan haría que
      guardar otra cosa cualquiera quitara el sello sin querer. */
   const [verificado, setVerificado] = useState(initial?.verificado ?? false);
-  const [boostExpiresAt, setBoostExpiresAt] = useState(
-    initial?.boostExpiresAt ?? "",
+  /* `"sin"` es «prefiero no decirlo»: la opción vacía del `Select` —Radix no
+     admite un `SelectItem` con valor `""`—, y al guardar se traduce a `null`,
+     que es lo que la base entiende por «no lo dijo». Ver `energia.ts`. */
+  const [energia, setEnergia] = useState<EnergiaRespaldo | "sin">(
+    initial?.energiaRespaldo ?? "sin",
   );
+  const [notaApagon, setNotaApagon] = useState(initial?.notaApagon ?? "");
   const [location, setLocation] = useState<LocationPoint | null>(
     initial ? { lat: initial.lat, lng: initial.lng } : null,
   );
@@ -186,11 +194,13 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
           ? { text: offerText.trim(), expiry: offerExpiry.trim() }
           : null,
       status,
-      isBoosted,
-      boostExpiresAt: boostExpiresAt.trim(),
       /* El sello lo escribe solo el panel de administración: el `PATCH` le tira
          el campo a cualquier otro, así que aquí es donde se enciende. */
       verificado,
+      /* La energía entra por lo mismo que la disponibilidad: esto es una lista
+         blanca y lo que no se nombre aquí se pierde en cada guardado. */
+      energiaRespaldo: energia === "sin" ? null : energia,
+      notaApagon: notaApagon.trim(),
     };
 
     /* Se espera a la base antes de decir nada. El `toast` de éxito y el cierre
@@ -241,9 +251,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
     offerText,
     offerExpiry,
     status,
-    isBoosted,
-    boostExpiresAt,
     verificado,
+    energia,
+    notaApagon,
     location,
     initial,
     addPlace,
@@ -615,85 +625,96 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
           />
         </FormSection>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-gap-md">
-          <FormSection
-            title="Estado del negocio"
-            icon={<Store size={18} strokeWidth={1.8} />}
-          >
-            <p className="text-meta text-ink-soft/75 mb-gap-sm">
-              Controla cómo aparece el negocio en la app pública.
-            </p>
+        <FormSection
+          title="Energía de respaldo"
+          icon={<Zap size={18} strokeWidth={1.8} />}
+        >
+          <p className="text-meta text-ink-soft/75 mb-gap-sm">
+            Cuando se va la luz, ¿qué tiene el negocio para seguir? Se enseña en
+            la ficha y en el pin del mapa, y quien busque «con corriente» lo
+            encuentra por esto. Si se queda sin rellenar no se dice nada: un
+            hueco no es lo mismo que un «no».
+          </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-gap-md">
             <div className="flex flex-col gap-gap-xs">
-              <label htmlFor="bfStatus" className={LABEL}>
-                Estado
+              <label htmlFor="bfEnergia" className={LABEL}>
+                Respaldo
               </label>
               <Select
-                value={status}
-                onValueChange={(v) => setStatus(v as PlaceStatus)}
+                value={energia}
+                onValueChange={(value) =>
+                  setEnergia(value as EnergiaRespaldo | "sin")
+                }
               >
-                <SelectTrigger id="bfStatus">
-                  <SelectValue />
+                <SelectTrigger id="bfEnergia">
+                  <SelectValue placeholder="Elige" />
                 </SelectTrigger>
                 <SelectContent>
-                  {STATUS_OPTIONS.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
+                  <SelectItem value="sin">Prefiero no decirlo</SelectItem>
+                  {ENERGIA_ORDER.map((valor) => (
+                    <SelectItem key={valor} value={valor}>
+                      {ENERGIA_LABEL[valor]}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            {/* El sello lo enciende la administración y **solo se pinta** si el
+            <div className="flex flex-col gap-gap-xs">
+              <label htmlFor="bfNotaApagon" className={LABEL}>
+                Cómo lo lleva (opcional)
+              </label>
+              <input
+                id="bfNotaApagon"
+                value={notaApagon}
+                onChange={(e) => setNotaApagon(e.target.value)}
+                maxLength={140}
+                placeholder="Ej: la planta cubre el salón y la cocina"
+                className={INPUT}
+              />
+            </div>
+          </div>
+        </FormSection>
+
+        <FormSection
+          title="Estado del negocio"
+          icon={<Store size={18} strokeWidth={1.8} />}
+        >
+          <p className="text-meta text-ink-soft/75 mb-gap-sm">
+            Controla cómo aparece el negocio en la app pública.
+          </p>
+          <div className="flex flex-col gap-gap-xs">
+            <label htmlFor="bfStatus" className={LABEL}>
+              Estado
+            </label>
+            <Select
+              value={status}
+              onValueChange={(v) => setStatus(v as PlaceStatus)}
+            >
+              <SelectTrigger id="bfStatus">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {/* El sello lo enciende la administración y **solo se pinta** si el
                 negocio tiene plan Básico o superior: la casilla no promete que
                 la chapita se vea hoy, y el texto lo dice para que nadie lo
                 reporte como fallo. Ver `selloVerificado` en el mapeo. */}
-            <div className="mt-gap-sm">
-              <ToggleRow
-                label="Sello Verificado"
-                hint="Muestra la chapita «Verificado» en la ficha, la tarjeta y los resultados. Solo se ve en negocios con plan Básico o superior."
-                checked={verificado}
-                onChange={() => setVerificado((prev) => !prev)}
-              />
-            </div>
-          </FormSection>
-
-          <FormSection
-            title="Destacar en La Verde"
-            icon={<Zap size={18} strokeWidth={1.8} />}
-          >
+          <div className="mt-gap-sm">
             <ToggleRow
-              label="Plan Destacado"
-              hint="Pin verde en el mapa, prioridad en recomendaciones IA, badge “Destacado” en la ficha."
-              checked={isBoosted}
-              onChange={() => setIsBoosted((prev) => !prev)}
+              label="Sello Verificado"
+              hint="Muestra la chapita «Verificado» en la ficha, la tarjeta y los resultados. Solo se ve en negocios con plan Básico o superior."
+              checked={verificado}
+              onChange={() => setVerificado((prev) => !prev)}
             />
-            <AnimatePresence initial={false}>
-              {isBoosted && (
-                <motion.div
-                  key="boost-expiry"
-                  initial={{ opacity: 0, height: 0, y: -4 }}
-                  animate={{ opacity: 1, height: "auto", y: 0 }}
-                  exit={{ opacity: 0, height: 0, y: -4 }}
-                  transition={{ duration: 0.3, ease: EASE }}
-                  className="overflow-hidden"
-                >
-                  <div className="flex flex-col gap-gap-xs mt-gap-sm">
-                    <label htmlFor="bfBoostExpiry" className={LABEL}>
-                      Vigencia del destacado
-                    </label>
-                    <input
-                      id="bfBoostExpiry"
-                      value={boostExpiresAt}
-                      onChange={(e) => setBoostExpiresAt(e.target.value)}
-                      placeholder="Ej: 31 de agosto, 2026"
-                      className={INPUT}
-                    />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </FormSection>
-        </div>
+          </div>
+        </FormSection>
 
         <FormSection
           title="Ubicación en el mapa"

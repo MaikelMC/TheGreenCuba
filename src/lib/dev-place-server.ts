@@ -2,7 +2,9 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { placeOverrides } from "@/lib/db/schema";
 import { DEV_PLACE_ID, devPlace } from "@/lib/dev-place";
-import { muestraSelloVerificado, type Plan } from "@/lib/plans";
+import { incluye, muestraSelloVerificado, type Plan } from "@/lib/plans";
+import { enlaceSeguidores } from "@/lib/seguidores";
+import { siteConfig } from "@/config/site";
 import type { UserPlace } from "@/lib/places-store";
 
 /**
@@ -43,7 +45,8 @@ export function mergeDevPlace(
 }
 
 /**
- * El sello del fixture, resuelto igual que en el catálogo.
+ * Lo que el fixture resuelve igual que el catálogo: sello, reserva y enlace al
+ * bot de avisos. Los tres dependen del plan y ninguno lo decide el navegador.
  *
  * Hace falta porque el fixture no pasa por `toUserPlace`: los demás negocios
  * llegan al cliente ya mapeados y este se construye a mano, así que sin esto su
@@ -59,6 +62,17 @@ export async function conSelloVerificado(place: UserPlace): Promise<UserPlace> {
   return {
     ...place,
     selloVerificado: muestraSelloVerificado(Boolean(place.verificado), plan),
+    /* El botón de reserva se resuelve igual que en el catálogo: aceptado por el
+       dueño, con número y con un plan que lo incluya. Aquí se repite la regla
+       de `toUserPlace` a propósito —el fixture no pasa por el mapeo—, y así
+       subirlo a Pro desde el panel enseña el botón sin tocar nada más. */
+    reservaHabilitada:
+      Boolean(place.aceptaReservas) &&
+      Boolean(place.whatsapp?.trim()) &&
+      incluye(plan, "reservas_whatsapp"),
+    /* El enlace al bot se resuelve igual que en el catálogo: subirlo a Pro desde
+       el panel enciende el botón sin tocar nada más. */
+    enlaceSeguidores: enlaceSeguidores(siteConfig.telegramBot, place.id, plan),
   };
 }
 
