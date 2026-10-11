@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bot, Lock, RefreshCw } from "lucide-react";
+import { Bot, Check, Copy, Lock, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { textoBloqueo, type Plan } from "@/lib/plans";
 import type { UserPlace } from "@/lib/places-store";
@@ -39,6 +39,7 @@ export function AsistenteCard({
 
   const [estado, setEstado] = useState<Estado | null>(null);
   const [generando, setGenerando] = useState(false);
+  const [copiado, setCopiado] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /* Sin la función no se pide nada: el candado ya lo dice todo. */
@@ -64,6 +65,29 @@ export function AsistenteCard({
       vivo = false;
     };
   }, [bloqueo, place.id]);
+
+  /* Copiar puede fallar —sin HTTPS, o si el navegador no da el permiso— y por
+     eso hay acuse: el botón se queda en «Copiado» dos segundos y, si no lo
+     consiguió, lo dice en vez de fingir que sí. */
+  const copiar = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(estado?.codigo ?? "");
+      setCopiado(true);
+    } catch {
+      setError("No pude copiar el código. Apúntalo a mano.");
+    }
+  }, [estado?.codigo]);
+
+  useEffect(() => {
+    if (!copiado) return;
+    const t = setTimeout(() => setCopiado(false), 2000);
+    return () => clearTimeout(t);
+  }, [copiado]);
+
+  /* El código nuevo estrena botón: si quedaba un «Copiado» de antes, mentiría. */
+  useEffect(() => {
+    setCopiado(false);
+  }, [estado?.codigo]);
 
   const generar = useCallback(async () => {
     setGenerando(true);
@@ -165,6 +189,26 @@ export function AsistenteCard({
                   <span className="rounded-xl border border-verde-200 bg-verde-50 px-gap-md py-[7px] font-mono text-body font-bold tracking-[0.3em] text-verde-800">
                     {estado.codigo}
                   </span>
+                  {/* El código se teclea en el móvil, donde copiar y pegar es
+                      lo único que sale bien: el botón vive pegado a él. */}
+                  <button
+                    type="button"
+                    onClick={() => void copiar()}
+                    aria-label="Copiar el código"
+                    className={cn(
+                      "inline-flex h-9 cursor-pointer items-center gap-gap-xs rounded-full border px-gap-sm font-lv-display text-meta font-semibold transition-colors",
+                      copiado
+                        ? "border-verde-200 bg-verde-50 text-verde-700"
+                        : "border-ink/10 bg-white text-ink-soft/75 hover:bg-sand",
+                    )}
+                  >
+                    {copiado ? (
+                      <Check size={14} strokeWidth={2} />
+                    ) : (
+                      <Copy size={14} strokeWidth={1.8} />
+                    )}
+                    {copiado ? "Copiado" : "Copiar"}
+                  </button>
                   <span className="text-meta text-ink-soft/75">
                     Vale {estado.minutosValidez} minutos y una sola vez.
                   </span>
