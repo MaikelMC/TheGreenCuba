@@ -17,7 +17,14 @@ import { BUSINESS_CATEGORIES } from "@/lib/places";
  */
 
 export async function GET() {
-  return NextResponse.json(await listCategories());
+  return NextResponse.json(await listCategories(), {
+    /* Las categorías son iguales para todo el mundo, así que el borde las puede
+       servir sin despertar la función. Es la ruta que más se pide y la que menos
+       cambia: el panel las toca de tarde en tarde. */
+    headers: {
+      "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+    },
+  });
 }
 
 export async function POST(req: NextRequest) {

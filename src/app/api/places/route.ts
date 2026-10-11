@@ -45,6 +45,15 @@ export async function GET(req: NextRequest) {
     ? (await getAppUser())?.email
     : null;
 
+  /* Qué respuestas puede servir el borde. El catálogo público es idéntico para
+     todo el mundo y sale sin tocar la función; las otras dos no:
+     `?all=true` es el panel —que no debe enseñar lo apagado a nadie más— y el
+     pin del negocio de prueba solo existe para quien lo mantiene. Esas van sin
+     caché, y la del borde se decide por URL, no por cookie, así que una
+     respuesta privada cacheada se le serviría a cualquiera. */
+  const cacheable =
+    searchParams.get("all") !== "true" && !canViewDevPlace(email);
+
   const items = await listPlaces({
     city: searchParams.get("city"),
     categorySlug: searchParams.get("category"),
@@ -119,7 +128,19 @@ export async function GET(req: NextRequest) {
       };
     });
 
-  return NextResponse.json([...items, ...projects]);
+  return NextResponse.json([...items, ...projects], {
+    /* Cinco minutos en el borde y diez sirviendo lo viejo mientras se refresca
+       por detrás. Sin esto, cada carga del catálogo —y el catálogo se comparte
+       por WhatsApp, así que la mayoría de quien lo abre es anónimo— es una
+       invocación de función y su CPU. El precio: una alta tarda hasta cinco
+       minutos en verse en el borde, y `revalidateTag` no lo adelanta porque
+       invalida la caché de datos, no la del CDN. */
+    headers: {
+      "Cache-Control": cacheable
+        ? "public, s-maxage=300, stale-while-revalidate=600"
+        : "private, no-store",
+    },
+  });
 }
 
 export async function POST(req: NextRequest) {
