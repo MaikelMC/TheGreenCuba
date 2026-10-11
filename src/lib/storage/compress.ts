@@ -1,6 +1,6 @@
 "use client";
 
-import { MAX_GIF_UPLOAD_BYTES } from "./image";
+import { EXTENSION, MAX_GIF_UPLOAD_BYTES } from "./image";
 
 /**
  * Compresión de la imagen en el navegador, antes de subirla.
@@ -44,8 +44,34 @@ function baseName(name: string): string {
   return dot > 0 ? name.slice(0, dot) : name;
 }
 
-/** Decodifica, reescala y recomprime a WebP. Lanza si el navegador no sabe leerlo. */
-async function toWebp(
+/**
+ * Codifica el lienzo en el formato con pérdida más ligero que el navegador sepa
+ * escribir.
+ *
+ * El `type` que se pide **no es una promesa**. Quien no sabe codificar WebP
+ * —Safari— no falla al pedirlo: devuelve PNG, y el PNG sin pérdida pesa varias
+ * veces más. Así llegó al bucket un flyer de 1168×784 con 871 KB: el lienzo
+ * había corrido, pero lo que salió era PNG. Por eso se mira lo que devolvió de
+ * verdad y, si no es WebP, se pide JPEG, que sí saben escribir todos.
+ */
+async function encode(canvas: OffscreenCanvas, quality: number): Promise<Blob> {
+  const webp = await canvas.convertToBlob({ type: "image/webp", quality });
+  if (webp.type === "image/webp") return webp;
+
+  /* El JPEG no tiene transparencia y lo transparente saldría negro. Se pinta
+     blanco **por debajo** de lo ya dibujado (`destination-over`), que es como
+     acaba viéndose el flyer en Facebook. */
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    ctx.globalCompositeOperation = "destination-over";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  return canvas.convertToBlob({ type: "image/jpeg", quality });
+}
+
+/** Decodifica, reescala y recomprime. Lanza si el navegador no sabe leerlo. */
+async function reencode(
   file: File,
   maxEdge = MAX_EDGE,
   quality = QUALITY,
@@ -63,7 +89,7 @@ async function toWebp(
     if (!ctx) throw new Error("El navegador no dio contexto 2D");
 
     ctx.drawImage(bitmap, 0, 0, width, height);
-    const blob = await canvas.convertToBlob({ type: "image/webp", quality });
+    const blob = await encode(canvas, quality);
     return { blob, width, height };
   } finally {
     bitmap.close();
@@ -90,8 +116,20 @@ export async function prepareImage(
   }
 
   try {
-    const { blob, width, height } = await toWebp(file, options.maxEdge, options.quality);
-    return { blob, width, height, name: `${baseName(file.name)}.webp` };
+    const { blob, width, height } = await reencode(
+      file,
+      options.maxEdge,
+      options.quality,
+    );
+    /* La extensión sale del blob que se devolvió y no del que se pidió: donde
+       no hay WebP, el archivo es JPEG. El servidor decide igual por los bytes
+       mágicos, así que esto es solo el nombre que ve quien lo sube. */
+    return {
+      blob,
+      width,
+      height,
+      name: `${baseName(file.name)}.${EXTENSION[blob.type] ?? "jpg"}`,
+    };
   } catch {
     return { blob: file, width: null, height: null, name: file.name };
   }
