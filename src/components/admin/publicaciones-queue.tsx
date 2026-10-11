@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { toast } from "sonner";
 import {
   Check,
@@ -75,32 +76,9 @@ async function copiarTexto(texto: string): Promise<void> {
   }
 }
 
-/**
- * Descarga la imagen del flyer.
- *
- * Se pide como blob y se fuerza la descarga; si el bucket no deja leer el
- * archivo desde el navegador —CORS—, el `fetch` falla y se abre en una pestaña
- * nueva, que al menos deja guardarla a mano. La descarga directa con un `<a
- * download>` no serviría: entre dominios el atributo se ignora y el enlace
- * navega en vez de descargar.
- */
-async function descargarImagen(url: string): Promise<void> {
-  const nombre = url.split("/").pop()?.split("?")[0] || "flyer";
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(String(res.status));
-    const blob = await res.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = objectUrl;
-    a.download = nombre;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(objectUrl);
-  } catch {
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
+/** El enlace de descarga del flyer, servido por este origen. */
+function enlaceDescarga(id: string): string {
+  return `/api/admin/publicaciones/${id}/imagen`;
 }
 
 /** Una publicación de la cola: ver, editar, publicar, borrar y copiar. */
@@ -223,10 +201,15 @@ function PublicacionCard({
             {publicacion.texto}
           </p>
           {publicacion.imagenUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            /* `next/image` y no un `<img>`: el navegador carga la foto desde
+               este origen (`/_next/image`) y es el servidor quien la pide al
+               bucket. Directa contra `*.neon.tech` se queda rota en redes donde
+               ese dominio no responde, y aquí se ve igual. */
+            <Image
               src={publicacion.imagenUrl}
               alt="Flyer de la publicación"
+              width={320}
+              height={200}
               className="max-h-56 w-full max-w-sm rounded-xl border border-ink/5 object-cover"
             />
           )}
@@ -280,14 +263,18 @@ function PublicacionCard({
               Copiar texto
             </button>
             {publicacion.imagenUrl && (
-              <button
-                type="button"
-                onClick={() => void descargarImagen(publicacion.imagenUrl!)}
+              /* Enlace y no `fetch` + blob: entre dominios eso lo corta el
+                 navegador, y aun pasando por aquí el `download` solo lo respeta
+                 el mismo origen. Con el `href` apuntando a la ruta propia, el
+                 navegador baja el archivo sin JavaScript de por medio. */
+              <a
+                href={enlaceDescarga(publicacion.id)}
+                download
                 className="inline-flex h-9 cursor-pointer items-center gap-[6px] rounded-full border border-ink/10 px-gap-sm font-lv-display text-meta font-semibold text-ink-soft/75 hover:bg-sand"
               >
                 <Download size={14} strokeWidth={1.8} />
                 Descargar imagen
-              </button>
+              </a>
             )}
             <button
               type="button"
