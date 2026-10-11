@@ -33,16 +33,23 @@ function clientIp(req: NextRequest): string {
   return last || "unknown";
 }
 
-/** Limita por IP en memoria (por instancia). Ventana deslizante simple por token bucket. */
-export function rateLimit(req: NextRequest, limit: number, windowMs: number): {
-  ok: boolean;
-  retryAfterSeconds?: number;
-} {
-  /* La ruta entra en la clave. Sin ella, dos endpoints con la misma ventana
-     —`/api/ai`, `/api/ai/search` y `/api/route` usan los tres 60 s— compartían
-     cubo: veinte búsquedas de IA gastaban el presupuesto de las rutas y al
-     revés, cada uno cortado por el límite del otro. */
-  const key = `${clientIp(req)}:${req.nextUrl.pathname}:${windowMs}`;
+/**
+ * Limita por una clave cualquiera, en memoria (por instancia).
+ *
+ * Ventana deslizante simple por token bucket. La clave la elige quien llama
+ * porque no siempre es una IP: el webhook de Telegram limita por `chat_id`, que
+ * no viene en ninguna cabecera —llega dentro del cuerpo—.
+ *
+ * `ponytail:` el cubo vive en la memoria del proceso, así que con varias
+ * instancias el tope real es `limit × instancias`. Suficiente para cortar un
+ * abuso desde un chat; si algún día hace falta exacto, esto es Redis y una
+ * operación `INCR` con caducidad.
+ */
+export function rateLimitKey(
+  key: string,
+  limit: number,
+  windowMs: number,
+): { ok: boolean; retryAfterSeconds?: number } {
   const now = Date.now();
 
   const bucket = store.get(key);
@@ -57,6 +64,22 @@ export function rateLimit(req: NextRequest, limit: number, windowMs: number): {
     return { ok: false, retryAfterSeconds: Math.ceil((bucket.resetAt - now) / 1000) };
   }
   return { ok: true };
+}
+
+/** Limita por IP en memoria (por instancia). Ventana deslizante simple por token bucket. */
+export function rateLimit(req: NextRequest, limit: number, windowMs: number): {
+  ok: boolean;
+  retryAfterSeconds?: number;
+} {
+  /* La ruta entra en la clave. Sin ella, dos endpoints con la misma ventana
+     —`/api/ai`, `/api/ai/search` y `/api/route` usan los tres 60 s— compartían
+     cubo: veinte búsquedas de IA gastaban el presupuesto de las rutas y al
+     revés, cada uno cortado por el límite del otro. */
+  return rateLimitKey(
+    `${clientIp(req)}:${req.nextUrl.pathname}:${windowMs}`,
+    limit,
+    windowMs,
+  );
 }
 
 function prune(now: number): void {

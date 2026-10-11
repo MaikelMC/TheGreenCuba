@@ -34,6 +34,7 @@ import { PlaceCard } from "@/components/layout/place-card";
 import { SearchingAnimation } from "@/components/layout/searching-animation";
 import { MapView } from "@/components/map/MapView";
 import { MapNotifications } from "@/components/map/map-notifications";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { PlaceFilters } from "@/components/place/place-filters";
 import { StateView } from "@/components/ui/state-view";
 import { CategoryIcon } from "@/components/admin/category-icon";
@@ -1339,7 +1340,13 @@ function HomePageContent() {
           onToggle={toggleFilter}
           hasLocation={userLocation !== null}
         />
-        <MapNotifications />
+        {/* Columna flotante de la esquina: la campana arriba y, debajo, el
+            interruptor de claro/oscuro. Van juntos para que se apilen con la
+            misma separación sin repetir la posición en dos sitios. */}
+        <div className="absolute right-gutter top-[110px] z-30 flex flex-col items-end gap-[10px]">
+          <MapNotifications />
+          <ThemeToggle />
+        </div>
       </MapView>
 
       {/* Chip de ruta activa (sin ficha abierta) */}

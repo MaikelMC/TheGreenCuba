@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sheet";
 import { LoginButton } from "@/components/landing/login-button";
 import { Logo } from "@/components/layout/logo";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { EASE } from "./anim";
 
 const NAV_LINKS = [
@@ -71,6 +72,10 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-gap-md">
+          {/* Sobre la pastilla oscura el disco blanco desentonaba: aquí el
+              botón va sin fondo, con el icono en blanco. */}
+          <ThemeToggle className="size-10 border-white/15 bg-white/10 text-white shadow-none hover:border-white/25 hover:bg-white/20 hover:text-white" />
+
           <LoginButton className="px-[18px] py-2.5 max-sm:hidden" />
 
           <Sheet>

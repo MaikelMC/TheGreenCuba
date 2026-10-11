@@ -49,6 +49,7 @@ import { MenuLinkCard } from "@/components/business/menu-link-card";
 import { PlanCard } from "@/components/business/plan-card";
 import { PlansSection } from "@/components/business/plans-section";
 import { PublicacionesView } from "@/components/business/publicaciones-view";
+import { AsistenteCard } from "@/components/business/asistente-card";
 import { SeguidoresCard } from "@/components/business/seguidores-card";
 import {
   BusinessSwitcher,
@@ -1548,6 +1549,12 @@ function SettingsView({
             porque el panel ya es largo y esto es una pieza cerrada: se le da el
             negocio y el plan, y ella resuelve lo demás. */}
         <SeguidoresCard place={place} plan={plan} onVerPlanes={onVerPlanes} />
+
+        {/* ── Asistente de Telegram ───────────────────────────────────────
+            Misma forma que la de seguidores y por la misma razón: es una pieza
+            cerrada, con su lectura y su estado. Aquí el dueño saca el código
+            que une su chat al negocio. */}
+        <AsistenteCard place={place} plan={plan} onVerPlanes={onVerPlanes} />
 
         {/* ── Contacto ────────────────────────────────────────────────────
             Los cuatro campos que hasta ahora solo se podían cambiar en el

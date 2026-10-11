@@ -43,6 +43,10 @@ function formatDate(value: string) {
  * Sin sesión la ruta contesta 401 y la burbuja no se pinta: no hay nada que
  * enseñar bajo la campana. Ausencia de sesión no es «cero notificaciones», así
  * que no se ofrece una entrada vacía.
+ *
+ * La posición la pone quien la monta: el home la mete en la columna flotante de
+ * la esquina superior derecha, junto al interruptor de tema. Aquí solo queda
+ * `relative`, que es lo que ancla el desplegable al propio disco.
  */
 export function MapNotifications() {
   const router = useRouter();
@@ -152,7 +156,7 @@ export function MapNotifications() {
   const unread = items.filter((item) => !item.readAt).length;
 
   return (
-    <div ref={ref} className="absolute right-gutter top-[110px] z-30">
+    <div ref={ref} className="relative">
       <motion.button
         type="button"
         whileTap={{ scale: 0.9 }}

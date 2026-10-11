@@ -295,6 +295,71 @@ export function resolveProviders(): {
   return [];
 }
 
+/**
+ * La cadena del asistente de Telegram: claves de bot, y si no las hay, la de
+ * siempre.
+ *
+ * Las claves `*_BOT` del `.env` existen para que el gasto del asistente se lea
+ * aparte del buscador: son dos usos con presupuestos distintos —una búsqueda la
+ * dispara cualquiera que abra el buscador; un mensaje del asistente lo dispara
+ * un dueño—, y con una sola clave no hay forma de saber cuál se comió la cuota.
+ *
+ * Mismo formato que `resolveProviders()` a propósito, para que `chatJSON` no
+ * tenga que saber de dónde salió la lista. Cerebras primero: es el más rápido de
+ * los dos y aquí un bot que tarda veinte segundos se siente roto.
+ *
+ * Las claves de bot van primero, pero **detrás va la cadena general como red**:
+ * una `*_BOT` caducada o sin permiso no puede dejar al asistente mudo teniendo
+ * proveedores que sí responden. Sin claves de bot el resultado es, simplemente,
+ * la cadena general —un despliegue que todavía no ha puesto las suyas tiene que
+ * poder usar el asistente—.
+ */
+export function resolveBotProviders(): {
+  apiKey: string;
+  baseURL?: string;
+  model: string;
+  name: string;
+  vendor: AiVendor;
+}[] {
+  const bot: {
+    apiKey: string;
+    baseURL?: string;
+    model: string;
+    name: string;
+    vendor: AiVendor;
+  }[] = [];
+
+  const cerebras = process.env.CEREBRAS_API_BOT?.trim();
+  if (cerebras) {
+    bot.push({
+      apiKey: cerebras,
+      baseURL: "https://api.cerebras.ai/v1",
+      model: process.env.CEREBRAS_MODEL?.trim() || DEFAULT_MODELS.cerebras,
+      name: "Cerebras (bot)",
+      vendor: "openai",
+    });
+  }
+
+  const openrouter = process.env.OPENROUTER_API_BOT?.trim();
+  if (openrouter) {
+    bot.push({
+      apiKey: openrouter,
+      baseURL: "https://openrouter.ai/api/v1",
+      model: process.env.OPENROUTER_MODEL?.trim() || DEFAULT_MODELS.openrouter,
+      name: "OpenRouter (bot)",
+      vendor: "openai",
+    });
+  }
+
+  /* El duplicado se salta: la misma clave puesta a la vez como `*_BOT` y como
+     general solo añadiría un viaje perdido por mensaje. */
+  const vistos = new Set(bot.map((p) => `${p.baseURL ?? ""}|${p.apiKey}`));
+  return [
+    ...bot,
+    ...resolveProviders().filter((p) => !vistos.has(`${p.baseURL ?? ""}|${p.apiKey}`)),
+  ];
+}
+
 /** Configuración efectiva de un único proveedor (compat). */
 export function resolveProvider(): {
   apiKey: string;

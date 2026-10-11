@@ -33,11 +33,17 @@ export function stripJson(text: string): string {
   return cleaned;
 }
 
+/** Lo que costó una llamada. Cero cuando el proveedor no lo cuenta. */
+export interface ConsumoIa {
+  tokensIn: number;
+  tokensOut: number;
+}
+
 /** Ejecuta una llamada JSON contra un proveedor concreto. Lanza si falla. */
 async function callProviderJSON<T>(
   provider: ResolvedProvider,
   opts: { system: string; user: string; maxTokens: number; temperature: number },
-): Promise<T> {
+): Promise<{ data: T } & ConsumoIa> {
   const { system, user, maxTokens, temperature } = opts;
 
   if (provider.vendor === "gemini") {
@@ -66,9 +72,14 @@ async function callProviderJSON<T>(
     }
     const data = (await response.json()) as {
       candidates?: { content?: { parts?: { text?: string }[] } }[];
+      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
     };
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-    return JSON.parse(stripJson(text)) as T;
+    return {
+      data: JSON.parse(stripJson(text)) as T,
+      tokensIn: data.usageMetadata?.promptTokenCount ?? 0,
+      tokensOut: data.usageMetadata?.candidatesTokenCount ?? 0,
+    };
   }
 
   // OpenAI-compatible (Mistral, OpenRouter, etc.)
@@ -96,16 +107,38 @@ async function callProviderJSON<T>(
   }
   const data = (await response.json()) as {
     choices?: { message?: { content?: string } }[];
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
   };
   const content = data.choices?.[0]?.message?.content ?? "";
-  return JSON.parse(stripJson(content)) as T;
+  return {
+    data: JSON.parse(stripJson(content)) as T,
+    tokensIn: data.usage?.prompt_tokens ?? 0,
+    tokensOut: data.usage?.completion_tokens ?? 0,
+  };
 }
 
-/** Llamada JSON con failover: intenta cada proveedor en orden hasta que uno responda. */
+/**
+ * Llamada JSON con failover: intenta cada proveedor en orden hasta que uno
+ * responda.
+ *
+ * `providers` deja elegir la cadena. Lo usa el asistente de Telegram, que tiene
+ * claves propias (`*_BOT`) para que su gasto se lea aparte del buscador; el
+ * resto de los sitios llama sin argumento y usa la cadena general. Por defecto
+ * es `resolveProviders()`, así que no hay dos caminos distintos —el mismo
+ * failover, el mismo `stripJson`, el mismo tope por proveedor—.
+ *
+ * Devuelve también lo que costó la llamada: el asistente lo guarda para poder
+ * decir a qué se fue el gasto. Quien no lo necesite lo ignora. */
 export async function chatJSON<T>(
-  opts: { system: string; user: string; maxTokens?: number; temperature?: number },
-): Promise<{ data: T; provider: string }> {
-  const providers = resolveProviders();
+  opts: {
+    system: string;
+    user: string;
+    maxTokens?: number;
+    temperature?: number;
+    providers?: ResolvedProvider[];
+  },
+): Promise<{ data: T; provider: string } & ConsumoIa> {
+  const providers = opts.providers ?? resolveProviders();
   if (providers.length === 0) {
     throw new Error(
       "No hay proveedores de IA configurados. Actívalo en el panel de administración.",
@@ -118,13 +151,13 @@ export async function chatJSON<T>(
 
   for (const provider of providers) {
     try {
-      const data = await callProviderJSON<T>(provider, {
+      const { data, tokensIn, tokensOut } = await callProviderJSON<T>(provider, {
         system: opts.system,
         user: opts.user,
         maxTokens,
         temperature,
       });
-      return { data, provider: provider.name };
+      return { data, provider: provider.name, tokensIn, tokensOut };
     } catch (error) {
       errors.push(error instanceof Error ? error.message : String(error));
     }
