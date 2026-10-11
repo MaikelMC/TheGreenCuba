@@ -7,6 +7,8 @@
  * Todo esto es puro: lo lee el orquestador (una vez resuelto) y lo leen los tests.
  */
 
+import { estaAgotado } from "@/lib/disponibilidad";
+
 /* ── constantes ─────────────────────────────────────────────────────────── */
 /** Techo diario de mensajes que llegan al modelo, por negocio. Los comandos,
  * los botones y el regex no cuentan: solo lo que se paga. */
@@ -200,6 +202,7 @@ export function sinAcento(cadena: string): string {
 export const COMANDOS: Record<string, string> = {
   help: "Te dice lo que puede hacer este asistente.",
   start: "Vincula este chat al negocio de tu código de panel.",
+  carta: "Te manda la carta con precios y qué está agotado.",
   agotado: "Marca un producto como agotado, uno por uno, con botones.",
   disponible: "Marca un producto como disponible, uno por uno, con botones.",
   abrir: "Marca el negocio como abierto hoy.",
@@ -383,6 +386,94 @@ export function buscarProducto(
   return { nivel: "ambiguo", mejor: null, lista: puentes.slice(0, 6) };
 }
 
+/* ── la carta, contada ──────────────────────────────────────────────────
+   Lo que se manda cuando el dueño pide ver su carta: número, nombre, precio y
+   estado, una línea por producto. Es una función pura y con tope porque Telegram
+   rechaza el mensaje entero —no lo corta— a partir de 4096 caracteres. */
+
+/** Lo mínimo que hace falta para contar un producto. Es el jsonb `places.menu`
+ * visto desde aquí, pero declarado aparte para poder probarlo sin una carta. */
+export interface ItemCarta {
+  name: string;
+  description?: string;
+  price?: string;
+  currency?: string;
+  tag?: string;
+  disponibilidad?: EstadoProducto;
+  agotadoHasta?: number | null;
+}
+
+/** Con margen bajo los 4096 de Telegram, que cuentan bytes y no caracteres. */
+export const CARTA_MAX_CHARS: number = 3500;
+
+/** Una entrada de la carta: `3. Torta de chocolate — 200 CUP · agotado`, con la
+ * descripción debajo y sangrada. La descripción se recorta a una línea: es un
+ * adorno en este mensaje, no el mensaje. */
+function lineaCarta(
+  item: ItemCarta,
+  n: number,
+  ahora: number,
+  conDescripcion: boolean,
+): string {
+  const precio = [item.price?.trim(), item.currency?.trim()].filter(Boolean).join(" ");
+  const marcas = [
+    estaAgotado(item, ahora) ? "agotado" : "",
+    item.tag?.trim() ?? "",
+  ].filter(Boolean);
+
+  let linea = `${n}. ${item.name.trim()}`;
+  if (precio) linea += ` — ${precio}`;
+  if (marcas.length > 0) linea += ` · ${marcas.join(" · ")}`;
+
+  if (!conDescripcion) return linea;
+  const suelta = (item.description ?? "").trim().replace(LIMPIAR_SPACIO, " ");
+  if (!suelta) return linea;
+  return `${linea}\n   ${suelta.length > 120 ? `${suelta.slice(0, 119)}…` : suelta}`;
+}
+
+/**
+ * La carta entera en un mensaje.
+ *
+ * Si no cabe se sacrifica por este orden: primero las descripciones —el precio y
+ * el «agotado» importan más—, y solo si aun así no cabe se corta la lista y se
+ * dice cuántos quedaron fuera. Nunca se manda un mensaje que Telegram vaya a
+ * rechazar por largo.
+ */
+export function textoCarta(items: readonly ItemCarta[], ahora: number = Date.now()): string {
+  if (items.length === 0) {
+    return "Tu carta todavía no tiene productos. Añádelos desde el panel de tu negocio y mándame /carta otra vez.";
+  }
+
+  const cuantos = items.length === 1 ? "1 producto" : `${items.length} productos`;
+  const cabecera = `Esta es tu carta, con ${cuantos}:`;
+  const arma = (conDescripcion: boolean) =>
+    [cabecera, "", items.map((it, i) => lineaCarta(it, i + 1, ahora, conDescripcion)).join("\n")].join("\n");
+
+  const completa = arma(true);
+  if (completa.length <= CARTA_MAX_CHARS) return completa;
+
+  const sinDescripcion = arma(false);
+  if (sinDescripcion.length <= CARTA_MAX_CHARS) return sinDescripcion;
+
+  /* El pie va aparte para poder reservarle sitio antes de cortar. */
+  const dentro: string[] = [];
+  let largo = cabecera.length + 2;
+  for (const [i, item] of items.entries()) {
+    const linea = lineaCarta(item, i + 1, ahora, false);
+    if (largo + linea.length + 1 > CARTA_MAX_CHARS - 60) break;
+    dentro.push(linea);
+    largo += linea.length + 1;
+  }
+
+  return [
+    cabecera,
+    "",
+    dentro.join("\n"),
+    "",
+    `…y ${items.length - dentro.length} más. Mándame /agotado para ver el resto con botones.`,
+  ].join("\n");
+}
+
 /* ── confirmación ──────────────────────────────────────────────── */
 export type ModoConfirmacion = "auto" | "confirmar";
 
@@ -477,6 +568,17 @@ export const HERRAMIENTAS_IA: readonly HerramientaIA[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: "ver_carta",
+    description:
+      "Devuelve la carta del negocio: cada producto con su precio y si está agotado. Úsala cuando pidan ver la carta, el menú o la lista de productos.",
+    input_schema: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+  },
 ] as const satisfies readonly HerramientaIA[];
 
 /* ── prompt de sistema (≤ 150 tokens) ────────────────────────────── */
@@ -486,10 +588,11 @@ function tokensDe(texto: string): number {
 }
 
 const SISTEMA_TEXTO =
-  "Eres el asistente de Telegram de negocios. Respondes en español, con amabilidad.\n" +
-  "No inventas productos, precios ni horarios. Si no estás seguro, pregunta.\n" +
-  "Si el negocio no está abierto, avisa. Si el usuario te pide algo fuera de tu\n" +
-  "alcance, dilo con claridad y ofrece /help.";
+  "Eres el asistente de Telegram de un negocio. Hablas español claro y corto,\n" +
+  "sin tecnicismos y de usted. No inventas productos, precios ni horarios: si\n" +
+  "no estás seguro, pregunta. Si piden ver la carta, el menú o los productos,\n" +
+  "usa ver_carta. Si piden algo que no puedes hacer, dilo con claridad y\n" +
+  "ofréceles /ayuda.";
 
 export function promptSistema(): string {
   return SISTEMA_TEXTO;

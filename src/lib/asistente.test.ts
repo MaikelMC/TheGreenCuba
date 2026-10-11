@@ -14,6 +14,8 @@ import {
   requiereConfirmacion,
   similitudJaccard,
   similitudProducto,
+  textoCarta,
+  CARTA_MAX_CHARS,
   HERRAMIENTAS_IA,
 } from "./asistente";
 
@@ -116,6 +118,7 @@ test("los comandos que existen son reconocidos", () => {
   assert.equal(esComandoValido("abrir"), true);
   assert.equal(esComandoValido("cerrar"), true);
   assert.equal(esComandoValido("stats"), true);
+  assert.equal(esComandoValido("carta"), true);
   assert.equal(esComandoValido("ayuda"), true);
   assert.equal(esComandoValido("help"), true);
   assert.equal(esComandoValido("mirar"), false);
@@ -255,7 +258,55 @@ test("las herramientas están definidas con nombres coherentes", () => {
   assert.equal(nombres.has("set_horario"), true);
   assert.equal(nombres.has("abrir_cerrar_hoy"), true);
   assert.equal(nombres.has("consultar_stats"), true);
-  assert.equal(nombres.size, 5);
+  assert.equal(nombres.has("ver_carta"), true);
+  assert.equal(nombres.size, 6);
+});
+
+/* ── la carta contada ───────────────────────────────────────────── */
+test("textoCarta lista nombre, precio y estado, uno por línea", () => {
+  const texto = textoCarta(
+    [
+      { name: "Pan de queso", price: "25", currency: "CUP" },
+      {
+        name: "Café de especialidad",
+        price: "150",
+        currency: "CUP",
+        disponibilidad: "agotado",
+        agotadoHasta: null,
+      },
+      { name: "Sin precio" },
+    ],
+    1_000,
+  );
+  assert.match(texto, /1\. Pan de queso — 25 CUP/);
+  assert.match(texto, /2\. Café de especialidad — 150 CUP · agotado/);
+  assert.match(texto, /3\. Sin precio/);
+});
+
+test("textoCarta respeta el fin del agotado", () => {
+  const item = { name: "Pan", price: "25", currency: "CUP", disponibilidad: "agotado" as const };
+  assert.match(textoCarta([{ ...item, agotadoHasta: 2_000 }], 1_000), /agotado/);
+  /* La fecha ya pasó: vuelve solo a estar disponible. */
+  assert.doesNotMatch(textoCarta([{ ...item, agotadoHasta: 500 }], 1_000), /agotado/);
+});
+
+test("textoCarta dice cuándo la carta está vacía", () => {
+  assert.match(textoCarta([]), /todavía no tiene productos/i);
+});
+
+test("textoCarta nunca se pasa del tope de Telegram", () => {
+  const larga = Array.from({ length: 200 }, (_, i) => ({
+    name: `Producto ${i}`,
+    price: "10",
+    currency: "CUP",
+    description: "x".repeat(200),
+  }));
+  const texto = textoCarta(larga, 1_000);
+  assert.ok(
+    texto.length <= Math.max(CARTA_MAX_CHARS, 4096),
+    `demasiado largo: ${texto.length}`,
+  );
+  assert.match(texto, /más\./);
 });
 
 /* ── código de vinculación ──────────────────────────────────────── */

@@ -308,8 +308,8 @@ async function ejecutarDisponibilidad(
     despues: { productoId: producto.id, estado },
     texto:
       estado === "agotado"
-        ? `${producto.name}: agotado.`
-        : `${producto.name}: otra vez disponible.`,
+        ? `Listo: «${producto.name}» queda agotado para tus clientes.`
+        : `Listo: «${producto.name}» vuelve a estar disponible.`,
   };
 }
 
@@ -335,7 +335,7 @@ async function ejecutarPrecio(
     accion: "set_precio",
     antes,
     despues: { productoId: producto.id, precio },
-    texto: `${producto.name}: ${precio}.`,
+    texto: `Listo: «${producto.name}» queda en ${precio}.`,
   };
 }
 
@@ -352,7 +352,7 @@ async function ejecutarHorario(negocio: Negocio, texto: string): Promise<Resulta
     accion: "set_horario",
     antes: { schedule: horarioAntes },
     despues: { schedule: texto },
-    texto: `Horario actualizado: ${texto}`,
+    texto: `Listo: tu horario dice ahora «${texto}».`,
   };
 }
 
@@ -370,7 +370,9 @@ async function ejecutarAbrirCerrar(negocio: Negocio, abierto: boolean): Promise<
     accion: "abrir_cerrar_hoy",
     antes,
     despues: { status },
-    texto: abierto ? "Listo: hoy apareces abierto." : "Listo: hoy apareces cerrado.",
+    texto: abierto
+      ? "Listo: tu ficha dice que hoy estás abierto."
+      : "Listo: tu ficha dice que hoy estás cerrado.",
   };
 }
 
@@ -448,7 +450,7 @@ async function textoStats(negocioId: string): Promise<string> {
 
   const vistas = fila[0]?.views ?? 0;
   return [
-    "Tu ficha, con lo que hay ahora mismo:",
+    "Así va tu ficha hoy:",
     `• ${vistas} visitas en total`,
     `• ${stats.saved} veces guardada`,
     `• ${stats.reviews} reseñas`,
@@ -466,12 +468,13 @@ const SIN_VINCULO =
 const AYUDA = [
   "Puedo hacer esto por ti:",
   "",
+  "/carta — te mando tu carta con precios y qué está agotado",
   "/agotado — marcar productos como agotados, con botones",
   "/disponible — volver a ponerlos",
   "/abrir y /cerrar — si hoy atiendes o no",
   "/stats — cómo va tu ficha",
   "",
-  "Y si me escribes normal también te entiendo: «se acabó el pan», «ya hay café», «pon el precio del café a 250». Todo lo que cambie lo puedes deshacer.",
+  "Y si me escribes normal también te entiendo: «muéstrame la carta», «se acabó el pan», «pon el precio del café a 250». Todo lo que cambie lo puedes deshacer.",
 ].join("\n");
 
 /* ── el update ──────────────────────────────────────────────────────────── */
@@ -721,6 +724,10 @@ async function manejarComando(
       await enviarTexto(chatId, await textoStats(negocio.negocioId));
       return;
 
+    case "carta":
+      await enviarTexto(chatId, A.textoCarta(negocio.menu ?? []));
+      return;
+
     case "abrir":
     case "cerrar": {
       const res = await ejecutarAbrirCerrar(negocio, comando === "abrir");
@@ -766,7 +773,7 @@ async function enviarPaginaProductos(
   if (productos.length === 0) {
     await enviarTexto(
       chatId,
-      "Tu carta todavía no tiene productos. Añádelos en el panel y vuelvo a intentarlo.",
+      "Tu carta todavía no tiene productos. Añádelos desde el panel de tu negocio y mándame /carta para verla.",
     );
     return;
   }
@@ -851,7 +858,7 @@ async function manejarTextoLibre(negocio: Negocio, update: A.ParsedTelegram): Pr
         ]);
       await enviarBotones(
         chatId,
-        `«${intencion.producto}» me suena a varios. ¿Cuál?`,
+        `«${intencion.producto}» me suena a varios productos. Toca el que sea:`,
         filas,
       );
       return;
@@ -883,7 +890,7 @@ async function manejarConModelo(negocio: Negocio, update: A.ParsedTelegram): Pro
   if (!cuota) {
     await enviarTexto(
       chatId,
-      "Hoy ya gastaste las respuestas listas de tu asistente. Los comandos siguen funcionando: /agotado, /disponible, /abrir, /cerrar, /stats.",
+      "Por hoy ya gastaste las respuestas libres de tu asistente, y se renuevan mañana. Los comandos siguen funcionando: /carta, /agotado, /disponible, /abrir, /cerrar, /stats.",
     );
     return;
   }
@@ -926,7 +933,7 @@ async function manejarConModelo(negocio: Negocio, update: A.ParsedTelegram): Pro
     );
     await enviarTexto(
       chatId,
-      "No te entendí. Prueba con los comandos —/agotado, /disponible, /abrir, /cerrar, /stats— o con una frase más corta.",
+      "No te entendí. Prueba a decírmelo más corto —«muéstrame la carta», «se acabó el pan»— o con un comando: /carta, /agotado, /disponible, /abrir, /cerrar, /stats.",
     );
     return;
   }
@@ -948,14 +955,18 @@ async function manejarConModelo(negocio: Negocio, update: A.ParsedTelegram): Pro
     });
     await enviarTexto(
       chatId,
-      "No te entendí. Escribe /ayuda para ver lo que sí puedo hacer.",
+      "No te entendí. Mándame /carta para ver tu carta con precios y qué está agotado, o /ayuda para ver todo lo que puedo hacer.",
     );
     return;
   }
 
-  /* Las estadísticas no escriben: se resuelven aparte, que necesitan su consulta. */
-  if (accion === "consultar_stats") {
-    const stats = await textoStats(negocio.negocioId);
+  /* Las dos que solo leen: se resuelven aparte, que no escriben nada y no hay
+     confirmación que pedir. */
+  if (accion === "consultar_stats" || accion === "ver_carta") {
+    const texto =
+      accion === "consultar_stats"
+        ? await textoStats(negocio.negocioId)
+        : A.textoCarta(negocio.menu ?? []);
     await registrarLog({
       negocioId: negocio.negocioId,
       chatId,
@@ -967,7 +978,7 @@ async function manejarConModelo(negocio: Negocio, update: A.ParsedTelegram): Pro
       tokensIn,
       tokensOut,
     });
-    await enviarTexto(chatId, stats);
+    await enviarTexto(chatId, texto);
     return;
   }
 
@@ -997,7 +1008,7 @@ async function manejarConModelo(negocio: Negocio, update: A.ParsedTelegram): Pro
         await enviarTexto(chatId, "No pude dejar el cambio preparado. Prueba otra vez.");
         return;
       }
-      await enviarBotones(chatId, `¿Lo aplico? ${resumen}`, [
+      await enviarBotones(chatId, `${resumen}\n¿Lo aplico?`, [
         [
           { text: "Sí", callback_data: `y:${logId}` },
           { text: "No", callback_data: `n:${logId}` },
@@ -1016,7 +1027,7 @@ async function manejarConModelo(negocio: Negocio, update: A.ParsedTelegram): Pro
   if (!res) {
     await enviarTexto(
       chatId,
-      "No supe a qué producto te referías. Dime el nombre como aparece en tu carta.",
+      "No encontré ese producto en tu carta. Mírala con /carta y mándame el nombre tal como aparece ahí.",
     );
     return;
   }
@@ -1086,7 +1097,7 @@ function describirPropuesta(
     if (!precio) return null;
     const item = productos[indice];
     if (!item) return null;
-    return `${item.name}: ${precio}.`;
+    return `Cambio «${item.name}» a ${precio}.`;
   }
 
   return null;
@@ -1138,7 +1149,8 @@ async function ejecutarAccionModelo(
       return ejecutarAbrirCerrar(negocio, p.abierto !== false);
 
     case "consultar_stats":
-      /* Se resuelve fuera, que necesita otra consulta. */
+    case "ver_carta":
+      /* Se resuelven fuera, que necesitan otra consulta. */
       return { ok: true, accion, antes: null, despues: null, texto: "" };
 
     default:
@@ -1212,10 +1224,11 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
       }
       if (nav.length > 0) filas.push(nav);
       if (update.callback_mensaje_id) {
+        const verbo = estado === "agotado" ? "se acabó" : "ya hay";
         await editarTexto(
           chatId,
           update.callback_mensaje_id,
-          `¿Cuál? (${desde + 1}–${desde + pagina.length} de ${productos.length}):`,
+          `¿Qué ${verbo}? Toca el producto (${desde + 1}–${desde + pagina.length} de ${productos.length}):`,
           filas,
         );
       }
