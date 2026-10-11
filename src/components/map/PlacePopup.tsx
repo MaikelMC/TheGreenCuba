@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState, type ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -128,10 +129,16 @@ export function PlacePopup({
           la misma sin ella. */}
       {cover && !coverFailed && (
         <div className="lv-popup-cover h-[84px] w-full border-b border-ink/5 bg-sand-deep">
-          <img
+          {/* `next/image` y no un `<img>`: el navegador pide la portada a este
+              origen (`/_next/image`) y es el servidor quien la trae del bucket.
+              Directa contra el almacenamiento se queda en blanco en redes donde
+              ese dominio no responde, y la ficha sí la enseñaba porque ya iba
+              por aquí. */}
+          <Image
             src={cover}
             alt=""
-            loading="lazy"
+            width={260}
+            height={84}
             onError={() => setCoverFailed(true)}
             className="h-full w-full object-cover"
           />
