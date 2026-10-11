@@ -22,6 +22,7 @@ import {
 } from "@/lib/map/map-config";
 import { validatePlaceCoordinates } from "@/lib/map/coordinates";
 import { readUserPreferences, locationCenter } from "@/lib/user-preferences-store";
+import { fetchMe } from "@/lib/session-client";
 import { createPlacePinIcon } from "./pin-icon";
 import type { LocationPoint } from "./MapLocationPicker";
 
@@ -79,9 +80,8 @@ export function MapLocationPickerMap({
       return;
     }
 
-    fetch("/api/me")
-      .then((res) => res.json())
-      .then((data: { authenticated: boolean; user: { id?: string } | null }) => {
+    fetchMe<{ authenticated: boolean; user: { id?: string } | null }>()
+      .then((data) => {
         if (!data.authenticated || !data.user?.id) return;
         const prefs = readUserPreferences(data.user.id);
         setCenter(locationCenter(prefs.location));

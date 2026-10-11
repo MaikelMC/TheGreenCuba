@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn, sanitizePhone } from "@/lib/utils";
 import { EASE } from "@/lib/motion";
+import { fetchMe } from "@/lib/session-client";
 import { CategoryIcon } from "@/components/admin/category-icon";
 import {
   FormSection,
@@ -207,19 +208,14 @@ export function BusinessView() {
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/me")
-      .then((res) => res.json())
-      .then(
-        (data: {
-          authenticated: boolean;
-          user: { business?: BusinessSummary | null } | null;
-        }) => {
-          if (!alive) return;
-          setBusiness(
-            data.authenticated ? (data.user?.business ?? null) : null,
-          );
-        },
-      )
+    fetchMe<{
+      authenticated: boolean;
+      user: { business?: BusinessSummary | null } | null;
+    }>()
+      .then((data) => {
+        if (!alive) return;
+        setBusiness(data.authenticated ? (data.user?.business ?? null) : null);
+      })
       .catch(() => {
         /* Sin red no se puede saber si tiene negocio. Se enseña el formulario,
            que es la suposición inofensiva: si ya tuviera uno, el `POST` lo

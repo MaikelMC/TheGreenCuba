@@ -35,6 +35,7 @@ import { trackClientEvent } from "@/lib/analytics/client";
 import type { AnalyticsEventType } from "@/lib/analytics/events";
 import { trackPlaceMetric } from "@/lib/place-metrics";
 import { trackEvento } from "@/lib/eventos-client";
+import { fetchMe } from "@/lib/session-client";
 import { PhotoCarousel, type Slide } from "./photo-carousel";
 import { PaymentsSection } from "./payments-section";
 import { ActionButtons } from "./action-buttons";
@@ -251,13 +252,10 @@ export function PlaceDetail({
   const [reviewsKey, setReviewsKey] = useState(0);
 
   useEffect(() => {
-    fetch("/api/me")
-      .then((res) => res.json())
-      .then(
-        (data: { authenticated: boolean; user: { id?: string } | null }) => {
-          if (data.authenticated && data.user?.id) setUserId(data.user.id);
-        },
-      )
+    fetchMe<{ authenticated: boolean; user: { id?: string } | null }>()
+      .then((data) => {
+        if (data.authenticated && data.user?.id) setUserId(data.user.id);
+      })
       .catch(() => {});
   }, []);
 

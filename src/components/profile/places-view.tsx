@@ -8,6 +8,7 @@ import { CategoryIcon } from "@/components/admin/category-icon";
 import { MiniChart } from "@/components/business/mini-chart";
 import { categoryIcon } from "@/lib/places";
 import { EASE } from "@/lib/motion";
+import { fetchMe } from "@/lib/session-client";
 import {
   dailyHistogram,
   dayLabels,
@@ -48,9 +49,8 @@ export function PlacesView() {
   useEffect(() => {
     let alive = true;
 
-    fetch("/api/me")
-      .then((res) => res.json())
-      .then((data: { authenticated?: boolean; user?: { id?: string } | null }) => {
+    fetchMe<{ authenticated?: boolean; user?: { id?: string } | null }>()
+      .then((data) => {
         if (!alive) return;
         const nextUserId = data.authenticated && data.user?.id ? data.user.id : null;
         setUserId(nextUserId);

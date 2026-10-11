@@ -30,6 +30,7 @@ import {
   GEO_ERROR_MESSAGES,
 } from "@/lib/map/geolocation";
 import { identifyUser, trackOnboardingCompleted } from "@/lib/analytics";
+import { fetchMe, refreshSession } from "@/lib/session-client";
 
 const INTEREST_NAMES: Record<string, string> = {
   cafes: "Cafeterías",
@@ -403,49 +404,46 @@ export default function OnboardingPage() {
   useEffect(() => {
     let alive = true;
 
-    fetch("/api/me")
-      .then((res) => res.json())
-      .then(
-        (data: {
-          authenticated: boolean;
-          user: {
-            id?: string;
-            name: string;
-            email: string;
-            locationCity?: string | null;
-            onboardingCompleted?: boolean;
-            preferences?: {
-              interests?: string[];
-              moods?: string[];
-              currencies?: string[];
-            } | null;
-          } | null;
-        }) => {
-          if (!alive) return;
+    fetchMe<{
+      authenticated: boolean;
+      user: {
+        id?: string;
+        name: string;
+        email: string;
+        locationCity?: string | null;
+        onboardingCompleted?: boolean;
+        preferences?: {
+          interests?: string[];
+          moods?: string[];
+          currencies?: string[];
+        } | null;
+      } | null;
+    }>()
+      .then((data) => {
+        if (!alive) return;
 
-          if (data.authenticated && data.user) {
-            const nextUserId = data.user.id ?? null;
-            setUserId(nextUserId);
-            setIdentity({ name: data.user.name, email: data.user.email });
+        if (data.authenticated && data.user) {
+          const nextUserId = data.user.id ?? null;
+          setUserId(nextUserId);
+          setIdentity({ name: data.user.name, email: data.user.email });
 
-            const merged = mergeRemoteUserPreferences(
-              readUserPreferences(nextUserId),
-              data.user,
-            );
-            writeUserPreferences(merged, nextUserId);
-            setInterests(new Set(merged.interests));
-            setCurrencies(new Set(merged.currencies));
-            setMoods(new Set(merged.moods));
+          const merged = mergeRemoteUserPreferences(
+            readUserPreferences(nextUserId),
+            data.user,
+          );
+          writeUserPreferences(merged, nextUserId);
+          setInterests(new Set(merged.interests));
+          setCurrencies(new Set(merged.currencies));
+          setMoods(new Set(merged.moods));
 
-            if (merged.onboardingCompleted) {
-              router.replace("/home");
-              return;
-            }
+          if (merged.onboardingCompleted) {
+            router.replace("/home");
+            return;
           }
+        }
 
-          setReady(true);
-        },
-      )
+        setReady(true);
+      })
       .catch(() => {
         if (alive) setReady(true);
       });
@@ -586,11 +584,10 @@ export default function OnboardingPage() {
     let resolvedUserId = userId;
     if (!resolvedUserId) {
       try {
-        const sessionResponse = await fetch("/api/me");
-        const sessionData = (await sessionResponse.json()) as {
+        const sessionData = await fetchMe<{
           authenticated?: boolean;
           user?: { id?: string } | null;
-        };
+        }>();
         resolvedUserId = sessionData.authenticated
           ? (sessionData.user?.id ?? null)
           : null;
@@ -653,6 +650,10 @@ export default function OnboardingPage() {
         toast.error("No pudimos guardar tus preferencias. Inténtalo de nuevo.");
         return false;
       }
+
+      /* El onboarding acaba de escribir ciudad y preferencias: la sesión
+         cacheada del módulo quedaría con lo de antes hasta recargar. */
+      refreshSession();
     } catch {
       toast.error("No pudimos guardar tus preferencias. Revisa tu conexión.");
       return false;

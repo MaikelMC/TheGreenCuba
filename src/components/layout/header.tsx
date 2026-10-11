@@ -11,6 +11,7 @@ import { getLastKnownPosition } from "@/lib/map/geolocation";
 import { locationCenter, readUserPreferences } from "@/lib/user-preferences-store";
 import { buildSearchSuggestions, type SearchSuggestion } from "@/lib/search-suggestions";
 import { categoryIcon } from "@/lib/places";
+import { fetchMe } from "@/lib/session-client";
 import { CategoryIcon } from "@/components/admin/category-icon";
 import { usePlaces } from "@/providers/places-provider";
 import { UserMenu } from "./user-menu";
@@ -112,13 +113,10 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
        él se leen del cajón de invitado, que para alguien con sesión está
        vacío—. */
     async function load(attempt: number): Promise<void> {
-      const response = await fetch("/api/me").catch(() => null);
-      const data = response?.ok
-        ? ((await response.json().catch(() => null)) as {
-            authenticated?: boolean;
-            user?: { id?: string } | null;
-          } | null)
-        : null;
+      const data = await fetchMe<{
+        authenticated?: boolean;
+        user?: { id?: string } | null;
+      }>({ force: attempt > 0 }).catch(() => null);
 
       if (!alive) return;
 

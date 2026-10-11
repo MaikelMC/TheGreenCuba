@@ -33,6 +33,7 @@ import { clearActivity } from "@/lib/activity-store";
 import { SUPPORT_EMAIL } from "@/lib/legal";
 import { SupportRequest } from "@/components/profile/support-request";
 import { clearUserPreferences, readUserPreferences } from "@/lib/user-preferences-store";
+import { fetchMe, refreshSession } from "@/lib/session-client";
 import { logout } from "@/lib/logout";
 
 const ROLE_NAMES: Record<string, string> = {
@@ -78,9 +79,8 @@ export function SettingsView() {
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/me")
-      .then((res) => res.json())
-      .then((data: { authenticated: boolean; user: SessionUser | null }) => {
+    fetchMe<{ authenticated: boolean; user: SessionUser | null }>()
+      .then((data) => {
         if (alive && data.authenticated && data.user) {
           const nextUser = { ...data.user, id: (data.user as unknown as { id?: string }).id ?? "" };
           setUser(nextUser);
@@ -121,6 +121,8 @@ export function SettingsView() {
     try {
       const response = await fetch("/api/me", { method: "DELETE" });
       const data = (await response.json()) as { accountDeleted?: boolean };
+      /* La cuenta ya no está: la sesión cacheada tampoco puede quedarse. */
+      refreshSession();
       /* Los datos ya no están —eso lo garantiza el orden de dentro del
          servidor—, pero la credencial sí. Se dice, porque callarlo dejaría a
          alguien creyendo que su correo quedó libre cuando no. */

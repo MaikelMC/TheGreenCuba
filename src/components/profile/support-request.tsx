@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
+import { fetchMe } from "@/lib/session-client";
 
 /**
  * Reporte de errores desde Configuración.
@@ -23,9 +24,8 @@ export function SupportRequest() {
   /* Sin sesión el endpoint responde 401; se descubre aquí y no al enviar. */
   const [canSend, setCanSend] = useState(false);
   useEffect(() => {
-    fetch("/api/me")
-      .then((res) => res.json())
-      .then((data: { authenticated?: boolean }) => setCanSend(Boolean(data.authenticated)))
+    fetchMe<{ authenticated?: boolean }>()
+      .then((data) => setCanSend(Boolean(data.authenticated)))
       .catch(() => setCanSend(false));
   }, []);
 

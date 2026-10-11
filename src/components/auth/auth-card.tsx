@@ -18,6 +18,7 @@ import {
   trackUserRegistered,
 } from "@/lib/analytics";
 import { EASE } from "@/lib/motion";
+import { refreshSession } from "@/lib/session-client";
 
 export type AuthMode = "login" | "register";
 
@@ -126,6 +127,9 @@ async function saveRegistration(
     });
     const data = (await response.json()) as { user?: { id?: string } | null };
     userId = data.user?.id ?? null;
+    /* El alta acaba de escribir teléfono y consentimiento: la sesión cacheada
+       del módulo se quedaría con lo de antes. */
+    refreshSession();
   } catch {
     // Sin id se escribe en la clave de invitado, que es la que lee quien no tiene sesión.
   }

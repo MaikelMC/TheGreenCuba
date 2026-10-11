@@ -80,6 +80,7 @@ import {
 import { pushRecentSearch } from "@/lib/recent-searches-store";
 import { saveAiRecommendations } from "@/lib/ai-recommendation-store";
 import { sharePlace } from "@/lib/share";
+import { fetchMe, refreshSession } from "@/lib/session-client";
 import {
   trackAiSearchCompleted,
   trackAiSearchSubmitted,
@@ -137,7 +138,7 @@ function askMarketingConsentOnce(
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ marketingOptIn: true }),
-        });
+        }).then(refreshSession);
       },
     },
   });
@@ -633,58 +634,55 @@ function HomePageContent() {
       return cached ? [cached.lat, cached.lng] : null;
     };
 
-    fetch("/api/me")
-      .then((res) => res.json())
-      .then(
-        (data: {
-          authenticated?: boolean;
-          marketing?: { optedIn?: boolean; isGoogle?: boolean };
-          user?: {
-            id?: string;
-            locationCity?: string | null;
-            onboardingCompleted?: boolean;
-            preferences?: {
-              interests?: string[];
-              moods?: string[];
-              currencies?: string[];
-            } | null;
-          } | null;
-        }) => {
-          if (!alive) return;
+    fetchMe<{
+      authenticated?: boolean;
+      marketing?: { optedIn?: boolean; isGoogle?: boolean };
+      user?: {
+        id?: string;
+        locationCity?: string | null;
+        onboardingCompleted?: boolean;
+        preferences?: {
+          interests?: string[];
+          moods?: string[];
+          currencies?: string[];
+        } | null;
+      } | null;
+    }>()
+      .then((data) => {
+        if (!alive) return;
 
-          if (data.authenticated && data.user?.id) {
-            /* Una sola vez por persona: a quien entró con Google se le pregunta
-               aquí, no en el alta, porque nunca vio la casilla. */
-            askMarketingConsentOnce(data.user.id, data.marketing);
+        if (data.authenticated && data.user?.id) {
+          /* Una sola vez por persona: a quien entró con Google se le pregunta
+             aquí, no en el alta, porque nunca vio la casilla. */
+          askMarketingConsentOnce(data.user.id, data.marketing);
 
-            const storedPrefs = mergeRemoteUserPreferences(
-              readUserPreferences(data.user.id),
-              data.user,
-            );
-            writeUserPreferences(storedPrefs, data.user.id);
-            setUserPreferences(storedPrefs);
-            setHasSavedProfileLocation(
-              Boolean(storedPrefs.location && storedPrefs.location !== "otra"),
-            );
+          const storedPrefs = mergeRemoteUserPreferences(
+            readUserPreferences(data.user.id),
+            data.user,
+          );
+          writeUserPreferences(storedPrefs, data.user.id);
+          setUserPreferences(storedPrefs);
+          setHasSavedProfileLocation(
+            Boolean(storedPrefs.location && storedPrefs.location !== "otra"),
+          );
 
-            const preferredCenter = resolveInitialCenter(storedPrefs);
-            if (preferredCenter) {
-              setInitialCenter(preferredCenter);
-              setDisableAutoFit(true);
-            }
-            return;
-          }
-
-          setHasSavedProfileLocation(false);
-          const fallbackPrefs = readUserPreferences();
-          setUserPreferences(fallbackPrefs);
-          const fallbackCenter = resolveInitialCenter(fallbackPrefs);
-          if (fallbackCenter) {
-            setInitialCenter(fallbackCenter);
+          const preferredCenter = resolveInitialCenter(storedPrefs);
+          if (preferredCenter) {
+            setInitialCenter(preferredCenter);
             setDisableAutoFit(true);
           }
-        },
-      )
+          return;
+        }
+
+        setHasSavedProfileLocation(false);
+        const fallbackPrefs = readUserPreferences();
+        setUserPreferences(fallbackPrefs);
+        const fallbackCenter = resolveInitialCenter(fallbackPrefs);
+        if (fallbackCenter) {
+          setInitialCenter(fallbackCenter);
+          setDisableAutoFit(true);
+        }
+      })
       .catch(() => {
         setHasSavedProfileLocation(false);
         const fallbackPrefs = readUserPreferences();

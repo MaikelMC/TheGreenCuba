@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, Save } from "lucide-react";
 import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { fetchMe, refreshSession } from "@/lib/session-client";
 import { UserMenu } from "@/components/layout/user-menu";
 import { DetailsView } from "@/components/profile/details-view";
 import { PlacesView } from "@/components/profile/places-view";
@@ -81,21 +82,20 @@ export default function ProfilePage() {
     const localPrefs = readUserPreferences(userId);
     setPrefs(localPrefs);
 
-    fetch("/api/me")
-      .then((res) => res.json())
-      .then((data: {
-        authenticated: boolean;
-        user: {
-          id?: string;
-          name: string;
-          email: string;
-          imageUrl?: string | null;
-          phone?: string | null;
-          locationCity?: string | null;
-          onboardingCompleted?: boolean;
-          preferences?: { interests?: string[]; moods?: string[]; currencies?: string[] } | null;
-        } | null;
-      }) => {
+    fetchMe<{
+      authenticated: boolean;
+      user: {
+        id?: string;
+        name: string;
+        email: string;
+        imageUrl?: string | null;
+        phone?: string | null;
+        locationCity?: string | null;
+        onboardingCompleted?: boolean;
+        preferences?: { interests?: string[]; moods?: string[]; currencies?: string[] } | null;
+      } | null;
+    }>()
+      .then((data) => {
         const user = data.user;
         if (!data.authenticated || !user) return;
 
@@ -198,6 +198,9 @@ export default function ProfilePage() {
       });
 
       if (response.ok) {
+        /* El perfil acaba de cambiar: la sesión cacheada del módulo ya no vale
+           y el menú de usuario la estaría leyendo vieja hasta recargar. */
+        refreshSession();
         const data = (await response.json()) as {
           authenticated: boolean;
           user: { name?: string; email?: string; imageUrl?: string | null } | null;

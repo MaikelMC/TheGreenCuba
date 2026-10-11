@@ -7,6 +7,7 @@ import { User, Building2, ShieldCheck, LogOut, Bell, Link2, Megaphone } from "lu
 import type { Role } from "@/lib/session";
 import { logout } from "@/lib/logout";
 import { readUserPreferences } from "@/lib/user-preferences-store";
+import { fetchMe } from "@/lib/session-client";
 import { LoginButton } from "@/components/landing/login-button";
 
 /* Hairline entre filas en vez de `<div>` separadores sueltos: es el mismo
@@ -160,13 +161,10 @@ export function UserMenu({
     /* `/api/me` y no `authClient.useSession()`: el cliente de Neon sabe el
        correo, pero no el rol, que es la mitad de lo que este menú necesita. */
     async function load(attempt: number): Promise<void> {
-      const response = await fetch("/api/me").catch(() => null);
-      const data = response?.ok
-        ? ((await response.json().catch(() => null)) as {
-            authenticated: boolean;
-            user: SessionUser | null;
-          } | null)
-        : null;
+      const data = await fetchMe<{
+        authenticated: boolean;
+        user: SessionUser | null;
+      }>({ force: attempt > 0 }).catch(() => null);
 
       if (!alive) return;
 

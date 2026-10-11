@@ -8,6 +8,7 @@ import Link from "next/link";
 import { UserMenu } from "@/components/layout/user-menu";
 import { MobileDock } from "@/components/layout/mobile-dock";
 import { EASE } from "@/lib/motion";
+import { fetchMe } from "@/lib/session-client";
 
 export type PanelView =
   | "dashboard"
@@ -81,12 +82,11 @@ export function PanelShell({
      `/api/me` devuelve `null` y se cae al nombre de la persona. */
   useEffect(() => {
     let alive = true;
-    fetch("/api/me")
-      .then((res) => res.json())
-      .then((data: {
-        authenticated: boolean;
-        user: { business: { name: string } | null; name: string } | null;
-      }) => {
+    fetchMe<{
+      authenticated: boolean;
+      user: { business: { name: string } | null; name: string } | null;
+    }>()
+      .then((data) => {
         if (alive && data.authenticated && data.user) {
           setSessionName(data.user.business?.name ?? data.user.name);
         }
