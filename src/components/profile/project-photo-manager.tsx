@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { Image as ImageIcon, ImagePlus, Loader2, MapPin, Save, Star, Trash2 } from "lucide-react";
 import { MAX_PROJECT_MEDIA } from "@/lib/storage/project-media";
 import { prepareProjectImage } from "@/lib/storage/compress";
@@ -248,8 +249,12 @@ export function ProjectPhotoManager({
             <section key={role} className="flex flex-col gap-gap-xs border-t border-ink/10 pt-gap-sm">
               <h3 className="font-lv-display text-small font-semibold text-ink">{title}</h3>
               <div className="relative aspect-[16/9] overflow-hidden rounded-xl border border-ink/10 bg-sand">
+                {/* La misma caja sirve para una foto ya guardada —URL del bucket,
+                    que ahora se pide a este origen— y para una recién elegida,
+                    que aún es un `blob:` local. `next/image` deja pasar los
+                    `blob:` tal cual, así que las dos caben aquí. */}
                 {previewUrl ? (
-                  <img src={previewUrl} alt={`${title} de ${project.name}`} className="h-full w-full object-cover" />
+                  <Image src={previewUrl} alt={`${title} de ${project.name}`} fill sizes="(min-width: 640px) 50vw, 100vw" className="object-cover" />
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-1 text-ink-soft/65">
                     <Icon size={22} />
@@ -316,7 +321,11 @@ export function ProjectPhotoManager({
               const isPendingDelete = pendingDeletes.includes(url);
               return (
                 <figure key={url} className={`relative flex aspect-square flex-col overflow-hidden rounded-xl border border-ink/10 bg-sand ${isPendingDelete ? "opacity-50" : ""}`}>
-                  <img src={url} alt={`Material ${index + 1} de ${project.name}`} className="min-h-0 flex-1 object-cover" />
+                  {/* Aquí `fill` no vale: la figura reserva la franja de botones
+                      debajo, y una imagen absoluta la taparía. Con la anchura y
+                      la altura declaradas más `sizes`, el navegador pide el
+                      tamaño justo y la caja se sigue repartiendo igual. */}
+                  <Image src={url} alt={`Material ${index + 1} de ${project.name}`} width={400} height={400} sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw" className="min-h-0 flex-1 object-cover" />
                   {isGif && <figcaption className="absolute left-2 top-2 rounded-full bg-ink/75 px-2 py-1 text-[10px] font-semibold text-white">GIF</figcaption>}
                   {isPendingDelete && <figcaption className="absolute inset-x-0 top-0 bg-ink/75 px-2 py-1 text-center text-meta font-semibold text-white">Se quitará al guardar</figcaption>}
                   <div className="flex shrink-0 flex-wrap gap-1 border-t border-ink/10 bg-white p-1.5">

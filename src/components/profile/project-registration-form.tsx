@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { ArrowLeft, AtSign, CalendarDays, ImagePlus, Loader2, MapPin, Plus, Send, Store, Tag, Trash2, X } from "lucide-react";
 import { sanitizePhone } from "@/lib/utils";
 import { FormSection, sectionMessage } from "@/components/business/form-section";
@@ -569,7 +570,11 @@ export function ProjectRegistrationForm({ onBack, onSaved, onUpdated, project, s
                 <div className="grid grid-cols-3 gap-gap-xs">
                   {[...new Set([coverImageUrl, ...imageUrls].filter((url): url is string => Boolean(url)))].map((url, index) => (
                     <div key={url} className="relative aspect-square overflow-hidden rounded-xl border border-ink/10 bg-sand">
-                      <img src={url} alt={`Foto ${index + 1} de ${project?.name ?? "tu proyecto"}`} className="h-full w-full object-cover" />
+                      {/* `next/image` y no un `<img>`: la URL es del bucket, y el
+                          navegador pedía el original entero —aquí llegaron fotos
+                          de más de 1 MB— para pintar una casilla de tres columnas.
+                          Ahora la pide a este origen y el servidor la recorta. */}
+                      <Image src={url} alt={`Foto ${index + 1} de ${project?.name ?? "tu proyecto"}`} fill sizes="(min-width: 1024px) 320px, 33vw" className="object-cover" />
                       <button type="button" onClick={() => void removePhoto(url)} aria-label={`Eliminar foto ${index + 1}`} className="absolute right-1 top-1 grid size-8 place-items-center rounded-full bg-ink/75 text-white hover:bg-red-700">
                         <Trash2 size={15} />
                       </button>

@@ -5,6 +5,7 @@ import { Save, User, Mail, Phone, MapPin, Heart, Music, Wallet } from "lucide-re
 import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { CUBA_PROVINCES, type UserPreferences } from "@/lib/user-preferences-store";
+import { prepareImage } from "@/lib/storage/compress";
 import { focusProfileControl } from "@/components/profile/focus-profile-control";
 
 const INTERESTS = [
@@ -61,12 +62,21 @@ export function DetailsView({ prefs, set, toggle, onSave, saved }: DetailsViewPr
     const file = event.target.files?.[0];
     if (!file) return;
 
+    /* El avatar no se sube al bucket: se guarda como `data:` dentro de las
+       preferencias, así que viaja entero en cada carga del perfil. Antes iba el
+       archivo tal cual salía del móvil —varios MB de base64 por respuesta—; con
+       `prepareImage` sale ya reducido. Se pide un lado de 512 px porque no se
+       ve más grande que 80; el tope de 12 MB de la función sí se nota aquí, así
+       que si lanza se guarda el original, como antes, en vez de no guardar nada. */
+    const prepared = await prepareImage(file, { maxEdge: 512 }).catch(() => null);
+    const blob = prepared?.blob ?? file;
+
     const reader = new FileReader();
     reader.onload = () => {
       const result = typeof reader.result === "string" ? reader.result : "";
       set("avatarUrl", result);
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
   }
 
   return (
