@@ -780,7 +780,7 @@ async function enviarPaginaProductos(
 
   const pagina = productos.slice(desde, desde + A.TAMANO_PAGINA);
   const filas: Boton[][] = pagina.map((p) => [
-    { text: p.name.slice(0, 60), callback_data: `d:${estado}:${p.indice}` },
+    { text: A.recortarEtiqueta(p.name), callback_data: `d:${estado}:${p.indice}` },
   ]);
 
   /* Los de página van en una fila de dos, y solo aparecen si hay a dónde ir. */
@@ -852,7 +852,7 @@ async function manejarTextoLibre(negocio: Negocio, update: A.ParsedTelegram): Pr
         .filter((p) => p.producto !== -1)
         .map((p) => [
           {
-            text: p.name.slice(0, 60),
+            text: A.recortarEtiqueta(p.name),
             callback_data: `d:${intencion.estado}:${p.producto}`,
           },
         ]);
@@ -1215,7 +1215,7 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
       const productos = productosDe(negocio.menu);
       const pagina = productos.slice(desde, desde + A.TAMANO_PAGINA);
       const filas: Boton[][] = pagina.map((prod) => [
-        { text: prod.name.slice(0, 60), callback_data: `d:${estado}:${prod.indice}` },
+        { text: A.recortarEtiqueta(prod.name), callback_data: `d:${estado}:${prod.indice}` },
       ]);
       const nav: Boton[] = [];
       if (desde > 0) nav.push({ text: "← Antes", callback_data: `p:${estado}:${Math.max(0, desde - A.TAMANO_PAGINA)}` });

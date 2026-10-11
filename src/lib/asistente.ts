@@ -198,6 +198,24 @@ export function sinAcento(cadena: string): string {
   return cadena.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
+/**
+ * Recorta un texto para que quepa, sin romperlo.
+ *
+ * `.slice()` cuenta unidades UTF-16, as\u00ed que un emoji \u2014o cualquier car\u00e1cter
+ * fuera del plano b\u00e1sico\u2014 cae a la mitad y deja un sustituto suelto: un cuadrito
+ * roto en la etiqueta del bot\u00f3n. `Array.from` recorre por puntos de c\u00f3digo y no
+ * puede partirlo. Cuando recorta, lo dice con puntos suspensivos.
+ *
+ * El tope de Telegram que importa \u201464 bytes\u2014 es el de `callback_data`, que aqu\u00ed
+ * son \u00edndices y un nanoid de doce caracteres, no esto: las etiquetas Telegram
+ * las recorta \u00e9l solo si le parecen largas.
+ */
+export function recortarEtiqueta(texto: string, max: number = 60): string {
+  const puntos = Array.from(texto);
+  if (puntos.length <= max) return texto;
+  return `${puntos.slice(0, max - 1).join("")}\u2026`;
+}
+
 /* ── comandos ────────────────────────────────────────────────── */
 export const COMANDOS: Record<string, string> = {
   help: "Te dice lo que puede hacer este asistente.",
@@ -428,7 +446,7 @@ function lineaCarta(
   if (!conDescripcion) return linea;
   const suelta = (item.description ?? "").trim().replace(LIMPIAR_SPACIO, " ");
   if (!suelta) return linea;
-  return `${linea}\n   ${suelta.length > 120 ? `${suelta.slice(0, 119)}…` : suelta}`;
+  return `${linea}\n   ${recortarEtiqueta(suelta, 120)}`;
 }
 
 /**

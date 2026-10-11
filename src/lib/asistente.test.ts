@@ -15,6 +15,7 @@ import {
   similitudJaccard,
   similitudProducto,
   textoCarta,
+  recortarEtiqueta,
   CARTA_MAX_CHARS,
   HERRAMIENTAS_IA,
 } from "./asistente";
@@ -230,6 +231,29 @@ test("pide confirmación si afecta a muchos productos o a precio/horario", () =>
   assert.equal(requiereConfirmacion(5, false), "confirmar");
   assert.equal(requiereConfirmacion(1, true), "confirmar");
   assert.equal(requiereConfirmacion(0, true), "confirmar");
+});
+
+/* ── etiquetas de botón ─────────────────────────────────────────── */
+test("recortarEtiqueta deja pasar lo que cabe", () => {
+  assert.equal(recortarEtiqueta("Pan de queso"), "Pan de queso");
+  assert.equal(recortarEtiqueta("x".repeat(60)), "x".repeat(60));
+});
+
+test("recortarEtiqueta corta y avisa con puntos suspensivos", () => {
+  const etiqueta = recortarEtiqueta("x".repeat(200));
+  assert.equal(Array.from(etiqueta).length, 60);
+  assert.ok(etiqueta.endsWith("…"));
+});
+
+/* El caso que rompía `.slice(0, 60)`: cuenta unidades UTF-16, así que el emoji
+   cae a la mitad y queda un sustituto suelto —el cuadrito roto—. */
+test("recortarEtiqueta no parte un emoji por la mitad", () => {
+  const etiqueta = recortarEtiqueta(`${"a".repeat(59)}🍕🍕`, 60);
+  for (const caracter of Array.from(etiqueta)) {
+    const punto = caracter.codePointAt(0) ?? 0;
+    assert.ok(punto < 0xd800 || punto > 0xdfff, `sustituto suelto: ${punto.toString(16)}`);
+  }
+  assert.equal(Array.from(etiqueta).length, 60);
 });
 
 /* ── prompt de sistema ──────────────────────────────────────────── */
