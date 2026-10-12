@@ -2,7 +2,7 @@ import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { businessOwners, eventosDiarios, eventosUnicos } from "@/lib/db/schema";
 import { generateId } from "@/lib/utils";
-import type { TipoEvento, VisitasPanel } from "@/lib/eventos";
+import { TIPOS_VISTA, type TipoEvento, type VisitasPanel } from "@/lib/eventos";
 import { incluye, type Plan } from "@/lib/plans";
 
 /**
@@ -114,6 +114,9 @@ export async function esDueno(
 /**
  * Las cifras del panel, **ya recortadas por plan**.
  *
+ * Todas las visitas son `TIPOS_VISTA`: la ficha y la carta, que para el dueño son
+ * la misma cosa mirada desde dos sitios.
+ *
  * Se para en cuanto el plan no da para más: un negocio Gratis no paga las otras
  * consultas, y —lo que importa de verdad— lo que no entra en su plan no sale de
  * la base, así que no hay nada que un cliente curioso pueda mirar por encima del
@@ -133,7 +136,7 @@ export async function statsVisitas(
     .where(
       and(
         eq(eventosDiarios.negocioId, negocioId),
-        eq(eventosDiarios.tipo, "vista_perfil"),
+        inArray(eventosDiarios.tipo, TIPOS_VISTA),
         gte(eventosDiarios.fecha, `${mes}-01`),
       ),
     );
@@ -159,7 +162,7 @@ export async function statsVisitas(
         eq(eventosDiarios.negocioId, negocioId),
         gte(eventosDiarios.fecha, desde30),
         inArray(eventosDiarios.tipo, [
-          "vista_perfil",
+          ...TIPOS_VISTA,
           "click_llamar",
           "click_reserva",
         ]),
@@ -167,13 +170,17 @@ export async function statsVisitas(
     )
     .groupBy(eventosDiarios.tipo);
 
-  const visitas = filas.find((f) => f.tipo === "vista_perfil");
+  /* La consulta agrupa por tipo, así que la carta y la ficha llegan en dos
+     filas: se suman aquí. */
+  const visitas = filas.filter((f) => TIPOS_VISTA.includes(f.tipo));
   const llamadas = filas.find((f) => f.tipo === "click_llamar");
+  const suma = (campo: "corto" | "largo") =>
+    visitas.reduce((n, f) => n + f[campo], 0);
 
   panel.basicas = {
-    visitas7: visitas?.corto ?? 0,
+    visitas7: suma("corto"),
     llamadas7: llamadas?.corto ?? 0,
-    visitas30: visitas?.largo ?? 0,
+    visitas30: suma("largo"),
     llamadas30: llamadas?.largo ?? 0,
   };
 
@@ -189,7 +196,7 @@ export async function statsVisitas(
     .where(
       and(
         eq(eventosDiarios.negocioId, negocioId),
-        eq(eventosDiarios.tipo, "vista_perfil"),
+        inArray(eventosDiarios.tipo, TIPOS_VISTA),
         gte(eventosDiarios.fecha, diaUtc(DIAS - 1)),
       ),
     )

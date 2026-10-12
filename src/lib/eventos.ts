@@ -36,6 +36,16 @@ export function esTipoEvento(valor: unknown): valor is TipoEvento {
   );
 }
 
+/**
+ * Lo que cuenta como «una visita» al negocio: abrir su ficha o abrir su carta.
+ *
+ * La carta (`/m/{slug}`) es la misma ficha mirada desde el QR, así que quien
+ * reparte el enlace espera ver moverse esa cifra. Vive aquí, con el catálogo,
+ * porque la leen dos sitios que tienen que decir lo mismo: el panel del negocio
+ * (`statsVisitas`) y el ranking mensual (`calcularRanking`).
+ */
+export const TIPOS_VISTA = ["vista_perfil", "vista_menu"];
+
 /* ── Lo que llega del navegador ───────────────────────────────────────────────
    La validación vive aquí, en el módulo puro, y no en el route handler: es la
    frontera donde entra tráfico sin sesión, así que es lo que más conviene poder
@@ -86,7 +96,7 @@ export function parsearEvento(valor: unknown): EventoCliente | null {
    incluye —el candado se decide antes de salir de la base, no en el navegador—. */
 
 export interface VisitasPanel {
-  /** Visitas al perfil en el mes en curso. Lo ve hasta el plan Gratis. */
+  /** Visitas a la ficha o a la carta en el mes en curso. Lo ve hasta Gratis. */
   resumen: { mes: number };
   /** Visitas y llamadas a 7 y 30 días. Básico y superiores. */
   basicas?: {

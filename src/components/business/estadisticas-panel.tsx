@@ -51,7 +51,7 @@ export function EstadisticasPanel({
           <TrendingUp size={20} strokeWidth={1.8} />
         </span>
         <p className="text-body text-ink">
-          Tu perfil tuvo{" "}
+          Tu ficha y tu carta tuvieron{" "}
           <span className="font-lv-display text-h3 font-bold tabular-nums text-verde-700">
             {visitas.resumen.mes.toLocaleString("es-CU")}
           </span>{" "}

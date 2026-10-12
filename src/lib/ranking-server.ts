@@ -9,6 +9,7 @@ import {
   suscripciones,
 } from "@/lib/db/schema";
 import { generateId } from "@/lib/utils";
+import { TIPOS_VISTA } from "@/lib/eventos";
 import {
   DESCUENTO_PCT,
   pareceFraude,
@@ -44,11 +45,13 @@ export interface ResultadoCalculo {
  *
  * Tres lecturas y tres escrituras, en este orden:
  *
- * 1. Las **visitas únicas** por negocio (`sum(unicos)` de `vista_perfil` en el
- *    rango de fechas del periodo).
+ * 1. Las **visitas únicas** por negocio (`sum(unicos)` de `TIPOS_VISTA` —ficha y
+ *    carta— en el rango de fechas del periodo).
  * 2. La **repartición por visitante** de cada negocio, que es lo que decide si
  *    el negocio se descarta por inflado. Va contra `eventos_unicos`, que es la
- *    tabla donde cada visitante distinto deja una fila.
+ *    tabla donde cada visitante distinto deja una fila. Cada visitante cuenta
+ *    por **día distinto**, no por fila: quien abre la ficha y además la carta el
+ *    mismo día es una persona, no dos.
  * 3. La **categoría y el municipio** de cada negocio, de `places` con su
  *    categoría. Solo negocios activos: uno cerrado no debería ganar un mes.
  *
@@ -76,7 +79,7 @@ export async function calcularRanking(
     .from(eventosDiarios)
     .where(
       and(
-        eq(eventosDiarios.tipo, "vista_perfil"),
+        inArray(eventosDiarios.tipo, TIPOS_VISTA),
         gte(eventosDiarios.fecha, desde),
         lte(eventosDiarios.fecha, hasta),
       ),
@@ -86,12 +89,15 @@ export async function calcularRanking(
   const porVisitante = await db
     .select({
       negocioId: eventosUnicos.negocioId,
-      visitas: sql<number>`count(*)::int`,
+      /* Días distintos y no filas: con la carta dentro, un visitante que abre la
+         ficha y además la carta el mismo día deja dos filas, y contarlas como
+         dos visitas lo acercaría al tope de inflado sin haber inflado nada. */
+      visitas: sql<number>`count(distinct ${eventosUnicos.fecha})::int`,
     })
     .from(eventosUnicos)
     .where(
       and(
-        eq(eventosUnicos.tipo, "vista_perfil"),
+        inArray(eventosUnicos.tipo, TIPOS_VISTA),
         gte(eventosUnicos.fecha, desde),
         lte(eventosUnicos.fecha, hasta),
       ),
