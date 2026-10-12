@@ -16,7 +16,11 @@ import { hastaManana, type Disponibilidad } from "@/lib/disponibilidad";
 import { setDisponibilidad } from "@/lib/disponibilidad-server";
 import { puede } from "@/lib/plans-server";
 import { rateLimitKey } from "@/lib/rate-limit";
-import { registrarSeguidor, responderTelegram, darDeBaja } from "@/lib/seguidores-server";
+import {
+  registrarSeguidor,
+  responderTelegram,
+  darDeBaja,
+} from "@/lib/seguidores-server";
 import { negocioDeStart } from "@/lib/seguidores";
 import { generateId } from "@/lib/utils";
 import * as A from "@/lib/asistente";
@@ -71,7 +75,9 @@ async function apiTelegram(
     });
     if (!res.ok) {
       const detalle = await res.text().catch(() => "");
-      console.error(`[asistente] Telegram ${metodo} ${res.status}: ${detalle.slice(0, 200)}`);
+      console.error(
+        `[asistente] Telegram ${metodo} ${res.status}: ${detalle.slice(0, 200)}`,
+      );
       return null;
     }
     return await res.json().catch(() => null);
@@ -132,6 +138,28 @@ async function responderCallback(
     text: texto,
     show_alert: alerta,
   });
+}
+
+/* ── el menú de comandos ──────────────────────────────────────────────────
+   La lista que Telegram enseña en su botón azul, junto al campo de texto.
+
+   Se registra con la primera actualización que atiende el proceso. No hay un
+   paso de despliegue donde hacerlo —el webhook se registra a mano, una vez— y
+   colgarlo del arranque deja el botón puesto sin que nadie tenga que acordarse
+   de nada. Cuesta una llamada por arranque en frío y la lista es la misma, así
+   que repetirlo no rompe nada.
+
+   El pestillo se cierra **después** de que Telegram conteste: si la llamada se
+   pierde con la red que hay aquí, el mensaje siguiente lo vuelve a intentar. */
+
+let comandosRegistrados = false;
+
+async function registrarComandos(): Promise<void> {
+  if (comandosRegistrados) return;
+  const res = await apiTelegram("setMyCommands", {
+    commands: A.comandosTelegram(),
+  });
+  if (res) comandosRegistrados = true;
 }
 
 /* ── el negocio del chat ──────────────────────────────────────────────────
@@ -298,7 +326,13 @@ async function ejecutarDisponibilidad(
   );
 
   if (!res.success) {
-    return { ok: false, accion: "set_disponibilidad", antes, despues: antes, texto: res.error };
+    return {
+      ok: false,
+      accion: "set_disponibilidad",
+      antes,
+      despues: antes,
+      texto: res.error,
+    };
   }
 
   return {
@@ -321,13 +355,24 @@ async function ejecutarPrecio(
   const menu = negocio.menu ?? [];
   const producto = productosDe(menu)[indice];
   const precioAntes = menu[indice]?.price ?? "";
-  const antes = { productoId: producto?.id ?? String(indice), precio: precioAntes };
+  const antes = {
+    productoId: producto?.id ?? String(indice),
+    precio: precioAntes,
+  };
 
   if (!producto) {
-    return { ok: false, accion: "set_precio", antes, despues: antes, texto: "Ese producto ya no está en tu carta." };
+    return {
+      ok: false,
+      accion: "set_precio",
+      antes,
+      despues: antes,
+      texto: "Ese producto ya no está en tu carta.",
+    };
   }
 
-  const siguiente = menu.map((item, i) => (i === indice ? { ...item, price: precio } : item));
+  const siguiente = menu.map((item, i) =>
+    i === indice ? { ...item, price: precio } : item,
+  );
   await escribirMenu(negocio.negocioId, siguiente);
 
   return {
@@ -339,7 +384,10 @@ async function ejecutarPrecio(
   };
 }
 
-async function ejecutarHorario(negocio: Negocio, texto: string): Promise<Resultado> {
+async function ejecutarHorario(
+  negocio: Negocio,
+  texto: string,
+): Promise<Resultado> {
   const horarioAntes = negocio.schedule ?? "";
   await db
     .update(places)
@@ -359,10 +407,16 @@ async function ejecutarHorario(negocio: Negocio, texto: string): Promise<Resulta
 /** Abierto o cerrado. Va sobre `places.status`, que es lo que dice el dueño
  * sobre hoy —`isActive` es lo que dice el sistema sobre si la ficha está
  * publicada, y no se toca desde aquí—. */
-async function ejecutarAbrirCerrar(negocio: Negocio, abierto: boolean): Promise<Resultado> {
+async function ejecutarAbrirCerrar(
+  negocio: Negocio,
+  abierto: boolean,
+): Promise<Resultado> {
   const status: EstadoNegocio = abierto ? "active" : "closed";
   const antes = { status: negocio.status };
-  await db.update(places).set({ status }).where(eq(places.id, negocio.negocioId));
+  await db
+    .update(places)
+    .set({ status })
+    .where(eq(places.id, negocio.negocioId));
   revalidateTag(CATALOG_TAG, "max");
 
   return {
@@ -407,11 +461,15 @@ async function deshacer(logId: string, negocio: Negocio): Promise<string> {
     );
   } else if (fila.accion === "set_precio" && antes) {
     const menu = negocio.menu ?? [];
-    const indice = menu.findIndex((item, i) => (item.id ?? String(i)) === String(antes.productoId));
+    const indice = menu.findIndex(
+      (item, i) => (item.id ?? String(i)) === String(antes.productoId),
+    );
     if (indice !== -1) {
       await escribirMenu(
         negocio.negocioId,
-        menu.map((item, i) => (i === indice ? { ...item, price: String(antes.precio) } : item)),
+        menu.map((item, i) =>
+          i === indice ? { ...item, price: String(antes.precio) } : item,
+        ),
       );
     }
   } else if (fila.accion === "set_horario" && antes) {
@@ -477,6 +535,30 @@ const AYUDA = [
   "Y si me escribes normal también te entiendo: «muéstrame la carta», «se acabó el pan», «pon el precio del café a 250». Todo lo que cambie lo puedes deshacer.",
 ].join("\n");
 
+/** El menú de siempre, pegado a los mensajes donde el dueño no sabe qué hacer.
+ *
+ * Los botones apuntan a comandos que ya existen —`cmd:carta` es `/carta`— para
+ * que no haya dos caminos que hagan lo mismo por separado. */
+const MENU: Boton[][] = [
+  [
+    { text: "Ver mi carta", callback_data: "cmd:carta" },
+    { text: "Mis estadísticas", callback_data: "cmd:stats" },
+  ],
+  [
+    { text: "Marcar agotado", callback_data: "cmd:agotado" },
+    { text: "Marcar disponible", callback_data: "cmd:disponible" },
+  ],
+  [
+    { text: "Abrir hoy", callback_data: "cmd:abrir" },
+    { text: "Cerrar hoy", callback_data: "cmd:cerrar" },
+  ],
+];
+
+/** Lo que se contesta cuando no se entendió. En una constante y con el menú
+ * detrás: el dueño que no se explicó tiene que poder seguir con un toque. */
+const NO_ENTENDI =
+  "No te entendí. Prueba a decírmelo más corto —«se acabó el pan», «pon el café a 250»— o toca un botón:";
+
 /* ── el update ──────────────────────────────────────────────────────────── */
 
 /**
@@ -510,6 +592,10 @@ export async function procesarUpdate(raw: unknown): Promise<void> {
     if (Math.random() < 0.02) void purgarAntiguos();
   }
 
+  /* El menú del botón azul, junto al campo de texto. Va aquí y no en un paso de
+     despliegue porque no existe tal paso: el webhook se registra a mano. */
+  await registrarComandos();
+
   try {
     if (update.callback_query_id) {
       await manejarCallback(update);
@@ -520,9 +606,12 @@ export async function procesarUpdate(raw: unknown): Promise<void> {
     /* Al dueño se le manda una frase; la traza se queda aquí. */
     console.error(
       "[asistente] falló el update:",
-      error instanceof Error ? error.stack ?? error.message : error,
+      error instanceof Error ? (error.stack ?? error.message) : error,
     );
-    await enviarTexto(update.chat_id, "Se me cruzaron los cables con eso. Prueba otra vez en un momento.");
+    await enviarTexto(
+      update.chat_id,
+      "Se me cruzaron los cables con eso. Prueba otra vez en un momento.",
+    );
   }
 }
 
@@ -571,7 +660,10 @@ async function manejarTexto(update: A.ParsedTelegram): Promise<void> {
     /* Los de la lista negra son comandos de otros bots: no se atienden ni se
        mandan al modelo —que cobraría por un «/help»—, solo se desvían. */
     if (A.ignorarComandoExterno(comando)) {
-      await enviarTexto(update.chat_id, "Ese comando no es mío. Escribe /ayuda.");
+      await enviarTexto(
+        update.chat_id,
+        "Ese comando no es mío. Escribe /ayuda.",
+      );
       return;
     }
     await manejarComando(negocio, update, comando, parseo?.resto ?? "");
@@ -596,12 +688,15 @@ async function manejarStart(chatId: string, resto: string): Promise<void> {
 
   if (!payload) {
     const negocio = await cargarNegocio(chatId);
-    await enviarTexto(
-      chatId,
-      negocio
-        ? `Ya estás unido a ${negocio.nombre}.\n\n${AYUDA}`
-        : SIN_VINCULO,
-    );
+    if (negocio) {
+      await enviarBotones(
+        chatId,
+        `Ya estás unido a ${negocio.nombre}.\n\n${AYUDA}`,
+        MENU,
+      );
+    } else {
+      await enviarTexto(chatId, SIN_VINCULO);
+    }
     return;
   }
 
@@ -698,9 +793,10 @@ async function vincular(chatId: string, codigo: string): Promise<void> {
     .where(eq(places.id, negocioId))
     .limit(1);
 
-  await enviarTexto(
+  await enviarBotones(
     chatId,
     `Listo, ya soy el asistente de ${place?.name ?? "tu negocio"}.\n\n${AYUDA}`,
+    MENU,
   );
 }
 
@@ -717,7 +813,7 @@ async function manejarComando(
   switch (comando) {
     case "ayuda":
     case "help":
-      await enviarTexto(chatId, AYUDA);
+      await enviarBotones(chatId, AYUDA, MENU);
       return;
 
     case "stats":
@@ -747,7 +843,8 @@ async function manejarComando(
 
     case "agotado":
     case "disponible": {
-      const estado: Disponibilidad = comando === "agotado" ? "agotado" : "disponible";
+      const estado: Disponibilidad =
+        comando === "agotado" ? "agotado" : "disponible";
       await enviarPaginaProductos(negocio, chatId, estado, 0);
       return;
     }
@@ -780,16 +877,25 @@ async function enviarPaginaProductos(
 
   const pagina = productos.slice(desde, desde + A.TAMANO_PAGINA);
   const filas: Boton[][] = pagina.map((p) => [
-    { text: A.recortarEtiqueta(p.name), callback_data: `d:${estado}:${p.indice}` },
+    {
+      text: A.recortarEtiqueta(p.name),
+      callback_data: `d:${estado}:${p.indice}`,
+    },
   ]);
 
   /* Los de página van en una fila de dos, y solo aparecen si hay a dónde ir. */
   const navegacion: Boton[] = [];
   if (desde > 0) {
-    navegacion.push({ text: "← Antes", callback_data: `p:${estado}:${Math.max(0, desde - A.TAMANO_PAGINA)}` });
+    navegacion.push({
+      text: "← Antes",
+      callback_data: `p:${estado}:${Math.max(0, desde - A.TAMANO_PAGINA)}`,
+    });
   }
   if (desde + A.TAMANO_PAGINA < productos.length) {
-    navegacion.push({ text: "Después →", callback_data: `p:${estado}:${desde + A.TAMANO_PAGINA}` });
+    navegacion.push({
+      text: "Después →",
+      callback_data: `p:${estado}:${desde + A.TAMANO_PAGINA}`,
+    });
   }
   if (navegacion.length > 0) filas.push(navegacion);
 
@@ -803,7 +909,10 @@ async function enviarPaginaProductos(
 
 /* ── capa 2: texto libre sin modelo ─────────────────────────────────────── */
 
-async function manejarTextoLibre(negocio: Negocio, update: A.ParsedTelegram): Promise<void> {
+async function manejarTextoLibre(
+  negocio: Negocio,
+  update: A.ParsedTelegram,
+): Promise<void> {
   const chatId = update.chat_id;
 
   /* El tope por chat va aquí y no en el webhook: lo que se limita es el trabajo
@@ -823,12 +932,38 @@ async function manejarTextoLibre(negocio: Negocio, update: A.ParsedTelegram): Pr
 
   const intencion = A.intencionDeTexto(update.texto);
   if (intencion) {
+    /* «se acabó» a secas: el dueño sabe qué se acabó y no lo escribió. La
+       respuesta útil es la lista con botones, y esa ya existe. */
+    if (intencion.tipo === "disponibilidad" && !intencion.producto) {
+      await enviarPaginaProductos(negocio, chatId, intencion.estado, 0);
+      return;
+    }
+
     const productos = productosDe(negocio.menu);
     const busqueda = A.buscarProducto(intencion.producto, productos);
 
     if (busqueda.nivel === "claro" && busqueda.mejor) {
+      /* Un precio siempre pregunta; se deja esperando y se enseña con el nombre
+         que hay en la carta, no con el que se escribió. */
+      if (intencion.tipo === "precio") {
+        await pedirConfirmacionPrecio({
+          negocio,
+          chatId,
+          mensaje: update.texto,
+          producto: busqueda.mejor.name,
+          precio: intencion.precio,
+          via: "regex",
+        });
+        return;
+      }
+
       const indice = indiceDe(productos, busqueda.mejor.id);
-      const res = await ejecutarDisponibilidad(negocio, indice, intencion.estado, null);
+      const res = await ejecutarDisponibilidad(
+        negocio,
+        indice,
+        intencion.estado,
+        null,
+      );
       const logId = await registrarLog({
         negocioId: negocio.negocioId,
         chatId,
@@ -844,23 +979,20 @@ async function manejarTextoLibre(negocio: Negocio, update: A.ParsedTelegram): Pr
     }
 
     if (busqueda.nivel === "ambiguo") {
-      /* Varios candidatos: se pregunta. La lista ya viene ordenada por parecido,
-         así que los seis primeros son los seis que valen. */
-      const filas: Boton[][] = busqueda.lista
-        .slice(0, 6)
-        .map((p) => ({ producto: indiceDe(productos, p.id), name: p.name }))
-        .filter((p) => p.producto !== -1)
-        .map((p) => [
-          {
-            text: A.recortarEtiqueta(p.name),
-            callback_data: `d:${intencion.estado}:${p.producto}`,
-          },
-        ]);
-      await enviarBotones(
+      await preguntarCual({
+        negocio,
         chatId,
-        `«${intencion.producto}» me suena a varios productos. Toca el que sea:`,
-        filas,
-      );
+        mensaje: update.texto,
+        frase: intencion.producto,
+        accion:
+          intencion.tipo === "precio" ? "set_precio" : "set_disponibilidad",
+        propuesta:
+          intencion.tipo === "precio"
+            ? { producto: intencion.producto, precio: intencion.precio }
+            : { producto: intencion.producto, estado: intencion.estado },
+        candidatos: busqueda.lista,
+        via: "regex",
+      });
       return;
     }
     /* `ninguno`: no lo reconozco por texto. Sigue por el modelo. */
@@ -883,14 +1015,18 @@ async function manejarTextoLibre(negocio: Negocio, update: A.ParsedTelegram): Pr
  * general si no—: `chatJSON` trae el failover y el tope por proveedor, así que
  * aquí no hay que elegir modelo ni reintentar.
  */
-async function manejarConModelo(negocio: Negocio, update: A.ParsedTelegram): Promise<void> {
+async function manejarConModelo(
+  negocio: Negocio,
+  update: A.ParsedTelegram,
+): Promise<void> {
   const chatId = update.chat_id;
 
   const cuota = await cuotaIaDisponible(negocio.negocioId);
   if (!cuota) {
-    await enviarTexto(
+    await enviarBotones(
       chatId,
-      "Por hoy ya gastaste las respuestas libres de tu asistente, y se renuevan mañana. Los comandos siguen funcionando: /carta, /agotado, /disponible, /abrir, /cerrar, /stats.",
+      "Por hoy ya gastaste las respuestas libres de tu asistente, y se renuevan mañana. Los botones y los comandos siguen funcionando:",
+      MENU,
     );
     return;
   }
@@ -931,10 +1067,7 @@ async function manejarConModelo(negocio: Negocio, update: A.ParsedTelegram): Pro
       "[asistente] el modelo no contestó:",
       error instanceof Error ? error.message : error,
     );
-    await enviarTexto(
-      chatId,
-      "No te entendí. Prueba a decírmelo más corto —«muéstrame la carta», «se acabó el pan»— o con un comando: /carta, /agotado, /disponible, /abrir, /cerrar, /stats.",
-    );
+    await enviarBotones(chatId, NO_ENTENDI, MENU);
     return;
   }
 
@@ -953,10 +1086,7 @@ async function manejarConModelo(negocio: Negocio, update: A.ParsedTelegram): Pro
       tokensIn,
       tokensOut,
     });
-    await enviarTexto(
-      chatId,
-      "No te entendí. Mándame /carta para ver tu carta con precios y qué está agotado, o /ayuda para ver todo lo que puedo hacer.",
-    );
+    await enviarBotones(chatId, NO_ENTENDI, MENU);
     return;
   }
 
@@ -982,42 +1112,62 @@ async function manejarConModelo(negocio: Negocio, update: A.ParsedTelegram): Pro
     return;
   }
 
-  /* La confirmación va **antes** de escribir, y eso es lo que la hace una
-     confirmación: el precio se pregunta sin haberlo tocado. Antes se ejecutaba
-     primero y se preguntaba después, así que el «No» no revertía nada —el cambio
-     ya estaba hecho— y el «Sí» re-ejecutaba una intención que se guardaba mal.
-     Lo que se guarda ahora es **lo que propuso el modelo**, tal cual: al pulsar
-     «Sí» se vuelve a pasar por `ejecutarAccionModelo`, que es el único camino que
-     resuelve el producto contra la carta real. */
-  if (A.requiereConfirmacion(1, accion === "set_precio") === "confirmar") {
-    const resumen = describirPropuesta(negocio, accion, p);
-    if (resumen) {
-      const logId = await registrarLog({
-        negocioId: negocio.negocioId,
+  /* Las acciones que van contra un producto se resuelven aquí una sola vez, y el
+     nivel decide el camino.
+
+     Cuando el nombre sonaba a varios, el camino acababa en «no encontré ese
+     producto», que es justo lo contrario de lo que hay que hacer: el dueño dijo
+     «el café» y en su carta hay tres que empiezan así —el problema es del bot,
+     no suyo—. Ahora se pregunta, con botones. */
+  if (accion === "set_disponibilidad" || accion === "set_precio") {
+    const nombre = typeof p.producto === "string" ? p.producto : "";
+    const busqueda = A.buscarProducto(nombre, productos);
+
+    if (busqueda.nivel === "ambiguo") {
+      await preguntarCual({
+        negocio,
         chatId,
         mensaje: update.texto,
+        frase: nombre,
         accion,
-        antes: null,
-        despues: p,
+        propuesta: p,
+        candidatos: busqueda.lista,
         via: "llm",
         tokensIn,
         tokensOut,
-        pendiente: true,
       });
-      if (!logId) {
-        await enviarTexto(chatId, "No pude dejar el cambio preparado. Prueba otra vez.");
-        return;
-      }
-      await enviarBotones(chatId, `${resumen}\n¿Lo aplico?`, [
-        [
-          { text: "Sí", callback_data: `y:${logId}` },
-          { text: "No", callback_data: `n:${logId}` },
-        ],
-      ]);
       return;
     }
-    /* Sin resumen —no se resuelve el producto— no hay nada que confirmar: cae al
-       camino normal, que contesta que no se supo a cuál se refería. */
+
+    /* La confirmación va **antes** de escribir, y eso es lo que la hace una
+       confirmación: el precio se pregunta sin haberlo tocado. Lo que se guarda
+       es el nombre que hay en la carta, así que al pulsar «Sí» se vuelve a pasar
+       por `ejecutarAccionModelo` —el único camino que resuelve el producto— y
+       acierta solo. */
+    if (
+      busqueda.nivel === "claro" &&
+      busqueda.mejor &&
+      A.requiereConfirmacion(1, accion === "set_precio") === "confirmar"
+    ) {
+      const precio =
+        typeof p.precio === "string" ? p.precio.trim().slice(0, 40) : "";
+      if (precio) {
+        await pedirConfirmacionPrecio({
+          negocio,
+          chatId,
+          mensaje: update.texto,
+          producto: busqueda.mejor.name,
+          precio,
+          via: "llm",
+          tokensIn,
+          tokensOut,
+        });
+        return;
+      }
+      /* Sin precio no hay nada que confirmar: cae al camino de siempre. */
+    }
+    /* `ninguno`: tampoco se resuelve, y también cae al camino de siempre, que
+       contesta que no encontró el producto. */
   }
 
   /* El negocio del vínculo, nunca el del texto. Y el producto, resuelto contra
@@ -1025,9 +1175,10 @@ async function manejarConModelo(negocio: Negocio, update: A.ParsedTelegram): Pro
   const res = await ejecutarAccionModelo(negocio, accion, p);
 
   if (!res) {
-    await enviarTexto(
+    await enviarBotones(
       chatId,
-      "No encontré ese producto en tu carta. Mírala con /carta y mándame el nombre tal como aparece ahí.",
+      "No encontré ese producto en tu carta. Mírala y mándame el nombre tal como aparece ahí:",
+      MENU,
     );
     return;
   }
@@ -1077,30 +1228,137 @@ function resolverPropuesta(
   return indice === -1 ? null : indice;
 }
 
-/** La frase que se le enseña al dueño **antes** de aplicar un cambio que pide
- * confirmación —se guarda en el log y se re-ejecuta al pulsar «Sí»—.
- *
- * Devuelve `null` cuando no hay nada que confirmar todavía: el producto no se
- * resuelve o falta el dato. En ese caso no se pregunta nada y el camino normal
- * del modelo es el que contesta, con su «no supe a cuál te referías». */
-function describirPropuesta(
-  negocio: Negocio,
-  accion: string,
-  p: Record<string, unknown>,
-): string | null {
-  const productos = productosDe(negocio.menu);
+/** Los botones de una confirmación cualquiera. */
+function botonesSiNo(logId: string): Boton[][] {
+  return [
+    [
+      { text: "Sí", callback_data: `y:${logId}` },
+      { text: "No", callback_data: `n:${logId}` },
+    ],
+  ];
+}
 
-  if (accion === "set_precio") {
-    const indice = resolverPropuesta(productos, p.producto);
-    if (indice === null) return null;
-    const precio = typeof p.precio === "string" ? p.precio.trim().slice(0, 40) : "";
-    if (!precio) return null;
-    const item = productos[indice];
-    if (!item) return null;
-    return `Cambio «${item.name}» a ${precio}.`;
+/** Un botón por candidato.
+ *
+ * Lo que viaja en el `callback_data` es **el índice y el id de la fila** —unos
+ * diecisiete bytes— y no el nombre del producto, que no cabe ni de lejos en los
+ * 64 de Telegram. El id es lo que devuelve el clic a la propuesta que esperaba:
+ * sin él habría que adivinar qué se iba a cambiar. */
+function botonesCandidatos(
+  candidatos: Array<{ id: string; name: string }>,
+  productos: Producto[],
+  logId: string,
+): Boton[][] {
+  return candidatos
+    .map((c) => ({ indice: indiceDe(productos, c.id), name: c.name }))
+    .filter((c) => c.indice !== -1)
+    .slice(0, 6)
+    .map((c) => [
+      {
+        text: A.recortarEtiqueta(c.name),
+        callback_data: `c:${logId}:${c.indice}`,
+      },
+    ]);
+}
+
+/**
+ * «¿A cuál te refieres?»: deja la propuesta esperando y enseña los candidatos.
+ *
+ * La fila guarda **lo que se va a aplicar**, no un puntero al mensaje. Al tocar
+ * un candidato se re-ejecuta por el mismo camino que si el nombre hubiera estado
+ * bien escrito, así que no hay una segunda ruta que aplique cambios.
+ *
+ * `via` se guarda para que el techo diario de IA cuente lo que de verdad costó:
+ * una pregunta nacida del modelo gastó su llamada. */
+async function preguntarCual(args: {
+  negocio: Negocio;
+  chatId: string;
+  /** El mensaje del dueño, tal cual: va al registro. */
+  mensaje: string;
+  /** La frase del producto que no se supo resolver; es la que se repite. */
+  frase: string;
+  accion: string;
+  propuesta: Record<string, unknown>;
+  candidatos: Array<{ id: string; name: string }>;
+  via: "regex" | "llm";
+  tokensIn?: number;
+  tokensOut?: number;
+}): Promise<void> {
+  const productos = productosDe(args.negocio.menu);
+  const logId = await registrarLog({
+    negocioId: args.negocio.negocioId,
+    chatId: args.chatId,
+    mensaje: args.mensaje,
+    accion: args.accion,
+    antes: null,
+    despues: args.propuesta,
+    via: args.via,
+    tokensIn: args.tokensIn,
+    tokensOut: args.tokensOut,
+    pendiente: true,
+  });
+
+  if (!logId) {
+    await enviarTexto(
+      args.chatId,
+      "No pude dejar el cambio preparado. Prueba otra vez.",
+    );
+    return;
   }
 
-  return null;
+  const filas = botonesCandidatos(args.candidatos, productos, logId);
+  if (filas.length === 0) {
+    /* Ningún candidato sigue en la carta: no hay nada que preguntar, así que la
+       fila sobra y se va. */
+    await db.delete(asistenteLog).where(eq(asistenteLog.id, logId));
+    await enviarBotones(args.chatId, NO_ENTENDI, MENU);
+    return;
+  }
+
+  await enviarBotones(args.chatId, A.preguntaCandidatos(args.frase), filas);
+}
+
+/** Deja el cambio de precio esperando el «Sí» y lo pregunta.
+ *
+ * Se guarda el nombre del producto **tal como está en la carta**, no como se
+ * escribió: al volver a resolverlo para aplicarlo acierta solo, sin volver a
+ * depender del parecido. */
+async function pedirConfirmacionPrecio(args: {
+  negocio: Negocio;
+  chatId: string;
+  mensaje: string;
+  producto: string;
+  precio: string;
+  via: "regex" | "llm";
+  tokensIn?: number;
+  tokensOut?: number;
+}): Promise<void> {
+  const logId = await registrarLog({
+    negocioId: args.negocio.negocioId,
+    chatId: args.chatId,
+    mensaje: args.mensaje,
+    accion: "set_precio",
+    antes: null,
+    despues: { producto: args.producto, precio: args.precio },
+    via: args.via,
+    tokensIn: args.tokensIn,
+    tokensOut: args.tokensOut,
+    pendiente: true,
+  });
+
+  if (!logId) {
+    await enviarTexto(
+      args.chatId,
+      "No pude dejar el cambio preparado. Prueba otra vez.",
+    );
+    return;
+  }
+
+  await enviarBotones(
+    args.chatId,
+    `Cambio «${args.producto}» a ${args.precio}.\n¿Lo aplico?`,
+    botonesSiNo(logId),
+  );
 }
 
 /** Traduce lo que propuso el modelo a una escritura, sin creerse nada.
@@ -1120,12 +1378,15 @@ async function ejecutarAccionModelo(
     case "set_disponibilidad": {
       const indice = resolver(p.producto);
       if (indice === null) return null;
-      const estado: Disponibilidad = p.estado === "agotado" ? "agotado" : "disponible";
+      const estado: Disponibilidad =
+        p.estado === "agotado" ? "agotado" : "disponible";
       /* «hasta» es texto libre («mañana», «el lunes»). Lo único que sabemos
          interpretar es «mañana», y solo cuando lo dice; cualquier otra cosa se
          marca sin fecha de vuelta, que es el caso normal. */
       const hasta =
-        typeof p.hasta === "string" && /ma[ñn]ana/i.test(p.hasta) ? hastaManana() : null;
+        typeof p.hasta === "string" && /ma[ñn]ana/i.test(p.hasta)
+          ? hastaManana()
+          : null;
       return ejecutarDisponibilidad(negocio, indice, estado, hasta);
     }
 
@@ -1134,13 +1395,15 @@ async function ejecutarAccionModelo(
       if (indice === null) return null;
       /* El precio es texto libre en la carta («3–5 USD»), así que no se convierte
          a número: lo que escriba el modelo se guarda tal cual, recortado. */
-      const precio = typeof p.precio === "string" ? p.precio.trim().slice(0, 40) : "";
+      const precio =
+        typeof p.precio === "string" ? p.precio.trim().slice(0, 40) : "";
       if (!precio) return null;
       return ejecutarPrecio(negocio, indice, precio);
     }
 
     case "set_horario": {
-      const texto = typeof p.texto === "string" ? p.texto.trim().slice(0, 120) : "";
+      const texto =
+        typeof p.texto === "string" ? p.texto.trim().slice(0, 120) : "";
       if (!texto) return null;
       return ejecutarHorario(negocio, texto);
     }
@@ -1201,26 +1464,54 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
      botón de un chat sin negocio no tiene a quién referirse. */
   const negocio = await cargarNegocio(chatId);
   if (!negocio) {
-    await responderCallback(callbackId, "Este chat ya no está unido a ningún negocio.", true);
+    await responderCallback(
+      callbackId,
+      "Este chat ya no está unido a ningún negocio.",
+      true,
+    );
     return;
   }
 
   switch (tipo) {
+    case "cmd": {
+      /* Un botón del menú es un comando con otro nombre: `cmd:carta` y `/carta`
+         acaban en la misma función, así que no hay dos caminos que mantener. */
+      const cmd = resto[0] ?? "";
+      if (!A.esComandoValido(cmd) || cmd === "start") {
+        await responderCallback(callbackId, "Ese botón ya no vale.", true);
+        return;
+      }
+      await responderCallback(callbackId, "");
+      await manejarComando(negocio, update, cmd, "");
+      return;
+    }
+
     case "p": {
       /* Paginar no escribe: no se responde con alerta, solo se cambia el
          mensaje que ya está en pantalla. */
-      const estado: Disponibilidad = resto[0] === "agotado" ? "agotado" : "disponible";
+      const estado: Disponibilidad =
+        resto[0] === "agotado" ? "agotado" : "disponible";
       const desde = Number.parseInt(resto[1] ?? "0", 10) || 0;
       await responderCallback(callbackId, "");
       const productos = productosDe(negocio.menu);
       const pagina = productos.slice(desde, desde + A.TAMANO_PAGINA);
       const filas: Boton[][] = pagina.map((prod) => [
-        { text: A.recortarEtiqueta(prod.name), callback_data: `d:${estado}:${prod.indice}` },
+        {
+          text: A.recortarEtiqueta(prod.name),
+          callback_data: `d:${estado}:${prod.indice}`,
+        },
       ]);
       const nav: Boton[] = [];
-      if (desde > 0) nav.push({ text: "← Antes", callback_data: `p:${estado}:${Math.max(0, desde - A.TAMANO_PAGINA)}` });
+      if (desde > 0)
+        nav.push({
+          text: "← Antes",
+          callback_data: `p:${estado}:${Math.max(0, desde - A.TAMANO_PAGINA)}`,
+        });
       if (desde + A.TAMANO_PAGINA < productos.length) {
-        nav.push({ text: "Después →", callback_data: `p:${estado}:${desde + A.TAMANO_PAGINA}` });
+        nav.push({
+          text: "Después →",
+          callback_data: `p:${estado}:${desde + A.TAMANO_PAGINA}`,
+        });
       }
       if (nav.length > 0) filas.push(nav);
       if (update.callback_mensaje_id) {
@@ -1236,7 +1527,8 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
     }
 
     case "d": {
-      const estado: Disponibilidad = resto[0] === "agotado" ? "agotado" : "disponible";
+      const estado: Disponibilidad =
+        resto[0] === "agotado" ? "agotado" : "disponible";
       const indice = Number.parseInt(resto[1] ?? "", 10);
       const res = await ejecutarDisponibilidad(negocio, indice, estado, null);
       const logId = await registrarLog({
@@ -1254,7 +1546,28 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
           chatId,
           update.callback_mensaje_id,
           res.texto,
-          logId ? [[{ text: "Deshacer", callback_data: `u:${logId}` }]] : undefined,
+          logId
+            ? [[{ text: "Deshacer", callback_data: `u:${logId}` }]]
+            : undefined,
+        );
+      }
+      return;
+    }
+
+    case "c": {
+      /* El dueño eligió, entre los candidatos, a cuál se refería. */
+      const elegido = await elegirCandidato(
+        resto[0] ?? "",
+        negocio,
+        Number.parseInt(resto[1] ?? "", 10),
+      );
+      await responderCallback(callbackId, elegido.aviso, elegido.alerta);
+      if (update.callback_mensaje_id) {
+        await editarTexto(
+          chatId,
+          update.callback_mensaje_id,
+          elegido.texto,
+          elegido.botones,
         );
       }
       return;
@@ -1275,7 +1588,11 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
       await db.delete(asistenteLog).where(eq(asistenteLog.id, resto[0] ?? ""));
       await responderCallback(callbackId, "Vale, no toco nada.");
       if (update.callback_mensaje_id) {
-        await editarTexto(chatId, update.callback_mensaje_id, "Vale, no toco nada.");
+        await editarTexto(
+          chatId,
+          update.callback_mensaje_id,
+          "Vale, no toco nada.",
+        );
       }
       return;
     }
@@ -1310,13 +1627,101 @@ interface Aplicado {
   logId: string | null;
 }
 
+/**
+ * El dueño tocó un candidato de la lista.
+ *
+ * Se anota **cuál** en la fila que ya estaba esperando y se sigue el camino de
+ * siempre: un precio todavía pregunta —y ahora la frase se puede escribir con el
+ * nombre bueno—; lo demás se aplica y se ofrece deshacer.
+ *
+ * Se reescribe la fila en vez de aplicar ahí mismo para no abrir un segundo
+ * camino de escritura: `aplicarPendiente` es el único que aplica, y el producto
+ * del modelo vuelve a pasar por la resolución contra la carta como cualquier
+ * otro. */
+async function elegirCandidato(
+  logId: string,
+  negocio: Negocio,
+  indice: number,
+): Promise<{
+  aviso: string;
+  alerta: boolean;
+  texto: string;
+  botones?: Boton[][];
+}> {
+  const [fila] = await db
+    .select()
+    .from(asistenteLog)
+    .where(
+      and(
+        eq(asistenteLog.id, logId),
+        eq(asistenteLog.negocioId, negocio.negocioId),
+        eq(asistenteLog.pendiente, true),
+      ),
+    )
+    .limit(1);
+
+  if (!fila) {
+    return {
+      aviso: "Ese botón ya no vale.",
+      alerta: true,
+      texto: "Ese botón ya no vale.",
+    };
+  }
+
+  const producto = productosDe(negocio.menu)[indice];
+  if (!producto) {
+    await db.delete(asistenteLog).where(eq(asistenteLog.id, logId));
+    return {
+      aviso: "Ese producto ya no está en tu carta.",
+      alerta: true,
+      texto: "Ese producto ya no está en tu carta.",
+    };
+  }
+
+  const intencion: Record<string, unknown> = {
+    ...((fila.despues ?? {}) as Record<string, unknown>),
+    producto: producto.name,
+  };
+  await db
+    .update(asistenteLog)
+    .set({ despues: intencion as never })
+    .where(eq(asistenteLog.id, logId));
+
+  if (fila.accion === "set_precio") {
+    const precio = typeof intencion.precio === "string" ? intencion.precio : "";
+    return {
+      aviso: "",
+      alerta: false,
+      texto: `Cambio «${producto.name}» a ${precio}.`,
+      botones: botonesSiNo(logId),
+    };
+  }
+
+  const aplicado = await aplicarPendiente(logId, negocio);
+  return {
+    aviso: aplicado.texto,
+    alerta: false,
+    texto: aplicado.texto,
+    ...(aplicado.logId
+      ? {
+          botones: [
+            [{ text: "Deshacer", callback_data: `u:${aplicado.logId}` }],
+          ],
+        }
+      : {}),
+  };
+}
+
 /** Aplica un cambio que estaba esperando el «Sí».
  *
  * Re-ejecuta **la intención que se guardó al preguntar** —lo que propuso el
  * modelo— por el mismo camino que la habría aplicado sin confirmación, que es el
  * que resuelve el producto contra la carta. Si algo falla, la fila se borra: una
  * confirmación que no llegó a nada no es historia que valga la pena guardar. */
-async function aplicarPendiente(logId: string, negocio: Negocio): Promise<Aplicado> {
+async function aplicarPendiente(
+  logId: string,
+  negocio: Negocio,
+): Promise<Aplicado> {
   const [fila] = await db
     .select()
     .from(asistenteLog)
@@ -1346,14 +1751,23 @@ async function aplicarPendiente(logId: string, negocio: Negocio): Promise<Aplica
      después de verdad: es lo que el Deshacer va a leer. */
   await db
     .update(asistenteLog)
-    .set({ antes: res.antes as never, despues: res.despues as never, pendiente: false })
+    .set({
+      antes: res.antes as never,
+      despues: res.despues as never,
+      pendiente: false,
+    })
     .where(eq(asistenteLog.id, logId));
 
   return { texto: res.texto, logId };
 }
 
 /** El botón «Deshacer» que acompaña a un cambio ya aplicado. */
-async function ofrecerDeshacer(chatId: string, logId: string | null): Promise<void> {
+async function ofrecerDeshacer(
+  chatId: string,
+  logId: string | null,
+): Promise<void> {
   if (!logId) return;
-  await enviarBotones(chatId, "¿Algo mal?", [[{ text: "Deshacer", callback_data: `u:${logId}` }]]);
+  await enviarBotones(chatId, "¿Algo mal?", [
+    [{ text: "Deshacer", callback_data: `u:${logId}` }],
+  ]);
 }

@@ -81,7 +81,10 @@ interface RawMessageTelegramPart {
   callback_query?: {
     id?: string;
     data?: string;
-    message?: { message_id?: number; chat?: { id?: number | string; type?: string } };
+    message?: {
+      message_id?: number;
+      chat?: { id?: number | string; type?: string };
+    };
   };
 }
 
@@ -96,7 +99,10 @@ export interface RawMessageTelegram {
   callback_query?: {
     id?: string;
     data?: string;
-    message?: { message_id?: number; chat?: { id?: number | string; type?: string } };
+    message?: {
+      message_id?: number;
+      chat?: { id?: number | string; type?: string };
+    };
   };
 }
 
@@ -138,7 +144,9 @@ function chatTipo(raw: { type?: string } | undefined): ChatTipo | null {
  * `update_id` viaja como está (número) y se usa después para idempotencia.
  * El vínculo del negocio **no** se resuelve aquí: solo se filtra por chat tipo
  * y tamaño. */
-export function leerTelegramUpdate(raw: RawMessageTelegram): ParsedTelegram | null {
+export function leerTelegramUpdate(
+  raw: RawMessageTelegram,
+): ParsedTelegram | null {
   const mensaje = raw.message;
   const callback = raw.callback_query;
 
@@ -195,7 +203,10 @@ export function primerasPalabras(texto: string, n: number): string[] {
 }
 
 export function sinAcento(cadena: string): string {
-  return cadena.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return cadena
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 /**
@@ -236,13 +247,25 @@ export const COMANDOS: Record<string, string> = {
  * así que parecía de otro —pero también es el que teclea quien quiere ayuda—.
  * Como ya está en `COMANDOS`, se atiende igual que `/ayuda`. */
 export const COMANDOS_EXTERNO_IGNORAR: ReadonlySet<string> = new Set([
-  "yikes", "supreme", "chacha", "damn", "cut",
-  "damage", "bears", "biff", "blah", "zero", "lips", "swallow",
+  "yikes",
+  "supreme",
+  "chacha",
+  "damn",
+  "cut",
+  "damage",
+  "bears",
+  "biff",
+  "blah",
+  "zero",
+  "lips",
+  "swallow",
 ]);
 
 export type Comando = keyof typeof COMANDOS;
 
-export function parseComando(texto: string): { comando: string; resto: string } | null {
+export function parseComando(
+  texto: string,
+): { comando: string; resto: string } | null {
   const parts = primerasPalabras(texto, 1);
   const xp = parts[0];
   if (!xp) return null;
@@ -262,35 +285,158 @@ export function ignorarComandoExterno(comando: string): boolean {
   return COMANDOS_EXTERNO_IGNORAR.has(comando);
 }
 
-/* ── índice de intención (regex) ─────────────────────────────────── */
-export type EstadoProducto = "agotado" | "disponible";
-export interface IntencionProducto {
-  estado: EstadoProducto;
-  producto: string;
+/**
+ * La lista que Telegram pinta en su botón de menú, junto al campo de texto.
+ *
+ * Sale de `COMANDOS` y no de una copia: si un día se añade un comando, aparece
+ * arriba solo. `help` se queda fuera porque es el mismo que `/ayuda` —dos
+ * entradas idénticas solo estorban— y `start` se queda dentro porque es la
+ * puerta para volver a vincular un móvil.
+ *
+ * El orden es el del objeto, que es el que se quiere: lo de todos los días
+ * primero. */
+export function comandosTelegram(): Array<{
+  command: string;
+  description: string;
+}> {
+  return Object.entries(COMANDOS)
+    .filter(([nombre]) => nombre !== "help")
+    .map(([command, description]) => ({ command, description }));
 }
 
-/** Detecta patrones simples: "se acabó X", "agotado X", "ya hay X", "hay X".
- * Devuelve `null` si no concuerda con ninguno (pasa a capa 3). */
-export function intencionDeTexto(texto: string): IntencionProducto | null {
+/** La pregunta que acompaña a la lista de candidatos.
+ *
+ * Recorta lo que escribió el dueño: si venía en una frase larga, devolverla
+ * entera convertiría el mensaje en un eco. */
+export function preguntaCandidatos(escrito: string): string {
+  return `No sé a cuál te refieres con «${recortarEtiqueta(escrito.trim(), 40)}». Toca el que sea:`;
+}
+
+/* ── índice de intención (regex) ─────────────────────────────────── */
+export type EstadoProducto = "agotado" | "disponible";
+
+/** Lo que el dueño pidió, leído sin modelo.
+ *
+ * `producto` vacío significa «no dijo cuál», y eso no es un fallo de lectura:
+ * es la señal de enseñarle la lista con botones en vez de adivinar. */
+export type Intencion =
+  | { tipo: "disponibilidad"; estado: EstadoProducto; producto: string }
+  | { tipo: "precio"; producto: string; precio: string };
+
+/** Cómo se dice «se acabó» sin decir «se acabó».
+ *
+ * Todas van ancladas al principio y con el producto detrás: es lo que evita que
+ * un «no hay problema» de un mensaje suelto marque un producto por accidente. */
+const PATRONES_AGOTADO: readonly RegExp[] = [
+  /^(?:ya\s+)?se\s+(?:me\s+|te\s+|nos\s+)?(?:acab[óo]|agot[óo]|termin[óo]|fue)\s+(.+)$/i,
+  /^(?:ya\s+)?(?:me|te|nos)\s+(?:acab[óo]|agot[óo]|termin[óo])\s+(.+)$/i,
+  /^(?:ya\s+)?(?:acab[óo]|agot[óo]|termin[óo])\s+(.+)$/i,
+  /^agotad[ao]s?\s+(.+)$/i,
+  /^(?:ya\s+)?no\s+(?:hay|queda|quedan|tengo)\s+(.+)$/i,
+];
+
+/** «agotado» a secas. El dueño sabe qué quiere y no quiere teclearlo: la
+ * respuesta útil es la lista de productos con botones, y para eso el producto
+ * tiene que salir vacío de aquí. */
+const PATRONES_AGOTADO_SOLO: readonly RegExp[] = [
+  /^(?:ya\s+)?se\s+(?:me\s+|te\s+|nos\s+)?(?:acab[óo]|agot[óo]|termin[óo])$/i,
+  /^(?:ya\s+)?(?:me|te|nos)\s+(?:acab[óo]|agot[óo]|termin[óo])$/i,
+  /^(?:ya\s+)?(?:acab[óo]|agot[óo]|agotad[ao]s?)$/i,
+  /^(?:ya\s+)?no\s+(?:hay|queda|quedan|tengo)$/i,
+];
+
+const PATRONES_DISPONIBLE: readonly RegExp[] = [
+  /^(?:ya\s+)?hay\s+(.+)$/i,
+  /^(?:ya\s+)?(?:lleg[óo]|volvi[óo]|regres[óo])\s+(.+)$/i,
+  /^(?:ya\s+)?(?:tengo|repuse|reabastec\w*)\s+(.+)$/i,
+];
+
+const PATRONES_DISPONIBLE_SOLO: readonly RegExp[] = [
+  /^ya\s+hay$/i,
+  /^ya\s+(?:lleg[óo]|volvi[óo]|regres[óo])$/i,
+];
+
+/** Los verbos de «cámbiale el precio». Sin las formas acentuadas —«súbele»— a
+ * propósito: quien escribe esto en el móvil no suele ponerlas, y las que se
+ * caigan de aquí las recoge el modelo. */
+const VERBOS_PRECIO =
+  "pon|ponle|poner|cambia|cambiar|sube|subir|baja|bajar|actualiza|actualizar|deja|dejar|fija|fijar";
+
+/** El precio tiene que **empezar por dígito** y, si lleva moneda, que sea una de
+ * las de esta lista.
+ *
+ * Sin las dos condiciones, «pon el pan a la venta» entraría como un precio de
+ * «la venta» y el bot cambiaría algo que nadie pidió. Los precios de esta carta
+ * son texto libre —«3–5 USD»—, así que no se convierte a número: solo se acota
+ * lo que se acepta. */
+const PRECIO_RX = String.raw`\d[\d\s.,$€/-]*(?:\s*(?:cup|usd|mn|mlc|eur|pesos?|d[óo]lares?))?`;
+
+const PATRONES_PRECIO: readonly RegExp[] = [
+  new RegExp(
+    String.raw`^(?:${VERBOS_PRECIO})\s+(?:el\s+|la\s+)?precio\s+(?:de|del|de\s+la)\s+(.+?)\s+(?:a|en|por)\s+(${PRECIO_RX})$`,
+    "i",
+  ),
+  new RegExp(
+    String.raw`^(?:${VERBOS_PRECIO})\s+(?:el\s+|la\s+|los\s+|las\s+)?(.+?)\s+(?:a|en)\s+(${PRECIO_RX})$`,
+    "i",
+  ),
+  new RegExp(
+    String.raw`^(?:el\s+)?precio\s+(?:de|del|de\s+la)\s+(.+?)\s+(?:es|son|a|en)\s+(${PRECIO_RX})$`,
+    "i",
+  ),
+];
+
+/** El primer patrón que capture algo, o `null`. */
+function primerTexto(
+  patrones: readonly RegExp[],
+  texto: string,
+): string | null {
+  for (const rx of patrones) {
+    const capturado = rx.exec(texto)?.[1]?.trim();
+    if (capturado) return capturado;
+  }
+  return null;
+}
+
+/**
+ * Lee un mensaje corto del dueño sin llamar a nadie.
+ *
+ * Devuelve `null` cuando no reconoce la frase. Eso **no** es un error: es la
+ * señal de que el mensaje pase al modelo, que es lo que se paga.
+ *
+ * Disponibilidad primero y precio después. Una frase no suele ser las dos cosas
+ * —el precio lleva su verbo delante—, así que el orden solo decide en frases
+ * rotas, y ahí cualquiera de los dos aciertos vale.
+ */
+export function intencionDeTexto(texto: string): Intencion | null {
   const t = texto.trim();
   if (!t) return null;
 
-  // "se acabó X" / "te acabó X"
-  const aca = /^se\s+acab[óo]\s+(.+)$/i.exec(t) ?? /^te\s+acab[óo]\s+(.+)$/i.exec(t);
-  if (aca && aca[1]) {
-    return { estado: "agotado", producto: aca[1].trim() };
+  const agotado = primerTexto(PATRONES_AGOTADO, t);
+  if (agotado) {
+    return { tipo: "disponibilidad", estado: "agotado", producto: agotado };
+  }
+  if (PATRONES_AGOTADO_SOLO.some((rx) => rx.test(t))) {
+    return { tipo: "disponibilidad", estado: "agotado", producto: "" };
   }
 
-  // "agotado X" / "agotadas X" / "agotado" (sin producto)
-  const agot = /^agotad[ao]s?\s+(.+)$/i.exec(t) ?? /^agotad[ao]s?$/i.exec(t);
-  if (agot && agot[1]) {
-    return { estado: "agotado", producto: agot[1].trim() };
+  const disponible = primerTexto(PATRONES_DISPONIBLE, t);
+  if (disponible) {
+    return {
+      tipo: "disponibilidad",
+      estado: "disponible",
+      producto: disponible,
+    };
+  }
+  if (PATRONES_DISPONIBLE_SOLO.some((rx) => rx.test(t))) {
+    return { tipo: "disponibilidad", estado: "disponible", producto: "" };
   }
 
-  // "ya hay X" / "hay X"
-  const hay = /^ya\s+hay\s+(.+)$/i.exec(t) ?? /^hay\s+(.+)$/i.exec(t);
-  if (hay && hay[1]) {
-    return { estado: "disponible", producto: hay[1].trim() };
+  for (const rx of PATRONES_PRECIO) {
+    const m = rx.exec(t);
+    const producto = m?.[1]?.trim();
+    const precio = m?.[2]?.trim();
+    if (producto && precio) return { tipo: "precio", producto, precio };
   }
 
   return null;
@@ -307,7 +453,10 @@ export interface BusquedaProducto {
 
 /** Jaccard sobre trigramas de caracteres (sin acentos, minúsculas). */
 export function trigramas(texto: string): ReadonlySet<string> {
-  const s = sinAcento(texto).replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+  const s = sinAcento(texto)
+    .replace(/[^a-z0-9\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
   const set = new Set<string>();
   for (let i = 0; i <= s.length - 3; i++) {
     set.add(s.slice(i, i + 3));
@@ -328,6 +477,31 @@ export function similitudJaccard(a: string, b: string): number {
   return uni === 0 ? 0 : inter / uni;
 }
 
+/** El artículo de delante —«el pan», «la torta», «un café»—, que es como escribe
+ * la gente y no como se llama el producto.
+ *
+ * Sin quitarlo, «se acabó el pan» busca «el pan» contra «Pan de casa» y **no
+ * llega**: el artículo aporta trigramas que no están en el nombre y hunde el
+ * parecido por debajo del mínimo. La diferencia entre entenderlo y no
+ * entenderlo cabía en dos letras.
+ *
+ * Se aplica a las dos orillas, así que una carta con «El Rancho» también se
+ * encuentra escribiendo «rancho». El único caso que se pierde es un producto
+ * llamado exactamente igual que un artículo, y no es un caso. */
+const ARTICULO_INICIAL =
+  /^(?:el|la|los|las|un|una|unos|unas|mi|mis|del|de|al)\s+/i;
+
+export function sinArticulo(texto: string): string {
+  let t = texto.trim();
+  /* Tres vueltas porque encadenan: «de la casa» pierde «de» y luego «la». */
+  for (let i = 0; i < 3; i++) {
+    const siguiente = t.replace(ARTICULO_INICIAL, "").trim();
+    if (siguiente === t || !siguiente) break;
+    t = siguiente;
+  }
+  return t;
+}
+
 /**
  * La similitud que usa `buscarProducto`: Jaccard **mezclado con la contención**.
  *
@@ -345,12 +519,12 @@ export function similitudJaccard(a: string, b: string): number {
  * longitud.
  */
 export function similitudProducto(a: string, b: string): number {
-  const na = sinAcento(a.trim());
-  const nb = sinAcento(b.trim());
+  const na = sinAcento(sinArticulo(a));
+  const nb = sinAcento(sinArticulo(b));
   if (na === nb) return 1;
 
-  const ta = trigramas(a);
-  const tb = trigramas(b);
+  const ta = trigramas(na);
+  const tb = trigramas(nb);
   if (ta.size === 0 || tb.size === 0) return 0;
 
   let inter = 0;
@@ -394,11 +568,19 @@ export function buscarProducto(
   const margen = segundo ? mejor.score - segundo.score : 1;
 
   if (mejor.score >= 0.8 && margen > 0.12) {
-    return { nivel: "claro", mejor: { id: mejor.id, name: mejor.name }, lista: puentes.slice(0, 6) };
+    return {
+      nivel: "claro",
+      mejor: { id: mejor.id, name: mejor.name },
+      lista: puentes.slice(0, 6),
+    };
   }
 
   if (mejor.score >= 0.55 && margen > 0.1) {
-    return { nivel: "claro", mejor: { id: mejor.id, name: mejor.name }, lista: puentes.slice(0, 6) };
+    return {
+      nivel: "claro",
+      mejor: { id: mejor.id, name: mejor.name },
+      lista: puentes.slice(0, 6),
+    };
   }
 
   return { nivel: "ambiguo", mejor: null, lista: puentes.slice(0, 6) };
@@ -433,7 +615,9 @@ function lineaCarta(
   ahora: number,
   conDescripcion: boolean,
 ): string {
-  const precio = [item.price?.trim(), item.currency?.trim()].filter(Boolean).join(" ");
+  const precio = [item.price?.trim(), item.currency?.trim()]
+    .filter(Boolean)
+    .join(" ");
   const marcas = [
     estaAgotado(item, ahora) ? "agotado" : "",
     item.tag?.trim() ?? "",
@@ -457,15 +641,25 @@ function lineaCarta(
  * dice cuántos quedaron fuera. Nunca se manda un mensaje que Telegram vaya a
  * rechazar por largo.
  */
-export function textoCarta(items: readonly ItemCarta[], ahora: number = Date.now()): string {
+export function textoCarta(
+  items: readonly ItemCarta[],
+  ahora: number = Date.now(),
+): string {
   if (items.length === 0) {
     return "Tu carta todavía no tiene productos. Añádelos desde el panel de tu negocio y mándame /carta otra vez.";
   }
 
-  const cuantos = items.length === 1 ? "1 producto" : `${items.length} productos`;
+  const cuantos =
+    items.length === 1 ? "1 producto" : `${items.length} productos`;
   const cabecera = `Esta es tu carta, con ${cuantos}:`;
   const arma = (conDescripcion: boolean) =>
-    [cabecera, "", items.map((it, i) => lineaCarta(it, i + 1, ahora, conDescripcion)).join("\n")].join("\n");
+    [
+      cabecera,
+      "",
+      items
+        .map((it, i) => lineaCarta(it, i + 1, ahora, conDescripcion))
+        .join("\n"),
+    ].join("\n");
 
   const completa = arma(true);
   if (completa.length <= CARTA_MAX_CHARS) return completa;
@@ -523,13 +717,16 @@ export const HERRAMIENTAS_IA: readonly HerramientaIA[] = [
   {
     name: "set_disponibilidad",
     description:
-      "Marca un producto como disponible o agotado. Recibe el nombre o ID del producto, el estado y opcionalmente hasta cuándo (texto libre, ej. \"hasta mañana\").",
+      'Marca un producto como disponible o agotado. Recibe el nombre o ID del producto, el estado y opcionalmente hasta cuándo (texto libre, ej. "hasta mañana").',
     input_schema: {
       type: "object",
       properties: {
         producto: { type: "string", description: "nombre o ID del producto" },
         estado: { type: "string", description: "disponible o agotado" },
-        hasta: { type: "string", description: "opcional, valor de fecha libre" },
+        hasta: {
+          type: "string",
+          description: "opcional, valor de fecha libre",
+        },
       },
       required: ["producto", "estado"],
       additionalProperties: false,
@@ -569,7 +766,10 @@ export const HERRAMIENTAS_IA: readonly HerramientaIA[] = [
     input_schema: {
       type: "object",
       properties: {
-        abierto: { type: "boolean", description: "true para abierto, false para cerrado" },
+        abierto: {
+          type: "boolean",
+          description: "true para abierto, false para cerrado",
+        },
       },
       required: ["abierto"],
       additionalProperties: false,
@@ -616,7 +816,8 @@ export function promptSistema(): string {
   return SISTEMA_TEXTO;
 }
 
-const SISTEMA_CON_HERRAMIENTAS = SISTEMA_TEXTO +
+const SISTEMA_CON_HERRAMIENTAS =
+  SISTEMA_TEXTO +
   "\n\nAcciones disponibles:\n" +
   HERRAMIENTAS_IA.map((h) => `${h.name} - ${h.description}`).join("\n") +
   "\n\nContesta SIEMPRE con un JSON de una sola acción, sin texto alrededor:\n" +
@@ -640,9 +841,10 @@ export function puedeUsarCache(): boolean {
 }
 
 /** Prompt completo de sistema con o sin cache_control según el prefijo. */
-export function promptParaLLM(
-  usarCache: boolean,
-): { system: string; cache_control?: { type: "ephemeral" } } {
+export function promptParaLLM(usarCache: boolean): {
+  system: string;
+  cache_control?: { type: "ephemeral" };
+} {
   return usarCache
     ? { system: SISTEMA_CON_HERRAMIENTAS, cache_control: { type: "ephemeral" } }
     : { system: SISTEMA_CON_HERRAMIENTAS };

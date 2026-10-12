@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   buscarProducto,
+  comandosTelegram,
   enlaceVinculacion,
   esComandoValido,
   generarCodigo,
@@ -9,11 +10,13 @@ import {
   intencionDeTexto,
   leerTelegramUpdate,
   parseComando,
+  preguntaCandidatos,
   promptParaLLM,
   promptSistema,
   requiereConfirmacion,
   similitudJaccard,
   similitudProducto,
+  sinArticulo,
   textoCarta,
   recortarEtiqueta,
   CARTA_MAX_CHARS,
@@ -21,7 +24,10 @@ import {
 } from "./asistente";
 
 /* ── helpers ─────────────────────────────────────────────────────── */
-function rawMensaje(texto: string, chatTipo?: "private" | "group" | "supergroup" | "channel") {
+function rawMensaje(
+  texto: string,
+  chatTipo?: "private" | "group" | "supergroup" | "channel",
+) {
   return {
     update_id: 1,
     message: {
@@ -32,7 +38,10 @@ function rawMensaje(texto: string, chatTipo?: "private" | "group" | "supergroup"
   } as const;
 }
 
-function rawCallback(data: string, chatTipo?: "private" | "group" | "supergroup" | "channel") {
+function rawCallback(
+  data: string,
+  chatTipo?: "private" | "group" | "supergroup" | "channel",
+) {
   return {
     update_id: 2,
     callback_query: {
@@ -49,7 +58,15 @@ test("solo chats privados pasan", () => {
   assert.equal(leerTelegramUpdate(rawMensaje("hola", "group")), null);
   assert.equal(leerTelegramUpdate(rawMensaje("hola", "supergroup")), null);
   assert.equal(leerTelegramUpdate(rawMensaje("hola", "channel")), null);
-  assert.equal(leerTelegramUpdate(rawMensaje("hola", "pública" as "private" | "group" | "supergroup" | "channel")), null);
+  assert.equal(
+    leerTelegramUpdate(
+      rawMensaje(
+        "hola",
+        "pública" as "private" | "group" | "supergroup" | "channel",
+      ),
+    ),
+    null,
+  );
 });
 
 test("mensajes sin texto se ignoran", () => {
@@ -92,7 +109,11 @@ test("callback sin data se ignora", () => {
   assert.equal(
     leerTelegramUpdate({
       update_id: 5,
-      callback_query: { id: "x", data: "", message: { message_id: 1, chat: { id: 1, type: "private" } } },
+      callback_query: {
+        id: "x",
+        data: "",
+        message: { message_id: 1, chat: { id: 1, type: "private" } },
+      },
     }),
     null,
   );
@@ -101,16 +122,28 @@ test("callback sin data se ignora", () => {
 /* ── parseComando ───────────────────────────────────────────────── */
 test("solo texto que empiece por / tiene comando", () => {
   assert.deepEqual(parseComando("/agotado"), { comando: "agotado", resto: "" });
-  assert.deepEqual(parseComando("/agotado pan"), { comando: "agotado", resto: "pan" });
-  assert.deepEqual(parseComando("/agotado  pan "), { comando: "agotado", resto: "pan" });
+  assert.deepEqual(parseComando("/agotado pan"), {
+    comando: "agotado",
+    resto: "pan",
+  });
+  assert.deepEqual(parseComando("/agotado  pan "), {
+    comando: "agotado",
+    resto: "pan",
+  });
   assert.equal(parseComando("agotado pan"), null);
   assert.equal(parseComando(""), null);
   assert.equal(parseComando("  "), null);
 });
 
 test("una mención al bot se quita del comando", () => {
-  assert.deepEqual(parseComando("/start@LaVerdeBot"), { comando: "start", resto: "" });
-  assert.deepEqual(parseComando("/agotado@LaVerdeBot pan"), { comando: "agotado", resto: "pan" });
+  assert.deepEqual(parseComando("/start@LaVerdeBot"), {
+    comando: "start",
+    resto: "",
+  });
+  assert.deepEqual(parseComando("/agotado@LaVerdeBot pan"), {
+    comando: "agotado",
+    resto: "pan",
+  });
 });
 
 test("los comandos que existen son reconocidos", () => {
@@ -133,19 +166,137 @@ test("los comandos externos se marcan para ignorar", () => {
   assert.equal(ignorarComandoExterno("set_webhook"), false);
 });
 
+/* El menú del botón de Telegram, junto al campo de texto. */
+test("la lista de comandos sale de COMANDOS y sin duplicar la ayuda", () => {
+  const lista = comandosTelegram();
+  const nombres = lista.map((c) => c.command);
+
+  assert.deepEqual(nombres, [
+    "start",
+    "carta",
+    "agotado",
+    "disponible",
+    "abrir",
+    "cerrar",
+    "stats",
+    "ayuda",
+  ]);
+  /* `help` es el mismo comando que `ayuda`: dos entradas iguales estorban. */
+  assert.ok(!nombres.includes("help"));
+
+  /* Los topes de Telegram: nombre en minúsculas sin acentos, descripción corta. */
+  for (const { command, description } of lista) {
+    assert.match(command, /^[a-z0-9_]{1,32}$/);
+    assert.ok(description.length > 0 && description.length <= 256, description);
+  }
+});
+
 /* ── intencionDeTexto ────────────────────────────────────────────── */
 test("detecta patrones simples de disponibilidad", () => {
-  assert.deepEqual(intencionDeTexto("se acabó el pan"), { estado: "agotado", producto: "el pan" });
-  assert.deepEqual(intencionDeTexto("te acabó la pizza"), { estado: "agotado", producto: "la pizza" });
-  assert.deepEqual(intencionDeTexto("se acabó Spinach"), { estado: "agotado", producto: "Spinach" });
-  assert.deepEqual(intencionDeTexto("Agotado el café"), { estado: "agotado", producto: "el café" });
-  assert.deepEqual(intencionDeTexto("agotadas las bebidas"), { estado: "agotado", producto: "las bebidas" });
-  assert.deepEqual(intencionDeTexto("ya hay donas"), { estado: "disponible", producto: "donas" });
-  assert.deepEqual(intencionDeTexto("hay empanadas"), { estado: "disponible", producto: "empanadas" });
+  const agotado = (producto: string) =>
+    ({ tipo: "disponibilidad", estado: "agotado", producto }) as const;
+  const disponible = (producto: string) =>
+    ({ tipo: "disponibilidad", estado: "disponible", producto }) as const;
 
-  // También detecta los acortamientos de "agotado" sin producto.
-  assert.deepEqual(intencionDeTexto("Agotado"), null);
-  assert.deepEqual(intencionDeTexto("agotado"), null);
+  assert.deepEqual(intencionDeTexto("se acabó el pan"), agotado("el pan"));
+  assert.deepEqual(intencionDeTexto("te acabó la pizza"), agotado("la pizza"));
+  assert.deepEqual(intencionDeTexto("se acabó Spinach"), agotado("Spinach"));
+  assert.deepEqual(intencionDeTexto("Agotado el café"), agotado("el café"));
+  assert.deepEqual(
+    intencionDeTexto("agotadas las bebidas"),
+    agotado("las bebidas"),
+  );
+  assert.deepEqual(intencionDeTexto("ya hay donas"), disponible("donas"));
+  assert.deepEqual(intencionDeTexto("hay empanadas"), disponible("empanadas"));
+});
+
+/* Las formas que el dueño escribe de verdad y que antes acababan en el modelo
+   —o en un «no te entendí», si no había modelo—: cada una costaba una llamada. */
+test("detecta las otras formas de decir que algo se acabó", () => {
+  const agotado = (producto: string) =>
+    ({ tipo: "disponibilidad", estado: "agotado", producto }) as const;
+
+  assert.deepEqual(intencionDeTexto("ya se acabó el pan"), agotado("el pan"));
+  assert.deepEqual(
+    intencionDeTexto("se me acabó la leche"),
+    agotado("la leche"),
+  );
+  assert.deepEqual(intencionDeTexto("se terminó el flan"), agotado("el flan"));
+  assert.deepEqual(intencionDeTexto("acabó el pan"), agotado("el pan"));
+  assert.deepEqual(intencionDeTexto("se agotó el arroz"), agotado("el arroz"));
+  assert.deepEqual(intencionDeTexto("no hay pan"), agotado("pan"));
+  assert.deepEqual(
+    intencionDeTexto("no quedan empanadas"),
+    agotado("empanadas"),
+  );
+});
+
+test("detecta las otras formas de decir que algo volvió", () => {
+  const disponible = (producto: string) =>
+    ({ tipo: "disponibilidad", estado: "disponible", producto }) as const;
+
+  assert.deepEqual(intencionDeTexto("ya llegó el pan"), disponible("el pan"));
+  assert.deepEqual(intencionDeTexto("volvió la torta"), disponible("la torta"));
+  assert.deepEqual(
+    intencionDeTexto("ya tengo empanadas"),
+    disponible("empanadas"),
+  );
+});
+
+/* Un estado sin producto no es un fallo de lectura: es la señal de que hay que
+   enseñar la lista con botones. Por eso el producto sale vacío y no `null`. */
+test("el estado a secas pide la lista, no el modelo", () => {
+  const sinProducto = {
+    tipo: "disponibilidad",
+    estado: "agotado",
+    producto: "",
+  } as const;
+  assert.deepEqual(intencionDeTexto("Agotado"), sinProducto);
+  assert.deepEqual(intencionDeTexto("agotado"), sinProducto);
+  assert.deepEqual(intencionDeTexto("se acabó"), sinProducto);
+  assert.deepEqual(intencionDeTexto("ya no hay"), sinProducto);
+  assert.deepEqual(intencionDeTexto("ya hay"), {
+    tipo: "disponibilidad",
+    estado: "disponible",
+    producto: "",
+  });
+});
+
+test("detecta los cambios de precio escritos a mano", () => {
+  assert.deepEqual(intencionDeTexto("pon el café a 250"), {
+    tipo: "precio",
+    producto: "café",
+    precio: "250",
+  });
+  assert.deepEqual(intencionDeTexto("pon el precio del pan a 30"), {
+    tipo: "precio",
+    producto: "pan",
+    precio: "30",
+  });
+  /* El artículo se queda en la frase: quien lo quita es `buscarProducto`, que es
+     el único sitio que compara nombres. Así lo ven todos los caminos. */
+  assert.deepEqual(intencionDeTexto("cambia el precio de la torta a 3-5 USD"), {
+    tipo: "precio",
+    producto: "la torta",
+    precio: "3-5 USD",
+  });
+  assert.deepEqual(intencionDeTexto("el precio del café es 150 cup"), {
+    tipo: "precio",
+    producto: "café",
+    precio: "150 cup",
+  });
+  assert.deepEqual(intencionDeTexto("sube la pizza a 400"), {
+    tipo: "precio",
+    producto: "pizza",
+    precio: "400",
+  });
+});
+
+/* Sin la exigencia de que el precio empiece por dígito, «pon el pan a la venta»
+   entraría como un precio de «la venta» y el bot cambiaría algo que nadie pidió. */
+test("una frase de precio sin precio no se toma por un cambio", () => {
+  assert.equal(intencionDeTexto("pon el pan a la venta"), null);
+  assert.equal(intencionDeTexto("cambia el precio del pan"), null);
 });
 
 test("textos que no calzan devuelven null", () => {
@@ -153,6 +304,30 @@ test("textos que no calzan devuelven null", () => {
   assert.equal(intencionDeTexto("ano"), null); // enfermedad
   assert.equal(intencionDeTexto(""), null);
   assert.equal(intencionDeTexto("  "), null);
+});
+
+/* ── sinArticulo ─────────────────────────────────────────────────── */
+test("quita el artículo de delante y deja el nombre", () => {
+  assert.equal(sinArticulo("el pan"), "pan");
+  assert.equal(sinArticulo("  La torta  "), "torta");
+  assert.equal(sinArticulo("un café"), "café");
+  assert.equal(sinArticulo("de la casa"), "casa");
+  assert.equal(sinArticulo("pan"), "pan");
+  assert.equal(sinArticulo("el"), "el"); // un artículo suelto no se queda en nada
+});
+
+/* El caso que rompía «se acabó el pan» contra una carta de verdad: el artículo
+   aportaba trigramas que no están en el nombre y el parecido no llegaba. */
+test("el artículo no impide encontrar el producto", () => {
+  const lista = [{ id: "1", name: "Pan de casa" }];
+  assert.equal(buscarProducto("el pan", lista).nivel, "claro");
+  assert.equal(buscarProducto("se acabó el pan", lista).nivel, "ninguno");
+  assert.equal(buscarProducto("pan", lista).nivel, "claro");
+  /* Y al revés: el artículo de la carta tampoco estorba. */
+  assert.equal(
+    buscarProducto("rancho", [{ id: "2", name: "El Rancho" }]).nivel,
+    "claro",
+  );
 });
 
 /* ── similitud difusa ───────────────────────────────────────────── */
@@ -245,13 +420,26 @@ test("recortarEtiqueta corta y avisa con puntos suspensivos", () => {
   assert.ok(etiqueta.endsWith("…"));
 });
 
+test("la pregunta de los candidatos repite lo escrito, recortado", () => {
+  assert.equal(
+    preguntaCandidatos("café"),
+    "No sé a cuál te refieres con «café». Toca el que sea:",
+  );
+  const larga = preguntaCandidatos("x".repeat(200));
+  assert.ok(larga.includes("…"));
+  assert.ok(larga.length < 100, `demasiado larga: ${larga.length}`);
+});
+
 /* El caso que rompía `.slice(0, 60)`: cuenta unidades UTF-16, así que el emoji
    cae a la mitad y queda un sustituto suelto —el cuadrito roto—. */
 test("recortarEtiqueta no parte un emoji por la mitad", () => {
   const etiqueta = recortarEtiqueta(`${"a".repeat(59)}🍕🍕`, 60);
   for (const caracter of Array.from(etiqueta)) {
     const punto = caracter.codePointAt(0) ?? 0;
-    assert.ok(punto < 0xd800 || punto > 0xdfff, `sustituto suelto: ${punto.toString(16)}`);
+    assert.ok(
+      punto < 0xd800 || punto > 0xdfff,
+      `sustituto suelto: ${punto.toString(16)}`,
+    );
   }
   assert.equal(Array.from(etiqueta).length, 60);
 });
@@ -308,10 +496,21 @@ test("textoCarta lista nombre, precio y estado, uno por línea", () => {
 });
 
 test("textoCarta respeta el fin del agotado", () => {
-  const item = { name: "Pan", price: "25", currency: "CUP", disponibilidad: "agotado" as const };
-  assert.match(textoCarta([{ ...item, agotadoHasta: 2_000 }], 1_000), /agotado/);
+  const item = {
+    name: "Pan",
+    price: "25",
+    currency: "CUP",
+    disponibilidad: "agotado" as const,
+  };
+  assert.match(
+    textoCarta([{ ...item, agotadoHasta: 2_000 }], 1_000),
+    /agotado/,
+  );
   /* La fecha ya pasó: vuelve solo a estar disponible. */
-  assert.doesNotMatch(textoCarta([{ ...item, agotadoHasta: 500 }], 1_000), /agotado/);
+  assert.doesNotMatch(
+    textoCarta([{ ...item, agotadoHasta: 500 }], 1_000),
+    /agotado/,
+  );
 });
 
 test("textoCarta dice cuándo la carta está vacía", () => {
