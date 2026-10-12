@@ -11,6 +11,9 @@ import {
   type Plan,
 } from "@/lib/plans";
 
+/** Cuántas funciones de la lista se enseñan. Las demás se cuentan. */
+const VISIBLES = 6;
+
 /**
  * El plan del negocio, en el dashboard.
  *
@@ -19,6 +22,10 @@ import {
  * lo que el negocio ya tiene se perdía entre cerraduras: entraba a mirar su plan
  * y se encontraba un catálogo. Ahora enseña lo que tiene —que es la pregunta que
  * trae— y el resto vive en la sección «Planes», con sitio para explicarse.
+ *
+ * Pero «lo que tiene» para Pro son veintidós funciones y la lista volvía a ser
+ * el catálogo, ahora sin cerraduras. Se cortan a las primeras y el resto se dice
+ * en una línea: quien quiera el detalle tiene el botón ahí mismo.
  *
  * La tarjeta se tiñe cuando el plan es de pago. Es el mismo gesto que el sello
  * verde de la cabecera, y separa de un vistazo quien está pagando de quien no.
@@ -32,6 +39,12 @@ export function PlanCard({
   onVerPlanes: () => void;
 }) {
   const funciones = FEATURES_POR_PLAN[plan] as readonly Feature[];
+  /* Solo se enseñan las primeras. Pro acumula veintidós funciones —Gratis,
+     más Básico, más Pro— y la lista entera eran veintidós renglones de texto en
+     el móvil, justo lo que esta tarjeta dejó de hacer cuando se le quitó el
+     catálogo. Las demás se cuentan; el catálogo está en «Planes». */
+  const visibles = funciones.slice(0, VISIBLES);
+  const ocultas = funciones.length - visibles.length;
   /* Lo que se queda fuera. Sale del catálogo más alto y no de sumar los otros
      dos: sumar listas se descompone el día que una función cambie de plan. */
   const restantes = FEATURES_POR_PLAN.pro.length - funciones.length;
@@ -68,8 +81,11 @@ export function PlanCard({
       </p>
 
       <ul className="mt-gap-md grid grid-cols-1 gap-gap-xs lg:grid-cols-2">
-        {funciones.map((feature) => (
-          <li key={feature} className="flex items-start gap-gap-xs text-small text-ink">
+        {visibles.map((feature) => (
+          <li
+            key={feature}
+            className="flex items-start gap-gap-xs text-small text-ink"
+          >
             <Check
               size={15}
               strokeWidth={2}
@@ -89,9 +105,11 @@ export function PlanCard({
           Ver todos los planes
           <ArrowRight size={16} strokeWidth={1.8} />
         </button>
-        {restantes > 0 && (
+        {(ocultas > 0 || restantes > 0) && (
           <p className="text-meta text-ink-soft/75">
-            Los planes de pago añaden {restantes} funciones más.
+            {ocultas > 0 &&
+              `Y ${ocultas} ${ocultas === 1 ? "función más" : "funciones más"} de tu plan. `}
+            {restantes > 0 && `Los de pago añaden ${restantes}.`}
           </p>
         )}
       </div>

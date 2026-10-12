@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import {
   CalendarDays,
+  ChevronDown,
   Clock,
   CreditCard,
   Image as ImageIcon,
@@ -251,12 +252,21 @@ export function BusinessPanel({
   );
 }
 
-/** Encabezado de sección del panel. */
+/**
+ * Encabezado de sección del panel.
+ *
+ * El título va **visible**. Estuvo en `sr-only` con solo el subtítulo a la
+ * vista, y en el móvil eso dejaba la sección sin ancla: al entrar caías en una
+ * columna de tarjetas sin nada que dijera dónde estabas. En escritorio la barra
+ * lateral lo disimulaba; en móvil no hay barra, solo el dock de abajo.
+ */
 function ViewLead({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div className="mb-gap-md">
-      <h1 className="sr-only">{title}</h1>
-      <p className="text-small text-ink-soft/75">{subtitle}</p>
+      <h1 className="font-lv-display text-h3 font-bold tracking-[-0.02em] text-ink">
+        {title}
+      </h1>
+      <p className="mt-[2px] text-small text-ink-soft/75">{subtitle}</p>
     </div>
   );
 }
@@ -340,44 +350,41 @@ function DashboardView({
           <h2 className="mb-gap-sm font-lv-display text-body font-semibold text-ink">
             Lo que puedes hacer ahora
           </h2>
+          {/* Una línea por punto. Eran dos frases cada uno —la acción y su
+              justificación— y en el móvil la lista ocupaba media pantalla para
+              decir cinco cosas que caben en cinco renglones. */}
           <ul className="flex flex-col gap-gap-xs text-small text-ink-soft">
             {stats.photos === 0 && (
               <li>
                 <span className="font-semibold text-ink">
                   Sube tus primeras fotos.
-                </span>{" "}
-                Un negocio sin fotos se ve mucho menos que uno con tres o
-                cuatro.
+                </span>
               </li>
             )}
             {!offering && (
               <li>
                 <span className="font-semibold text-ink">
-                  Escribe tu descripción.
-                </span>{" "}
-                Es el texto que el buscador usa para recomendarte.
+                  Escribe tu descripción
+                </span>
+                , que es lo que lee el buscador.
               </li>
             )}
             {place.payments.length === 0 && (
               <li>
                 <span className="font-semibold text-ink">
                   Marca qué monedas aceptas.
-                </span>{" "}
-                Es uno de los filtros que más se usan al buscar.
+                </span>
               </li>
             )}
             {place.menu.length === 0 && (
               <li>
-                <span className="font-semibold text-ink">
-                  Publica tu carta.
-                </span>{" "}
-                Se añade en «Lo que ofreces» y se comparte con un enlace que
-                cualquiera abre, sin cuenta.
+                <span className="font-semibold text-ink">Publica tu carta</span>{" "}
+                en «Lo que ofreces».
               </li>
             )}
             <li>
-              <span className="font-semibold text-ink">Revisa tu ficha.</span>{" "}
-              Ábrela en el mapa y mírala tal como la ve quien te busca.
+              <span className="font-semibold text-ink">Revisa tu ficha</span>{" "}
+              como la ve quien te busca.
             </li>
           </ul>
         </section>
@@ -998,7 +1005,9 @@ function SettingsView({
      formulario del cliente —es la misma cifra— y sirve para dos cosas: decir
      «hoy van 12 de 40» y saber qué se libera al pulsar. `null` = todavía sin
      leer, que se pinta como «—» y no como cero. */
-  const [ocupacion, setOcupacion] = useState<Record<string, number> | null>(null);
+  const [ocupacion, setOcupacion] = useState<Record<string, number> | null>(
+    null,
+  );
   const [fechaCupo, setFechaCupo] = useState(() => fechaLocalIso(new Date()));
   const [liberando, setLiberando] = useState(false);
   const [whatsapp, setWhatsapp] = useState(place.whatsapp ?? "");
@@ -1152,7 +1161,9 @@ function SettingsView({
         { method: "DELETE" },
       );
       if (!res.ok) {
-        toast.error("No se pudo liberar. Revisa la conexión: no se cambió nada.");
+        toast.error(
+          "No se pudo liberar. Revisa la conexión: no se cambió nada.",
+        );
         return;
       }
       setOcupacion((o) => {
@@ -1245,10 +1256,7 @@ function SettingsView({
           </div>
 
           <p className="mt-gap-xs max-w-[62ch] text-small text-ink-soft/75">
-            Quien abre tu carta añade productos a un carrito y el pedido te
-            llega escrito por WhatsApp, con las cantidades y el total. El
-            carrito no pasa por La Verde: el mensaje sale de su teléfono al
-            tuyo, y tú contestas como siempre.
+            Tus clientes piden desde la carta y el pedido te llega por WhatsApp.
           </p>
 
           {bloqueo ? (
@@ -1327,10 +1335,8 @@ function SettingsView({
           </div>
 
           <p className="mt-gap-xs max-w-[62ch] text-small text-ink-soft/75">
-            Quien mira tu ficha rellena su nombre, la fecha y la hora —y las
-            personas o el producto— y el mensaje te llega por WhatsApp. La Verde
-            no guarda ni confirma la reserva: la cierras tú por ahí, como
-            siempre.
+            Rellenan el formulario en tu ficha y la reserva te llega por
+            WhatsApp.
           </p>
 
           {bloqueoReservas ? (
@@ -1376,170 +1382,184 @@ function SettingsView({
                 </p>
               )}
 
-              <div className="mt-gap-md flex flex-col gap-gap-md border-t border-ink/5 pt-gap-sm">
-                <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-                  <div className="flex flex-col gap-gap-xs">
-                    <Label htmlFor="ajReservaTipo">Qué se reserva</Label>
-                    <Select
-                      value={reservaTipo}
-                      onValueChange={(v) => setReservaTipo(v as TipoReserva)}
-                    >
-                      <SelectTrigger id="ajReservaTipo">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TIPOS_RESERVA.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {RESERVA_LABEL[t]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-meta text-ink-soft/75">
-                      Decide el texto del botón y lo que pide el formulario.
-                    </p>
+              {/* El formulario entero, plegado.
+
+                  Son siete bloques —tipo, aforo, cupo diario, liberar un día,
+                  plantilla, vista previa y guardar— y abiertos empujaban todo lo
+                  que viene detrás fuera de la pantalla. `details` nativo y no el
+                  `FormSection` del editor: aquel pinta su propia tarjeta, y una
+                  tarjeta dentro de otra tarjeta queda mal. */}
+              <details className="group mt-gap-md border-t border-ink/5 pt-gap-sm">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-gap-sm py-gap-2xs font-lv-display text-small font-semibold text-ink [&::-webkit-details-marker]:hidden">
+                  Configurar la reserva
+                  <ChevronDown
+                    size={18}
+                    strokeWidth={1.8}
+                    className="shrink-0 text-ink-soft/75 transition-transform duration-300 ease-outquint group-open:rotate-180"
+                  />
+                </summary>
+
+                <div className="mt-gap-sm flex flex-col gap-gap-md">
+                  <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
+                    <div className="flex flex-col gap-gap-xs">
+                      <Label htmlFor="ajReservaTipo">Qué se reserva</Label>
+                      <Select
+                        value={reservaTipo}
+                        onValueChange={(v) => setReservaTipo(v as TipoReserva)}
+                      >
+                        <SelectTrigger id="ajReservaTipo">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIPOS_RESERVA.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {RESERVA_LABEL[t]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {reservaTipo === "mesa" && (
+                      <div className="flex flex-col gap-gap-xs">
+                        <Label htmlFor="ajAforo">Aforo máximo (opcional)</Label>
+                        <Input
+                          id="ajAforo"
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          value={aforo}
+                          onChange={(e) => setAforo(e.target.value)}
+                          placeholder="Ej: 8"
+                          className={INPUT}
+                        />
+                        <p className="text-meta text-ink-soft/75">
+                          Vacío = sin tope.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {reservaTipo === "mesa" && (
                     <div className="flex flex-col gap-gap-xs">
-                      <Label htmlFor="ajAforo">
-                        Aforo máximo (opcional)
-                      </Label>
+                      <Label htmlFor="ajCupoDia">Cupo diario (opcional)</Label>
                       <Input
-                        id="ajAforo"
+                        id="ajCupoDia"
                         type="number"
                         inputMode="numeric"
                         min={1}
-                        value={aforo}
-                        onChange={(e) => setAforo(e.target.value)}
-                        placeholder="Ej: 8"
+                        value={cupoDia}
+                        onChange={(e) => setCupoDia(e.target.value)}
+                        placeholder="Ej: 40"
                         className={INPUT}
                       />
                       <p className="text-meta text-ink-soft/75">
-                        Tope de personas por reserva. Vacío = sin tope.
+                        Se recarga cada día. Al llenarse, el formulario no deja
+                        reservar esa fecha. Vacío = sin cupo.
                       </p>
                     </div>
                   )}
-                </div>
 
-                {reservaTipo === "mesa" && (
-                  <div className="flex flex-col gap-gap-xs">
-                    <Label htmlFor="ajCupoDia">Cupo diario (opcional)</Label>
-                    <Input
-                      id="ajCupoDia"
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      value={cupoDia}
-                      onChange={(e) => setCupoDia(e.target.value)}
-                      placeholder="Ej: 40"
-                      className={INPUT}
-                    />
-                    <p className="text-meta text-ink-soft/75">
-                      Personas que caben en total cada día. Cuando se llena, el
-                      formulario no deja reservar esa fecha y avisa de cuánto
-                      queda. Vacío = sin cupo. Se recarga solo cada día, y aquí
-                      abajo puedes liberar uno a mano.
-                    </p>
-                  </div>
-                )}
-
-                {/* Liberar el cupo de un día: lo que el dueño hace «a voluntad»
+                  {/* Liberar el cupo de un día: lo que el dueño hace «a voluntad»
                     cuando le cancelan o cuando quiere volver a empezar la
                     cuenta. Solo con un cupo puesto —sin él no hay nada que
                     liberar—, y se enseña lo ocupado para saber qué se suelta. */}
-                {reservaTipo === "mesa" && cupoDia.trim() !== "" && (
-                  <div className="rounded-2xl border border-ink/5 bg-sand-warm px-4 py-3">
-                    <div className="font-lv-display text-meta font-semibold text-ink-soft/75">
-                      Cupo de un día
+                  {reservaTipo === "mesa" && cupoDia.trim() !== "" && (
+                    <div className="rounded-2xl border border-ink/5 bg-sand-warm px-4 py-3">
+                      <div className="font-lv-display text-meta font-semibold text-ink-soft/75">
+                        Cupo de un día
+                      </div>
+                      <div className="mt-gap-xs flex flex-wrap items-center gap-gap-sm">
+                        <Input
+                          type="date"
+                          value={fechaCupo}
+                          onChange={(e) => setFechaCupo(e.target.value)}
+                          aria-label="Día a liberar"
+                          className={cn(INPUT, "w-auto")}
+                        />
+                        <span className="text-small tabular-nums text-ink-soft">
+                          {ocupacion === null
+                            ? "—"
+                            : `${ocupacion[fechaCupo] ?? 0} de ${Number(cupoDia) || 0} ocupadas`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void liberarFecha()}
+                          disabled={liberando}
+                          className="inline-flex h-10 cursor-pointer items-center rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+                        >
+                          {liberando ? "Liberando…" : "Liberar ese día"}
+                        </button>
+                      </div>
                     </div>
-                    <div className="mt-gap-xs flex flex-wrap items-center gap-gap-sm">
-                      <Input
-                        type="date"
-                        value={fechaCupo}
-                        onChange={(e) => setFechaCupo(e.target.value)}
-                        aria-label="Día a liberar"
-                        className={cn(INPUT, "w-auto")}
-                      />
-                      <span className="text-small tabular-nums text-ink-soft">
-                        {ocupacion === null
-                          ? "—"
-                          : `${ocupacion[fechaCupo] ?? 0} de ${Number(cupoDia) || 0} ocupadas`}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => void liberarFecha()}
-                        disabled={liberando}
-                        className="inline-flex h-10 cursor-pointer items-center rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
-                      >
-                        {liberando ? "Liberando…" : "Liberar ese día"}
-                      </button>
-                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-gap-xs">
+                    <Label htmlFor="ajPlantilla">Mensaje que te llega</Label>
+                    <textarea
+                      id="ajPlantilla"
+                      rows={3}
+                      value={plantilla}
+                      onChange={(e) => setPlantilla(e.target.value)}
+                      placeholder={PLANTILLA_POR_DEFECTO[reservaTipo]}
+                      className={cn(
+                        INPUT,
+                        "h-auto min-h-[84px] resize-y py-3 leading-relaxed",
+                      )}
+                    />
+                    <p className="text-meta text-ink-soft/75">
+                      Usa {"{nombre}"} {"{fecha}"} {"{hora}"} {"{personas}"} y,
+                      para apartados, {"{producto}"} y {"{cantidad}"}. Vacío =
+                      el mensaje de siempre.
+                    </p>
                   </div>
-                )}
 
-                <div className="flex flex-col gap-gap-xs">
-                  <Label htmlFor="ajPlantilla">Mensaje que te llega</Label>
-                  <textarea
-                    id="ajPlantilla"
-                    rows={3}
-                    value={plantilla}
-                    onChange={(e) => setPlantilla(e.target.value)}
-                    placeholder={PLANTILLA_POR_DEFECTO[reservaTipo]}
-                    className={cn(
-                      INPUT,
-                      "h-auto min-h-[84px] resize-y py-3 leading-relaxed",
-                    )}
-                  />
-                  <p className="text-meta text-ink-soft/75">
-                    Usa {"{nombre}"} {"{fecha}"} {"{hora}"} {"{personas}"}
-                    {" "}y, para apartados, {"{producto}"} y {"{cantidad}"}. Vacío
-                    = el mensaje de siempre.
-                  </p>
-                </div>
-
-                {/* La vista previa usa la plantilla efectiva: con el campo
+                  {/* La vista previa usa la plantilla efectiva: con el campo
                     vacío enseña la de por defecto ya rellena con los huecos, que
                     es lo que verá el cliente. */}
-                <p className="whitespace-pre-wrap rounded-2xl border border-ink/5 bg-sand-warm px-4 py-3 text-small leading-relaxed text-ink-soft">
-                  {plantillaEfectiva(reservaTipo, plantilla)}
-                </p>
+                  <p className="whitespace-pre-wrap rounded-2xl border border-ink/5 bg-sand-warm px-4 py-3 text-small leading-relaxed text-ink-soft">
+                    {plantillaEfectiva(reservaTipo, plantilla)}
+                  </p>
 
-                <AnimatePresence>
-                  {errorReservas && (
-                    <motion.p
-                      key="aj-reservas-error"
-                      role="alert"
-                      initial={{ opacity: 0, y: -8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                      className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
-                    >
-                      {errorReservas}
-                    </motion.p>
-                  )}
-                </AnimatePresence>
+                  <AnimatePresence>
+                    {errorReservas && (
+                      <motion.p
+                        key="aj-reservas-error"
+                        role="alert"
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        transition={{
+                          duration: 0.25,
+                          ease: [0.22, 1, 0.36, 1],
+                        }}
+                        className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+                      >
+                        {errorReservas}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
 
-                <button
-                  type="button"
-                  onClick={() => void guardarReservas()}
-                  disabled={guardandoReservas}
-                  className="inline-flex h-11 cursor-pointer items-center gap-gap-xs self-start rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
-                >
-                  {guardandoReservas ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      Guardando…
-                    </>
-                  ) : (
-                    <>
-                      <Save size={16} strokeWidth={1.8} />
-                      Guardar reservas
-                    </>
-                  )}
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => void guardarReservas()}
+                    disabled={guardandoReservas}
+                    className="inline-flex h-11 cursor-pointer items-center gap-gap-xs self-start rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+                  >
+                    {guardandoReservas ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Guardando…
+                      </>
+                    ) : (
+                      <>
+                        <Save size={16} strokeWidth={1.8} />
+                        Guardar reservas
+                      </>
+                    )}
+                  </button>
+                </div>
+              </details>
             </>
           )}
         </section>
@@ -1565,8 +1585,7 @@ function SettingsView({
             Cómo te contactan
           </h2>
           <p className="mt-gap-xs max-w-[62ch] text-small text-ink-soft/75">
-            Esto es lo que sale en tu ficha. Lo que dejes vacío, no se pinta: un
-            negocio sin Instagram no tiene por qué enseñar un hueco.
+            Lo que dejes vacío no se pinta en tu ficha.
           </p>
 
           <div className="mt-gap-md grid grid-cols-1 gap-gap-md lg:grid-cols-2">
@@ -1672,28 +1691,22 @@ function SettingsView({
         </section>
 
         {/* ── Lo que solo se consulta ─────────────────────────────────────
-            Sigue siendo de lectura, y por eso no hay botón: son las cuatro
-            respuestas que el dueño viene a buscar aquí. */}
-        <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-          <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
-            <Row label="Nombre del negocio" value={place.name} />
-            <Row label="Categoría" value={place.category} />
-            <Row
-              label="Ubicación"
-              value={formatCoordinates({ lat: place.lat, lng: place.lng })}
-            />
-            <Row
-              label="Ficha publicada"
-              value={place.isActive ? "Sí" : "Todavía no"}
-            />
-          </div>
+            De lectura, y por eso sin botón.
 
+            Eran dos tarjetas y siete filas. Cinco repetían lo que el dashboard
+            o el editor ya enseñan a dos toques —el nombre, la categoría, la
+            ubicación, «ficha publicada», el plan— y una sexta era el id interno
+            de la ficha, un UUID que no le dice nada a nadie. Queda la única que
+            no vive en ningún otro sitio: cómo pedir ayuda.
+
+            El plan se queda porque el enlace de verdad está en su tarjeta del
+            dashboard, y aquí se lee sin salir de Ajustes. */}
+        <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
           <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
             {/* Estaba escrito a fuego «Básico (gratis)» para todo el mundo. Ahora
                 es el plan que hay de verdad, resuelto en el servidor. */}
             <Row label="Plan actual" value={PLAN_LABEL[plan]} />
             <Row label="Contacto de soporte" value={SUPPORT_EMAIL} />
-            <Row label="Versión de la ficha" value={place.id} />
           </div>
         </div>
 

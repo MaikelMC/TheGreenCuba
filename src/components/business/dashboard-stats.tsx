@@ -45,20 +45,30 @@ const changeIcons: Record<StatChange["direction"], LucideIcon> = {
 
 export function DashboardStats({ stats, className }: DashboardStatsProps) {
   return (
-    <div className={cn("grid grid-cols-2 lg:grid-cols-4 gap-gap-sm", className)}>
+    <div
+      className={cn("grid grid-cols-2 lg:grid-cols-4 gap-gap-sm", className)}
+    >
       {stats.map((s, i) => {
         const change = s.change;
-        const Icon = change ? changeIcons[change.direction] ?? Minus : Minus;
+        const Icon = change ? (changeIcons[change.direction] ?? Minus) : Minus;
         return (
           <motion.div
             key={s.label}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.06, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            transition={{
+              delay: i * 0.06,
+              duration: 0.4,
+              ease: [0.22, 1, 0.36, 1],
+            }}
             whileHover={{ y: -3 }}
             className="bg-white border border-ink/5 rounded-2xl p-gap-md flex flex-col gap-gap-xs shadow-soft transition-shadow duration-500 ease-outquint hover:shadow-card"
           >
-            <span className="font-lv-display text-[10px] font-semibold text-verde-600 uppercase tracking-[0.22em]">
+            {/* El interletrado era de 0,22em y la etiqueta se partía en dos
+                líneas en cuanto pasaba de doce letras —«Llamadas · 30 días» en
+                media pantalla de móvil—, así que las tarjetas de una misma fila
+                acababan con alturas distintas. A 0,06em entra entera. */}
+            <span className="font-lv-display text-[11px] font-semibold uppercase leading-tight tracking-[0.06em] text-verde-600">
               {s.label}
             </span>
             <span className="font-lv-display text-[clamp(28px,6vw,36px)] font-bold text-ink tracking-[-0.02em] leading-none">

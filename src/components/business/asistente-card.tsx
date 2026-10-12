@@ -98,7 +98,9 @@ export function AsistenteCard({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ negocioId: place.id }),
       });
-      const data = (await res.json().catch(() => ({}))) as Estado & { error?: string };
+      const data = (await res.json().catch(() => ({}))) as Estado & {
+        error?: string;
+      };
       if (!res.ok) {
         setError(data.error ?? "No pude generar el código. Prueba otra vez.");
         return;
@@ -136,9 +138,7 @@ export function AsistenteCard({
       </div>
 
       <p className="mt-gap-xs max-w-[62ch] text-small text-ink-soft/75">
-        Vincula tu Telegram y podrás marcar productos agotados, abrir o cerrar el
-        día y cambiar precios hablándole al bot —«se acabó el pan», «hay café»—.
-        Todo lo que cambie lo puedes deshacer con un botón.
+        Háblale al bot para marcar agotados, abrir el día o cambiar precios.
       </p>
 
       {bloqueo ? (
@@ -152,7 +152,8 @@ export function AsistenteCard({
             Ver los planes
           </button>
           <p className="text-meta text-ink-soft/75">
-            Tu ficha se ve igual; solo te falta poder gestionarla desde el móvil.
+            Tu ficha se ve igual; solo te falta poder gestionarla desde el
+            móvil.
           </p>
         </div>
       ) : (
@@ -172,8 +173,8 @@ export function AsistenteCard({
 
           {estado?.vinculado && (
             <p className="text-small text-ink">
-              Ya hay un chat vinculado a este negocio. Si quieres vincular otro
-              —o el mismo desde otro móvil—, genera un código nuevo.
+              Ya hay un chat vinculado. Genera otro código para vincular un
+              móvil distinto.
             </p>
           )}
 
@@ -181,9 +182,9 @@ export function AsistenteCard({
             <>
               <div className="flex flex-col gap-gap-xs">
                 <p className="text-small text-ink-soft/75">
-                  Mándale este código al bot con{" "}
+                  Mándale el código al bot con{" "}
                   <span className="font-semibold text-ink">/start</span>, o toca
-                  el botón para abrirlo con el código ya puesto.
+                  el botón para abrirlo ya puesto.
                 </p>
                 <div className="flex flex-wrap items-center gap-gap-sm">
                   <span className="rounded-xl border border-verde-200 bg-verde-50 px-gap-md py-[7px] font-mono text-body font-bold tracking-[0.3em] text-verde-800">
@@ -256,8 +257,7 @@ export function AsistenteCard({
 
           {!estado?.codigo && estado?.bot && (
             <p className="text-meta text-ink-soft/75">
-              El código caduca a los {estado.minutosValidez} minutos. Si se pasa,
-              genera otro.
+              Caduca a los {estado.minutosValidez} minutos.
             </p>
           )}
         </div>

@@ -96,11 +96,7 @@ export function SeguidoresCard({
       </div>
 
       <p className="mt-gap-xs max-w-[62ch] text-small text-ink-soft/75">
-        Quien abre tu ficha puede pulsar «Avísame de ofertas» y seguirte por
-        Telegram. Cuando publiques una oferta flash, un producto nuevo o vuelvas
-        a abrir, les llega un mensaje corto —como mucho{" "}
-        {AVISOS_POR_SEMANA} por semana— con el enlace a tu ficha. Cada mensaje
-        lleva dentro el «/baja» para quien quiera irse.
+        Quien te sigue recibe un aviso corto cuando publicas algo nuevo.
       </p>
 
       {bloqueo ? (
@@ -133,15 +129,15 @@ export function SeguidoresCard({
             <>
               <p className="text-small text-ink-soft/75">
                 {total === null || total > 0
-                  ? "Comparte este enlace donde quieras para que se suscriban sin pasar por la ficha."
-                  : "Todavía no te sigue nadie. Comparte este enlace donde quieras para que se suscriban sin pasar por la ficha."}
+                  ? "Compártelo para que se suscriban sin pasar por la ficha."
+                  : "Todavía no te sigue nadie. Compártelo donde quieras."}
               </p>
               <CopyLink url={enlace} />
             </>
           ) : (
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-[7px] text-meta font-medium text-amber-800">
-              El bot de avisos todavía no está listo. En cuanto lo esté, el botón
-              aparecerá en tu ficha sin que tengas que hacer nada.
+              El bot de avisos todavía no está listo. En cuanto lo esté, el
+              botón aparecerá en tu ficha sin que tengas que hacer nada.
             </p>
           )}
         </div>

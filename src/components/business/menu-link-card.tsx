@@ -432,10 +432,9 @@ export function MenuLinkCard({
         Tu menú online
       </h2>
       <p className="mt-gap-xs max-w-[60ch] text-small text-ink-soft/75">
-        Este enlace abre tu carta y{" "}
-        <strong className="font-semibold text-ink">no pide cuenta</strong> a
-        quien lo recibe. Compártelo por WhatsApp o imprime el QR y ponlo en la
-        mesa: quien lo escanee llega a la misma carta.
+        Tu carta se abre{" "}
+        <strong className="font-semibold text-ink">sin pedir cuenta</strong>.
+        Compártela o imprime el QR.
       </p>
 
       <div className="mt-gap-md grid gap-gap-md sm:grid-cols-[1fr_auto] sm:items-start">

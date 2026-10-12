@@ -3,7 +3,6 @@
 import { Lock, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MiniChart } from "@/components/business/mini-chart";
-import { DashboardStats } from "@/components/business/dashboard-stats";
 import type { VisitasPanel } from "@/lib/eventos";
 import { textoBloqueo, type Feature, type Plan } from "@/lib/plans";
 
@@ -16,10 +15,10 @@ import { textoBloqueo, type Feature, type Plan } from "@/lib/plans";
  * al navegador ya se puede leer aunque no se pinte: si el plan es Gratis, la
  * serie del gráfico no sale de Neon.
  *
- * Gratis tiene una cifra y dos puertas; Básico, las cuatro tarjetas; Pro, el
- * gráfico y los productos. Cada bloque bloqueado dice **qué plan lo abre** y
- * lleva al dueño a la sección de planes, que es donde puede hacer algo al
- * respecto.
+ * Gratis tiene una cifra y dos puertas; Básico, la fila de visitas y llamadas;
+ * Pro, el gráfico y los productos. Cada bloque bloqueado dice **qué plan lo
+ * abre** y lleva al dueño a la sección de planes, que es donde puede hacer algo
+ * al respecto.
  */
 export function EstadisticasPanel({
   plan,
@@ -41,7 +40,8 @@ export function EstadisticasPanel({
           Estadísticas
         </h2>
         <p className="mt-[2px] text-small text-ink-soft/75">
-          Lo que pasa con tu ficha en La Verde. Sin datos de nadie: solo cuántos.
+          Lo que pasa con tu ficha en La Verde. Sin datos de nadie: solo
+          cuántos.
         </p>
       </div>
 
@@ -59,18 +59,29 @@ export function EstadisticasPanel({
         </p>
       </div>
 
-      {/* Visitas y llamadas a 7 y 30 días. Básico y superiores. */}
+      {/* Visitas y llamadas a 7 y 30 días. Básico y superiores.
+
+          En fila de cifras y no en tarjetas: el dashboard ya enseña cuatro
+          tarjetas de la ficha justo arriba, y ocho cuadrados idénticos seguidos
+          convertían la pantalla en un tablero donde no se distinguía una cosa de
+          otra. Cuatro números no necesitan cuatro marcos. */}
       {basicas ? (
-        <DashboardStats
-          stats={[
-            { label: "Visitas · 7 días", value: basicas.visitas7.toLocaleString("es-CU") },
-            { label: "Llamadas · 7 días", value: basicas.llamadas7.toLocaleString("es-CU") },
-            { label: "Visitas · 30 días", value: basicas.visitas30.toLocaleString("es-CU") },
-            { label: "Llamadas · 30 días", value: basicas.llamadas30.toLocaleString("es-CU") },
+        <Cifras
+          titulo="Visitas y llamadas"
+          nota="Últimos 7 y 30 días"
+          cifras={[
+            { label: "Visitas · 7 días", valor: basicas.visitas7 },
+            { label: "Llamadas · 7 días", valor: basicas.llamadas7 },
+            { label: "Visitas · 30 días", valor: basicas.visitas30 },
+            { label: "Llamadas · 30 días", valor: basicas.llamadas30 },
           ]}
         />
       ) : (
-        <Bloqueado feature="stats_basicas" plan={plan} onVerPlanes={onVerPlanes}>
+        <Bloqueado
+          feature="stats_basicas"
+          plan={plan}
+          onVerPlanes={onVerPlanes}
+        >
           Visitas y llamadas de los últimos 7 y 30 días.
         </Bloqueado>
       )}
@@ -78,7 +89,15 @@ export function EstadisticasPanel({
       {/* Gráfico, productos y reservas. Pro. */}
       {completas ? (
         <div className="flex flex-col gap-gap-md">
-          <Reservas reservas={completas.reservas} />
+          <Cifras
+            titulo="Reservas por WhatsApp"
+            nota="Toques al botón"
+            cifras={[
+              { label: "Últimos 7 días", valor: completas.reservas.corto },
+              { label: "Últimos 30 días", valor: completas.reservas.largo },
+            ]}
+            pie="Son los que abrieron el formulario y pasaron a WhatsApp. La reserva la cierras tú por ahí: esto no cuenta las que se confirmaron."
+          />
           <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
             <MiniChart
               data={completas.serie.map((d) => d.conteo)}
@@ -90,7 +109,11 @@ export function EstadisticasPanel({
           </div>
         </div>
       ) : (
-        <Bloqueado feature="stats_completas" plan={plan} onVerPlanes={onVerPlanes}>
+        <Bloqueado
+          feature="stats_completas"
+          plan={plan}
+          onVerPlanes={onVerPlanes}
+        >
           El gráfico día a día, tus 5 productos más vistos y las reservas.
         </Bloqueado>
       )}
@@ -99,49 +122,48 @@ export function EstadisticasPanel({
 }
 
 /**
- * Los toques al botón de reservar, a 7 y 30 días.
+ * Una fila de cifras bajo un título: dos o cuatro números con su etiqueta.
  *
- * Cuenta el **gesto**, no la reserva: La Verde no guarda ni confirma nada, así
- * que lo que enseña esta tarjeta es cuánta gente abrió el formulario y saltó a
- * WhatsApp. La reserva que se cierra —o no— la sabe el dueño por su teléfono,
- * y por eso el pie lo dice en vez de dejar creer que son reservas cerradas.
+ * Dos columnas en el móvil y cuatro de 640 px para arriba. La forma la usaban
+ * las reservas —dos cifras sueltas— y las visitas básicas —cuatro tarjetas
+ * enteras—; son la misma cosa, así que ahora hay un solo componente. Cuando el
+ * pie no hace falta, no se pasa.
  */
-function Reservas({
-  reservas,
+function Cifras({
+  titulo,
+  nota,
+  cifras,
+  pie,
 }: {
-  reservas: { corto: number; largo: number };
+  titulo: string;
+  /** La pastilla de la derecha: qué mide la fila. */
+  nota: string;
+  cifras: { label: string; valor: number }[];
+  pie?: string;
 }) {
-  const cifras = [
-    { label: "Últimos 7 días", valor: reservas.corto },
-    { label: "Últimos 30 días", valor: reservas.largo },
-  ];
-
   return (
     <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
       <div className="flex flex-wrap items-center justify-between gap-gap-sm">
         <span className="font-lv-display text-small font-semibold text-ink">
-          Reservas por WhatsApp
+          {titulo}
         </span>
         <span className="rounded-full bg-sand-deep px-[10px] py-[3px] font-lv-display text-meta text-ink-soft/75">
-          Toques al botón
+          {nota}
         </span>
       </div>
 
-      <div className="mt-gap-sm flex gap-gap-lg">
+      <dl className="mt-gap-sm grid grid-cols-2 gap-gap-sm sm:grid-cols-4">
         {cifras.map(({ label, valor }) => (
-          <div key={label} className="flex flex-col">
-            <span className="font-lv-display text-h3 font-bold tabular-nums leading-none text-ink">
+          <div key={label} className="flex flex-col gap-[2px]">
+            <dt className="text-meta text-ink-soft/75">{label}</dt>
+            <dd className="font-lv-display text-h3 font-bold tabular-nums leading-none text-ink">
               {valor.toLocaleString("es-CU")}
-            </span>
-            <span className="mt-[2px] text-meta text-ink-soft/75">{label}</span>
+            </dd>
           </div>
         ))}
-      </div>
+      </dl>
 
-      <p className="mt-gap-sm text-meta text-ink-soft/75">
-        Son los que abrieron el formulario y pasaron a WhatsApp. La reserva la
-        cierras tú por ahí: esto no cuenta las que se confirmaron.
-      </p>
+      {pie && <p className="mt-gap-sm text-meta text-ink-soft/75">{pie}</p>}
     </div>
   );
 }
