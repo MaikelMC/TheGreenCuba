@@ -5,6 +5,7 @@ import {
   comandosTelegram,
   enlaceVinculacion,
   esComandoValido,
+  esSaludo,
   generarCodigo,
   ignorarComandoExterno,
   intencionDeTexto,
@@ -530,6 +531,25 @@ test("textoCarta nunca se pasa del tope de Telegram", () => {
     `demasiado largo: ${texto.length}`,
   );
   assert.match(texto, /más\./);
+});
+
+/* ── saludo ─────────────────────────────────────────────────────── */
+test("un saludo se reconoce con signos, acentos y emojis de sobra", () => {
+  assert.equal(esSaludo("Hola"), true);
+  assert.equal(esSaludo("¡Hola!"), true);
+  assert.equal(esSaludo("  buenas tardes  "), true);
+  assert.equal(esSaludo("¿Qué tal?"), true);
+  assert.equal(esSaludo("qué bolá"), true);
+  assert.equal(esSaludo("Hola 👋"), true);
+});
+
+/* Un saludo con una orden detrás no es un saludo: tiene que seguir su camino
+   hasta el regex o el modelo, o el cambio no se aplicaría. */
+test("el saludo con algo más no cuenta como saludo", () => {
+  assert.equal(esSaludo("hola, se acabó el pan"), false);
+  assert.equal(esSaludo("se acabó el pan"), false);
+  assert.equal(esSaludo(""), false);
+  assert.equal(esSaludo("/carta"), false);
 });
 
 /* ── código de vinculación ──────────────────────────────────────── */

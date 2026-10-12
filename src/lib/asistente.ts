@@ -442,6 +442,48 @@ export function intencionDeTexto(texto: string): Intencion | null {
   return null;
 }
 
+/* ── saludo ────────────────────────────────────────────────────── */
+
+/** Los saludos que el bot contesta **sin modelo**. Un «hola» no pide nada: si
+ * llegara a la IA sería una llamada pagada por un mensaje que no trae ninguna
+ * orden. Se comparan enteros, y por eso el conjunto es de frases hechas. */
+const SALUDOS: ReadonlySet<string> = new Set([
+  "hola",
+  "holaa",
+  "holas",
+  "buenas",
+  "buenas buenas",
+  "buenos dias",
+  "buen dia",
+  "buenas tardes",
+  "buenas noches",
+  "hola buenas",
+  "saludos",
+  "que tal",
+  "hey",
+  "hi",
+  "hello",
+  "que bola",
+  "que vola",
+  "asere",
+]);
+
+/**
+ * ¿El mensaje entero es un saludo?
+ *
+ * Sin acentos, sin signos y con un solo espacio entre palabras, así que «¡Hola!»
+ * y «hola» son lo mismo, y un emoji al final no estorba. **Entero**: «hola, se
+ * acabó el producto» no es un saludo con cortesía, es una orden que empieza
+ * saludando y tiene que seguir su camino hasta el regex o el modelo.
+ */
+export function esSaludo(texto: string): boolean {
+  const limpio = sinAcento(texto)
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return SALUDOS.has(limpio);
+}
+
 /* ── similitud difusa sintáctica (sin dependencias) ────────────── */
 export type NivelCoincidencia = "claro" | "ambiguo" | "ninguno";
 

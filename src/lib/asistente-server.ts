@@ -532,7 +532,7 @@ const AYUDA = [
   "/abrir y /cerrar — si hoy atiendes o no",
   "/stats — cómo va tu ficha",
   "",
-  "Y si me escribes normal también te entiendo: «muéstrame la carta», «se acabó el pan», «pon el precio del café a 250». Todo lo que cambie lo puedes deshacer.",
+  "Y si me escribes normal también te entiendo, vendas lo que vendas: «muéstrame la carta», «se acabó el jabón», «pon el servicio a 500». Todo lo que cambie lo puedes deshacer.",
 ].join("\n");
 
 /** El menú de siempre, pegado a los mensajes donde el dueño no sabe qué hacer.
@@ -557,7 +557,14 @@ const MENU: Boton[][] = [
 /** Lo que se contesta cuando no se entendió. En una constante y con el menú
  * detrás: el dueño que no se explicó tiene que poder seguir con un toque. */
 const NO_ENTENDI =
-  "No te entendí. Prueba a decírmelo más corto —«se acabó el pan», «pon el café a 250»— o toca un botón:";
+  "No te entendí. Prueba a decírmelo más corto —«se acabó el jabón», «pon el servicio a 500»— o toca un botón:";
+
+/** Lo que se contesta a un saludo. Lleva el nombre del negocio porque es lo
+ * primero que ve quien acaba de vincular el chat, y ahí conviene saber que el
+ * bot ya sabe con quién habla. No gasta modelo: un «hola» no pide nada. */
+function saludoDe(nombre: string): string {
+  return `¡Hola! Soy el asistente de ${nombre}. Dime qué necesitas o toca un botón:`;
+}
 
 /* ── el update ──────────────────────────────────────────────────────────── */
 
@@ -927,6 +934,15 @@ async function manejarTextoLibre(
       chatId,
       `Ve más despacio, que me aturullo. Prueba en ${cupo.retryAfterSeconds ?? 60} segundos.`,
     );
+    return;
+  }
+
+  /* El saludo va antes que todo: es lo más barato que hay y lo primero que
+     escribe casi todo el mundo. Sin esto, un «hola» acabaría en el modelo
+     —una llamada pagada por un mensaje que no pide nada— y la respuesta de la
+     IA a un saludo es cualquiera menos la que el dueño espera. */
+  if (A.esSaludo(update.texto)) {
+    await enviarBotones(chatId, saludoDe(negocio.nombre), MENU);
     return;
   }
 
