@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { User, Building2, ShieldCheck, LogOut, Bell, Link2, Megaphone } from "lucide-react";
+import { User, Building2, ShieldCheck, LogOut, Bell, Link2, Megaphone, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/session";
 import { logout } from "@/lib/logout";
 import { readUserPreferences } from "@/lib/user-preferences-store";
@@ -75,6 +76,9 @@ const ROLE_LABEL: Record<Role, string> = {
  */
 let lastKnownUser: SessionUser | null = null;
 
+/** Marca de «este dispositivo ya vio el aviso del menú». Una vez, no por sesión. */
+const HINT_KEY = "la-verde:user-menu-hint";
+
 /**
  * Cada entrada declara qué roles la pueden abrir. Es la misma tabla que aplica
  * el middleware en `src/lib/session.ts`, repetida aquí para no ofrecer un enlace
@@ -142,6 +146,7 @@ export function UserMenu({
   );
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<UserNotification[]>([]);
+  const [hintOpen, setHintOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -153,6 +158,39 @@ export function UserMenu({
       // Sin preferencias válidas, deja el avatar por defecto.
     }
   }, [user?.id]);
+
+  /* El aviso de primera visita: quien acaba de entrar no sabe que ese botón
+     esconde las secciones, así que se le señala una vez y no se le vuelve a
+     molestar. Se marca como visto al enseñarlo, no al cerrarlo — si el
+     navegador se cierra a mitad, ya cumplió su función.
+
+     Solo sale con sesión resuelta: quien no ha entrado no tiene secciones que
+     descubrir, y ahí el botón es el de «Entrar». Con `localStorage` bloqueado
+     se calla en vez de repetir el aviso en cada carga. */
+  useEffect(() => {
+    if (status !== "in" || !user) return;
+    try {
+      if (window.localStorage.getItem(HINT_KEY)) return;
+    } catch {
+      return;
+    }
+
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+    const showTimer = setTimeout(() => {
+      setHintOpen(true);
+      try {
+        window.localStorage.setItem(HINT_KEY, "1");
+      } catch {
+        // Sin almacenamiento no se puede deduplicar; ya se enseñó esta vez.
+      }
+      hideTimer = setTimeout(() => setHintOpen(false), 9000);
+    }, 1200);
+
+    return () => {
+      clearTimeout(showTimer);
+      if (hideTimer) clearTimeout(hideTimer);
+    };
+  }, [status, user]);
 
   useEffect(() => {
     let alive = true;
@@ -305,6 +343,7 @@ export function UserMenu({
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
+        setHintOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -374,27 +413,89 @@ export function UserMenu({
   }
 
   return (
-    <div ref={ref} className="relative shrink-0">
+    <div
+      ref={ref}
+      className="relative shrink-0"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") setOpen(false);
+      }}
+    >
       {/* Verde casi tinta, como la pastilla de la cabecera de la landing: sobre
           la barra clara del header es lo único que se lee de un vistazo. El
-          `verde-50` anterior se perdía contra el `sand-warm`. */}
+          `verde-50` anterior se perdía contra el `sand-warm`.
+
+          El chevron es la señal universal de «aquí se despliega algo». Antes era
+          un círculo con la inicial a secas y se leía como la foto de perfil, no
+          como la puerta a las secciones: nadie lo tocaba. La pastilla sigue
+          midiendo 44 px de alto, así que el objetivo táctil no cambia. */}
       <motion.button
         type="button"
-        whileTap={{ scale: 0.9 }}
-        onClick={() => setOpen((v) => !v)}
-        className="size-11 shrink-0 overflow-hidden rounded-full bg-verde-950 grid place-items-center text-white font-lv-display font-bold text-small transition-colors duration-500 hover:bg-verde-800"
-        aria-label="Menú de usuario"
+        whileTap={{ scale: 0.94 }}
+        onClick={() => {
+          setOpen((v) => !v);
+          setHintOpen(false);
+        }}
+        aria-label="Abrir menú de cuenta y secciones"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls="user-menu"
+        className="group flex shrink-0 cursor-pointer items-center gap-1 rounded-full bg-verde-950 py-1 pl-1 pr-[10px] text-white transition-colors duration-500 hover:bg-verde-800"
       >
-        {resolvedAvatarUrl ? (
-          <img
-            src={resolvedAvatarUrl}
-            alt="Foto de perfil"
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          (avatar ?? <User size={18} strokeWidth={1.8} />)
-        )}
+        <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-verde-800 font-lv-display text-small font-bold">
+          {resolvedAvatarUrl ? (
+            <img
+              src={resolvedAvatarUrl}
+              alt="Foto de perfil"
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            (avatar ?? <User size={18} strokeWidth={1.8} />)
+          )}
+        </span>
+        <ChevronDown
+          size={16}
+          strokeWidth={2}
+          aria-hidden
+          className={cn(
+            "shrink-0 transition-transform duration-300",
+            open && "rotate-180",
+          )}
+        />
       </motion.button>
+
+      {/* Aviso de primera visita: un halo que late sobre el botón y una frase
+          que dice qué hay dentro. `pointer-events-none` en los dos para que
+          nunca atrapen un toque que iba a otra parte; se apaga solo a los 9 s,
+          al abrir el menú o al tocar fuera. */}
+      {hintOpen && (
+        <motion.span
+          aria-hidden
+          initial={{ opacity: 0, scale: 1 }}
+          animate={{ opacity: [0, 0.5, 0], scale: [1, 1.18, 1.18] }}
+          transition={{ duration: 1.9, repeat: Infinity, repeatDelay: 0.3 }}
+          className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-verde-400"
+        />
+      )}
+      <AnimatePresence>
+        {hintOpen && (
+          <motion.div
+            key="hint"
+            initial={{ opacity: 0, y: -6, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.96 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="pointer-events-none absolute right-0 top-[calc(100%+10px)] z-50 w-[212px] rounded-2xl bg-ink px-3.5 py-2.5 font-lv-display text-[12px] leading-snug text-white shadow-card"
+          >
+            <span
+              aria-hidden
+              className="absolute -top-1 right-6 size-2 rotate-45 bg-ink"
+            />
+            Aquí está todo: tu perfil, tus notificaciones y las secciones de tu
+            cuenta.
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {open && (
           <motion.div
@@ -402,6 +503,7 @@ export function UserMenu({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.96 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            id="user-menu"
             className="user-menu-popup absolute right-0 top-[calc(100%+6px)] w-[236px] bg-white border border-ink/5 rounded-2xl shadow-card z-50 overflow-hidden"
           >
             {user && (
