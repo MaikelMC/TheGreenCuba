@@ -105,8 +105,19 @@
   }
 
   html[data-theme="dark"] body {
+    /* El halo lleva **tamaño explícito**. Sin él, un radial-gradient toma por
+       defecto `farthest-corner`, que se calcula desde la esquina más lejana de
+       su caja: como `body` mide lo que mide su contenido, filtrar la carta
+       —que acorta la página— encogía el radio y el fondo de la carta cambiaba
+       de color. El ancho va en % (el ancho no cambia al filtrar) y el alto en
+       píxeles, así que el halo sale igual con la lista entera o con un grupo. */
     background:
-      radial-gradient(circle at top, rgba(53, 175, 109, 0.12), transparent 30%),
+      radial-gradient(
+          ellipse 120% 300px at 50% 0,
+          rgba(53, 175, 109, 0.12),
+          transparent 70%
+        )
+        no-repeat,
       #08130d;
     color: #edf7f0;
   }

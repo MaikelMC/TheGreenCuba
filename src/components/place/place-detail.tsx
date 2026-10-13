@@ -71,7 +71,6 @@ interface PlaceMenu {
   tag?: string;
   /** Familia del producto. Ver `UserPlaceMenuItem`. */
   category?: string;
-  imageEmoji?: string;
   /** URL de la foto del producto en el bucket. Si no hay, el hueco queda con
       el icono de siempre. */
   image?: string;

@@ -16,12 +16,10 @@ interface MenuItemProps {
   /** Familia del producto («Entrantes», «Bebidas»). Opcional: media carta no
       la tiene, y sin ella la fila se lee igual. Ver `UserPlaceMenuItem`. */
   category?: string;
-  imageEmoji?: string;
   /**
-   * Foto que el dueño puso al producto desde «Lo que ofrece».
-   *
-   * Va antes que el emoji y no después: si hay foto, la foto manda —el emoji
-   * era el relleno de cuando no había con qué llenar este hueco.
+   * Foto que el dueño puso al producto desde «Lo que ofrece». Sin ella el hueco
+   * se queda con el icono de «aquí iría una foto»: mismo dibujo en todas las
+   * plataformas, al contrario que un emoji, que cada sistema pinta a su aire.
    */
   image?: string;
   /** «Hoy hay»: estado guardado del producto. Ver `disponibilidad.ts`. */
@@ -61,7 +59,6 @@ export function MenuItem({
   currency,
   tag,
   category,
-  imageEmoji,
   image,
   disponibilidad,
   agotadoHasta,
@@ -90,7 +87,7 @@ export function MenuItem({
         className,
       )}
     >
-      {/* Hueco de la foto: la imagen subida, o el emoji, o el icono. */}
+      {/* Hueco de la foto: la imagen subida, o el icono. */}
       <div
         className={cn(
           "relative size-[72px] rounded-2xl bg-sand-deep shrink-0 grid place-items-center overflow-hidden text-verde-600",
@@ -105,8 +102,6 @@ export function MenuItem({
             sizes="72px"
             className="object-cover"
           />
-        ) : imageEmoji ? (
-          <span className="text-[28px]">{imageEmoji}</span>
         ) : (
           <ImageIcon size={24} strokeWidth={1.8} className="opacity-50" />
         )}

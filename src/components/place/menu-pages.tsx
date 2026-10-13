@@ -32,6 +32,12 @@ const SLIDE = {
 const PAGE_BTN =
   "grid place-items-center size-9 rounded-full border border-ink/10 bg-white text-ink cursor-pointer transition-all duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 disabled:opacity-35 disabled:pointer-events-none";
 
+const CHIP =
+  "h-8 px-gap-sm rounded-full border font-lv-display text-meta font-semibold cursor-pointer transition-all duration-500 ease-outquint";
+const CHIP_ON = "bg-verde-400 border-verde-400 text-verde-950";
+const CHIP_OFF =
+  "bg-white border-ink/10 text-ink-soft/75 hover:border-verde-300 hover:text-verde-600";
+
 interface MenuPagesProps {
   items: MenuEntry[];
   /** `grid` es la rejilla de dos columnas de escritorio; `list`, la columna del móvil. */
@@ -41,12 +47,26 @@ interface MenuPagesProps {
 export function MenuPages({ items, variant }: MenuPagesProps) {
   const [page, setPage] = useState(0);
   const [direction, setDirection] = useState(1);
+  const [categoria, setCategoria] = useState<string | null>(null);
 
-  const pageCount = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  /* Las familias que de verdad tiene la lista, en el orden en que aparecen. Sale
+     de `items`, así que el filtro se pinta solo cuando hay algo que filtrar: con
+     una sola categoría —o ninguna— no hay chips que enseñar. */
+  const categorias: string[] = [];
+  for (const item of items) {
+    const c = item.category?.trim();
+    if (c && !categorias.includes(c)) categorias.push(c);
+  }
+
+  const filtrados = categoria
+    ? items.filter((item) => item.category?.trim() === categoria)
+    : items;
+
+  const pageCount = Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
   /* Si el negocio quita entradas y la página actual se queda sin sitio, se lee
      la última en vez de dejar la lista vacía. */
   const current = Math.min(page, pageCount - 1);
-  const visible = items.slice(
+  const visible = filtrados.slice(
     current * PAGE_SIZE,
     current * PAGE_SIZE + PAGE_SIZE,
   );
@@ -58,12 +78,43 @@ export function MenuPages({ items, variant }: MenuPagesProps) {
     setPage(next);
   }
 
-  /* En el móvil se pasa de página arrastrando; el botón de anteriores y
-     siguientes es solo de escritorio, donde no hay gesto que valga. */
+  /* Cambiar de familia devuelve a la primera página: quedarse en la 4 de la
+     lista anterior enseñaría una página que puede no existir en la nueva. */
+  function filtrar(valor: string | null) {
+    setCategoria(valor);
+    setPage(0);
+    setDirection(1);
+  }
+
+  /* El arrastre y los botones conviven: en el móvil se pasa de página con el
+     dedo, pero quien no lo intuye tiene las flechas debajo. */
   const canSwipe = pageCount > 1;
 
   return (
     <>
+      {categorias.length > 1 && (
+        <div className="flex flex-wrap gap-gap-xs mb-gap-md">
+          <button
+            type="button"
+            onClick={() => filtrar(null)}
+            aria-pressed={categoria === null}
+            className={cn(CHIP, categoria === null ? CHIP_ON : CHIP_OFF)}
+          >
+            Todas
+          </button>
+          {categorias.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => filtrar(c)}
+              aria-pressed={categoria === c}
+              className={cn(CHIP, categoria === c ? CHIP_ON : CHIP_OFF)}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="relative overflow-hidden">
         <AnimatePresence initial={false} mode="popLayout" custom={direction}>
           <motion.div
@@ -95,7 +146,7 @@ export function MenuPages({ items, variant }: MenuPagesProps) {
         </AnimatePresence>
       </div>
 
-      {variant === "grid" && pageCount > 1 && (
+      {pageCount > 1 && (
         <div className="flex items-center justify-end gap-gap-xs mt-gap-md">
           <button
             type="button"

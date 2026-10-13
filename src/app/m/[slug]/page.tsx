@@ -3,7 +3,13 @@ import { cache } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowUpRight, CreditCard, MessageCircle, Phone } from "lucide-react";
+import {
+  ArrowUpRight,
+  CreditCard,
+  Image as ImageIcon,
+  MessageCircle,
+  Phone,
+} from "lucide-react";
 import { getPlaceBySlug } from "@/lib/db/queries";
 import { DEV_PLACE_ID, canViewDevPlace, devPlaceIndexable } from "@/lib/dev-place";
 import { getAppUser } from "@/lib/auth/user";
@@ -19,6 +25,7 @@ import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
 import { ofertaDe, ofertasVigentes, precioConOferta } from "@/lib/ofertas";
 import { BotonAgregar, PedidoProvider } from "@/components/menu/pedido-whatsapp";
 import { EventosMenu } from "@/components/menu/eventos-menu";
+import { CartaMenu, type CartaGrupo } from "@/components/menu/carta-menu";
 import { ReservaWhatsApp } from "@/components/place/reserva-whatsapp";
 import { SeguidorBoton } from "@/components/place/seguidor-boton";
 import { Logo } from "@/components/layout/logo";
@@ -37,15 +44,15 @@ import { Logo } from "@/components/layout/logo";
  * mayoría de las veces se mira una sola vez, todo eso es peso muerto. Aquí solo
  * se hereda el layout raíz.
  *
- * **La carta entera se resuelve en el servidor** y las categorías son anclas
- * —enlaces del navegador, no estado de React—. La versión anterior montaba
- * `CartaMenu` (`useState`) y `MenuItem` (`motion/react`): con dos platos ya
- * había JavaScript que no hacía falta.
+ * **Las filas se resuelven en el servidor** —con la oferta ya emparejada y sin
+ * `motion`— y solo la lista de grupos es isla de cliente: `CartaMenu` guarda
+ * qué categoría está puesta y elige qué grupos enseñar. Los grupos le llegan ya
+ * montados desde aquí, así que filtrar no cuesta una fila de JavaScript.
  *
- * La **única** isla de cliente es `EventosMenu`, y no pinta nada: cuenta las
- * visitas, los clics de contacto y los productos que entran en pantalla. Pide
- * un beacon por visita, no uno por producto, porque la carta la abre gente con
- * datos contados.
+ * Las islas de cliente son dos: `CartaMenu`, que no pinta ninguna fila, y
+ * `EventosMenu`, que tampoco pinta nada y solo cuenta visitas, clics de contacto
+ * y productos que entran en pantalla. Pide un beacon por visita, no uno por
+ * producto, porque la carta la abre gente con datos contados.
  *
  * El tope `productos_max` no se aplica al pintar: es antiabuso y ya corta al
  * guardar (ver `PATCH /api/places/[id]`). El menú se enseña completo.
@@ -176,7 +183,10 @@ function MenuRow({
             className="object-cover"
           />
         ) : (
-          <span className="text-[28px]">🍽️</span>
+          /* El mismo hueco que la ficha: quien no subió foto ve el icono de
+             «aquí iría una foto», no un plato dibujado por la fuente del
+             sistema, que en Windows y en Android sale distinto. */
+          <ImageIcon size={24} strokeWidth={1.8} className="opacity-50" />
         )}
       </div>
 
@@ -316,7 +326,46 @@ export default async function MenuPage({
     const group = groups[i];
     if (group) group.items.push(item);
   }
-  const namedGroups = groups.filter((group) => group.name !== null);
+  /* Cada grupo, ya montado aquí. El filtro de cliente solo elige cuáles de
+     estos se enseñan: las filas siguen naciendo en el servidor, con la oferta
+     emparejada, y al navegador baja la decisión y no los datos. */
+  const groupsUi: CartaGrupo[] = groups.map((group) => ({
+    name: group.name,
+    node: (
+      <div
+        id={`cat-${slugify(group.name ?? "") || "general"}`}
+        className="scroll-mt-gap-lg"
+      >
+        {group.name && (
+          <h3 className="mt-gap-md mb-gap-xs font-lv-display text-small font-semibold uppercase tracking-[0.12em] text-ink-soft/75">
+            {group.name}
+          </h3>
+        )}
+        <div className="rounded-3xl border border-ink/5 bg-white px-gap-md shadow-soft">
+          {group.items.map((item, index) => {
+            /* El mismo emparejado que hace la ficha: por `id` del producto, que
+               es lo que guarda la oferta. */
+            const oferta = item.id ? ofertaDe(ofertas, item.id) : undefined;
+            return (
+              <MenuRow
+                key={`${item.name}-${index}`}
+                item={item}
+                /* Las entradas nuevas ya traen `id`; las viejas no, y ahí el
+                   nombre con su posición es lo único estable que hay. */
+                productoId={item.id ?? `${item.name}-${index}`}
+                pedible={puedePedir && !estaAgotado(item)}
+                oferta={
+                  oferta
+                    ? (precioConOferta(item.price, oferta) ?? undefined)
+                    : undefined
+                }
+              />
+            );
+          })}
+        </div>
+      </div>
+    ),
+  }));
 
   const carta = (
     <div className="mx-auto w-full max-w-[680px] px-gutter py-gap-lg">
@@ -444,62 +493,7 @@ export default async function MenuPage({
             {place.name} todavía no ha publicado su menú aquí.
           </p>
         ) : (
-          <>
-            {/* Navegación por categorías con anclas: sin estado, sin JavaScript.
-                Solo aparece con más de una categoría con nombre. */}
-            {namedGroups.length > 1 && (
-              <nav
-                aria-label="Categorías del menú"
-                className="mb-gap-sm flex flex-wrap gap-[6px]"
-              >
-                {namedGroups.map((group) => (
-                  <a
-                    key={group.name}
-                    href={`#cat-${slugify(group.name ?? "") || "general"}`}
-                    className="inline-flex items-center rounded-full border border-ink/10 bg-white px-3 py-1.5 font-lv-display text-meta font-medium text-ink-soft/75 transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
-                  >
-                    {group.name}
-                  </a>
-                ))}
-              </nav>
-            )}
-
-            {groups.map((group) => (
-              <div
-                key={group.name ?? "__sin_categoria__"}
-                id={`cat-${slugify(group.name ?? "") || "general"}`}
-                className="scroll-mt-gap-lg"
-              >
-                {group.name && (
-                  <h3 className="mt-gap-md mb-gap-xs font-lv-display text-small font-semibold uppercase tracking-[0.12em] text-ink-soft/75">
-                    {group.name}
-                  </h3>
-                )}
-                <div className="rounded-3xl border border-ink/5 bg-white px-gap-md shadow-soft">
-                  {group.items.map((item, index) => {
-                    /* El mismo emparejado que hace la ficha: por `id` del
-                       producto, que es lo que guarda la oferta. */
-                    const oferta = item.id ? ofertaDe(ofertas, item.id) : undefined;
-                    return (
-                      <MenuRow
-                        key={`${item.name}-${index}`}
-                        item={item}
-                        /* Las entradas nuevas ya traen `id`; las viejas no, y ahí
-                           el nombre con su posición es lo único estable que hay. */
-                        productoId={item.id ?? `${item.name}-${index}`}
-                        pedible={puedePedir && !estaAgotado(item)}
-                        oferta={
-                          oferta
-                            ? (precioConOferta(item.price, oferta) ?? undefined)
-                            : undefined
-                        }
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </>
+          <CartaMenu groups={groupsUi} />
         )}
       </section>
 
