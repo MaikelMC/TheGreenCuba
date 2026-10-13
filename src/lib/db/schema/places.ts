@@ -136,6 +136,9 @@ export const places = pgTable(
             los productos no lleva. Como `tag`, es solo el tipo del jsonb —
             jsonb no tiene esquema, así que no hay migración que generar. */
         image?: string;
+        /** Marca de la importación por CSV que lo creó. `undefined` = a mano.
+            Igual que `tag` e `image`: solo el tipo del jsonb, sin migración. */
+        importacionId?: string;
       }[]
     >(),
     /** Valoración media. Denormalizada a propósito: las reseñas viven en

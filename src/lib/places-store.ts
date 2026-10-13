@@ -93,6 +93,15 @@ export interface UserPlaceMenuItem {
    * productos no lleva foto.
    */
   image?: string;
+  /**
+   * Marca de la importación por CSV que dio de alta este producto, si vino de
+   * una. Es lo que permite el botón «Deshacer importación»: se borran los
+   * productos que llevan esta clave. Vacío = se creó a mano.
+   *
+   * Vive en el jsonb y no en una columna porque la carta entera vive ahí (ver
+   * la cabecera del tipo). Es opcional y lo escriben solo las importaciones.
+   */
+  importacionId?: string;
 }
 
 export interface UserPlaceOffer {

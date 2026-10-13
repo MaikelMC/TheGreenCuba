@@ -1,0 +1,86 @@
+Nombre,Categoría,Descripción,Precio,Moneda
+Tacos de Camarones,Tacos,"Ración de 3 tacos. Tortillas rellenas de camarones, con vegetales de estación.",3000,CUP
+Tacos de Cerdo,Tacos,"Ración de 3 tacos. Tortillas rellenas de cerdo, con vegetales de estación.",1800,CUP
+Tacos Ahumados,Tacos,"Ración de 3 tacos. Tortillas rellenas de ahumado, con vegetales de estación.",2000,CUP
+Tacos de Res,Tacos,"Ración de 3 tacos. Tortillas rellenas de res, con vegetales de estación.",1800,CUP
+Tacos de Atún,Tacos,"Ración de 3 tacos. Tortillas rellenas de atún, con vegetales de estación.",1650,CUP
+Tacos Volcán,Tacos,"Ración de 3 tacos. Tortillas rellenas de jamón, pollo o cerdo y queso rallado, con vegetales de estación.",2500,CUP
+Tacos de Jamón,Tacos,"Ración de 3 tacos. Tortillas rellenas de jamón, con vegetales de estación.",1500,CUP
+Tacos de Pollo,Tacos,"Ración de 3 tacos. Tortillas rellenas de pollo, con vegetales de estación.",1650,CUP
+Quesadilla de Jamón (Queso Blanco),Quesadillas,"Ración de 2 unidades. Tortillas rellenas de jamón, salteadas con vegetales de estación y queso rallado. Con queso blanco.",1400,CUP
+Quesadilla de Atún (Queso Blanco),Quesadillas,"Ración de 2 unidades. Tortillas rellenas de atún, salteadas con vegetales de estación y queso rallado. Con queso blanco.",1500,CUP
+Quesadilla de Cerdo (Queso Blanco),Quesadillas,"Ración de 2 unidades. Tortillas rellenas de cerdo, salteadas con vegetales de estación y queso rallado. Con queso blanco.",1600,CUP
+Quesadilla de Ahumado (Queso Blanco),Quesadillas,"Ración de 2 unidades. Tortillas rellenas de ahumado, salteadas con vegetales de estación y queso rallado. Con queso blanco.",1900,CUP
+Quesadilla de Camarón (Queso Blanco),Quesadillas,"Ración de 2 unidades. Tortillas rellenas de camarón, salteadas con vegetales de estación y queso rallado. Con queso blanco.",2400,CUP
+Quesadilla de Jamón (Queso Gouda),Quesadillas,"Ración de 2 unidades. Tortillas rellenas de jamón, salteadas con vegetales de estación y queso rallado. Con queso gouda.",2100,CUP
+Quesadilla de Atún (Queso Gouda),Quesadillas,"Ración de 2 unidades. Tortillas rellenas de atún, salteadas con vegetales de estación y queso rallado. Con queso gouda.",2300,CUP
+Quesadilla de Cerdo (Queso Gouda),Quesadillas,"Ración de 2 unidades. Tortillas rellenas de cerdo, salteadas con vegetales de estación y queso rallado. Con queso gouda.",2450,CUP
+Quesadilla de Ahumado (Queso Gouda),Quesadillas,"Ración de 2 unidades. Tortillas rellenas de ahumado, salteadas con vegetales de estación y queso rallado. Con queso gouda.",2650,CUP
+Quesadilla de Camarón (Queso Gouda),Quesadillas,"Ración de 2 unidades. Tortillas rellenas de camarón, salteadas con vegetales de estación y queso rallado. Con queso gouda.",3400,CUP
+Empanada de Ahumado y Queso (Queso Blanco),Empanadas,"Empanada de 20 cm, 1 unidad. Con queso blanco.",2100,CUP
+Empanada de Cerdo y Queso (Queso Blanco),Empanadas,"Empanada de 20 cm, 1 unidad. Con queso blanco.",1850,CUP
+Empanada de Atún y Queso (Queso Blanco),Empanadas,"Empanada de 20 cm, 1 unidad. Con queso blanco.",1500,CUP
+Empanada de Jamón y Queso (Queso Blanco),Empanadas,"Empanada de 20 cm, 1 unidad. Con queso blanco.",1200,CUP
+Empanada de Conserva y Queso (Queso Blanco),Empanadas,"Empanada de 20 cm, 1 unidad. Con queso blanco.",1100,CUP
+Empanada de Camarón,Empanadas,"Empanada de 20 cm, 1 unidad.",2000,CUP
+Empanada de Lomo Ahumado,Empanadas,"Empanada de 20 cm, 1 unidad.",1600,CUP
+Empanada de Cerdo,Empanadas,"Empanada de 20 cm, 1 unidad.",1500,CUP
+Empanada de Res,Empanadas,"Empanada de 20 cm, 1 unidad.",1500,CUP
+Empanada de Pollo,Empanadas,"Empanada de 20 cm, 1 unidad.",1400,CUP
+Empanada de Atún,Empanadas,"Empanada de 20 cm, 1 unidad.",1050,CUP
+Empanada de Vegetales,Empanadas,"Empanada de 20 cm, 1 unidad.",1050,CUP
+Empanada de Jamón,Empanadas,"Empanada de 20 cm, 1 unidad.",1050,CUP
+Empanada de Queso Blanco,Empanadas,"Empanada de 20 cm, 1 unidad.",1000,CUP
+Empanada de Leche Condensada,Empanadas,"Empanada de 20 cm, 1 unidad.",900,CUP
+Empanada de Picadillo,Empanadas,"Empanada de 20 cm, 1 unidad.",900,CUP
+Empanada de Conserva,Empanadas,"Empanada de 20 cm, 1 unidad.",850,CUP
+Empanada de Ahumado y Queso (Queso Gouda),Empanadas,"Empanada de 20 cm, 1 unidad. Con queso gouda.",2250,CUP
+Empanada de Cerdo y Queso (Queso Gouda),Empanadas,"Empanada de 20 cm, 1 unidad. Con queso gouda.",2100,CUP
+Empanada de Atún y Queso (Queso Gouda),Empanadas,"Empanada de 20 cm, 1 unidad. Con queso gouda.",1950,CUP
+Empanada de Jamón y Queso (Queso Gouda),Empanadas,"Empanada de 20 cm, 1 unidad. Con queso gouda.",1950,CUP
+Empanada Caprese (Queso Gouda),Empanadas,"Empanada de 20 cm, 1 unidad. Con queso gouda.",1900,CUP
+Empanada de Conserva y Queso (Queso Gouda),Empanadas,"Empanada de 20 cm, 1 unidad. Con queso gouda.",1750,CUP
+Empanada de Queso Gouda,Empanadas,"Empanada de 20 cm, 1 unidad.",1650,CUP
+Tequeños Yoyi'Sabor (Queso Blanco),Tequeños,"Ración de 6 unidades. Con queso blanco.",1900,CUP
+Tequeños Ahumados (Queso Blanco),Tequeños,"Ración de 6 unidades. Con queso blanco.",2500,CUP
+Mixtos de Jamón (Queso Blanco),Tequeños,"Ración de 6 unidades. Con queso blanco.",1700,CUP
+Mixtos de Conserva (Queso Blanco),Tequeños,"Ración de 6 unidades. Con queso blanco.",1500,CUP
+Mixtos de Salchicha (Queso Blanco),Tequeños,"Ración de 6 unidades. Con queso blanco.",1500,CUP
+Tequeños Simples (Queso Blanco),Tequeños,"Ración de 6 unidades. Con queso blanco.",1400,CUP
+Tequeños Yoyi'Sabor (Queso Gouda),Tequeños,"Ración de 6 unidades. Con queso gouda.",2600,CUP
+Tequeños Ahumados (Queso Gouda),Tequeños,"Ración de 6 unidades. Con queso gouda.",3300,CUP
+Mixtos de Jamón (Queso Gouda),Tequeños,"Ración de 6 unidades. Con queso gouda.",2500,CUP
+Mixtos de Conserva (Queso Gouda),Tequeños,"Ración de 6 unidades. Con queso gouda.",2150,CUP
+Mixtos de Salchicha (Queso Gouda),Tequeños,"Ración de 6 unidades. Con queso gouda.",2150,CUP
+Tequeños Simples (Queso Gouda),Tequeños,"Ración de 6 unidades. Con queso gouda.",2050,CUP
+Burrito de Camarón (Queso Blanco),Burritos,"Ración de 2 unidades. Con queso blanco.",3500,CUP
+Burrito de Ahumado (Queso Blanco),Burritos,"Ración de 2 unidades. Con queso blanco.",2700,CUP
+Burrito de Res (Queso Blanco),Burritos,"Ración de 2 unidades. Con queso blanco.",2500,CUP
+Burrito de Cerdo (Queso Blanco),Burritos,"Ración de 2 unidades. Con queso blanco.",2500,CUP
+Burrito de Pollo (Queso Blanco),Burritos,"Ración de 2 unidades. Con queso blanco.",2250,CUP
+Burrito de Jamón (Queso Blanco),Burritos,"Ración de 2 unidades. Con queso blanco.",2000,CUP
+Burrito de Atún (Queso Blanco),Burritos,"Ración de 2 unidades. Con queso blanco.",2800,CUP
+Burrito Yoyi'Sabor (Queso Blanco),Burritos,"Ración de 2 unidades. Con queso blanco.",3600,CUP
+Burrito de Camarón (Queso Gouda),Burritos,"Ración de 2 unidades. Con queso gouda.",4000,CUP
+Burrito de Ahumado (Queso Gouda),Burritos,"Ración de 2 unidades. Con queso gouda.",3200,CUP
+Burrito de Res (Queso Gouda),Burritos,"Ración de 2 unidades. Con queso gouda.",3000,CUP
+Burrito de Cerdo (Queso Gouda),Burritos,"Ración de 2 unidades. Con queso gouda.",3000,CUP
+Burrito de Pollo (Queso Gouda),Burritos,"Ración de 2 unidades. Con queso gouda.",2750,CUP
+Burrito de Jamón (Queso Gouda),Burritos,"Ración de 2 unidades. Con queso gouda.",2500,CUP
+Burrito de Atún (Queso Gouda),Burritos,"Ración de 2 unidades. Con queso gouda.",3300,CUP
+Burrito Yoyi'Sabor (Queso Gouda),Burritos,"Ración de 2 unidades. Con queso gouda.",4100,CUP
+Agregado de Queso Gouda,Agregados,,900,CUP
+Agregado de Queso Blanco,Agregados,,500,CUP
+Agregado de Jamón,Agregados,,500,CUP
+Agregado de Ahumado,Agregados,,1200,CUP
+Agregado de Maíz,Agregados,,500,CUP
+Agregado de Cerdo,Agregados,,1000,CUP
+Agregado de Camarón,Agregados,,1700,CUP
+Agregado de Pollo,Agregados,,850,CUP
+Malta Guajira 1.5 L,Bebidas,,1800,CUP
+Malta Guajira 330 ml,Bebidas,,600,CUP
+Cerveza Parranda 500 ml,Bebidas,,650,CUP
+Néctar de Pera 330 ml,Bebidas,,700,CUP
+Refresco de lata 330 ml,Bebidas,,600,CUP
+Refresco 1.5 L,Bebidas,,1750,CUP
+Néctar de Manzana,Bebidas,,700,CUP
