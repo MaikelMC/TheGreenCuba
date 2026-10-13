@@ -147,6 +147,17 @@
     background-color: #0e1720 !important;
   }
 
+  /* El halo verde de «buscando» es un `div absolute inset-0` **dentro del
+     form**. La regla de arriba —pensada para el desplegable de sugerencias, que
+     va fuera del form— le metía el color de superficie, y como el overlay está
+     posicionado y el `<input>` no, se pintaba encima del texto: la consulta
+     desaparecía justo mientras la búsqueda corría, y solo en oscuro, porque en
+     claro esa regla no existe. El desplegable ya se oscurece por `.bg-white`;
+     este tiene que seguir transparente. */
+  html[data-theme="dark"] header.map-navigation form .absolute {
+    background-color: transparent !important;
+  }
+
   html[data-theme="dark"] .home-search-form {
     border-color: rgba(237, 247, 240, 0.24) !important;
   }
@@ -248,12 +259,14 @@
   html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-white,
   html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-sand,
   html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-sand-warm,
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-sand-deep,
-  html[data-theme="dark"]
-    :is(.admin-panel, .business-panel)
-    [class~="bg-sand/50"] {
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-sand-deep {
     background-color: #0e1720 !important;
   }
+
+  /* El `bg-sand/50` de los estados vacíos salía de aquí, donde lo dejaba plano
+     (#0e1720, el mismo tono de la tarjeta que lo contiene) y por eso la caja
+     solo se veía por el borde discontinuo. Ahora lo cubre la tanda translúcida
+     de abajo, que le da un escalón. */
 
   html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-verde-50 {
     background-color: #173522 !important;
@@ -524,6 +537,91 @@
   html[data-theme="dark"] .text-verde-600,
   html[data-theme="dark"] .text-verde-700 {
     color: #9be3b4 !important;
+  }
+
+  /* ─── Superficies claras que las listas de arriba no alcanzan ───
+     Tailwind compila cada variante a una clase distinta —`bg-sand/40` no es
+     `.bg-sand`, y `focus:bg-white` no es `.bg-white`—, así que las dos listas
+     anteriores se dejaban fuera justo las que llevan opacidad o pseudoclase.
+     Como `text-ink` sí se oscurece a blanco en todo el documento, el resultado
+     era texto blanco sobre un fondo que seguía claro: las tarjetas del editor
+     de planes, las cajas de estadísticas del panel del negocio y los campos del
+     panel de difusión al enfocarlos. */
+
+  /* Arena translúcida: sube un escalón sobre la tarjeta (#0e1720). */
+  html[data-theme="dark"] .bg-sand\/30,
+  html[data-theme="dark"] .bg-sand\/40,
+  html[data-theme="dark"] .bg-sand\/50,
+  html[data-theme="dark"] .bg-sand\/60 {
+    background-color: #16212b !important;
+  }
+
+  /* Verde-50 translúcida: el mismo verde oscuro del token sólido, con la
+     opacidad que le toca. El `/60` va aparte, arriba, porque llegó antes. */
+  html[data-theme="dark"] .bg-verde-50\/40,
+  html[data-theme="dark"] .bg-verde-50\/50,
+  html[data-theme="dark"] .bg-verde-50\/80,
+  html[data-theme="dark"] [class~="hover:bg-verde-50/40"]:hover {
+    background-color: rgba(23, 53, 34, 0.6) !important;
+  }
+
+  /* Blanco y arena en pseudoclase. En claro aclaran al interactuar; aquí suben
+     un escalón. Sin esto, enfocar un campo lo devolvía a blanco puro con el
+     texto en blanco, y las flechas del carrusel de fotos desaparecían al
+     pasarles el ratón. */
+  html[data-theme="dark"] [class~="hover:bg-white"]:hover,
+  html[data-theme="dark"] [class~="focus:bg-white"]:focus,
+  html[data-theme="dark"] [class~="focus-within:bg-white"]:focus-within,
+  html[data-theme="dark"] [class~="active:bg-white"]:active,
+  html[data-theme="dark"] [class~="hover:bg-sand"]:hover,
+  html[data-theme="dark"] [class~="hover:bg-sand-warm"]:hover,
+  html[data-theme="dark"] [class~="hover:bg-sand-deep"]:hover {
+    background-color: #16212b !important;
+  }
+
+  /* Hueco de foto sin imagen (`from-verde-50 to-verde-100`). Los tokens de un
+     degradado tampoco son `.bg-verde-50`, así que el hueco seguía claro y el
+     icono, que sí se aclara a `#9be3b4`, quedaba verde sobre verde. */
+  html[data-theme="dark"] .bg-gradient-to-br.from-verde-50.to-verde-100 {
+    background-image: linear-gradient(
+      to bottom right,
+      #173522,
+      #21442e
+    ) !important;
+  }
+
+  /* Ámbar y rojo vienen de la paleta por defecto de Tailwind, no de los tokens
+     del sistema, y eran los últimos cuadros con fondo claro en modo oscuro:
+     los avisos de horario de publicación y los de error. Se quedan en su propio
+     color, oscurecido el fondo y aclarado el texto. */
+  html[data-theme="dark"] .bg-amber-50 {
+    background-color: rgba(245, 158, 11, 0.12) !important;
+  }
+
+  html[data-theme="dark"] .border-amber-200 {
+    border-color: rgba(245, 158, 11, 0.35) !important;
+  }
+
+  html[data-theme="dark"] .text-amber-700,
+  html[data-theme="dark"] .text-amber-800 {
+    color: #fcd34d !important;
+  }
+
+  html[data-theme="dark"] .bg-red-50,
+  html[data-theme="dark"] [class~="hover:bg-red-50"]:hover {
+    background-color: rgba(239, 68, 68, 0.12) !important;
+  }
+
+  html[data-theme="dark"] .border-red-200 {
+    border-color: rgba(239, 68, 68, 0.35) !important;
+  }
+
+  html[data-theme="dark"] .text-red-600,
+  html[data-theme="dark"] .text-red-700,
+  html[data-theme="dark"] .text-red-800,
+  html[data-theme="dark"] [class~="hover:text-red-600"]:hover,
+  html[data-theme="dark"] [class~="hover:text-red-700"]:hover {
+    color: #fca5a5 !important;
   }
 
   /* Flechas del carrusel de fotos: la lista global de whites no incluye el
