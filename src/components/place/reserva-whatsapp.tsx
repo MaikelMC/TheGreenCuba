@@ -17,6 +17,7 @@ import {
   hrefReserva,
   mensajeReserva,
   RESERVA_LABEL,
+  RESERVA_LABEL_CORTO,
   validarReserva,
   type DatosReserva,
   type ReservaConfig,
@@ -254,6 +255,10 @@ export function ReservaWhatsApp({
   }
 
   const label = RESERVA_LABEL[tipo];
+  /* La variante corta sale del mismo mapa que la larga y solo se pinta en
+     móvil: es donde el botón no tiene ancho para la larga (ver el comentario
+     de `RESERVA_LABEL_CORTO`). El diálogo y su título siguen con la larga. */
+  const labelCorto = RESERVA_LABEL_CORTO[tipo];
 
   return (
     <>
@@ -262,8 +267,9 @@ export function ReservaWhatsApp({
         onClick={abrir}
         className={cn(variant === "primary" ? BTN_PRIMARY : BTN_OUTLINE, className)}
       >
-        <CalendarDays size={16} strokeWidth={1.8} />
-        {label}
+        <CalendarDays size={16} strokeWidth={1.8} className="shrink-0" />
+        <span className="sm:hidden">{labelCorto}</span>
+        <span className="hidden sm:inline">{label}</span>
       </button>
 
       <Dialog open={abierto} onOpenChange={setAbierto}>

@@ -66,14 +66,18 @@ export const revalidate = 300;
  * El tamaño de los botones de contacto del encabezado, en móvil.
  *
  * En la carta ancha van sueltos en una fila que envuelve; en un teléfono de
- * 360 px cada pastilla de 44 px ocupaba una línea entera y la cabecera se
- * comía la pantalla antes de la primera entrada del menú. Aquí bajan a 40 px
- * —el mínimo táctil que se conserva—, con menos relleno y letra de 12 px, y la
- * fila pasa a rejilla de dos columnas (ver el contenedor), así que caen
- * alineados y no escalonados. De `sm` en adelante vuelven a su tamaño.
+ * 360 px cada pastilla de 44 px ocupaba una línea entera y la cabecera se comía
+ * la pantalla antes de la primera entrada del menú. Aquí bajan a 36 px, con
+ * menos relleno, letra de 12 px e icono de 14 px, y la fila pasa a rejilla de
+ * dos columnas (ver el contenedor) para que caigan alineados y del mismo ancho.
+ *
+ * 36 px está por debajo de los 44 que pide la guía táctil; el hueco de 8 px que
+ * los separa hace que el gesto no roce al botón de al lado, y quien abre la
+ * carta viene de un QR y toca una sola vez. De `sm` en adelante recuperan los
+ * 44 px.
  */
 const BTN_CONTACTO =
-  "h-auto min-h-10 w-full justify-center px-gap-sm py-2 text-meta sm:h-11 sm:w-auto sm:px-gap-md sm:py-0 sm:text-small";
+  "h-auto min-h-9 w-full justify-center px-gap-sm text-meta [&_svg]:size-3.5 sm:h-11 sm:w-auto sm:px-gap-md sm:text-small sm:[&_svg]:size-4";
 
 const getPlace = cache(async (slug: string, overrideFor?: string) => {
   try {
@@ -411,8 +415,30 @@ export default async function MenuPage({
         )}
       </div>
 
-      <header className="rounded-3xl border border-ink/5 bg-white p-gap-md shadow-soft">
-        <div className="flex items-center gap-gap-md">
+      <header className="relative rounded-3xl border border-ink/5 bg-white p-gap-md shadow-soft">
+        {/* Llamar, en la esquina y sin texto.
+
+            Ocupaba una casilla entera de la rejilla para decir una palabra, y
+            es el gesto menos frecuente de los cuatro. Arriba a la derecha no
+            compite con la carta y el icono de teléfono ya se entiende; el
+            `aria-label` es el que lo nombra para quien no lo ve.
+
+            `size-9` son 36 px, como el resto de la fila en móvil. Va
+            posicionado, así que la primera línea del nombre lleva `pr-11` para
+            no meterse debajo. */}
+        {phone && (
+          <a
+            href={`tel:${phone.replace(/[^\d+]/g, "")}`}
+            data-evento="click_llamar"
+            aria-label={`Llamar a ${place.name}`}
+            title={`Llamar a ${place.name}`}
+            className="absolute right-gap-md top-gap-md grid size-9 place-items-center rounded-full border border-ink/10 bg-white text-ink shadow-soft transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
+          >
+            <Phone size={15} strokeWidth={2} />
+          </a>
+        )}
+
+        <div className="flex items-center gap-gap-md pr-11">
           {brand ? (
             <span className="relative block size-14 shrink-0 overflow-hidden rounded-full border border-ink/10 bg-white">
               <Image
@@ -455,7 +481,7 @@ export default async function MenuPage({
           </p>
         )}
 
-        {(reserva || seguidores || whatsapp || phone) && (
+        {(reserva || seguidores || whatsapp) && (
           /* Rejilla de dos columnas en móvil y fila que envuelve de `sm` en
              adelante. La rejilla es lo que los ordena: con `flex-wrap` cada
              pastilla medía lo que pedía su texto y las líneas salían de anchos
@@ -490,20 +516,12 @@ export default async function MenuPage({
                 )}
               >
                 <MessageCircle size={16} strokeWidth={1.8} className="shrink-0" />
-                Escribir por WhatsApp
-              </a>
-            )}
-            {phone && (
-              <a
-                href={`tel:${phone.replace(/[^\d+]/g, "")}`}
-                data-evento="click_llamar"
-                className={cn(
-                  "inline-flex items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
-                  BTN_CONTACTO,
-                )}
-              >
-                <Phone size={16} strokeWidth={1.8} className="shrink-0" />
-                Llamar
+                {/* «Escribir por» no cabe en la columna de móvil y era lo que
+                    dejaba el hueco de dentro del botón: el texto partía en dos
+                    líneas y la segunda no llenaba el ancho. El icono de burbuja
+                    y el verde ya dicen de qué va. */}
+                <span className="sm:hidden">WhatsApp</span>
+                <span className="hidden sm:inline">Escribir por WhatsApp</span>
               </a>
             )}
           </div>

@@ -34,6 +34,18 @@ export const RESERVA_LABEL: Record<TipoReserva, string> = {
   cita: "Pedir cita",
 };
 
+/**
+ * El mismo botón, en móvil, donde la carta reparte los de contacto en dos
+ * columnas de unos 140 px. «Reservar mesa» es el único que no entra a ese
+ * ancho, y parte en dos líneas justo cuando la rejilla venía a evitarlo: sin
+ * «mesa» el botón dice lo mismo y cabe en una.
+ */
+export const RESERVA_LABEL_CORTO: Record<TipoReserva, string> = {
+  mesa: "Reservar",
+  apartado: "Apartar",
+  cita: "Pedir cita",
+};
+
 /** Cuánto se puede pedir por adelantado. Más lejos, el negocio no puede prometer nada. */
 export const DIAS_MAX_RESERVA = 30;
 

@@ -67,8 +67,12 @@ export function SeguidorBoton({
           className,
         )}
       >
-        <Bell size={16} strokeWidth={1.8} />
-        Avísame de ofertas
+        <Bell size={16} strokeWidth={1.8} className="shrink-0" />
+        {/* En móvil el botón va en una columna de ~140 px: «de ofertas» sobra
+            ahí y el icono de campana ya lo dice. El diálogo, que sí tiene
+            ancho, conserva el texto largo como título. */}
+        <span className="sm:hidden">Avísame</span>
+        <span className="hidden sm:inline">Avísame de ofertas</span>
       </button>
 
       <Dialog open={abierto} onOpenChange={setAbierto}>
