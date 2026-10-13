@@ -62,6 +62,19 @@ import { Logo } from "@/components/layout/logo";
  */
 export const revalidate = 300;
 
+/**
+ * El tamaño de los botones de contacto del encabezado, en móvil.
+ *
+ * En la carta ancha van sueltos en una fila que envuelve; en un teléfono de
+ * 360 px cada pastilla de 44 px ocupaba una línea entera y la cabecera se
+ * comía la pantalla antes de la primera entrada del menú. Aquí bajan a 40 px
+ * —el mínimo táctil que se conserva—, con menos relleno y letra de 12 px, y la
+ * fila pasa a rejilla de dos columnas (ver el contenedor), así que caen
+ * alineados y no escalonados. De `sm` en adelante vuelven a su tamaño.
+ */
+const BTN_CONTACTO =
+  "h-auto min-h-10 w-full justify-center px-gap-sm py-2 text-meta sm:h-11 sm:w-auto sm:px-gap-md sm:py-0 sm:text-small";
+
 const getPlace = cache(async (slug: string, overrideFor?: string) => {
   try {
     /* La carta del negocio de prueba es pública a propósito (se reparte por QR);
@@ -443,17 +456,26 @@ export default async function MenuPage({
         )}
 
         {(reserva || seguidores || whatsapp || phone) && (
-          <div className="mt-gap-md flex flex-wrap gap-gap-xs">
+          /* Rejilla de dos columnas en móvil y fila que envuelve de `sm` en
+             adelante. La rejilla es lo que los ordena: con `flex-wrap` cada
+             pastilla medía lo que pedía su texto y las líneas salían de anchos
+             distintos y escalonadas. */
+          <div className="mt-gap-md grid grid-cols-2 gap-gap-xs sm:flex sm:flex-wrap">
             {/* La reserva va primero: es el gesto que más vale para el negocio
                 y el que conviene encontrar sin buscarlo. */}
             {reserva && (
-              <ReservaWhatsApp reserva={reserva} negocioId={place.id} />
+              <ReservaWhatsApp
+                reserva={reserva}
+                negocioId={place.id}
+                className={BTN_CONTACTO}
+              />
             )}
             {seguidores && (
               <SeguidorBoton
                 seguidores={seguidores}
                 negocioId={place.id}
                 variant={reserva ? "outline" : "primary"}
+                className={BTN_CONTACTO}
               />
             )}
             {whatsapp && (
@@ -462,9 +484,12 @@ export default async function MenuPage({
                 target="_blank"
                 rel="noopener noreferrer"
                 data-evento="click_whatsapp"
-                className="inline-flex h-11 items-center gap-gap-xs rounded-full bg-verde-400 px-gap-md font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300"
+                className={cn(
+                  "inline-flex items-center gap-gap-xs rounded-full bg-verde-400 px-gap-md font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300",
+                  BTN_CONTACTO,
+                )}
               >
-                <MessageCircle size={16} strokeWidth={1.8} />
+                <MessageCircle size={16} strokeWidth={1.8} className="shrink-0" />
                 Escribir por WhatsApp
               </a>
             )}
@@ -472,9 +497,12 @@ export default async function MenuPage({
               <a
                 href={`tel:${phone.replace(/[^\d+]/g, "")}`}
                 data-evento="click_llamar"
-                className="inline-flex h-11 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
+                className={cn(
+                  "inline-flex items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
+                  BTN_CONTACTO,
+                )}
               >
-                <Phone size={16} strokeWidth={1.8} />
+                <Phone size={16} strokeWidth={1.8} className="shrink-0" />
                 Llamar
               </a>
             )}
