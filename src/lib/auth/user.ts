@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth/server";
 import { ensureContact } from "@/lib/contacts";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { notificarBienvenida } from "@/lib/notificaciones-server";
 import { DEV_COOKIE, DEV_IDENTITY, devAccessEnabled, isDevCookie } from "@/lib/dev-access";
 import { REFERRAL_COOKIE, referrerIdFor } from "@/lib/referral";
 import { generateId } from "@/lib/utils";
@@ -255,6 +256,15 @@ export async function getAppUser(): Promise<AppUser | null> {
       await ensureContact(created.id, email);
     } catch (error) {
       console.error("No se pudo crear la fila de contacts:", error);
+    }
+
+    /* El saludo de la primera vez, y aquí y no en un paso aparte por el mismo
+       motivo que `contacts` y `user_registered`: esta rama corre una vez y solo
+       una. Best-effort — perder la bienvenida no puede costar el alta. */
+    try {
+      await notificarBienvenida(created.id);
+    } catch (error) {
+      console.error("No se pudo crear la notificación de bienvenida:", error);
     }
 
     /* El alta real. Se registra aquí y no en el formulario porque este es el

@@ -62,6 +62,18 @@ export function formatDateRange(value: string): string {
 }
 
 /**
+ * Una fecha suelta, como se lee: «12 nov», y con el año solo si no es el de
+ * ahora. Para los avisos que nombran un día concreto —el fin de una prueba—,
+ * donde `formatDateRange` no sirve porque no hay dos fechas que unir.
+ *
+ * `ahora` entra por parámetro para poder probarlo sin depender del reloj.
+ */
+export function formatDate(date: Date, ahora: Date = new Date()): string {
+  const year = date.getFullYear() === ahora.getFullYear() ? "" : ` ${date.getFullYear()}`;
+  return `${date.getDate()} ${MONTH_SHORT[date.getMonth()]}${year}`;
+}
+
+/**
  * Etiqueta visible de una moneda. MLC se muestra como "USD Clásica"
  * (mantenemos el valor interno "MLC" para compatibilidad con datos guardados).
  */

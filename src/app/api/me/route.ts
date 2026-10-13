@@ -6,6 +6,7 @@ import { isGoogleAccount, isMarketingOptedIn, setMarketingOptIn } from "@/lib/co
 import { db } from "@/lib/db";
 import { businessOwners, categories, places, projectRequests, users } from "@/lib/db/schema";
 import { devPlace, ownsDevPlace } from "@/lib/dev-place";
+import { asegurarAvisosDeNegocio } from "@/lib/notificaciones-server";
 import { TERMS_VERSION } from "@/lib/legal";
 import type { PlacePlan } from "@/lib/places-store";
 
@@ -202,6 +203,24 @@ export async function GET() {
     businessFor(user.id, user.role, user.email),
     userHasProjects(user.id),
   ]);
+
+  /* Los avisos del negocio se aseguran aquí y no en la ruta que lo aprueba.
+     Por esta pasa todo el mundo en cada página, así que también recibe el suyo
+     el negocio que quedó vinculado a una cuenta sin pasar por el panel —uno
+     creado por administración y enlazado a mano en `business_owners`—. Los dos
+     avisos son idempotentes, así que repetir la llamada no duplica nada.
+     Best-effort: un aviso que no sale no puede tumbar el menú. */
+  if (business?.isActive) {
+    try {
+      await asegurarAvisosDeNegocio({
+        userId: user.id,
+        placeId: business.id,
+        nombre: business.name,
+      });
+    } catch (error) {
+      console.error("No se pudieron asegurar los avisos del negocio:", error);
+    }
+  }
 
   return NextResponse.json({
     marketing: await marketingState(user),

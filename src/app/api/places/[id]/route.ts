@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
 import { normalizarWhatsappCubano } from "@/lib/contact-links";
 import { esEnergia } from "@/lib/energia";
@@ -17,7 +17,11 @@ import { generateId } from "@/lib/utils";
 import { validarOferta } from "@/lib/ofertas";
 import { toPlaceValues, toUserPlace } from "@/lib/db/mappers";
 import { CATALOG_TAG, getPlaceById, resolveCategoryId } from "@/lib/db/queries";
-import { limite, puede } from "@/lib/plans-server";
+import { limite, puede, suscripcionDe } from "@/lib/plans-server";
+import {
+  AVISOS_DE_FICHA,
+  mensajeNegocioVisible,
+} from "@/lib/notificaciones-server";
 import {
   notifyAdminsBusinessSubmission,
   notifyOwnerBusinessApproved,
@@ -536,24 +540,36 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       .limit(1);
 
     if (owner) {
+      /* El mismo texto que suelta `asegurarAvisosDeNegocio` cuando el aviso no
+         lo pone esta ruta: una sola frase que dice que el negocio ya se ve y con
+         qué plan. Dos redacciones para el mismo hecho se leen como dos hechos. */
+      const aviso = {
+        type: "business_approved",
+        title: "Tu negocio ya está visible",
+        message: mensajeNegocioVisible(row.name, await suscripcionDe(id)),
+        readAt: null,
+      };
+
       const [previous] = await db
         .update(notifications)
-        .set({
-          type: "business_approved",
-          title: "Solicitud de negocio aprobada",
-          message: `Tu negocio «${row.name}» fue aprobado y ya está publicado en La Verde.`,
-          readAt: null,
-        })
-        .where(eq(notifications.placeId, id))
+        .set(aviso)
+        /* Solo los avisos de estado de la ficha. Sin el filtro, reescribir el
+           aviso de una ficha se llevaba por delante también el de «la prueba
+           termina pronto», que cuelga del mismo `placeId` y no tiene nada que
+           ver con la aprobación. */
+        .where(
+          and(
+            eq(notifications.placeId, id),
+            inArray(notifications.type, [...AVISOS_DE_FICHA]),
+          ),
+        )
         .returning({ id: notifications.id });
 
       if (!previous) {
         await db.insert(notifications).values({
           id: generateId(),
           userId: owner.userId,
-          type: "business_approved",
-          title: "Solicitud de negocio aprobada",
-          message: `Tu negocio «${row.name}» fue aprobado y ya está publicado en La Verde.`,
+          ...aviso,
           placeId: id,
         });
       }
