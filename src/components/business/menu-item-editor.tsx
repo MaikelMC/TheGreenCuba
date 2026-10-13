@@ -38,7 +38,7 @@ interface MenuItemEditorProps {
    * que avisa de que hay que guardar primero.
    */
   placeId?: string | null;
-  /** «Hoy hay» solo entra desde Básico. Sin esto no se pintan los controles. */
+  /** «Hoy hay» entra con Menú Pro. Sin esto no se pintan los controles. */
   canHoyHay?: boolean;
   className?: string;
 }

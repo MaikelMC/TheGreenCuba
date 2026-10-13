@@ -163,7 +163,8 @@ export const places = pgTable(
       .notNull(),
 
     /* ── Pedidos por WhatsApp ──────────────────────────────────────────
-       El plan (`whatsapp_pedido`, Básico+) **enciende** la función; esto es el
+       El plan (`whatsapp_pedido`: módulo Pedidos y reservas, o un pack)
+       **enciende** la función; esto es el
        interruptor del dueño para apagarla en su carta sin bajar de plan. Son
        dos cosas distintas a propósito: el plan es lo que se paga y esto es lo
        que el negocio quiere hoy —un día sin existencias, unas vacaciones—.
@@ -222,7 +223,8 @@ export const places = pgTable(
        esta columna—.
 
        La columna **no decide si el sello se pinta**: eso lo cierra el plan
-       (la función `verificado`, Básico+). Ver `selloVerificado` en el
+       (la función `verificado`: módulo Visibilidad, o un pack). Ver
+       `selloVerificado` en el
        mapeo, que es la conjunción de las dos cosas. */
     verificado: boolean("verificado").default(false).notNull(),
     /** Cuándo se verificó. Se sella al encender `verificado` y se borra al

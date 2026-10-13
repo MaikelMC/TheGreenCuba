@@ -2,9 +2,11 @@ import { redirect } from "next/navigation";
 import { getAppUser } from "@/lib/auth/user";
 import { getPlaceById, ownerPlaces, placeStats } from "@/lib/db/queries";
 import { statsVisitas } from "@/lib/eventos-server";
+import { cargarCatalogo } from "@/lib/catalogo-server";
 import { DEV_PLACE_ID, devPlace, ownsDevPlace } from "@/lib/dev-place";
-import { planEfectivoDe } from "@/lib/plans-server";
+import { funcionesDeNegocio, planEfectivoDe } from "@/lib/plans-server";
 import { menuUrl } from "@/lib/structured-data";
+import { CatalogoProvider } from "@/providers/catalogo-provider";
 import { BusinessPanel } from "@/components/business/business-panel";
 import { BusinessEntry } from "@/components/business/business-entry";
 import type { NegocioPanel } from "@/components/business/business-switcher";
@@ -66,7 +68,7 @@ export default async function BusinessPage({
 
   const placeId = elegido.id;
   const isDev = placeId === DEV_PLACE_ID;
-  const [place, stats, plan] = await Promise.all([
+  const [place, stats, plan, funciones, cat] = await Promise.all([
     getPlaceById(placeId, {
       includeDev: isDev,
       /* La copia personal del fixture, para que el dueño vea sus ediciones. */
@@ -74,14 +76,19 @@ export default async function BusinessPage({
     }),
     placeStats(placeId),
     planEfectivoDe(placeId),
+    funcionesDeNegocio(placeId),
+    /* El catálogo viaja al navegador para que las tarjetas de plan y los
+       candados enseñen los precios y los textos de hoy, no los del despliegue. */
+    cargarCatalogo(),
   ]);
 
   if (!place) redirect("/profile?seccion=negocio");
 
-  /* Las estadísticas se piden **después** del plan porque el plan decide hasta
-     dónde se consulta: un negocio Gratis no paga las otras consultas y lo que no
-     entra en su plan no llega a salir de la base. Ver `statsVisitas`. */
-  const visitas = await statsVisitas(place.id, plan);
+  /* Las estadísticas se piden **después** de las funciones porque son ellas las
+     que deciden hasta dónde se consulta: un negocio Gratis no paga las otras
+     consultas y lo que no tiene contratado no llega a salir de la base. Ver
+     `statsVisitas`. */
+  const visitas = await statsVisitas(place.id, funciones);
 
   /* El panel se abre cuando un administrador aprueba la solicitud, no al
      enviarla. Antes se abría al momento —el dueño podía rellenar su ficha
@@ -100,16 +107,21 @@ export default async function BusinessPage({
      necesita la dirección entera, y `window.location.origin` en el panel de un
      despliegue de prueba generaría un QR que apunta a la prueba. */
   return (
-    <BusinessPanel
-      place={place}
-      stats={stats}
-      visitas={visitas}
-      menuUrl={menuUrl(place.slug)}
-      plan={plan}
-      /* El negocio de prueba es el único con selector de plan propio: los demás
-         cambian por la pasarela o por administración. */
-      puedeElegirPlan={isDev}
-      negocios={negocios}
-    />
+    <CatalogoProvider catalogo={cat}>
+      <BusinessPanel
+        place={place}
+        stats={stats}
+        visitas={visitas}
+        menuUrl={menuUrl(place.slug)}
+        plan={plan}
+        /* El `Set` no cruza la frontera servidor/cliente; viaja como lista y los
+           componentes que la recorren la vuelven a envolver. */
+        funciones={[...funciones]}
+        /* El negocio de prueba es el único con selector de plan propio: los demás
+           cambian por la pasarela o por administración. */
+        puedeElegirPlan={isDev}
+        negocios={negocios}
+      />
+    </CatalogoProvider>
   );
 }

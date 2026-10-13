@@ -13,7 +13,8 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema/places";
 import { categories } from "@/lib/db/schema/categories";
-import { incluye, planEfectivo, type Plan } from "@/lib/plans";
+import { cargarCatalogo } from "@/lib/catalogo-server";
+import { aSuscripcion, funcionesDe, type Plan } from "@/lib/plans";
 import {
   EMBEDDING_DIM,
   generateEmbedding,
@@ -315,7 +316,8 @@ const DEFAULT_CANDIDATES = 30;
 const DEFAULT_LIMIT = 5;
 
 /**
- * Cuánto sube el score un negocio con la función `prioridad_ia` (Básico y Pro).
+ * Cuánto sube el score un negocio con la función `prioridad_ia` —el módulo
+ * Visibilidad, o cualquier pack que lo traiga—.
  *
  * Es un porcentaje **relativo y pequeño** a propósito: la relevancia manda, y
  * este número solo puede desempatar. Con `0.1`, un lugar con prioridad adelanta
@@ -331,6 +333,7 @@ type FilaCandidata = SearchResultRow & {
   susc_estado: "activa" | "cancelada" | null;
   susc_trial_hasta: Date | null;
   susc_vence_en: Date | null;
+  susc_modulos: { clave: string; desde: string; hasta: string | null }[] | null;
 };
 
 export async function semanticGeoSearch(
@@ -372,7 +375,8 @@ export async function semanticGeoSearch(
       s.plan AS susc_plan,
       s.estado AS susc_estado,
       s.trial_hasta AS susc_trial_hasta,
-      s.vence_en AS susc_vence_en
+      s.vence_en AS susc_vence_en,
+      s.modulos AS susc_modulos
     FROM places p
     JOIN categories c ON c.id = p.category_id
     LEFT JOIN suscripciones s ON s.negocio_id = p.id
@@ -385,6 +389,10 @@ export async function semanticGeoSearch(
 
   const found = rows.rows ?? [];
 
+  /* El catálogo de planes, para resolver quién tiene prioridad con las reglas
+     de hoy y no con las de fábrica. */
+  const cat = await cargarCatalogo();
+
   /* `distance_m` y no `distanceM`: `db.execute` nombra las columnas como las
      nombra el SQL, no en camelCase. Leer `distanceM` daba `undefined`,
      `undefined / 2000` es NaN, el score salía NaN para todas las filas y el
@@ -393,8 +401,14 @@ export async function semanticGeoSearch(
   const scored = found.map((p) => {
     /* Las columnas de la suscripción se quedan aquí: cuentan para ordenar, no
        para lo que se devuelve. */
-    const { susc_plan, susc_estado, susc_trial_hasta, susc_vence_en, ...place } =
-      p;
+    const {
+      susc_plan,
+      susc_estado,
+      susc_trial_hasta,
+      susc_vence_en,
+      susc_modulos,
+      ...place
+    } = p;
 
     const base =
       place.distance_m === null
@@ -402,20 +416,24 @@ export async function semanticGeoSearch(
         : place.similarity * 0.6 + (1 / (1 + place.distance_m / 2000)) * 0.4;
 
     /* Sin fila en `suscripciones` el plan es gratis, y esa regla —como la de
-       prueba viva o la de pago vencido— no se reescribe aquí: la decide
-       `planEfectivo`, que es la misma que usa el resto del servidor. */
-    const plan = planEfectivo(
-      susc_plan
-        ? {
-            plan: susc_plan,
-            estado: susc_estado === "cancelada" ? "cancelada" : "activa",
-            trialHasta: susc_trial_hasta,
-            venceEn: susc_vence_en,
-          }
-        : null,
-    );
-
-    const conPrioridad = incluye(plan, "prioridad_ia");
+       prueba viva, la de pago vencido o la de un módulo suelto— no se reescribe
+       aquí: la decide `funcionesDe`, que es la misma que usa el resto del
+       servidor. */
+    const conPrioridad = funcionesDe(
+      aSuscripcion(
+        susc_plan
+          ? {
+              plan: susc_plan,
+              estado: susc_estado === "cancelada" ? "cancelada" : "activa",
+              trialHasta: susc_trial_hasta,
+              venceEn: susc_vence_en,
+              modulos: susc_modulos ?? [],
+            }
+          : null,
+      ),
+      new Date(),
+      cat,
+    ).has("prioridad_ia");
     const score = conPrioridad ? base * (1 + BOOST_PRIORIDAD_IA) : base;
 
     if (process.env.NODE_ENV !== "production") {

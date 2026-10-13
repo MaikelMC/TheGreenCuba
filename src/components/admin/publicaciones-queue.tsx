@@ -16,7 +16,8 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PLAN_LABEL, type Plan } from "@/lib/plans";
+import { nombreDe, type Plan } from "@/lib/plans";
+import { useCatalogo } from "@/providers/catalogo-provider";
 import { ESTADO_LABEL, type EstadoPublicacion } from "@/lib/publicaciones";
 
 /**
@@ -96,6 +97,7 @@ function PublicacionCard({
   onPublicar: (id: string, enlace: string) => Promise<boolean>;
   onDelete: (id: string) => Promise<boolean>;
 }) {
+  const cat = useCatalogo();
   const [modo, setModo] = useState<"ver" | "editar" | "publicar">("ver");
   const [texto, setTexto] = useState(publicacion.texto);
   const [imagen, setImagen] = useState(publicacion.imagenUrl ?? "");
@@ -311,6 +313,7 @@ function PublicacionCard({
 }
 
 export function PublicacionesQueue() {
+  const cat = useCatalogo();
   const [negocios, setNegocios] = useState<NegocioCola[]>([]);
   const [semana, setSemana] = useState("");
   const [loading, setLoading] = useState(true);
@@ -520,8 +523,8 @@ export function PublicacionesQueue() {
       ) : negocios.length === 0 ? (
         <div className={cn(CARD, "p-gap-lg text-center")}>
           <p className="text-body text-ink-soft/75">
-            Ningún negocio puede publicar todavía. La función entra en los
-            planes Básico y Pro.
+            Ningún negocio puede publicar todavía. La función entra con el
+            módulo Facebook o con Publicidad Max.
           </p>
         </div>
       ) : (
@@ -563,7 +566,7 @@ export function PublicacionesQueue() {
                     </span>
                     {!n.puede && (
                       <span className="shrink-0 rounded-full bg-sand-deep px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-soft/60">
-                        {PLAN_LABEL[n.plan]}
+                        {nombreDe(n.plan, cat)}
                       </span>
                     )}
                   </button>
@@ -596,7 +599,7 @@ export function PublicacionesQueue() {
                   </a>
                 </div>
                 <span className="ml-auto inline-flex items-center gap-gap-xs rounded-full border border-ink/10 px-[10px] py-[3px] font-lv-display text-meta font-semibold text-ink-soft/75">
-                  {PLAN_LABEL[seleccionado.plan]}
+                  {nombreDe(seleccionado.plan, cat)}
                   {seleccionado.tope !== null &&
                     ` · ${seleccionado.usadas}/${seleccionado.tope}`}
                 </span>
@@ -605,7 +608,7 @@ export function PublicacionesQueue() {
               {!seleccionado.puede ? (
                 <p className="rounded-xl border border-dashed border-ink/15 bg-sand/50 p-gap-md text-small text-ink-soft/70">
                   Este negocio no tiene la función «Publicaciones de Facebook».
-                  Está en los planes Básico y Pro.
+                  Entra con el módulo Facebook o con Publicidad Max.
                 </p>
               ) : (
                 <>

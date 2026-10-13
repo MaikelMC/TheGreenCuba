@@ -4,8 +4,8 @@ import { canManagePlace } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { publicaciones } from "@/lib/db/schema";
 import { toPublicacion } from "@/lib/db/mappers";
-import { incluye, limiteDe } from "@/lib/plans";
-import { planEfectivoDe } from "@/lib/plans-server";
+import { limiteDe } from "@/lib/plans";
+import { funcionesDeNegocio } from "@/lib/plans-server";
 import {
   encolarPublicacion,
   enlacePerfilDe,
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   }
 
   const semana = semanaDe(new Date());
-  const plan = await planEfectivoDe(placeId);
+  const funciones = await funcionesDeNegocio(placeId);
 
   const rows = await db
     .select()
@@ -57,9 +57,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     semana,
-    plan,
-    puede: incluye(plan, "publicaciones_fb"),
-    tope: limiteDe(plan, "publicaciones_semana"),
+    puede: funciones.has("publicaciones_fb"),
+    tope: limiteDe(funciones, "publicaciones_semana"),
     usadas: rows.length,
     enlacePerfil: enlacePerfilDe(placeId),
     publicaciones: rows.map(toPublicacion),

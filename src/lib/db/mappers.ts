@@ -8,9 +8,10 @@ import type {
   UserPlacePhoto,
 } from "@/lib/places-store";
 import {
-  incluye,
+  CATALOGO,
+  funcionesDe,
   muestraSelloVerificado,
-  planEfectivo,
+  type Catalogo,
   type Suscripcion,
 } from "@/lib/plans";
 import { enlaceSeguidores } from "@/lib/seguidores";
@@ -90,7 +91,27 @@ export type PlaceRowWithCategory = PlaceRow & {
   topDelMes?: boolean;
 };
 
-export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
+/**
+ * Una fila del catálogo convertida en lo que ve el navegador.
+ *
+ * `cat` es el catálogo de planes vigente. Va con valor por defecto para que las
+ * rutas que responden con la fila que acaban de escribir no tengan que leerlo,
+ * y lo pasa quien sí lo tiene a mano —las consultas del catálogo, que ya están
+ * gastando un viaje—: resolver las funciones de un negocio con un catálogo
+ * viejo pondría el sello sobre quien dejó de pagarlo.
+ */
+export function toUserPlace(
+  row: PlaceRowWithCategory,
+  cat: Catalogo = CATALOGO,
+): UserPlace {
+  /* Las funciones del negocio, resueltas **una vez** y no tres. Todo lo de
+     abajo que depende del plan —el botón de reserva, el botón del bot de
+     avisos, el sello— pregunta contra este conjunto, y así los tres no pueden
+     discrepar. Se resuelve aquí y no en los componentes: decidirlo en el
+     navegador dejaría el sello puesto en un negocio que dejó de pagarlo, y el
+     mapa de planes no viaja por ficha. */
+  const funciones = funcionesDe(row.suscripcion ?? null, new Date(), cat);
+
   return {
     id: row.id,
     /* El `slug` ya existe en `places` desde la primera siembra y hasta ahora no
@@ -154,29 +175,27 @@ export function toUserPlace(row: PlaceRowWithCategory): UserPlace {
     reservaHabilitada:
       row.aceptaReservas &&
       Boolean(row.whatsapp?.trim()) &&
-      incluye(planEfectivo(row.suscripcion ?? null), "reservas_whatsapp"),
-    /* El botón «Avísame de ofertas»: la función es de Pro y hace falta que haya
-       bot configurado. Como el sello y la reserva, la decisión viaja ya tomada
-       —el nombre del bot no es asunto del navegador— y sin enlace no se pinta
-       nada. */
+      funciones.has("reservas_whatsapp"),
+    /* El botón «Avísame de ofertas»: la función entra con Marketing activo y
+       hace falta que haya bot configurado. Como el sello y la reserva, la
+       decisión viaja ya tomada —el nombre del bot no es asunto del navegador—
+       y sin enlace no se pinta nada. */
     enlaceSeguidores: enlaceSeguidores(
       siteConfig.telegramBot,
       row.id,
-      planEfectivo(row.suscripcion ?? null),
+      funciones.has("seguidores"),
     ),
     plan: row.plan,
     isActive: row.isActive,
     reviewStatus: row.reviewStatus,
     /* El sello son **dos cosas a la vez**: que la administración haya verificado
-       el negocio —la columna cruda— y que su plan incluya la función. Se resuelve
-       aquí, en el servidor, y no en los componentes: decidirlo en el navegador
-       dejaría el sello puesto en un negocio que dejó de pagarlo, y el mapa de
-       planes no viaja por ficha. El `verificado` crudo sale igual para que el
-       panel de administración enseñe y edite la verdad. */
+       el negocio —la columna cruda— y que sus funciones incluyan la del sello.
+       El `verificado` crudo sale igual para que el panel de administración
+       enseñe y edite la verdad. */
     verificado: row.verificado,
     selloVerificado: muestraSelloVerificado(
       row.verificado,
-      planEfectivo(row.suscripcion ?? null),
+      funciones.has("verificado"),
     ),
     /* Sin el dato —ruta que no pasó por el catálogo— es `false`, que es lo que
        significa no estar en el ranking. */

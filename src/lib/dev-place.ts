@@ -315,8 +315,9 @@ export function devPlace(): UserPlace {
     isActive: true,
     reviewStatus: "approved",
     /* Nace verificado para poder probar el sello **sin tocar la columna**: con
-       el plan del fixture en Gratis no se pinta, y al subirlo a Básico o Pro
-       desde el panel aparece. Es el camino más corto para ver la regla entera
+       el plan del fixture en Gratis no se pinta, y al subirlo a un pack que
+       traiga Visibilidad desde el panel aparece. Es el camino más corto para
+       ver la regla entera
        —verificado y plan— funcionando. Ver `conSelloVerificado` en
        `dev-place-server.ts`, que es quien resuelve `selloVerificado`. */
     verificado: true,

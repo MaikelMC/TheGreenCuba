@@ -21,7 +21,6 @@
  * están en `seguidores-server.ts`.
  */
 
-import { incluye, type Plan } from "./plans";
 import { semanaDe } from "./publicaciones";
 
 /** Los canales que existen. Hoy solo uno: Telegram. */
@@ -48,17 +47,20 @@ export function deepLinkTelegram(botUsuario: string, negocioId: string): string 
  * El enlace al bot de un negocio, o `null` si no hay botón que pintar.
  *
  * Es la conjunción que decide las dos superficies —la ficha y el panel— y por
- * eso vive aquí y no en cada una: **el plan incluye la función** (Pro) y **hay
- * bot configurado**. Se resuelve en el servidor y viaja ya tomado, igual que
- * `reservaHabilitada` y `selloVerificado`, para que el navegador no tenga que
- * conocer ni los planes ni el nombre del bot.
+ * eso vive aquí y no en cada una: **el negocio tiene la función** —Marketing
+ * activo, o cualquier pack que lo incluya— y **hay bot configurado**. Quien
+ * llama ya resolvió la función contra la base; aquí solo se decide el enlace.
+ *
+ * Se resuelve en el servidor y viaja ya tomado, igual que `reservaHabilitada` y
+ * `selloVerificado`, para que el navegador no tenga que conocer ni los planes
+ * ni el nombre del bot.
  */
 export function enlaceSeguidores(
   botUsuario: string,
   negocioId: string,
-  plan: Plan,
+  tieneSeguidores: boolean,
 ): string | null {
-  if (!incluye(plan, "seguidores")) return null;
+  if (!tieneSeguidores) return null;
   return deepLinkTelegram(botUsuario, negocioId) || null;
 }
 

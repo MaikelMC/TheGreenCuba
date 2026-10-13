@@ -2,14 +2,8 @@
 
 import { ArrowRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  FEATURES_POR_PLAN,
-  FEATURE_TEXTO,
-  PLAN_LABEL,
-  PLAN_LEMA,
-  type Feature,
-  type Plan,
-} from "@/lib/plans";
+import { lemaDe, nombreDe, type Funcion, type Plan } from "@/lib/plans";
+import { useCatalogo } from "@/providers/catalogo-provider";
 
 /** Cuántas funciones de la lista se enseñan. Las demás se cuentan. */
 const VISIBLES = 6;
@@ -17,38 +11,41 @@ const VISIBLES = 6;
 /**
  * El plan del negocio, en el dashboard.
  *
- * **Solo el suyo.** Antes esta tarjeta enseñaba el catálogo entero con candado
+ * **Solo lo suyo.** Antes esta tarjeta enseñaba el catálogo entero con candado
  * sobre lo que no entraba, y el resultado era una lista de veinte líneas donde
  * lo que el negocio ya tiene se perdía entre cerraduras: entraba a mirar su plan
  * y se encontraba un catálogo. Ahora enseña lo que tiene —que es la pregunta que
  * trae— y el resto vive en la sección «Planes», con sitio para explicarse.
  *
- * Pero «lo que tiene» para Pro son veintidós funciones y la lista volvía a ser
- * el catálogo, ahora sin cerraduras. Se cortan a las primeras y el resto se dice
- * en una línea: quien quiera el detalle tiene el botón ahí mismo.
+ * Lo que enseña son los **extras sobre Gratis**, no las funciones del pack por
+ * su nombre: con módulos sueltos, un negocio en Gratis puede tener funciones que
+ * ningún pack nombra, y un negocio con pack puede no tenerlas. La lista sale de
+ * lo resuelto, que es lo único que dice la verdad.
  *
- * La tarjeta se tiñe cuando el plan es de pago. Es el mismo gesto que el sello
+ * La tarjeta se tiñe cuando tiene algo de pago. Es el mismo gesto que el sello
  * verde de la cabecera, y separa de un vistazo quien está pagando de quien no.
  */
 export function PlanCard({
   plan,
+  funciones,
   onVerPlanes,
 }: {
   plan: Plan;
+  /** Las funciones que el negocio tiene resueltas, del servidor. */
+  funciones: readonly Funcion[];
   /** Lleva a la sección «Planes». La vista la cambia el armazón del panel. */
   onVerPlanes: () => void;
 }) {
-  const funciones = FEATURES_POR_PLAN[plan] as readonly Feature[];
-  /* Solo se enseñan las primeras. Pro acumula veintidós funciones —Gratis,
-     más Básico, más Pro— y la lista entera eran veintidós renglones de texto en
-     el móvil, justo lo que esta tarjeta dejó de hacer cuando se le quitó el
-     catálogo. Las demás se cuentan; el catálogo está en «Planes». */
-  const visibles = funciones.slice(0, VISIBLES);
-  const ocultas = funciones.length - visibles.length;
-  /* Lo que se queda fuera. Sale del catálogo más alto y no de sumar los otros
-     dos: sumar listas se descompone el día que una función cambie de plan. */
-  const restantes = FEATURES_POR_PLAN.pro.length - funciones.length;
-  const dePago = plan !== "gratis";
+  const cat = useCatalogo();
+  const extras = funciones.filter((f) => !cat.gratis.includes(f));
+  /* Sin extras —Gratis pelado— se enseña lo de Gratis, que si no la tarjeta sale
+     vacía justo para el que menos sabe qué tiene. */
+  const lista = extras.length > 0 ? extras : cat.gratis;
+  /* Se cortan a las primeras: Pro acumula veinte funciones y la lista entera era
+     un catálogo, justo lo que esta tarjeta dejó de hacer. */
+  const visibles = lista.slice(0, VISIBLES);
+  const ocultas = lista.length - visibles.length;
+  const dePago = extras.length > 0;
 
   return (
     <section
@@ -69,15 +66,15 @@ export function PlanCard({
               : "border border-ink/10 bg-sand text-ink-soft/75",
           )}
         >
-          {PLAN_LABEL[plan]}
+          {nombreDe(plan, cat)}
         </span>
       </div>
 
       <p className="mt-gap-sm font-lv-display text-h3 font-bold tracking-[-0.01em] text-ink">
-        {PLAN_LABEL[plan]}
+        {nombreDe(plan, cat)}
       </p>
       <p className="mt-gap-2xs max-w-[52ch] text-small text-ink-soft/75">
-        {PLAN_LEMA[plan]}
+        {lemaDe(plan, cat)}
       </p>
 
       <ul className="mt-gap-md grid grid-cols-1 gap-gap-xs lg:grid-cols-2">
@@ -91,7 +88,7 @@ export function PlanCard({
               strokeWidth={2}
               className="mt-[3px] shrink-0 text-verde-600"
             />
-            <span className="text-pretty">{FEATURE_TEXTO[feature]}</span>
+            <span className="text-pretty">{cat.funciones[feature].texto}</span>
           </li>
         ))}
       </ul>
@@ -105,13 +102,15 @@ export function PlanCard({
           Ver todos los planes
           <ArrowRight size={16} strokeWidth={1.8} />
         </button>
-        {(ocultas > 0 || restantes > 0) && (
+        {ocultas > 0 ? (
           <p className="text-meta text-ink-soft/75">
-            {ocultas > 0 &&
-              `Y ${ocultas} ${ocultas === 1 ? "función más" : "funciones más"} de tu plan. `}
-            {restantes > 0 && `Los de pago añaden ${restantes}.`}
+            Y {ocultas} {ocultas === 1 ? "función más" : "funciones más"}.
           </p>
-        )}
+        ) : extras.length === 0 ? (
+          <p className="text-meta text-ink-soft/75">
+            Los planes y módulos añaden más funciones.
+          </p>
+        ) : null}
       </div>
     </section>
   );

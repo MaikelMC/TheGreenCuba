@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { asc, eq } from "drizzle-orm";
 import { isAdminRequest } from "@/lib/admin-server";
+import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
 import { places, publicaciones, suscripciones } from "@/lib/db/schema";
 import { toPublicacion } from "@/lib/db/mappers";
-import { incluye, LIMITES, planEfectivo, type Plan } from "@/lib/plans";
+import {
+  aSuscripcion,
+  funcionesDe,
+  limiteDe,
+  planEfectivo,
+} from "@/lib/plans";
 import {
   encolarPublicacion,
   enlacePerfilDe,
@@ -34,12 +40,13 @@ import {
 /**
  * La cola de la semana en curso, negocio por negocio.
  *
- * Solo salen los negocios que **pueden** publicar —Básico en adelante, o Pro de
- * prueba— y los que ya tienen algo en cola aunque hayan bajado de plan: un
- * negocio en Gratis con publicaciones de esta semana tiene que seguir viéndose
- * para poder terminarlas, y no tiene sentido pintar treinta negocios que no
- * pueden usar la función. El plan efectivo decide, no `places.plan`, que es lo
- * que eligió el dueño al darse de alta y no dice nada de permisos.
+ * Solo salen los negocios que **pueden** publicar —con el módulo Facebook, con
+ * Facebook ×3, o con Publicidad Max o Pro; también durante la prueba— y los que
+ * ya tienen algo en cola aunque hayan bajado de plan: un negocio en Gratis con
+ * publicaciones de esta semana tiene que seguir viéndose para poder terminarlas,
+ * y no tiene sentido pintar treinta negocios que no pueden usar la función. Las
+ * funciones deciden, no `places.plan`, que es lo que eligió el dueño al darse de
+ * alta y no dice nada de permisos.
  */
 export async function GET(req: NextRequest) {
   if (!(await isAdminRequest(req))) {
@@ -56,16 +63,20 @@ export async function GET(req: NextRequest) {
       estado: suscripciones.estado,
       trialHasta: suscripciones.trialHasta,
       venceEn: suscripciones.venceEn,
+      modulos: suscripciones.modulos,
     })
     .from(places)
     .leftJoin(suscripciones, eq(suscripciones.negocioId, places.id))
     .orderBy(asc(places.name));
 
-  const delasSemana = await db
-    .select()
-    .from(publicaciones)
-    .where(eq(publicaciones.semana, semana))
-    .orderBy(asc(publicaciones.createdAt));
+  const [delasSemana, cat] = await Promise.all([
+    db
+      .select()
+      .from(publicaciones)
+      .where(eq(publicaciones.semana, semana))
+      .orderBy(asc(publicaciones.createdAt)),
+    cargarCatalogo(),
+  ]);
 
   const porNegocio = new Map<string, ReturnType<typeof toPublicacion>[]>();
   for (const row of delasSemana) {
@@ -77,23 +88,28 @@ export async function GET(req: NextRequest) {
 
   const negocios = rows
     .map((row) => {
-      const plan: Plan = planEfectivo(
+      const suscripcion = aSuscripcion(
         row.plan && row.estado
           ? {
               plan: row.plan,
               estado: row.estado,
               trialHasta: row.trialHasta,
               venceEn: row.venceEn,
+              modulos: row.modulos ?? [],
             }
           : null,
       );
+      /* El pack va para **nombrarlo** en la pantalla; lo que decide el tope son
+         las funciones, que incluyen los módulos sueltos. */
+      const plan = planEfectivo(suscripcion, new Date(), cat);
+      const funciones = funcionesDe(suscripcion, new Date(), cat);
       const items = porNegocio.get(row.id) ?? [];
       return {
         id: row.id,
         nombre: row.name,
         plan,
-        puede: incluye(plan, "publicaciones_fb"),
-        tope: LIMITES.publicaciones_semana[plan],
+        puede: funciones.has("publicaciones_fb"),
+        tope: limiteDe(funciones, "publicaciones_semana", cat),
         usadas: items.length,
         enlacePerfil: enlacePerfilDe(row.id),
         publicaciones: items,

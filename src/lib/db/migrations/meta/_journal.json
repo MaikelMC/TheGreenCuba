@@ -260,6 +260,20 @@
       "when": 1791633440656,
       "tag": "0036_big_captain_universe",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1791924002721,
+      "tag": "0037_fair_apocalypse",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1791926728201,
+      "tag": "0038_spotty_tattoo",
+      "breakpoints": true
     }
   ]
 }

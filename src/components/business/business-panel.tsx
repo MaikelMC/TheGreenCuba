@@ -57,12 +57,14 @@ import {
   type NegocioPanel,
 } from "@/components/business/business-switcher";
 import {
-  PLAN_LABEL,
-  incluye,
+  bloqueoDe,
   limiteDe,
+  nombreDe,
   textoBloqueo,
+  type Funcion,
   type Plan,
 } from "@/lib/plans";
+import { useCatalogo } from "@/providers/catalogo-provider";
 import {
   ENERGIA_LABEL,
   ENERGIA_ORDER,
@@ -151,17 +153,28 @@ export function BusinessPanel({
   visitas,
   menuUrl,
   plan,
+  funciones,
   puedeElegirPlan,
   negocios,
 }: {
   place: UserPlace;
   stats: PlaceStats;
-  /** Las estadísticas del mes, **ya recortadas por plan** en el servidor. */
+  /** Las estadísticas del mes, **ya recortadas por función** en el servidor. */
   visitas: VisitasPanel;
   /** La URL absoluta de la carta, que resuelve el servidor. Ver `menuUrl`. */
   menuUrl: string;
-  /** El plan efectivo, resuelto en el servidor. Ver `planEfectivoDe`. */
+  /** El pack efectivo, resuelto en el servidor. Solo sirve para **nombrarlo**:
+      decides qué se puede hacer lo decide `funciones`. Ver `planEfectivoDe`. */
   plan: Plan;
+  /**
+   * Todo lo que este negocio puede hacer, ya resuelto en el servidor.
+   *
+   * Viaja como lista y no como el pack contratado porque con módulos sueltos el
+   * pack no lo dice todo: un negocio en Gratis con Menú Pro tiene funciones que
+   * ningún pack nombra. Aquí solo pinta candados; quien decide de verdad es el
+   * servidor, que vuelve a comprobarlo en cada ruta que escribe.
+   */
+  funciones: Funcion[];
   /** Solo el negocio de prueba: puede cambiarse de plan a voluntad. */
   puedeElegirPlan: boolean;
   /**
@@ -192,27 +205,29 @@ export function BusinessPanel({
                 visitas={visitas}
                 menuUrl={menuUrl}
                 plan={plan}
+                funciones={funciones}
                 /* El botón de la tarjeta de plan navega dentro del panel, no
                    fuera: la sección de planes es una vista más del armazón. */
                 onVerPlanes={() => setView("planes")}
               />
             );
           case "publicaciones":
-            /* El plan decide si la sección se abre o enseña el candado, igual
-               que en las ofertas flash del editor. El servidor lo comprueba
-               otra vez: el candado del cliente es información, no permiso. */
+            /* Las funciones deciden si la sección se abre o enseña el candado,
+               igual que en las ofertas flash del editor. El servidor lo
+               comprueba otra vez: el candado del cliente es información, no
+               permiso. */
             return (
               <PublicacionesView
                 key={place.id}
                 placeId={place.id}
-                plan={plan}
+                funciones={funciones}
                 onVerPlanes={() => setView("planes")}
               />
             );
           case "editor":
-            /* El plan baja al editor porque «Hoy hay» es una función de pago: los
-               interruptores de disponibilidad solo se pintan si entra. El
-               servidor lo vuelve a comprobar de todas formas.
+            /* Las funciones bajan al editor porque «Hoy hay» entra con Menú
+               Pro: los interruptores de disponibilidad solo se pintan si
+               entra. El servidor lo vuelve a comprobar de todas formas.
 
                La `key` remonta el editor al cambiar de negocio: siembra su
                estado del `place` y a propósito **no** lo resincroniza —eso
@@ -223,7 +238,7 @@ export function BusinessPanel({
               <EditorView
                 key={place.id}
                 place={place}
-                plan={plan}
+                funciones={funciones}
                 onVerPlanes={() => setView("planes")}
               />
             );
@@ -243,6 +258,7 @@ export function BusinessPanel({
                 key={place.id}
                 place={place}
                 plan={plan}
+                funciones={funciones}
                 onVerPlanes={() => setView("planes")}
               />
             );
@@ -284,6 +300,7 @@ function DashboardView({
   visitas,
   menuUrl,
   plan,
+  funciones,
   onVerPlanes,
 }: {
   place: UserPlace;
@@ -291,6 +308,7 @@ function DashboardView({
   visitas: VisitasPanel;
   menuUrl: string;
   plan: Plan;
+  funciones: Funcion[];
   onVerPlanes: () => void;
 }) {
   const offering = [place.description].filter(Boolean).join(" ");
@@ -320,11 +338,7 @@ function DashboardView({
       {/* Las visitas van justo debajo de los números de la ficha: son la otra
           mitad de «cómo va mi negocio», y el candado de los planes de arriba
           está a un clic. */}
-      <EstadisticasPanel
-        plan={plan}
-        visitas={visitas}
-        onVerPlanes={onVerPlanes}
-      />
+      <EstadisticasPanel visitas={visitas} onVerPlanes={onVerPlanes} />
 
       <div className="mt-gap-lg grid grid-cols-1 gap-gap-md lg:grid-cols-2">
         <section className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
@@ -389,17 +403,22 @@ function DashboardView({
           </ul>
         </section>
 
-        {/* El marco verde del QR lo decide el plan. Se deriva de `incluye` y no
-            se consulta al servidor: es cosmético, no un permiso que escriba
-            nada, y el plan ya viene resuelto desde `/business/page.tsx`. */}
+        {/* El QR con o sin la marca de La Verde lo decide una función. Se lee
+            de `funciones` y no se consulta al servidor: es cosmético, no un
+            permiso que escriba nada, y las funciones ya vienen resueltas desde
+            `/business/page.tsx`. */}
         <MenuLinkCard
           placeId={place.id}
           placeName={place.name}
           url={menuUrl}
-          sticker={incluye(plan, "qr_sticker")}
+          sinMarca={funciones.includes("qr_sin_marca")}
         />
 
-        <PlanCard plan={plan} onVerPlanes={onVerPlanes} />
+        <PlanCard
+          plan={plan}
+          funciones={funciones}
+          onVerPlanes={onVerPlanes}
+        />
       </div>
     </>
   );
@@ -416,18 +435,19 @@ function Row({ label, value }: { label: string; value: string }) {
 
 function EditorView({
   place,
-  plan,
+  funciones,
   onVerPlanes,
 }: {
   place: UserPlace;
-  plan: Plan;
+  funciones: Funcion[];
   onVerPlanes: () => void;
 }) {
   const router = useRouter();
+  const cat = useCatalogo();
   const { categories, updatePlace } = usePlaces();
-  const canHoyHay = incluye(plan, "hoy_hay");
-  const puedeOfertas = incluye(plan, "ofertas_flash");
-  const maxOfertas = limiteDe(plan, "ofertas_vigentes_max");
+  const canHoyHay = funciones.includes("hoy_hay");
+  const puedeOfertas = funciones.includes("ofertas_flash");
+  const maxOfertas = limiteDe(new Set(funciones), "ofertas_vigentes_max", cat);
 
   /* El estado se siembra del negocio y no se vuelve a sincronizar: a partir de
      aquí manda lo que escriba el dueño. Sincronizarlo con el `place` que llega
@@ -794,8 +814,8 @@ function EditorView({
             title="Ofertas flash"
             icon={<Tag size={18} strokeWidth={1.8} />}
           >
-            {/* La sección se cierra entera sin el plan, en vez de enseñar el
-                formulario con un candado encima: el tope en Gratis y Básico es
+            {/* La sección se cierra entera sin la función, en vez de enseñar el
+                formulario con un candado encima: sin Marketing activo el tope es
                 0, así que no hay nada que rellenar y sí una frase que explica
                 cómo se abre. El servidor lo vuelve a comprobar de todas formas
                 —el cuerpo del `PATCH` se puede escribir a mano—. */}
@@ -812,7 +832,7 @@ function EditorView({
             ) : (
               <div className="flex flex-col gap-gap-xs">
                 <p className="text-meta text-ink-soft/75">
-                  {textoBloqueo("ofertas_flash", plan)}: rebaja un producto de
+                  {textoBloqueo("ofertas_flash", cat)}: rebaja un producto de
                   tu carta por tiempo limitado y sale con el precio tachado en
                   tu ficha, además de la chapita «Oferta» en la tarjeta y en el
                   pin del mapa.
@@ -971,11 +991,15 @@ function EditorView({
 function SettingsView({
   place,
   plan,
+  funciones,
   onVerPlanes,
 }: {
   place: UserPlace;
+  /** El pack contratado, solo para nombrarlo en la ficha del final. */
   plan: Plan;
-  /** Lleva a la sección «Planes» cuando la función no entra en el plan. */
+  /** Todo lo que puede hacer el negocio, resuelto en el servidor. */
+  funciones: Funcion[];
+  /** Lleva a la sección «Planes» cuando la función no entra. */
   onVerPlanes: () => void;
 }) {
   const { updatePlace } = usePlaces();
@@ -1017,11 +1041,12 @@ function SettingsView({
   const [facebook, setFacebook] = useState(place.facebook ?? "");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const cat = useCatalogo();
 
-  /* `null` si el plan ya lo incluye. Es el mismo texto que usa el candado de
-     «Hoy hay»: una sola forma de decir «esto se sube de plan». */
-  const bloqueo = textoBloqueo("whatsapp_pedido", plan);
-  const bloqueoReservas = textoBloqueo("reservas_whatsapp", plan);
+  /* `null` si ya lo tiene. Es el mismo texto que usa el candado de «Hoy hay»:
+     una sola forma de decir «esto se abre con un módulo o un pack». */
+  const bloqueo = bloqueoDe(funciones, "whatsapp_pedido", cat);
+  const bloqueoReservas = bloqueoDe(funciones, "reservas_whatsapp", cat);
   const tieneNumero = Boolean(whatsapp.trim());
 
   /**
@@ -1568,13 +1593,21 @@ function SettingsView({
             La tarjeta vive en su propio archivo —con su lectura y su estado—
             porque el panel ya es largo y esto es una pieza cerrada: se le da el
             negocio y el plan, y ella resuelve lo demás. */}
-        <SeguidoresCard place={place} plan={plan} onVerPlanes={onVerPlanes} />
+        <SeguidoresCard
+          place={place}
+          funciones={funciones}
+          onVerPlanes={onVerPlanes}
+        />
 
         {/* ── Asistente de Telegram ───────────────────────────────────────
             Misma forma que la de seguidores y por la misma razón: es una pieza
             cerrada, con su lectura y su estado. Aquí el dueño saca el código
             que une su chat al negocio. */}
-        <AsistenteCard place={place} plan={plan} onVerPlanes={onVerPlanes} />
+        <AsistenteCard
+          place={place}
+          funciones={funciones}
+          onVerPlanes={onVerPlanes}
+        />
 
         {/* ── Contacto ────────────────────────────────────────────────────
             Los cuatro campos que hasta ahora solo se podían cambiar en el
@@ -1705,7 +1738,7 @@ function SettingsView({
           <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
             {/* Estaba escrito a fuego «Básico (gratis)» para todo el mundo. Ahora
                 es el plan que hay de verdad, resuelto en el servidor. */}
-            <Row label="Plan actual" value={PLAN_LABEL[plan]} />
+            <Row label="Plan actual" value={nombreDe(plan, cat)} />
             <Row label="Contacto de soporte" value={SUPPORT_EMAIL} />
           </div>
         </div>

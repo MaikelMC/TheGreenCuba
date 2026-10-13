@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { Lock, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CopyLink } from "@/components/profile/copy-link";
-import { textoBloqueo, type Plan } from "@/lib/plans";
+import { bloqueoDe, type Funcion } from "@/lib/plans";
+import { useCatalogo } from "@/providers/catalogo-provider";
 import { AVISOS_POR_SEMANA } from "@/lib/seguidores";
 import type { UserPlace } from "@/lib/places-store";
 
@@ -26,15 +27,17 @@ import type { UserPlace } from "@/lib/places-store";
  */
 export function SeguidoresCard({
   place,
-  plan,
+  funciones,
   onVerPlanes,
 }: {
   place: UserPlace;
-  plan: Plan;
-  /** Lleva a la sección «Planes» cuando la función no entra en el plan. */
+  /** Todo lo que puede hacer el negocio, resuelto en el servidor. */
+  funciones: Funcion[];
+  /** Lleva a la sección «Planes» cuando la función no entra. */
   onVerPlanes: () => void;
 }) {
-  const bloqueo = textoBloqueo("seguidores", plan);
+  const cat = useCatalogo();
+  const bloqueo = bloqueoDe(funciones, "seguidores", cat);
 
   const [enlace, setEnlace] = useState<string | null>(
     place.enlaceSeguidores ?? null,

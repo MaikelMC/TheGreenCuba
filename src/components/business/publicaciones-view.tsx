@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prepareImage } from "@/lib/storage/compress";
-import { incluye, textoBloqueo, type Plan } from "@/lib/plans";
+import { textoBloqueo, type Funcion } from "@/lib/plans";
+import { useCatalogo } from "@/providers/catalogo-provider";
 import { ESTADO_LABEL, type EstadoPublicacion } from "@/lib/publicaciones";
 
 /**
@@ -73,16 +74,18 @@ function estadoBadge(estado: EstadoPublicacion): string {
 
 export function PublicacionesView({
   placeId,
-  plan,
+  funciones,
   onVerPlanes,
 }: {
   placeId: string;
-  plan: Plan;
-  /** Lleva a la sección «Planes» cuando la función no entra en el plan. */
+  /** Todo lo que puede hacer el negocio, resuelto en el servidor. */
+  funciones: Funcion[];
+  /** Lleva a la sección «Planes» cuando la función no entra. */
   onVerPlanes: () => void;
 }) {
-  const conPlan = incluye(plan, "publicaciones_fb");
+  const conPlan = funciones.includes("publicaciones_fb");
 
+  const cat = useCatalogo();
   const [cola, setCola] = useState<Cola | null>(null);
   const [loading, setLoading] = useState(true);
   const [texto, setTexto] = useState("");
@@ -233,7 +236,7 @@ export function PublicacionesView({
         <Encabezado />
         <div className={cn(CARD, "flex flex-col gap-gap-xs p-gap-md")}>
           <p className="text-small text-ink-soft/75">
-            {textoBloqueo("publicaciones_fb", plan)}: redacta con IA el post de tu
+            {textoBloqueo("publicaciones_fb", cat)}: redacta con IA el post de tu
             negocio, adjunta una foto o un flyer y lo dejamos listo para publicar
             en los grupos de Facebook. La administración lo publica por ti.
           </p>

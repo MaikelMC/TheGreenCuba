@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
+import { cargarCatalogo } from "@/lib/catalogo-server";
 import { normalizarWhatsappCubano } from "@/lib/contact-links";
 import { esEnergia } from "@/lib/energia";
 import { esTipoReserva } from "@/lib/reserva";
@@ -451,11 +452,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
        estado al que apunta bajar de plan. */
     if (limpias.length > 0) {
       /* Primero el permiso, después el tope. Los dos van juntos porque el tope
-         solo no basta: en Gratis y Básico `ofertas_vigentes_max` es 0, y el
+         solo no basta: sin Marketing activo `ofertas_vigentes_max` es 0, y el
          dueño leería «tu plan permite hasta 0 ofertas», que no explica nada. */
       if (!(await puede(id, "ofertas_flash"))) {
         return NextResponse.json(
-          { error: "Las ofertas flash están disponibles en el plan Pro." },
+          {
+            error:
+              "Las ofertas flash entran con el módulo Marketing activo o con Publicidad Max.",
+          },
           { status: 403 },
         );
       }
@@ -546,7 +550,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       const aviso = {
         type: "business_approved",
         title: "Tu negocio ya está visible",
-        message: mensajeNegocioVisible(row.name, await suscripcionDe(id)),
+        message: mensajeNegocioVisible(
+          row.name,
+          await suscripcionDe(id),
+          await cargarCatalogo(),
+        ),
         readAt: null,
       };
 

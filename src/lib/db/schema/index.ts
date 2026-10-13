@@ -24,3 +24,4 @@ export * from "./seguidores";
 export * from "./asistente";
 export * from "./place_overrides";
 export * from "./ranking";
+export * from "./catalogo_planes";

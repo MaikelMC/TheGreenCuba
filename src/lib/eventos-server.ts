@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { businessOwners, eventosDiarios, eventosUnicos } from "@/lib/db/schema";
 import { generateId } from "@/lib/utils";
 import { TIPOS_VISTA, type TipoEvento, type VisitasPanel } from "@/lib/eventos";
-import { incluye, type Plan } from "@/lib/plans";
+import type { Funcion } from "@/lib/plans";
 
 /**
  * El lado servidor de las estadísticas: escribir los eventos agregados y leer
@@ -124,7 +124,7 @@ export async function esDueno(
  */
 export async function statsVisitas(
   negocioId: string,
-  plan: Plan,
+  funciones: ReadonlySet<Funcion>,
 ): Promise<VisitasPanel> {
   const mes = diaUtc().slice(0, 7);
 
@@ -142,11 +142,11 @@ export async function statsVisitas(
     );
 
   const panel: VisitasPanel = { resumen: { mes: resumen?.n ?? 0 } };
-  if (!incluye(plan, "stats_basicas")) return panel;
+  if (!funciones.has("stats_basicas")) return panel;
 
   /* Las dos ventanas en una sola consulta: `filter` deja cada suma en su
      columna, así que el viaje es uno y no dos. `click_reserva` viaja de más
-     —es una cifra de Pro y este tramo lo ve Básico también— porque una fila
+     —es una cifra de Pro y este tramo lo ve Visibilidad también— porque una fila
      agregada más no cuesta un viaje: se le asigna solo en el tramo Pro. */
   const desde7 = diaUtc(6);
   const desde30 = diaUtc(29);
@@ -184,7 +184,7 @@ export async function statsVisitas(
     llamadas30: llamadas?.largo ?? 0,
   };
 
-  if (!incluye(plan, "stats_completas")) return panel;
+  if (!funciones.has("stats_completas")) return panel;
 
   const DIAS = 14;
   const serie = await db

@@ -19,10 +19,10 @@ import type { Disponibilidad } from "@/lib/disponibilidad";
  * posición, porque borrar una entrada de en medio correría todos los índices y
  * el asistente marcaría el producto equivocado.
  *
- * El plan se comprueba aquí y no en la ruta: `hoy_hay` entra desde Básico, y un
- * candado que solo se dibuja en el cliente es decoración. La ruta que escribe
- * sigue abierta para quien sepa llamarla, así que la comprobación tiene que
- * estar donde se toca la base.
+ * El plan se comprueba aquí y no en la ruta: `hoy_hay` entra con el módulo Menú
+ * Pro, y un candado que solo se dibuja en el cliente es decoración. La ruta que
+ * escribe sigue abierta para quien sepa llamarla, así que la comprobación tiene
+ * que estar donde se toca la base.
  */
 
 export type SetDisponibilidadResult =
@@ -44,7 +44,8 @@ export async function setDisponibilidad(
     return {
       success: false,
       code: "plan",
-      error: "La disponibilidad de productos («Hoy hay») entra con el plan Básico.",
+      error:
+        "La disponibilidad de productos («Hoy hay») entra con el módulo Menú Pro.",
     };
   }
 

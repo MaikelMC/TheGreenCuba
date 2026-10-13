@@ -3,14 +3,29 @@ import {
   text,
   integer,
   timestamp,
+  jsonb,
   unique,
   check,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
+import type { ClaveModulo } from "@/lib/plans";
 import { places } from "./places";
 
 /**
- * El plan que tiene contratado un negocio.
+ * Un módulo suelto contratado, tal como se guarda.
+ *
+ * Las fechas van en ISO y no como `Date` porque esto es una columna `jsonb`: el
+ * driver devuelve lo que había —una cadena—, no un `Date`. Convertirlas al leer
+ * es trabajo de quien mapea la fila (`queries.ts`), no de la base.
+ */
+export interface ModuloGuardado {
+  clave: ClaveModulo;
+  desde: string;
+  hasta: string | null;
+}
+
+/**
+ * Lo que tiene contratado un negocio.
  *
  * Es la verdad sobre los permisos. La columna `places.plan` que ya existía dice
  * otra cosa —qué eligió el dueño en el formulario de alta— y no se toca aquí:
@@ -21,6 +36,11 @@ import { places } from "./places";
  * valga. Se crea al dar de alta el negocio con `plan: gratis` y 30 días de
  * prueba de Pro; una ficha sin fila aquí es gratis, que es el defecto seguro
  * para todo lo que existía antes de esta tabla.
+ *
+ * Hay **dos formas de contratar**, y conviven: el `plan` es el pack —uno de los
+ * tres, o `gratis`—, y `modulos` es la lista de los sueltos. Un negocio puede
+ * tener Esencial y además Facebook suelto; la función entra si cualquiera de
+ * las dos la trae.
  */
 export const suscripciones = pgTable(
   "suscripciones",
@@ -30,12 +50,19 @@ export const suscripciones = pgTable(
       .notNull()
       .references(() => places.id, { onDelete: "cascade" }),
 
-    /* El plan contratado, no el efectivo: durante la prueba esto sigue siendo
+    /* El pack contratado, no el efectivo: durante la prueba esto sigue siendo
        `gratis` y quien manda es `trial_hasta`. Guardar «pro» en la prueba
-       borraría a qué plan se cae al terminarla. */
-    plan: text("plan", { enum: ["gratis", "basico", "pro"] })
+       borraría a qué pack se cae al terminarla. */
+    plan: text("plan", {
+      enum: ["gratis", "esencial", "publicidad_max", "pro"],
+    })
       .default("gratis")
       .notNull(),
+
+    /* Los módulos sueltos, con su propia vigencia. `[]` y `notNull` en vez de
+       `null`: «no tiene ninguno» y «la columna no está» no son casos distintos
+       aquí, y un `null` obligaría a comprobarlo en cada lectura. */
+    modulos: jsonb("modulos").$type<ModuloGuardado[]>().default([]).notNull(),
 
     /* Cancelar corta el acceso en el acto sin borrar la fila: es lo que hace
        falta para dar de baja a alguien sin perder de vista que estuvo. */

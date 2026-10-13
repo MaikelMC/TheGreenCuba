@@ -1,8 +1,7 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { avisosSeguidores, places, seguidores } from "@/lib/db/schema";
-import { puede } from "@/lib/plans-server";
-import type { Plan } from "@/lib/plans";
+import { puede, tieneFuncion } from "@/lib/plans-server";
 import { enlacePerfilDe } from "@/lib/publicaciones-server";
 import {
   AVISOS_POR_SEMANA,
@@ -51,9 +50,9 @@ function tokenTelegram(): string {
  */
 export function enlaceSeguidoresDe(
   negocioId: string,
-  plan: Plan,
+  tieneSeguidores: boolean,
 ): string | null {
-  return enlaceSeguidores(botUsuario(), negocioId, plan);
+  return enlaceSeguidores(botUsuario(), negocioId, tieneSeguidores);
 }
 
 /** Los seguidores vivos de un negocio, por canal. */

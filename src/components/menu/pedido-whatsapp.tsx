@@ -26,8 +26,9 @@ import {
  * pedido escrito dentro. La Verde no guarda el pedido, no lo cobra y no lo
  * sirve; solo pone el mensaje en orden.
  *
- * Por eso el carrito **solo existe si el plan lo incluye** (`whatsapp_pedido`,
- * Básico+). La decisión se toma en el servidor, en la página del menú, y aquí
+ * Por eso el carrito **solo existe si el plan lo incluye** (`whatsapp_pedido`:
+ * módulo Pedidos y reservas, o un pack). La decisión se toma en el servidor, en
+ * la página del menú, y aquí
  * solo se pinta lo que llega: el candado del cliente no cierra nada.
  */
 

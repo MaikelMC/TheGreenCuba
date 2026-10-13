@@ -2,7 +2,14 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { placeOverrides } from "@/lib/db/schema";
 import { DEV_PLACE_ID, devPlace } from "@/lib/dev-place";
-import { incluye, muestraSelloVerificado, type Plan } from "@/lib/plans";
+import { cargarCatalogo } from "@/lib/catalogo-server";
+import {
+  aSuscripcion,
+  funcionesDe,
+  muestraSelloVerificado,
+  type Catalogo,
+  type Plan,
+} from "@/lib/plans";
 import { enlaceSeguidores } from "@/lib/seguidores";
 import { siteConfig } from "@/config/site";
 import type { UserPlace } from "@/lib/places-store";
@@ -56,12 +63,28 @@ export function mergeDevPlace(
  * Va **después** de fundir la copia del usuario —`verificado` puede venir de
  * ahí— y es `async` porque el plan vive en `place_overrides` y `mergeDevPlace`
  * no puede leerlo.
+ *
+ * `cat` es el catálogo de planes vigente. Opcional: quien ya lo tiene —las
+ * consultas del catálogo, que lo leen para el resto de las fichas— lo pasa, y
+ * quien no, lo carga aquí.
  */
-export async function conSelloVerificado(place: UserPlace): Promise<UserPlace> {
-  const plan = (await readDevPlacePlan()) ?? "gratis";
+export async function conSelloVerificado(
+  place: UserPlace,
+  cat?: Catalogo,
+): Promise<UserPlace> {
+  const contratado = await readDevPlaceContratado();
+  const catalogo = cat ?? (await cargarCatalogo());
+  const funciones = funcionesDe(
+    contratado ? aSuscripcion(contratado) : null,
+    new Date(),
+    catalogo,
+  );
   return {
     ...place,
-    selloVerificado: muestraSelloVerificado(Boolean(place.verificado), plan),
+    selloVerificado: muestraSelloVerificado(
+      Boolean(place.verificado),
+      funciones.has("verificado"),
+    ),
     /* El botón de reserva se resuelve igual que en el catálogo: aceptado por el
        dueño, con número y con un plan que lo incluya. Aquí se repite la regla
        de `toUserPlace` a propósito —el fixture no pasa por el mapeo—, y así
@@ -69,17 +92,25 @@ export async function conSelloVerificado(place: UserPlace): Promise<UserPlace> {
     reservaHabilitada:
       Boolean(place.aceptaReservas) &&
       Boolean(place.whatsapp?.trim()) &&
-      incluye(plan, "reservas_whatsapp"),
+      funciones.has("reservas_whatsapp"),
     /* El enlace al bot se resuelve igual que en el catálogo: subirlo a Pro desde
        el panel enciende el botón sin tocar nada más. */
-    enlaceSeguidores: enlaceSeguidores(siteConfig.telegramBot, place.id, plan),
+    enlaceSeguidores: enlaceSeguidores(
+      siteConfig.telegramBot,
+      place.id,
+      funciones.has("seguidores"),
+    ),
   };
 }
 
 /** El fixture con la copia del usuario y su sello ya aplicados. */
-export async function getDevPlaceFor(userId: string): Promise<UserPlace> {
+export async function getDevPlaceFor(
+  userId: string,
+  cat?: Catalogo,
+): Promise<UserPlace> {
   return conSelloVerificado(
     mergeDevPlace(devPlace(), await readDevPlaceOverride(userId)),
+    cat,
   );
 }
 
@@ -113,32 +144,56 @@ export async function saveDevPlaceOverride(
 }
 
 /**
- * El plan elegido para el fixture, o `null` (que significa gratis).
+ * Lo que tiene contratado el fixture, o `null` si nadie lo tocó (que es gratis).
+ *
+ * Devuelve la fila con la misma forma que `suscripciones` para que
+ * `aSuscripcion` la resuelva igual: el pack, los módulos sueltos y —fijos— un
+ * estado `activa` sin prueba ni vencimiento, porque el fixture no se cancela ni
+ * caduca, solo se cambia a voluntad.
  *
  * Se lee la fila del fixture sin filtrar por usuario: es una herramienta de
- * prueba, la ve una sola cuenta y el plan describe al fixture, no a quien lo
+ * prueba, la ve una sola cuenta y el pack describe al fixture, no a quien lo
  * mira. `planEfectivoDe(DEV_PLACE_ID)` llama aquí.
  *
  * Se ordena por `updatedAt` descendente y se toma la primera. En desarrollo
- * cualquier sesión puede tocar el plan, así que puede haber más de una fila —una
+ * cualquier sesión puede tocar el pack, así que puede haber más de una fila —una
  * por usuario— y sin ordenar la lectura devolvería la que Postgres sacara
  * primero, que puede ser la vieja: elegirías Pro y seguirías viendo Gratis. El
- * plan que manda es el último que alguien eligió.
+ * pack que manda es el último que alguien eligió.
  */
-export async function readDevPlacePlan(): Promise<Plan | null> {
+export async function readDevPlaceContratado(): Promise<{
+  plan: Plan;
+  estado: "activa" | "cancelada";
+  trialHasta: Date | null;
+  venceEn: Date | null;
+  modulos: readonly { clave: string; desde: string; hasta: string | null }[];
+} | null> {
   const [row] = await db
-    .select({ plan: placeOverrides.plan })
+    .select({
+      plan: placeOverrides.plan,
+      modulos: placeOverrides.modulos,
+    })
     .from(placeOverrides)
     .where(eq(placeOverrides.placeId, DEV_PLACE_ID))
     .orderBy(desc(placeOverrides.updatedAt))
     .limit(1);
-  return row?.plan ?? null;
+
+  /* Sin fila no hay nada contratado; con fila y sin pack, gratis. El `estado`
+     del fixture es siempre `activa`: no hay botón para cancelarlo. */
+  if (!row) return null;
+  return {
+    plan: row.plan ?? "gratis",
+    estado: "activa",
+    trialHasta: null,
+    venceEn: null,
+    modulos: row.modulos ?? [],
+  };
 }
 
 /**
- * Fija el plan del fixture. Crea la fila si el usuario todavía no lo editó —el
- * `data` arranca vacío— y si ya existe solo cambia el plan, sin tocar sus
- * ediciones.
+ * Fija el pack del fixture. Crea la fila si el usuario todavía no lo editó —el
+ * `data` arranca vacío— y si ya existe solo cambia el pack, sin tocar sus
+ * ediciones ni sus módulos sueltos.
  */
 export async function saveDevPlacePlan(
   userId: string,

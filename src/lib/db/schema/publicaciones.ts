@@ -22,7 +22,8 @@ import { places } from "./places";
  *
  * `semana` es la **clave de la semana ISO 8601** («2026-W41»), calculada al
  * encolar y no recalculada después: es lo que cuenta el tope del plan
- * (`publicaciones_semana`, Básico 1 / Pro 3). Se guarda como texto y no como
+ * (`publicaciones_semana`: 1 con el módulo Facebook, 3 con Facebook ×3, y 3
+ * también en Publicidad Max y Pro). Se guarda como texto y no como
  * fecha porque lo que hace falta es una clave estable de agrupación, no un
  * instante —así el recuento es una igualdad y no un rango de fechas que hay que
  * acertar con husos—. Ver `semanaDe` en `src/lib/publicaciones.ts`.

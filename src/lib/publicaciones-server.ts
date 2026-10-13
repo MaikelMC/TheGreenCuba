@@ -60,7 +60,7 @@ export async function encolarPublicacion(
     return {
       ok: false,
       error:
-        "Las publicaciones de Facebook están disponibles en los planes Básico y Pro.",
+        "Las publicaciones de Facebook entran con el módulo Facebook o con Publicidad Max.",
       status: 403,
     };
   }

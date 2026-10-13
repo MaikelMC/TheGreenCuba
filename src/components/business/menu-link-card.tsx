@@ -40,8 +40,6 @@ const ALTO_LOGO = 4.2; // alto del logotipo, en módulos
 const RELACION_LOGO = 256 / 267; // la proporción de `public/logo.png`
 const HUECO = 1.2; // entre el logotipo y el nombre
 const CUERPO_FIRMA = 3.4; // el nombre de la firma
-const PADDING_PASTILLA = 1.4; // alrededor del contenido, dentro de la pastilla
-const PADDING_VERTICAL = 1.1;
 
 /* La display del design system, la misma de los titulares. El nombre de familia
    suelto no vale —`next/font` la registra con un hash—, así que dentro del SVG
@@ -89,17 +87,20 @@ function qrModules(svg: SVGSVGElement): number {
  * va metido dentro —banda arriba para el nombre, margen verde alrededor—, y sin
  * marco el panel es ya todo el sticker.
  */
-function medidas(modulos: number, marco: boolean) {
+function medidas(modulos: number, sinMarca: boolean) {
   const panel = modulos + QUIET * 2;
-  const x = marco ? MARGEN : 0;
-  const y = marco ? BANDA_ARRIBA : 0;
+  const x = sinMarca ? MARGEN : 0;
+  const y = sinMarca ? BANDA_ARRIBA : 0;
+  /* La banda de abajo es la firma de La Verde, y sin marca ya no hay firma: sin
+     esto al sticker de Menú Pro le sobraría un cinturón verde vacío. */
+  const abajo = sinMarca ? 0 : BANDA_ABAJO;
   return {
     /** El panel blanco. **Es** la zona de silencio del QR, no un adorno. */
     panel,
     x,
     y,
     ancho: panel + x * 2,
-    alto: y + panel + BANDA_ABAJO,
+    alto: y + panel + abajo,
   };
 }
 
@@ -209,33 +210,19 @@ async function traerRecursos(): Promise<Recursos> {
 /**
  * La firma: el logotipo y «La Verde», centrados.
  *
- * La pastilla no es adorno. Con marco, el logotipo es verde y el fondo también,
- * así que suelto se perdería; sin marco el fondo ya es blanco y la pastilla
- * sobra. El nombre va en oscuro en los dos casos, que es como se lee.
+ * Va siempre sobre el panel blanco —es la versión con marca, la única que la
+ * lleva—, así que el logotipo verde se lee suelto y no hace falta pastilla.
  *
  * El ancho se **mide** (ver `anchoEm`) y el conjunto se centra con esa cuenta:
  * centrar a ojo es justo lo que deja una firma descuadrada.
  */
-function firmaDeMarca(
-  ancho: number,
-  alto: number,
-  logo: string | null,
-  pastilla: boolean,
-): string {
+function firmaDeMarca(ancho: number, alto: number, logo: string | null): string {
   const centroY = alto - BANDA_ABAJO / 2;
   const anchoLogo = logo ? ALTO_LOGO * RELACION_LOGO : 0;
   const hueco = logo ? HUECO : 0;
   const anchoTexto = anchoEm(ETIQUETA, 700) * CUERPO_FIRMA;
   const contenido = anchoLogo + hueco + anchoTexto;
   const inicio = (ancho - contenido) / 2;
-
-  const altoPastilla = ALTO_LOGO + PADDING_VERTICAL * 2;
-
-  const fondo = pastilla
-    ? `<rect x="${inicio - PADDING_PASTILLA}" y="${centroY - altoPastilla / 2}" ` +
-      `width="${contenido + PADDING_PASTILLA * 2}" height="${altoPastilla}" ` +
-      `rx="${altoPastilla / 2}" fill="#ffffff"/>`
-    : "";
 
   /* Sin logotipo queda solo el nombre, igual de centrado: el ancho que se le
      resta al conjunto es cero y la cuenta sale sola. */
@@ -245,7 +232,6 @@ function firmaDeMarca(
     : "";
 
   return (
-    fondo +
     logotipo +
     `<text x="${inicio + anchoLogo + hueco}" y="${centroY + CUERPO_FIRMA * 0.35}" ` +
     `text-anchor="start" fill="${VERDE_TINTA}" font-size="${CUERPO_FIRMA}" ` +
@@ -254,12 +240,12 @@ function firmaDeMarca(
 }
 
 /**
- * El sticker entero, en SVG. Dos versiones, y la diferencia es `marco`:
+ * El sticker entero, en SVG. Dos versiones, y la diferencia es `sinMarca`:
  *
- * - **Con marco** (`qr_sticker`, Básico+): fondo verde redondeado, el nombre del
- *   negocio en una banda arriba, el QR sobre su panel blanco y la firma abajo.
- * - **Sin marco** (Gratis): el panel blanco y la firma. El QR tal cual, sin
- *   adorno alrededor.
+ * - **Sin marca** (Menú Pro): fondo verde redondeado con el nombre del negocio
+ *   en una banda arriba, el QR sobre su panel blanco, y nada de La Verde.
+ * - **Con marca** (Gratis): el panel blanco con el QR y la firma de La Verde
+ *   debajo. El QR tal cual, sin adorno alrededor.
  *
  * Se envuelve el SVG del componente dentro de otro mayor en vez de retocarlo: el
  * original solo pinta los cuadros, así que el marco y los textos van fuera, en
@@ -275,17 +261,18 @@ function firmaDeMarca(
  * Es lo que hace que el PNG salga con la display del sistema y no con la sans
  * que el navegador tenga por defecto.
  *
- * La firma del pie va en las dos versiones y **en todos los planes**: es la
- * marca de quien imprime el QR, no un anuncio que se pueda quitar.
+ * La firma del pie es la marca de La Verde, y va **solo** en la versión con
+ * marca: contratar Menú Pro es quitarla y poner el nombre del negocio en su
+ * lugar.
  */
 function stickerSvg(
   svg: SVGSVGElement,
   nombre: string,
   { fuente, logo }: Recursos,
-  marco: boolean,
+  sinMarca: boolean,
 ): string {
   const modulos = qrModules(svg);
-  const { panel, x, y, ancho, alto } = medidas(modulos, marco);
+  const { panel, x, y, ancho, alto } = medidas(modulos, sinMarca);
   const { texto, tamano } = ajustarNombre(nombre, panel);
 
   const qr = svg.cloneNode(true) as SVGSVGElement;
@@ -303,7 +290,7 @@ function stickerSvg(
 
   /* La banda del nombre va con el marco y no sin él: el texto es blanco y sin el
      verde detrás no se vería. */
-  const banda = marco
+  const banda = sinMarca
     ? `<text x="${ancho / 2}" y="${BANDA_ARRIBA / 2 + tamano * 0.35}" ` +
       `text-anchor="middle" fill="#ffffff" font-size="${tamano}" ` +
       `font-weight="700">${escapa(texto)}</text>`
@@ -317,12 +304,12 @@ function stickerSvg(
     `width="${ancho}" height="${alto}" font-family="${FUENTE}">` +
     estilo +
     `<rect width="${ancho}" height="${alto}" rx="${RADIO}" ` +
-    `fill="${marco ? VERDE : "#ffffff"}"/>` +
+    `fill="${sinMarca ? VERDE : "#ffffff"}"/>` +
     `<rect x="${x}" y="${y}" width="${panel}" height="${panel}" ` +
     `rx="${RADIO_PANEL}" fill="#ffffff"/>` +
     new XMLSerializer().serializeToString(qr) +
     banda +
-    firmaDeMarca(ancho, alto, logo, marco) +
+    (sinMarca ? "" : firmaDeMarca(ancho, alto, logo)) +
     `</svg>`
   );
 }
@@ -338,13 +325,10 @@ function stickerSvg(
  * con una imagen; el SVG para quien va a imprimir en grande o retocar el
  * archivo, que es donde un vectorial manda.
  *
- * La marca de La Verde va en **todos los planes**, en pantalla y en los dos
- * archivos: el rótulo bajo el QR y la firma del pie —el logotipo y el nombre—.
- * No es un anuncio que se pueda quitar, es de quién es el QR.
- *
- * Lo que sí es del plan es el marco verde (`qr_sticker`, Básico+): es lo que
- * convierte el QR pelado en un sticker con el nombre del negocio. En pantalla la
- * tarjeta es la misma para todos; el plan se nota en el archivo que se descarga.
+ * La marca de La Verde —el rótulo bajo el QR y la firma del pie, logotipo y
+ * nombre— va mientras el negocio no contrate **Menú Pro**: eso es justo lo que
+ * apaga `sinMarca`, en pantalla y en los dos archivos. Con el módulo, el QR pasa
+ * a llevar el marco verde con el nombre del negocio en lugar de la marca.
  *
  * La tipografía y el logotipo se piden a `public/` al pulsar Descargar. El woff2
  * es una copia del de `src/fonts/`, la misma que declara `next/font`: aquí hace
@@ -354,14 +338,14 @@ export function MenuLinkCard({
   placeId,
   placeName,
   url,
-  sticker = false,
+  sinMarca = false,
 }: {
   placeId: string;
   placeName: string;
   /** La URL absoluta de la carta, resuelta en el servidor. */
   url: string;
-  /** `true` si el plan lleva el marco verde (`qr_sticker`, Básico+). */
-  sticker?: boolean;
+  /** `true` si el negocio tiene Menú Pro: quita la marca de La Verde del QR. */
+  sinMarca?: boolean;
 }) {
   const qrBoxRef = useRef<HTMLDivElement>(null);
   /* Ruta relativa derivada de la URL absoluta: la comparte `sharePlace`, que le
@@ -374,27 +358,27 @@ export function MenuLinkCard({
     if (!svg) return;
     try {
       const blob = new Blob(
-        [stickerSvg(svg, placeName, await traerRecursos(), sticker)],
+        [stickerSvg(svg, placeName, await traerRecursos(), sinMarca)],
         { type: "image/svg+xml;charset=utf-8" },
       );
       downloadBlob(blob, `qr-${slugify(placeName) || placeId}.svg`);
     } catch {
       toast.error("No se pudo descargar el QR.");
     }
-  }, [placeId, placeName, sticker]);
+  }, [placeId, placeName, sinMarca]);
 
   const downloadPng = useCallback(async () => {
     const svg = qrBoxRef.current?.querySelector("svg");
     if (!svg) return;
 
-    const { ancho, alto } = medidas(qrModules(svg), sticker);
+    const { ancho, alto } = medidas(qrModules(svg), sinMarca);
     const escala = ANCHO_PNG / ancho;
 
     /* Se rasteriza **el sticker entero**, no el QR suelto con el marco dibujado
        a mano encima: así el PNG no puede separarse del SVG por un retoque que se
        haga en uno solo. */
     const svgUrl = URL.createObjectURL(
-      new Blob([stickerSvg(svg, placeName, await traerRecursos(), sticker)], {
+      new Blob([stickerSvg(svg, placeName, await traerRecursos(), sinMarca)], {
         type: "image/svg+xml;charset=utf-8",
       }),
     );
@@ -424,7 +408,7 @@ export function MenuLinkCard({
     } finally {
       URL.revokeObjectURL(svgUrl);
     }
-  }, [placeId, placeName, sticker]);
+  }, [placeId, placeName, sinMarca]);
 
   return (
     <section className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft lg:col-span-2">
@@ -472,9 +456,13 @@ export function MenuLinkCard({
             {/* Nivel M y no el L por defecto: esto se imprime, se pega en una
                 mesa y se mancha. M tolera ~15% de daño sin dejar de leerse. */}
             <QRCode value={url} size={148} level="M" fgColor={INK} />
-            <span className="font-lv-display text-[11px] font-semibold text-ink">
-              {BRAND_TEXT}
-            </span>
+            {/* Con Menú Pro el QR es del negocio y el rótulo de La Verde
+                desaparece; sin él, el rótulo es lo que dice de dónde sale. */}
+            {!sinMarca && (
+              <span className="font-lv-display text-[11px] font-semibold text-ink">
+                {BRAND_TEXT}
+              </span>
+            )}
           </div>
           <div className="flex flex-wrap justify-center gap-gap-xs">
             <button

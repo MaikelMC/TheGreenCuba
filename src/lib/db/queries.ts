@@ -1,11 +1,13 @@
 import { and, asc, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
+import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
 import { businessOwners, categories, ofertas, placeImages, places, rankingMensual, reviews, savedPlaces, suscripciones } from "@/lib/db/schema";
+import type { ModuloGuardado } from "@/lib/db/schema/suscripciones";
 import { DEV_PLACE_ID, devPlace, devPlaceEnabled } from "@/lib/dev-place";
 import { conSelloVerificado, getDevPlaceFor } from "@/lib/dev-place-server";
 import type { UserPlaceOferta, UserPlacePhoto } from "@/lib/places-store";
-import type { Suscripcion } from "@/lib/plans";
+import { aSuscripcion, type Suscripcion } from "@/lib/plans";
 import {
   toBusinessCategory,
   toUserPlace,
@@ -95,6 +97,9 @@ type SuscripcionRow = {
   estado: Suscripcion["estado"] | null;
   trialHasta: Date | null;
   venceEn: Date | null;
+  /* Los módulos sueltos llegan ya como `jsonb`, así que aquí son el tipo de la
+     columna y no el que resuelve `aSuscripcion` —con las fechas en `Date`—. */
+  modulos: ModuloGuardado[] | null;
 } | null;
 
 const SELECT_WITH_CATEGORY = {
@@ -110,6 +115,10 @@ const SELECT_WITH_CATEGORY = {
     estado: suscripciones.estado,
     trialHasta: suscripciones.trialHasta,
     venceEn: suscripciones.venceEn,
+    /* Los módulos sueltos viajan con el catálogo por el mismo motivo que el
+       pack: sin ellos la ficha no puede decidir qué funciones tiene el negocio.
+       Cabe en el mismo viaje porque es una columna de la misma fila. */
+    modulos: suscripciones.modulos,
   },
   /* La insignia «Top del mes» en la misma consulta que el resto del catálogo.
      Va como `exists` y no como un segundo viaje por negocio porque la lista
@@ -135,16 +144,19 @@ function unwrap(row: {
     ...row.place,
     topDelMes: row.topDelMes === true,
     categoryName: row.categoryName,
-    /* Sin fila, el join deja las cuatro columnas a `null` y eso se lee como
-       «sin suscripción» —gratis—, que es lo que `planEfectivo` espera. */
+    /* Sin fila, el join deja las columnas a `null` y eso se lee como «sin
+       suscripción» —gratis—, que es lo que `funcionesDe` espera. La conversión
+       —fechas de los módulos incluidas— la hace `aSuscripcion`, la misma que
+       usa el servidor de permisos, para que las dos lecturas no se separen. */
     suscripcion:
       s?.plan && s.estado
-        ? {
+        ? aSuscripcion({
             plan: s.plan,
             estado: s.estado,
             trialHasta: s.trialHasta,
             venceEn: s.venceEn,
-          }
+            modulos: s.modulos ?? [],
+          })
         : null,
   };
 }
@@ -290,17 +302,24 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
     .limit(limit);
 
   const ids = rows.map((row) => row.place.id);
-  const [photos, ofertasPorNegocio] = await Promise.all([
+  /* El catálogo de planes en el mismo viaje que las fotos: es una fila, y
+     resolver las funciones de treinta negocios contra un catálogo leído en
+     paralelo no cuesta nada más. */
+  const [photos, ofertasPorNegocio, cat] = await Promise.all([
     photosByPlace(ids),
     ofertasByPlace(ids),
+    cargarCatalogo(),
   ]);
 
   const catalog = rows.map((row) =>
-    toUserPlace({
-      ...unwrap(row),
-      photos: photos.get(row.place.id) ?? [],
-      ofertas: ofertasPorNegocio.get(row.place.id) ?? [],
-    }),
+    toUserPlace(
+      {
+        ...unwrap(row),
+        photos: photos.get(row.place.id) ?? [],
+        ofertas: ofertasPorNegocio.get(row.place.id) ?? [],
+      },
+      cat,
+    ),
   );
 
   /* Solo en la lista **pública** —la que pide el catálogo con `onlyActive:
@@ -316,7 +335,7 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
      solo serviría para que editarlo fallara con un 404. */
   const dev =
     options.onlyActive === true && (options.includeDev ?? devPlaceEnabled())
-      ? await conSelloVerificado(devPlace())
+      ? await conSelloVerificado(devPlace(), cat)
       : null;
   if (!dev) return catalog;
 
@@ -347,13 +366,14 @@ export const getPlaceById = cached(
      pisan. */
   if (id === DEV_PLACE_ID) {
     if (!(options.includeDev ?? devPlaceEnabled())) return null;
+    const cat = await cargarCatalogo();
     /* `overrideFor` aplica la copia personal del fixture (ver
        `dev-place-server.ts`). Va de parámetro y entra en la clave de la caché,
        así que la copia de un usuario nunca se sirve a otro. En producción solo
        el dueño autorizado llega aquí, y en desarrollo no hay caché. */
     return options.overrideFor
-      ? getDevPlaceFor(options.overrideFor)
-      : conSelloVerificado(devPlace());
+      ? getDevPlaceFor(options.overrideFor, cat)
+      : conSelloVerificado(devPlace(), cat);
   }
 
   const [row] = await db
@@ -366,15 +386,19 @@ export const getPlaceById = cached(
 
   if (!row) return null;
 
-  const [photos, ofertasPorNegocio] = await Promise.all([
+  const [photos, ofertasPorNegocio, cat] = await Promise.all([
     photosByPlace([row.place.id]),
     ofertasByPlace([row.place.id]),
+    cargarCatalogo(),
   ]);
-  return toUserPlace({
-    ...unwrap(row),
-    photos: photos.get(row.place.id) ?? [],
-    ofertas: ofertasPorNegocio.get(row.place.id) ?? [],
-  });
+  return toUserPlace(
+    {
+      ...unwrap(row),
+      photos: photos.get(row.place.id) ?? [],
+      ofertas: ofertasPorNegocio.get(row.place.id) ?? [],
+    },
+    cat,
+  );
   },
   "places:get",
 );
@@ -407,15 +431,19 @@ export const getPlaceBySlug = cached(
 
     if (!row) return null;
 
-    const [photos, ofertasPorNegocio] = await Promise.all([
+    const [photos, ofertasPorNegocio, cat] = await Promise.all([
       photosByPlace([row.place.id]),
       ofertasByPlace([row.place.id]),
+      cargarCatalogo(),
     ]);
-    return toUserPlace({
-      ...unwrap(row),
-      photos: photos.get(row.place.id) ?? [],
-      ofertas: ofertasPorNegocio.get(row.place.id) ?? [],
-    });
+    return toUserPlace(
+      {
+        ...unwrap(row),
+        photos: photos.get(row.place.id) ?? [],
+        ofertas: ofertasPorNegocio.get(row.place.id) ?? [],
+      },
+      cat,
+    );
   },
   "places:get-by-slug",
 );

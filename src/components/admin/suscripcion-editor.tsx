@@ -5,14 +5,16 @@ import { toast } from "sonner";
 import { BadgeCheck, Loader2, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FormSection } from "@/components/business/form-section";
-import { PLAN_LABEL, PLAN_ORDER, type Plan } from "@/lib/plans";
+import { PLAN_ORDER, nombreDe, type ClaveModulo, type Plan } from "@/lib/plans";
+import { useCatalogo } from "@/providers/catalogo-provider";
 
 /**
  * El plan de un negocio, para administración.
  *
  * Es el único sitio donde se cambia un plan a mano, y lo es a propósito: aquí
- * lo que se apunta son las fechas, y el resto sale solo — `planEfectivo` decide
- * con ellas si el negocio está en Pro, en Básico o en gratis—.
+ * lo que se apunta son las fechas y, si los hay, los módulos sueltos. El resto
+ * sale solo — `planEfectivo` decide con las fechas si el negocio está en un pack
+ * o en gratis, y `funcionesDe` junta el pack con los módulos—.
  *
  * **Bajar de plan no borra nada.** Aquí solo se escribe esta fila; los
  * productos, las fotos y el resto de la ficha se quedan donde están, y lo que
@@ -25,6 +27,8 @@ interface Suscripcion {
   trialHasta: string | null;
   venceEn: string | null;
   descuentoPct: number | null;
+  /** Los módulos sueltos contratados. Llegan del `jsonb`, con sus fechas. */
+  modulos: { clave: string; desde: string; hasta: string | null }[] | null;
   /** Ya resuelto por el servidor: es el que manda de verdad ahora mismo. */
   planEfectivo: Plan;
 }
@@ -41,12 +45,14 @@ function paraInput(iso: string | null): string {
 }
 
 export function SuscripcionEditor({ placeId }: { placeId: string }) {
+  const cat = useCatalogo();
   const [data, setData] = useState<Suscripcion | null>(null);
   const [plan, setPlan] = useState<Plan>("gratis");
   const [estado, setEstado] = useState<"activa" | "cancelada">("activa");
   const [trial, setTrial] = useState("");
   const [vence, setVence] = useState("");
   const [descuento, setDescuento] = useState("");
+  const [modulos, setModulos] = useState<ClaveModulo[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -61,6 +67,7 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
         setTrial(paraInput(row.trialHasta));
         setVence(paraInput(row.venceEn));
         setDescuento(row.descuentoPct === null ? "" : String(row.descuentoPct));
+        setModulos((row.modulos ?? []).map((m) => m.clave as ClaveModulo));
       })
       /* Sin respuesta se deja el formulario con los valores por defecto
          —gratis— en vez de en blanco: guardar entonces crea la fila, que es
@@ -88,6 +95,9 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
           trialHasta: trial,
           venceEn: vence,
           descuentoPct: descuento === "" ? null : Number(descuento),
+          /* La lista entera, no un parche: el servidor conserva el `desde` de
+             los que ya estaban y pone la fecha de hoy a los nuevos. */
+          modulos,
         }),
       });
 
@@ -99,13 +109,13 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
 
       const row = (await res.json()) as Suscripcion;
       setData(row);
-      toast.success(`Plan guardado: ${PLAN_LABEL[row.planEfectivo]}`);
+      toast.success(`Plan guardado: ${nombreDe(row.planEfectivo, cat)}`);
     } catch {
       toast.error("No hubo respuesta del servidor. No se cambió nada.");
     } finally {
       setSaving(false);
     }
-  }, [placeId, plan, estado, trial, vence, descuento]);
+  }, [placeId, plan, estado, trial, vence, descuento, modulos]);
 
   return (
     <FormSection title="Plan y vigencia" icon={<BadgeCheck size={18} strokeWidth={1.8} />}>
@@ -118,7 +128,7 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
         <p className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
           Ahora mismo cuenta como
           <span className="inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-verde-700">
-            {PLAN_LABEL[data.planEfectivo]}
+            {nombreDe(data.planEfectivo, cat)}
           </span>
         </p>
       )}
@@ -136,7 +146,7 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
           >
             {PLAN_ORDER.map((p) => (
               <option key={p} value={p}>
-                {PLAN_LABEL[p]}
+                {nombreDe(p, cat)}
               </option>
             ))}
           </select>
@@ -205,6 +215,40 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
           />
         </div>
       </div>
+
+      {/* Los módulos sueltos se suman al pack, no lo sustituyen: un negocio con
+          Esencial y el asistente contratado los tiene los dos. */}
+      <fieldset className="flex flex-col gap-gap-xs">
+        <legend className={LABEL}>
+          Módulos sueltos <span className="font-normal">(opcional)</span>
+        </legend>
+        <div className="grid grid-cols-1 gap-gap-xs sm:grid-cols-2">
+          {(Object.keys(cat.modulos) as ClaveModulo[]).map((clave) => (
+            <label
+              key={clave}
+              className="flex cursor-pointer items-center gap-gap-xs text-small text-ink"
+            >
+              <input
+                type="checkbox"
+                checked={modulos.includes(clave)}
+                onChange={(e) =>
+                  setModulos((prev) =>
+                    e.target.checked
+                      ? [...prev, clave]
+                      : prev.filter((c) => c !== clave),
+                  )
+                }
+                className="size-4 shrink-0 accent-verde-500"
+              />
+              {cat.modulos[clave].nombre}
+            </label>
+          ))}
+        </div>
+        <p className="text-meta text-ink-soft/75">
+          Se suman al plan. Al desmarcar uno deja de permitirse al instante y no
+          borra nada.
+        </p>
+      </fieldset>
 
       <button
         type="button"

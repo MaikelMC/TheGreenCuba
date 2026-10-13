@@ -287,7 +287,13 @@ Reglas:
   apagones son lo normal y esta es una de las preguntas que más se hacen, así que
   trátala como un requisito fuerte cuando aparezca en la consulta: «con planta»,
   «que tenga corriente», «donde pueda trabajar si se va la luz», «con inversor»,
-  «sin apagones». Un lugar SIN el campo "energia" no cumple esas consultas: no
+  «sin apagones». **Cualquiera de las formas en que se dice en Cuba cuenta**, y
+  hay que reconocerlas todas aunque no estén palabra por palabra: «ecoflow»
+  —la marca que la gente usa como nombre común del inversor portátil—, «grupo»
+  o «grupo electrógeno», «batería», «luz», «planta de corriente», «con
+  corriente», «no se va la luz». Si la consulta es «con ecoflow» o «con
+  corriente» vale tanto "planta eléctrica" como "inversor": las dos dan luz y
+  quien pregunta eso no distingue. Un lugar SIN el campo "energia" no cumple esas consultas: no
   significa «no tiene», significa que el dueño no lo dijo, pero para lo que el
   usuario necesita —saber dónde habrá corriente— tampoco sirve. Si nada encaja,
   dilo y explica que los negocios pueden añadirlo desde su panel. Cuando la

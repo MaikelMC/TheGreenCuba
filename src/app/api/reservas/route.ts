@@ -5,8 +5,7 @@ import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
 import { diaUtc } from "@/lib/eventos-server";
-import { incluye } from "@/lib/plans";
-import { planEfectivoDe } from "@/lib/plans-server";
+import { tieneFuncion } from "@/lib/plans-server";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorFechaReserva } from "@/lib/reserva";
 import { liberarDia, ocupacionDesde, tomarCupo } from "@/lib/reservas-server";
@@ -56,7 +55,7 @@ async function cupoDe(
 
   if (!place?.acepta || place.tipo !== "mesa") return null;
   if (!place.whatsapp?.trim()) return null;
-  if (!incluye(await planEfectivoDe(negocioId), "reservas_whatsapp")) return null;
+  if (!(await tieneFuncion(negocioId, "reservas_whatsapp"))) return null;
 
   /* Sin cupo configurado se devuelve `null` igual: no hay nada que contar y la
      reserva tiene que salir. El `0` tampoco es un cupo —es un campo vacío que

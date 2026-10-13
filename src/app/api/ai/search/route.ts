@@ -91,6 +91,12 @@ function sanitizePlaces(value: unknown): CatalogPlace[] {
       schedule: cleanString(p.schedule) || undefined,
       description: cleanString(p.description) || undefined,
       menu: cleanList(p.menu, MAX_MENU_ITEMS, MAX_MENU_LINE),
+      /* La energía de respaldo en palabras. **Se colaba aquí y se perdía**: el
+         navegador la mandaba y esta lista blanca no la copiaba, así que el
+         modelo nunca veía el campo y toda la regla de «con planta», «que tenga
+         corriente» del prompt era letra muerta. Va como texto libre y corto
+         —«planta eléctrica»—, no como el código de la columna. */
+      energia: cleanString(p.energia) || undefined,
       distanceM:
         Number.isFinite(distance) && distance >= 0
           ? Math.min(Math.round(distance), 20_000_000)

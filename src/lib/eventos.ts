@@ -98,7 +98,7 @@ export function parsearEvento(valor: unknown): EventoCliente | null {
 export interface VisitasPanel {
   /** Visitas a la ficha o a la carta en el mes en curso. Lo ve hasta Gratis. */
   resumen: { mes: number };
-  /** Visitas y llamadas a 7 y 30 días. Básico y superiores. */
+  /** Visitas y llamadas a 7 y 30 días. Módulo Visibilidad, o un pack. */
   basicas?: {
     visitas7: number;
     llamadas7: number;

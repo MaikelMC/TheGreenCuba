@@ -248,7 +248,8 @@ export interface UserPlace {
    * Si el negocio quiere pedidos por WhatsApp en su carta.
    *
    * Es **el interruptor del dueño**, no el permiso: la función la enciende el
-   * plan (`whatsapp_pedido`, Básico+) y esto la apaga cuando al negocio no le
+   * plan (`whatsapp_pedido`: módulo Pedidos y reservas, o un pack) y esto la
+   * apaga cuando al negocio no le
    * conviene ese día. Los dos tienen que estar en «sí» para que el carrito
    * aparezca en `/m/{slug}`. Ver `src/lib/plans.ts` y la página del menú.
    */
@@ -346,8 +347,9 @@ export interface UserPlace {
    */
   verificado?: boolean;
   /**
-   * Lo que decide si el sello se pinta: `verificado` **y** que el plan del
-   * negocio incluya la función (Básico+). Lo calcula el servidor al mapear la
+   * Lo que decide si el sello se pinta: `verificado` **y** que las funciones del
+   * negocio incluyan la del sello (módulo Visibilidad, o un pack). Lo calcula
+   * el servidor al mapear la
    * fila, así que un negocio que baja de plan pierde el sello sin que nadie
    * toque la columna —y sin que un cliente pueda encenderlo por su cuenta—.
    */

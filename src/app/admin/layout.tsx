@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
 import { type ReactNode } from "react";
 import { getAppUser } from "@/lib/auth/user";
+import { cargarCatalogo } from "@/lib/catalogo-server";
 import { listCategories, listPlaces } from "@/lib/db/queries";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { PlacesProvider } from "@/providers/places-provider";
+import { CatalogoProvider } from "@/providers/catalogo-provider";
 
 /* El segmento se declara dinámico de entrada, antes de que nadie lo pida.
    Sin esta línea `next build` intenta prerenderizar cada ruta de `/admin`, el
@@ -46,9 +48,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   /* `.catch(() => null)` y no dejar que suba: si Neon no contesta, esto se
      comporta como antes —el provider pide los datos desde el cliente y enseña
      su error— en lugar de tumbar el panel entero. */
-  const [places, categories] = await Promise.all([
+  const [places, categories, catalogo] = await Promise.all([
     listPlaces().catch(() => null),
     listCategories().catch(() => null),
+    cargarCatalogo().catch(() => null),
   ]);
 
   return (
@@ -61,7 +64,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
          datos iniciales y el `refreshPlaces` del provider coinciden. */
       includeUnpublished
     >
-      <AdminShell>{children}</AdminShell>
+      {/* El catálogo de planes, por el mismo motivo que las fichas: el panel ya
+          está consultando Neon, así que leerlo aquí no cuesta un viaje extra y
+          el editor de planes y el de suscripciones arrancan con los valores de
+          hoy en vez de con los del despliegue. */}
+      <CatalogoProvider catalogo={catalogo ?? undefined}>
+        <AdminShell>{children}</AdminShell>
+      </CatalogoProvider>
     </PlacesProvider>
   );
 }

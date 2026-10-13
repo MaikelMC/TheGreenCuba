@@ -9,9 +9,9 @@ type Params = { params: Promise<{ id: string }> };
 /**
  * Sacar una publicación de la cola, desde el panel del negocio.
  *
- * El dueño **sí** puede borrar las suyas, y no es un extra: en Básico el tope es
- * una publicación por semana, así que sin poder borrar, una que salga mal le
- * cierra la semana entera. Borrar libera la plaza.
+ * El dueño **sí** puede borrar las suyas, y no es un extra: con el módulo
+ * Facebook el tope es una publicación por semana, así que sin poder borrar, una
+ * que salga mal le cierra la semana entera. Borrar libera la plaza.
  *
  * Una ya publicada no se borra desde aquí: es el registro de que el post existe y
  * lleva el enlace que lo prueba. Esa la quita la administración.

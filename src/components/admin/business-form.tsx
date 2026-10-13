@@ -703,13 +703,14 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
             </Select>
           </div>
           {/* El sello lo enciende la administración y **solo se pinta** si el
-                negocio tiene plan Básico o superior: la casilla no promete que
-                la chapita se vea hoy, y el texto lo dice para que nadie lo
-                reporte como fallo. Ver `selloVerificado` en el mapeo. */}
+                negocio tiene el módulo Visibilidad —o un pack que lo traiga—:
+                la casilla no promete que la chapita se vea hoy, y el texto lo
+                dice para que nadie lo reporte como fallo. Ver `selloVerificado`
+                en el mapeo. */}
           <div className="mt-gap-sm">
             <ToggleRow
               label="Sello Verificado"
-              hint="Muestra la chapita «Verificado» en la ficha, la tarjeta y los resultados. Solo se ve en negocios con plan Básico o superior."
+              hint="Muestra la chapita «Verificado» en la ficha, la tarjeta y los resultados. Solo se ve en negocios con el módulo Visibilidad o un pack que lo incluya."
               checked={verificado}
               onChange={() => setVerificado((prev) => !prev)}
             />

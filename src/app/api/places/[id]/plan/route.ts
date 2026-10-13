@@ -21,7 +21,8 @@ import { PLAN_ORDER, type Plan } from "@/lib/plans";
  * producción el fixture lo ven muy pocas cuentas y aquí se pide su nombre.
  *
  * El `plan` describe al fixture, no a quien lo mira, así que se guarda global
- * (fila del usuario que lo cambia, pero `readDevPlacePlan` lee el más reciente).
+ * (fila del usuario que lo cambia, pero `readDevPlaceContratado` lee el más
+ * reciente).
  */
 const PLAN_IDS = new Set<string>(PLAN_ORDER);
 
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   if (!plan) {
     return NextResponse.json(
-      { error: "Plan inválido. Usa gratis, basico o pro." },
+      { error: "Plan inválido. Usa gratis, esencial, publicidad_max o pro." },
       { status: 400 },
     );
   }

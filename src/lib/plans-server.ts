@@ -1,15 +1,17 @@
 import { eq } from "drizzle-orm";
+import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
 import { suscripciones } from "@/lib/db/schema";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
-import { readDevPlacePlan } from "@/lib/dev-place-server";
+import { readDevPlaceContratado } from "@/lib/dev-place-server";
 import {
-  FEATURES_POR_PLAN,
-  LIMITES,
+  aSuscripcion,
+  funcionesDe,
+  limiteDe,
   planEfectivo,
   trialHastaDesde,
   type ClaveLimite,
-  type Feature,
+  type Funcion,
   type Plan,
   type Suscripcion,
 } from "@/lib/plans";
@@ -23,6 +25,11 @@ import { generateId } from "@/lib/utils";
  * para pintar el candado. Un candado que se dibuja sin comprobarse en el
  * servidor es decoración, y la ruta que escribe sigue abierta para quien sepa
  * llamarla.
+ *
+ * La resolución de permisos va por `funcionesDeNegocio`, que devuelve **el
+ * conjunto de funciones** del negocio, no un plan: con módulos sueltos un
+ * negocio puede tener cosas que ningún pack nombra, y preguntar por el nombre
+ * del plan perdería esos módulos por el camino.
  */
 
 /** La fila de suscripción del negocio, o `null` si nunca tuvo una. */
@@ -35,12 +42,13 @@ export async function suscripcionDe(
       estado: suscripciones.estado,
       trialHasta: suscripciones.trialHasta,
       venceEn: suscripciones.venceEn,
+      modulos: suscripciones.modulos,
     })
     .from(suscripciones)
     .where(eq(suscripciones.negocioId, negocioId))
     .limit(1);
 
-  return row ?? null;
+  return aSuscripcion(row ?? null);
 }
 
 /**
@@ -52,35 +60,58 @@ export async function suscripcionDe(
  * aquí —`puede`, `limite`, las funciones del panel— responde al plan nuevo.
  */
 export async function planEfectivoDe(negocioId: string): Promise<Plan> {
+  const cat = await cargarCatalogo();
   if (negocioId === DEV_PLACE_ID) {
-    return (await readDevPlacePlan()) ?? "gratis";
+    const c = await readDevPlaceContratado();
+    return planEfectivo(c ? aSuscripcion(c) : null, new Date(), cat);
   }
-  return planEfectivo(await suscripcionDe(negocioId));
+  return planEfectivo(await suscripcionDe(negocioId), new Date(), cat);
+}
+
+/**
+ * **Todo lo que puede hacer este negocio ahora mismo**, ya resuelto.
+ *
+ * Es lo que viaja al panel del negocio: allí el candado se pinta sobre esta
+ * lista y no sobre un nombre de plan, porque el plan ya no lo dice todo —un
+ * negocio en Gratis con Menú Pro contratado tiene funciones que «Gratis» no
+ * nombra—. Viajan funciones y no la fila entera: el navegador no tiene por qué
+ * ver fechas de contratación ni el descuento acordado.
+ */
+export async function funcionesDeNegocio(
+  negocioId: string,
+): Promise<Set<Funcion>> {
+  const cat = await cargarCatalogo();
+  if (negocioId === DEV_PLACE_ID) {
+    const c = await readDevPlaceContratado();
+    return funcionesDe(c ? aSuscripcion(c) : null, new Date(), cat);
+  }
+  return funcionesDe(await suscripcionDe(negocioId), new Date(), cat);
 }
 
 /**
  * ¿Puede este negocio usar esta función?
  *
- * Es la comprobación que se llama en las rutas que escriben. Hoy la usan las
- * publicaciones de Facebook —desde el panel del negocio y desde administración—
- * y las ofertas flash; las que aún no existen —flyers— la llamarán cuando las
- * haya, y este es el guardián que va delante.
+ * Es la comprobación que se llama en las rutas que escriben: las publicaciones
+ * de Facebook, las ofertas flash, el «Hoy hay», los avisos a seguidores y el
+ * asistente la usan hoy; las que aún no existen la llamarán cuando las haya, y
+ * este es el guardián que va delante.
  */
-export async function puede(
+export async function tieneFuncion(
   negocioId: string,
-  feature: Feature,
+  funcion: Funcion,
 ): Promise<boolean> {
-  const plan = await planEfectivoDe(negocioId);
-  return (FEATURES_POR_PLAN[plan] as readonly Feature[]).includes(feature);
+  return (await funcionesDeNegocio(negocioId)).has(funcion);
 }
+
+/** Alias de `tieneFuncion`, para las llamadas que ya existían. */
+export const puede = tieneFuncion;
 
 /** El tope de una clave para este negocio. `null` = sin tope. */
 export async function limite(
   negocioId: string,
   clave: ClaveLimite,
 ): Promise<number | null> {
-  const plan = await planEfectivoDe(negocioId);
-  return LIMITES[clave][plan];
+  return limiteDe(await funcionesDeNegocio(negocioId), clave, await cargarCatalogo());
 }
 
 /**

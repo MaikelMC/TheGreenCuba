@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { canManagePlace } from "@/lib/admin-server";
-import { planEfectivoDe } from "@/lib/plans-server";
+import { tieneFuncion } from "@/lib/plans-server";
 import { AVISOS_POR_SEMANA, avisosRestantes } from "@/lib/seguidores";
 import {
   avisosDeLaSemana,
@@ -41,14 +41,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  const plan = await planEfectivoDe(negocioId);
+  const conSeguidores = await tieneFuncion(negocioId, "seguidores");
   const [total, usados] = await Promise.all([
     contarSeguidores(negocioId),
     avisosDeLaSemana(negocioId),
   ]);
 
   return NextResponse.json({
-    enlace: enlaceSeguidoresDe(negocioId, plan),
+    enlace: enlaceSeguidoresDe(negocioId, conSeguidores),
     seguidores: total,
     avisos: {
       usados,

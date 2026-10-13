@@ -34,8 +34,18 @@ export const placeOverrides = pgTable("place_overrides", {
    * `places` y el fixture no existe allí. `planEfectivoDe(DEV_PLACE_ID)` lee
    * esta columna; `null` significa gratis. Es global al fixture, no por
    * usuario: es una herramienta de prueba y solo lo ve su dueño.
+   *
+   * Guarda el **pack**; los módulos sueltos del fixture van en `modulos`, en la
+   * misma fila, y se resuelven igual que los de un negocio de verdad.
    */
-  plan: text("plan", { enum: ["gratis", "basico", "pro"] }),
+  plan: text("plan", {
+    enum: ["gratis", "esencial", "publicidad_max", "pro"],
+  }),
+  /** Los módulos sueltos del fixture, con la misma forma que en `suscripciones`. */
+  modulos: jsonb("modulos")
+    .$type<{ clave: string; desde: string; hasta: string | null }[]>()
+    .default([])
+    .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()

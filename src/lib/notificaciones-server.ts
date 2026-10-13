@@ -3,10 +3,13 @@ import { db } from "@/lib/db";
 import { notifications } from "@/lib/db/schema";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
 import { suscripcionDe } from "@/lib/plans-server";
+import { cargarCatalogo } from "@/lib/catalogo-server";
 import {
+  CATALOGO,
   enTrial,
+  nombreDe,
   planEfectivo,
-  PLAN_LABEL,
+  type Catalogo,
   type Suscripcion,
 } from "@/lib/plans";
 import { formatDate, generateId } from "@/lib/utils";
@@ -68,6 +71,8 @@ export const DIAS_AVISO_PRUEBA = 7;
 export function mensajeNegocioVisible(
   nombre: string,
   suscripcion: Suscripcion | null,
+  /** El catálogo vigente, para que el aviso nombre el plan como se nombre hoy. */
+  cat: Catalogo = CATALOGO,
 ): string {
   const base = `«${nombre}» ya está publicado en La Verde y así pueden encontrarlo.`;
 
@@ -78,10 +83,10 @@ export function mensajeNegocioVisible(
     return `${base} Tienes el plan Pro activo, en prueba gratis hasta el ${formatDate(suscripcion.trialHasta)}.`;
   }
 
-  const plan = planEfectivo(suscripcion);
+  const plan = planEfectivo(suscripcion, new Date(), cat);
   return plan === "gratis"
-    ? `${base} Tienes el plan Gratis activo; puedes subir de plan desde el panel del negocio.`
-    : `${base} Tienes el plan ${PLAN_LABEL[plan]} activo.`;
+    ? `${base} Tienes el plan ${cat.gratisNombre} activo; puedes subir de plan desde el panel del negocio.`
+    : `${base} Tienes el plan ${nombreDe(plan, cat)} activo.`;
 }
 
 /**
@@ -134,7 +139,10 @@ export async function asegurarAvisosDeNegocio({
      avisar de él llenaría de ruido real una bandeja que no es de nadie. */
   if (placeId === DEV_PLACE_ID) return;
 
-  const suscripcion = await suscripcionDe(placeId);
+  const [suscripcion, cat] = await Promise.all([
+    suscripcionDe(placeId),
+    cargarCatalogo(),
+  ]);
 
   if (!(await existeAviso(userId, placeId, "business_approved"))) {
     await db.insert(notifications).values({
@@ -142,7 +150,7 @@ export async function asegurarAvisosDeNegocio({
       userId,
       type: "business_approved",
       title: "Tu negocio ya está visible",
-      message: mensajeNegocioVisible(nombre, suscripcion),
+      message: mensajeNegocioVisible(nombre, suscripcion, cat),
       placeId,
     });
   }

@@ -4,29 +4,28 @@ import { Lock, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MiniChart } from "@/components/business/mini-chart";
 import type { VisitasPanel } from "@/lib/eventos";
-import { textoBloqueo, type Feature, type Plan } from "@/lib/plans";
+import { textoBloqueo, type Funcion } from "@/lib/plans";
+import { useCatalogo } from "@/providers/catalogo-provider";
 
 /**
- * Las estadísticas del negocio, por plan.
+ * Las estadísticas del negocio, por funciones.
  *
  * El recorte lo decide el **servidor** (`statsVisitas` solo rellena las partes
- * que el plan incluye); esto solo pinta lo que llega y, cuando falta, enseña el
- * candado. La razón de que el corte no se haga aquí es que un número que viaja
- * al navegador ya se puede leer aunque no se pinte: si el plan es Gratis, la
- * serie del gráfico no sale de Neon.
+ * que el negocio tiene contratadas); esto solo pinta lo que llega y, cuando
+ * falta, enseña el candado. La razón de que el corte no se haga aquí es que un
+ * número que viaja al navegador ya se puede leer aunque no se pinte: si el
+ * negocio está en Gratis, la serie del gráfico no sale de Neon.
  *
- * Gratis tiene una cifra y dos puertas; Básico, la fila de visitas y llamadas;
- * Pro, el gráfico y los productos. Cada bloque bloqueado dice **qué plan lo
- * abre** y lleva al dueño a la sección de planes, que es donde puede hacer algo
- * al respecto.
+ * Gratis tiene la cifra del mes; Visibilidad añade la fila de visitas y
+ * llamadas; Pro, el gráfico y los productos. Cada bloque bloqueado dice **con
+ * qué se abre** y lleva al dueño a la sección de planes, que es donde puede
+ * hacer algo al respecto.
  */
 export function EstadisticasPanel({
-  plan,
   visitas,
   onVerPlanes,
 }: {
-  plan: Plan;
-  /** Ya recortado por plan en el servidor. */
+  /** Ya recortado por funciones en el servidor. */
   visitas: VisitasPanel;
   onVerPlanes: () => void;
 }) {
@@ -59,7 +58,7 @@ export function EstadisticasPanel({
         </p>
       </div>
 
-      {/* Visitas y llamadas a 7 y 30 días. Básico y superiores.
+      {/* Visitas y llamadas a 7 y 30 días. Visibilidad y por encima.
 
           En fila de cifras y no en tarjetas: el dashboard ya enseña cuatro
           tarjetas de la ficha justo arriba, y ocho cuadrados idénticos seguidos
@@ -77,11 +76,7 @@ export function EstadisticasPanel({
           ]}
         />
       ) : (
-        <Bloqueado
-          feature="stats_basicas"
-          plan={plan}
-          onVerPlanes={onVerPlanes}
-        >
+        <Bloqueado feature="stats_basicas" onVerPlanes={onVerPlanes}>
           Visitas y llamadas de los últimos 7 y 30 días.
         </Bloqueado>
       )}
@@ -109,11 +104,7 @@ export function EstadisticasPanel({
           </div>
         </div>
       ) : (
-        <Bloqueado
-          feature="stats_completas"
-          plan={plan}
-          onVerPlanes={onVerPlanes}
-        >
+        <Bloqueado feature="stats_completas" onVerPlanes={onVerPlanes}>
           El gráfico día a día, tus 5 productos más vistos y las reservas.
         </Bloqueado>
       )}
@@ -217,25 +208,22 @@ function TopProductos({
 }
 
 /**
- * Un bloque que el plan no incluye.
+ * Un bloque que el negocio no tiene contratado.
  *
- * Dice **qué** te pierdes y **en qué plan** entra, y lleva a la sección donde se
- * cambia. Un candado sin puerta solo informa de que no puedes.
+ * Dice **qué** te pierdes y **con qué** se abre, y lleva a la sección donde se
+ * contrata. Un candado sin puerta solo informa de que no puedes.
  */
 function Bloqueado({
   feature,
-  plan,
   onVerPlanes,
   children,
 }: {
-  feature: Feature;
-  plan: Plan;
+  feature: Funcion;
   onVerPlanes: () => void;
   children: React.ReactNode;
 }) {
-  /* `textoBloqueo` devuelve `null` cuando el plan ya lo incluye; aquí nunca pasa,
-     porque este bloque solo se pinta cuando falta. El respaldo evita un hueco. */
-  const texto = textoBloqueo(feature, plan) ?? "Disponible en un plan superior";
+  const cat = useCatalogo();
+  const texto = textoBloqueo(feature, cat);
 
   return (
     <div className="flex items-center gap-gap-md rounded-2xl border border-dashed border-ink/15 bg-sand/60 p-gap-md">

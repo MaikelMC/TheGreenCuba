@@ -3,7 +3,14 @@ import { eq } from "drizzle-orm";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { suscripciones } from "@/lib/db/schema";
-import { planEfectivo, PLAN_ORDER, type Plan } from "@/lib/plans";
+import {
+  MODULOS,
+  aSuscripcion,
+  planEfectivo,
+  PLAN_ORDER,
+  type ClaveModulo,
+  type Plan,
+} from "@/lib/plans";
 import { generateId } from "@/lib/utils";
 
 /**
@@ -51,12 +58,25 @@ function leer(body: Record<string, unknown>) {
     return value;
   })();
 
+  /* Los módulos sueltos llegan como lista de claves. Se desconocen las que ya
+     no existen en el catálogo, para que una clave retirada no llegue al `jsonb`
+     y rompa la lectura de permisos del negocio. */
+  const modulos = (() => {
+    if (!Array.isArray(body.modulos)) return undefined;
+    const claves = new Set<string>(Object.keys(MODULOS));
+    return [...new Set(body.modulos)].filter(
+      (clave): clave is ClaveModulo =>
+        typeof clave === "string" && claves.has(clave),
+    );
+  })();
+
   return {
     plan,
     estado,
     trialHasta: fecha(body.trialHasta),
     venceEn: fecha(body.venceEn),
     descuentoPct,
+    modulos,
   };
 }
 
@@ -87,16 +107,12 @@ export async function GET(req: NextRequest) {
     trialHasta: null,
     venceEn: null,
     descuentoPct: null,
+    modulos: [] as { clave: string; desde: string; hasta: string | null }[],
   };
 
   return NextResponse.json({
     ...suscripcion,
-    planEfectivo: planEfectivo({
-      plan: suscripcion.plan,
-      estado: suscripcion.estado,
-      trialHasta: suscripcion.trialHasta,
-      venceEn: suscripcion.venceEn,
-    }),
+    planEfectivo: planEfectivo(aSuscripcion(suscripcion)),
   });
 }
 
@@ -117,7 +133,27 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Falta negocioId" }, { status: 400 });
   }
 
-  const { plan, estado, trialHasta, venceEn, descuentoPct } = leer(body);
+  const { plan, estado, trialHasta, venceEn, descuentoPct, modulos } =
+    leer(body);
+
+  /* La lista de módulos es la deseada, no un parche: al guardarla se conserva
+     el `desde` de los que ya estaban y se marca con la fecha de hoy los nuevos,
+     para no reiniciar la antigüedad de un módulo solo por tocar otro campo. */
+  let guardados: { clave: ClaveModulo; desde: string; hasta: null }[] | undefined;
+  if (modulos !== undefined) {
+    const [previa] = await db
+      .select({ modulos: suscripciones.modulos })
+      .from(suscripciones)
+      .where(eq(suscripciones.negocioId, negocioId))
+      .limit(1);
+    const desde = new Map((previa?.modulos ?? []).map((m) => [m.clave, m.desde]));
+    const ahora = new Date().toISOString();
+    guardados = modulos.map((clave) => ({
+      clave,
+      desde: desde.get(clave) ?? ahora,
+      hasta: null,
+    }));
+  }
 
   /* Solo lo que vino. Un `undefined` aquí es «no lo toques», y volcarlo dejaría
      el campo a nulo en cada guardado parcial. */
@@ -127,6 +163,7 @@ export async function PATCH(req: NextRequest) {
     ...(trialHasta !== undefined ? { trialHasta } : {}),
     ...(venceEn !== undefined ? { venceEn } : {}),
     ...(descuentoPct !== undefined ? { descuentoPct } : {}),
+    ...(guardados !== undefined ? { modulos: guardados } : {}),
     updatedAt: new Date(),
   };
 
@@ -140,6 +177,7 @@ export async function PATCH(req: NextRequest) {
       trialHasta: trialHasta ?? null,
       venceEn: venceEn ?? null,
       descuentoPct: descuentoPct ?? null,
+      modulos: guardados ?? [],
     })
     /* Crear si no existe y actualizar si existe, en un solo viaje. El `where`
        del update no lleva el `negocioId` porque el `insert` ya falló contra el
@@ -152,11 +190,6 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({
     ...row,
-    planEfectivo: planEfectivo({
-      plan: row!.plan,
-      estado: row!.estado,
-      trialHasta: row!.trialHasta,
-      venceEn: row!.venceEn,
-    }),
+    planEfectivo: planEfectivo(aSuscripcion(row!)),
   });
 }

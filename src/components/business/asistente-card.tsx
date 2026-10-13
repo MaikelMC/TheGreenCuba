@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bot, Check, Copy, Lock, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { textoBloqueo, type Plan } from "@/lib/plans";
+import { bloqueoDe, type Funcion } from "@/lib/plans";
+import { useCatalogo } from "@/providers/catalogo-provider";
 import type { UserPlace } from "@/lib/places-store";
 
 /**
@@ -28,14 +29,16 @@ interface Estado {
 
 export function AsistenteCard({
   place,
-  plan,
+  funciones,
   onVerPlanes,
 }: {
   place: UserPlace;
-  plan: Plan;
+  /** Todo lo que puede hacer el negocio, resuelto en el servidor. */
+  funciones: Funcion[];
   onVerPlanes: () => void;
 }) {
-  const bloqueo = textoBloqueo("asistente_ia", plan);
+  const cat = useCatalogo();
+  const bloqueo = bloqueoDe(funciones, "asistente_ia", cat);
 
   const [estado, setEstado] = useState<Estado | null>(null);
   const [generando, setGenerando] = useState(false);

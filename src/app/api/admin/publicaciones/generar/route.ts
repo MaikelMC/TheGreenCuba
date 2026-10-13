@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Las publicaciones de Facebook están disponibles en los planes Básico y Pro.",
+          "Las publicaciones de Facebook entran con el módulo Facebook o con Publicidad Max.",
       },
       { status: 403 },
     );

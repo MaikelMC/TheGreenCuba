@@ -18,8 +18,7 @@ import { configReserva } from "@/lib/reserva";
 import { configSeguidores } from "@/lib/seguidores";
 import { menuUrl } from "@/lib/structured-data";
 import { categoryEmoji } from "@/lib/places";
-import { incluye } from "@/lib/plans";
-import { planEfectivoDe } from "@/lib/plans-server";
+import { tieneFuncion } from "@/lib/plans-server";
 import { cn, currencyLabel, formatMenuPrice, slugify } from "@/lib/utils";
 import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
 import { ofertaDe, ofertasVigentes, precioConOferta } from "@/lib/ofertas";
@@ -281,18 +280,18 @@ export default async function MenuPage({
   /* El carrito necesita **tres** síes, y se comprueban aquí, en el servidor: el
      navegador solo pinta lo que le llega.
 
-     1. El plan lo incluye (`whatsapp_pedido`, Básico+).
+     1. Lo tiene contratado (`whatsapp_pedido`, del módulo Pedidos y reservas).
      2. El dueño no lo ha apagado en Ajustes (`pedidosWhatsapp`).
      3. Hay número al que mandar el pedido.
 
      El orden importa: los dos que no cuestan nada van primero, así que una
      carta vacía o un negocio sin número —que son la mayoría— no pagan la
-     consulta del plan. */
+     consulta de los permisos. */
   const puedePedir =
     place.menu.length > 0 &&
     place.pedidosWhatsapp &&
     Boolean(place.whatsapp?.trim()) &&
-    incluye(await planEfectivoDe(place.id), "whatsapp_pedido");
+    (await tieneFuncion(place.id, "whatsapp_pedido"));
 
   /* Las ofertas vivas, filtradas una vez con el «ahora» de esta petición. La
      carta se sirve sin caché de Next —esta página no está en `unstable_cache`—
