@@ -139,7 +139,7 @@ test("los límites tienen un valor para cada plan", () => {
 });
 
 test("los topes de los planes de pago son los acordados", () => {
-  assert.equal(limiteDe("gratis", "productos_max"), 80);
+  assert.equal(limiteDe("gratis", "productos_max"), 90);
   assert.equal(limiteDe("basico", "productos_max"), null);
   assert.equal(limiteDe("pro", "productos_max"), null);
   assert.equal(limiteDe("gratis", "fotos_productos_max"), 10);

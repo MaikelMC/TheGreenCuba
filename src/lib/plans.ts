@@ -169,7 +169,7 @@ export function textoBloqueo(feature: Feature, plan: Plan): string | null {
 
 export const LIMITES = {
   /** Antiabuso, no una frontera comercial: no se enseña como límite al dueño. */
-  productos_max: { gratis: 80, basico: null, pro: null },
+  productos_max: { gratis: 90, basico: null, pro: null },
   fotos_productos_max: { gratis: 10, basico: null, pro: null },
   publicaciones_semana: { gratis: 0, basico: 1, pro: 3 },
   flyers_mes: { gratis: 0, basico: 0, pro: 10 },
