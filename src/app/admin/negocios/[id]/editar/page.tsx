@@ -2,9 +2,10 @@
 
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { MapPin, ArrowLeft } from "lucide-react";
+import { MapPin, ArrowLeft, Upload } from "lucide-react";
 import { BusinessForm } from "@/components/admin/business-form";
 import { SuscripcionEditor } from "@/components/admin/suscripcion-editor";
+import { VinculoEditor } from "@/components/admin/vinculo-editor";
 import { StateView } from "@/components/ui/state-view";
 import { LoadingState } from "@/components/ui/loading";
 import { usePlaces } from "@/providers/places-provider";
@@ -56,6 +57,23 @@ export default function EditarNegocioPage() {
           ficha habría atado dos escrituras que no tienen nada que ver. */}
       <div className="mt-gap-lg">
         <SuscripcionEditor placeId={place.id} />
+      </div>
+      {/* El dueño va aparte por el mismo motivo que el plan: escribe otra tabla
+          —`business_owners`— y por otra ruta. */}
+      <div className="mt-gap-lg">
+        <VinculoEditor placeId={place.id} />
+      </div>
+      {/* La importación por CSV vive en su propia pantalla: da de alta decenas
+          de productos con vista previa, y meterla en el `save` de la ficha
+          habría atado dos escrituras que no tienen nada que ver. */}
+      <div className="mt-gap-lg">
+        <Link
+          href={`/admin/negocios/${place.id}/importar`}
+          className="inline-flex items-center gap-gap-xs h-11 px-gap-lg rounded-full bg-white border border-ink/10 text-ink font-lv-display text-small font-semibold hover:border-verde-300 hover:text-verde-600 transition-all duration-500 ease-outquint"
+        >
+          <Upload size={16} strokeWidth={1.8} />
+          Importar catálogo por CSV
+        </Link>
       </div>
     </>
   );
