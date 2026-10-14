@@ -3,7 +3,7 @@
 import { useState, useCallback, useId, useRef } from "react";
 import Image from "next/image";
 import { Clock, Image as ImageIcon, Loader2, Plus, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, menuTagFallback, menuTagStyles } from "@/lib/utils";
 import { prepareImage } from "@/lib/storage/compress";
 import {
   estaAgotado,
@@ -48,15 +48,6 @@ const DEFAULT_ITEMS: MenuItemData[] = [
   { id: "2", name: "Lechón Asado", description: "Cerdo asado lentamente con mojo criollo, yuca y ensalada", price: "15", currency: "MLC", gradient: "linear-gradient(135deg, #CEEEDB, #EAF7EF)" },
   { id: "3", name: "Mojito de la Casa", description: "Ron fresco, hierbabuena, lima y soda. Receta de la casa.", price: "5", currency: "MLC", tag: "2x1", gradient: "linear-gradient(135deg, #F6F3EC, #EAE4D6)" },
 ];
-
-/* Mismo mapa de etiquetas que usa la tarjeta de lugar del home: el distintivo
-   verde para lo destacado, arena para el resto. Antes eran ámbar y rojo, que no
-   existen en el sistema. */
-const TAG_STYLES: Record<string, string> = {
-  Popular: "bg-verde-100 text-verde-700",
-  Nuevo: "bg-verde-50 text-verde-600",
-  "2x1": "bg-sand-deep text-ink-soft/75",
-};
 
 const INPUT =
   "px-gap-sm border rounded-xl font-lv text-small bg-white text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
@@ -441,7 +432,7 @@ export function MenuItemEditor({
                 <span
                   className={cn(
                     "px-[10px] py-[3px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em]",
-                    TAG_STYLES[item.tag] ?? "bg-sand text-ink-soft/75",
+                    menuTagStyles[item.tag] ?? menuTagFallback,
                   )}
                 >
                   {item.tag}

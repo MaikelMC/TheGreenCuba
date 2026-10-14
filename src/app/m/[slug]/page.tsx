@@ -19,7 +19,14 @@ import { configSeguidores } from "@/lib/seguidores";
 import { menuUrl } from "@/lib/structured-data";
 import { categoryEmoji } from "@/lib/places";
 import { tieneFuncion } from "@/lib/plans-server";
-import { cn, currencyLabel, formatMenuPrice, slugify } from "@/lib/utils";
+import {
+  cn,
+  currencyLabel,
+  formatMenuPrice,
+  menuTagFallback,
+  menuTagStyles,
+  slugify,
+} from "@/lib/utils";
 import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
 import { ofertaDe, ofertasVigentes, precioConOferta } from "@/lib/ofertas";
 import { BotonAgregar, PedidoProvider } from "@/components/menu/pedido-whatsapp";
@@ -179,13 +186,16 @@ function MenuRow({
          nombre y no el id porque el id puede faltar en las entradas viejas. */
       data-producto={item.name}
       className={cn(
-        "flex gap-gap-md border-b border-ink/5 py-gap-md last:border-b-0",
+        "flex flex-col rounded-2xl border border-ink/10 bg-white p-gap-xs shadow-soft sm:p-gap-sm",
         agotado && "opacity-60",
       )}
     >
+      {/* La foto cuadrada manda la tarjeta y el texto va debajo, dentro de la
+          misma caja: el contorno es lo que separa un producto del siguiente, y
+          el relleno de la tarjeta es lo que la deja más recogida. */}
       <div
         className={cn(
-          "relative grid size-[72px] shrink-0 place-items-center overflow-hidden rounded-2xl bg-sand-deep text-verde-600",
+          "relative aspect-square w-full overflow-hidden rounded-lv-lg border border-ink/5 bg-sand-deep text-verde-600",
           agotado && "grayscale",
         )}
       >
@@ -194,7 +204,7 @@ function MenuRow({
             src={item.image}
             alt={item.name ? `Foto de ${item.name}` : ""}
             fill
-            sizes="72px"
+            sizes="(min-width: 768px) 440px, 45vw"
             quality={70}
             className="object-cover"
           />
@@ -202,13 +212,19 @@ function MenuRow({
           /* El mismo hueco que la ficha: quien no subió foto ve el icono de
              «aquí iría una foto», no un plato dibujado por la fuente del
              sistema, que en Windows y en Android sale distinto. */
-          <ImageIcon size={24} strokeWidth={1.8} className="opacity-50" />
+          <span className="absolute inset-0 grid place-items-center">
+            <ImageIcon size={28} strokeWidth={1.8} className="opacity-50" />
+          </span>
         )}
       </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="mb-[2px] flex flex-wrap items-center gap-gap-xs">
-          <span className="font-lv-display text-small font-semibold text-ink">
+      {/* `flex-1` + `flex-col`: la tarjeta estirada por la rejilla reparte el
+          alto sobrante en el cuerpo del texto, y el precio cae al fondo. */}
+      <div className="mt-gap-sm flex min-w-0 flex-1 flex-col">
+        <div className="flex flex-wrap items-center gap-gap-xs">
+          {/* Nombre a 16 px en el teléfono y a 22 desde `sm`: a 360 px la
+              tarjeta mide ~154 px y un nombre de 22 px se come tres líneas. */}
+          <span className="font-lv-display text-body font-bold leading-snug text-ink sm:text-h3">
             {item.name}
           </span>
           {enOferta && (
@@ -223,12 +239,15 @@ function MenuRow({
           )}
         </div>
         {item.description && (
-          <div className="text-meta leading-snug text-ink-soft/75">
+          <div className="line-clamp-2 text-small leading-snug text-ink-soft/75 sm:text-body">
             {item.description}
           </div>
         )}
-        {(priceText || item.tag) && (
-          <div className="mt-[6px] flex items-center gap-gap-xs">
+        {(priceText || item.tag || pedible) && (
+          <div className="mt-auto flex flex-wrap items-center gap-gap-xs pt-[6px]">
+            {/* `flex-wrap`: en el teléfono la tarjeta mide ~154 px y un precio
+                con chapita y «+» ya no cabe en una línea. Que baje el bloque de
+                la derecha antes que desbordar. */}
             {enOferta && oferta ? (
               <span className="flex items-baseline gap-gap-xs">
                 <span className="font-lv-display text-meta text-ink-soft/60 line-through">
@@ -240,35 +259,44 @@ function MenuRow({
               </span>
             ) : (
               priceText && (
-                <span className="font-lv-display text-small font-semibold text-ink">
+                <span className="font-lv-display text-body font-bold leading-snug text-ink sm:text-h3">
                   {priceText}
                 </span>
               )
             )}
-            {item.tag && (
-              <span className="ml-auto rounded-full bg-verde-100 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-verde-700">
-                {item.tag}
+            {/* La chapita y el «añadir» van juntos a la derecha: el
+                `ml-auto` es de los dos, así que da igual cuál de ellos falte. */}
+            {(item.tag || pedible) && (
+              <span className="ml-auto flex items-center gap-gap-xs">
+                {item.tag && (
+                  <span
+                    className={cn(
+                      "rounded-full px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em]",
+                      menuTagStyles[item.tag] ?? menuTagFallback,
+                    )}
+                  >
+                    {item.tag}
+                  </span>
+                )}
+                {pedible && (
+                  <BotonAgregar
+                    producto={{
+                      id: productoId,
+                      name: item.name,
+                      /* El precio que va al pedido es el de la oferta: el
+                         carrito arma el mensaje de WhatsApp con esta cifra, y
+                         mandarle el de la carta sería pedirle al cliente que
+                         pague de más. */
+                      price: enOferta && oferta ? oferta.por : item.price,
+                      currency: item.currency,
+                    }}
+                  />
+                )}
               </span>
             )}
           </div>
         )}
       </div>
-
-      {pedible && (
-        <div className="self-center">
-          <BotonAgregar
-            producto={{
-              id: productoId,
-              name: item.name,
-              /* El precio que va al pedido es el de la oferta: el carrito arma
-                 el mensaje de WhatsApp con esta cifra, y mandarle el de la
-                 carta sería pedirle al cliente que pague de más. */
-              price: enOferta && oferta ? oferta.por : item.price,
-              currency: item.currency,
-            }}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -353,11 +381,14 @@ export default async function MenuPage({
         className="scroll-mt-gap-lg"
       >
         {group.name && (
-          <h3 className="mt-gap-md mb-gap-xs font-lv-display text-small font-semibold uppercase tracking-[0.12em] text-ink-soft/75">
+          <h3 className="mt-gap-md mb-gap-sm font-lv-display text-h3 font-bold uppercase tracking-tight text-ink">
             {group.name}
           </h3>
         )}
-        <div className="rounded-3xl border border-ink/5 bg-white px-gap-md shadow-soft">
+        {/* Dos columnas siempre, con el hueco corto entre tarjetas. `auto-rows-fr`
+            iguala la altura de todas las filas: sin él la tarjeta sin descripción
+            queda más baja que la de al lado y la rejilla se ve desalineada. */}
+        <div className="grid grid-cols-2 auto-rows-fr gap-gap-sm">
           {group.items.map((item, index) => {
             /* El mismo emparejado que hace la ficha: por `id` del producto, que
                es lo que guarda la oferta. */

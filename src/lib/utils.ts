@@ -122,8 +122,46 @@ export function sanitizePhone(value: string): string {
   return value.replace(/[^\d+\s().-]/g, "");
 }
 
+/**
+ * La chapita que el dueño pone a un producto: «Popular», «Nuevo», «2x1».
+ *
+ * Vive aquí y no en cada componente porque la pintan tres sitios —la carta, la
+ * ficha y el editor del panel— y con el mapa copiado salían chapitas distintas
+ * para la misma etiqueta: la carta no miraba ni la clave y las pintaba todas
+ * igual. `Nuevo` va en el verde de acento, que es lo que la distingue de
+ * `Popular`: una etiqueta de reclamo, no una de orden.
+ */
+export const menuTagStyles: Record<string, string> = {
+  Popular: "bg-verde-100 text-verde-700",
+  Nuevo: "bg-verde-400 text-verde-950",
+  "2x1": "bg-sand-deep text-ink-soft/75",
+};
+
+/** Una etiqueta que el panel no conozca se pinta igual, en arena. Mejor una
+    chapita sin color propio que una chapita invisible. */
+export const menuTagFallback = "bg-sand text-ink-soft/75";
+
+/**
+ * El precio de la carta, como se escribe un precio: «1200» → «1,200.00 CUP».
+ *
+ * El dueño lo escribe a mano y ahí cabe de todo —«12», «12000», «3–5», «A
+ * convenir»—, así que solo se formatea la cifra limpia. Meterse con el resto
+ * sería inventar un número donde hay un rango o una frase.
+ *
+ * `en-US` fijo y no el locale del navegador: el mismo precio tiene que salir
+ * igual en el servidor y en el cliente, o la hidratación se queja.
+ */
 export function formatMenuPrice(price: string, currency: string): string {
-  return price.trim() ? `${price} ${currencyLabel(currency)}` : "";
+  const texto = price.trim();
+  if (!texto) return "";
+  const esCifra = /^\d+(?:\.\d+)?$/.test(texto);
+  const valor = esCifra
+    ? new Intl.NumberFormat("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(Number(texto))
+    : texto;
+  return `${valor} ${currencyLabel(currency)}`;
 }
 
 export function formatPrice(price: number, currency = "MLC"): string {

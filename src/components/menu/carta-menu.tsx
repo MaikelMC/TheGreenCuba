@@ -24,9 +24,11 @@ export interface CartaGrupo {
 }
 
 /* La pastilla de las anclas de antes: el gesto ya se conocía, solo cambia lo
-   que hace al tocarlo. */
+   que hace al tocarlo.
+   `shrink-0` + `whitespace-nowrap`: en el teléfono las pastillas no caben y sin
+   eso el navegador las encoge y parte el nombre del grupo en dos líneas. */
 const CHIP =
-  "inline-flex items-center rounded-full border px-3 py-1.5 font-lv-display text-meta font-medium cursor-pointer transition-colors duration-500 ease-outquint";
+  "inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-3 py-1.5 font-lv-display text-meta font-medium cursor-pointer transition-colors duration-500 ease-outquint";
 const CHIP_ON = "border-verde-400 bg-verde-400 text-verde-950";
 const CHIP_OFF =
   "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600";
@@ -47,7 +49,10 @@ export function CartaMenu({ groups }: { groups: CartaGrupo[] }) {
       {conNombre.length > 1 && (
         <nav
           aria-label="Categorías del menú"
-          className="mb-gap-sm flex flex-wrap gap-[6px]"
+          /* Una sola fila que se desliza en horizontal. `flex-wrap` las apilaba
+             en tres o cuatro líneas en el teléfono y empujaba la carta hacia
+             abajo; `pb-1` deja aire para la barra de desplazamiento. */
+          className="mb-gap-sm scrollbar-hide flex gap-[6px] overflow-x-auto pb-1"
         >
           <button
             type="button"

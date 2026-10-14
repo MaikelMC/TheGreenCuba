@@ -58,7 +58,10 @@ test("el mensaje lleva las líneas, las cantidades y el cierre de La Verde", () 
     lineas: [linea({ qty: 2, name: "Arroz con pollo" })],
   });
   assert.match(texto, /\*Pedido — El Sabroso\*/);
-  assert.match(texto, /• Arroz con pollo x2 — 1200 CUP/);
+  /* El precio sale formateado —millar y dos decimales— cuando es una cifra
+     limpia; lo que no lo es va tal cual lo escribió el dueño. Ver
+     `formatMenuPrice`. */
+  assert.match(texto, /• Arroz con pollo x2 — 1,200\.00 CUP/);
   assert.match(texto, /\*Total: 2400\.00 CUP\*/);
   assert.ok(texto.endsWith("Pedido desde La Verde"));
 });

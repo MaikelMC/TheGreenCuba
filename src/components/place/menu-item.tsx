@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import Image from "next/image";
 import { Image as ImageIcon } from "lucide-react";
-import { cn, formatMenuPrice } from "@/lib/utils";
+import { cn, formatMenuPrice, menuTagFallback, menuTagStyles } from "@/lib/utils";
 import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
 
 interface MenuItemProps {
@@ -37,20 +37,6 @@ interface MenuItemProps {
   className?: string;
   index?: number;
 }
-
-/* Mismo mapa y **mismas claves** que `TAG_STYLES` del `menu-item-editor`: la
-   chapita que el dueño pone en el panel y la que sale aquí son la misma, y con
-   vocabularios distintos —aquí eran `popular`/`new`/`offer` en minúscula— el
-   `tag` guardado no casaba con ningún estilo. */
-const TAG_STYLES: Record<string, string> = {
-  Popular: "bg-verde-100 text-verde-700",
-  Nuevo: "bg-verde-50 text-verde-600",
-  "2x1": "bg-sand-deep text-ink-soft/75",
-};
-
-/* Una etiqueta que el panel no conozca se pinta igual, en arena. Mejor una
-   chapita sin color propio que una chapita invisible. */
-const TAG_FALLBACK = "bg-sand text-ink-soft/75";
 
 export function MenuItem({
   name,
@@ -87,28 +73,10 @@ export function MenuItem({
         className,
       )}
     >
-      {/* Hueco de la foto: la imagen subida, o el icono. */}
-      <div
-        className={cn(
-          "relative size-[72px] rounded-2xl bg-sand-deep shrink-0 grid place-items-center overflow-hidden text-verde-600",
-          agotado && "grayscale",
-        )}
-      >
-        {image ? (
-          <Image
-            src={image}
-            alt={name ? `Foto de ${name}` : ""}
-            fill
-            sizes="72px"
-            className="object-cover"
-          />
-        ) : (
-          <ImageIcon size={24} strokeWidth={1.8} className="opacity-50" />
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 min-w-0">
+      {/* El texto va primero y la foto a la derecha: es el orden de una lista
+          —se lee el nombre, luego el precio— y deja la foto pegada al borde,
+          que es lo que se reconoce de un vistazo al bajar por la carta. */}
+      <div className="min-w-0 flex-1">
         <div className="mb-[2px] flex flex-wrap items-center gap-gap-xs">
           <span className="font-lv-display text-small font-semibold text-ink">
             {name}
@@ -163,13 +131,33 @@ export function MenuItem({
                   /* `ml-auto` para que la chapita siga pegada a la derecha
                      cuando es lo único que queda en la fila. */
                   "ml-auto px-[8px] py-[2px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em]",
-                  TAG_STYLES[tag] ?? TAG_FALLBACK,
+                  menuTagStyles[tag] ?? menuTagFallback,
                 )}
               >
                 {tag}
               </span>
             )}
           </div>
+        )}
+      </div>
+
+      {/* Hueco de la foto: la imagen subida, o el icono. */}
+      <div
+        className={cn(
+          "relative grid size-[72px] shrink-0 place-items-center overflow-hidden rounded-2xl bg-sand-deep text-verde-600",
+          agotado && "grayscale",
+        )}
+      >
+        {image ? (
+          <Image
+            src={image}
+            alt={name ? `Foto de ${name}` : ""}
+            fill
+            sizes="72px"
+            className="object-cover"
+          />
+        ) : (
+          <ImageIcon size={24} strokeWidth={1.8} className="opacity-50" />
         )}
       </div>
     </motion.div>
