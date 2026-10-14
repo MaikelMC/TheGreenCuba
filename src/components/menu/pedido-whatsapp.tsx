@@ -8,7 +8,14 @@ import {
   useMemo,
   useState,
 } from "react";
-import { ChevronDown, MessageCircle, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  MessageCircle,
+  Minus,
+  Plus,
+  ShoppingBag,
+  Trash2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   hrefPedido,
@@ -147,7 +154,11 @@ export function PedidoProvider({
           <div aria-hidden className="h-[104px]" />
 
           <div className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-white/95 backdrop-blur">
-            <div className="mx-auto w-full max-w-[680px] px-gutter pb-gap-sm pt-gap-xs">
+            {/* `px-gap-xs` en el teléfono y no `px-gutter`: la barra va pegada al
+                borde de la pantalla y cada píxel que se le quita al margen es
+                ancho que se le da a los dos botones, que tienen que caber en la
+                misma fila. De `sm` en adelante vuelve a alinearse con la carta. */}
+            <div className="mx-auto w-full max-w-[680px] px-gap-xs pb-gap-sm pt-gap-xs sm:px-gutter">
               {abierto && (
                 <ul className="mb-gap-xs max-h-[45vh] overflow-y-auto border-b border-ink/5 pb-gap-xs">
                   {lineas.map((linea) => (
@@ -160,7 +171,9 @@ export function PedidoProvider({
                           {linea.name}
                         </div>
                         <div className="text-meta text-ink-soft/75">
-                          {[linea.price, linea.currency].filter(Boolean).join(" ")}
+                          {[linea.price, linea.currency]
+                            .filter(Boolean)
+                            .join(" ")}
                         </div>
                       </div>
 
@@ -195,14 +208,26 @@ export function PedidoProvider({
                 </ul>
               )}
 
-              <div className="flex items-center gap-gap-xs">
+              {/* Mismo nivel: el resumen y la acción en una fila. El ancho
+                  sobrante que hacía falta para que entre «Realizar pedido» sale
+                  del relleno —el resumen y la acción van a `px-gap-xs` en el
+                  teléfono, y la barra también—, no de quitar nada de dentro: el
+                  resumen conserva icono, «productos», total y flecha.
+                  El texto va sin partir: `h-11` / `h-12` son altos fijos, así
+                  que una etiqueta de dos líneas no estira la pastilla, se sale
+                  por abajo. */}
+              <div className="flex items-center justify-between gap-gap-xs">
                 <button
                   type="button"
                   aria-expanded={abierto}
                   onClick={() => setAbierto((prev) => !prev)}
-                  className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
+                  className="inline-flex h-11 shrink-0 cursor-pointer items-center gap-gap-xs whitespace-nowrap rounded-full border border-ink/10 bg-white px-gap-xs font-lv-display text-meta font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 sm:px-gap-sm sm:text-small"
                 >
-                  <ShoppingBag size={16} strokeWidth={1.8} />
+                  <ShoppingBag
+                    size={16}
+                    strokeWidth={1.8}
+                    className="shrink-0"
+                  />
                   {unidades} {unidades === 1 ? "producto" : "productos"}
                   {total && (
                     <span className="text-ink-soft/75">
@@ -213,7 +238,7 @@ export function PedidoProvider({
                     size={15}
                     strokeWidth={2}
                     className={cn(
-                      "transition-transform duration-500 ease-outquint",
+                      "shrink-0 transition-transform duration-500 ease-outquint",
                       abierto && "rotate-180",
                     )}
                   />
@@ -223,10 +248,14 @@ export function PedidoProvider({
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex h-11 flex-1 items-center justify-center gap-gap-xs rounded-full bg-verde-400 px-gap-md font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300"
+                  className="inline-flex h-12 flex-1 items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-verde-400 px-gap-xs font-lv-display text-body font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 sm:h-11 sm:px-gap-md sm:text-small"
                 >
-                  <MessageCircle size={16} strokeWidth={1.8} />
-                  Pedir por WhatsApp
+                  <MessageCircle
+                    size={17}
+                    strokeWidth={1.8}
+                    className="shrink-0"
+                  />
+                  Realizar pedido
                 </a>
               </div>
             </div>

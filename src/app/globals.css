@@ -46,6 +46,11 @@
        el `calc()` entero era inválido, `top` caía a `auto` y la columna no se
        pegaba nunca. Si cambia el token, cambia aquí. */
     --gap-lg: 24px;
+    /* Alto de la barra de filtros de la carta, que va pegajosa arriba. Es el
+       desplazamiento que necesita el `scroll-margin-top` de cada grupo para que
+       el titular no amanezca debajo de la barra al saltar desde un chip. Si
+       cambia el relleno de la pastilla, cambia aquí. */
+    --carta-filtros-h: 56px;
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     --duration-fast: 120ms;
     --duration-normal: 200ms;
@@ -132,6 +137,16 @@
   html[data-theme="dark"] .bg-sand-warm\/90,
   html[data-theme="dark"] .bg-background {
     background-color: #0e1720 !important;
+  }
+
+  /* La barra de filtros de la carta es `bg-background`, que en oscuro cae en la
+     regla de arriba —`#0e1720`, el color de **superficie**—. Pero el fondo de
+     esa página no es una superficie: es el `body`, que en oscuro pinta
+     `#08130d` con su halo verde. La barra quedaba azulada sobre un fondo verde.
+     Esta regla va **después** de la de arriba a propósito: misma especificidad,
+     gana el orden. */
+  html[data-theme="dark"] .carta-filtros {
+    background-color: #08130d !important;
   }
 
   html[data-theme="dark"] header.sticky,

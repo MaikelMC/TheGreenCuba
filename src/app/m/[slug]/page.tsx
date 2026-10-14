@@ -11,7 +11,11 @@ import {
   Phone,
 } from "lucide-react";
 import { getPlaceBySlug } from "@/lib/db/queries";
-import { DEV_PLACE_ID, canViewDevPlace, devPlaceIndexable } from "@/lib/dev-place";
+import {
+  DEV_PLACE_ID,
+  canViewDevPlace,
+  devPlaceIndexable,
+} from "@/lib/dev-place";
 import { getAppUser } from "@/lib/auth/user";
 import { whatsappHref } from "@/lib/contact-links";
 import { configReserva } from "@/lib/reserva";
@@ -29,12 +33,16 @@ import {
 } from "@/lib/utils";
 import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
 import { ofertaDe, ofertasVigentes, precioConOferta } from "@/lib/ofertas";
-import { BotonAgregar, PedidoProvider } from "@/components/menu/pedido-whatsapp";
+import {
+  BotonAgregar,
+  PedidoProvider,
+} from "@/components/menu/pedido-whatsapp";
 import { EventosMenu } from "@/components/menu/eventos-menu";
 import { CartaMenu, type CartaGrupo } from "@/components/menu/carta-menu";
 import { ReservaWhatsApp } from "@/components/place/reserva-whatsapp";
 import { SeguidorBoton } from "@/components/place/seguidor-boton";
 import { Logo } from "@/components/layout/logo";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 /**
  * El menú público: la URL corta y estable que se reparte.
@@ -50,15 +58,20 @@ import { Logo } from "@/components/layout/logo";
  * mayoría de las veces se mira una sola vez, todo eso es peso muerto. Aquí solo
  * se hereda el layout raíz.
  *
- * **Las filas se resuelven en el servidor** —con la oferta ya emparejada y sin
- * `motion`— y solo la lista de grupos es isla de cliente: `CartaMenu` guarda
- * qué categoría está puesta y elige qué grupos enseñar. Los grupos le llegan ya
- * montados desde aquí, así que filtrar no cuesta una fila de JavaScript.
+ * **Todo se resuelve en el servidor** —las filas, con la oferta ya emparejada y
+ * sin `motion`— y `CartaMenu` tampoco es isla de cliente: sus chips son anclas
+ * a los grupos, que están todos en la página. Quien tocaba una categoría cuando
+ * esto filtraba perdía de vista el resto de la carta, y el filtro costaba
+ * estado en el navegador para esconder lo que ya venía pintado.
  *
- * Las islas de cliente son dos: `CartaMenu`, que no pinta ninguna fila, y
- * `EventosMenu`, que tampoco pinta nada y solo cuenta visitas, clics de contacto
- * y productos que entran en pantalla. Pide un beacon por visita, no uno por
- * producto, porque la carta la abre gente con datos contados.
+ * Las islas de cliente son dos, y ninguna pinta la carta. `EventosMenu` solo
+ * cuenta visitas, clics de contacto y productos que entran en pantalla —pide un
+ * beacon por visita, no uno por producto, porque la carta la abre gente con
+ * datos contados— y `ThemeToggle` es el disco de claro/oscuro.
+ *
+ * El tema lo pone el sistema por defecto; en la carta se puede cambiar a mano
+ * porque quien la abre desde un QR puede venir con el móvil en oscuro y estar a
+ * pleno sol.
  *
  * El tope `productos_max` no se aplica al pintar: es antiabuso y ya corta al
  * guardar (ver `PATCH /api/places/[id]`). El menú se enseña completo.
@@ -109,7 +122,10 @@ export async function generateMetadata({
   const place = await getPlace(slug);
 
   if (!place) {
-    return { title: "Menú no encontrado", robots: { index: false, follow: true } };
+    return {
+      title: "Menú no encontrado",
+      robots: { index: false, follow: true },
+    };
   }
 
   const where = place.city || place.barrio || "Cuba";
@@ -370,78 +386,106 @@ export default async function MenuPage({
     const group = groups[i];
     if (group) group.items.push(item);
   }
-  /* Cada grupo, ya montado aquí. El filtro de cliente solo elige cuáles de
-     estos se enseñan: las filas siguen naciendo en el servidor, con la oferta
-     emparejada, y al navegador baja la decisión y no los datos. */
-  const groupsUi: CartaGrupo[] = groups.map((group) => ({
-    name: group.name,
-    node: (
-      <div
-        id={`cat-${slugify(group.name ?? "") || "general"}`}
-        className="scroll-mt-gap-lg"
-      >
-        {group.name && (
-          <h3 className="mt-gap-md mb-gap-sm font-lv-display text-h3 font-bold uppercase tracking-tight text-ink">
-            {group.name}
-          </h3>
-        )}
-        {/* Dos columnas siempre, con el hueco corto entre tarjetas. `auto-rows-fr`
+  /* Cada grupo, ya montado aquí, con su oferta emparejada. Se enseñan todos:
+     los chips de `CartaMenu` solo saltan de uno a otro. */
+  const groupsUi: CartaGrupo[] = groups.map((group) => {
+    /* El mismo `id` lo usan la sección y el chip que salta a ella. Se calcula
+       aquí una vez y viaja en el grupo: con el cálculo copiado en los dos
+       sitios, renombrar un grupo dejaba las anclas apuntando al vacío. */
+    const id = `cat-${slugify(group.name ?? "") || "general"}`;
+    return {
+      name: group.name,
+      id,
+      node: (
+        <div
+          id={id}
+          /* El desplazamiento del ancla tiene que librar la barra de filtros, que
+           va pegajosa arriba; si no, el titular del grupo amanece debajo de
+           ella. `--carta-filtros-h` es su alto y vive en `globals.css`. */
+          className="scroll-mt-[calc(var(--carta-filtros-h)+var(--gap-lg))]"
+        >
+          {group.name && (
+            <h3 className="mt-gap-md mb-gap-sm font-lv-display text-h3 font-bold uppercase tracking-tight text-ink">
+              {group.name}
+            </h3>
+          )}
+          {/* Dos columnas siempre, con el hueco corto entre tarjetas. `auto-rows-fr`
             iguala la altura de todas las filas: sin él la tarjeta sin descripción
             queda más baja que la de al lado y la rejilla se ve desalineada. */}
-        <div className="grid grid-cols-2 auto-rows-fr gap-gap-sm">
-          {group.items.map((item, index) => {
-            /* El mismo emparejado que hace la ficha: por `id` del producto, que
+          <div className="grid grid-cols-2 auto-rows-fr gap-gap-sm">
+            {group.items.map((item, index) => {
+              /* El mismo emparejado que hace la ficha: por `id` del producto, que
                es lo que guarda la oferta. */
-            const oferta = item.id ? ofertaDe(ofertas, item.id) : undefined;
-            return (
-              <MenuRow
-                key={`${item.name}-${index}`}
-                item={item}
-                /* Las entradas nuevas ya traen `id`; las viejas no, y ahí el
+              const oferta = item.id ? ofertaDe(ofertas, item.id) : undefined;
+              return (
+                <MenuRow
+                  key={`${item.name}-${index}`}
+                  item={item}
+                  /* Las entradas nuevas ya traen `id`; las viejas no, y ahí el
                    nombre con su posición es lo único estable que hay. */
-                productoId={item.id ?? `${item.name}-${index}`}
-                pedible={puedePedir && !estaAgotado(item)}
-                oferta={
-                  oferta
-                    ? (precioConOferta(item.price, oferta) ?? undefined)
-                    : undefined
-                }
-              />
-            );
-          })}
+                  productoId={item.id ?? `${item.name}-${index}`}
+                  pedible={puedePedir && !estaAgotado(item)}
+                  oferta={
+                    oferta
+                      ? (precioConOferta(item.price, oferta) ?? undefined)
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </div>
         </div>
-      </div>
-    ),
-  }));
+      ),
+    };
+  });
 
   const carta = (
     <div className="mx-auto w-full max-w-[680px] px-gutter py-gap-lg">
       {/* La isla que cuenta la carta. No pinta nada; ver `EventosMenu`. */}
       <EventosMenu negocioId={place.id} />
-      <div className="flex items-center justify-between gap-gap-sm pb-gap-md">
-        {/* El logotipo al lado del nombre, como en la cabecera del mapa: el
-            dibujo se reconoce y el texto lo dice, que en una carta que se abre
-            una vez y sin conocer la marca hace falta.
+      {/* `flex-wrap`: en un teléfono de 320 px los controles no caben en una
+          línea, y preferimos que la fila baje a que la carta se desplace en
+          horizontal, que además arrastraría la barra pegajosa. */}
+      <div className="flex flex-wrap items-center justify-between gap-gap-sm pb-gap-md">
+        {/* La marca y el interruptor de tema, pegados: el disco no es de la
+            carta sino de la página —no cambia de sección ni de vista—, y ahí
+            queda como un utensilio junto al nombre en vez de competir con la
+            ficha, que sí lleva a algún sitio. */}
+        <div className="flex shrink-0 items-center gap-gap-sm">
+          {/* El logotipo al lado del nombre, como en la cabecera del mapa: el
+              dibujo se reconoce y el texto lo dice, que en una carta que se abre
+              una vez y sin conocer la marca hace falta.
 
-            Con pastilla de botón —borde, fondo blanco y 44 px de alto—, no
-            suelto: el nombre en verde sobre el fondo se leía como un rótulo más
-            de la carta y no como lo que es, el único enlace que sale del
-            negocio. Es la misma pastilla secundaria que «Llamar» en la ficha de
-            abajo, así que el gesto se aprende una vez. */}
-        <Link
-          href="/"
-          className="inline-flex h-11 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-verde-700 shadow-soft transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
-        >
-          <Logo className="h-[22px] w-auto shrink-0" />
-          La Verde
-        </Link>
+              Con pastilla de botón —borde, fondo blanco y 44 px de alto—, no
+              suelto: el nombre en verde sobre el fondo se leía como un rótulo más
+              de la carta y no como lo que es, el único enlace que sale del
+              negocio. Es la misma pastilla secundaria que «Llamar» en la ficha de
+              abajo, así que el gesto se aprende una vez. */}
+          <Link
+            href="/"
+            className="inline-flex h-11 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-verde-700 shadow-soft transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
+          >
+            <Logo className="h-[22px] w-auto shrink-0" />
+            La Verde
+          </Link>
+          {/* El mando del tema, explícito: quien abre una carta de un QR puede
+              venir con el móvil en oscuro y estar a pleno sol, y en la carta el
+              sistema no acierta. */}
+          <ThemeToggle />
+        </div>
+
         {showFichaLink && (
           <Link
             href={`/place/${place.id}`}
-            className="inline-flex items-center gap-[3px] text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:text-verde-700"
+            className="inline-flex h-11 shrink-0 items-center gap-gap-xs rounded-full border border-verde-200 bg-verde-50 px-gap-md font-lv-display text-meta font-semibold text-verde-700 transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-100 sm:text-small"
           >
-            Ver la ficha completa
-            <ArrowUpRight size={13} strokeWidth={2} />
+            {/* El nombre corto solo en el teléfono: con el texto entero, la
+                fila —el disco de La Verde, este botón y el interruptor de
+                tema— no cabe en 360 px. Es el mismo recorte que hace el botón
+                de WhatsApp. */}
+            <span className="sm:hidden">Ver ficha</span>
+            <span className="hidden sm:inline">Ver la ficha completa</span>
+            <ArrowUpRight size={13} strokeWidth={2} className="shrink-0" />
           </Link>
         )}
       </div>
@@ -499,7 +543,9 @@ export default async function MenuPage({
             </p>
             {closed && (
               <p className="mt-[6px] inline-flex items-center rounded-full bg-sand-deep px-[10px] py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-soft/75">
-                {place.status === "closed" ? "Cerrado" : "Cerrado temporalmente"}
+                {place.status === "closed"
+                  ? "Cerrado"
+                  : "Cerrado temporalmente"}
               </p>
             )}
           </div>
@@ -546,7 +592,11 @@ export default async function MenuPage({
                   BTN_CONTACTO,
                 )}
               >
-                <MessageCircle size={16} strokeWidth={1.8} className="shrink-0" />
+                <MessageCircle
+                  size={16}
+                  strokeWidth={1.8}
+                  className="shrink-0"
+                />
                 {/* «Escribir por» no cabe en la columna de móvil y era lo que
                     dejaba el hueco de dentro del botón: el texto partía en dos
                     líneas y la segunda no llenaba el ancho. El icono de burbuja
