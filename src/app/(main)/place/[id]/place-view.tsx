@@ -107,6 +107,11 @@ function userPlaceToPlaceData(p: UserPlace): PlaceData {
         ? p.photos.map((photo: UserPlacePhoto, i: number) => ({
             url: photo.url,
             alt: photo.alt || `Foto ${i + 1} de ${p.name}`,
+            /* Las medidas viajan para que el carrusel ajuste el marco a la
+               portada. Sin ellas forzaría 16/9 y una foto ancha saldría
+               recortada por los lados. Ya venían en la fila; se caían aquí. */
+            width: photo.width,
+            height: photo.height,
           }))
         : FALLBACK_SLIDES.map(
             (s: {

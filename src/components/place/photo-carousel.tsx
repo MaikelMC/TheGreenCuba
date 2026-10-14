@@ -15,6 +15,12 @@ import { cn } from "@/lib/utils";
 export interface Slide {
   url: string | null;
   alt: string;
+  /**
+   * El tamaño real de la foto, cuando se conoce. Lo usa la portada para que el
+   * marco la siga en vez de forzarle una proporción fija. Ver `proporcion`.
+   */
+  width?: number | null;
+  height?: number | null;
   /** Solo cuando no hay foto. */
   gradient?: string;
   /** Solo cuando no hay foto. */
@@ -39,6 +45,23 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
   const isDragging = useRef(false);
 
   const total = slides.length;
+
+  /* El marco sigue la proporción de la portada —es la foto que se ve primero—,
+     en vez de forzar 16/9 sobre cualquier foto. Una foto apaisada metida en un
+     marco más cuadrado se recorta por los lados y parece ampliada: el marco
+     manda sobre la foto, cuando es la foto la que debería mandar.
+
+     Con tope, y no la proporción pelada: una foto muy apaisada dejaría una
+     franja de dos dedos y una vertical un marco altísimo que se come la
+     pantalla. Entre 4/3 y 21/9 cabe casi todo sin recortes y sin sustos.
+     Sin medidas —las fotos del fixture o las que aún no se han reencodeado— se
+     queda la proporción de siempre, la de las clases. */
+  const portada = slides[0];
+  const proporcion =
+    portada?.width && portada?.height
+      ? Math.min(21 / 9, Math.max(4 / 3, portada.width / portada.height))
+      : null;
+
   const goTo = useCallback(
     (i: number) => {
       setCurrent(Math.max(0, Math.min(i, total - 1)));
@@ -128,6 +151,10 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
   return (
     <div
       className={cn("group relative w-full aspect-[4/3] lg:aspect-[16/9] overflow-hidden bg-sand-deep lg:rounded-4xl", className)}
+      /* Va en estilo y no en clase porque la proporción es un número, no una
+         escala: gana a `aspect-[…]` y deja las clases de arriba como el marco de
+         siempre para cuando no hay medidas. */
+      style={proporcion ? { aspectRatio: String(proporcion) } : undefined}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
