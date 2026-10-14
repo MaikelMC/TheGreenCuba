@@ -39,9 +39,9 @@ import { useCatalogo } from "@/providers/catalogo-provider";
  * código detrás que la mira. Aquí se cambian sus valores, no la lista. Por eso
  * no hay botón de «nuevo módulo»: no puede existir lo que no está en el código.
  *
- * Los `funciones` de un pack **no se editan**: se calculan de sus módulos y sus
- * bonos, y el servidor los recalcula al guardar (`normalizarCatalogo`). Lo que
- * se marca son los módulos que incluye y los bonos que van sueltos con él.
+ * Las `funciones` de un pack son **su propia lista**, independiente de los
+ * módulos: se marcan una a una y cambiar un módulo no cambia ningún pack. Solo
+ * se marcan las que el pack **añade sobre Gratis**; las de Gratis no se repiten.
  *
  * Los precios se escriben en dólares y el CUP se calcula con la tasa de arriba;
  * debajo de cada campo se enseña lo que saldrá en pesos, para no tener que
@@ -258,11 +258,11 @@ export function PlanesEditor() {
         </FormSection>
 
         <FormSection
-          title="Módulos sueltos"
+          title="Servicios por separado"
           icon={<Blocks size={18} strokeWidth={1.8} />}
         >
           <p className="text-meta text-ink-soft/75">
-            Se contratan uno a uno, al mes. Ninguno depende de otro.
+            Se contratan uno a uno, al mes.
           </p>
           <div className="flex flex-col gap-gap-md">
             {modulos.map((clave) => {
@@ -298,11 +298,12 @@ export function PlanesEditor() {
                   </div>
                   <div className="flex flex-col gap-gap-xs">
                     <label htmlFor={`mTexto-${clave}`} className={LABEL}>
-                      Descripción
+                      Lo que incluye{" "}
+                      <span className="font-normal">(una línea por punto)</span>
                     </label>
                     <textarea
                       id={`mTexto-${clave}`}
-                      rows={2}
+                      rows={6}
                       value={m.texto}
                       onChange={(e) => setModulo(clave, { texto: e.target.value })}
                       className={cn(AREA, "cursor-text")}
@@ -343,8 +344,8 @@ export function PlanesEditor() {
 
         <FormSection title="Packs" icon={<Package size={18} strokeWidth={1.8} />}>
           <p className="text-meta text-ink-soft/75">
-            Varios módulos juntos con descuento. Las funciones del pack salen de
-            sus módulos y sus bonos; no se editan aparte.
+            Las funciones de siempre, juntas y con descuento. Se marcan una a
+            una: el pack no depende de los módulos sueltos.
           </p>
           <div className="flex flex-col gap-gap-md">
             {PACKS_ORDER.map((clave) => {
@@ -380,11 +381,12 @@ export function PlanesEditor() {
                   </div>
                   <div className="flex flex-col gap-gap-xs">
                     <label htmlFor={`pTexto-${clave}`} className={LABEL}>
-                      Descripción
+                      Lo que incluye{" "}
+                      <span className="font-normal">(una línea por punto)</span>
                     </label>
                     <textarea
                       id={`pTexto-${clave}`}
-                      rows={2}
+                      rows={6}
                       value={p.texto}
                       onChange={(e) => setPack(clave, { texto: e.target.value })}
                       className={cn(AREA, "cursor-text")}
@@ -412,37 +414,14 @@ export function PlanesEditor() {
                     </p>
                   </div>
                   <fieldset className="flex flex-col gap-gap-xs">
-                    <legend className={LABEL}>Módulos que incluye</legend>
-                    <div className="grid grid-cols-1 gap-gap-xs sm:grid-cols-2">
-                      {modulos.map((c) => (
-                        <label
-                          key={c}
-                          className="flex cursor-pointer items-center gap-gap-xs text-small text-ink"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={p.incluye.includes(c)}
-                            onChange={(e) =>
-                              setPack(clave, {
-                                incluye: alternar(p.incluye, c, e.target.checked),
-                              })
-                            }
-                            className="size-4 shrink-0 accent-verde-500"
-                          />
-                          {borrador.modulos[c].nombre}
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                  <fieldset className="flex flex-col gap-gap-xs">
                     <legend className={LABEL}>
-                      Bonos{" "}
+                      Funciones{" "}
                       <span className="font-normal">
-                        (funciones sueltas que van con el pack)
+                        (las que añade sobre Gratis)
                       </span>
                     </legend>
-                    {casillas(p.bonos, (siguiente) =>
-                      setPack(clave, { bonos: siguiente }),
+                    {casillas(p.funciones, (siguiente) =>
+                      setPack(clave, { funciones: siguiente }),
                     )}
                   </fieldset>
                 </div>

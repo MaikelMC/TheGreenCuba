@@ -61,6 +61,7 @@ import {
   limiteDe,
   nombreDe,
   textoBloqueo,
+  type ClaveModulo,
   type Funcion,
   type Plan,
 } from "@/lib/plans";
@@ -154,6 +155,7 @@ export function BusinessPanel({
   menuUrl,
   plan,
   funciones,
+  modulos,
   puedeElegirPlan,
   negocios,
 }: {
@@ -175,6 +177,13 @@ export function BusinessPanel({
    * servidor, que vuelve a comprobarlo en cada ruta que escribe.
    */
   funciones: Funcion[];
+  /**
+   * Los módulos sueltos vigentes del negocio, resueltos en el servidor.
+   *
+   * Solo los usa la tarjeta del plan del dashboard: un negocio en Gratis con
+   * Menú Pro contratado no lo dice su plan, lo dicen sus módulos.
+   */
+  modulos: ClaveModulo[];
   /** Solo el negocio de prueba: puede cambiarse de plan a voluntad. */
   puedeElegirPlan: boolean;
   /**
@@ -206,6 +215,7 @@ export function BusinessPanel({
                 menuUrl={menuUrl}
                 plan={plan}
                 funciones={funciones}
+                modulos={modulos}
                 /* El botón de la tarjeta de plan navega dentro del panel, no
                    fuera: la sección de planes es una vista más del armazón. */
                 onVerPlanes={() => setView("planes")}
@@ -268,24 +278,14 @@ export function BusinessPanel({
   );
 }
 
-/**
- * Encabezado de sección del panel.
- *
- * El título va **visible**. Estuvo en `sr-only` con solo el subtítulo a la
- * vista, y en el móvil eso dejaba la sección sin ancla: al entrar caías en una
- * columna de tarjetas sin nada que dijera dónde estabas. En escritorio la barra
- * lateral lo disimulaba; en móvil no hay barra, solo el dock de abajo.
+/*
+ * Aquí había un `ViewLead`: un encabezado por sección con el título visible y un
+ * subtítulo. Sobraba por los dos lados. El título repetía lo que ya dice el
+ * navbar —la barra lateral en escritorio, el dock en móvil—, y el subtítulo
+ * repetía lo que ya dice el selector de negocio de arriba. La sección empieza
+ * ahora en su contenido; queda un `h1` en `sr-only` para no romper el orden de
+ * encabezados, que es lo que leen los lectores de pantalla.
  */
-function ViewLead({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <div className="mb-gap-md">
-      <h1 className="font-lv-display text-h3 font-bold tracking-[-0.02em] text-ink">
-        {title}
-      </h1>
-      <p className="mt-[2px] text-small text-ink-soft/75">{subtitle}</p>
-    </div>
-  );
-}
 
 /**
  * Aviso de que la ficha todavía no está publicada.
@@ -301,6 +301,7 @@ function DashboardView({
   menuUrl,
   plan,
   funciones,
+  modulos,
   onVerPlanes,
 }: {
   place: UserPlace;
@@ -309,13 +310,14 @@ function DashboardView({
   menuUrl: string;
   plan: Plan;
   funciones: Funcion[];
+  modulos: ClaveModulo[];
   onVerPlanes: () => void;
 }) {
   const offering = [place.description].filter(Boolean).join(" ");
 
   return (
     <>
-      <ViewLead title="Dashboard" subtitle={`Resumen de ${place.name}`} />
+      <h1 className="sr-only">Dashboard</h1>
 
       {/* Tres cifras y ninguna inventada. Aquí había «342 visitas esta semana,
           +18%», «87 clics en Cómo llegar» y «156 recomendaciones IA»: no existe
@@ -414,11 +416,7 @@ function DashboardView({
           sinMarca={funciones.includes("qr_sin_marca")}
         />
 
-        <PlanCard
-          plan={plan}
-          funciones={funciones}
-          onVerPlanes={onVerPlanes}
-        />
+        <PlanCard plan={plan} modulos={modulos} onVerPlanes={onVerPlanes} />
       </div>
     </>
   );
@@ -595,10 +593,7 @@ function EditorView({
 
   return (
     <>
-      <ViewLead
-        title="Editar ficha"
-        subtitle={`${place.name}${place.barrio ? `, ${place.barrio}` : ""}`}
-      />
+      <h1 className="sr-only">Editar ficha</h1>
 
       <FormSections>
         <FormSection
@@ -1248,7 +1243,7 @@ function SettingsView({
 
   return (
     <>
-      <ViewLead title="Ajustes" subtitle="Configuración de tu negocio" />
+      <h1 className="sr-only">Ajustes</h1>
 
       <div className="flex flex-1 flex-col gap-gap-md">
         {/* ── Pedidos por WhatsApp ────────────────────────────────────────

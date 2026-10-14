@@ -16,6 +16,7 @@ import {
   planEfectivo,
   textoBloqueo,
   trialHastaDesde,
+  type Funcion,
   type ModuloContratado,
   type Plan,
   type Suscripcion,
@@ -115,11 +116,11 @@ test("un módulo vencido no da nada, pero el pack sigue vivo", () => {
 
 test("un pack y un módulo no se excluyen entre sí", () => {
   const funciones = funcionesDe(susc({ plan: "pro", modulos: [modulo("facebook")] }), AHORA);
-  assert.ok(funciones.has("ranking"), "se perdió lo de Pro");
+  assert.ok(funciones.has("ofertas_flash"), "se perdió lo de Esencial");
   assert.ok(funciones.has("publicaciones_fb"));
 });
 
-test("cada pack trae todo lo de Gratis, y los de arriba lo de los de abajo", () => {
+test("cada pack trae todo lo de Gratis, y Pro lo de los otros dos", () => {
   const de = (p: Plan) => funcionesDe(susc({ plan: p }), AHORA);
 
   for (const p of PACKS_ORDER) {
@@ -128,9 +129,43 @@ test("cada pack trae todo lo de Gratis, y los de arriba lo de los de abajo", () 
   for (const p of ["esencial", "publicidad_max"] as const) {
     for (const f of PACKS[p].funciones) assert.ok(de("pro").has(f), `pro sin ${f}`);
   }
-  assert.ok(!de("gratis").has("flyers"));
-  assert.ok(!de("esencial").has("flyers"));
-  assert.ok(de("publicidad_max").has("flyers"));
+  /* Publicidad Max no arrastra Esencial: solo suma lo suyo a Gratis. */
+  assert.ok(!de("gratis").has("eventos"));
+  assert.ok(!de("esencial").has("eventos"));
+  assert.ok(de("publicidad_max").has("eventos"));
+  assert.ok(!de("publicidad_max").has("qr_sin_marca"));
+});
+
+/* Lo que vende cada pack, clavado. Si se toca un pack sin querer, salta aquí. */
+test("cada pack trae exactamente sus extras sobre Gratis", () => {
+  const orden = (fs: readonly Funcion[]) => [...fs].sort();
+  assert.deepEqual(orden(PACKS.esencial.funciones), [
+    "fotos_ilimitadas",
+    "ofertas_flash",
+    "publicaciones_fb",
+    "qr_sin_marca",
+    "reservas_whatsapp",
+    "seguidores",
+    "whatsapp_pedido",
+  ]);
+  assert.deepEqual(orden(PACKS.publicidad_max.funciones), [
+    "eventos",
+    "publicaciones_fb",
+    "publicaciones_fb_3",
+    "seguidores",
+  ]);
+  assert.deepEqual(orden(PACKS.pro.funciones), [
+    "asistente_ia",
+    "eventos",
+    "fotos_ilimitadas",
+    "ofertas_flash",
+    "publicaciones_fb",
+    "publicaciones_fb_3",
+    "qr_sin_marca",
+    "reservas_whatsapp",
+    "seguidores",
+    "whatsapp_pedido",
+  ]);
 });
 
 /* Si esto se rompe, las tarjetas mienten: enseñarían una función que no trae el
@@ -142,9 +177,6 @@ test("lo que anuncia cada pieza está en sus funciones, y al revés", () => {
     }
   }
   for (const pack of Object.values(PACKS)) {
-    for (const clave of pack.incluye) {
-      assert.ok(MODULOS[clave], `${pack.nombre} incluye un módulo que no existe`);
-    }
     for (const f of pack.funciones) {
       assert.ok(FUNCIONES[f], `${pack.nombre} nombra una función que no existe`);
     }
@@ -178,9 +210,8 @@ test("el candado nombra la vía más barata que abre la función", () => {
   assert.equal(textoBloqueo("menu_qr"), "No disponible");
   /* Suelta: el módulo, por nombre. */
   assert.equal(textoBloqueo("qr_sin_marca"), "Está en Menú Pro");
-  assert.equal(textoBloqueo("reservas_whatsapp"), "Está en Pedidos y reservas");
-  /* Solo en pack: el pack más barato que la traiga. */
-  assert.equal(textoBloqueo("ranking"), "Entra con Pro");
+  assert.equal(textoBloqueo("reservas_whatsapp"), "Está en Reservas y pedidos");
+  assert.equal(textoBloqueo("asistente_ia"), "Está en Agente de Telegram");
   /* Todavía no existe: se vende, pero el candado lo dice. */
   assert.equal(textoBloqueo("eventos"), "Próximamente");
 });
@@ -203,7 +234,7 @@ test("el tope de publicaciones distingue el módulo suelto del ×3", () => {
 
 test("los topes del catálogo y las fotos", () => {
   const gratis = funcionesDe(null, AHORA);
-  assert.equal(limiteDe(gratis, "productos_max"), 90);
+  assert.equal(limiteDe(gratis, "productos_max"), 15);
   assert.equal(limiteDe(gratis, "fotos_productos_max"), 10);
 
   const conMenuPro = funcionesDe(susc({ modulos: [modulo("menu_pro")] }), AHORA);
@@ -213,6 +244,7 @@ test("los topes del catálogo y las fotos", () => {
 
 test("el pack más barato que abre una función, para nombrarlo", () => {
   assert.equal(packDe("menu_qr"), null, "menu_qr ya es de Gratis");
-  assert.equal(packDe("publicaciones_fb"), "publicidad_max");
-  assert.equal(packDe("ranking"), "pro");
+  assert.equal(packDe("publicaciones_fb"), "esencial");
+  assert.equal(packDe("publicaciones_fb_3"), "publicidad_max");
+  assert.equal(packDe("asistente_ia"), "pro");
 });

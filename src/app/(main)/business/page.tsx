@@ -4,7 +4,7 @@ import { getPlaceById, ownerPlaces, placeStats } from "@/lib/db/queries";
 import { statsVisitas } from "@/lib/eventos-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { DEV_PLACE_ID, devPlace, ownsDevPlace } from "@/lib/dev-place";
-import { funcionesDeNegocio, planEfectivoDe } from "@/lib/plans-server";
+import { funcionesDeNegocio, modulosDe, planEfectivoDe } from "@/lib/plans-server";
 import { menuUrl } from "@/lib/structured-data";
 import { CatalogoProvider } from "@/providers/catalogo-provider";
 import { BusinessPanel } from "@/components/business/business-panel";
@@ -68,7 +68,7 @@ export default async function BusinessPage({
 
   const placeId = elegido.id;
   const isDev = placeId === DEV_PLACE_ID;
-  const [place, stats, plan, funciones, cat] = await Promise.all([
+  const [place, stats, plan, funciones, modulos, cat] = await Promise.all([
     getPlaceById(placeId, {
       includeDev: isDev,
       /* La copia personal del fixture, para que el dueño vea sus ediciones. */
@@ -77,6 +77,9 @@ export default async function BusinessPage({
     placeStats(placeId),
     planEfectivoDe(placeId),
     funcionesDeNegocio(placeId),
+    /* Los módulos sueltos que tiene contratados, para la tarjeta del plan: sin
+       ellos, un negocio en Gratis con Menú Pro se leería como si no pagara nada. */
+    modulosDe(placeId),
     /* El catálogo viaja al navegador para que las tarjetas de plan y los
        candados enseñen los precios y los textos de hoy, no los del despliegue. */
     cargarCatalogo(),
@@ -117,6 +120,7 @@ export default async function BusinessPage({
         /* El `Set` no cruza la frontera servidor/cliente; viaja como lista y los
            componentes que la recorren la vuelven a envolver. */
         funciones={[...funciones]}
+        modulos={modulos}
         /* El negocio de prueba es el único con selector de plan propio: los demás
            cambian por la pasarela o por administración. */
         puedeElegirPlan={isDev}

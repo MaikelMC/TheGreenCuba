@@ -23,10 +23,10 @@ import { useCatalogo } from "@/providers/catalogo-provider";
  *
  * Tres bloques, no una tabla: la tabla no cabe en un móvil sin scroll horizontal
  * y aquí se entra desde el móvil casi siempre. Primero **lo que ya tienes**
- * —Gratis—, luego los **módulos sueltos** —uno a uno, sin dependencias— y al
- * final los **packs**, que son módulos juntos con descuento. Así se lee de
- * arriba abajo: lo básico, lo que puedes añadir suelto y lo que sale mejor en
- * paquete.
+ * —Gratis—, luego los **servicios por separado** —uno a uno, sin dependencias—
+ * y al final los **packs**, que son sus funciones juntas con descuento. Así se
+ * lee de arriba abajo: lo básico, lo que puedes añadir suelto y lo que sale
+ * mejor en paquete.
  *
  * Las funciones con `disponible: false` se siguen enseñando, con la etiqueta
  * «Próximamente»: se venden desde ya, pero el candado no se abre hasta que
@@ -97,13 +97,8 @@ export function PlansSection({
 
   return (
     <section>
-      <div className="mb-gap-lg">
-        <h1 className="sr-only">Planes y precios</h1>
-        <p className="max-w-[60ch] text-lead text-ink-soft">
-          Tu negocio ya está en La Verde. Esto es lo que hay: módulos sueltos
-          para lo que necesites, o packs con todo junto y descuento.
-        </p>
-      </div>
+      {/* El nombre de la sección no se repite: ya está en el navbar. */}
+      <h1 className="sr-only">Planes</h1>
 
       {puedeElegirPlan && (
         <p className="mb-gap-md rounded-2xl border border-verde-200 bg-verde-50/60 px-gap-md py-gap-sm text-small text-verde-900">
@@ -129,8 +124,8 @@ export function PlansSection({
       </Bloque>
 
       <Bloque
-        titulo="Módulos sueltos"
-        detalle="Se contrata el que haga falta, al mes. Ninguno depende de otro."
+        titulo="Servicios por separado"
+        detalle="Se contrata el que haga falta, al mes."
       >
         <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
           {(Object.keys(cat.modulos) as ClaveModulo[]).map((clave) => (
@@ -139,10 +134,7 @@ export function PlansSection({
         </div>
       </Bloque>
 
-      <Bloque
-        titulo="Packs"
-        detalle="Varios módulos juntos, con descuento. Nada excluye tener además un módulo suelto."
-      >
+      <Bloque titulo="Packs" detalle="Las funciones de siempre, juntas y con descuento.">
         <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-3">
           {PACKS_ORDER.map((p) => (
             <PackTile
@@ -232,6 +224,35 @@ function ListaFunciones({
   );
 }
 
+/**
+ * Lo que vende un módulo o un pack, tal cual lo escribió administración: una
+ * línea por punto, sacadas de su `texto`.
+ *
+ * No es la lista de funciones. `funciones` decide los permisos; esto cuenta lo
+ * que se compra. Antes la tarjeta pintaba las funciones una a una y salía un
+ * volcado técnico —«publicaciones_fb», «fotos_ilimitadas»— en vez de la oferta.
+ */
+function ListaLineas({ texto }: { texto: string }) {
+  return (
+    <ul className="flex flex-col gap-gap-xs">
+      {texto
+        .split("\n")
+        .map((linea) => linea.trim())
+        .filter(Boolean)
+        .map((linea) => (
+          <li key={linea} className="flex items-start gap-gap-xs text-small text-ink">
+            <Check
+              size={15}
+              strokeWidth={2}
+              className="mt-[3px] shrink-0 text-verde-600"
+            />
+            <span className="text-pretty">{linea}</span>
+          </li>
+        ))}
+    </ul>
+  );
+}
+
 function Proximamente() {
   return (
     <span className="ml-gap-2xs shrink-0 rounded-full border border-ink/10 bg-sand px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-soft/75">
@@ -264,7 +285,7 @@ function ModuloTile({
 
       <div className="my-gap-md h-px bg-ink/5" />
 
-      <ListaFunciones funciones={modulo.funciones} />
+      <ListaLineas texto={modulo.texto} />
 
       {/* `mt-auto` para que los botones caigan a la misma altura aunque las
           listas midan distinto. */}
@@ -341,10 +362,7 @@ function PackTile({
 
       <div className="my-gap-md h-px bg-ink/5" />
 
-      <p className="font-lv-display text-meta font-semibold uppercase tracking-[0.1em] text-ink-soft/75">
-        {datos.incluye.map((c) => cat.modulos[c].nombre).join(" · ")}
-      </p>
-      <ListaFunciones funciones={datos.funciones} className="mt-gap-sm" />
+      <ListaLineas texto={datos.texto} />
 
       {/* `mt-auto` para que los tres botones caigan a la misma altura aunque las
           listas midan distinto. */}

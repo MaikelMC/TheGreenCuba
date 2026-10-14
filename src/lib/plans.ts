@@ -12,8 +12,9 @@
  * - **Gratis**: lo que ya tiene cualquiera que aparezca en La Verde.
  * - **Módulos sueltos**: cada uno se contrata por su cuenta y trae sus
  *   funciones. Se pagan al mes y cada uno tiene su propia vigencia.
- * - **Packs**: varios módulos juntos con descuento. `pro` es el paquete
- *   completo —Esencial + Publicidad Max + asistente— más lo exclusivo de Pro.
+ * - **Packs**: una lista de funciones con descuento. `pro` es todo lo de
+ *   Esencial y Publicidad Max más el asistente. Cada pack **nombra sus
+ *   funciones** en vez de componerse de módulos.
  *
  * Un pack y un módulo no se excluyen: un negocio puede tener Esencial y además
  * contratar Facebook o el asistente suelto. La función entra si **cualquiera**
@@ -49,41 +50,41 @@
 
 export const FUNCIONES = {
   /* Gratis: lo que ya tiene cualquiera que aparezca en La Verde. */
-  pin: { texto: "Tu pin en el mapa de La Verde", disponible: true },
-  perfil: {
-    texto: "Ficha completa: fotos, contactos y horario",
-    disponible: true,
-  },
+  pin: { texto: "Pin en el mapa de La Verde", disponible: true },
+  perfil: { texto: "Ficha de negocio completa", disponible: true },
   menu_qr: {
-    texto: "Menú completo con QR, con la marca «Encuéntranos en La Verde»",
+    texto: "Catálogo online (limitado a 15 productos)",
     disponible: true,
   },
   fotos_productos: { texto: "Fotos en tus productos y servicios", disponible: true },
   busqueda_ia: {
-    texto: "Te encuentran buscando con sus propias palabras",
+    texto: "Búsquedas con IA para encontrar tu negocio",
     disponible: true,
   },
   energia_respaldo: {
-    texto: "Etiqueta de energía de respaldo (planta o inversor)",
+    texto: "Indicador si tienes respaldo energético",
     disponible: true,
   },
   stats_resumen: { texto: "Contador de visitas del mes", disponible: true },
 
   /* Menú Pro. */
   qr_sin_marca: {
-    texto: "Tu QR con tu nombre y sin la marca de La Verde",
+    texto: "QR con tu nombre, sin la marca de La Verde",
     disponible: true,
   },
   fotos_ilimitadas: {
-    texto: "Fotos ilimitadas en tus productos y servicios",
+    texto: "Productos y fotos ilimitados",
     disponible: true,
   },
   hoy_hay: { texto: "«Hoy hay»: marca lo agotado o lo disponible", disponible: true },
 
   /* Pedidos y reservas. */
-  whatsapp_pedido: { texto: "Pedir por WhatsApp desde tu ficha", disponible: true },
+  whatsapp_pedido: {
+    texto: "Pedidos conectados al catálogo online",
+    disponible: true,
+  },
   reservas_whatsapp: {
-    texto: "Reservas y apartados por WhatsApp",
+    texto: "Reservas conectadas al catálogo online",
     disponible: true,
   },
 
@@ -99,25 +100,31 @@ export const FUNCIONES = {
      la semana publica igual que quien tiene una, así que la trae también, y lo
      que cambia es el tope. Se enseña una sola vez —ver `ListaFunciones`—. */
   publicaciones_fb: {
-    texto: "Publicaciones semanales en grupos de Facebook",
+    texto: "1 publicación a la semana en grupos de Facebook",
     disponible: true,
   },
   publicaciones_fb_3: {
-    texto: "Publicaciones tres veces por semana en grupos de Facebook",
+    texto: "3 publicaciones a la semana en grupos de Facebook",
     disponible: true,
   },
 
   /* Eventos. Todavía no existe: se enseña con «Próximamente». */
-  eventos: { texto: "Crea y promociona tus eventos", disponible: false },
+  eventos: { texto: "Crear o promocionar eventos", disponible: false },
 
   /* Marketing activo. */
   flyers: { texto: "Flyers automáticos, hasta 10 al mes", disponible: false },
-  ofertas_flash: { texto: "Ofertas flash con cuenta atrás", disponible: true },
-  seguidores: { texto: "Avisos a tus seguidores", disponible: true },
+  ofertas_flash: {
+    texto: "Sección de Ofertas/Nuevos productos dentro del catálogo",
+    disponible: true,
+  },
+  seguidores: {
+    texto: "Avisos a los usuarios conectados con tu negocio sobre tus novedades",
+    disponible: true,
+  },
 
   /* Asistente. */
   asistente_ia: {
-    texto: "Asistente de IA en Telegram: edita tu menú y consulta tus datos",
+    texto: "Asistente de IA por Telegram conectado a tu negocio",
     disponible: true,
   },
 
@@ -132,9 +139,9 @@ export const FUNCIONES = {
     disponible: true,
   },
 
-  /* Bonos de Publicidad Max. Se venden con el pack; todavía no existen. */
+  /* Se vende con Eventos; todavía no existe. */
   destacado_semana: {
-    texto: "«Destacado de la semana» en el inicio",
+    texto: "Destacar tu pin en el mapa durante el evento",
     disponible: false,
   },
   cupones_whatsapp: { texto: "Cupones por WhatsApp", disponible: false },
@@ -152,10 +159,8 @@ export const GRATIS: readonly Funcion[] = [
   "pin",
   "perfil",
   "menu_qr",
-  "fotos_productos",
   "busqueda_ia",
   "energia_respaldo",
-  "stats_resumen",
 ];
 
 /* ── Los módulos sueltos ────────────────────────────────────────────────────
@@ -166,61 +171,75 @@ export const MODULOS = {
   menu_pro: {
     nombre: "Menú Pro",
     lema: "Tu carta, sin nuestra marca.",
-    texto:
-      "Tu QR deja de llevar el sello de La Verde y pasa a llevar el tuyo, con las fotos sin tope y el «Hoy hay» para lo que se acaba.",
+    texto: [
+      "QR listo para imprimir como sticker",
+      "Productos ilimitados",
+      "Sección de Ofertas/Nuevos productos dentro del catálogo",
+    ].join("\n"),
     usd: 1,
-    funciones: ["qr_sin_marca", "fotos_ilimitadas", "hoy_hay"],
+    funciones: ["qr_sin_marca", "fotos_ilimitadas", "ofertas_flash"],
   },
   pedidos_reservas: {
-    nombre: "Pedidos y reservas",
+    nombre: "Reservas y pedidos",
     lema: "Que te pidan sin preguntar.",
-    texto:
-      "Un botón en tu ficha para pedir y para reservar por WhatsApp, con el mensaje ya redactado.",
+    texto: [
+      "Todo el Menú Pro",
+      "Flujo de pedidos por WhatsApp conectados a tu Menú",
+      "Apartado de reservas por capacidad en tu local",
+    ].join("\n"),
     usd: 1.5,
-    funciones: ["whatsapp_pedido", "reservas_whatsapp"],
-  },
-  visibilidad: {
-    nombre: "Visibilidad",
-    lema: "Que te elijan antes que al de al lado.",
-    texto:
-      "El sello de verificado, prioridad cuando alguien busca con IA, y las visitas y llamadas de la semana contadas.",
-    usd: 2,
-    funciones: ["verificado", "prioridad_ia", "stats_basicas"],
+    funciones: [
+      "qr_sin_marca",
+      "fotos_ilimitadas",
+      "ofertas_flash",
+      "whatsapp_pedido",
+      "reservas_whatsapp",
+    ],
   },
   facebook: {
     nombre: "Facebook",
     lema: "Tu negocio en los grupos de tu zona.",
-    texto: "Una publicación a la semana en los grupos de Facebook de tu municipio, redactada con IA.",
-    usd: 3,
-    funciones: ["publicaciones_fb"],
+    texto: [
+      "Generar texto del post con IA",
+      "Utilizar los productos de tu catálogo como referencia para el contenido del post",
+      "Generar flyers publicitarios (próximamente)",
+      "1 publicación por semana",
+    ].join("\n"),
+    usd: 1,
+    funciones: ["publicaciones_fb", "flyers"],
   },
   facebook_3: {
     nombre: "Facebook ×3",
     lema: "Tres veces más veces visto.",
-    texto: "Lo mismo que Facebook, pero tres publicaciones a la semana en vez de una.",
-    usd: 5,
-    funciones: ["publicaciones_fb", "publicaciones_fb_3"],
+    texto: [
+      "Generar texto del post con IA",
+      "Utilizar los productos de tu catálogo como referencia para el contenido del post",
+      "Generar flyers publicitarios (próximamente)",
+      "3 publicaciones por semana",
+    ].join("\n"),
+    usd: 3,
+    funciones: ["publicaciones_fb", "publicaciones_fb_3", "flyers"],
   },
   eventos: {
     nombre: "Eventos",
     lema: "Llena lo que montes.",
-    texto: "Crea tus eventos y promociónalos en La Verde, con fecha, lugar y aviso a quien te sigue.",
+    texto: [
+      "Crea eventos de tu negocio por rango de fechas",
+      "Promoción por nuestros canales oficiales",
+      "Avisos a tus usuarios recurrentes",
+      "Destacar pin en el mapa durante el evento",
+    ].join("\n"),
     usd: 3,
-    funciones: ["eventos"],
-  },
-  marketing_activo: {
-    nombre: "Marketing activo",
-    lema: "Que se enteren y vuelvan.",
-    texto:
-      "Flyers listos para repartir, ofertas flash con cuenta atrás y avisos a tus seguidores.",
-    usd: 3,
-    funciones: ["flyers", "ofertas_flash", "seguidores"],
+    funciones: ["eventos", "seguidores", "destacado_semana"],
   },
   asistente_telegram: {
-    nombre: "Asistente en Telegram",
+    nombre: "Agente de Telegram",
     lema: "Tu menú, desde el móvil, hablando.",
-    texto:
-      "Un asistente con IA en Telegram para editar tu menú y tu perfil y preguntarle cómo va el mes.",
+    texto: [
+      "IA para realizar consultas sobre tu negocio",
+      "Editar tu Menú de forma instantánea",
+      "Actualizar elementos del estado en tu negocio",
+    ].join("\n"),
     usd: 3,
     funciones: ["asistente_ia"],
   },
@@ -231,76 +250,79 @@ export const MODULOS = {
 
 export type ClaveModulo = keyof typeof MODULOS;
 
-/** Las funciones de un conjunto de módulos, sin repetir. */
-function funcionesDeModulos(
-  claves: readonly ClaveModulo[],
-  modulos: Record<ClaveModulo, { funciones: readonly Funcion[] }> = MODULOS,
-): Funcion[] {
-  return [...new Set(claves.flatMap((c) => [...modulos[c].funciones]))];
-}
-
 /* ── Los packs ──────────────────────────────────────────────────────────────
-   Varios módulos juntos con descuento. `pro` es la suma de los otros dos más
-   el asistente y lo exclusivo de Pro: por eso se escriben por composición y no
-   repitiendo listas, que se desincronizan al primer cambio.
+   Cada pack es una **lista de funciones**, no una composición de módulos. Los
+   módulos sueltos se siguen vendiendo por su cuenta, pero un pack nombra lo que
+   trae sin pasar por ellos: así la tarjeta dice exactamente lo que abre, y tocar
+   un módulo no cambia —sin querer— lo que anuncia un pack.
 
-   Un pack se describe por lo que **incluye** —módulos— y por sus **bonos**
-   —funciones sueltas que no son de ningún módulo—. Sus `funciones` se calculan
-   de ahí: es lo que impide que `incluye` y `funciones` digan cosas distintas
-   cuando alguien edita una sin la otra. */
+   `funciones` son los **extras sobre Gratis**. Lo de Gratis lo tiene cualquiera,
+   así que la tarjeta no lo repite. */
 
-const ESENCIAL_MODULOS = ["menu_pro", "pedidos_reservas", "visibilidad"] as const;
-/* Publicidad Max lleva Facebook **×3**: es el ritmo que se vendió con el pack. */
-const PUBLICIDAD_MODULOS = ["facebook_3", "eventos", "marketing_activo"] as const;
-
-/** Los bonos que van con Publicidad Max, además de sus módulos. */
-const BONOS_PUBLICIDAD: readonly Funcion[] = [
-  "destacado_semana",
-  "cupones_whatsapp",
-  "reporte_mensual",
+/** Los extras de Esencial sobre Gratis. */
+const ESENCIAL: readonly Funcion[] = [
+  "qr_sin_marca",
+  "ofertas_flash",
+  "fotos_ilimitadas",
+  "whatsapp_pedido",
+  "reservas_whatsapp",
+  "publicaciones_fb",
+  "seguidores",
 ];
 
-/** Las funciones de un pack: las de sus módulos más sus bonos, sin repetir. */
-export function funcionesDePack(
-  incluye: readonly ClaveModulo[],
-  bonos: readonly Funcion[],
-  modulos: Record<ClaveModulo, { funciones: readonly Funcion[] }> = MODULOS,
-): Funcion[] {
-  return [...new Set([...funcionesDeModulos(incluye, modulos), ...bonos])];
-}
+/** Los extras de Publicidad Max sobre Gratis. */
+const PUBLICIDAD_MAX: readonly Funcion[] = [
+  "publicaciones_fb",
+  "publicaciones_fb_3",
+  "eventos",
+  "seguidores",
+];
+
+/** Pro es la unión de los otros dos más el asistente, sin repetir. */
+const PRO: readonly Funcion[] = [
+  ...new Set<Funcion>([...ESENCIAL, ...PUBLICIDAD_MAX, "asistente_ia"]),
+];
 
 export const PACKS = {
   esencial: {
     nombre: "Esencial",
     lema: "Para vender sin perder clientes.",
-    texto: "Menú Pro, pedidos y reservas, y visibilidad. Todo lo que hace falta para cobrar por lo que ya tienes.",
+    /* Lo que lee el dueño en la tarjeta, una línea por punto. `funciones` es lo
+       que de verdad abre el pack; esto es lo que se cuenta. */
+    texto: [
+      "Todo el plan Gratis",
+      "Menú Pro(QR + Ofertas + Productos ilimitados)",
+      "Flujo de pedidos conectados al catálogo online",
+      "Agendar reservas en tu negocio",
+      "1 Publicación en grupos de facebook a la semana",
+      "Avisos a usuarios conectados con tu negocio sobre tus novedades",
+    ].join("\n"),
     usd: 3.5,
-    incluye: ESENCIAL_MODULOS,
-    bonos: [],
-    funciones: funcionesDePack(ESENCIAL_MODULOS, []),
+    funciones: ESENCIAL,
   },
   publicidad_max: {
     nombre: "Publicidad Max",
     lema: "Para que te vean.",
-    texto:
-      "Facebook tres veces por semana, eventos y marketing activo, más los bonos: destacado de la semana, cupones y reporte mensual.",
+    texto: [
+      "Todo el plan Gratis",
+      "3 Publicaciones en grupos de facebook a la semana",
+      "Crear o promocionar eventos",
+      "Avisos a los usuarios conectados con tu negocio sobre tus novedades",
+    ].join("\n"),
     usd: 6,
-    incluye: PUBLICIDAD_MODULOS,
-    bonos: BONOS_PUBLICIDAD,
-    funciones: funcionesDePack(PUBLICIDAD_MODULOS, BONOS_PUBLICIDAD),
+    funciones: PUBLICIDAD_MAX,
   },
   pro: {
     nombre: "Pro",
     lema: "Todo, sin depender de nadie.",
-    texto:
-      "Esencial y Publicidad Max con sus bonos, el asistente en Telegram, el ranking con descuento y las estadísticas completas.",
+    texto: [
+      "Todo el plan Gratis",
+      "Todo el plan Esencial",
+      "Todo el plan Publicidad Max",
+      "Asistente de IA por Telegram conectado a tu negocio",
+    ].join("\n"),
     usd: 10,
-    incluye: [...ESENCIAL_MODULOS, ...PUBLICIDAD_MODULOS, "asistente_telegram"] as const,
-    bonos: [...BONOS_PUBLICIDAD, "ranking", "stats_completas", "soporte_prioritario"] as const,
-    funciones: funcionesDePack(
-      [...ESENCIAL_MODULOS, ...PUBLICIDAD_MODULOS, "asistente_telegram"],
-      [...BONOS_PUBLICIDAD, "ranking", "stats_completas", "soporte_prioritario"],
-    ),
+    funciones: PRO,
   },
 } as const satisfies Record<
   string,
@@ -309,8 +331,6 @@ export const PACKS = {
     lema: string;
     texto: string;
     usd: number;
-    incluye: readonly ClaveModulo[];
-    bonos: readonly Funcion[];
     funciones: readonly Funcion[];
   }
 >;
@@ -362,9 +382,7 @@ export interface PackCatalogo {
   lema: string;
   texto: string;
   usd: number;
-  incluye: readonly ClaveModulo[];
-  bonos: readonly Funcion[];
-  /** Derivado de `incluye` + `bonos`. No se edita: se recalcula al leer. */
+  /** Los extras sobre Gratis. */
   funciones: readonly Funcion[];
 }
 
@@ -493,7 +511,7 @@ export type ClaveLimite =
 
 /** El tope del catálogo, para el plan Gratis sin módulos. Antiabuso, no una
     frontera comercial: no se enseña como límite al dueño. */
-const PRODUCTOS_GRATIS = 90;
+const PRODUCTOS_GRATIS = 15;
 const FOTOS_GRATIS = 10;
 
 /** El tope de una clave. `null` = sin tope. */

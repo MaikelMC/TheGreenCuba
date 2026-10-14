@@ -8,7 +8,6 @@ import {
   MODULOS,
   PACKS,
   PACKS_ORDER,
-  funcionesDePack,
   type Catalogo,
   type ClaveModulo,
   type Funcion,
@@ -41,7 +40,7 @@ export const CATALOGO_TAG = "catalogo";
 const CACHE_TTL_S = 300;
 
 /** Tope de cualquier texto editable. Une nombre, lema y descripción. */
-const MAX_TEXTO = 400;
+const MAX_TEXTO = 800;
 
 const CLAVES_FUNCION = Object.keys(FUNCIONES) as Funcion[];
 const CLAVES_MODULO = Object.keys(MODULOS) as ClaveModulo[];
@@ -126,18 +125,12 @@ export function normalizarCatalogo(datos: unknown): Catalogo {
   for (const clave of PACKS_ORDER) {
     const def = PACKS[clave];
     const dado = objeto(pSrc[clave]);
-    const incluye = claves(dado.incluye, CLAVES_MODULO) ?? [...def.incluye];
-    const bonos = claves(dado.bonos, CLAVES_FUNCION) ?? [...def.bonos];
     packs[clave] = {
       nombre: texto(dado.nombre, def.nombre),
       lema: texto(dado.lema, def.lema),
       texto: texto(dado.texto, def.texto),
       usd: precio(dado.usd, def.usd),
-      incluye,
-      bonos,
-      /* Derivadas, nunca de lo guardado: es lo que impide que un pack anuncie
-         funciones que sus módulos no traen. */
-      funciones: funcionesDePack(incluye, bonos, modulos),
+      funciones: claves(dado.funciones, CLAVES_FUNCION) ?? [...def.funciones],
     };
   }
 

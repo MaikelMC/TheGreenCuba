@@ -438,18 +438,7 @@ export function PublicacionesView({
   );
 }
 
+/** El nombre de la sección no se repite: ya está en el navbar. */
 function Encabezado() {
-  return (
-    <div className="mb-gap-md">
-      <h1 className="font-lv-display text-title font-bold text-ink">
-        Publicaciones
-      </h1>
-      <p className="mt-gap-xs max-w-3xl text-small text-ink-soft/75">
-        Prepara el post de tu negocio para los grupos de Facebook. La Verde{" "}
-        <strong>no publica por ti</strong>: automatizar el posteo en grupos
-        incumple sus términos y arriesga el bloqueo de la cuenta. Lo que envíes
-        aquí llega a la administración, que lo publica a mano.
-      </p>
-    </div>
-  );
+  return <h1 className="sr-only">Publicaciones</h1>;
 }

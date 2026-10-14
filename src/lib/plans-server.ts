@@ -11,6 +11,7 @@ import {
   planEfectivo,
   trialHastaDesde,
   type ClaveLimite,
+  type ClaveModulo,
   type Funcion,
   type Plan,
   type Suscripcion,
@@ -86,6 +87,26 @@ export async function funcionesDeNegocio(
     return funcionesDe(c ? aSuscripcion(c) : null, new Date(), cat);
   }
   return funcionesDe(await suscripcionDe(negocioId), new Date(), cat);
+}
+
+/**
+ * Las claves de los módulos sueltos **vigentes** de un negocio.
+ *
+ * Viaja al panel porque el plan no lo dice todo: un negocio en Gratis con Menú
+ * Pro contratado tiene cosas que «Gratis» no nombra, y la tarjeta del plan tiene
+ * que contarlas. Viajan solo las claves —los nombres y los precios los pone el
+ * catálogo, que el navegador ya tiene—, por lo mismo que no viaja la fila de
+ * `suscripciones`: el navegador no tiene por qué ver fechas ni descuentos.
+ */
+export async function modulosDe(negocioId: string): Promise<ClaveModulo[]> {
+  const susc =
+    negocioId === DEV_PLACE_ID
+      ? aSuscripcion(await readDevPlaceContratado())
+      : await suscripcionDe(negocioId);
+  const ahora = new Date();
+  return (susc?.modulos ?? [])
+    .filter((m) => !m.hasta || m.hasta.getTime() > ahora.getTime())
+    .map((m) => m.clave);
 }
 
 /**
