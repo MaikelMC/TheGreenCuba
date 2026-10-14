@@ -8,8 +8,8 @@ import { MenuItem } from "./menu-item";
 
 /**
  * Cuántas entradas de «Lo que ofrece» caben en una página. Cuatro: dos filas de
- * dos en la rejilla de escritorio y cuatro filas en la columna del móvil, que
- * es lo que se ve antes de que la sección empiece a comerse la pantalla.
+ * dos en la rejilla, que es lo que se ve antes de que la sección empiece a
+ * comerse la pantalla.
  */
 const PAGE_SIZE = 4;
 
@@ -32,19 +32,20 @@ const SLIDE = {
 const PAGE_BTN =
   "grid place-items-center size-9 rounded-full border border-ink/10 bg-white text-ink cursor-pointer transition-all duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 disabled:opacity-35 disabled:pointer-events-none";
 
+/* `shrink-0` + `whitespace-nowrap`: en el teléfono las pastillas no caben y sin
+   eso el navegador las encoge y parte el nombre en dos líneas. Es la misma
+   pastilla que la de la carta, que ya se comporta así. */
 const CHIP =
-  "h-8 px-gap-sm rounded-full border font-lv-display text-meta font-semibold cursor-pointer transition-all duration-500 ease-outquint";
+  "h-8 shrink-0 whitespace-nowrap px-gap-sm rounded-full border font-lv-display text-meta font-semibold cursor-pointer transition-all duration-500 ease-outquint";
 const CHIP_ON = "bg-verde-400 border-verde-400 text-verde-950";
 const CHIP_OFF =
   "bg-white border-ink/10 text-ink-soft/75 hover:border-verde-300 hover:text-verde-600";
 
 interface MenuPagesProps {
   items: MenuEntry[];
-  /** `grid` es la rejilla de dos columnas de escritorio; `list`, la columna del móvil. */
-  variant: "grid" | "list";
 }
 
-export function MenuPages({ items, variant }: MenuPagesProps) {
+export function MenuPages({ items }: MenuPagesProps) {
   const [page, setPage] = useState(0);
   const [direction, setDirection] = useState(1);
   const [categoria, setCategoria] = useState<string | null>(null);
@@ -92,8 +93,12 @@ export function MenuPages({ items, variant }: MenuPagesProps) {
 
   return (
     <>
+      {/* Una sola fila que se desliza en horizontal, como los chips de la carta:
+          `flex-wrap` las apilaba en dos o tres líneas en el teléfono y empujaba
+          «Lo que ofrece» hacia abajo. `pb-1` deja aire para la barra de
+          desplazamiento. */}
       {categorias.length > 1 && (
-        <div className="flex flex-wrap gap-gap-xs mb-gap-md">
+        <div className="mb-gap-md flex gap-[6px] overflow-x-auto pb-1 scrollbar-hide">
           <button
             type="button"
             onClick={() => filtrar(null)}
@@ -133,11 +138,10 @@ export function MenuPages({ items, variant }: MenuPagesProps) {
               if (info.offset.x < -60 || info.velocity.x < -500) go(1);
               else if (info.offset.x > 60 || info.velocity.x > 500) go(-1);
             }}
-            className={cn(
-              variant === "grid"
-                ? "grid grid-cols-2 gap-x-gap-lg"
-                : "flex flex-col gap-gap-sm",
-            )}
+            /* Dos columnas siempre, como la carta, con `auto-rows-fr` para que
+               todas las filas midan igual: sin él la tarjeta sin descripción
+               queda más baja que la de al lado y la rejilla se ve desalineada. */
+            className="grid grid-cols-2 auto-rows-fr gap-gap-sm"
           >
             {visible.map((item, i) => (
               <MenuItem key={i} index={i} {...item} />

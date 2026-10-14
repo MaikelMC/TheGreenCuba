@@ -637,7 +637,7 @@ export function PlaceDetail({
                     )}
                   </div>
                   <div id="full-menu-list-desktop">
-                    <MenuPages items={place.menu} variant="grid" />
+                    <MenuPages items={place.menu} />
                   </div>
                 </section>
               )}
@@ -1018,8 +1018,8 @@ export function PlaceDetail({
                     <h2 className={H2}>Lo que ofrece</h2>
                     {/* El «Ver todo» que había aquí conmutaba un estado que solo
                         leía su propio `aria-expanded`: no desplegaba nada. El
-                        paginado es de `MenuPages`, por arrastre en esta
-                        variante, y con cuatro entradas o menos cabe todo. */}
+                        paginado es de `MenuPages`, por arrastre, y con cuatro
+                        entradas o menos cabe todo. */}
                     {place.menu.length > 0 && (
                       <Link
                         href={`/m/${place.slug}`}
@@ -1038,7 +1038,7 @@ export function PlaceDetail({
                     )}
                   </div>
                   <div id="full-menu-list">
-                    <MenuPages items={place.menu} variant="list" />
+                    <MenuPages items={place.menu} />
                   </div>
                 </>
               )}
