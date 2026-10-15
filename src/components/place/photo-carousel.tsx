@@ -108,15 +108,21 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
     }
   }, []);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    if (!touch) return;
-    setPaused(true);
-    touchStartX.current = touch.clientX;
-    touchDeltaX.current = 0;
-    isDragging.current = true;
-    if (trackRef.current) trackRef.current.style.transition = "none";
-  }, []);
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      /* Con una sola foto no hay a dónde ir: sin este corte, el arrastre movía
+         el carril igual y dejaba ver el fondo vacío por el lado. */
+      if (total < 2) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+      setPaused(true);
+      touchStartX.current = touch.clientX;
+      touchDeltaX.current = 0;
+      isDragging.current = true;
+      if (trackRef.current) trackRef.current.style.transition = "none";
+    },
+    [total],
+  );
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isDragging.current) return;
@@ -197,10 +203,13 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
         ))}
       </div>
 
-      {/* Counter */}
-      <div className="absolute top-gap-xs right-gap-xs bg-ink/70 backdrop-blur-sm text-white font-lv-display text-meta font-semibold px-[10px] py-[4px] rounded-full">
-        {current + 1} / {total}
-      </div>
+      {/* Counter. Con una sola foto no dice nada —«1 / 1»— y el punto tampoco:
+          los dos hablan de un recorrido que no existe. */}
+      {total > 1 && (
+        <div className="absolute top-gap-xs right-gap-xs bg-ink/70 backdrop-blur-sm text-white font-lv-display text-meta font-semibold px-[10px] py-[4px] rounded-full">
+          {current + 1} / {total}
+        </div>
+      )}
 
       {/* Dots. El área táctil es 24x44 (cumple WCAG 2.5.8 AA) aunque el punto
           visible siga siendo de 7px: el botón alinea su contenido abajo para que
@@ -213,27 +222,29 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
 
           El 13% los deja justo por encima del desvanecido, que en la ficha
           arranca a esa misma altura: es la única cifra que comparten los dos. */}
-      <div className="absolute bottom-[13%] left-1/2 -translate-x-1/2 flex">
-        {slides.map((_, i) => (
-          <button
-            key={i}
-            type="button"
-            onClick={() => goTo(i)}
-            className="flex h-11 w-6 items-end justify-center"
-            aria-label={`Ir a foto ${i + 1}`}
-            aria-current={i === current}
-          >
-            <span
-              className={cn(
-                "block h-[7px] rounded-full transition-all duration-500 ease-outquint",
-                i === current
-                  ? "w-[20px] bg-verde-600"
-                  : "w-[7px] bg-ink/20",
-              )}
-            />
-          </button>
-        ))}
-      </div>
+      {total > 1 && (
+        <div className="absolute bottom-[13%] left-1/2 -translate-x-1/2 flex">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => goTo(i)}
+              className="flex h-11 w-6 items-end justify-center"
+              aria-label={`Ir a foto ${i + 1}`}
+              aria-current={i === current}
+            >
+              <span
+                className={cn(
+                  "block h-[7px] rounded-full transition-all duration-500 ease-outquint",
+                  i === current
+                    ? "w-[20px] bg-verde-600"
+                    : "w-[7px] bg-ink/20",
+                )}
+              />
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Nav buttons. En táctil van SIEMPRE visibles: `group-hover` no existe sin
           ratón, así que con el patrón anterior las flechas eran inalcanzables en
