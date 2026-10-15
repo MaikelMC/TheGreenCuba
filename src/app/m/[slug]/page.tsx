@@ -545,13 +545,21 @@ export default async function MenuPage({
         )}
 
         <div className={cn("flex items-center gap-gap-md", phone && "pr-14")}>
+          {/* El logo del negocio, algo más grande que antes —56 px— pero
+              contenido: 64 px en el teléfono y 72 a partir de `sm`. Es la
+              única imagen de la cabecera y quien abre la carta desde un QR
+              viene a reconocer el negocio, así que aguanta el aumento; pero a
+              80 px empezaría a comerse el nombre en 360 px de ancho, que es el
+              caso que este bloque tiene que seguir salvando. El `sizes` del
+              `Image` va con él: declarar 56 px cuando se pintan 72 sería
+              pedirle al navegador la foto de menos. */}
           {brand ? (
-            <span className="relative block size-14 shrink-0 overflow-hidden rounded-full border border-ink/10 bg-white">
+            <span className="relative block size-16 shrink-0 overflow-hidden rounded-full border border-ink/10 bg-white sm:size-[72px]">
               <Image
                 src={brand}
                 alt=""
                 fill
-                sizes="56px"
+                sizes="(min-width: 640px) 72px, 64px"
                 quality={70}
                 className="object-cover"
               />
@@ -559,7 +567,7 @@ export default async function MenuPage({
           ) : (
             <span
               aria-hidden
-              className="grid size-14 shrink-0 place-items-center rounded-full bg-sand-deep text-[26px]"
+              className="grid size-16 shrink-0 place-items-center rounded-full bg-sand-deep text-[30px] sm:size-[72px] sm:text-[34px]"
             >
               {categoryEmoji(place.category)}
             </span>
