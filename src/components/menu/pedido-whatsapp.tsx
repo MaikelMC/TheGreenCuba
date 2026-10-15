@@ -287,7 +287,11 @@ export function PedidoProvider({
               la dirección ya escrita, para poder corregirla o dejarla en blanco
               —el negocio que sirve para recoger no necesita ninguna—. */}
           <Dialog open={pidiendo} onOpenChange={setPidiendo}>
-            <DialogContent>
+            {/* `flex flex-col` enciende el `gap-gap-md` que la ventana ya trae
+                escrito: sin una disposición de flex, ese hueco no se aplica a
+                nada —una caja de bloque no reparte `gap`— y el título, el campo
+                y los botones salían pegados unos a otros. */}
+            <DialogContent className="flex flex-col">
               <DialogHeader>
                 <DialogTitle>¿Dónde te lo llevamos?</DialogTitle>
                 <DialogDescription>
@@ -315,11 +319,28 @@ export function PedidoProvider({
                 />
               </label>
 
-              <DialogFooter className="gap-gap-xs">
+              {/* Los dos botones en una fila también en el teléfono, y a la
+                  misma altura.
+
+                  El pie nace como columna en móvil —así lo trae `DialogFooter`—
+                  y con dos pastillas apiladas la ventana crecía de alto por lo
+                  que no valía: mirar la carta desde un QR es un gesto de una
+                  vez y la ventana se comía la pantalla. En fila se resuelve en
+                  una franja.
+
+                  `grid-cols-[auto_1fr]` y no dos mitades iguales: «Volver» mide
+                  lo que mide su palabra y «Enviar el pedido» se queda con el
+                  resto, que es el reparto que dice cuál de los dos importa.
+                  Repartir al 50 % obligaba a recortar el texto del principal.
+                  El `sm:flex` devuelve la fila de escritorio que ya traía el
+                  componente; `sm:space-x-0` quita el margen suelto de la base
+                  para que el hueco lo ponga solo `gap-gap-xs` en los dos
+                  anchos. */}
+              <DialogFooter className="grid grid-cols-[auto_1fr] gap-gap-xs sm:flex sm:justify-end sm:space-x-0">
                 <DialogClose asChild>
                   <button
                     type="button"
-                    className="inline-flex h-11 cursor-pointer items-center justify-center rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
+                    className="inline-flex h-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 sm:px-gap-md sm:text-small"
                   >
                     Volver
                   </button>
@@ -327,16 +348,21 @@ export function PedidoProvider({
 
                 {/* Un enlace y no un `router.push`: quien habla con WhatsApp es
                     el navegador. Se cierra la ventana al pulsarlo para no
-                    dejarla abierta encima de la pestaña que acaba de abrirse. */}
+                    dejarla abierta encima de la pestaña que acaba de abrirse.
+
+                    Sin `flex-1`: mientras el pie fue una columna en el
+                    teléfono, ese `flex-1` repartía por el eje vertical y el
+                    botón dejaba de medir su alto. Ahora el ancho lo da la
+                    columna de la rejilla y el alto, `h-10`. */}
                 <a
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setPidiendo(false)}
-                  className="inline-flex h-11 flex-1 items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-verde-400 px-gap-md font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 sm:flex-none"
+                  className="inline-flex h-10 min-w-0 items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 sm:px-gap-md sm:text-small"
                 >
                   <MessageCircle
-                    size={17}
+                    size={15}
                     strokeWidth={1.8}
                     className="shrink-0"
                   />
