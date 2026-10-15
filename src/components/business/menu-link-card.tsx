@@ -439,7 +439,13 @@ export function MenuLinkCard({
               <Share2 size={15} strokeWidth={1.8} />
               Compartir
             </button>
-            <Link href={path} target="_blank" className={BTN}>
+            {/* La marca de La Verde dentro de la carta devuelve aquí a quien
+                vino de aquí; sin el aviso lleva a la portada pública, que es lo
+                que le toca a quien barre el QR. Va en el enlace y **no** en
+                `path`: `path` es también lo que comparte el botón de al lado, y
+                el enlace que se manda a un cliente no puede llevar la marca del
+                panel del dueño. Ver `MarcaCarta`. */}
+            <Link href={`${path}?volver=panel`} target="_blank" className={BTN}>
               <ArrowUpRight size={15} strokeWidth={1.8} />
               Ver mi carta
             </Link>

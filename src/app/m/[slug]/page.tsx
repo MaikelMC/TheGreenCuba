@@ -26,6 +26,7 @@ import { tieneFuncion } from "@/lib/plans-server";
 import {
   cn,
   currencyLabel,
+  currencyStyles,
   formatMenuPrice,
   menuTagFallback,
   menuTagStyles,
@@ -36,12 +37,13 @@ import { ofertaDe, ofertasVigentes, precioConOferta } from "@/lib/ofertas";
 import {
   BotonAgregar,
   PedidoProvider,
+  type ProductoPedible,
 } from "@/components/menu/pedido-whatsapp";
 import { EventosMenu } from "@/components/menu/eventos-menu";
 import { CartaMenu, type CartaGrupo } from "@/components/menu/carta-menu";
 import { ReservaWhatsApp } from "@/components/place/reserva-whatsapp";
 import { SeguidorBoton } from "@/components/place/seguidor-boton";
-import { Logo } from "@/components/layout/logo";
+import { MarcaCarta } from "@/components/menu/marca-carta";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 /**
@@ -87,17 +89,17 @@ export const revalidate = 300;
  *
  * En la carta ancha van sueltos en una fila que envuelve; en un teléfono de
  * 360 px cada pastilla de 44 px ocupaba una línea entera y la cabecera se comía
- * la pantalla antes de la primera entrada del menú. Aquí bajan a 36 px, con
+ * la pantalla antes de la primera entrada del menú. Aquí bajan a 40 px, con
  * menos relleno, letra de 12 px e icono de 14 px, y la fila pasa a rejilla de
  * dos columnas (ver el contenedor) para que caigan alineados y del mismo ancho.
  *
- * 36 px está por debajo de los 44 que pide la guía táctil; el hueco de 8 px que
+ * 40 px sigue por debajo de los 44 que pide la guía táctil; el hueco de 8 px que
  * los separa hace que el gesto no roce al botón de al lado, y quien abre la
  * carta viene de un QR y toca una sola vez. De `sm` en adelante recuperan los
  * 44 px.
  */
 const BTN_CONTACTO =
-  "h-auto min-h-9 w-full justify-center px-gap-sm text-meta [&_svg]:size-3.5 sm:h-11 sm:w-auto sm:px-gap-md sm:text-small sm:[&_svg]:size-4";
+  "h-auto min-h-10 w-full justify-center px-gap-sm text-meta [&_svg]:size-3.5 sm:h-11 sm:w-auto sm:px-gap-md sm:text-small sm:[&_svg]:size-4";
 
 const getPlace = cache(async (slug: string, overrideFor?: string) => {
   try {
@@ -201,10 +203,17 @@ function MenuRow({
       /* `data-producto` lo lee la isla de eventos para contar qué se ve. Es el
          nombre y no el id porque el id puede faltar en las entradas viejas. */
       data-producto={item.name}
-      className={cn(
-        "flex flex-col rounded-2xl border border-ink/10 bg-white p-gap-xs shadow-soft sm:p-gap-sm",
-        agotado && "opacity-60",
-      )}
+      /* El apagado de lo agotado va por token, no con `opacity` en la caja: la
+         opacidad arrastra también las chapitas de dentro y «Agotado» caía a
+         2,3:1. Lo que se apaga es lo que el ojo lee —la foto y el nombre—, y así
+         la chapita que dice por qué se ve a plena tinta.
+
+         El borde verde de «ya está en el pedido» sale de `:has()` mirando el
+         `data-en-pedido` que pone `BotonAgregar`: esta tarjeta se sirve desde el
+         servidor y no puede saber nada del carrito, pero sí puede reaccionar a
+         lo que el cliente deja escrito dentro. Donde `:has()` no llegue no pasa
+         nada: el botón relleno sigue diciendo lo mismo. */
+      className="flex flex-col rounded-2xl border border-ink/10 bg-white p-gap-xs shadow-soft has-[[data-en-pedido]]:border-verde-400 sm:p-gap-sm"
     >
       {/* La foto cuadrada manda la tarjeta y el texto va debajo, dentro de la
           misma caja: el contorno es lo que separa un producto del siguiente, y
@@ -240,7 +249,12 @@ function MenuRow({
         <div className="flex flex-wrap items-center gap-gap-xs">
           {/* Nombre a 16 px en el teléfono y a 22 desde `sm`: a 360 px la
               tarjeta mide ~154 px y un nombre de 22 px se come tres líneas. */}
-          <span className="font-lv-display text-body font-bold leading-snug text-ink sm:text-h3">
+          <span
+            className={cn(
+              "font-lv-display text-body font-bold leading-snug sm:text-h3",
+              agotado ? "text-ink-soft" : "text-ink",
+            )}
+          >
             {item.name}
           </span>
           {enOferta && (
@@ -248,8 +262,12 @@ function MenuRow({
               Oferta
             </span>
           )}
+          {/* Arena y no el rojo del sistema: `text-destructive` sobre su propio
+              tinte a 10 px daba 3,8:1 y no llegaba al 4,5:1 de la letra
+              pequeña. «Agotado» es un estado, no una alarma, y el gris lo dice
+              sin gritar al lado del verde de «Oferta». */}
           {agotado && (
-            <span className="rounded-full bg-destructive/10 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-destructive">
+            <span className="rounded-full bg-sand-deep px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-soft">
               Agotado
             </span>
           )}
@@ -266,7 +284,7 @@ function MenuRow({
                 la derecha antes que desbordar. */}
             {enOferta && oferta ? (
               <span className="flex items-baseline gap-gap-xs">
-                <span className="font-lv-display text-meta text-ink-soft/60 line-through">
+                <span className="font-lv-display text-meta text-ink-soft/75 line-through">
                   {formatMenuPrice(oferta.de, item.currency)}
                 </span>
                 <span className="font-lv-display text-small font-semibold text-verde-600">
@@ -386,6 +404,14 @@ export default async function MenuPage({
     const group = groups[i];
     if (group) group.items.push(item);
   }
+  /* El catálogo tal como está hoy, para que el carrito pueda contrastar lo que
+     guardó en el navegador. Se llena aquí dentro, en el mismo sitio que decide
+     el identificador del producto y el precio de la oferta, porque es
+     exactamente lo que acaba recibiendo `BotonAgregar`: con el cálculo copiado
+     fuera, el día que cambie una de las dos copias el carrito reconciliaría
+     contra un precio que no es el que se pidió. Ver `PedidoProvider`. */
+  const productos: ProductoPedible[] = [];
+
   /* Cada grupo, ya montado aquí, con su oferta emparejada. Se enseñan todos:
      los chips de `CartaMenu` solo saltan de uno a otro. */
   const groupsUi: CartaGrupo[] = groups.map((group) => {
@@ -417,19 +443,26 @@ export default async function MenuPage({
               /* El mismo emparejado que hace la ficha: por `id` del producto, que
                es lo que guarda la oferta. */
               const oferta = item.id ? ofertaDe(ofertas, item.id) : undefined;
+              /* Las entradas nuevas ya traen `id`; las viejas no, y ahí el
+                 nombre con su posición es lo único estable que hay. */
+              const productoId = item.id ?? `${item.name}-${index}`;
+              const precioOferta = oferta
+                ? (precioConOferta(item.price, oferta) ?? undefined)
+                : undefined;
+              productos.push({
+                id: productoId,
+                name: item.name,
+                /* El de la oferta, que es el mismo que le llega al botón. */
+                price: precioOferta?.por ?? item.price,
+                currency: item.currency,
+              });
               return (
                 <MenuRow
                   key={`${item.name}-${index}`}
                   item={item}
-                  /* Las entradas nuevas ya traen `id`; las viejas no, y ahí el
-                   nombre con su posición es lo único estable que hay. */
-                  productoId={item.id ?? `${item.name}-${index}`}
+                  productoId={productoId}
                   pedible={puedePedir && !estaAgotado(item)}
-                  oferta={
-                    oferta
-                      ? (precioConOferta(item.price, oferta) ?? undefined)
-                      : undefined
-                  }
+                  oferta={precioOferta}
                 />
               );
             })}
@@ -452,26 +485,23 @@ export default async function MenuPage({
             queda como un utensilio junto al nombre en vez de competir con la
             ficha, que sí lleva a algún sitio. */}
         <div className="flex shrink-0 items-center gap-gap-sm">
-          {/* El logotipo al lado del nombre, como en la cabecera del mapa: el
-              dibujo se reconoce y el texto lo dice, que en una carta que se abre
-              una vez y sin conocer la marca hace falta.
+          {/* La marca, en texto con flecha como el «Ver ficha» de abajo, y no
+              en pastilla: con borde, fondo blanco y 44 px de alto era lo más
+              llamativo de la pantalla, por encima del nombre del negocio, y
+              quien abre una carta desde un QR viene a ver el negocio, no la
+              plataforma. El dibujo se queda —se reconoce— pero al tamaño del
+              texto que acompaña.
 
-              Con pastilla de botón —borde, fondo blanco y 44 px de alto—, no
-              suelto: el nombre en verde sobre el fondo se leía como un rótulo más
-              de la carta y no como lo que es, el único enlace que sale del
-              negocio. Es la misma pastilla secundaria que «Llamar» en la ficha de
-              abajo, así que el gesto se aprende una vez. */}
-          <Link
-            href="/"
-            className="inline-flex h-11 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-verde-700 shadow-soft transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
-          >
-            <Logo className="h-[22px] w-auto shrink-0" />
-            La Verde
-          </Link>
+              A dónde lleva depende de por dónde se entró, y eso lo resuelve el
+              componente: al dueño que la abrió desde su panel lo devuelve ahí,
+              al que barrió el QR lo deja en la portada. Ver `MarcaCarta`. */}
+          <MarcaCarta panelHref={`/business?negocio=${place.id}`} />
           {/* El mando del tema, explícito: quien abre una carta de un QR puede
               venir con el móvil en oscuro y estar a pleno sol, y en la carta el
-              sistema no acierta. */}
-          <ThemeToggle />
+              sistema no acierta. Pierde el disco —borde y fondo— para no volver
+              a ser un botón que compite con el nombre; el `size-11` se queda,
+              que es el alto del gesto. */}
+          <ThemeToggle className="border-transparent bg-transparent shadow-none" />
         </div>
 
         {showFichaLink && (
@@ -498,22 +528,23 @@ export default async function MenuPage({
             compite con la carta y el icono de teléfono ya se entiende; el
             `aria-label` es el que lo nombra para quien no lo ve.
 
-            `size-9` son 36 px, como el resto de la fila en móvil. Va
-            posicionado, así que la primera línea del nombre lleva `pr-11` para
-            no meterse debajo. */}
+            `size-10` son 40 px, el mismo alto táctil que el resto de la fila en
+            móvil. Va posicionado a `gap-md` del borde, así que ocupa 56 px desde
+            la derecha y la fila lleva ese `pr-14` para que la primera línea del
+            nombre no se meta debajo. */}
         {phone && (
           <a
             href={`tel:${phone.replace(/[^\d+]/g, "")}`}
             data-evento="click_llamar"
             aria-label={`Llamar a ${place.name}`}
             title={`Llamar a ${place.name}`}
-            className="absolute right-gap-md top-gap-md grid size-9 place-items-center rounded-full border border-ink/10 bg-white text-ink shadow-soft transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
+            className="absolute right-gap-md top-gap-md grid size-10 place-items-center rounded-full border border-ink/10 bg-white text-ink shadow-soft transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
           >
-            <Phone size={15} strokeWidth={2} />
+            <Phone size={16} strokeWidth={2} />
           </a>
         )}
 
-        <div className="flex items-center gap-gap-md pr-11">
+        <div className={cn("flex items-center gap-gap-md", phone && "pr-14")}>
           {brand ? (
             <span className="relative block size-14 shrink-0 overflow-hidden rounded-full border border-ink/10 bg-white">
               <Image
@@ -535,47 +566,93 @@ export default async function MenuPage({
           )}
 
           <div className="min-w-0">
-            <h1 className="font-lv-display text-h3 font-bold leading-tight tracking-[-0.02em] text-ink">
-              {place.name}
-            </h1>
+            {/* El nombre y el estado, en la misma fila: el estado es lo que
+                quien abre la carta desde un QR viene a comprobar, así que va
+                pegado al nombre en vez de debajo del todo, donde se leía como
+                una nota al pie.
+
+                `flex-wrap` y no una fila fija porque en un teléfono no caben:
+                a 360 px, entre el avatar, el relleno y el hueco del botón de
+                llamar, al nombre le quedan unos 190 px, y uno de 28 px ya come
+                más que eso. Donde cabe —de `sm` en adelante— la pastilla va a
+                la derecha; donde no, baja a la línea siguiente, que es donde
+                estaba antes. `shrink-0` en la pastilla para que sea ella la que
+                baje: partir «Abierto» en dos líneas no lo arregla nadie. */}
+            <div className="flex flex-wrap items-center gap-x-gap-xs gap-y-[5px]">
+              {/* El nombre del negocio es lo más grande de la pantalla, y a
+                  propósito: es lo único que quien llega por un QR venía a ver. A
+                  22 px empataba con los titulares de categoría de la carta, que
+                  son los que deberían ir por debajo. */}
+              <h1 className="font-lv-display text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink sm:text-[32px]">
+                {place.name}
+              </h1>
+              {/* El estado, siempre y no solo cuando está cerrado: quien abre la
+                  carta desde un QR quiere saber si puede ir ahora, y «no pone
+                  nada» se lee como que el negocio existe pero no dice nada, no
+                  como que está abierto. Es la misma pastilla que la ficha —punto
+                  de color y texto—, en la paleta clara de esta cabecera, que aquí
+                  el fondo es blanco y no la foto. */}
+              <p
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-[5px] rounded-full border px-[10px] py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em]",
+                  closed
+                    ? "border-ink/10 bg-sand-deep text-ink-soft/75"
+                    : "border-verde-200 bg-verde-50 text-verde-700",
+                )}
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    "size-[6px] shrink-0 rounded-full",
+                    closed ? "bg-ink/30" : "bg-verde-500",
+                  )}
+                />
+                {place.status === "temporary_closed"
+                  ? "Cerrado temporalmente"
+                  : closed
+                    ? "Cerrado"
+                    : "Abierto"}
+              </p>
+            </div>
             <p className="mt-[3px] text-small text-ink-soft/75">
               {[place.category, place.barrio].filter(Boolean).join(" · ")}
-            </p>
-            {/* El estado, siempre y no solo cuando está cerrado: quien abre la
-                carta desde un QR quiere saber si puede ir ahora, y «no pone
-                nada» se lee como que el negocio existe pero no dice nada, no
-                como que está abierto. Es la misma pastilla que la ficha —punto
-                de color y texto—, en la paleta clara de esta cabecera, que aquí
-                el fondo es blanco y no la foto. */}
-            <p
-              className={cn(
-                "mt-[6px] inline-flex items-center gap-[5px] rounded-full border px-[10px] py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em]",
-                closed
-                  ? "border-ink/10 bg-sand-deep text-ink-soft/75"
-                  : "border-verde-200 bg-verde-50 text-verde-700",
-              )}
-            >
-              <span
-                aria-hidden
-                className={cn(
-                  "size-[6px] shrink-0 rounded-full",
-                  closed ? "bg-ink/30" : "bg-verde-500",
-                )}
-              />
-              {place.status === "temporary_closed"
-                ? "Cerrado temporalmente"
-                : closed
-                  ? "Cerrado"
-                  : "Abierto"}
             </p>
           </div>
         </div>
 
+        {/* Las monedas que acepta, en chapitas y no en una frase.
+            «Acepta USD Clásica, CUP, EUR» era una línea de texto corrido que
+            había que leer entera para sacar tres datos; en chapitas se cuentan
+            de un vistazo y cada una lleva su tono. El dibujo es el mismo de la
+            ficha —`currencyStyles` es de los dos, no está copiado—, así que
+            quien vio la moneda en la ficha la reconoce aquí. */}
         {place.payments.length > 0 && (
-          <p className="mt-gap-sm flex items-center gap-[5px] text-meta text-ink-soft/75">
-            <CreditCard size={13} strokeWidth={1.8} className="shrink-0" />
-            Acepta {place.payments.map(currencyLabel).join(", ")}
-          </p>
+          <div className="mt-gap-sm flex flex-wrap items-center gap-x-gap-xs gap-y-[5px]">
+            <CreditCard
+              size={14}
+              strokeWidth={1.8}
+              className="shrink-0 text-verde-600"
+            />
+            <span className="font-lv-display text-meta font-medium text-ink-soft/75">
+              Acepta
+            </span>
+            {place.payments.map((moneda) => (
+              <span
+                key={moneda}
+                className={cn(
+                  "inline-flex items-center gap-[5px] rounded-full px-[10px] py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.10em] ring-1 ring-inset",
+                  currencyStyles[moneda] ??
+                    "bg-sand-deep text-ink-soft ring-ink/10",
+                )}
+              >
+                <span
+                  aria-hidden
+                  className="size-[5px] shrink-0 rounded-full bg-current opacity-60"
+                />
+                {currencyLabel(moneda)}
+              </span>
+            ))}
+          </div>
         )}
 
         {(reserva || seguidores || whatsapp) && (
@@ -630,7 +707,10 @@ export default async function MenuPage({
       </header>
 
       <section className="mt-gap-lg">
-        <h2 className="mb-gap-sm font-lv-display text-body font-semibold text-ink">
+        {/* A `text-h3`, el mismo alto que los titulares de categoría: a 16 px
+            el titular de la sección quedaba más pequeño que los `h3` que
+            encabeza, y la vista decía lo contrario que el marcado. */}
+        <h2 className="mb-gap-sm font-lv-display text-h3 font-semibold text-ink">
           Menú
         </h2>
 
@@ -682,6 +762,8 @@ export default async function MenuPage({
       /* `puedePedir` ya garantiza que hay número; el `?? ""` es para que
          TypeScript lo sepa. */
       whatsapp={place.whatsapp ?? ""}
+      /* El catálogo de hoy, para contrastar lo que el navegador guardó. */
+      productos={productos}
     >
       {carta}
     </PedidoProvider>

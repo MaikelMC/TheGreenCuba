@@ -241,6 +241,22 @@ export function PlaceDetail({
      círculo de móvil y para el de la banda de escritorio. */
   const brandUrl = place.logoUrl || place.slides[0]?.url || null;
 
+  /* El enlace a la carta, con el aviso de vuelta **solo si hay sesión**: dentro
+     de la carta, la marca de La Verde devuelve a quien entró desde aquí al
+     inicio, y a quien llegó por un enlace compartido a la portada pública. Sin
+     sesión, `/home` es una puerta cerrada —pide entrar— y mandar ahí a quien
+     abrió un enlace de WhatsApp sería peor que dejarlo donde estaba.
+
+     La decisión se toma aquí y no dentro de la carta porque la carta se sirve
+     cacheada para todos y no puede saber quién mira. Ver `MarcaCarta`.
+
+     `userId` llega de `/api/me` después de montar, así que el enlace nace sin
+     el aviso y lo gana al resolverse. No se ve: cambia a dónde apunta, no lo
+     que se lee. */
+  const cartaHref = userId
+    ? `/m/${place.slug}?volver=home`
+    : `/m/${place.slug}`;
+
   /* El diálogo vive aquí y no dentro de `ActionButtons` porque hay dos rejillas
      —la de escritorio y la de móvil— montadas a la vez: dentro habría dos
      diálogos, y dos estados de nota distintos para la misma opinión. */
@@ -621,7 +637,7 @@ export function PlaceDetail({
                         entera y no hay nada que desplegar. */}
                     {place.menu.length > 0 && (
                       <Link
-                        href={`/m/${place.slug}`}
+                        href={cartaHref}
                         className={cn(BTN_OUTLINE, "group")}
                       >
                         Ver la carta
@@ -1022,7 +1038,7 @@ export function PlaceDetail({
                         entradas o menos cabe todo. */}
                     {place.menu.length > 0 && (
                       <Link
-                        href={`/m/${place.slug}`}
+                        href={cartaHref}
                         className={cn(BTN_OUTLINE, "group")}
                       >
                         Ver la carta

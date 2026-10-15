@@ -61,6 +61,7 @@ interface Carrito {
   agregar: (producto: ProductoPedible) => void;
   sumar: (id: string, delta: number) => void;
   quitar: (id: string) => void;
+  vaciar: () => void;
 }
 
 const CarritoCtx = createContext<Carrito | null>(null);
@@ -77,7 +78,8 @@ function leerGuardado(clave: string): LineaPedido[] {
         typeof linea === "object" &&
         linea !== null &&
         typeof (linea as LineaPedido).id === "string" &&
-        typeof (linea as LineaPedido).qty === "number",
+        typeof (linea as LineaPedido).qty === "number" &&
+        (linea as LineaPedido).qty > 0,
     );
   } catch {
     /* Sin `localStorage` —o con algo ilegible dentro— el carrito funciona
@@ -86,16 +88,61 @@ function leerGuardado(clave: string): LineaPedido[] {
   }
 }
 
+/**
+ * El carrito guardado, puesto al día con la carta de hoy.
+ *
+ * Lo que vive en `localStorage` es una foto del día que se llenó, y el precio
+ * de un producto puede haber cambiado desde entonces. La foto viaja entera al
+ * mensaje de WhatsApp, así que sin esto el negocio recibiría un precio viejo y
+ * el cliente creería que le cobran de más: se refresca nombre y precio con lo
+ * que hay ahora, y la cantidad se respeta.
+ *
+ * Una línea que ya no esté en la carta se deja como está, no se borra. Las
+ * entradas viejas del menú no tienen `id` y su clave sale del nombre con su
+ * posición, así que reordenar la carta la cambiaría: borrar por «no lo
+ * encuentro» vaciaría el carrito de quien solo había movido una entrada de
+ * sitio. Lo que falta es detectar el producto retirado; hará falta un `id`
+ * estable en las entradas viejas, y hasta entonces es preferible dejar pasar
+ * una línea que ya no existe a borrar las que sí.
+ */
+function alDia(
+  lineas: LineaPedido[],
+  productos: readonly ProductoPedible[],
+): LineaPedido[] {
+  if (lineas.length === 0 || productos.length === 0) return lineas;
+  const hoy = new Map(productos.map((p) => [p.id, p]));
+  return lineas.map((linea) => {
+    const actual = hoy.get(linea.id);
+    if (!actual) return linea;
+    if (
+      actual.name === linea.name &&
+      actual.price === linea.price &&
+      actual.currency === linea.currency
+    ) {
+      return linea;
+    }
+    return {
+      ...linea,
+      name: actual.name,
+      price: actual.price,
+      currency: actual.currency,
+    };
+  });
+}
+
 export function PedidoProvider({
   placeId,
   negocio,
   whatsapp,
+  productos,
   children,
 }: {
   placeId: string;
   negocio: string;
   /** El número del negocio, ya resuelto. Sin él no se pinta el carrito. */
   whatsapp: string;
+  /** La carta de hoy, para refrescar lo que el navegador guardó. Ver `alDia`. */
+  productos: readonly ProductoPedible[];
   children: React.ReactNode;
 }) {
   const clave = `la-verde:pedido:${placeId}`;
@@ -105,17 +152,39 @@ export function PedidoProvider({
   const [hidratado, setHidratado] = useState(false);
   const [abierto, setAbierto] = useState(false);
   const [pidiendo, setPidiendo] = useState(false);
+  /* Lo que se acaba de quitar, junto con la foto del carrito de antes de
+     quitarlo. Una sola a la vez: cualquier gesto nuevo la reemplaza, y a los
+     ocho segundos se va sola. */
+  const [deshacer, setDeshacer] = useState<{
+    lineas: LineaPedido[];
+    texto: string;
+  } | null>(null);
+  /* La barra se aparta sola al bajar por la carta y vuelve al subir. Antes se
+     quedaba fija desde el primer producto y se comía el pie de la pantalla
+     justo mientras se está leyendo el menú, que es cuando molesta. */
+  const [visible, setVisible] = useState(true);
+  /** Si hay barra que apartar. Sin nada pedido no se escucha el desplazamiento. */
+  const hay = lineas.length > 0;
 
   /* Se lee después de montar y no en el `useState` inicial: el HTML llega
-     cacheado del servidor y el primer render tiene que coincidir con él. */
+     cacheado del servidor y el primer render tiene que coincidir con él.
+
+     El `alDia` va aquí, una sola vez al cargar: es el momento en que el carrito
+     guardado se cruza con la carta que acaba de llegar del servidor. */
   useEffect(() => {
-    setLineas(leerGuardado(clave));
+    setLineas(alDia(leerGuardado(clave), productos));
     try {
       setDireccion(window.localStorage.getItem(claveDir) ?? "");
     } catch {
       /* Sin `localStorage` la dirección se escribe igual, solo no persiste. */
     }
     setHidratado(true);
+    /* `productos` a propósito fuera: es un array nuevo en cada render del
+       servidor, así que tenerlo aquí volvería a leer `localStorage` y a pisar
+       el carrito que el cliente lleva a medias cada vez que la carta se
+       refresca. Al montar ya se cruzó con la carta de ese momento, que es lo
+       que hace falta. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clave, claveDir]);
 
   useEffect(() => {
@@ -137,27 +206,102 @@ export function PedidoProvider({
       copia[i] = { ...actual, qty: actual.qty + 1 };
       return copia;
     });
+    /* Añadir también mueve el carrito: el «volver atrás» pendiente apuntaría a
+       uno sin lo que se acaba de añadir. */
+    setDeshacer(null);
+    /* Y trae la barra de vuelta: acaba de cambiar lo que cuenta, así que el
+       gesto de comprobarlo tiene que estar a un toque. */
+    setVisible(true);
   }, []);
 
-  const sumar = useCallback((id: string, delta: number) => {
-    setLineas((prev) =>
-      prev
-        .map((linea) =>
-          linea.id === id ? { ...linea, qty: linea.qty + delta } : linea,
-        )
-        .filter((linea) => linea.qty > 0),
-    );
-  }, []);
+  /* Bajar la esconde, subir la trae, y cerca del final vuelve sola: quien ha
+     llegado al fondo de la carta ya no está leyendo, está decidiendo, y ahí el
+     botón de pedir tiene que estar. Con `rAF` porque el `scroll` dispara mucho
+     más de lo que la pantalla puede repintar, y con un umbral de 8 px porque
+     sin él el rebote del dedo la haría parpadear. */
+  useEffect(() => {
+    if (!hay) return;
+    let ultimo = window.scrollY;
+    let pedido = false;
+    const mirar = () => {
+      pedido = false;
+      const y = window.scrollY;
+      const fondo = document.documentElement.scrollHeight - window.innerHeight;
+      if (Math.abs(y - ultimo) >= 8) {
+        setVisible(y < ultimo || y >= fondo - 120);
+        ultimo = y;
+      }
+    };
+    const alScroll = () => {
+      if (pedido) return;
+      pedido = true;
+      requestAnimationFrame(mirar);
+    };
+    window.addEventListener("scroll", alScroll, { passive: true });
+    return () => window.removeEventListener("scroll", alScroll);
+  }, [hay]);
 
-  const quitar = useCallback((id: string) => {
-    setLineas((prev) => prev.filter((linea) => linea.id !== id));
-  }, []);
+  /* A los ocho segundos la oferta de volver atrás se retira sola: el carrito
+     cambia mucho en poco rato y una tira de «Deshacer» que se queda pegada
+     acaba pareciendo parte del pedido. */
+  useEffect(() => {
+    if (!deshacer) return;
+    const t = setTimeout(() => setDeshacer(null), 8000);
+    return () => clearTimeout(t);
+  }, [deshacer]);
 
-  const valor = useMemo<Carrito>(
-    () => ({ lineas, agregar, sumar, quitar }),
-    [lineas, agregar, sumar, quitar],
+  const volverAtras = useCallback(() => {
+    if (!deshacer) return;
+    setLineas(deshacer.lineas);
+    setDeshacer(null);
+  }, [deshacer]);
+
+  /* Cada gesto que quita algo del carrito deja la foto de antes. Va fuera del
+     actualizador de estado y no dentro: ahí React puede ejecutarlo dos veces
+     —modo estricto— y quedarse con la foto equivocada. */
+  const sumar = useCallback(
+    (id: string, delta: number) => {
+      const linea = lineas.find((l) => l.id === id);
+      setLineas((prev) =>
+        prev
+          .map((l) => (l.id === id ? { ...l, qty: l.qty + delta } : l))
+          .filter((l) => l.qty > 0),
+      );
+      if (linea && linea.qty + delta <= 0) {
+        setDeshacer({ lineas, texto: `«${linea.name}» fuera del pedido` });
+      } else {
+        /* Bajar o subir cantidades no deshace nada, pero invalida el «volver
+           atrás» pendiente: apuntaría a un carrito que ya no es este. */
+        setDeshacer(null);
+      }
+    },
+    [lineas],
   );
 
+  const quitar = useCallback(
+    (id: string) => {
+      const linea = lineas.find((l) => l.id === id);
+      if (!linea) return;
+      setLineas((prev) => prev.filter((l) => l.id !== id));
+      setDeshacer({ lineas, texto: `«${linea.name}» fuera del pedido` });
+    },
+    [lineas],
+  );
+
+  const vaciar = useCallback(() => {
+    if (lineas.length === 0) return;
+    setLineas([]);
+    setDeshacer({ lineas, texto: "Pedido vaciado" });
+  }, [lineas]);
+
+  const valor = useMemo<Carrito>(
+    () => ({ lineas, agregar, sumar, quitar, vaciar }),
+    [lineas, agregar, sumar, quitar, vaciar],
+  );
+
+  /* Desplegada manda ella: el desplazamiento no decide mientras se mira el
+     pedido. */
+  const barraVisible = visible || abierto;
   const unidades = lineas.reduce((total, linea) => total + linea.qty, 0);
   const total = totalDePedido(lineas);
   const href = hrefPedido(
@@ -174,59 +318,114 @@ export function PedidoProvider({
           {/* Deja hueco para la barra fija, que si no tapa el final de la carta. */}
           <div aria-hidden className="h-[104px]" />
 
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-white/95 backdrop-blur">
+          <div
+            /* Con el pedido desplegado no se aparta nunca: quien está mirando
+               lo que lleva no quiere que se le vaya. Y apartada va `inert`,
+               que si no seguiría en el orden del tabulador y el foco podía
+               saltar a un botón fuera de la pantalla. */
+            inert={!barraVisible}
+            className={cn(
+              "fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-white/95 backdrop-blur transition-transform duration-300 ease-outquint motion-reduce:transition-none",
+              barraVisible ? "translate-y-0" : "translate-y-full",
+            )}
+          >
             {/* `px-gap-xs` en el teléfono y no `px-gutter`: la barra va pegada al
                 borde de la pantalla y cada píxel que se le quita al margen es
                 ancho que se le da a los dos botones, que tienen que caber en la
                 misma fila. De `sm` en adelante vuelve a alinearse con la carta. */}
             <div className="mx-auto w-full max-w-[680px] px-gap-xs pb-gap-sm pt-gap-xs sm:px-gutter">
               {abierto && (
-                <ul className="mb-gap-xs max-h-[45vh] overflow-y-auto border-b border-ink/5 pb-gap-xs">
-                  {lineas.map((linea) => (
-                    <li
-                      key={linea.id}
-                      className="flex items-center gap-gap-sm py-[6px]"
+                <div className="mb-gap-xs border-b border-ink/5 pb-gap-xs">
+                  {/* Vaciar sin preguntar: el aviso con «Deshacer» sale al
+                      pulsarlo, así que el gesto se puede permitir suelto. Va
+                      fuera del `ul` y por encima para que no se lo lleve por
+                      delante el desplazamiento de una lista larga. */}
+                  <div className="flex justify-end pb-gap-xs">
+                    <button
+                      type="button"
+                      onClick={vaciar}
+                      className="inline-flex h-10 cursor-pointer items-center gap-[5px] rounded-full px-gap-xs font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-sand-deep hover:text-ink"
                     >
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-lv-display text-small font-semibold text-ink">
-                          {linea.name}
-                        </div>
-                        <div className="text-meta text-ink-soft/75">
-                          {[linea.price, linea.currency]
-                            .filter(Boolean)
-                            .join(" ")}
-                        </div>
-                      </div>
+                      <Trash2
+                        size={14}
+                        strokeWidth={1.8}
+                        className="shrink-0"
+                      />
+                      Vaciar el pedido
+                    </button>
+                  </div>
 
-                      <div className="flex items-center gap-[2px]">
-                        <BotonCantidad
-                          etiqueta={`Quitar uno de ${linea.name}`}
-                          onClick={() => sumar(linea.id, -1)}
-                        >
-                          <Minus size={15} strokeWidth={2} />
-                        </BotonCantidad>
-                        <span className="w-[24px] text-center font-lv-display text-small font-semibold text-ink">
-                          {linea.qty}
-                        </span>
-                        <BotonCantidad
-                          etiqueta={`Añadir uno de ${linea.name}`}
-                          onClick={() => sumar(linea.id, 1)}
-                        >
-                          <Plus size={15} strokeWidth={2} />
-                        </BotonCantidad>
-                      </div>
-
+                  {/* Volver atrás en el sitio donde se hizo el gesto y no en un
+                      aviso flotante: el flotante del proyecto se posa a 80 px
+                      del borde inferior y la barra del carrito abierta pasa de
+                      ahí, así que taparía justo lo que se acaba de tocar. */}
+                  {deshacer && (
+                    <div className="mb-gap-xs flex items-center justify-between gap-gap-sm rounded-full bg-sand-deep py-[2px] pl-gap-sm pr-[2px]">
+                      <span className="min-w-0 truncate text-meta text-ink-soft">
+                        {deshacer.texto}
+                      </span>
                       <button
                         type="button"
-                        aria-label={`Quitar ${linea.name} del pedido`}
-                        onClick={() => quitar(linea.id)}
-                        className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-full text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-destructive/10 hover:text-destructive"
+                        onClick={volverAtras}
+                        className="inline-flex h-10 shrink-0 cursor-pointer items-center rounded-full px-gap-sm font-lv-display text-meta font-semibold text-verde-700 transition-colors duration-500 ease-outquint hover:bg-white hover:text-verde-600"
                       >
-                        <Trash2 size={15} strokeWidth={1.8} />
+                        Deshacer
                       </button>
-                    </li>
-                  ))}
-                </ul>
+                    </div>
+                  )}
+
+                  <ul className="max-h-[45vh] overflow-y-auto">
+                    {lineas.map((linea) => (
+                      <li
+                        key={linea.id}
+                        className="flex items-center gap-gap-sm py-[6px]"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate font-lv-display text-small font-semibold text-ink">
+                            {linea.name}
+                          </div>
+                          <div className="text-meta text-ink-soft/75">
+                            {[linea.price, linea.currency]
+                              .filter(Boolean)
+                              .join(" ")}
+                          </div>
+                        </div>
+
+                        {/* 40 px por botón y 6 px entre ellos. El hueco es lo que
+                            separa «quitar uno» de «añadir uno», que son gestos
+                            opuestos con el mismo aspecto: pegados, un toque que
+                            resbala al lado contrario no se nota hasta mirar el
+                            total. */}
+                        <div className="flex items-center gap-[6px]">
+                          <BotonCantidad
+                            etiqueta={`Quitar uno de ${linea.name}`}
+                            onClick={() => sumar(linea.id, -1)}
+                          >
+                            <Minus size={16} strokeWidth={2} />
+                          </BotonCantidad>
+                          <span className="w-[24px] text-center font-lv-display text-small font-semibold text-ink">
+                            {linea.qty}
+                          </span>
+                          <BotonCantidad
+                            etiqueta={`Añadir uno de ${linea.name}`}
+                            onClick={() => sumar(linea.id, 1)}
+                          >
+                            <Plus size={16} strokeWidth={2} />
+                          </BotonCantidad>
+                        </div>
+
+                        <button
+                          type="button"
+                          aria-label={`Quitar ${linea.name} del pedido`}
+                          onClick={() => quitar(linea.id)}
+                          className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-full text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <Trash2 size={16} strokeWidth={1.8} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
 
               {/* Mismo nivel: el resumen y la acción en una fila. El ancho
@@ -377,19 +576,44 @@ export function PedidoProvider({
   );
 }
 
-/** El botón «añadir» que va en cada entrada de la carta. */
+/**
+ * El botón «añadir» que va en cada entrada de la carta.
+ *
+ * Es también donde el carrito se ve desde la carta: en cuanto el producto lleva
+ * una unidad encima, el botón se rellena en verde y enseña cuántas van. Antes
+ * solo estaba en la barra de abajo, así que para saber si algo ya estaba pedido
+ * había que desplegar el pedido entero —o volver a añadirlo, y quedaban dos—.
+ *
+ * Sigue añadiendo de uno en uno; lo que cambia es que ahora el número dice
+ * cuántos llevas. El `data-en-pedido` no pinta nada aquí: lo lee la tarjeta que
+ * envuelve al botón desde `page.tsx`, con `:has()`, para marcarse el borde. El
+ * carrito vive en el cliente y la tarjeta se sirve desde el servidor, así que
+ * ese atributo es el único hilo entre los dos.
+ */
 export function BotonAgregar({ producto }: { producto: ProductoPedible }) {
   const carrito = useContext(CarritoCtx);
   if (!carrito) return null;
 
+  const qty = carrito.lineas.find((linea) => linea.id === producto.id)?.qty ?? 0;
+
   return (
     <button
       type="button"
-      aria-label={`Añadir ${producto.name} al pedido`}
+      data-en-pedido={qty > 0 ? "" : undefined}
+      aria-label={
+        qty > 0
+          ? `Añadir otro ${producto.name} al pedido: llevas ${qty}`
+          : `Añadir ${producto.name} al pedido`
+      }
       onClick={() => carrito.agregar(producto)}
-      className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-full border border-verde-300 bg-verde-50 text-verde-700 transition-colors duration-500 ease-outquint hover:bg-verde-400 hover:text-verde-950 active:scale-95"
+      className={cn(
+        "grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border font-lv-display transition-colors duration-500 ease-outquint active:scale-95",
+        qty > 0
+          ? "border-verde-400 bg-verde-400 text-small font-bold text-verde-950 hover:bg-verde-300"
+          : "border-verde-300 bg-verde-50 text-verde-700 hover:bg-verde-400 hover:text-verde-950",
+      )}
     >
-      <Plus size={17} strokeWidth={2} />
+      {qty > 0 ? qty : <Plus size={18} strokeWidth={2} />}
     </button>
   );
 }
@@ -408,7 +632,7 @@ function BotonCantidad({
       type="button"
       aria-label={etiqueta}
       onClick={onClick}
-      className="grid size-8 cursor-pointer place-items-center rounded-full border border-ink/10 bg-white text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700"
+      className="grid size-10 cursor-pointer place-items-center rounded-full border border-ink/10 bg-white text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700"
     >
       {children}
     </button>

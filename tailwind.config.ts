@@ -6,6 +6,13 @@ const config: Config = {
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    /* Los mapas de clases que viven en `src/lib` —`currencyStyles`,
+       `menuTagStyles`— también cuentan. Faltaban aquí, así que sus clases no
+       se generaban nunca: las chapitas de moneda se pintaban con el anillo
+       azul por defecto de Tailwind, porque `ring-verde-300/70` no existía en
+       ninguna hoja. No basta con que la clase se use: tiene que estar escrita
+       en un archivo que Tailwind recorra. */
+    "./src/lib/**/*.{js,ts}",
   ],
   theme: {
     extend: {
