@@ -72,9 +72,12 @@ export function totalDePedido(
 export function mensajePedido({
   negocio,
   lineas,
+  direccion,
 }: {
   negocio: string;
   lineas: readonly LineaPedido[];
+  /** Dónde se entrega. Vacía o en blanco = sin línea en el mensaje. */
+  direccion?: string;
 }): string {
   const cuerpo = lineas.map((linea) => {
     const precio = formatMenuPrice(linea.price, linea.currency);
@@ -82,9 +85,14 @@ export function mensajePedido({
   });
 
   const partes = [`*Pedido — ${negocio}*`, "", ...cuerpo];
+  const entrega = direccion?.trim();
+  if (entrega) partes.push("", `*Dirección:* ${entrega}`);
   const total = totalDePedido(lineas);
   if (total) {
-    partes.push("", `*Total: ${total.total.toFixed(2)} ${currencyLabel(total.currency)}*`);
+    partes.push(
+      "",
+      `*Total: ${total.total.toFixed(2)} ${currencyLabel(total.currency)}*`,
+    );
   }
   partes.push("", "Pedido desde La Verde");
   return partes.join("\n");

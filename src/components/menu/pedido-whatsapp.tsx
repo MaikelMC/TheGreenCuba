@@ -18,6 +18,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   hrefPedido,
   mensajePedido,
   totalDePedido,
@@ -90,25 +99,34 @@ export function PedidoProvider({
   children: React.ReactNode;
 }) {
   const clave = `la-verde:pedido:${placeId}`;
+  const claveDir = `la-verde:pedido-direccion:${placeId}`;
   const [lineas, setLineas] = useState<LineaPedido[]>([]);
+  const [direccion, setDireccion] = useState("");
   const [hidratado, setHidratado] = useState(false);
   const [abierto, setAbierto] = useState(false);
+  const [pidiendo, setPidiendo] = useState(false);
 
   /* Se lee después de montar y no en el `useState` inicial: el HTML llega
      cacheado del servidor y el primer render tiene que coincidir con él. */
   useEffect(() => {
     setLineas(leerGuardado(clave));
+    try {
+      setDireccion(window.localStorage.getItem(claveDir) ?? "");
+    } catch {
+      /* Sin `localStorage` la dirección se escribe igual, solo no persiste. */
+    }
     setHidratado(true);
-  }, [clave]);
+  }, [clave, claveDir]);
 
   useEffect(() => {
     if (!hidratado) return;
     try {
       window.localStorage.setItem(clave, JSON.stringify(lineas));
+      window.localStorage.setItem(claveDir, direccion);
     } catch {
       /* Cuota llena o modo privado: el carrito sigue, solo no persiste. */
     }
-  }, [clave, lineas, hidratado]);
+  }, [clave, claveDir, lineas, direccion, hidratado]);
 
   const agregar = useCallback((producto: ProductoPedible) => {
     setLineas((prev) => {
@@ -142,7 +160,10 @@ export function PedidoProvider({
 
   const unidades = lineas.reduce((total, linea) => total + linea.qty, 0);
   const total = totalDePedido(lineas);
-  const href = hrefPedido(whatsapp, mensajePedido({ negocio, lineas }));
+  const href = hrefPedido(
+    whatsapp,
+    mensajePedido({ negocio, lineas, direccion }),
+  );
 
   return (
     <CarritoCtx.Provider value={valor}>
@@ -244,11 +265,10 @@ export function PedidoProvider({
                   />
                 </button>
 
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-12 flex-1 items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-verde-400 px-gap-xs font-lv-display text-body font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 sm:h-11 sm:px-gap-md sm:text-small"
+                <button
+                  type="button"
+                  onClick={() => setPidiendo(true)}
+                  className="inline-flex h-12 flex-1 cursor-pointer items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-verde-400 px-gap-xs font-lv-display text-body font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 sm:h-11 sm:px-gap-md sm:text-small"
                 >
                   <MessageCircle
                     size={17}
@@ -256,10 +276,75 @@ export function PedidoProvider({
                     className="shrink-0"
                   />
                   Realizar pedido
-                </a>
+                </button>
               </div>
             </div>
           </div>
+
+          {/* La dirección se pide aquí, al confirmar el pedido, y no dentro del
+              carrito: el carrito es elegir productos y esta es la última
+              decisión antes de salir. La ventana sale **siempre**, también con
+              la dirección ya escrita, para poder corregirla o dejarla en blanco
+              —el negocio que sirve para recoger no necesita ninguna—. */}
+          <Dialog open={pidiendo} onOpenChange={setPidiendo}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>¿Dónde te lo llevamos?</DialogTitle>
+                <DialogDescription>
+                  La dirección va dentro del mensaje. Si vas a recogerlo, déjala
+                  en blanco.
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* El color del texto y del marcador van con los tokens que el
+                  modo oscuro reescribe —`text-ink`, `bg-white`,
+                  `border-ink/10`— y no con los del sistema viejo
+                  (`bg-surface`, `text-foreground`), que solo cambian con la
+                  clase `.dark` y esta app usa el atributo `data-theme`. */}
+              <label className="block">
+                <span className="mb-[6px] block text-meta font-semibold text-ink">
+                  Dirección de entrega
+                </span>
+                <input
+                  type="text"
+                  value={direccion}
+                  onChange={(evento) => setDireccion(evento.target.value)}
+                  placeholder="Calle, número, entre calles…"
+                  maxLength={200}
+                  className="h-12 w-full rounded-2xl border border-ink/10 bg-white px-gap-sm text-body text-ink outline-none placeholder:text-ink-soft focus:border-verde-400 focus:ring-2 focus:ring-verde-400/30"
+                />
+              </label>
+
+              <DialogFooter className="gap-gap-xs">
+                <DialogClose asChild>
+                  <button
+                    type="button"
+                    className="inline-flex h-11 cursor-pointer items-center justify-center rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
+                  >
+                    Volver
+                  </button>
+                </DialogClose>
+
+                {/* Un enlace y no un `router.push`: quien habla con WhatsApp es
+                    el navegador. Se cierra la ventana al pulsarlo para no
+                    dejarla abierta encima de la pestaña que acaba de abrirse. */}
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setPidiendo(false)}
+                  className="inline-flex h-11 flex-1 items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-verde-400 px-gap-md font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 sm:flex-none"
+                >
+                  <MessageCircle
+                    size={17}
+                    strokeWidth={1.8}
+                    className="shrink-0"
+                  />
+                  Enviar el pedido
+                </a>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </CarritoCtx.Provider>

@@ -66,6 +66,31 @@ test("el mensaje lleva las líneas, las cantidades y el cierre de La Verde", () 
   assert.ok(texto.endsWith("Pedido desde La Verde"));
 });
 
+test("la dirección va entre las líneas y el total, y solo si hay algo escrito", () => {
+  const texto = mensajePedido({
+    negocio: "El Sabroso",
+    lineas: [linea()],
+    direccion: "  Calle 23, nº 410, entre 4 y 6  ",
+  });
+  assert.match(texto, /\*Dirección:\* Calle 23, nº 410, entre 4 y 6/);
+  /* El recorte importa: un campo que solo tiene espacios no es una dirección,
+     y una línea `*Dirección:*` vacía en el mensaje hace que el dueño conteste
+     preguntando por ella. */
+  assert.ok(texto.indexOf("Dirección:") < texto.indexOf("Total:"));
+  assert.doesNotMatch(
+    mensajePedido({
+      negocio: "El Sabroso",
+      lineas: [linea()],
+      direccion: "   ",
+    }),
+    /Dirección:/,
+  );
+  assert.doesNotMatch(
+    mensajePedido({ negocio: "El Sabroso", lineas: [linea()] }),
+    /Dirección:/,
+  );
+});
+
 test("sin total calculable el mensaje va sin la línea de total", () => {
   const texto = mensajePedido({
     negocio: "El Sabroso",
