@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { User, Building2, ShieldCheck, LogOut, Bell, Link2, Megaphone, ChevronDown } from "lucide-react";
+import { User, Building2, ShieldCheck, LogOut, Link2, Megaphone, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/session";
 import { logout } from "@/lib/logout";
@@ -44,14 +44,6 @@ interface SessionUser {
       ofrece: el panel solo enseñaría el estado vacío que manda a «Tengo un
       negocio» del perfil, y ese camino ya está en el perfil. */
   hasProjects?: boolean;
-}
-
-interface UserNotification {
-  id: string;
-  title: string;
-  message: string;
-  readAt: string | null;
-  createdAt: string;
 }
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -97,12 +89,10 @@ const ITEMS: {
     icon: User,
     roles: ["user", "owner", "admin"],
   },
-  {
-    path: "/notifications",
-    label: "Notificaciones",
-    icon: Bell,
-    roles: ["user", "owner", "admin"],
-  },
+  /* Aquí estaba «Notificaciones». Se fue con la campana del mapa: la lista es
+     la misma y tenerla en dos sitios era el mismo aviso contado dos veces. La
+     puerta es la burbuja del home —`MapNotifications`—, que además es donde
+     caen las campañas, y su «Ver todas» sigue llevando a `/notifications`. */
   {
     path: "/business",
     label: "Panel de negocio",
@@ -145,7 +135,6 @@ export function UserMenu({
     lastKnownUser ? "in" : "unknown",
   );
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
-  const [notifications, setNotifications] = useState<UserNotification[]>([]);
   const [hintOpen, setHintOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -247,97 +236,6 @@ export function UserMenu({
       if (timer) clearTimeout(timer);
     };
   }, []);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    let alive = true;
-    let es: EventSource | null = null;
-    let pollTimer: number | null = null;
-
-    const unreadCountRef = { current: 0 };
-
-    function schedulePoll(interval: number) {
-      if (pollTimer) clearTimeout(pollTimer);
-      pollTimer = window.setTimeout(() => {
-        if (alive) void loadNotifications();
-      }, interval);
-    }
-
-    async function loadNotifications() {
-      const response = await fetch("/api/notifications").catch(() => null);
-      if (!alive || !response?.ok) return;
-      const data = (await response.json()) as UserNotification[];
-      if (!Array.isArray(data)) return;
-
-      setNotifications(data);
-      unreadCountRef.current = data.filter((n) => !n.readAt).length;
-    }
-
-    async function connectSSE() {
-      try {
-        es = new EventSource("/api/notifications/stream");
-        es.onmessage = (event) => {
-          if (!alive) return;
-          const data = JSON.parse(event.data) as UserNotification[];
-          if (Array.isArray(data)) {
-            setNotifications(data);
-            unreadCountRef.current = data.filter((n) => !n.readAt).length;
-          }
-        };
-        es.onerror = () => {
-          if (!alive) return;
-          console.warn(
-            "[notifications] SSE disconnected, falling back to polling",
-          );
-          es?.close();
-          es = null;
-          // Exponential backoff: 10s, 30s, 60s, max 5min
-          schedulePoll(
-            Math.min(10000 * Math.pow(2, retryCount.current), 300000),
-          );
-        };
-      } catch {
-        // SSE not supported, use polling
-        schedulePoll(30000);
-      }
-    }
-
-    const retryCount = { current: 0 };
-
-    void loadNotifications();
-    void connectSSE();
-
-    return () => {
-      alive = false;
-      es?.close();
-      if (pollTimer) clearTimeout(pollTimer);
-    };
-  }, [user?.id]);
-
-  const unreadCount = notifications.filter(
-    (notification) => !notification.readAt,
-  ).length;
-
-  const markNotificationsRead = useCallback(async () => {
-    if (unreadCount === 0) return;
-    setNotifications((current) =>
-      current.map((notification) => ({
-        ...notification,
-        readAt: new Date().toISOString(),
-      })),
-    );
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    }).catch(() => {});
-  }, [unreadCount]);
-
-  const openNotifications = useCallback(() => {
-    setOpen(false);
-    void markNotificationsRead();
-    router.push("/notifications");
-  }, [markNotificationsRead, router]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -490,8 +388,7 @@ export function UserMenu({
               aria-hidden
               className="absolute -top-1 right-6 size-2 rotate-45 bg-ink"
             />
-            Aquí está todo: tu perfil, tus notificaciones y las secciones de tu
-            cuenta.
+            Aquí está todo: tu perfil y las secciones de tu cuenta.
           </motion.div>
         )}
       </AnimatePresence>
@@ -527,11 +424,7 @@ export function UserMenu({
                 initial={{ opacity: 0, x: -6 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3 }}
-                onClick={() =>
-                  path === "/notifications"
-                    ? openNotifications()
-                    : handleSelect(path)
-                }
+                onClick={() => handleSelect(path)}
                 className={`${ITEM} ${path === "/business" || path === "/admin" ? "user-menu-panel-item" : ""}`}
               >
                 <Icon
@@ -540,12 +433,6 @@ export function UserMenu({
                   className={`user-menu-icon ${path === "/business" || path === "/admin" ? "user-menu-panel-icon" : "text-verde-600"} shrink-0`}
                 />
                 {label}
-                {path === "/notifications" && unreadCount > 0 && (
-                  <span
-                    aria-label="Hay notificaciones sin leer"
-                    className="ml-auto size-2 rounded-full bg-verde-500"
-                  />
-                )}
               </motion.button>
             ))}
 
