@@ -176,11 +176,24 @@ export function MapNotifications() {
             className="absolute right-[2px] top-[2px] grid place-items-center"
           >
             {/* El halo que late es lo que hace que se vea de reojo; el punto
-                sólido queda para quien pide menos movimiento. */}
+                sólido queda para quien pide menos movimiento.
+
+                Ensanchado y con tres paradas: de una sola pasada el halo salía
+                disparado y el ciclo volvía a empezar de golpe. Con la parada de
+                en medio crece en dos tramos, arranca más suave, y la vuelta al
+                principio pilla la opacidad ya en cero. */}
             <motion.span
               className="absolute size-3 rounded-full bg-verde-500"
-              animate={{ opacity: [0.6, 0], scale: [1, 2.1] }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }}
+              animate={{
+                opacity: [0.45, 0.16, 0],
+                scale: [1, 1.42, 1.9],
+              }}
+              transition={{
+                duration: 2.4,
+                repeat: Infinity,
+                ease: "easeInOut",
+                times: [0, 0.55, 1],
+              }}
             />
             <span className="relative size-3 rounded-full bg-verde-500 ring-2 ring-white" />
           </span>
