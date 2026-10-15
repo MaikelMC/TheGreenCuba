@@ -545,21 +545,20 @@ export default async function MenuPage({
         )}
 
         <div className={cn("flex items-center gap-gap-md", phone && "pr-14")}>
-          {/* El logo del negocio, algo más grande que antes —56 px— pero
-              contenido: 64 px en el teléfono y 72 a partir de `sm`. Es la
-              única imagen de la cabecera y quien abre la carta desde un QR
-              viene a reconocer el negocio, así que aguanta el aumento; pero a
-              80 px empezaría a comerse el nombre en 360 px de ancho, que es el
-              caso que este bloque tiene que seguir salvando. El `sizes` del
-              `Image` va con él: declarar 56 px cuando se pintan 72 sería
-              pedirle al navegador la foto de menos. */}
+          {/* El logo del negocio: 72 px en el teléfono y 80 a partir de `sm`.
+              Es la única imagen de la cabecera y quien abre la carta desde un
+              QR viene a reconocer el negocio, así que aguanta el aumento; el
+              límite está en que el nombre no se parta de más en 360 px, que es
+              el caso que este bloque tiene que seguir salvando. El `sizes` del
+              `Image` va con él: declarar menos de lo que se pinta sería pedirle
+              al navegador la foto de menos. */}
           {brand ? (
-            <span className="relative block size-16 shrink-0 overflow-hidden rounded-full border border-ink/10 bg-white sm:size-[72px]">
+            <span className="relative block size-[72px] shrink-0 overflow-hidden rounded-full border border-ink/10 bg-white sm:size-20">
               <Image
                 src={brand}
                 alt=""
                 fill
-                sizes="(min-width: 640px) 72px, 64px"
+                sizes="(min-width: 640px) 80px, 72px"
                 quality={70}
                 className="object-cover"
               />
@@ -567,7 +566,7 @@ export default async function MenuPage({
           ) : (
             <span
               aria-hidden
-              className="grid size-16 shrink-0 place-items-center rounded-full bg-sand-deep text-[30px] sm:size-[72px] sm:text-[34px]"
+              className="grid size-[72px] shrink-0 place-items-center rounded-full bg-sand-deep text-[32px] sm:size-20 sm:text-[36px]"
             >
               {categoryEmoji(place.category)}
             </span>
