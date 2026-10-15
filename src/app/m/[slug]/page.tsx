@@ -541,13 +541,33 @@ export default async function MenuPage({
             <p className="mt-[3px] text-small text-ink-soft/75">
               {[place.category, place.barrio].filter(Boolean).join(" · ")}
             </p>
-            {closed && (
-              <p className="mt-[6px] inline-flex items-center rounded-full bg-sand-deep px-[10px] py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-soft/75">
-                {place.status === "closed"
+            {/* El estado, siempre y no solo cuando está cerrado: quien abre la
+                carta desde un QR quiere saber si puede ir ahora, y «no pone
+                nada» se lee como que el negocio existe pero no dice nada, no
+                como que está abierto. Es la misma pastilla que la ficha —punto
+                de color y texto—, en la paleta clara de esta cabecera, que aquí
+                el fondo es blanco y no la foto. */}
+            <p
+              className={cn(
+                "mt-[6px] inline-flex items-center gap-[5px] rounded-full border px-[10px] py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em]",
+                closed
+                  ? "border-ink/10 bg-sand-deep text-ink-soft/75"
+                  : "border-verde-200 bg-verde-50 text-verde-700",
+              )}
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  "size-[6px] shrink-0 rounded-full",
+                  closed ? "bg-ink/30" : "bg-verde-500",
+                )}
+              />
+              {place.status === "temporary_closed"
+                ? "Cerrado temporalmente"
+                : closed
                   ? "Cerrado"
-                  : "Cerrado temporalmente"}
-              </p>
-            )}
+                  : "Abierto"}
+            </p>
           </div>
         </div>
 
