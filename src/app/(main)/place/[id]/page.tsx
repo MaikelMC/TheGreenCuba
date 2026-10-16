@@ -84,7 +84,9 @@ export async function generateMetadata({
   }
 
   const { title, description } = describe(place);
-  const cover = place.photos?.[0]?.url;
+  /* El logo manda sobre la primera foto, como en la carta online: es lo que
+     identifica al negocio cuando alguien ve el enlace en el chat. */
+  const cover = place.logoUrl ?? place.photos?.[0]?.url;
 
   return {
     title,
@@ -98,7 +100,14 @@ export async function generateMetadata({
       title,
       description,
       url: placeUrl(place.id),
-      images: cover ? [cover] : undefined,
+      /* Solo se declara cuando hay imagen. `images: undefined` cuenta como
+         declarada —Next pregunta por `hasOwnProperty('images')`, ver
+         `next/dist/lib/metadata/resolve-metadata.js:149`— y da por hecho que la
+         ficha trae la suya: sin logo ni fotos se quedaba sin ninguna y el
+         enlace compartido acababa enseñando el icono de La Verde. Omitiendo la
+         clave, hereda la tarjeta de `opengraph-image.tsx`, que es la del
+         negocio. */
+      ...(cover ? { images: [cover] } : {}),
     },
     twitter: { card: "summary_large_image", title, description },
     /* Un negocio cerrado se enseña —el enlace está compartido y tiene que
