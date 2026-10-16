@@ -115,3 +115,28 @@ export async function liberarDia(
       and(eq(reservasDias.placeId, placeId), eq(reservasDias.fecha, fecha)),
     );
 }
+
+/**
+ * Vuelve a dejar una fecha en el cupo que tenía: el «deshacer» de `liberarDia`.
+ *
+ * Hace falta porque liberar borra la fila y con ella el número, y no hay de
+ * dónde sacarlo: la tabla guarda cuántas personas van, no quién ni cuándo. Lo
+ * manda quien libera —lo tenía en pantalla— y aquí solo se escribe.
+ *
+ * `onConflictDoUpdate` y no un `insert` a secas: el dueño puede liberar,
+ * deshacer y volver a liberar la misma fecha, y la segunda vuelta ya encuentra
+ * la fila.
+ */
+export async function restaurarDia(
+  placeId: string,
+  fecha: string,
+  personas: number,
+): Promise<void> {
+  await db
+    .insert(reservasDias)
+    .values({ id: generateId(), placeId, fecha, personas })
+    .onConflictDoUpdate({
+      target: [reservasDias.placeId, reservasDias.fecha],
+      set: { personas },
+    });
+}

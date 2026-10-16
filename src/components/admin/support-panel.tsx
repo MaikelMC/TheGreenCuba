@@ -183,7 +183,7 @@ export function SupportPanel() {
           icon={LifeBuoy}
           title="No hay tickets"
           description="Cuando un usuario reporte un error desde Configuración, aparecerá aquí."
-          className="rounded-2xl border border-ink/5 bg-white shadow-soft"
+          className="rounded-2xl border border-ink/5 bg-white"
         />
       ) : (
         <div className="flex flex-col gap-gap-sm">
@@ -195,7 +195,7 @@ export function SupportPanel() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(index * 0.03, 0.3), duration: 0.3 }}
-                className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft"
+                className="rounded-2xl border border-ink/5 bg-white p-gap-md"
               >
                 <div className="flex flex-wrap items-start justify-between gap-gap-sm">
                   <div className="min-w-0 flex-1">

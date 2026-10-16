@@ -230,7 +230,7 @@ export function BusinessList() {
           icon={MapPin}
           title="No hay negocios que coincidan"
           description="Ajusta los filtros o crea un nuevo negocio."
-          className="rounded-2xl border border-ink/5 bg-white shadow-soft"
+          className="rounded-2xl border border-ink/5 bg-white"
         />
       ) : (
         <div className="flex flex-col gap-gap-sm">
@@ -252,7 +252,7 @@ export function BusinessList() {
                    estado y acciones. En una sola línea, el nombre —que es lo
                    único con `min-w-0`— se encogía hasta desaparecer para dejar
                    sitio a los tres botones. */
-                className="bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md flex flex-col gap-gap-sm sm:flex-row sm:items-center"
+                className="bg-white border border-ink/5 rounded-2xl p-gap-md flex flex-col gap-gap-sm sm:flex-row sm:items-center"
               >
                 <div className="flex items-center gap-gap-sm min-w-0 sm:flex-1">
                   <div className="size-11 rounded-2xl bg-verde-50 grid place-items-center text-verde-600 shrink-0">

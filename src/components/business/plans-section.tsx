@@ -112,7 +112,7 @@ export function PlansSection({
         titulo="Lo que ya tienes"
         detalle="Incluido en cualquier negocio de La Verde, con o sin plan."
       >
-        <article className="rounded-4xl border border-ink/5 bg-white p-gap-lg shadow-soft">
+        <article className="rounded-4xl border border-ink/5 bg-white p-gap-lg">
           <h3 className="font-lv-display text-h3 font-bold tracking-[-0.01em] text-ink">
             {cat.gratisNombre}
           </h3>
@@ -276,7 +276,7 @@ function ModuloTile({
   );
 
   return (
-    <article className="flex flex-col rounded-4xl border border-ink/5 bg-white p-gap-lg shadow-soft">
+    <article className="flex flex-col rounded-4xl border border-ink/5 bg-white p-gap-lg">
       <h3 className="font-lv-display text-body font-bold tracking-[-0.01em] text-ink">
         {modulo.nombre}
       </h3>
@@ -335,7 +335,7 @@ function PackTile({
     <article
       className={cn(
         "relative flex flex-col rounded-4xl border bg-white p-gap-lg",
-        destacado ? "border-verde-300 shadow-card" : "border-ink/5 shadow-soft",
+        destacado ? "border-verde-300 shadow-card" : "border-ink/5",
         esActual && "ring-2 ring-verde-400/35",
       )}
     >

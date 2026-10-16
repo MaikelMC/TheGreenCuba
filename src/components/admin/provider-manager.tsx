@@ -105,7 +105,7 @@ const INPUT =
   "h-11 w-full rounded-xl border border-ink/10 bg-white px-3 text-small text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
 const HINT = "text-meta text-ink-soft/75";
-const CARD = "bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md";
+const CARD = "bg-white border border-ink/5 rounded-2xl p-gap-md";
 
 /* Ya no se manda `x-admin-key`: la sesión viaja en la cookie, que el navegador
    adjunta sola en las peticiones al mismo origen, y el servidor la verifica. */

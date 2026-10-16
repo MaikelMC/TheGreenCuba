@@ -79,7 +79,7 @@ export function SeguidoresCard({
   return (
     <section
       id="ajustes-seguidores"
-      className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft"
+      className="rounded-2xl border border-ink/5 bg-white p-gap-md"
     >
       <div className="flex flex-wrap items-center justify-between gap-gap-sm">
         <h2 className="flex items-center gap-gap-xs font-lv-display text-body font-semibold text-ink">
@@ -138,7 +138,7 @@ export function SeguidoresCard({
               <CopyLink url={enlace} />
             </>
           ) : (
-            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-[7px] text-meta font-medium text-amber-800">
+            <p className="rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-3 py-[7px] text-meta font-medium text-ink">
               El bot de avisos todavía no está listo. En cuanto lo esté, el
               botón aparecerá en tu ficha sin que tengas que hacer nada.
             </p>

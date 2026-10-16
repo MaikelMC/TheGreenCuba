@@ -55,7 +55,7 @@ interface NegocioCola {
 const INPUT =
   "h-11 w-full rounded-xl border border-ink/10 bg-white px-4 text-body text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 
-const CARD = "bg-white border border-ink/5 rounded-2xl shadow-soft";
+const CARD = "bg-white border border-ink/5 rounded-2xl";
 
 function estadoBadge(estado: EstadoPublicacion): string {
   switch (estado) {

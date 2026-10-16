@@ -42,6 +42,26 @@ interface ImportarCatalogoProps {
   placeId: string;
   /** La carta que ya tiene el negocio, para detectar duplicados en vivo. */
   existentes: ProductoExistente[];
+  /**
+   * A dónde lleva «volver» tras importar o deshacer.
+   *
+   * En administración es la lista de negocios; en el panel del negocio no hay
+   * a dónde ir —el catálogo es una sección, no una ruta—, así que ahí se pasa
+   * `onVolver` y el botón cierra el importador en vez de navegar.
+   */
+  volverHref?: string;
+  onVolver?: () => void;
+  /**
+   * La carta cambió **en la base**: alguien importó o deshizo la importación.
+   *
+   * Existe porque las dos operaciones escriben en el servidor mientras la
+   * pantalla que abre el importador sigue con su propia copia de la carta en
+   * memoria. Sin volver a leerla, el próximo guardado manda esa copia vieja y
+   * borra lo que se acababa de importar —o resucita lo que se acababa de
+   * deshacer—. Se avisa en la operación y no al «volver», porque entre una cosa
+   * y la otra la pantalla puede guardar.
+   */
+  onCartaCambiada?: () => void;
 }
 
 /**
@@ -53,7 +73,13 @@ interface ImportarCatalogoProps {
  * importada de `@/lib/importar-catalogo`. Es lo que deja editar en línea sin un
  * viaje por tecla y sin que la lógica se duplique en dos sitios.
  */
-export function ImportarCatalogo({ placeId, existentes }: ImportarCatalogoProps) {
+export function ImportarCatalogo({
+  placeId,
+  existentes,
+  volverHref = "/admin/negocios",
+  onVolver,
+  onCartaCambiada,
+}: ImportarCatalogoProps) {
   const [texto, setTexto] = useState("");
   const [filas, setFilas] = useState<FilaValidada[] | null>(null);
   const [resumen, setResumen] = useState<Resumen>(RESUMEN_VACIO);
@@ -109,7 +135,7 @@ export function ImportarCatalogo({ placeId, existentes }: ImportarCatalogoProps)
     setCargando(true);
     setFilas(null);
     try {
-      const res = await fetch(`/api/admin/negocios/${placeId}/importar`, {
+      const res = await fetch(`/api/places/${placeId}/importar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ texto }),
@@ -181,7 +207,7 @@ export function ImportarCatalogo({ placeId, existentes }: ImportarCatalogoProps)
     setError(null);
     setImportando(true);
     try {
-      const res = await fetch(`/api/admin/negocios/${placeId}/importar`, {
+      const res = await fetch(`/api/places/${placeId}/importar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accion: "confirmar", filas }),
@@ -208,12 +234,15 @@ export function ImportarCatalogo({ placeId, existentes }: ImportarCatalogoProps)
       setImportacionId(data?.importacionId ?? null);
       setFilas(null);
       setSeleccion(new Set());
+      /* Después de escribir, para que quien abrió el importador relea la carta
+         antes de que le dé tiempo a guardar su copia vieja encima. */
+      onCartaCambiada?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo importar.");
     } finally {
       setImportando(false);
     }
-  }, [filas, placeId]);
+  }, [filas, placeId, onCartaCambiada]);
 
   const deshacer = useCallback(async () => {
     if (!importacionId) return;
@@ -221,7 +250,7 @@ export function ImportarCatalogo({ placeId, existentes }: ImportarCatalogoProps)
     setDeshaciendo(true);
     try {
       const res = await fetch(
-        `/api/admin/negocios/${placeId}/importar?importacionId=${encodeURIComponent(importacionId)}`,
+        `/api/places/${placeId}/importar?importacionId=${encodeURIComponent(importacionId)}`,
         { method: "DELETE" },
       );
       const data = (await res.json().catch(() => null)) as
@@ -231,12 +260,16 @@ export function ImportarCatalogo({ placeId, existentes }: ImportarCatalogoProps)
       setDeshecho(data?.eliminados ?? 0);
       setImportados(null);
       setImportacionId(null);
+      /* Deshacer también escribe en la base: sin releer, la pantalla se queda
+         con los productos que acaban de borrarse y el siguiente guardado los
+         devuelve. */
+      onCartaCambiada?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo deshacer.");
     } finally {
       setDeshaciendo(false);
     }
-  }, [importacionId, placeId]);
+  }, [importacionId, placeId, onCartaCambiada]);
 
   const superaTope = tope !== null && actuales + resumen.nuevos > tope;
   const puedeConfirmar =
@@ -276,12 +309,11 @@ export function ImportarCatalogo({ placeId, existentes }: ImportarCatalogoProps)
             )}
             Deshacer importación
           </button>
-          <Link
-            href="/admin/negocios"
+          <Volver
+            href={volverHref}
+            onVolver={onVolver}
             className={cn(BOTON, "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300")}
-          >
-            Volver a negocios
-          </Link>
+          />
         </div>
         {error && <Aviso>{error}</Aviso>}
       </section>
@@ -307,12 +339,11 @@ export function ImportarCatalogo({ placeId, existentes }: ImportarCatalogoProps)
           >
             Importar otro catálogo
           </button>
-          <Link
-            href="/admin/negocios"
+          <Volver
+            href={volverHref}
+            onVolver={onVolver}
             className={cn(BOTON, "bg-white border border-ink/10 text-ink hover:border-verde-300")}
-          >
-            Volver a negocios
-          </Link>
+          />
         </div>
       </section>
     );
@@ -561,6 +592,36 @@ export function ImportarCatalogo({ placeId, existentes }: ImportarCatalogoProps)
 
 function Celda({ children }: { children: ReactNode }) {
   return <td className="py-gap-xs pr-gap-sm">{children}</td>;
+}
+
+/**
+ * El botón de salida de las pantallas de «importado» y «deshecho».
+ *
+ * En administración es un enlace —el importador es una ruta propia—; en el
+ * panel del negocio no hay a dónde navegar, así que llama a `onVolver`, que
+ * cierra el importador y devuelve a la carta.
+ */
+function Volver({
+  href,
+  onVolver,
+  className,
+}: {
+  href: string;
+  onVolver?: () => void;
+  className: string;
+}) {
+  if (onVolver) {
+    return (
+      <button type="button" onClick={onVolver} className={className}>
+        Volver a la carta
+      </button>
+    );
+  }
+  return (
+    <Link href={href} className={className}>
+      Volver a negocios
+    </Link>
+  );
 }
 
 function Aviso({ children }: { children: ReactNode }) {

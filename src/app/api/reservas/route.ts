@@ -8,7 +8,12 @@ import { diaUtc } from "@/lib/eventos-server";
 import { tieneFuncion } from "@/lib/plans-server";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorFechaReserva } from "@/lib/reserva";
-import { liberarDia, ocupacionDesde, tomarCupo } from "@/lib/reservas-server";
+import {
+  liberarDia,
+  ocupacionDesde,
+  restaurarDia,
+  tomarCupo,
+} from "@/lib/reservas-server";
 
 /**
  * El cupo diario del local: leer cuánto va ocupado, tomar plaza y liberar un día.
@@ -22,6 +27,12 @@ import { liberarDia, ocupacionDesde, tomarCupo } from "@/lib/reservas-server";
  *
  * `DELETE` es del dueño y pasa por `canManagePlace`, el mismo candado que el
  * resto del panel.
+ *
+ * `PUT` es también del dueño y es el «deshacer» de `DELETE`: devuelve un día al
+ * número de personas que tenía. Liberar borra el contador y con él la cifra, así
+ * que la única forma de volver atrás es que la mande quien tenía el número
+ * delante. Lo que se comprueba aquí es que ese número quepa en el aforo del día,
+ * para no dejar la fila en un estado que `tomarCupo` nunca habría escrito.
  *
  * **No se guarda la reserva**, solo cuántas personas van comprometidas por
  * fecha. Ver `src/lib/reservas-server.ts`.
@@ -190,6 +201,53 @@ export async function DELETE(req: NextRequest) {
 
   /* El fixture no tiene filas que liberar: `cupoDe` nunca le cuenta nada. */
   if (negocioId !== DEV_PLACE_ID) await liberarDia(negocioId, fecha);
+
+  return NextResponse.json({ ok: true });
+}
+
+/** Devuelve un día al cupo que tenía. El «deshacer» de `DELETE`. */
+export async function PUT(req: NextRequest) {
+  let cuerpo: unknown;
+  try {
+    cuerpo = JSON.parse(await req.text());
+  } catch {
+    return NextResponse.json({ error: "Cuerpo inválido." }, { status: 400 });
+  }
+
+  const body = (cuerpo ?? {}) as Record<string, unknown>;
+  const negocioId =
+    typeof body.negocioId === "string" ? body.negocioId.trim().slice(0, 64) : "";
+  const fecha = typeof body.fecha === "string" ? body.fecha.trim() : "";
+  const personas = body.personas;
+
+  if (!negocioId || !fecha) {
+    return NextResponse.json(
+      { error: "Faltan el negocio o la fecha." },
+      { status: 400 },
+    );
+  }
+  if (!Number.isInteger(personas) || (personas as number) < 1) {
+    return NextResponse.json({ error: "Personas inválidas." }, { status: 400 });
+  }
+
+  if (!(await canManagePlace(req, negocioId))) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const cupo = await cupoDe(negocioId);
+  /* Sin cupo configurado no hay contador que devolver: el mismo caso que `POST`
+     trata como «la reserva sale». */
+  if (!cupo) return NextResponse.json({ ok: true });
+  if ((personas as number) > cupo.capacidad) {
+    return NextResponse.json(
+      { error: "Ese cupo no cabe en el día." },
+      { status: 400 },
+    );
+  }
+
+  if (negocioId !== DEV_PLACE_ID) {
+    await restaurarDia(negocioId, fecha, personas as number);
+  }
 
   return NextResponse.json({ ok: true });
 }

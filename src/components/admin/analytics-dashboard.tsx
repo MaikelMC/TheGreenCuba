@@ -342,7 +342,7 @@ function Card({
   return (
     <div
       className={cn(
-        "bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md",
+        "bg-white border border-ink/5 rounded-2xl p-gap-md",
         className,
       )}
     >
@@ -1181,7 +1181,7 @@ function ExportsView({ query }: { query: string }) {
         <a
           key={e.type}
           href={`/api/admin/analytics/export?type=${e.type}&${query}`}
-          className="flex items-center justify-between gap-gap-sm bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md hover:border-verde-300 hover:bg-verde-50/40 transition-colors duration-300 ease-outquint"
+          className="flex items-center justify-between gap-gap-sm bg-white border border-ink/5 rounded-2xl p-gap-md hover:border-verde-300 hover:bg-verde-50/40 transition-colors duration-300 ease-outquint"
         >
           <span className="text-small font-medium text-ink">{e.label}</span>
           <Download

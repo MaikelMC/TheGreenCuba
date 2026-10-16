@@ -124,7 +124,7 @@ export default function AdminDashboardPage() {
             period={categories.length === byCategory.length ? "Todas" : "Top 5"}
           />
 
-          <div className="bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md">
+          <div className="bg-white border border-ink/5 rounded-2xl p-gap-md">
             <h3 className="font-lv-display text-body font-semibold text-ink mb-gap-sm">
               Negocios que requieren atención
             </h3>
@@ -177,7 +177,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md h-fit">
+        <div className="bg-white border border-ink/5 rounded-2xl p-gap-md h-fit">
           <h3 className="font-lv-display text-body font-semibold text-ink mb-gap-sm">
             Distribución por categoría
           </h3>

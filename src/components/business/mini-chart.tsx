@@ -28,7 +28,7 @@ export function MiniChart({
   return (
     <div
       className={cn(
-        "bg-white border border-ink/5 rounded-2xl p-gap-md shadow-soft",
+        "bg-white border border-ink/5 rounded-2xl p-gap-md",
         className,
       )}
     >

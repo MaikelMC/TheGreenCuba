@@ -136,7 +136,7 @@ export function RequestsList() {
           icon={Clock3}
           title="No hay solicitudes pendientes"
           description="Cuando un usuario agregue un negocio, aparecerá aquí para aprobarlo."
-          className="rounded-2xl border border-ink/5 bg-white shadow-soft"
+          className="rounded-2xl border border-ink/5 bg-white"
         />
       ) : (
         <div className="flex flex-col gap-gap-sm">
@@ -146,7 +146,7 @@ export function RequestsList() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.04, duration: 0.35 }}
-              className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft"
+              className="rounded-2xl border border-ink/5 bg-white p-gap-md"
             >
               {/* La tarjeta abre el detalle. No puede ser un <button>: aquí
                   dentro viven los botones de Rechazar/Aprobar y HTML no

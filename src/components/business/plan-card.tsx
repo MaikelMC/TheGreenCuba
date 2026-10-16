@@ -60,7 +60,7 @@ export function PlanCard({
   return (
     <section
       className={cn(
-        "rounded-2xl border p-gap-md shadow-soft lg:col-span-2",
+        "rounded-2xl border p-gap-md lg:col-span-2",
         dePago ? "border-verde-200 bg-verde-50/60" : "border-ink/5 bg-white",
       )}
     >

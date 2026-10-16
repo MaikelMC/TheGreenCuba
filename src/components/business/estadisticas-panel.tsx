@@ -45,7 +45,7 @@ export function EstadisticasPanel({
       </div>
 
       {/* La cifra que ve todo el mundo, también el plan Gratis. */}
-      <div className="flex items-center gap-gap-md rounded-2xl border border-verde-200 bg-verde-50/50 p-gap-md shadow-soft">
+      <div className="flex items-center gap-gap-md rounded-2xl border border-verde-200 bg-verde-50/50 p-gap-md">
         <span className="grid size-11 shrink-0 place-items-center rounded-full bg-verde-100 text-verde-700">
           <TrendingUp size={20} strokeWidth={1.8} />
         </span>
@@ -133,7 +133,7 @@ function Cifras({
   pie?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+    <div className="rounded-2xl border border-ink/5 bg-white p-gap-md">
       <div className="flex flex-wrap items-center justify-between gap-gap-sm">
         <span className="font-lv-display text-small font-semibold text-ink">
           {titulo}
@@ -168,7 +168,7 @@ function TopProductos({
   const max = Math.max(...productos.map((p) => p.conteo), 1);
 
   return (
-    <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+    <div className="rounded-2xl border border-ink/5 bg-white p-gap-md">
       <div className="mb-gap-md flex items-center justify-between">
         <span className="font-lv-display text-small font-semibold text-ink">
           Productos más vistos
@@ -240,7 +240,7 @@ function Bloqueado({
         type="button"
         onClick={onVerPlanes}
         className={cn(
-          "inline-flex h-10 shrink-0 cursor-pointer items-center rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint",
+          "inline-flex h-11 shrink-0 cursor-pointer items-center rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint",
           "hover:border-verde-300 hover:text-verde-700 active:scale-[0.98]",
         )}
       >

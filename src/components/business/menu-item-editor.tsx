@@ -9,6 +9,7 @@ import {
   estaAgotado,
   hastaManana,
   type Disponibilidad,
+  type EstadoDisponibilidad,
 } from "@/lib/disponibilidad";
 
 interface MenuItemData {
@@ -67,12 +68,14 @@ const AVAIL_BTN =
  * «hasta mañana». El estado tarda en confirmarse contra el servidor, así que el
  * botón se desactiva mientras tanto en vez de dejar pulsar dos veces.
  */
-function AvailabilityControl({
+export function AvailabilityControl({
   item,
   busy,
   onSet,
 }: {
-  item: MenuItemData;
+  /* Lo mínimo para pintar el estado, no el producto entero: es lo que deja
+     reusarlo desde el catálogo, que tiene su propia forma de fila. */
+  item: EstadoDisponibilidad;
   busy: boolean;
   onSet: (estado: Disponibilidad, hasta?: number | null) => void;
 }) {
@@ -427,6 +430,10 @@ export function MenuItemEditor({
                 <option value="MLC">USD Clásica</option>
                 <option value="CUP">CUP</option>
                 <option value="USD">USD</option>
+                {/* Las cuatro de `MONEDAS` (`importar-catalogo.ts`), que es lo
+                    que la base admite: sin EUR, un producto importado en euros
+                    se quedaba con el desplegable en blanco. */}
+                <option value="EUR">EUR</option>
               </select>
               {item.tag && (
                 <span

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
-import { isAdminRequest } from "@/lib/admin-server";
+import { canManagePlace } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { CATALOG_TAG } from "@/lib/db/queries";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
@@ -22,7 +22,13 @@ import type { UserPlaceMenuItem } from "@/lib/places-store";
 type Params = { params: Promise<{ id: string }> };
 
 /**
- * Importación de catálogo por CSV, **solo para administración**.
+ * Importación de catálogo por CSV.
+ *
+ * La usan los dos paneles —el del negocio y el de administración—, así que vive
+ * en la familia de rutas del negocio junto al resto de lo que escribe sobre una
+ * ficha (`/api/places/[id]`). Quien puede es `canManagePlace`: el dueño del
+ * negocio o un administrador. Antes estaba bajo `/api/admin/negocios/[id]` con
+ * `isAdminRequest`, y eso dejaba al dueño sin poder subir su propia carta.
  *
  * Tres operaciones y ninguna más:
  *
@@ -77,11 +83,13 @@ function filaCruda(valor: unknown, indice: number): FilaCruda {
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
-  if (!(await isAdminRequest(req))) {
+  const { id } = await params;
+
+  /* El `id` primero: `canManagePlace` necesita saber de qué negocio se habla
+     para decidir si quien llama es su dueño. */
+  if (!(await canManagePlace(req, id))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
-
-  const { id } = await params;
 
   /* El negocio de prueba no tiene fila en `places`: su carta es una copia
      personal por usuario. Importar ahí escribiría en una ficha que no existe. */
@@ -230,11 +238,12 @@ export async function POST(req: NextRequest, { params }: Params) {
  * una no toca lo que entró después ni en otra tanda.
  */
 export async function DELETE(req: NextRequest, { params }: Params) {
-  if (!(await isAdminRequest(req))) {
+  const { id } = await params;
+
+  if (!(await canManagePlace(req, id))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  const { id } = await params;
   const importacionId = new URL(req.url).searchParams.get("importacionId")?.trim() ?? "";
   if (!importacionId) {
     return NextResponse.json({ error: "Falta importacionId" }, { status: 400 });

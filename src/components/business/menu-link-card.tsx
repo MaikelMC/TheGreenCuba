@@ -411,7 +411,7 @@ export function MenuLinkCard({
   }, [placeId, placeName, sinMarca]);
 
   return (
-    <section className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft lg:col-span-2">
+    <section className="rounded-2xl border border-ink/5 bg-white p-gap-md lg:col-span-2">
       <h2 className="font-lv-display text-body font-semibold text-ink">
         Tu menú online
       </h2>

@@ -17,8 +17,11 @@ interface StatCard {
    * tarjetas llevan cifras de verdad**: para contar cuántos guardados tienes
    * hoy hace falta la tabla `saved_places`, y para decir cuántos tenías la
    * semana pasada haría falta un histórico que no existe. Antes era obligatoria
-   * y por eso el panel enseñaba un «+18%» que nadie había medido: lo más fácil
-   * era inventarlo. Sin dato, no se pinta la pastilla.
+   * y por eso el panel de negocio enseñaba un «+18%» que nadie había medido: lo
+   * más fácil era inventarlo. Sin dato, no se pinta la pastilla.
+   *
+   * Sigue siendo opcional y no se borra porque el panel de administración sí la
+   * pasa, con cifras derivadas de las suyas —«4 activos», «12% del total»—.
    */
   change?: StatChange;
 }
@@ -61,8 +64,10 @@ export function DashboardStats({ stats, className }: DashboardStatsProps) {
               duration: 0.4,
               ease: [0.22, 1, 0.36, 1],
             }}
-            whileHover={{ y: -3 }}
-            className="bg-white border border-ink/5 rounded-2xl p-gap-md flex flex-col gap-gap-xs shadow-soft transition-shadow duration-500 ease-outquint hover:shadow-card"
+            /* Sin `whileHover` ni `hover:shadow-card`: no hay nada que hacer al
+               pasar por encima de una cifra, y una tarjeta que se levanta sin
+               motivo promete una interacción que no existe. */
+            className="bg-white border border-ink/5 rounded-2xl p-gap-md flex flex-col gap-gap-xs"
           >
             {/* El interletrado era de 0,22em y la etiqueta se partía en dos
                 líneas en cuanto pasaba de doce letras —«Llamadas · 30 días» en
@@ -71,7 +76,12 @@ export function DashboardStats({ stats, className }: DashboardStatsProps) {
             <span className="font-lv-display text-[11px] font-semibold uppercase leading-tight tracking-[0.06em] text-verde-600">
               {s.label}
             </span>
-            <span className="font-lv-display text-[clamp(28px,6vw,36px)] font-bold text-ink tracking-[-0.02em] leading-none">
+            {/* Escala fija, no `clamp`: la misma cifra medía distinto en la
+                rejilla de dos columnas del móvil y en la de cuatro de
+                escritorio, así que encogía con la ventana en vez de con la
+                jerarquía. `text-h3` es además la escala que ya usan las filas de
+                cifras del panel, y `tabular-nums` evita que el número baile. */}
+            <span className="font-lv-display text-h3 font-bold tabular-nums text-ink">
               {s.value}
             </span>
             {change && (

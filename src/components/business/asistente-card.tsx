@@ -119,7 +119,7 @@ export function AsistenteCard({
   return (
     <section
       id="ajustes-asistente"
-      className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft"
+      className="rounded-2xl border border-ink/5 bg-white p-gap-md"
     >
       <div className="flex flex-wrap items-center justify-between gap-gap-sm">
         <h2 className="flex items-center gap-gap-xs font-lv-display text-body font-semibold text-ink">
@@ -162,13 +162,13 @@ export function AsistenteCard({
       ) : (
         <div className="mt-gap-md flex flex-col gap-gap-md border-t border-ink/5 pt-gap-sm">
           {error && (
-            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-[7px] text-meta font-medium text-amber-800">
+            <p className="rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-3 py-[7px] text-meta font-medium text-ink">
               {error}
             </p>
           )}
 
           {estado && !estado.bot && (
-            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-[7px] text-meta font-medium text-amber-800">
+            <p className="rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-3 py-[7px] text-meta font-medium text-ink">
               El bot todavía no está listo en el servidor. En cuanto lo esté,
               podrás vincularte sin que tengas que hacer nada.
             </p>

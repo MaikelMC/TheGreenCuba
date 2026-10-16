@@ -115,7 +115,7 @@ export function TopPlaces() {
   }, [load]);
 
   return (
-    <div className="bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md">
+    <div className="bg-white border border-ink/5 rounded-2xl p-gap-md">
       <div className="flex items-center gap-2 sm:items-start sm:flex-col sm:gap-4 mb-2 sm:mb-0">
         <h3 className="font-lv-display text-body font-semibold text-ink flex items-center gap-[6px]">
           <Trophy size={16} strokeWidth={1.8} className="text-verde-600" />

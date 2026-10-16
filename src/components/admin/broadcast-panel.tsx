@@ -104,7 +104,7 @@ export function BroadcastPanel() {
         {/* Formulario */}
         <form
           onSubmit={handleSend}
-          className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft flex flex-col gap-gap-sm"
+          className="rounded-2xl border border-ink/5 bg-white p-gap-md flex flex-col gap-gap-sm"
         >
           <div className="inline-flex items-center gap-gap-xs">
             <span className="grid size-9 place-items-center rounded-xl bg-verde-50 text-verde-600">
@@ -156,7 +156,7 @@ export function BroadcastPanel() {
         </form>
 
         {/* Historial */}
-        <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+        <div className="rounded-2xl border border-ink/5 bg-white p-gap-md">
           <div className="inline-flex items-center gap-gap-xs mb-gap-sm">
             <span className="grid size-9 place-items-center rounded-xl bg-sand text-ink-soft/75">
               <History size={18} strokeWidth={1.8} />

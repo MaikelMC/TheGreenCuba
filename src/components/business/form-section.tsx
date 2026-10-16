@@ -109,7 +109,7 @@ export function FormSection({
   return (
     <div
       className={cn(
-        "bg-white border rounded-2xl overflow-hidden shadow-soft transition-colors duration-500 ease-outquint",
+        "bg-white border rounded-2xl overflow-hidden transition-colors duration-500 ease-outquint",
         invalid
           ? "border-destructive/40 ring-1 ring-destructive/15"
           : "border-ink/5",
@@ -128,12 +128,11 @@ export function FormSection({
             : "hover:bg-sand",
         )}
       >
-        <span
-          className={cn(
-            "font-lv-display text-body font-semibold flex items-center gap-gap-xs",
-            invalid ? "text-destructive" : "text-ink",
-          )}
-        >
+        {/* El título va en tinta, no en rojo: `text-destructive` sobre el
+            `bg-destructive/5` daba 4,08:1 a 16 px, por debajo de AA. El rojo
+            lo dice el fondo teñido, el borde, el anillo, el icono y la
+            flecha; el texto, que es lo que hay que leer, se queda legible. */}
+        <span className="font-lv-display text-body font-semibold flex items-center gap-gap-xs text-ink">
           {icon && (
             <span className={invalid ? "text-destructive" : "text-verde-600"}>
               {icon}

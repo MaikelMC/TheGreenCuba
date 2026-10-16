@@ -17,7 +17,6 @@ import {
   Save,
   Store,
   Tag,
-  Utensils,
   User as UserIcon,
   Zap,
 } from "lucide-react";
@@ -44,7 +43,7 @@ import { DashboardStats } from "@/components/business/dashboard-stats";
 import { EstadisticasPanel } from "@/components/business/estadisticas-panel";
 import { PhotoGrid } from "@/components/business/photo-grid";
 import { PaymentChips } from "@/components/business/payment-chips";
-import { MenuItemEditor } from "@/components/business/menu-item-editor";
+import { CatalogoView } from "@/components/business/catalogo-view";
 import { OfertasEditor } from "@/components/business/ofertas-editor";
 import { MenuLinkCard } from "@/components/business/menu-link-card";
 import { PlanCard } from "@/components/business/plan-card";
@@ -79,7 +78,6 @@ import {
   plantillaEfectiva,
   type TipoReserva,
 } from "@/lib/reserva";
-import { pruneMenuImages } from "@/lib/menu-images";
 import {
   MapLocationPicker,
   type LocationPoint,
@@ -202,6 +200,7 @@ export function BusinessPanel({
   return (
     <PanelShell
       businessName={place.name}
+      publicado={place.isActive}
       above={<BusinessSwitcher negocios={negocios} seleccionado={place.id} />}
     >
       {(view, setView) => {
@@ -218,6 +217,19 @@ export function BusinessPanel({
                 modulos={modulos}
                 /* El botón de la tarjeta de plan navega dentro del panel, no
                    fuera: la sección de planes es una vista más del armazón. */
+                onVerPlanes={() => setView("planes")}
+              />
+            );
+          case "catalogo":
+            /* La carta vive aquí y no en «Editar ficha»: son dos ritmos
+               distintos. La ficha se toca una vez y se deja; la carta se cambia
+               cada semana. Con la `key` por negocio, cambiar de negocio vuelve
+               a sembrar la lista. */
+            return (
+              <CatalogoView
+                key={place.id}
+                place={place}
+                funciones={funciones}
                 onVerPlanes={() => setView("planes")}
               />
             );
@@ -343,7 +355,7 @@ function DashboardView({
       <EstadisticasPanel visitas={visitas} onVerPlanes={onVerPlanes} />
 
       <div className="mt-gap-lg grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md">
           <h2 className="mb-gap-sm font-lv-display text-body font-semibold text-ink">
             Cómo apareces
           </h2>
@@ -362,7 +374,7 @@ function DashboardView({
           </dl>
         </section>
 
-        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md">
           <h2 className="mb-gap-sm font-lv-display text-body font-semibold text-ink">
             Lo que puedes hacer ahora
           </h2>
@@ -426,7 +438,12 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-gap-sm border-b border-ink/5 py-gap-xs last:border-b-0">
       <dt className="text-ink-soft/75">{label}</dt>
-      <dd className="truncate text-right font-medium text-ink">{value}</dd>
+      {/* Sin `truncate`: la dirección puede ser larga y «Cómo apareces» es
+          justo donde el dueño viene a comprobar que está bien escrita. Cortarla
+          esconde precisamente lo que viene a leer, así que si no cabe, envuelve. */}
+      <dd className="min-w-0 text-right font-medium text-ink break-words">
+        {value}
+      </dd>
     </div>
   );
 }
@@ -443,7 +460,6 @@ function EditorView({
   const router = useRouter();
   const cat = useCatalogo();
   const { categories, updatePlace } = usePlaces();
-  const canHoyHay = funciones.includes("hoy_hay");
   const puedeOfertas = funciones.includes("ofertas_flash");
   const maxOfertas = limiteDe(new Set(funciones), "ofertas_vigentes_max", cat);
 
@@ -462,7 +478,6 @@ function EditorView({
   const [schedule, setSchedule] = useState(place.schedule);
   const [status, setStatus] = useState<PlaceStatus>(place.status);
   const [payments, setPayments] = useState<string[]>(place.payments);
-  const [menu, setMenu] = useState(place.menu);
   /* `"sin"` es «prefiero no decirlo», que no es un valor del dominio sino la
      opción vacía del `Select` —Radix no admite un `SelectItem` con valor `""`—.
      Al guardar se traduce a `null`, que es lo que la base entiende por «no lo
@@ -519,27 +534,10 @@ function EditorView({
       schedule: schedule.trim(),
       status,
       payments,
-      /* `tag`, `image` y `category` van con el resto: esto es una lista blanca
-         de campos escrita a mano, así que lo que no se nombre aquí se pierde en
-         cada guardado —la chapita y la foto ya se perdieron una vez—. */
-      menu: menu
-        .filter((item) => item.name.trim().length > 0)
-        .map((item) => ({
-          /* `id` se persiste: es lo que permite señalar un producto concreto
-             desde `setDisponibilidad` —y desde el asistente de Telegram— sin
-             depender de su posición. Los tres campos de «Hoy hay» van aquí para
-             que un guardado normal no los borre: la lista es una lista blanca. */
-          id: item.id,
-          name: item.name,
-          description: item.description,
-          price: item.price,
-          currency: item.currency,
-          tag: item.tag,
-          category: item.category?.trim() || undefined,
-          image: item.image || undefined,
-          disponibilidad: item.disponibilidad,
-          agotadoHasta: item.agotadoHasta ?? null,
-        })),
+      /* La carta **no** viaja aquí: se edita en su propia sección y esa manda su
+         propio `PATCH` con `{ menu }`. Al no nombrarla, esto no toca la columna
+         y el guardado de la ficha no puede pisar lo que el dueño acaba de
+         cambiar en el catálogo. */
       /* Las ofertas flash van enteras en cada guardado, como la carta: la ruta
          las escribe en su tabla y comprueba el plan. `offer` ya no se manda, y
          eso **no borra** el cartel viejo del negocio que lo tuviera: sin el
@@ -561,11 +559,6 @@ function EditorView({
       return;
     }
 
-    /* Recién escrito en la base: las fotos del menú que quedaron fuera de este
-       guardado se retiran del bucket. Antes de aquí no, por lo que explica
-       `pruneMenuImages`. */
-    pruneMenuImages(place.id, place.menu, values.menu ?? []);
-
     toast.success("Cambios guardados");
     /* El servidor vuelve a leer la ficha para el dashboard, que es de servidor.
        El formulario no se resiembra —su estado es del cliente y ya tiene lo que
@@ -582,7 +575,6 @@ function EditorView({
     schedule,
     status,
     payments,
-    menu,
     energia,
     notaApagon,
     ofertas,
@@ -782,67 +774,43 @@ function EditorView({
           </FormSection>
         </div>
 
-        <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-          <FormSection
-            title="Lo que ofreces"
-            icon={<Utensils size={18} strokeWidth={1.8} />}
-          >
-            <p className="mb-gap-sm text-meta text-ink-soft/75">
-              Tus productos o servicios más populares. Aparecen en la ficha del
-              lugar.
-            </p>
-            <MenuItemEditor
-              placeId={place.id}
-              canHoyHay={canHoyHay}
-              /* Se conserva el `id` guardado y solo se recurre al índice para
-                 las entradas viejas que todavía no tienen uno: regenerarlo en
-                 cada carga cambiaría el identificador que el asistente usa. */
-              items={(place.menu ?? []).map((m, i) => ({
+        <FormSection
+          title="Ofertas flash"
+          icon={<Tag size={18} strokeWidth={1.8} />}
+        >
+          {/* La sección se cierra entera sin la función, en vez de enseñar el
+              formulario con un candado encima: sin Marketing activo el tope es
+              0, así que no hay nada que rellenar y sí una frase que explica
+              cómo se abre. El servidor lo vuelve a comprobar de todas formas
+              —el cuerpo del `PATCH` se puede escribir a mano—. */}
+          {puedeOfertas ? (
+            <OfertasEditor
+              ofertas={ofertas}
+              onChange={setOfertas}
+              menu={(place.menu ?? []).map((m, i) => ({
                 ...m,
                 id: m.id ?? String(i),
               }))}
-              onChange={setMenu}
+              max={maxOfertas}
             />
-          </FormSection>
-
-          <FormSection
-            title="Ofertas flash"
-            icon={<Tag size={18} strokeWidth={1.8} />}
-          >
-            {/* La sección se cierra entera sin la función, en vez de enseñar el
-                formulario con un candado encima: sin Marketing activo el tope es
-                0, así que no hay nada que rellenar y sí una frase que explica
-                cómo se abre. El servidor lo vuelve a comprobar de todas formas
-                —el cuerpo del `PATCH` se puede escribir a mano—. */}
-            {puedeOfertas ? (
-              <OfertasEditor
-                ofertas={ofertas}
-                onChange={setOfertas}
-                menu={(place.menu ?? []).map((m, i) => ({
-                  ...m,
-                  id: m.id ?? String(i),
-                }))}
-                max={maxOfertas}
-              />
-            ) : (
-              <div className="flex flex-col gap-gap-xs">
-                <p className="text-meta text-ink-soft/75">
-                  {textoBloqueo("ofertas_flash", cat)}: rebaja un producto de
-                  tu carta por tiempo limitado y sale con el precio tachado en
-                  tu ficha, además de la chapita «Oferta» en la tarjeta y en el
-                  pin del mapa.
-                </p>
-                <button
-                  type="button"
-                  onClick={onVerPlanes}
-                  className="cursor-pointer self-start rounded-full border border-ink/10 bg-white px-gap-md py-2 font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-600"
-                >
-                  Ver planes
-                </button>
-              </div>
-            )}
-          </FormSection>
-        </div>
+          ) : (
+            <div className="flex flex-col gap-gap-xs">
+              <p className="text-meta text-ink-soft/75">
+                {textoBloqueo("ofertas_flash", cat)}: rebaja un producto de
+                tu carta por tiempo limitado y sale con el precio tachado en
+                tu ficha, además de la chapita «Oferta» en la tarjeta y en el
+                pin del mapa.
+              </p>
+              <button
+                type="button"
+                onClick={onVerPlanes}
+                className="cursor-pointer self-start rounded-full border border-ink/10 bg-white px-gap-md py-2 font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-600"
+              >
+                Ver planes
+              </button>
+            </div>
+          )}
+        </FormSection>
 
         <FormSection
           title="Energía de respaldo"
@@ -938,7 +906,7 @@ function EditorView({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+              className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-ink"
             >
               {error}
             </motion.p>
@@ -950,7 +918,7 @@ function EditorView({
           cambios se habían escrito: el `SaveBar` que había publicaba contra
           nada. Este llama al `PATCH` de verdad y avisa cuando el servidor
           confirma. */}
-      <div className="sticky bottom-dock-clear z-40 mt-gap-lg flex justify-end">
+      <div className="sticky bottom-4 z-40 mt-gap-lg flex justify-end">
         <button
           type="button"
           onClick={save}
@@ -1029,6 +997,10 @@ function SettingsView({
   );
   const [fechaCupo, setFechaCupo] = useState(() => fechaLocalIso(new Date()));
   const [liberando, setLiberando] = useState(false);
+  /* Liberar un día no se deshace solo, así que el botón no dispara a la
+     primera: se convierte en la pregunta, con el número de personas que se
+     van a soltar delante. */
+  const [confirmandoLiberar, setConfirmandoLiberar] = useState(false);
   const [whatsapp, setWhatsapp] = useState(place.whatsapp ?? "");
   const [phone, setPhone] = useState(place.phone ?? "");
   const [website, setWebsite] = useState(place.website ?? "");
@@ -1171,13 +1143,21 @@ function SettingsView({
   /**
    * Devuelve el día a su cupo entero. Es el «a voluntad»: cancelaciones, sitio
    * extra, o volver a empezar la cuenta porque se llevaba mal.
+   *
+   * La confirmación la pone el botón antes de llamar aquí, y el número que se
+   * pierde viaja al «Deshacer» del aviso: liberar borra la cifra de la base y
+   * no hay otra copia de dónde sacarla. La fecha se captura al empezar y no se
+   * vuelve a leer del estado: entre la llamada y el deshacer, el dueño puede
+   * haber cambiado la fecha del campo.
    */
   async function liberarFecha() {
     if (liberando) return;
+    const fecha = fechaCupo;
+    const liberadas = ocupacion?.[fecha] ?? 0;
     setLiberando(true);
     try {
       const res = await fetch(
-        `/api/reservas?negocioId=${encodeURIComponent(place.id)}&fecha=${encodeURIComponent(fechaCupo)}`,
+        `/api/reservas?negocioId=${encodeURIComponent(place.id)}&fecha=${encodeURIComponent(fecha)}`,
         { method: "DELETE" },
       );
       if (!res.ok) {
@@ -1188,14 +1168,38 @@ function SettingsView({
       }
       setOcupacion((o) => {
         const copia = { ...(o ?? {}) };
-        delete copia[fechaCupo];
+        delete copia[fecha];
         return copia;
       });
-      toast.success("Cupo liberado: ese día vuelve a estar entero.");
+      toast.success("Cupo liberado: ese día vuelve a estar entero.", {
+        action:
+          liberadas > 0
+            ? { label: "Deshacer", onClick: () => void restaurarFecha(fecha, liberadas) }
+            : undefined,
+      });
     } catch {
       toast.error("No se pudo liberar. Revisa la conexión: no se cambió nada.");
     } finally {
       setLiberando(false);
+    }
+  }
+
+  /** El «deshacer» de `liberarFecha`: vuelve a poner el número que se soltó. */
+  async function restaurarFecha(fecha: string, personas: number) {
+    try {
+      const res = await fetch("/api/reservas", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ negocioId: place.id, fecha, personas }),
+      });
+      if (!res.ok) {
+        toast.error("No se pudo deshacer: vuelve a apuntar el cupo a mano.");
+        return;
+      }
+      setOcupacion((o) => ({ ...(o ?? {}), [fecha]: personas }));
+      toast.success(`El día vuelve a estar con ${personas} apuntadas.`);
+    } catch {
+      toast.error("No se pudo deshacer. Revisa la conexión.");
     }
   }
 
@@ -1251,7 +1255,7 @@ function SettingsView({
             carta. Los dos interruptores se enseñan siempre, también cuando el
             plan no llega: si no, el dueño no se entera de que la función
             existe. */}
-        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md">
           <div className="flex flex-wrap items-center justify-between gap-gap-sm">
             <h2 className="flex items-center gap-gap-xs font-lv-display text-body font-semibold text-ink">
               <MessageCircle
@@ -1316,7 +1320,7 @@ function SettingsView({
                   por el que el carrito no sale es que falte el número. Se dice
                   aquí, que es donde el dueño lo está mirando. */}
               {pedidos && !tieneNumero && (
-                <p className="mt-gap-sm rounded-xl border border-amber-200 bg-amber-50 px-3 py-[7px] text-meta font-medium text-amber-800">
+                <p className="mt-gap-sm rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-3 py-[7px] text-meta font-medium text-ink">
                   Falta tu número de WhatsApp: sin él no hay a dónde mandar el
                   pedido y el carrito no se enseña. Añádelo en «Cómo te
                   contactan», aquí abajo.
@@ -1330,7 +1334,7 @@ function SettingsView({
             Mismo reparto que los pedidos: el plan (Pro) enciende la función y
             el dueño la enciende o la apaga. Sin plan, la tarjeta se enseña
             bloqueada para que se sepa que existe y qué plan la abre. */}
-        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md">
           <div className="flex flex-wrap items-center justify-between gap-gap-sm">
             <h2 className="flex items-center gap-gap-xs font-lv-display text-body font-semibold text-ink">
               <CalendarDays
@@ -1395,7 +1399,7 @@ function SettingsView({
               {/* Con el plan puesto y las reservas encendidas, el único motivo
                   por el que el botón no sale es que falte el número. */}
               {reservas && !tieneNumero && (
-                <p className="mt-gap-sm rounded-xl border border-amber-200 bg-amber-50 px-3 py-[7px] text-meta font-medium text-amber-800">
+                <p className="mt-gap-sm rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-3 py-[7px] text-meta font-medium text-ink">
                   Falta tu número de WhatsApp: sin él no hay a dónde mandar la
                   reserva y el botón no se enseña. Añádelo en «Cómo te
                   contactan», aquí abajo.
@@ -1502,14 +1506,44 @@ function SettingsView({
                             ? "—"
                             : `${ocupacion[fechaCupo] ?? 0} de ${Number(cupoDia) || 0} ocupadas`}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => void liberarFecha()}
-                          disabled={liberando}
-                          className="inline-flex h-10 cursor-pointer items-center rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
-                        >
-                          {liberando ? "Liberando…" : "Liberar ese día"}
-                        </button>
+                        {confirmandoLiberar ? (
+                          <>
+                            <span className="text-small font-semibold text-ink">
+                              ¿Liberar{" "}
+                              <span className="tabular-nums">
+                                {ocupacion?.[fechaCupo] ?? 0}
+                              </span>{" "}
+                              de ese día?
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setConfirmandoLiberar(false);
+                                void liberarFecha();
+                              }}
+                              disabled={liberando}
+                              className="inline-flex h-11 cursor-pointer items-center rounded-full border border-destructive/40 bg-destructive/10 px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:bg-destructive/20 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+                            >
+                              {liberando ? "Liberando…" : "Sí, liberar"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmandoLiberar(false)}
+                              className="inline-flex h-11 cursor-pointer items-center rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700 active:scale-[0.98]"
+                            >
+                              Cancelar
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmandoLiberar(true)}
+                            disabled={liberando}
+                            className="inline-flex h-11 cursor-pointer items-center rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+                          >
+                            Liberar ese día
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1553,7 +1587,7 @@ function SettingsView({
                           duration: 0.25,
                           ease: [0.22, 1, 0.36, 1],
                         }}
-                        className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+                        className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-ink"
                       >
                         {errorReservas}
                       </motion.p>
@@ -1608,7 +1642,7 @@ function SettingsView({
             Los cuatro campos que hasta ahora solo se podían cambiar en el
             formulario de alta del perfil. El número de WhatsApp es el que
             alimenta el bloque de arriba, así que vive pegado a él. */}
-        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md">
           <h2 className="font-lv-display text-body font-semibold text-ink">
             Cómo te contactan
           </h2>
@@ -1691,7 +1725,7 @@ function SettingsView({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                className="mt-gap-sm rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+                className="mt-gap-sm rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-ink"
               >
                 {error}
               </motion.p>
@@ -1730,7 +1764,7 @@ function SettingsView({
             El plan se queda porque el enlace de verdad está en su tarjeta del
             dashboard, y aquí se lee sin salir de Ajustes. */}
         <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-          <div className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+          <div className="rounded-2xl border border-ink/5 bg-white p-gap-md">
             {/* Estaba escrito a fuego «Básico (gratis)» para todo el mundo. Ahora
                 es el plan que hay de verdad, resuelto en el servidor. */}
             <Row label="Plan actual" value={nombreDe(plan, cat)} />
@@ -1770,7 +1804,11 @@ function Switch({
       aria-checked={checked}
       aria-label={label}
       className={cn(
-        "relative h-[28px] w-[48px] shrink-0 cursor-pointer rounded-full border-none p-0 transition-colors duration-500 ease-outquint",
+        /* El carril mide 28 px de alto, por debajo de los 44 que pide un dedo.
+           En vez de engordarlo —que cambiaría el dibujo del sistema—, el
+           pseudoelemento estira el área tocable 8 px por arriba y por abajo:
+           44 justos, invisible. */
+        "relative h-[28px] w-[48px] shrink-0 cursor-pointer rounded-full border-none p-0 transition-colors duration-500 ease-outquint after:absolute after:inset-x-0 after:-inset-y-2 after:content-['']",
         checked ? "bg-verde-400" : "bg-ink/10",
       )}
     >

@@ -266,7 +266,7 @@ export function ProjectList() {
       ) : (
         <div className="grid gap-gap-md">
           {filtered.map((project) => (
-            <article key={project.id} className="rounded-2xl border border-ink/10 bg-white p-gap-lg shadow-soft">
+            <article key={project.id} className="rounded-2xl border border-ink/10 bg-white p-gap-lg">
               <div className="flex flex-wrap items-start justify-between gap-gap-md">
                 <div className="flex min-w-0 items-start gap-gap-sm">
                   <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-verde-50 text-verde-700"><Megaphone size={21} /></span>

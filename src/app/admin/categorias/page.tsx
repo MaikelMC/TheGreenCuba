@@ -144,7 +144,7 @@ export default function CategoriasPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-gap-md">
         {/* List */}
-        <div className="bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md">
+        <div className="bg-white border border-ink/5 rounded-2xl p-gap-md">
           <div className="flex flex-col">
             {categories.map((c, i) => {
               const used = places.filter((p) => p.category === c.label).length;
@@ -201,7 +201,7 @@ export default function CategoriasPage() {
         </div>
 
         {/* Form */}
-        <div className="bg-white border border-ink/5 rounded-2xl shadow-soft p-gap-md h-fit">
+        <div className="bg-white border border-ink/5 rounded-2xl p-gap-md h-fit">
           <div className="flex items-center justify-between mb-gap-sm">
             <h3 className="font-lv-display text-body font-semibold text-ink">
               {editing ? "Editar categoría" : "Nueva categoría"}

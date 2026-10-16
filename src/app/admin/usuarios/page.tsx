@@ -189,7 +189,7 @@ export default function AdminUsersPage() {
         </span>
       </header>
 
-      <div className="flex items-center gap-gap-sm rounded-2xl border border-ink/10 bg-white px-gap-sm py-2 shadow-soft transition-colors duration-500 ease-outquint focus-within:border-verde-400 focus-within:ring-2 focus-within:ring-verde-400/20">
+      <div className="flex items-center gap-gap-sm rounded-2xl border border-ink/10 bg-white px-gap-sm py-2 transition-colors duration-500 ease-outquint focus-within:border-verde-400 focus-within:ring-2 focus-within:ring-verde-400/20">
         <Search size={17} className="shrink-0 text-ink-soft/75" />
         <input
           value={query}
@@ -205,7 +205,7 @@ export default function AdminUsersPage() {
         </p>
       )}
 
-      <section className="overflow-hidden rounded-2xl border border-ink/5 bg-white shadow-soft">
+      <section className="overflow-hidden rounded-2xl border border-ink/5 bg-white">
         {loading ? (
           <p className="p-gap-lg text-small text-ink-soft/75">Cargando usuarios...</p>
         ) : filteredUsers.length === 0 ? (
