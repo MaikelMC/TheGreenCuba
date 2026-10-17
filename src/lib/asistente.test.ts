@@ -22,6 +22,9 @@ import {
   recortarEtiqueta,
   CARTA_MAX_CHARS,
   HERRAMIENTAS_IA,
+  TELEGRAM_MAX_CHARS,
+  parsearProductos,
+  plantillaProductos,
 } from "./asistente";
 
 /* ── helpers ─────────────────────────────────────────────────────── */
@@ -80,9 +83,13 @@ test("mensajes sin texto se ignoran", () => {
   );
 });
 
-test("mensajes > 500 caracteres se ignoran", () => {
+test("los mensajes largos llegan hasta el tope de Telegram", () => {
   assert.ok(leerTelegramUpdate(rawMensaje("x".repeat(500))));
-  assert.equal(leerTelegramUpdate(rawMensaje("x".repeat(501))), null);
+  assert.ok(leerTelegramUpdate(rawMensaje("x".repeat(TELEGRAM_MAX_CHARS))));
+  assert.equal(
+    leerTelegramUpdate(rawMensaje("x".repeat(TELEGRAM_MAX_CHARS + 1))),
+    null,
+  );
 });
 
 test("los callbacks de botón inline pasan y se normalizan", () => {
@@ -175,6 +182,7 @@ test("la lista de comandos sale de COMANDOS y sin duplicar la ayuda", () => {
   assert.deepEqual(nombres, [
     "start",
     "carta",
+    "nuevo",
     "agotado",
     "disponible",
     "abrir",
@@ -298,6 +306,70 @@ test("detecta los cambios de precio escritos a mano", () => {
 test("una frase de precio sin precio no se toma por un cambio", () => {
   assert.equal(intencionDeTexto("pon el pan a la venta"), null);
   assert.equal(intencionDeTexto("cambia el precio del pan"), null);
+});
+
+test("reconoce pedir el alta de productos y el borrado por nombre", () => {
+  assert.deepEqual(intencionDeTexto("agregar productos"), {
+    tipo: "nuevo_producto",
+  });
+  assert.deepEqual(intencionDeTexto("quiero añadir un producto"), {
+    tipo: "nuevo_producto",
+  });
+  assert.deepEqual(intencionDeTexto("cómo creo un plato"), {
+    tipo: "nuevo_producto",
+  });
+  assert.deepEqual(intencionDeTexto("elimina el pan"), {
+    tipo: "eliminar_producto",
+    producto: "pan",
+  });
+  assert.deepEqual(intencionDeTexto("quita la torta de chocolate"), {
+    tipo: "eliminar_producto",
+    producto: "torta de chocolate",
+  });
+});
+
+test("la plantilla enseña los campos y el aviso de la foto", () => {
+  const texto = plantillaProductos();
+  assert.match(texto, /Nombre \| Descripción \| Precio \| Moneda \| Categoría \| Etiqueta/);
+  assert.match(texto, /panel de tu negocio/);
+});
+
+test("parsearProductos lee varias líneas y salta la cabecera", () => {
+  const texto = [
+    "Nombre | Descripción | Precio | Moneda | Categoría | Etiqueta",
+    "Torta de chocolate | Chocolate con crema | 200 | CUP | Postres | Popular",
+    "Café americano | Café negro | 50 | CUP | Bebidas |",
+  ].join("\n");
+
+  assert.deepEqual(parsearProductos(texto), [
+    {
+      nombre: "Torta de chocolate",
+      descripcion: "Chocolate con crema",
+      precio: "200",
+      moneda: "CUP",
+      categoria: "Postres",
+      etiqueta: "Popular",
+    },
+    {
+      nombre: "Café americano",
+      descripcion: "Café negro",
+      precio: "50",
+      moneda: "CUP",
+      categoria: "Bebidas",
+      etiqueta: "",
+    },
+  ]);
+});
+
+test("parsearProductos rechaza lo que no es una lista", () => {
+  assert.equal(parsearProductos("se acabó el pan"), null);
+  assert.equal(parsearProductos(""), null);
+  assert.equal(
+    parsearProductos(
+      "Mira:\nPan | 25 CUP\nEso es todo, gracias",
+    ),
+    null,
+  );
 });
 
 test("textos que no calzan devuelven null", () => {
@@ -472,7 +544,10 @@ test("las herramientas están definidas con nombres coherentes", () => {
   assert.equal(nombres.has("abrir_cerrar_hoy"), true);
   assert.equal(nombres.has("consultar_stats"), true);
   assert.equal(nombres.has("ver_carta"), true);
-  assert.equal(nombres.size, 6);
+  assert.equal(nombres.has("agregar_productos"), true);
+  assert.equal(nombres.has("editar_producto"), true);
+  assert.equal(nombres.has("eliminar_producto"), true);
+  assert.equal(nombres.size, 9);
 });
 
 /* ── la carta contada ───────────────────────────────────────────── */

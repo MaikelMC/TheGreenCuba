@@ -383,6 +383,157 @@ async function ejecutarPrecio(
   };
 }
 
+type ItemMenu = NonNullable<Menu>[number];
+
+/** «Pan — 25 CUP», para la respuesta del alta. */
+function lineaProducto(item: ItemMenu): string {
+  const precio = [item.price?.trim(), item.currency?.trim()]
+    .filter(Boolean)
+    .join(" ");
+  return `• ${item.name}${precio ? ` — ${precio}` : ""}`;
+}
+
+/**
+ * Añade varios productos de una vez. Es el único camino del alta.
+ *
+ * Los nombres repetidos se saltan —comparando sin acentos ni artículo, como
+ * `buscarProducto`— para que reenviar el mismo mensaje no llene la carta de
+ * duplicados. El `npm` id se genera aquí y no lo decide el texto.
+ */
+async function ejecutarAgregarProductos(
+  negocio: Negocio,
+  nuevos: A.ProductoNuevo[],
+): Promise<Resultado> {
+  const menu = negocio.menu ?? [];
+  const vistos = new Set(
+    menu.map((item) => A.sinAcento(A.sinArticulo(item.name))),
+  );
+  const creados: ItemMenu[] = [];
+  const repetidos: string[] = [];
+
+  for (const nuevo of nuevos) {
+    const clave = A.sinAcento(A.sinArticulo(nuevo.nombre));
+    if (!clave) continue;
+    if (vistos.has(clave)) {
+      repetidos.push(nuevo.nombre);
+      continue;
+    }
+    vistos.add(clave);
+    creados.push({
+      id: generateId(),
+      name: nuevo.nombre,
+      description: nuevo.descripcion,
+      price: nuevo.precio,
+      currency: nuevo.moneda,
+      ...(nuevo.categoria ? { category: nuevo.categoria } : {}),
+      ...(nuevo.etiqueta ? { tag: nuevo.etiqueta } : {}),
+    });
+  }
+
+  const antes = { ids: [] as string[] };
+  const despues = { ids: creados.map((item) => item.id as string) };
+
+  if (creados.length === 0) {
+    return {
+      ok: false,
+      accion: "agregar_productos",
+      antes,
+      despues,
+      texto:
+        repetidos.length > 0
+          ? `Esos productos ya están en tu carta: ${repetidos.map((n) => `«${n}»`).join(", ")}.`
+          : "No me llegó ningún producto con nombre.",
+    };
+  }
+
+  await escribirMenu(negocio.negocioId, [...menu, ...creados]);
+
+  const yaEstaban =
+    repetidos.length > 0
+      ? `\n\nYa estaban en tu carta: ${repetidos.map((n) => `«${n}»`).join(", ")}.`
+      : "";
+  const cuantos =
+    creados.length === 1 ? "1 producto" : `${creados.length} productos`;
+
+  return {
+    ok: true,
+    accion: "agregar_productos",
+    antes,
+    despues,
+    texto:
+      `Listo: añadí ${cuantos} a tu carta:\n${creados.map(lineaProducto).join("\n")}${yaEstaban}` +
+      "\n\nPor ahora, para cargar la imagen de un producto tienes que hacerlo desde el panel de tu negocio.",
+  };
+}
+
+/** Cambia solo los campos que llegaron. `null` = el producto ya no está. */
+async function ejecutarEditarProducto(
+  negocio: Negocio,
+  indice: number,
+  cambios: Partial<
+    Pick<ItemMenu, "name" | "description" | "price" | "currency" | "tag" | "category">
+  >,
+): Promise<Resultado | null> {
+  const menu = negocio.menu ?? [];
+  const item = menu[indice];
+  if (!item) return null;
+
+  const productoId = item.id ?? String(indice);
+  const antes = { productoId, item };
+  const despuesItem = { ...item, ...cambios };
+  const despues = { productoId, item: despuesItem };
+
+  if (Object.keys(cambios).length === 0) {
+    return {
+      ok: false,
+      accion: "editar_producto",
+      antes,
+      despues: antes,
+      texto: `No me dijiste qué cambiar de «${item.name}».`,
+    };
+  }
+
+  await escribirMenu(
+    negocio.negocioId,
+    menu.map((entrada, i) => (i === indice ? despuesItem : entrada)),
+  );
+
+  return {
+    ok: true,
+    accion: "editar_producto",
+    antes,
+    despues,
+    texto: `Listo: actualicé «${despuesItem.name}» en tu carta.`,
+  };
+}
+
+/** Quita el producto de la carta, guardando dónde estaba para el Deshacer. */
+async function ejecutarEliminarProducto(
+  negocio: Negocio,
+  indice: number,
+): Promise<Resultado | null> {
+  const menu = negocio.menu ?? [];
+  const item = menu[indice];
+  if (!item) return null;
+
+  const productoId = item.id ?? String(indice);
+  const antes = { productoId, indice, item };
+  const despues = { productoId };
+
+  await escribirMenu(
+    negocio.negocioId,
+    menu.filter((_, i) => i !== indice),
+  );
+
+  return {
+    ok: true,
+    accion: "eliminar_producto",
+    antes,
+    despues,
+    texto: `Listo: quité «${item.name}» de tu carta.`,
+  };
+}
+
 async function ejecutarHorario(
   negocio: Negocio,
   texto: string,
@@ -450,8 +601,47 @@ async function deshacer(logId: string, negocio: Negocio): Promise<string> {
   if (!fila) return "Ese cambio ya no se puede deshacer.";
 
   const antes = fila.antes as Record<string, unknown> | null;
+  const despues = fila.despues as Record<string, unknown> | null;
 
-  if (fila.accion === "set_disponibilidad" && antes) {
+  if (fila.accion === "agregar_productos" && despues) {
+    /* Deshacer un alta es quitar lo que se añadió: los ids viajaron en el
+       `despues` porque el `antes` de una carta que crece no tiene nada que
+       devolver. */
+    const ids = Array.isArray(despues.ids)
+      ? new Set(despues.ids.map(String))
+      : new Set<string>();
+    await escribirMenu(
+      negocio.negocioId,
+      (negocio.menu ?? []).filter(
+        (item, i) => !ids.has(item.id ?? String(i)),
+      ),
+    );
+  } else if (fila.accion === "editar_producto" && antes) {
+    const item = antes.item as ItemMenu | undefined;
+    const productoId = String(antes.productoId ?? "");
+    const menu = negocio.menu ?? [];
+    const indice = menu.findIndex(
+      (entrada, i) => (entrada.id ?? String(i)) === productoId,
+    );
+    if (indice !== -1 && item) {
+      await escribirMenu(
+        negocio.negocioId,
+        menu.map((entrada, i) => (i === indice ? item : entrada)),
+      );
+    }
+  } else if (fila.accion === "eliminar_producto" && antes) {
+    const item = antes.item as ItemMenu | undefined;
+    if (item) {
+      const menu = [...(negocio.menu ?? [])];
+      const indice = Number(antes.indice);
+      const donde =
+        Number.isInteger(indice) && indice >= 0
+          ? Math.min(indice, menu.length)
+          : menu.length;
+      menu.splice(donde, 0, item);
+      await escribirMenu(negocio.negocioId, menu);
+    }
+  } else if (fila.accion === "set_disponibilidad" && antes) {
     await setDisponibilidad(
       negocio.negocioId,
       String(antes.productoId),
@@ -526,6 +716,7 @@ const AYUDA = [
   "Puedo hacer esto por ti:",
   "",
   "/carta — te mando tu carta con precios y qué está agotado",
+  "/nuevo — añadir productos a tu carta desde el chat",
   "/agotado — marcar productos como agotados, con botones",
   "/disponible — volver a ponerlos",
   "/abrir y /cerrar — si hoy atiendes o no",
@@ -543,6 +734,7 @@ const MENU: Boton[][] = [
     { text: "Ver mi carta", callback_data: "cmd:carta" },
     { text: "Mis estadísticas", callback_data: "cmd:stats" },
   ],
+  [{ text: "Añadir productos", callback_data: "cmd:nuevo" }],
   [
     { text: "Marcar agotado", callback_data: "cmd:agotado" },
     { text: "Marcar disponible", callback_data: "cmd:disponible" },
@@ -830,6 +1022,10 @@ async function manejarComando(
       await enviarTexto(chatId, A.textoCarta(negocio.menu ?? []));
       return;
 
+    case "nuevo":
+      await enviarTexto(chatId, A.plantillaProductos());
+      return;
+
     case "abrir":
     case "cerrar": {
       const res = await ejecutarAbrirCerrar(negocio, comando === "abrir");
@@ -876,7 +1072,7 @@ async function enviarPaginaProductos(
   if (productos.length === 0) {
     await enviarTexto(
       chatId,
-      "Tu carta todavía no tiene productos. Añádelos desde el panel de tu negocio y mándame /carta para verla.",
+      "Tu carta todavía no tiene productos. Mándame /nuevo para añadirlos desde aquí y luego /carta para verla.",
     );
     return;
   }
@@ -945,8 +1141,34 @@ async function manejarTextoLibre(
     return;
   }
 
+  /* La lista de la plantilla se lee aquí, sin modelo: es gratis y no adivina.
+     Va antes que cualquier intención para que un mensaje con varios productos
+     no acabe en la IA —ni en su cuota—. */
+  const nuevos = A.parsearProductos(update.texto);
+  if (nuevos) {
+    const res = await ejecutarAgregarProductos(negocio, nuevos);
+    await aplicarResultadoDirecto(negocio, chatId, update.texto, res, "regex");
+    return;
+  }
+  if (update.texto.includes("|")) {
+    /* Traía barras pero no se pudo leer: casi seguro que copió la plantilla
+       entera o se saltó una línea. Mejor repetir el formato que pagar al
+       modelo por adivinar. */
+    await enviarTexto(
+      chatId,
+      "No pude leer esa lista. Cada producto tiene que ir en una línea, con los datos separados por «|».\n\n" +
+        A.plantillaProductos(),
+    );
+    return;
+  }
+
   const intencion = A.intencionDeTexto(update.texto);
   if (intencion) {
+    if (intencion.tipo === "nuevo_producto") {
+      await enviarTexto(chatId, A.plantillaProductos());
+      return;
+    }
+
     /* «se acabó» a secas: el dueño sabe qué se acabó y no lo escribió. La
        respuesta útil es la lista con botones, y esa ya existe. */
     if (intencion.tipo === "disponibilidad" && !intencion.producto) {
@@ -955,65 +1177,117 @@ async function manejarTextoLibre(
     }
 
     const productos = productosDe(negocio.menu);
-    const busqueda = A.buscarProducto(intencion.producto, productos);
 
-    if (busqueda.nivel === "claro" && busqueda.mejor) {
-      /* Un precio siempre pregunta; se deja esperando y se enseña con el nombre
-         que hay en la carta, no con el que se escribió. */
-      if (intencion.tipo === "precio") {
-        await pedirConfirmacionPrecio({
+    /* El borrado se resuelve por nombre contra la carta real. Si no hay un
+       candidato claro —o dudoso— sigue al modelo, que también sabe borrar. */
+    if (intencion.tipo === "eliminar_producto") {
+      const busqueda = A.buscarProducto(intencion.producto, productos);
+      if (busqueda.nivel === "claro" && busqueda.mejor) {
+        await pedirConfirmacionEliminar({
           negocio,
           chatId,
           mensaje: update.texto,
           producto: busqueda.mejor.name,
-          precio: intencion.precio,
           via: "regex",
         });
         return;
       }
+      if (busqueda.nivel === "ambiguo") {
+        await preguntarCual({
+          negocio,
+          chatId,
+          mensaje: update.texto,
+          frase: intencion.producto,
+          accion: "eliminar_producto",
+          propuesta: { producto: intencion.producto },
+          candidatos: busqueda.lista,
+          via: "regex",
+        });
+        return;
+      }
+    } else {
+      const busqueda = A.buscarProducto(intencion.producto, productos);
 
-      const indice = indiceDe(productos, busqueda.mejor.id);
-      const res = await ejecutarDisponibilidad(
-        negocio,
-        indice,
-        intencion.estado,
-        null,
-      );
-      const logId = await registrarLog({
-        negocioId: negocio.negocioId,
-        chatId,
-        mensaje: update.texto,
-        accion: res.accion,
-        antes: res.antes,
-        despues: res.despues,
-        via: "regex",
-      });
-      await enviarTexto(chatId, res.texto);
-      await ofrecerDeshacer(chatId, logId);
-      return;
-    }
+      if (busqueda.nivel === "claro" && busqueda.mejor) {
+        /* Un precio siempre pregunta; se deja esperando y se enseña con el nombre
+           que hay en la carta, no con el que se escribió. */
+        if (intencion.tipo === "precio") {
+          await pedirConfirmacionPrecio({
+            negocio,
+            chatId,
+            mensaje: update.texto,
+            producto: busqueda.mejor.name,
+            precio: intencion.precio,
+            via: "regex",
+          });
+          return;
+        }
 
-    if (busqueda.nivel === "ambiguo") {
-      await preguntarCual({
-        negocio,
-        chatId,
-        mensaje: update.texto,
-        frase: intencion.producto,
-        accion:
-          intencion.tipo === "precio" ? "set_precio" : "set_disponibilidad",
-        propuesta:
-          intencion.tipo === "precio"
-            ? { producto: intencion.producto, precio: intencion.precio }
-            : { producto: intencion.producto, estado: intencion.estado },
-        candidatos: busqueda.lista,
-        via: "regex",
-      });
-      return;
+        const indice = indiceDe(productos, busqueda.mejor.id);
+        const res = await ejecutarDisponibilidad(
+          negocio,
+          indice,
+          intencion.estado,
+          null,
+        );
+        const logId = await registrarLog({
+          negocioId: negocio.negocioId,
+          chatId,
+          mensaje: update.texto,
+          accion: res.accion,
+          antes: res.antes,
+          despues: res.despues,
+          via: "regex",
+        });
+        await enviarTexto(chatId, res.texto);
+        await ofrecerDeshacer(chatId, logId);
+        return;
+      }
+
+      if (busqueda.nivel === "ambiguo") {
+        await preguntarCual({
+          negocio,
+          chatId,
+          mensaje: update.texto,
+          frase: intencion.producto,
+          accion:
+            intencion.tipo === "precio" ? "set_precio" : "set_disponibilidad",
+          propuesta:
+            intencion.tipo === "precio"
+              ? { producto: intencion.producto, precio: intencion.precio }
+              : { producto: intencion.producto, estado: intencion.estado },
+          candidatos: busqueda.lista,
+          via: "regex",
+        });
+        return;
+      }
+      /* `ninguno`: no lo reconozco por texto. Sigue por el modelo. */
     }
-    /* `ninguno`: no lo reconozco por texto. Sigue por el modelo. */
   }
 
   await manejarConModelo(negocio, update);
+}
+
+/** Cierra una escritura que no pasó por el modelo: registra, contesta y, si
+ * quedó aplicada, deja el botón de Deshacer. */
+async function aplicarResultadoDirecto(
+  negocio: Negocio,
+  chatId: string,
+  mensaje: string,
+  res: Resultado,
+  via: "regex",
+): Promise<void> {
+  const logId = await registrarLog({
+    negocioId: negocio.negocioId,
+    chatId,
+    mensaje,
+    accion: res.accion,
+    antes: res.antes,
+    despues: res.despues,
+    via,
+  });
+  await enviarTexto(chatId, res.texto);
+  if (res.ok) await ofrecerDeshacer(chatId, logId);
 }
 
 /* ── capa 3: el modelo ──────────────────────────────────────────────────── */
@@ -1134,7 +1408,12 @@ async function manejarConModelo(
      producto», que es justo lo contrario de lo que hay que hacer: el dueño dijo
      «el café» y en su carta hay tres que empiezan así —el problema es del bot,
      no suyo—. Ahora se pregunta, con botones. */
-  if (accion === "set_disponibilidad" || accion === "set_precio") {
+  if (
+    accion === "set_disponibilidad" ||
+    accion === "set_precio" ||
+    accion === "editar_producto" ||
+    accion === "eliminar_producto"
+  ) {
     const nombre = typeof p.producto === "string" ? p.producto : "";
     const busqueda = A.buscarProducto(nombre, productos);
 
@@ -1154,32 +1433,49 @@ async function manejarConModelo(
       return;
     }
 
-    /* La confirmación va **antes** de escribir, y eso es lo que la hace una
-       confirmación: el precio se pregunta sin haberlo tocado. Lo que se guarda
-       es el nombre que hay en la carta, así que al pulsar «Sí» se vuelve a pasar
-       por `ejecutarAccionModelo` —el único camino que resuelve el producto— y
-       acierta solo. */
-    if (
-      busqueda.nivel === "claro" &&
-      busqueda.mejor &&
-      A.requiereConfirmacion(1, accion === "set_precio") === "confirmar"
-    ) {
-      const precio =
-        typeof p.precio === "string" ? p.precio.trim().slice(0, 40) : "";
-      if (precio) {
-        await pedirConfirmacionPrecio({
+    if (busqueda.nivel === "claro" && busqueda.mejor) {
+      /* Borrar es destructivo: se pregunta siempre, como el precio. Lo que se
+         guarda es el nombre que hay en la carta, así que al pulsar «Sí» se
+         vuelve a resolver solo. */
+      if (accion === "eliminar_producto") {
+        await pedirConfirmacionEliminar({
           negocio,
           chatId,
           mensaje: update.texto,
           producto: busqueda.mejor.name,
-          precio,
           via: "llm",
           tokensIn,
           tokensOut,
         });
         return;
       }
-      /* Sin precio no hay nada que confirmar: cae al camino de siempre. */
+
+      /* La confirmación va **antes** de escribir, y eso es lo que la hace una
+         confirmación: el precio se pregunta sin haberlo tocado. Lo que se guarda
+         es el nombre que hay en la carta, así que al pulsar «Sí» se vuelve a pasar
+         por `ejecutarAccionModelo` —el único camino que resuelve el producto— y
+         acierta solo. */
+      if (
+        accion === "set_precio" &&
+        A.requiereConfirmacion(1, true) === "confirmar"
+      ) {
+        const precio =
+          typeof p.precio === "string" ? p.precio.trim().slice(0, 40) : "";
+        if (precio) {
+          await pedirConfirmacionPrecio({
+            negocio,
+            chatId,
+            mensaje: update.texto,
+            producto: busqueda.mejor.name,
+            precio,
+            via: "llm",
+            tokensIn,
+            tokensOut,
+          });
+          return;
+        }
+        /* Sin precio no hay nada que confirmar: cae al camino de siempre. */
+      }
     }
     /* `ninguno`: tampoco se resuelve, y también cae al camino de siempre, que
        contesta que no encontró el producto. */
@@ -1376,6 +1672,45 @@ async function pedirConfirmacionPrecio(args: {
   );
 }
 
+/** Deja el borrado esperando el «Sí»: quitar un producto no se deshace con un
+ * toque si el dueño no lo esperaba, así que se pregunta antes. */
+async function pedirConfirmacionEliminar(args: {
+  negocio: Negocio;
+  chatId: string;
+  mensaje: string;
+  producto: string;
+  via: "regex" | "llm";
+  tokensIn?: number;
+  tokensOut?: number;
+}): Promise<void> {
+  const logId = await registrarLog({
+    negocioId: args.negocio.negocioId,
+    chatId: args.chatId,
+    mensaje: args.mensaje,
+    accion: "eliminar_producto",
+    antes: null,
+    despues: { producto: args.producto },
+    via: args.via,
+    tokensIn: args.tokensIn,
+    tokensOut: args.tokensOut,
+    pendiente: true,
+  });
+
+  if (!logId) {
+    await enviarTexto(
+      args.chatId,
+      "No pude dejar el cambio preparado. Prueba otra vez.",
+    );
+    return;
+  }
+
+  await enviarBotones(
+    args.chatId,
+    `Voy a quitar «${args.producto}» de tu carta.\n¿Lo hago?`,
+    botonesSiNo(logId),
+  );
+}
+
 /** Traduce lo que propuso el modelo a una escritura, sin creerse nada.
  *
  * `producto` llega como nombre escrito por el modelo, así que se resuelve por
@@ -1414,6 +1749,64 @@ async function ejecutarAccionModelo(
         typeof p.precio === "string" ? p.precio.trim().slice(0, 40) : "";
       if (!precio) return null;
       return ejecutarPrecio(negocio, indice, precio);
+    }
+
+    case "agregar_productos": {
+      const lista = Array.isArray(p.productos) ? p.productos : [];
+      const texto = (valor: unknown, max: number) =>
+        typeof valor === "string" ? valor.trim().slice(0, max) : "";
+      const nuevos = lista
+        .map((crudo) => {
+          const o = (crudo ?? {}) as Record<string, unknown>;
+          return {
+            nombre: texto(o.nombre ?? o.name, 120),
+            descripcion: texto(o.descripcion ?? o.description, 300),
+            precio: texto(o.precio ?? o.price, 40),
+            moneda: texto(o.moneda ?? o.currency, 10),
+            categoria: texto(o.categoria ?? o.category, 60),
+            etiqueta: texto(o.etiqueta ?? o.tag, 20),
+          };
+        })
+        .filter((nuevo) => nuevo.nombre);
+      if (nuevos.length === 0) return null;
+      return ejecutarAgregarProductos(negocio, nuevos);
+    }
+
+    case "editar_producto": {
+      const indice = resolver(p.producto);
+      if (indice === null) return null;
+
+      /* Solo se cambia lo que llegó: `undefined` es «no lo menciones», cadena
+         vacía es «déjalo vacío». El nombre vacío se ignora, que un producto sin
+         nombre no se puede enseñar. */
+      const campo = (claves: string[], max: number): string | undefined => {
+        for (const clave of claves) {
+          const valor = p[clave];
+          if (typeof valor === "string") return valor.trim().slice(0, max);
+        }
+        return undefined;
+      };
+      const cambios: Parameters<typeof ejecutarEditarProducto>[2] = {};
+      const nombre = campo(["nombre", "name"], 120);
+      if (nombre) cambios.name = nombre;
+      const descripcion = campo(["descripcion", "description"], 300);
+      if (descripcion !== undefined) cambios.description = descripcion;
+      const precio = campo(["precio", "price"], 40);
+      if (precio !== undefined) cambios.price = precio;
+      const moneda = campo(["moneda", "currency"], 10);
+      if (moneda !== undefined) cambios.currency = moneda;
+      const categoria = campo(["categoria", "category"], 60);
+      if (categoria !== undefined) cambios.category = categoria;
+      const etiqueta = campo(["etiqueta", "tag"], 20);
+      if (etiqueta !== undefined) cambios.tag = etiqueta;
+
+      return ejecutarEditarProducto(negocio, indice, cambios);
+    }
+
+    case "eliminar_producto": {
+      const indice = resolver(p.producto);
+      if (indice === null) return null;
+      return ejecutarEliminarProducto(negocio, indice);
     }
 
     case "set_horario": {
@@ -1708,6 +2101,17 @@ async function elegirCandidato(
       aviso: "",
       alerta: false,
       texto: `Cambio «${producto.name}» a ${precio}.`,
+      botones: botonesSiNo(logId),
+    };
+  }
+
+  /* Elegir el candidato no es confirmar el borrado: después de «¿a cuál?»
+     todavía falta el «¿lo hago?», como en el camino sin ambigüedad. */
+  if (fila.accion === "eliminar_producto") {
+    return {
+      aviso: "",
+      alerta: false,
+      texto: `Voy a quitar «${producto.name}» de tu carta.\n¿Lo hago?`,
       botones: botonesSiNo(logId),
     };
   }
