@@ -177,7 +177,11 @@ export const MODULOS = {
       "Sección de Ofertas/Nuevos productos dentro del catálogo",
     ].join("\n"),
     usd: 1,
-    funciones: ["qr_sin_marca", "fotos_ilimitadas", "ofertas_flash"],
+    /* `hoy_hay` va aquí: el bloque de arriba lo agrupa con estas dos bajo «Menú
+       Pro» y `disponibilidad-server` lo dice al comprobar el plan. Faltaba en la
+       lista, y eso dejaba la función sin concederla nadie: el candado no se
+       abría ni contratando el módulo. */
+    funciones: ["qr_sin_marca", "fotos_ilimitadas", "ofertas_flash", "hoy_hay"],
   },
   pedidos_reservas: {
     nombre: "Reservas y pedidos",
@@ -192,6 +196,7 @@ export const MODULOS = {
       "qr_sin_marca",
       "fotos_ilimitadas",
       "ofertas_flash",
+      "hoy_hay",
       "whatsapp_pedido",
       "reservas_whatsapp",
     ],
@@ -264,6 +269,10 @@ const ESENCIAL: readonly Funcion[] = [
   "qr_sin_marca",
   "ofertas_flash",
   "fotos_ilimitadas",
+  /* El pack nombra sus funciones en vez de componerse de módulos, así que lo
+     que trae el Menú Pro hay que repetirlo aquí: sin esto, contratar el módulo
+     suelto daría más que el pack que lo incluye. */
+  "hoy_hay",
   "whatsapp_pedido",
   "reservas_whatsapp",
   "publicaciones_fb",

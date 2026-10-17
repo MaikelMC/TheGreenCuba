@@ -29,7 +29,7 @@ import { usePlaces } from "@/providers/places-provider";
 import { useCatalogo } from "@/providers/catalogo-provider";
 import { prepareImage } from "@/lib/storage/compress";
 import { pruneMenuImages } from "@/lib/menu-images";
-import type { Disponibilidad } from "@/lib/disponibilidad";
+import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
 import { limiteDe, type Funcion } from "@/lib/plans";
 import type { UserPlace, UserPlaceMenuItem } from "@/lib/places-store";
 
@@ -37,6 +37,12 @@ import type { UserPlace, UserPlaceMenuItem } from "@/lib/places-store";
    «Sin categoría» a secas: ese texto es una categoría que el dueño puede
    escribir de verdad, y con el mismo valor las dos se fundirían en un grupo. */
 const SIN_CATEGORIA = "\u0000sin";
+
+/* El filtro de agotados. No es una categoría, pero se elige desde la misma fila
+   de pastillas, así que comparte estado con ellas. Lleva delante el centinela de
+   arriba por el mismo motivo: una categoría escrita a mano no puede empezar por
+   un carácter nulo, así que los dos valores no pueden confundirse. */
+const AGOTADOS = `${SIN_CATEGORIA}agotados`;
 
 const INPUT =
   "w-full h-10 px-gap-sm border border-ink/10 rounded-xl font-lv text-small bg-white text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
@@ -141,10 +147,33 @@ export function CatalogoView({
     return [...cuenta.entries()].map(([clave, n]) => ({ clave, n }));
   }, [items]);
 
+  /* Cuántos hay agotados **ahora**: `estaAgotado` resuelve además las fechas de
+     vuelta ya vencidas, así que uno marcado «hasta mañana» deja de contar solo,
+     sin tocar nada. */
+  const agotados = useMemo(
+    () => items.filter((item) => estaAgotado(item)).length,
+    [items],
+  );
+
+  /* Y el filtro de agotados se apaga solo cuando ya no queda ninguno: dejarlo
+     puesto escondería la carta entera detrás de una pastilla que ha dejado de
+     existir —se pinta solo si hay agotados— y la lista quedaría vacía sin nada
+     que pulsar. */
+  useEffect(() => {
+    if (filtro === AGOTADOS && agotados === 0) setFiltro(null);
+  }, [filtro, agotados]);
+
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
     return items.filter((item) => {
-      if (filtro !== null && (item.category?.trim() || SIN_CATEGORIA) !== filtro) {
+      /* Agotados y categoría se excluyen: se eligen desde la misma fila y una
+         pastilla activa es la única que manda. */
+      if (filtro === AGOTADOS) {
+        if (!estaAgotado(item)) return false;
+      } else if (
+        filtro !== null &&
+        (item.category?.trim() || SIN_CATEGORIA) !== filtro
+      ) {
         return false;
       }
       if (!q) return true;
@@ -177,11 +206,14 @@ export function CatalogoView({
 
   /* ── Mutaciones ────────────────────────────────────────────────────────── */
 
-  const patch = useCallback((id: string, campos: Partial<UserPlaceMenuItem>) => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...campos } : item)),
-    );
-  }, []);
+  const patch = useCallback(
+    (id: string, campos: Partial<UserPlaceMenuItem>) => {
+      setItems((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, ...campos } : item)),
+      );
+    },
+    [],
+  );
 
   const añadir = useCallback(() => {
     if (tope !== null && items.length >= tope) {
@@ -191,6 +223,10 @@ export function CatalogoView({
       return;
     }
     setError(null);
+    /* Con el filtro de agotados puesto, se quita: el producto nuevo nace
+       disponible, así que no saldría en la lista y «Añadir» parecería no hacer
+       nada. */
+    if (filtro === AGOTADOS) setFiltro(null);
     const id = `new-${Date.now()}`;
     const nuevo: UserPlaceMenuItem = {
       id,
@@ -199,8 +235,12 @@ export function CatalogoView({
       price: "",
       currency: "MLC",
       /* Si hay una categoría filtrada, el producto nace en ella: es lo que el
-         dueño está mirando cuando pulsa «añadir». */
-      category: filtro && filtro !== SIN_CATEGORIA ? filtro : undefined,
+         dueño está mirando cuando pulsa «añadir». El filtro de agotados no es
+         una categoría, así que no se hereda. */
+      category:
+        filtro && filtro !== SIN_CATEGORIA && filtro !== AGOTADOS
+          ? filtro
+          : undefined,
     };
     setItems((prev) => [nuevo, ...prev]);
     setNuevoId(id);
@@ -264,21 +304,36 @@ export function CatalogoView({
         const res = await fetch(`/api/places/${place.id}/disponibilidad`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ productoId: id, estado, hasta: hasta ?? null }),
+          body: JSON.stringify({
+            productoId: id,
+            estado,
+            hasta: hasta ?? null,
+          }),
         });
         if (!res.ok) {
           const data = (await res.json().catch(() => null)) as {
             error?: string;
           } | null;
-          throw new Error(data?.error ?? "No se pudo cambiar la disponibilidad.");
+          throw new Error(
+            data?.error ?? "No se pudo cambiar la disponibilidad.",
+          );
         }
-        patch(id, {
+        /* La API ya lo escribió: se vuelca también en `guardado`, o la carta
+           queda marcada como «sin guardar» por un cambio que el servidor ya
+           tiene —y eso, además de la barra, desactiva «Importar CSV»—. */
+        const campos = {
           disponibilidad: estado,
-          agotadoHasta: estado === "agotado" ? hasta ?? null : null,
-        });
+          agotadoHasta: estado === "agotado" ? (hasta ?? null) : null,
+        };
+        patch(id, campos);
+        guardado.current = guardado.current.map((item) =>
+          item.id === id ? { ...item, ...campos } : item,
+        );
       } catch (e) {
         setErrorEstado(
-          e instanceof Error ? e.message : "No se pudo cambiar la disponibilidad.",
+          e instanceof Error
+            ? e.message
+            : "No se pudo cambiar la disponibilidad.",
         );
       } finally {
         setBusyEstado(null);
@@ -397,7 +452,10 @@ export function CatalogoView({
             type="button"
             onClick={añadir}
             disabled={alcanzoTope}
-            className={cn(BOTON, "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300")}
+            className={cn(
+              BOTON,
+              "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300",
+            )}
           >
             {alcanzoTope ? (
               <Lock size={16} strokeWidth={1.8} />
@@ -442,6 +500,22 @@ export function CatalogoView({
             >
               Todas
             </Filtro>
+            {/* Los agotados van pegados a «Todas», antes de las categorías: no
+                es una categoría de la carta, es el «¿qué se me acabó?», y se
+                busca con prisa. Solo se pinta cuando hay alguno —con cero
+                llevaría a una lista vacía— y por eso el filtro se apaga solo si
+                se queda sin ninguno. */}
+            {agotados > 0 && (
+              <Filtro
+                activo={filtro === AGOTADOS}
+                onClick={() =>
+                  setFiltro((prev) => (prev === AGOTADOS ? null : AGOTADOS))
+                }
+                cuenta={agotados}
+              >
+                Agotados
+              </Filtro>
+            )}
             {categorias.map((c) => (
               <Filtro
                 key={c.clave}
@@ -520,7 +594,10 @@ export function CatalogoView({
             <button
               type="button"
               onClick={añadir}
-              className={cn(BOTON, "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300")}
+              className={cn(
+                BOTON,
+                "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300",
+              )}
             >
               <Plus size={16} strokeWidth={1.8} />
               Añadir producto
@@ -538,7 +615,10 @@ export function CatalogoView({
                 setBusqueda("");
                 setFiltro(null);
               }}
-              className={cn(BOTON, "bg-white border border-ink/10 text-ink hover:border-verde-300")}
+              className={cn(
+                BOTON,
+                "bg-white border border-ink/10 text-ink hover:border-verde-300",
+              )}
             >
               Quitar filtros
             </button>
@@ -675,7 +755,9 @@ function FilaProducto({
           onClick={() => onElegirFoto(id)}
           disabled={subiendo}
           aria-label={
-            item.image ? `Cambiar la foto de ${nombre}` : `Añadir foto a ${nombre}`
+            item.image
+              ? `Cambiar la foto de ${nombre}`
+              : `Añadir foto a ${nombre}`
           }
           className="absolute inset-0 grid cursor-pointer place-items-center text-verde-400 transition-colors duration-500 ease-outquint hover:bg-ink/5"
         >
@@ -724,7 +806,10 @@ function FilaProducto({
           className={cn(INPUT, "text-meta text-ink-soft/75")}
         />
         {/* `flex-wrap` para que la etiqueta caiga abajo cuando no quepa, en vez
-            de empujar la fila fuera de la tarjeta en el móvil. */}
+            de empujar la fila fuera de la tarjeta en el móvil. Y `shrink-0` en
+            todo: sin él los campos encogían —`min-w-0` y `shrink` por defecto—
+            en vez de envolver, y en el móvil los tres se aplastaban en un solo
+            renglón ilegible. Envolviendo, cada uno conserva su ancho. */}
         <div className="flex flex-wrap items-center gap-gap-xs">
           <input
             type="text"
@@ -743,30 +828,41 @@ function FilaProducto({
             placeholder="Categoría"
             list={listaCategorias}
             aria-label="Categoría del producto"
-            className={cn(INPUT, "w-[124px] min-w-0 text-meta sm:w-[148px]")}
+            className={cn(INPUT, "w-[124px] shrink-0 text-meta sm:w-[148px]")}
           />
-          <input
-            type="text"
-            value={item.price}
-            onChange={(e) => onPatch(id, { price: e.target.value })}
-            placeholder="0"
-            aria-label="Precio"
-            className={cn(INPUT, "w-[64px] min-w-0 font-lv-display sm:w-[80px]")}
-          />
-          <select
-            value={item.currency}
-            onChange={(e) => onPatch(id, { currency: e.target.value })}
-            aria-label="Moneda del producto"
-            className={cn(INPUT, "min-w-0 cursor-pointer font-lv-display text-meta")}
-          >
-            <option value="MLC">USD Clásica</option>
-            <option value="CUP">CUP</option>
-            <option value="USD">USD</option>
-            {/* EUR falta en el `<select>` y sí está en `MONEDAS` del importador:
-                una carta importada con precios en euros se quedaba con el
-                desplegable en blanco y no había forma de volver a elegirla. */}
-            <option value="EUR">EUR</option>
-          </select>
+          {/* Precio y moneda envuelven como una sola pieza: es lo pedido —la
+              moneda pegada al precio, a su derecha— y en el móvil es lo que
+              impide que el salto de línea los separe en dos renglones
+              distintos. La moneda no lleva `INPUT` a propósito: ese trae
+              `w-full`, y un ancho de campo completo en esta fila (`flex-wrap`)
+              le daba un renglón propio con solo la etiqueta más larga,
+              «USD Clásica», que es la de MLC. Sin él mide lo que mide su
+              opción más larga y no la corta. */}
+          <div className="flex shrink-0 items-center gap-gap-xs">
+            <input
+              type="text"
+              value={item.price}
+              onChange={(e) => onPatch(id, { price: e.target.value })}
+              placeholder="0"
+              aria-label="Precio"
+              className={cn(INPUT, "w-[56px] font-lv-display sm:w-[80px]")}
+            />
+            <select
+              value={item.currency}
+              onChange={(e) => onPatch(id, { currency: e.target.value })}
+              aria-label="Moneda del producto"
+              className="h-10 cursor-pointer rounded-xl border border-ink/10 bg-white px-gap-xs font-lv-display text-meta text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20"
+            >
+              <option value="MLC">USD Clásica</option>
+              <option value="CUP">CUP</option>
+              <option value="USD">USD</option>
+              {/* EUR falta en el `<select>` y sí está en `MONEDAS` del
+                  importador: una carta importada con precios en euros se
+                  quedaba con el desplegable en blanco y no había forma de
+                  volver a elegirla. */}
+              <option value="EUR">EUR</option>
+            </select>
+          </div>
           {item.tag && (
             <span
               className={cn(
@@ -778,7 +874,20 @@ function FilaProducto({
             </span>
           )}
         </div>
+      </div>
 
+      {/* La columna de acciones, a la derecha y fuera de la de campos: son
+          acciones sobre el producto, no datos suyos. La X arriba —donde el ojo
+          ya la busca— y «Hoy hay» debajo, que es lo que pidió el dueño. */}
+      <div className="flex shrink-0 flex-col items-center gap-gap-xs">
+        <button
+          type="button"
+          onClick={() => onEliminar(id)}
+          aria-label={`Eliminar ${nombre}`}
+          className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border border-ink/10 text-ink-soft/75 transition-all duration-500 ease-outquint hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+        >
+          <X size={16} strokeWidth={1.8} />
+        </button>
         {canHoyHay && persistido && (
           <AvailabilityControl
             item={item}
@@ -787,15 +896,6 @@ function FilaProducto({
           />
         )}
       </div>
-
-      <button
-        type="button"
-        onClick={() => onEliminar(id)}
-        aria-label={`Eliminar ${nombre}`}
-        className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border border-ink/10 text-ink-soft/75 transition-all duration-500 ease-outquint hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
-      >
-        <X size={16} strokeWidth={1.8} />
-      </button>
     </div>
   );
 }
@@ -829,7 +929,12 @@ function Filtro({
       )}
     >
       {children}
-      <span className={cn("ml-[6px]", activo ? "text-verde-950/70" : "text-ink-soft/50")}>
+      <span
+        className={cn(
+          "ml-[6px]",
+          activo ? "text-verde-950/70" : "text-ink-soft/50",
+        )}
+      >
         {cuenta}
       </span>
     </button>
@@ -847,10 +952,11 @@ function EstadoVacio({
 }) {
   return (
     <div className="mt-gap-lg flex flex-col items-center gap-gap-sm rounded-2xl border border-dashed border-ink/10 bg-white/60 px-gap-lg py-gap-xl text-center">
-      <h2 className="font-lv-display text-body font-semibold text-ink">{titulo}</h2>
+      <h2 className="font-lv-display text-body font-semibold text-ink">
+        {titulo}
+      </h2>
       <p className="max-w-[42ch] text-small text-ink-soft/75">{texto}</p>
       {accion}
     </div>
   );
 }
-

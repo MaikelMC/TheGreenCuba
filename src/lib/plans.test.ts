@@ -141,6 +141,9 @@ test("cada pack trae exactamente sus extras sobre Gratis", () => {
   const orden = (fs: readonly Funcion[]) => [...fs].sort();
   assert.deepEqual(orden(PACKS.esencial.funciones), [
     "fotos_ilimitadas",
+    /* Se sumó a propósito: el Menú Pro del que sale Esencial ahora concede
+       `hoy_hay`, y un pack que nombra sus funciones tiene que repetirlo. */
+    "hoy_hay",
     "ofertas_flash",
     "publicaciones_fb",
     "qr_sin_marca",
@@ -158,6 +161,7 @@ test("cada pack trae exactamente sus extras sobre Gratis", () => {
     "asistente_ia",
     "eventos",
     "fotos_ilimitadas",
+    "hoy_hay",
     "ofertas_flash",
     "publicaciones_fb",
     "publicaciones_fb_3",

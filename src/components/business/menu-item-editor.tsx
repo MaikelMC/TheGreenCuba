@@ -2,7 +2,15 @@
 
 import { useState, useCallback, useId, useRef } from "react";
 import Image from "next/image";
-import { Clock, Image as ImageIcon, Loader2, Plus, X } from "lucide-react";
+import {
+  Clock,
+  Image as ImageIcon,
+  Loader2,
+  PackageCheck,
+  PackageX,
+  Plus,
+  X,
+} from "lucide-react";
 import { cn, menuTagFallback, menuTagStyles } from "@/lib/utils";
 import { prepareImage } from "@/lib/storage/compress";
 import {
@@ -53,20 +61,24 @@ const DEFAULT_ITEMS: MenuItemData[] = [
 const INPUT =
   "px-gap-sm border rounded-xl font-lv text-small bg-white text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 
-/* Botón pequeño de «Hoy hay»: misma familia que el resto del editor, en tamaño
-   de utilidad porque va dentro de la fila de un producto. */
+/* Botón de «Hoy hay»: circular y con el icono solo, el nombre en `title`. Va en
+   la columna de acciones de la fila del producto, donde un botón con texto no
+   cabe. Mismo tamaño que la X que tiene al lado, para que la columna cuadre. */
 const AVAIL_BTN =
-  "inline-flex items-center gap-[4px] rounded-full border border-ink/10 bg-white px-[10px] py-[4px] " +
-  "font-lv-display text-[11px] font-medium text-ink-soft/75 transition-colors duration-500 ease-outquint " +
+  "grid size-10 shrink-0 place-items-center rounded-full border border-ink/10 text-ink-soft/75 " +
+  "transition-colors duration-500 ease-outquint " +
   "hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 disabled:pointer-events-none disabled:opacity-50 cursor-pointer";
 
 /**
- * El control de disponibilidad de un producto.
+ * El control de disponibilidad de un producto: dos botones circulares.
  *
- * Enseña el estado **efectivo** —un producto agotado cuya fecha de vuelta ya
- * pasó se lee como disponible— y ofrece las dos acciones rápidas: alternar y
- * «hasta mañana». El estado tarda en confirmarse contra el servidor, así que el
- * botón se desactiva mientras tanto en vez de dejar pulsar dos veces.
+ * El estado **efectivo** va en el propio botón —un producto agotado cuya fecha
+ * de vuelta ya pasó se lee como disponible—: el icono dice qué hará al
+ * pulsarlo y el color dice cómo está ahora, en rojo cuando está agotado, para
+ * que la columna de acciones lo delate sin leerse el icono. No hay etiqueta de
+ * texto: el nombre vive en `title` y en `aria-label`, que es lo que deja el
+ * botón en un círculo. El estado tarda en confirmarse contra el servidor, así
+ * que se desactiva mientras tanto en vez de dejar pulsar dos veces.
  */
 export function AvailabilityControl({
   item,
@@ -80,33 +92,57 @@ export function AvailabilityControl({
   onSet: (estado: Disponibilidad, hasta?: number | null) => void;
 }) {
   const agotado = estaAgotado(item);
+  /* Hay fecha de vuelta: el producto se agotó con «hasta mañana» y volverá solo
+     a medianoche. Sin este dato, los dos botones dejarían el mismo estado —rojo
+     y check— y no habría forma de saber que se pulsó el correcto. */
+  const hasta = agotado ? (item.agotadoHasta ?? null) : null;
+  const etiqueta = agotado ? "Marcar disponible" : "Marcar agotado";
   return (
-    <div className="mt-gap-xs flex flex-wrap items-center gap-gap-xs">
-      <span
-        className={cn(
-          "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em]",
-          agotado ? "bg-destructive/10 text-destructive" : "bg-verde-50 text-verde-600",
-        )}
-      >
-        {agotado ? "Agotado" : "Disponible"}
-      </span>
+    <div className="flex flex-col items-center gap-gap-xs">
       <button
         type="button"
         disabled={busy}
         onClick={() => onSet(agotado ? "disponible" : "agotado")}
-        className={AVAIL_BTN}
+        title={
+          hasta ? "Marcar disponible (vuelve solo a medianoche)" : etiqueta
+        }
+        aria-label={etiqueta}
+        className={cn(
+          AVAIL_BTN,
+          agotado &&
+            "border-destructive/30 bg-destructive/10 text-destructive hover:border-destructive/40 hover:bg-destructive/20 hover:text-destructive",
+        )}
       >
-        {busy && <Loader2 size={13} strokeWidth={1.8} className="animate-spin" />}
-        {agotado ? "Marcar disponible" : "Marcar agotado"}
+        {busy ? (
+          <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
+        ) : agotado ? (
+          <PackageCheck size={16} strokeWidth={1.8} />
+        ) : (
+          <PackageX size={16} strokeWidth={1.8} />
+        )}
       </button>
       <button
         type="button"
         disabled={busy}
         onClick={() => onSet("agotado", hastaManana())}
-        className={AVAIL_BTN}
+        title={
+          hasta
+            ? "Agotado hasta mañana: vuelve solo a medianoche"
+            : "Marcar agotado hasta mañana"
+        }
+        aria-label="Marcar agotado hasta mañana"
+        className={cn(AVAIL_BTN, "relative")}
       >
-        <Clock size={13} strokeWidth={1.8} />
-        Hasta mañana
+        <Clock size={16} strokeWidth={1.8} />
+        {/* Punto rojo cuando la fecha de vuelta está puesta: sin él, «hasta
+            mañana» y «marcar agotado» dejaban la fila idéntica, y no había
+            forma de ver que la vuelta ya estaba programada. */}
+        {hasta != null && (
+          <span
+            aria-hidden
+            className="absolute -right-[1px] -top-[1px] size-2 rounded-full bg-destructive"
+          />
+        )}
       </button>
     </div>
   );
