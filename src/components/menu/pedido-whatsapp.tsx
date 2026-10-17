@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -36,11 +37,15 @@ import {
 /**
  * El carrito del menú público, y el enlace que lo convierte en un pedido.
  *
- * **Sin backend a propósito.** Un pedido por WhatsApp es un mensaje: el
- * carrito vive en el navegador —`localStorage`, para que recargar la carta no
- * borre lo que ya se eligió— y lo que sale de aquí es la URL de `wa.me` con el
- * pedido escrito dentro. La Verde no guarda el pedido, no lo cobra y no lo
- * sirve; solo pone el mensaje en orden.
+ * El pedido sigue siendo un mensaje: el carrito vive en el navegador
+ * —`localStorage`, para que recargar la carta no borre lo que ya se eligió— y
+ * lo que abre WhatsApp es la URL de `wa.me` con el pedido escrito dentro. La
+ * Verde no lo cobra ni lo sirve.
+ *
+ * Lo que cambió es que **también deja una copia**: al confirmar se manda el
+ * mismo carrito a `/api/pedidos`, y el negocio lo ve en el historial de su
+ * panel. Es una copia best-effort y no bloquea el gesto de WhatsApp: si la red
+ * falla, el pedido sale igual y solo se pierde el registro. Ver `guardarPedido`.
  *
  * Por eso el carrito **solo existe si el plan lo incluye** (`whatsapp_pedido`:
  * módulo Pedidos y reservas, o un pack). La decisión se toma en el servidor, en
@@ -130,6 +135,25 @@ function alDia(
   });
 }
 
+/**
+ * El id del intento de pedido.
+ *
+ * Lo manda el navegador para que un reintento del mismo clic —o un `keepalive`
+ * que se repite— no deje dos filas en el historial. `randomUUID` existe en
+ * todos los navegadores modernos, pero solo en contexto seguro (HTTPS o
+ * localhost); el respaldo mantiene el pedido funcionando en una IP por HTTP.
+ */
+function nuevoIdPedido(): string {
+  try {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+      return crypto.randomUUID();
+    }
+  } catch {
+    /* Sin `crypto` se cae al respaldo, que no necesita nada. */
+  }
+  return `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function PedidoProvider({
   placeId,
   negocio,
@@ -152,6 +176,9 @@ export function PedidoProvider({
   const [hidratado, setHidratado] = useState(false);
   const [abierto, setAbierto] = useState(false);
   const [pidiendo, setPidiendo] = useState(false);
+  /* El id de este intento. Se renueva al abrir la ventana de confirmación, no
+     en cada clic: dos clics seguidos son el mismo pedido y no dos. */
+  const idPedido = useRef<string | null>(null);
   /* Lo que se acaba de quitar, junto con la foto del carrito de antes de
      quitarlo. Una sola a la vez: cualquier gesto nuevo la reemplaza, y a los
      ocho segundos se va sola. */
@@ -298,6 +325,46 @@ export function PedidoProvider({
     () => ({ lineas, agregar, sumar, quitar, vaciar }),
     [lineas, agregar, sumar, quitar, vaciar],
   );
+
+  /** Abre la confirmación con un id nuevo: es el intento que se va a guardar. */
+  const abrirPedido = useCallback(() => {
+    idPedido.current = nuevoIdPedido();
+    setPidiendo(true);
+  }, []);
+
+  /**
+   * Guarda una copia del pedido en el panel del negocio.
+   *
+   * **No se espera la respuesta**: el clic tiene que abrir WhatsApp en el mismo
+   * gesto o el navegador lo bloquea como ventana emergente. `keepalive` deja que
+   * la petición siga viva aunque la pestaña se vaya a WhatsApp; si falla —sin
+   * datos, servidor caído— el pedido sale igual y lo único que no queda es la
+   * copia. Por eso aquí no hay aviso de error: no hay nada que el cliente pueda
+   * hacer, y decirle que «no se guardó» cuando el pedido sí salió sería peor.
+   */
+  const guardarPedido = useCallback(() => {
+    if (lineas.length === 0) return;
+    const id = idPedido.current ?? nuevoIdPedido();
+    idPedido.current = id;
+
+    try {
+      void fetch("/api/pedidos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          negocioId: placeId,
+          lineas,
+          direccion: direccion.trim(),
+        }),
+        keepalive: true,
+      }).catch(() => {
+        /* Sin red no hay copia; el mensaje de WhatsApp ya salió. */
+      });
+    } catch {
+      /* `fetch` puede fallar de forma síncrona en entornos muy viejos. */
+    }
+  }, [lineas, direccion, placeId]);
 
   /* Desplegada manda ella: el desplazamiento no decide mientras se mira el
      pedido. */
@@ -466,7 +533,7 @@ export function PedidoProvider({
 
                 <button
                   type="button"
-                  onClick={() => setPidiendo(true)}
+                  onClick={abrirPedido}
                   className="inline-flex h-12 flex-1 cursor-pointer items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-verde-400 px-gap-xs font-lv-display text-body font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 sm:h-11 sm:px-gap-md sm:text-small"
                 >
                   <MessageCircle
@@ -495,7 +562,7 @@ export function PedidoProvider({
                 <DialogTitle>¿Dónde te lo llevamos?</DialogTitle>
                 <DialogDescription>
                   La dirección va dentro del mensaje. Si vas a recogerlo, déjala
-                  en blanco.
+                  en blanco. El pedido también queda en el historial del negocio.
                 </DialogDescription>
               </DialogHeader>
 
@@ -557,7 +624,10 @@ export function PedidoProvider({
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => setPidiendo(false)}
+                  onClick={() => {
+                    guardarPedido();
+                    setPidiendo(false);
+                  }}
                   className="inline-flex h-10 min-w-0 items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 sm:px-gap-md sm:text-small"
                 >
                   <MessageCircle

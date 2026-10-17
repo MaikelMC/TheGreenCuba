@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import {
   ArrowLeft,
   ChevronRight,
+  ClipboardList,
   Edit,
   LayoutDashboard,
   Megaphone,
@@ -29,6 +30,7 @@ import {
 export type PanelView =
   | "dashboard"
   | "catalogo"
+  | "pedidos"
   | "editor"
   | "publicaciones"
   | "planes"
@@ -81,6 +83,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "catalogo", label: "Catálogo", icon: Utensils },
+  { id: "pedidos", label: "Pedidos", icon: ClipboardList },
   { id: "editor", label: "Editar", icon: Edit },
   { id: "publicaciones", label: "Publicar", icon: Megaphone },
   { id: "planes", label: "Planes", icon: Sparkles },

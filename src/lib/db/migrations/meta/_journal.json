@@ -274,6 +274,13 @@
       "when": 1791926728201,
       "tag": "0038_spotty_tattoo",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1792224220167,
+      "tag": "0039_spicy_ogun",
+      "breakpoints": true
     }
   ]
 }

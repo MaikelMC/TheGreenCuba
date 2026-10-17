@@ -761,6 +761,8 @@ export default async function MenuPage({
           Los precios y la disponibilidad los pone el negocio. La Verde no
           gestiona los pedidos: se hacen por WhatsApp o por teléfono, como
           siempre.
+          {puedePedir &&
+            " El pedido queda guardado en el historial del negocio."}
         </p>
       </footer>
     </div>

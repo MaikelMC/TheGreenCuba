@@ -45,6 +45,7 @@ import { LogoUpload } from "@/components/business/logo-upload";
 import { PhotoGrid } from "@/components/business/photo-grid";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { CatalogoView } from "@/components/business/catalogo-view";
+import { PedidosView } from "@/components/business/pedidos-view";
 import { OfertasEditor } from "@/components/business/ofertas-editor";
 import { MenuLinkCard } from "@/components/business/menu-link-card";
 import { PlanCard } from "@/components/business/plan-card";
@@ -230,6 +231,18 @@ export function BusinessPanel({
               <CatalogoView
                 key={place.id}
                 place={place}
+                funciones={funciones}
+                onVerPlanes={() => setView("planes")}
+              />
+            );
+          case "pedidos":
+            /* El historial vive aparte de la carta porque se mira con otro
+               ritmo: la carta se edita, los pedidos se atienden. El servidor
+               comprueba la propiedad en cada lectura y escritura. */
+            return (
+              <PedidosView
+                key={place.id}
+                placeId={place.id}
                 funciones={funciones}
                 onVerPlanes={() => setView("planes")}
               />
