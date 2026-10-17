@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import {
+  ArrowUpRight,
   CalendarDays,
   ChevronDown,
   Clock,
@@ -25,7 +28,7 @@ import { normalizarWhatsappCubano } from "@/lib/contact-links";
 import { SUPPORT_EMAIL } from "@/lib/legal";
 import { logout } from "@/lib/logout";
 import { formatCoordinates } from "@/lib/map/coordinates";
-import { placeIcon } from "@/lib/places";
+import { categoryEmoji, placeIcon } from "@/lib/places";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -340,18 +343,25 @@ function DashboardView({
   modulos: ClaveModulo[];
   onVerPlanes: () => void;
 }) {
-  const offering = [place.description].filter(Boolean).join(" ");
+  /* La marca del negocio: logo, portada o el emoji de su categoría, en ese
+     orden. Es lo primero que reconoce quien lo busca. */
+  const marca = place.logoUrl || place.photos?.[0]?.url || null;
+  const estadoLabel =
+    place.status === "temporary_closed"
+      ? "Cerrado temporalmente"
+      : place.status === "closed"
+        ? "Cerrado"
+        : "Abierto";
 
   return (
     <>
       <h1 className="sr-only">Dashboard</h1>
 
-      {/* Tres cifras y ninguna inventada. Aquí había «342 visitas esta semana,
+      {/* Cuatro cifras y ninguna inventada. Aquí había «342 visitas esta semana,
           +18%», «87 clics en Cómo llegar» y «156 recomendaciones IA»: no existe
-          ninguna tabla que registre visitas, clics ni recomendaciones, así que
-          no había forma de calcularlas y estaban escritas a mano. Se enseñan las
-          tres que sí salen de la base —una métrica que no se puede comprobar no
-          es una métrica— y en su lugar va lo que el dueño puede hacer. */}
+          ninguna tabla que registre esas cosas, así que estaban escritas a mano.
+          Se enseñan las que sí salen de la base —una métrica que no se puede
+          comprobar no es una métrica—. */}
       <DashboardStats
         stats={[
           { label: "Guardados", value: String(stats.saved) },
@@ -370,68 +380,132 @@ function DashboardView({
       <EstadisticasPanel visitas={visitas} onVerPlanes={onVerPlanes} />
 
       <div className="mt-gap-lg grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md">
-          <h2 className="mb-gap-sm font-lv-display text-body font-semibold text-ink">
-            Cómo apareces
-          </h2>
-          <dl className="flex flex-col gap-gap-xs text-small">
-            <Row label="Nombre" value={place.name} />
-            <Row label="Categoría" value={place.category} />
-            <Row label="Zona" value={place.barrio || "Sin barrio"} />
-            <Row
-              label="Punto en el mapa"
+        {/* «Cómo apareces» pasa de una lista de etiquetas a una vista previa de
+            la ficha: la marca, el estado y los datos que alguien ve al
+            encontrarlo en el catálogo. Ocupa las dos columnas porque es la
+            tarjeta que más vale del dashboard y la que el dueño viene a
+            comprobar. */}
+        <section className="ficha-preview relative overflow-hidden rounded-3xl border border-verde-200 bg-gradient-to-br from-verde-50 via-white to-sand-warm p-gap-md shadow-soft sm:p-gap-lg lg:col-span-2">
+          {/* Dos halos fuera de la caja: dan profundidad sin meter una imagen
+              más, que en datos móviles se paga. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-verde-200/40 blur-3xl"
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -bottom-24 -left-12 size-52 rounded-full bg-sand-deep/60 blur-3xl"
+          />
+
+          <div className="relative flex flex-wrap items-center justify-between gap-gap-sm">
+            <p className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.18em] text-verde-700">
+              Así te ven en La Verde
+            </p>
+            <Link
+              href={`/place/${place.id}`}
+              className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-verde-200 bg-white px-gap-sm font-lv-display text-meta font-semibold text-verde-700 transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
+            >
+              Ver mi ficha
+              <ArrowUpRight size={14} strokeWidth={2} />
+            </Link>
+          </div>
+
+          <div className="relative mt-gap-sm flex flex-wrap items-center gap-gap-sm">
+            <span className="relative grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-soft sm:size-[72px]">
+              {marca ? (
+                <Image
+                  src={marca}
+                  alt=""
+                  fill
+                  sizes="(min-width: 640px) 72px, 64px"
+                  quality={70}
+                  className="object-cover"
+                />
+              ) : (
+                <span aria-hidden className="text-[30px]">
+                  {categoryEmoji(place.category)}
+                </span>
+              )}
+            </span>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-gap-xs">
+                <h2 className="font-lv-display text-h3 font-bold tracking-[-0.02em] text-ink">
+                  {place.name}
+                </h2>
+                <span
+                  className={cn(
+                    "inline-flex shrink-0 items-center rounded-full border px-[10px] py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em]",
+                    place.isActive
+                      ? "border-verde-200 bg-verde-50 text-verde-700"
+                      : "border-ink/10 bg-sand text-ink-soft/75",
+                  )}
+                >
+                  {place.isActive ? "Publicada" : "Sin publicar"}
+                </span>
+              </div>
+              <p className="mt-[3px] flex flex-wrap items-center gap-x-gap-xs gap-y-[4px] text-small text-ink-soft/75">
+                <span>{place.category}</span>
+                <span aria-hidden className="text-ink/20">
+                  ·
+                </span>
+                <span>{place.barrio || place.city || "Sin zona"}</span>
+                <span className="inline-flex items-center gap-[5px] font-medium text-ink-soft">
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "size-[6px] shrink-0 rounded-full",
+                      place.status === "active"
+                        ? "bg-verde-500"
+                        : "bg-ink/30",
+                    )}
+                  />
+                  {estadoLabel}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <dl className="relative mt-gap-md grid grid-cols-2 gap-gap-xs sm:grid-cols-4">
+            <DatoFicha
+              icon={Tag}
+              label="Categoría"
+              value={place.category}
+            />
+            <DatoFicha
+              icon={MapPin}
+              label="Zona"
+              value={place.barrio || place.city || "Sin zona"}
+            />
+            <DatoFicha
+              icon={Clock}
+              label="Horario"
+              value={place.schedule || "Sin horario"}
+            />
+            <DatoFicha
+              icon={MapPin}
+              label="Ubicación"
               value={formatCoordinates({ lat: place.lat, lng: place.lng })}
             />
-            <Row
-              label="Ficha publicada"
-              value={place.isActive ? "Sí" : "Todavía no"}
-            />
           </dl>
-        </section>
 
-        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md">
-          <h2 className="mb-gap-sm font-lv-display text-body font-semibold text-ink">
-            Lo que puedes hacer ahora
-          </h2>
-          {/* Una línea por punto. Eran dos frases cada uno —la acción y su
-              justificación— y en el móvil la lista ocupaba media pantalla para
-              decir cinco cosas que caben en cinco renglones. */}
-          <ul className="flex flex-col gap-gap-xs text-small text-ink-soft">
-            {stats.photos === 0 && (
-              <li>
-                <span className="font-semibold text-ink">
-                  Sube tus primeras fotos.
-                </span>
-              </li>
-            )}
-            {!offering && (
-              <li>
-                <span className="font-semibold text-ink">
-                  Escribe tu descripción
-                </span>
-                , que es lo que lee el buscador.
-              </li>
-            )}
-            {place.payments.length === 0 && (
-              <li>
-                <span className="font-semibold text-ink">
-                  Marca qué monedas aceptas.
-                </span>
-              </li>
-            )}
-            {place.menu.length === 0 && (
-              <li>
-                <span className="font-semibold text-ink">
-                  Publica tu catálogo
-                </span>{" "}
-                en «Lo que ofreces».
-              </li>
-            )}
-            <li>
-              <span className="font-semibold text-ink">Revisa tu ficha</span>{" "}
-              como la ve quien te busca.
-            </li>
-          </ul>
+          <div className="relative mt-gap-sm flex flex-wrap items-center justify-between gap-gap-xs border-t border-ink/5 pt-gap-sm">
+            <p className="flex min-w-0 items-start gap-[6px] text-meta text-ink-soft/75">
+              <MapPin
+                size={14}
+                strokeWidth={1.8}
+                className="mt-[1px] shrink-0 text-verde-600"
+              />
+              <span className="break-words">
+                {place.address || "Todavía no has escrito la dirección"}
+              </span>
+            </p>
+            <p className="text-meta text-ink-soft/75">
+              {place.isActive
+                ? "Visible en el catálogo y en el mapa"
+                : "Aún no aparece en el catálogo"}
+            </p>
+          </div>
         </section>
 
         {/* El QR con o sin la marca de La Verde lo decide una función. Se lee
@@ -448,6 +522,29 @@ function DashboardView({
         <PlanCard plan={plan} modulos={modulos} onVerPlanes={onVerPlanes} />
       </div>
     </>
+  );
+}
+
+/** Un dato de la vista previa de la ficha. */
+function DatoFicha({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof MapPin;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-ink/10 bg-white/70 p-gap-sm backdrop-blur-[2px]">
+      <dt className="flex items-center gap-[6px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-verde-700">
+        <Icon size={13} strokeWidth={2} className="shrink-0" />
+        {label}
+      </dt>
+      <dd className="mt-[5px] break-words font-lv-display text-small font-semibold leading-snug text-ink">
+        {value}
+      </dd>
+    </div>
   );
 }
 

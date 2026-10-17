@@ -608,6 +608,24 @@
     ) !important;
   }
 
+  /* Vista previa de la ficha del dashboard (`from-verde-50 via-white
+     to-sand-warm`). El degradado es `background-image`, así que los overrides
+     de `.bg-white` y compañía no lo tocan y la tarjeta seguía clara con el
+     texto ya aclarado. Los halos pasaban lo mismo: eran un verde claro al 40 %
+     y un arena al 60 % que brillaban sobre el fondo oscuro. */
+  html[data-theme="dark"] .ficha-preview {
+    background-image: linear-gradient(
+      to bottom right,
+      #173522,
+      #0e1720 55%,
+      #16212b
+    ) !important;
+  }
+
+  html[data-theme="dark"] .ficha-preview > span[aria-hidden] {
+    background-color: rgba(103, 199, 146, 0.1) !important;
+  }
+
   /* Ámbar y rojo vienen de la paleta por defecto de Tailwind, no de los tokens
      del sistema, y eran los últimos cuadros con fondo claro en modo oscuro:
      los avisos de horario de publicación y los de error. Se quedan en su propio
