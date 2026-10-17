@@ -96,8 +96,14 @@ export function parsearEvento(valor: unknown): EventoCliente | null {
    incluye —el candado se decide antes de salir de la base, no en el navegador—. */
 
 export interface VisitasPanel {
-  /** Visitas a la ficha o a la carta en el mes en curso. Lo ve hasta Gratis. */
-  resumen: { mes: number };
+  /**
+   * Visitas a la ficha o a la carta. Lo ve hasta Gratis.
+   *
+   * `total` es el acumulado histórico y `mes`, el mes en curso: el dashboard
+   * enseña el total en su tarjeta y la sección de estadísticas el del mes, para
+   * que las dos cifras no digan lo mismo.
+   */
+  resumen: { mes: number; total: number };
   /** Visitas y llamadas a 7 y 30 días. Módulo Visibilidad, o un pack. */
   basicas?: {
     visitas7: number;

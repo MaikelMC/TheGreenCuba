@@ -965,7 +965,7 @@ export function CatalogoView({
           deja descartarlos sin recargar, que es lo que antes obligaba a salir y
           volver. */}
       {sucio && (
-        <div className="sticky bottom-4 z-40 mt-gap-lg flex flex-wrap items-center justify-end gap-gap-sm rounded-full bg-sand-warm/85 px-gap-sm py-[6px] backdrop-blur-[8px]">
+        <div className="sticky bottom-4 z-40 mt-gap-lg flex flex-wrap items-center justify-end gap-gap-sm rounded-full bg-sand-warm/90 px-gap-sm py-[6px] backdrop-blur-[8px]">
           <p className="mr-auto pl-gap-sm font-lv-display text-meta font-medium text-ink-soft/75">
             {cambios} cambio{cambios === 1 ? "" : "s"} sin guardar
           </p>

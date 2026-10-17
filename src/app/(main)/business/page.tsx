@@ -4,6 +4,8 @@ import { getPlaceById, ownerPlaces, placeStats } from "@/lib/db/queries";
 import { statsVisitas } from "@/lib/eventos-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { DEV_PLACE_ID, devPlace, ownsDevPlace } from "@/lib/dev-place";
+import { limiteDe } from "@/lib/plans";
+import { publicacionesDeLaSemana } from "@/lib/publicaciones-server";
 import { funcionesDeNegocio, modulosDe, planEfectivoDe } from "@/lib/plans-server";
 import { menuUrl } from "@/lib/structured-data";
 import { CatalogoProvider } from "@/providers/catalogo-provider";
@@ -68,22 +70,24 @@ export default async function BusinessPage({
 
   const placeId = elegido.id;
   const isDev = placeId === DEV_PLACE_ID;
-  const [place, stats, plan, funciones, modulos, cat] = await Promise.all([
-    getPlaceById(placeId, {
-      includeDev: isDev,
-      /* La copia personal del fixture, para que el dueño vea sus ediciones. */
-      overrideFor: isDev ? user.id : undefined,
-    }),
-    placeStats(placeId),
-    planEfectivoDe(placeId),
-    funcionesDeNegocio(placeId),
-    /* Los módulos sueltos que tiene contratados, para la tarjeta del plan: sin
-       ellos, un negocio en Gratis con Menú Pro se leería como si no pagara nada. */
-    modulosDe(placeId),
-    /* El catálogo viaja al navegador para que las tarjetas de plan y los
-       candados enseñen los precios y los textos de hoy, no los del despliegue. */
-    cargarCatalogo(),
-  ]);
+  const [place, stats, plan, funciones, modulos, cat, publicacionesUsadas] =
+    await Promise.all([
+      getPlaceById(placeId, {
+        includeDev: isDev,
+        /* La copia personal del fixture, para que el dueño vea sus ediciones. */
+        overrideFor: isDev ? user.id : undefined,
+      }),
+      placeStats(placeId),
+      planEfectivoDe(placeId),
+      funcionesDeNegocio(placeId),
+      /* Los módulos sueltos que tiene contratados, para la tarjeta del plan: sin
+         ellos, un negocio en Gratis con Menú Pro se leería como si no pagara nada. */
+      modulosDe(placeId),
+      /* El catálogo viaja al navegador para que las tarjetas de plan y los
+         candados enseñen los precios y los textos de hoy, no los del despliegue. */
+      cargarCatalogo(),
+      publicacionesDeLaSemana(placeId),
+    ]);
 
   if (!place) redirect("/profile?seccion=negocio");
 
@@ -115,6 +119,10 @@ export default async function BusinessPage({
         place={place}
         stats={stats}
         visitas={visitas}
+        publicaciones={{
+          usadas: publicacionesUsadas,
+          tope: limiteDe(funciones, "publicaciones_semana", cat) ?? 0,
+        }}
         menuUrl={menuUrl(place.slug)}
         plan={plan}
         /* El `Set` no cruza la frontera servidor/cliente; viaja como lista y los

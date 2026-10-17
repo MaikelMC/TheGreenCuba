@@ -22,15 +22,28 @@ import { cookies } from "next/headers";
  * para que dos peticiones simultáneas no se pisen.
  */
 
-/** `kind` del cliente → columna de `place_metrics`. */
-const KINDS: Record<string, PgColumn> = {
-  view: placeMetrics.views,
-  map_click: placeMetrics.mapClicks,
-  route: placeMetrics.routeRequests,
-  ai_match: placeMetrics.aiMatches,
-  save: placeMetrics.saves,
-  share: placeMetrics.shares,
-};
+/**
+ * `kind` del cliente → columna de `place_metrics`.
+ *
+ * `key` es la **propiedad de TypeScript**, no el nombre de la columna en la
+ * base, y la distinción no es cosmética: Drizzle arma el `SET` del conflicto
+ * por propiedad, así que una clave como `ai_matches` se descarta en silencio.
+ * Ese fue el fallo real —`ai_matches`, `map_clicks` y `route_requests` llevaban
+ * meses sin subir mientras `views`, `saves` y `shares` sí, porque en esas tres
+ * la propiedad y la columna se llaman igual—. El `updated_at` automático hacía
+ * que la fila pareciera recién escrita.
+ */
+const KINDS = {
+  view: { column: placeMetrics.views, key: "views" },
+  map_click: { column: placeMetrics.mapClicks, key: "mapClicks" },
+  route: { column: placeMetrics.routeRequests, key: "routeRequests" },
+  ai_match: { column: placeMetrics.aiMatches, key: "aiMatches" },
+  save: { column: placeMetrics.saves, key: "saves" },
+  share: { column: placeMetrics.shares, key: "shares" },
+} satisfies Record<
+  string,
+  { column: PgColumn; key: keyof typeof placeMetrics.$inferInsert }
+>;
 
 /**
  * El mismo gesto, traducido al vocabulario de eventos internos.
@@ -58,8 +71,11 @@ export async function POST(req: NextRequest) {
   if (!placeId || placeId.length > 64) {
     return NextResponse.json({ error: "placeId inválido" }, { status: 400 });
   }
-  const column = typeof body?.kind === "string" ? KINDS[body.kind] : undefined;
-  if (!column) {
+  const entrada =
+    typeof body?.kind === "string"
+      ? KINDS[body.kind as keyof typeof KINDS]
+      : undefined;
+  if (!entrada) {
     return NextResponse.json({ error: "kind inválido" }, { status: 400 });
   }
 
@@ -85,7 +101,7 @@ export async function POST(req: NextRequest) {
       .onConflictDoUpdate({
         target: placeMetrics.placeId,
         set: {
-          [column.name]: sql`${column} + 1`,
+          [entrada.key]: sql`${entrada.column} + 1`,
           province: province, // Ensure province is updated (though it shouldn't change)
           categoryId: categoryId, // Ensure categoryId is updated (though it shouldn't change)
         },

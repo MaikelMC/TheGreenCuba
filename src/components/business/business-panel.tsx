@@ -96,7 +96,7 @@ import type {
   UserPlacePatch,
 } from "@/lib/places-store";
 
-/** Los tres números reales que el panel puede contar. Se declaran aquí y no se
+/** Los números reales que el panel puede contar. Se declaran aquí y no se
     importan de `queries.ts`: ese módulo arrastra la base de datos y la caché de
     Next, y traerlo —aunque fuera solo por un tipo— a un componente de cliente
     es la clase de import que un día alguien convierte en normal y se lleva el
@@ -105,6 +105,7 @@ interface PlaceStats {
   saved: number;
   reviews: number;
   photos: number;
+  aiMatches: number;
 }
 
 const SCHEDULE_PRESETS = [
@@ -155,6 +156,7 @@ export function BusinessPanel({
   place,
   stats,
   visitas,
+  publicaciones,
   menuUrl,
   plan,
   funciones,
@@ -166,6 +168,8 @@ export function BusinessPanel({
   stats: PlaceStats;
   /** Las estadísticas del mes, **ya recortadas por función** en el servidor. */
   visitas: VisitasPanel;
+  /** La cola de Facebook de esta semana: lo que el plan permite y lo usado. */
+  publicaciones: { usadas: number; tope: number };
   /** La URL absoluta de la carta, que resuelve el servidor. Ver `menuUrl`. */
   menuUrl: string;
   /** El pack efectivo, resuelto en el servidor. Solo sirve para **nombrarlo**:
@@ -216,6 +220,7 @@ export function BusinessPanel({
                 place={place}
                 stats={stats}
                 visitas={visitas}
+                publicaciones={publicaciones}
                 menuUrl={menuUrl}
                 plan={plan}
                 funciones={funciones}
@@ -328,6 +333,7 @@ function DashboardView({
   place,
   stats,
   visitas,
+  publicaciones,
   menuUrl,
   plan,
   funciones,
@@ -337,6 +343,7 @@ function DashboardView({
   place: UserPlace;
   stats: PlaceStats;
   visitas: VisitasPanel;
+  publicaciones: { usadas: number; tope: number };
   menuUrl: string;
   plan: Plan;
   funciones: Funcion[];
@@ -360,16 +367,45 @@ function DashboardView({
       {/* Cuatro cifras y ninguna inventada. Aquí había «342 visitas esta semana,
           +18%», «87 clics en Cómo llegar» y «156 recomendaciones IA»: no existe
           ninguna tabla que registre esas cosas, así que estaban escritas a mano.
-          Se enseñan las que sí salen de la base —una métrica que no se puede
-          comprobar no es una métrica—. */}
+          Las de ahora salen todas de la base —una métrica que no se puede
+          comprobar no es una métrica—.
+
+          Los clics son la suma de ficha y carta (`TIPOS_VISTA`): cuentan también
+          al visitante que llega por WhatsApp o por el QR, sin cuenta en La
+          Verde. Las búsquedas son las veces que un resultado con IA lo eligió;
+          los productos, los activos del catálogo. La tarjeta de publicaciones se
+          apaga entera cuando el plan no incluye ninguna. */}
       <DashboardStats
         stats={[
-          { label: "Guardados", value: String(stats.saved) },
-          { label: "Reseñas", value: String(stats.reviews) },
-          { label: "Fotos", value: String(stats.photos) },
           {
-            label: "Valoración",
-            value: place.rating ? place.rating.toFixed(1) : "—",
+            label: "Clics a tu negocio",
+            value: visitas.resumen.total.toLocaleString("es-CU"),
+            hint: "Ficha y menú, en total",
+          },
+          {
+            label: "Búsquedas",
+            value: stats.aiMatches.toLocaleString("es-CU"),
+            hint: "Apareciste como opción",
+          },
+          {
+            label: "Productos",
+            /* El catálogo de verdad es el jsonb `places.menu`; la tabla
+               `place_menu_items` quedó sin uso. Se cuenta aquí, sin consulta:
+               la ficha ya viene cargada con su carta. */
+            value: place.menu.length.toLocaleString("es-CU"),
+            hint: "En tu catálogo",
+          },
+          {
+            label: "Publicaciones",
+            value:
+              publicaciones.tope > 0
+                ? `${publicaciones.usadas} / ${publicaciones.tope}`
+                : "—",
+            hint:
+              publicaciones.tope > 0
+                ? `Quedan ${Math.max(publicaciones.tope - publicaciones.usadas, 0)} esta semana`
+                : "No incluido en tu plan",
+            dimmed: publicaciones.tope === 0,
           },
         ]}
       />

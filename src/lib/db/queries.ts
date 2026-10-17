@@ -2,7 +2,7 @@ import { and, asc, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import { revalidateTag, unstable_cache } from "next/cache";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
-import { businessOwners, categories, ofertas, placeImages, places, rankingMensual, reviews, savedPlaces, suscripciones } from "@/lib/db/schema";
+import { businessOwners, categories, ofertas, placeImages, placeMetrics, places, rankingMensual, reviews, savedPlaces, suscripciones } from "@/lib/db/schema";
 import type { ModuloGuardado } from "@/lib/db/schema/suscripciones";
 import { DEV_PLACE_ID, devPlace, devPlaceEnabled } from "@/lib/dev-place";
 import { conSelloVerificado, getDevPlaceFor } from "@/lib/dev-place-server";
@@ -534,22 +534,24 @@ export interface PlaceStats {
   saved: number;
   reviews: number;
   photos: number;
+  /** Veces que apareció como opción en una búsqueda con IA. */
+  aiMatches: number;
 }
 
 /**
- * Los tres números que el panel puede contar de verdad.
+ * Los números que el panel puede contar de verdad.
  *
  * Antes aquí había «342 visitas esta semana», «87 clics en Cómo llegar» y «156
  * recomendaciones IA», todos inventados: no existe ninguna tabla que registre
- * visitas ni clics, así que no había forma de calcularlos. Estos tres sí salen
- * de la base, y enseñar tres cifras ciertas es mejor que seis falsas — una
- * métrica que no se puede comprobar no es una métrica.
+ * visitas ni clics, así que no había forma de calcularlos. Estos sí salen de la
+ * base, y enseñar cifras ciertas es mejor que seis falsas — una métrica que no
+ * se puede comprobar no es una métrica.
  *
- * Los tres recuentos van en **una sola consulta** con subconsultas y no en tres
- * viajes: es un panel que se abre a menudo y cada ida y vuelta a Neon se paga.
- * El `::int` es necesario —`count(*)` devuelve `bigint`, que el driver entrega
- * como cadena— y sin él los números llegarían como `"7"` y el panel los pintaría
- * entre comillas.
+ * Todos los recuentos van en **una sola consulta** con subconsultas y no en
+ * varios viajes: es un panel que se abre a menudo y cada ida y vuelta a Neon se
+ * paga. El `::int` es necesario —`count(*)` devuelve `bigint`, que el driver
+ * entrega como cadena— y sin él los números llegarían como `"7"` y el panel los
+ * pintaría entre comillas.
  */
 export async function placeStats(placeId: string): Promise<PlaceStats> {
   const [row] = await db
@@ -557,12 +559,13 @@ export async function placeStats(placeId: string): Promise<PlaceStats> {
       saved: sql<number>`(select count(*)::int from ${savedPlaces} where ${savedPlaces.placeId} = ${placeId})`,
       reviews: sql<number>`(select count(*)::int from ${reviews} where ${reviews.placeId} = ${placeId})`,
       photos: sql<number>`(select count(*)::int from ${placeImages} where ${placeImages.placeId} = ${placeId})`,
+      aiMatches: sql<number>`coalesce((select ${placeMetrics.aiMatches} from ${placeMetrics} where ${placeMetrics.placeId} = ${placeId}), 0)::int`,
     })
     .from(places)
     .where(eq(places.id, placeId))
     .limit(1);
 
-  return row ?? { saved: 0, reviews: 0, photos: 0 };
+  return row ?? { saved: 0, reviews: 0, photos: 0, aiMatches: 0 };
 }
 
 /** Cuántos negocios cuelgan de una categoría. `places.category_id` es

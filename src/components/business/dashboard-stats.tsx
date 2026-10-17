@@ -24,6 +24,13 @@ interface StatCard {
    * pasa, con cifras derivadas de las suyas —«4 activos», «12% del total»—.
    */
   change?: StatChange;
+  /** Una línea de apoyo bajo la cifra, sin pastilla. */
+  hint?: string;
+  /**
+   * La tarjeta entera se apaga. Para una métrica que el plan no incluye: se
+   * sigue leyendo qué es, pero no compite con las cifras que sí importan.
+   */
+  dimmed?: boolean;
 }
 
 interface DashboardStatsProps {
@@ -67,7 +74,11 @@ export function DashboardStats({ stats, className }: DashboardStatsProps) {
             /* Sin `whileHover` ni `hover:shadow-card`: no hay nada que hacer al
                pasar por encima de una cifra, y una tarjeta que se levanta sin
                motivo promete una interacción que no existe. */
-            className="bg-white border border-ink/5 rounded-2xl p-gap-md flex flex-col gap-gap-xs"
+            aria-disabled={s.dimmed || undefined}
+            className={cn(
+              "bg-white border border-ink/5 rounded-2xl p-gap-md flex flex-col gap-gap-xs",
+              s.dimmed && "opacity-50",
+            )}
           >
             {/* El interletrado era de 0,22em y la etiqueta se partía en dos
                 líneas en cuanto pasaba de doce letras —«Llamadas · 30 días» en
@@ -84,6 +95,11 @@ export function DashboardStats({ stats, className }: DashboardStatsProps) {
             <span className="font-lv-display text-h3 font-bold tabular-nums text-ink">
               {s.value}
             </span>
+            {s.hint && (
+              <span className="text-meta leading-snug text-ink-soft/70">
+                {s.hint}
+              </span>
+            )}
             {change && (
               <span
                 className={cn(

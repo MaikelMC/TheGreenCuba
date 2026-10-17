@@ -128,20 +128,26 @@ export async function statsVisitas(
 ): Promise<VisitasPanel> {
   const mes = diaUtc().slice(0, 7);
 
+  /* El mes y el total histórico en una sola consulta: `filter` deja cada suma
+     en su columna. Sin `gte`, el recorrido es todo el histórico del negocio,
+     pero es su histórico —el índice por negocio y fecha lo acota— y ahorra un
+     segundo viaje. */
   const [resumen] = await db
     .select({
-      n: sql<number>`coalesce(sum(${eventosDiarios.conteo}), 0)::int`,
+      mes: sql<number>`coalesce(sum(${eventosDiarios.conteo}) filter (where ${eventosDiarios.fecha} >= ${`${mes}-01`}), 0)::int`,
+      total: sql<number>`coalesce(sum(${eventosDiarios.conteo}), 0)::int`,
     })
     .from(eventosDiarios)
     .where(
       and(
         eq(eventosDiarios.negocioId, negocioId),
         inArray(eventosDiarios.tipo, TIPOS_VISTA),
-        gte(eventosDiarios.fecha, `${mes}-01`),
       ),
     );
 
-  const panel: VisitasPanel = { resumen: { mes: resumen?.n ?? 0 } };
+  const panel: VisitasPanel = {
+    resumen: { mes: resumen?.mes ?? 0, total: resumen?.total ?? 0 },
+  };
   if (!funciones.has("stats_basicas")) return panel;
 
   /* Las dos ventanas en una sola consulta: `filter` deja cada suma en su

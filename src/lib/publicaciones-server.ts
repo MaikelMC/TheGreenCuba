@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { places, publicaciones } from "@/lib/db/schema";
 import { toPublicacion, type Publicacion } from "@/lib/db/mappers";
@@ -51,6 +51,29 @@ export async function ganchosRecientesDe(negocioId: string): Promise<string[]> {
           .find(Boolean) ?? "",
     )
     .filter(Boolean);
+}
+
+/**
+ * Cuántas publicaciones lleva esta semana el negocio.
+ *
+ * Cuenta **todos** los estados, igual que el tope: lo que el plan vende es la
+ * plaza, no el post terminado. Es el numerador que el dashboard enseña junto al
+ * límite; quien impone el tope sigue siendo el `unique` por plaza de la tabla.
+ */
+export async function publicacionesDeLaSemana(
+  negocioId: string,
+  semana: string = semanaDe(new Date()),
+): Promise<number> {
+  const [fila] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(publicaciones)
+    .where(
+      and(
+        eq(publicaciones.negocioId, negocioId),
+        eq(publicaciones.semana, semana),
+      ),
+    );
+  return fila?.total ?? 0;
 }
 
 export type ResultadoEncolar =
