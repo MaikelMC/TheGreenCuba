@@ -329,6 +329,17 @@ export function CatalogoView({
         guardado.current = guardado.current.map((item) =>
           item.id === id ? { ...item, ...campos } : item,
         );
+        /* El aviso confirma **qué** acción se hizo, no solo que respondió el
+           servidor: «agotado» y «agotado hasta mañana» dejan la fila igual a
+           simple vista, y sin este texto no hay forma de saber cuál se pulsó. */
+        const nombre = guardado.current.find((item) => item.id === id)?.name;
+        const accion =
+          estado === "disponible"
+            ? "marcado como disponible"
+            : hasta != null
+              ? "agotado hasta mañana"
+              : "marcado como agotado";
+        toast.success(nombre ? `«${nombre}» ${accion}` : `Producto ${accion}`);
       } catch (e) {
         setErrorEstado(
           e instanceof Error

@@ -3,13 +3,12 @@ import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
-import { CATALOG_TAG } from "@/lib/db/queries";
+import { invalidarCatalogo } from "@/lib/db/queries";
 import { projectRequests } from "@/lib/db/schema";
 import { EXTENSION, MAX_GIF_UPLOAD_BYTES, MAX_UPLOAD_BYTES, sniffImageType } from "@/lib/storage/image";
 import { MAX_PROJECT_MEDIA } from "@/lib/storage/project-media";
 import { S3_BUCKET, S3_PUBLIC_URL, s3Client, s3ConfigProblem } from "@/lib/storage/s3";
 import { generateId } from "@/lib/utils";
-import { revalidateTag } from "next/cache";
 
 type Params = { params: Promise<{ id: string }> };
 type ImageRole = "cover" | "pin" | "gallery";
@@ -130,7 +129,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (replacedUrl && replacedUrl !== imageUrl && updated) {
     await deleteStoredImage(project.id, replacedUrl, projectImageUrls(updated));
   }
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
   return NextResponse.json(imageResponse(updated!), { status: 201 });
 }
 
@@ -169,7 +168,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }).where(eq(projectRequests.id, project.id)).returning();
   if (!updated) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
 
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
   return NextResponse.json(imageResponse(updated));
 }
 
@@ -199,6 +198,6 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   }).where(eq(projectRequests.id, project.id)).returning();
   if (updated) await deleteStoredImage(project.id, imageUrl, projectImageUrls(updated));
 
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
   return NextResponse.json(imageResponse(updated!));
 }

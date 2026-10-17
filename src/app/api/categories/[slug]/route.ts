@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { categories } from "@/lib/db/schema";
 import { toBusinessCategory } from "@/lib/db/mappers";
 import {
-  CATALOG_TAG,
   categorySlugTaken,
   countPlacesInCategory,
   findCategoryBySlug,
+  invalidarCatalogo,
 } from "@/lib/db/queries";
 import { slugify } from "@/lib/utils";
 
@@ -72,7 +71,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
   }
 
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
 
   return NextResponse.json(toBusinessCategory(row));
 }
@@ -106,7 +105,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
   await db.delete(categories).where(eq(categories.id, category.id));
 
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
 
   return NextResponse.json({ value: slug });
 }

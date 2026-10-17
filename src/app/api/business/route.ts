@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { trackEvent } from "@/lib/analytics/events";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { businessOwners, notifications, places, users } from "@/lib/db/schema";
 import { toNewPlaceValues, toPlaceValues } from "@/lib/db/mappers";
-import { CATALOG_TAG, resolveCategoryId } from "@/lib/db/queries";
+import { invalidarCatalogo, resolveCategoryId } from "@/lib/db/queries";
 import { notifyAdminsBusinessSubmission } from "@/lib/email";
 import { crearSuscripcion } from "@/lib/plans-server";
 import { isKnownLocation, locationLabel } from "@/lib/user-preferences-store";
@@ -180,7 +179,7 @@ export async function POST(req: NextRequest) {
          prueba. Idempotente, así que repetirla aquí no hace nada. */
       await crearSuscripcion(existing.placeId);
 
-      revalidateTag(CATALOG_TAG, "max");
+      invalidarCatalogo();
 
       /* Reenvío de una solicitud rechazada: es un alta completada otra vez. La
          categoría viaja tal como la resolvió el servidor, no como la mandó el
@@ -275,7 +274,7 @@ export async function POST(req: NextRequest) {
     province: input.province ?? "",
   });
 
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
 
   trackEvent({
     type: "business_registration_completed",

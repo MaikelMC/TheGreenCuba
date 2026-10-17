@@ -1,8 +1,7 @@
 import { eq } from "drizzle-orm";
-import { revalidateTag } from "next/cache";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema";
-import { CATALOG_TAG } from "@/lib/db/queries";
+import { invalidarCatalogo } from "@/lib/db/queries";
 import { puede } from "@/lib/plans-server";
 import type { Disponibilidad } from "@/lib/disponibilidad";
 
@@ -83,7 +82,7 @@ export async function setDisponibilidad(
 
   /* El menú público se sirve cacheado; sin esto el cambio no se ve hasta que
      caduque el TTL. Misma etiqueta que el resto del catálogo. */
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
 
   const agotado =
     estado === "agotado" &&

@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
-import { unstable_cache } from "next/cache";
+import { revalidateTag, unstable_cache } from "next/cache";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
 import { businessOwners, categories, ofertas, placeImages, places, rankingMensual, reviews, savedPlaces, suscripciones } from "@/lib/db/schema";
@@ -28,22 +28,33 @@ import {
  * Etiqueta con la que se invalida el catálogo cacheado.
  *
  * **Todo el que escriba en `places`, `categories` o `place_images` tiene que
- * llamar a `revalidateTag(CATALOG_TAG, "max")` antes de responder.** Si se
- * olvida, el cambio no se ve hasta que caduque el TTL —cinco minutos— y el
- * síntoma es un panel que dice «guardado» y sigue enseñando lo viejo.
- *
- * El `"max"` es obligatorio desde Next 16 —la firma pide el perfil— y aquí no
- * cambia nada: el perfil se mira para decidir si además hay que regenerar las
- * rutas estáticas, nunca para buscar la etiqueta (ver
- * `incremental-cache/index.js`, donde la comparación es solo por `tag`). Está
- * puesto porque la alternativa, `updateTag`, revienta al llamarse desde un
- * `route.ts`: exige una Server Action y este proyecto no tiene ninguna.
+ * llamar a `invalidarCatalogo()` antes de responder.** Si se olvida, el cambio
+ * no se ve hasta que caduque el TTL —cinco minutos— y el síntoma es un panel
+ * que dice «guardado» y sigue enseñando lo viejo.
  *
  * La etiqueta es una sola para las tres tablas y no una por tabla: el catálogo
  * se lee entero y se sirve entero, así que separarlas solo daría pie a
  * invalidar de menos.
  */
 export const CATALOG_TAG = "catalog";
+
+/**
+ * Invalida de verdad el catálogo cacheado, para la siguiente lectura.
+ *
+ * **`{ expire: 0 }` y no `"max"`.** El perfil «max» marca la etiqueta como
+ * *stale* (`stale = ahora`, `expired = ahora + un año`), no como caducada: la
+ * siguiente lectura recibe el dato viejo y la fresca se genera en segundo
+ * plano, así que el primero que entra tras un cambio —el dueño abriendo su
+ * carta desde el panel— ve justo lo de antes. Con `expire: 0` la etiqueta
+ * nace caducada y esa lectura ya va a la base. Se comprobó en el código
+ * instalado: `server/lib/cache-handlers/default.js` (`updateTags`) y
+ * `server/lib/incremental-cache/tags-manifest.external.js`
+ * (`areTagsExpired`). `updateTag` no sirve aquí: exige una Server Action y
+ * estas llamadas viven en `route.ts`.
+ */
+export function invalidarCatalogo(): void {
+  revalidateTag(CATALOG_TAG, { expire: 0 });
+}
 
 /** Cuánto aguanta una entrada sin que nadie la invalide. */
 const CACHE_TTL_S = 300;

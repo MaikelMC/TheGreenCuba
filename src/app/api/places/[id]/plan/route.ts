@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
 import { canManagePlace } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
-import { CATALOG_TAG } from "@/lib/db/queries";
+import { invalidarCatalogo } from "@/lib/db/queries";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
 import { saveDevPlacePlan } from "@/lib/dev-place-server";
 import { PLAN_ORDER, type Plan } from "@/lib/plans";
@@ -71,7 +70,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   /* El plan decide qué features entran, y varias las lee el catálogo cacheado.
      Sin esta invalidación, subir de plan no enseña el candado nuevo hasta que
      venza el TTL de la caché (300s). */
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
 
   return NextResponse.json({ plan });
 }

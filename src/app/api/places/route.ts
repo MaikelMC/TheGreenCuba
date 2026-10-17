@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
 import { eq } from "drizzle-orm";
 import { NEON_AUTH_SESSION_COOKIE_NAME } from "@neondatabase/auth/server";
 import { isAdminRequest } from "@/lib/admin-server";
@@ -7,7 +6,11 @@ import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { places, projectRequests } from "@/lib/db/schema";
 import { toNewPlaceValues, toUserPlace } from "@/lib/db/mappers";
-import { CATALOG_TAG, listPlaces, resolveCategoryId } from "@/lib/db/queries";
+import {
+  invalidarCatalogo,
+  listPlaces,
+  resolveCategoryId,
+} from "@/lib/db/queries";
 import { canViewDevPlace } from "@/lib/dev-place";
 import { crearSuscripcion } from "@/lib/plans-server";
 import { generateId } from "@/lib/utils";
@@ -191,7 +194,7 @@ export async function POST(req: NextRequest) {
      sin prueba, y su dueño vería menos que quien se dio de alta solo. */
   await crearSuscripcion(row!.id);
 
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
 
   return NextResponse.json(
     toUserPlace({ ...row!, categoryName: body.category ?? null }),

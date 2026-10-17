@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
@@ -17,7 +16,11 @@ import { businessOwners, notifications, ofertas, places, users } from "@/lib/db/
 import { generateId } from "@/lib/utils";
 import { validarOferta } from "@/lib/ofertas";
 import { toPlaceValues, toUserPlace } from "@/lib/db/mappers";
-import { CATALOG_TAG, getPlaceById, resolveCategoryId } from "@/lib/db/queries";
+import {
+  getPlaceById,
+  invalidarCatalogo,
+  resolveCategoryId,
+} from "@/lib/db/queries";
 import { limite, puede, suscripcionDe } from "@/lib/plans-server";
 import {
   AVISOS_DE_FICHA,
@@ -632,7 +635,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   /* Antes de releer, y no después: `getPlaceById` está cacheado, así que sin
      invalidar primero devolvería la ficha vieja y el panel guardaría un cambio
      que no se ve. El orden importa. */
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
 
   /* La categoría puede haber cambiado: se relee para devolver la etiqueta nueva
      en vez de la que mandó el cliente, que podría ser otra. */
@@ -708,7 +711,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       userId: owner.userId,
     });
 
-    revalidateTag(CATALOG_TAG, "max");
+    invalidarCatalogo();
     return NextResponse.json({ id, rejected: true });
   }
 
@@ -724,7 +727,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     );
   }
 
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
 
   return NextResponse.json({ id: row.id });
 }

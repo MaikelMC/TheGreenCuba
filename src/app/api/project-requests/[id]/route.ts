@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
-import { CATALOG_TAG } from "@/lib/db/queries";
+import { invalidarCatalogo } from "@/lib/db/queries";
 import { notifications, projectRequests } from "@/lib/db/schema";
 import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
-import { revalidateTag } from "next/cache";
 
 function stringList(value: unknown, maxItems = 20): string[] | null {
   if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) return null;
@@ -177,7 +176,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       message,
     });
   }
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
   return NextResponse.json(updated);
 }
 
@@ -205,6 +204,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   if (!row) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
 
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
   return NextResponse.json({ id: row.id });
 }

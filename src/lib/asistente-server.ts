@@ -1,9 +1,8 @@
 import { and, eq, gte, sql } from "drizzle-orm";
-import { revalidateTag } from "next/cache";
 import { chatJSON } from "@/lib/ai";
 import { resolveBotProviders } from "@/lib/ai/providers-store";
 import { db } from "@/lib/db";
-import { CATALOG_TAG, placeStats } from "@/lib/db/queries";
+import { invalidarCatalogo, placeStats } from "@/lib/db/queries";
 import {
   asistenteCodigos,
   asistenteLog,
@@ -295,7 +294,7 @@ interface Resultado {
 async function escribirMenu(negocioId: string, menu: Menu): Promise<void> {
   await db.update(places).set({ menu }).where(eq(places.id, negocioId));
   /* La carta pública va cacheada; sin esto el «agotado» tarda en verse. */
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
 }
 
 async function ejecutarDisponibilidad(
@@ -393,7 +392,7 @@ async function ejecutarHorario(
     .update(places)
     .set({ schedule: texto })
     .where(eq(places.id, negocio.negocioId));
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
 
   return {
     ok: true,
@@ -417,7 +416,7 @@ async function ejecutarAbrirCerrar(
     .update(places)
     .set({ status })
     .where(eq(places.id, negocio.negocioId));
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
 
   return {
     ok: true,
@@ -477,13 +476,13 @@ async function deshacer(logId: string, negocio: Negocio): Promise<string> {
       .update(places)
       .set({ schedule: String(antes.schedule ?? "") })
       .where(eq(places.id, negocio.negocioId));
-    revalidateTag(CATALOG_TAG, "max");
+    invalidarCatalogo();
   } else if (fila.accion === "abrir_cerrar_hoy" && antes) {
     await db
       .update(places)
       .set({ status: antes.status as EstadoNegocio })
       .where(eq(places.id, negocio.negocioId));
-    revalidateTag(CATALOG_TAG, "max");
+    invalidarCatalogo();
   }
 
   await db

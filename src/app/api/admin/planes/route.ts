@@ -4,7 +4,7 @@ import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { catalogoPlanes, CATALOGO_ID } from "@/lib/db/schema";
 import { cargarCatalogo, CATALOGO_TAG, normalizarCatalogo } from "@/lib/catalogo-server";
-import { CATALOG_TAG } from "@/lib/db/queries";
+import { invalidarCatalogo } from "@/lib/db/queries";
 
 /**
  * El catálogo de planes, para administración.
@@ -62,8 +62,8 @@ export async function PUT(req: NextRequest) {
      un pack cambia también lo que esa ficha resuelve —y el `plan` que enseña el
      listado de administración—. Invalidar solo la primera dejaba fichas con el
      plan viejo hasta que caducara su caché. */
-  revalidateTag(CATALOGO_TAG, "max");
-  revalidateTag(CATALOG_TAG, "max");
+  revalidateTag(CATALOGO_TAG, { expire: 0 });
+  invalidarCatalogo();
 
   return NextResponse.json({ catalogo });
 }

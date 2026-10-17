@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { and, asc, eq } from "drizzle-orm";
 import { canManagePlace } from "@/lib/admin-server";
 import { db } from "@/lib/db";
-import { CATALOG_TAG } from "@/lib/db/queries";
+import { invalidarCatalogo } from "@/lib/db/queries";
 import { placeImages, places } from "@/lib/db/schema";
 import { S3_BUCKET, s3Client } from "@/lib/storage/s3";
 import { keyFromUrl, uploadErrorResponse, uploadImage } from "@/lib/storage/upload";
@@ -127,7 +126,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   /* Las fotos van en el mismo objeto que sirve `/api/places` —llegan agrupadas
      dentro de cada negocio—, así que una subida deja el catálogo cacheado
      incompleto hasta que se invalide. */
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
 
   return NextResponse.json(toClientImage(row!), { status: 201 });
 }
@@ -187,7 +186,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     }
   }
 
-  revalidateTag(CATALOG_TAG, "max");
+  invalidarCatalogo();
 
   return NextResponse.json({ id: row.id });
 }

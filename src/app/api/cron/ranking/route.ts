@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
 import { calcularRanking } from "@/lib/ranking-server";
 import { esPeriodo, periodoAnterior } from "@/lib/ranking";
-import { CATALOG_TAG } from "@/lib/db/queries";
+import { invalidarCatalogo } from "@/lib/db/queries";
 import { isAdminRequest } from "@/lib/admin-server";
 
 /**
@@ -59,7 +58,7 @@ export async function GET(req: NextRequest) {
        de esta tabla: sin invalidar, el podio recién calculado tardaría en verse.
        Misma etiqueta que escriben los que tocan `places`, que es donde el
        `exists` de la insignia vive. */
-    revalidateTag(CATALOG_TAG, "max");
+    invalidarCatalogo();
 
     return NextResponse.json({ ok: true, ...resultado });
   } catch (error) {

@@ -229,8 +229,14 @@ function placeState(p: UserPlace): "normal" | "closed" | "no-photos" | "oferta" 
  * entera en el HTML inicial: antes el lugar salía de `usePlaces()`, que pide el
  * catálogo en un `useEffect`, así que el servidor no emitía **ni el nombre del
  * negocio** y quien no ejecutara JavaScript —o el buscador que decide no
- * hacerlo— veía una página vacía. El catálogo del cliente sigue mandando cuando
- * está: es el que se actualiza al editar, y es más fresco que el de la petición.
+ * hacerlo— veía una página vacía.
+ *
+ * **El dato del servidor manda siempre que exista.** El catálogo del cliente se
+ * carga una vez al montar y se queda quieto mientras la persona navega: los
+ * cambios hechos por fuera —marcar un producto como agotado desde el panel,
+ * editar la carta— no llegan a esa copia. Preferirla dejaba la ficha con la
+ * carta vieja hasta recargar la página entera. El catálogo solo hace de
+ * respaldo cuando el servidor no encontró el lugar (o la consulta falló).
  */
 export function PlaceView({
   id,
@@ -242,7 +248,7 @@ export function PlaceView({
   const router = useRouter();
   const { places, hydrated } = usePlaces();
 
-  const place = places.find((p) => p.id === id) ?? initialPlace;
+  const place = initialPlace ?? places.find((p) => p.id === id);
 
   /* Sin lugar del servidor hay que esperar al catálogo para poder distinguir
      "todavía no cargó" de "no existe", y sin esa guarda la página mostraba
