@@ -4,17 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Bell, CheckCheck, Clock3, Inbox, MailOpen, Megaphone, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui";
-
-interface UserNotification {
-  id: string;
-  title: string;
-  message: string;
-  readAt: string | null;
-  createdAt: string;
-  placeId: string | null;
-  /** Remitente visible de los avisos de administración. */
-  senderName?: string | null;
-}
+import {
+  destinoAviso,
+  esAvisoAprobado,
+  esAvisoRechazado,
+  type UserNotification,
+} from "@/lib/notificaciones";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("es-ES", {
@@ -72,17 +67,7 @@ export function NotificationsView() {
       ),
     );
 
-    if (item.title.toLowerCase().includes("rechazada")) {
-      router.push("/profile?seccion=negocio");
-      return;
-    }
-
-    if (item.placeId) {
-      router.push(`/place/${item.placeId}`);
-      return;
-    }
-
-    router.push("/profile");
+    router.push(destinoAviso(item));
   };
 
   return (
@@ -156,8 +141,8 @@ export function NotificationsView() {
         <div className="overflow-hidden rounded-b-2xl border-x border-b border-ink/10 bg-white/60 shadow-soft">
           {visibleItems.map((item) => {
             const isUnread = !item.readAt;
-            const isRejected = item.title.toLowerCase().includes("rechazada");
-            const isApproved = item.title.toLowerCase().includes("aprobada");
+            const isRejected = esAvisoRechazado(item);
+            const isApproved = esAvisoAprobado(item);
 
             return (
               <button

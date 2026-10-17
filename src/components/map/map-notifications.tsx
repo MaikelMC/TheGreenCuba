@@ -11,17 +11,12 @@ import {
   MailOpen,
   Megaphone,
 } from "lucide-react";
-
-interface UserNotification {
-  id: string;
-  title: string;
-  message: string;
-  readAt: string | null;
-  createdAt: string;
-  placeId: string | null;
-  /** Remitente visible de los avisos de administración. */
-  senderName?: string | null;
-}
+import {
+  destinoAviso,
+  esAvisoAprobado,
+  esAvisoRechazado,
+  type UserNotification,
+} from "@/lib/notificaciones";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("es-ES", {
@@ -72,6 +67,19 @@ export function MapNotifications() {
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  /* Al volver a la pestaña se refresca. El home puede llevar horas abierto y el
+     contador de sin leer se quedaba congelado hasta abrir la burbuja; una
+     consulta por vuelta cuesta menos que el SSE que había —que además
+     re-consultaba la base cada 15 s por pestaña— y menos que un polling fijo. */
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.visibilityState === "visible") void load();
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [load]);
 
   /* Al abrir se refresca: la burbuja puede llevar horas montada y la lista en
@@ -137,16 +145,7 @@ export function MapNotifications() {
       }
 
       setOpen(false);
-
-      if (item.title.toLowerCase().includes("rechazada")) {
-        router.push("/profile?seccion=negocio");
-        return;
-      }
-      if (item.placeId) {
-        router.push(`/place/${item.placeId}`);
-        return;
-      }
-      router.push("/profile");
+      router.push(destinoAviso(item));
     },
     [router],
   );
@@ -248,12 +247,8 @@ export function MapNotifications() {
               <div className="max-h-[min(60vh,380px)] overflow-y-auto">
                 {items.map((item) => {
                   const isUnread = !item.readAt;
-                  const isRejected = item.title
-                    .toLowerCase()
-                    .includes("rechazada");
-                  const isApproved = item.title
-                    .toLowerCase()
-                    .includes("aprobada");
+                  const isRejected = esAvisoRechazado(item);
+                  const isApproved = esAvisoAprobado(item);
 
                   return (
                     <button

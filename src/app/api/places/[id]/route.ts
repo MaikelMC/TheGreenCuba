@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
@@ -564,13 +564,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       const [previous] = await db
         .update(notifications)
         .set(aviso)
-        /* Solo los avisos de estado de la ficha. Sin el filtro, reescribir el
-           aviso de una ficha se llevaba por delante también el de «la prueba
-           termina pronto», que cuelga del mismo `placeId` y no tiene nada que
-           ver con la aprobación. */
+        /* Solo los avisos de estado de **este dueño** en esa ficha. Sin el
+           filtro de tipo, reescribir el aviso se llevaba por delante también el
+           de «la prueba termina pronto», que cuelga del mismo `placeId`. Sin el
+           de usuario, un negocio que cambia de manos reescribía el aviso del
+           dueño anterior —que no tiene por qué enterarse de la aprobación
+           nueva— y el nuevo se quedaba sin el suyo. */
         .where(
           and(
             eq(notifications.placeId, id),
+            eq(notifications.userId, owner.userId),
             inArray(notifications.type, [...AVISOS_DE_FICHA]),
           ),
         )
@@ -618,7 +621,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
      sale por Telegram, y el dueño está guardando su ficha, no esperando a que
      salga. `avisarCambios` es quien comprueba el plan (Pro) y el tope de tres
      por semana, y no lanza nunca: un aviso que no sale no puede tumbar un
-     guardado que sí entró. */
+     guardado que sí entró.
+
+     Con `after()` y no con `void`: en Vercel la función se congela al mandar la
+     respuesta y un `void` se queda a medias —los envíos ya empezados no
+     terminan—. `after()` mantiene viva la invocación hasta que el trabajo
+     acaba, que es lo mismo que hace el webhook de Telegram. */
   if (previo) {
     const avisos = avisosPorCambios({
       negocio: row.name,
@@ -629,7 +637,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       productosNuevos: nuevosProductos(body.menu, previo.menu),
       reabre: body.status === "active" && previo.status !== "active",
     });
-    if (avisos.length > 0) void avisarCambios(id, avisos);
+    if (avisos.length > 0) {
+      after(async () => {
+        await avisarCambios(id, avisos);
+      });
+    }
   }
 
   /* Antes de releer, y no después: `getPlaceById` está cacheado, así que sin

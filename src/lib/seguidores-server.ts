@@ -73,13 +73,27 @@ export async function seguidoresActivos(
   return filas.map((f) => f.destino);
 }
 
-/** Cuántos siguen al negocio ahora mismo. Es el número que ve el dueño. */
-export async function contarSeguidores(negocioId: string): Promise<number> {
+/**
+ * Cuántos siguen al negocio ahora mismo. Es el número que ve el dueño.
+ *
+ * Filtra por canal, igual que `seguidoresActivos`: el número del panel tiene
+ * que ser el de la gente a la que de verdad le llegan los avisos. Hoy solo hay
+ * Telegram, pero contar todos los canales dejaría de coincidir el día que haya
+ * otro.
+ */
+export async function contarSeguidores(
+  negocioId: string,
+  canal: CanalSeguidor = "telegram",
+): Promise<number> {
   const [fila] = await db
     .select({ total: sql<number>`count(*)::int` })
     .from(seguidores)
     .where(
-      and(eq(seguidores.negocioId, negocioId), isNull(seguidores.bajaEn)),
+      and(
+        eq(seguidores.negocioId, negocioId),
+        eq(seguidores.canal, canal),
+        isNull(seguidores.bajaEn),
+      ),
     );
   return fila?.total ?? 0;
 }
