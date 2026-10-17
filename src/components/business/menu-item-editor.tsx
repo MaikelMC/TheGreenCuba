@@ -65,7 +65,7 @@ const INPUT =
    la columna de acciones de la fila del producto, donde un botón con texto no
    cabe. Mismo tamaño que la X que tiene al lado, para que la columna cuadre. */
 const AVAIL_BTN =
-  "grid size-10 shrink-0 place-items-center rounded-full border border-ink/10 text-ink-soft/75 " +
+  "grid size-11 shrink-0 place-items-center rounded-full border border-ink/10 text-ink-soft/75 " +
   "transition-colors duration-500 ease-outquint " +
   "hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 disabled:pointer-events-none disabled:opacity-50 cursor-pointer";
 

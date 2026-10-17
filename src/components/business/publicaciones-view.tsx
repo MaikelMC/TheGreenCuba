@@ -5,17 +5,32 @@ import Image from "next/image";
 import { toast } from "sonner";
 import {
   Check,
+  ChevronRight,
   ImagePlus,
   Loader2,
+  Package,
+  Search,
   Sparkles,
   Trash2,
   X,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { cn, formatMenuPrice } from "@/lib/utils";
 import { prepareImage } from "@/lib/storage/compress";
 import { textoBloqueo, type Funcion } from "@/lib/plans";
 import { useCatalogo } from "@/providers/catalogo-provider";
-import { ESTADO_LABEL, type EstadoPublicacion } from "@/lib/publicaciones";
+import {
+  ESTADO_LABEL,
+  type EstadoPublicacion,
+  type VariantePublicacion,
+} from "@/lib/publicaciones";
+import type { UserPlaceMenuItem } from "@/lib/places-store";
 
 /**
  * La sección «Publicaciones» del panel del negocio.
@@ -55,6 +70,19 @@ const INPUT =
 
 const CARD = "bg-white border border-ink/5 rounded-2xl";
 
+const ANGULO_LABEL: Record<VariantePublicacion["angulo"], string> = {
+  directa: "Directa",
+  antojo: "Antojo",
+};
+
+/** Para que «cafe» encuentre «Café» al buscar en la carta. */
+function normalizarBusqueda(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
+
 const BOTON_PRIMARIO =
   "inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 transition-colors duration-500 ease-outquint hover:bg-verde-300 disabled:pointer-events-none disabled:opacity-60";
 
@@ -74,10 +102,13 @@ function estadoBadge(estado: EstadoPublicacion): string {
 
 export function PublicacionesView({
   placeId,
+  productos: menu,
   funciones,
   onVerPlanes,
 }: {
   placeId: string;
+  /** La carta del negocio, tal como la tiene el panel: es de donde se elige. */
+  productos: UserPlaceMenuItem[];
   /** Todo lo que puede hacer el negocio, resuelto en el servidor. */
   funciones: Funcion[];
   /** Lleva a la sección «Planes» cuando la función no entra. */
@@ -86,11 +117,22 @@ export function PublicacionesView({
   const conPlan = funciones.includes("publicaciones_fb");
 
   const cat = useCatalogo();
+  /* Solo entran los productos con id: es lo que la API usa para señalarlos. La
+     carta llega de la ficha que ya tiene el panel, sin otro viaje. */
+  const productos = menu.filter(
+    (item): item is UserPlaceMenuItem & { id: string } =>
+      Boolean(item.id && item.name.trim()),
+  );
   const [cola, setCola] = useState<Cola | null>(null);
   const [loading, setLoading] = useState(true);
   const [texto, setTexto] = useState("");
+  const [productoId, setProductoId] = useState("");
+  const [elegirAbierto, setElegirAbierto] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
+  const [prompt, setPrompt] = useState("");
   const [imagenUrl, setImagenUrl] = useState("");
-  const [variantes, setVariantes] = useState<string[]>([]);
+  const [variantes, setVariantes] = useState<VariantePublicacion[]>([]);
+  const [datosEscasos, setDatosEscasos] = useState(false);
   const [generando, setGenerando] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -118,7 +160,22 @@ export function PublicacionesView({
     void cargar();
   }, [conPlan, cargar]);
 
-  const llenas = cola?.tope !== null && cola !== null && cola.usadas >= (cola.tope ?? 0);
+  const llenas =
+    cola?.tope !== null && cola !== null && cola.usadas >= (cola.tope ?? 0);
+
+  const elegido = productos.find((item) => item.id === productoId);
+  const termino = normalizarBusqueda(busqueda.trim());
+  const coincidencias = termino
+    ? productos.filter((item) =>
+        normalizarBusqueda(item.name).includes(termino),
+      )
+    : productos;
+
+  const elegirProducto = (id: string) => {
+    setProductoId(id);
+    setElegirAbierto(false);
+    setBusqueda("");
+  };
 
   const generar = useCallback(async () => {
     setGenerando(true);
@@ -127,10 +184,15 @@ export function PublicacionesView({
       const res = await fetch("/api/business/publicaciones/generar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ placeId }),
+        body: JSON.stringify({
+          placeId,
+          prompt: prompt.trim() || undefined,
+          productoId: productoId || undefined,
+        }),
       });
       const body = (await res.json().catch(() => ({}))) as {
-        variantes?: string[];
+        variantes?: VariantePublicacion[];
+        datosEscasos?: boolean;
         error?: string;
       };
       if (!res.ok || !body.variantes?.length) {
@@ -138,12 +200,13 @@ export function PublicacionesView({
         return;
       }
       setVariantes(body.variantes);
+      setDatosEscasos(Boolean(body.datosEscasos));
     } catch {
       toast.error("No hubo respuesta del servidor al generar.");
     } finally {
       setGenerando(false);
     }
-  }, [placeId]);
+  }, [placeId, prompt, productoId]);
 
   const subirFoto = useCallback(
     async (file: File | undefined) => {
@@ -199,6 +262,9 @@ export function PublicacionesView({
       setTexto("");
       setImagenUrl("");
       setVariantes([]);
+      setDatosEscasos(false);
+      setPrompt("");
+      setProductoId("");
       await cargar();
     } catch {
       toast.error("No hubo respuesta del servidor. No se guardó nada.");
@@ -236,11 +302,16 @@ export function PublicacionesView({
         <Encabezado />
         <div className={cn(CARD, "flex flex-col gap-gap-xs p-gap-md")}>
           <p className="text-small text-ink-soft/75">
-            {textoBloqueo("publicaciones_fb", cat)}: redacta con IA el post de tu
-            negocio, adjunta una foto o un flyer y lo dejamos listo para publicar
-            en los grupos de Facebook. La administración lo publica por ti.
+            {textoBloqueo("publicaciones_fb", cat)}: redacta con IA el post de
+            tu negocio, adjunta una foto o un flyer y lo dejamos listo para
+            publicar en los grupos de Facebook. La administración lo publica por
+            ti.
           </p>
-          <button type="button" onClick={onVerPlanes} className={cn(BOTON_SECUNDARIO, "self-start")}>
+          <button
+            type="button"
+            onClick={onVerPlanes}
+            className={cn(BOTON_SECUNDARIO, "self-start")}
+          >
             Ver planes
           </button>
         </div>
@@ -274,24 +345,231 @@ export function PublicacionesView({
           <p className="rounded-xl border border-ink/10 bg-sand px-gap-md py-gap-sm text-meta text-ink-soft/70">
             Tu plan permite {cola.tope}{" "}
             {cola.tope === 1 ? "publicación" : "publicaciones"} por semana y ya
-            están en cola. Puedes quitar una para liberar el sitio, o esperar a la
-            semana que viene.
+            están en cola. Puedes quitar una para liberar el sitio, o esperar a
+            la semana que viene.
           </p>
         )}
 
-        <button
-          type="button"
-          onClick={() => void generar()}
-          disabled={generando || llenas}
-          className={cn(BOTON_PRIMARIO, "self-start")}
+        <div className="flex flex-col gap-gap-xs">
+          <span className="font-lv-display text-meta font-semibold text-ink-soft/75">
+            Producto del catálogo
+          </span>
+          <button
+            type="button"
+            onClick={() => setElegirAbierto(true)}
+            className="group flex w-full cursor-pointer items-center gap-gap-sm rounded-2xl border border-ink/10 bg-sand/40 p-gap-sm text-left transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50/40"
+          >
+            <span className="grid size-11 shrink-0 place-items-center rounded-xl border border-ink/5 bg-white text-verde-600">
+              <Package size={19} strokeWidth={1.7} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-lv-display text-small font-semibold text-ink">
+                {elegido ? elegido.name : "Sin producto concreto"}
+              </span>
+              <span className="block truncate text-meta text-ink-soft/70">
+                {elegido
+                  ? elegido.price?.trim()
+                    ? formatMenuPrice(elegido.price, elegido.currency || "MLC")
+                    : "Toca para cambiar"
+                  : productos.length
+                    ? `${productos.length} ${productos.length === 1 ? "producto" : "productos"} en tu carta`
+                    : "Tu carta está vacía"}
+              </span>
+            </span>
+            <ChevronRight
+              size={16}
+              strokeWidth={1.8}
+              className="shrink-0 text-ink-soft/50 transition-transform duration-500 ease-outquint group-hover:translate-x-0.5"
+            />
+          </button>
+        </div>
+
+        <Sheet
+          open={elegirAbierto}
+          onOpenChange={(abierto) => {
+            setElegirAbierto(abierto);
+            if (!abierto) setBusqueda("");
+          }}
         >
-          {generando ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <Sparkles size={16} strokeWidth={1.8} />
-          )}
-          {generando ? "Generando…" : "Generar texto con IA"}
-        </button>
+          <SheetContent
+            side="bottom"
+            className="mx-auto flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-3xl border-ink/5 p-gap-md"
+          >
+            <SheetHeader>
+              <SheetTitle className="text-left">Elige un producto</SheetTitle>
+              <SheetDescription className="text-left">
+                Centra la publicación en uno de tu carta. Escribe para
+                encontrarlo.
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="relative mt-gap-sm shrink-0">
+              <Search
+                size={16}
+                strokeWidth={1.8}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft/50"
+              />
+              <input
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar en tu carta…"
+                className={cn(INPUT, "pl-10")}
+              />
+            </div>
+
+            <div className="mt-gap-md flex shrink-0 items-center justify-between px-1">
+              <span className="font-lv-display text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft/60">
+                {termino ? "Resultados" : "Tu carta"}
+              </span>
+              <span className="text-meta text-ink-soft/50">
+                {coincidencias.length}{" "}
+                {coincidencias.length === 1 ? "producto" : "productos"}
+              </span>
+            </div>
+
+            <div className="mt-2 flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pb-gap-sm">
+              {!termino && (
+                <button
+                  type="button"
+                  onClick={() => elegirProducto("")}
+                  aria-pressed={!productoId}
+                  className={cn(
+                    "flex w-full touch-manipulation cursor-pointer items-center gap-gap-sm rounded-2xl border p-2.5 text-left transition-all duration-300 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40",
+                    productoId
+                      ? "border-ink/5 bg-white hover:border-verde-200 hover:bg-verde-50/40"
+                      : "border-verde-300 bg-verde-50/60",
+                  )}
+                >
+                  <span className="grid size-14 shrink-0 place-items-center rounded-xl border border-ink/5 bg-sand-deep text-ink-soft/50">
+                    <X size={20} strokeWidth={1.6} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-lv-display text-small font-semibold text-ink">
+                      Sin producto concreto
+                    </span>
+                    <span className="mt-0.5 block truncate text-meta text-ink-soft/70">
+                      La IA elige entre tu carta
+                    </span>
+                  </span>
+                  {!productoId && (
+                    <span className="grid size-5 shrink-0 place-items-center rounded-full bg-verde-400 text-verde-950">
+                      <Check size={12} strokeWidth={3} />
+                    </span>
+                  )}
+                </button>
+              )}
+
+              {coincidencias.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+                  <span className="grid size-12 place-items-center rounded-full bg-sand text-ink-soft/50">
+                    <Search size={20} strokeWidth={1.6} />
+                  </span>
+                  <p className="text-small font-semibold text-ink">
+                    Nada por aquí
+                  </p>
+                  <p className="text-meta text-ink-soft/70">
+                    Prueba con otra palabra de tu carta.
+                  </p>
+                </div>
+              ) : (
+                coincidencias.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => elegirProducto(item.id)}
+                    aria-pressed={item.id === productoId}
+                    className={cn(
+                      "flex w-full touch-manipulation cursor-pointer items-center gap-gap-sm rounded-2xl border p-2.5 text-left transition-all duration-300 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40",
+                      item.id === productoId
+                        ? "border-verde-300 bg-verde-50/60"
+                        : "border-ink/5 bg-white hover:border-verde-200 hover:bg-verde-50/40",
+                    )}
+                  >
+                    <span className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-ink/5 bg-sand-deep">
+                      {item.image ? (
+                        <Image
+                          src={item.image}
+                          alt=""
+                          fill
+                          sizes="56px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <span className="grid size-full place-items-center text-ink-soft/40">
+                          <Package size={20} strokeWidth={1.6} />
+                        </span>
+                      )}
+                    </span>
+
+                    <span className="min-w-0 flex-1">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate font-lv-display text-small font-semibold text-ink">
+                          {item.name}
+                        </span>
+                        {item.tag?.trim() && (
+                          <span className="shrink-0 rounded-full bg-verde-400/15 px-2 py-[1px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.08em] text-verde-700">
+                            {item.tag}
+                          </span>
+                        )}
+                      </span>
+                      {item.description?.trim() && (
+                        <span className="mt-0.5 block truncate text-meta text-ink-soft/70">
+                          {item.description}
+                        </span>
+                      )}
+                    </span>
+
+                    <span className="flex shrink-0 flex-col items-end gap-1">
+                      {item.price?.trim() && (
+                        <span className="rounded-full border border-ink/10 bg-white px-2.5 py-[3px] font-lv-display text-meta font-semibold text-ink">
+                          {formatMenuPrice(item.price, item.currency || "MLC")}
+                        </span>
+                      )}
+                      {item.id === productoId && (
+                        <span className="grid size-5 place-items-center rounded-full bg-verde-400 text-verde-950">
+                          <Check size={12} strokeWidth={3} />
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* El botón va fuera del campo, debajo y a la derecha: primero se escribe
+            qué se quiere contar y luego se genera, y el resultado cae en las
+            variantes de abajo. */}
+        <textarea
+          rows={3}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          className={cn(INPUT, "h-auto resize-y py-3")}
+          placeholder="Escribe tu prompt: qué quieres contar, el plato, la oferta, el tono…"
+        />
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => void generar()}
+            disabled={generando || llenas || !prompt.trim()}
+            className="inline-flex h-9 cursor-pointer items-center gap-[6px] rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-500 ease-outquint hover:bg-verde-300 disabled:pointer-events-none disabled:opacity-60"
+          >
+            {generando ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Sparkles size={14} strokeWidth={1.8} />
+            )}
+            Generate with IA
+          </button>
+        </div>
+
+        {datosEscasos && (
+          <p className="rounded-xl border border-ink/10 bg-sand px-gap-md py-gap-sm text-meta text-ink-soft/70">
+            Completa tu ficha y te saldrán mejores publicaciones.
+          </p>
+        )}
 
         {variantes.length > 0 && (
           <div className="grid gap-gap-sm md:grid-cols-2">
@@ -300,12 +578,15 @@ export function PublicacionesView({
                 key={i}
                 className="flex flex-col gap-gap-sm rounded-xl border border-verde-200 bg-verde-50/50 p-gap-sm"
               >
+                <span className="inline-flex w-fit items-center rounded-full border border-verde-200 bg-white px-[10px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-verde-700">
+                  {ANGULO_LABEL[variante.angulo]}
+                </span>
                 <p className="whitespace-pre-wrap text-small text-ink">
-                  {variante}
+                  {variante.texto}
                 </p>
                 <button
                   type="button"
-                  onClick={() => setTexto(variante)}
+                  onClick={() => setTexto(variante.texto)}
                   className={cn(BOTON_SECUNDARIO, "mt-auto self-start")}
                 >
                   <Check size={14} strokeWidth={2} />
@@ -316,13 +597,18 @@ export function PublicacionesView({
           </div>
         )}
 
-        <textarea
-          rows={5}
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          className={cn(INPUT, "h-auto resize-y py-3")}
-          placeholder="Escribe el texto del post, o genéralo con IA y elige una variante."
-        />
+        <label className="flex flex-col gap-gap-xs">
+          <span className="font-lv-display text-meta font-semibold text-ink-soft/75">
+            Texto del post
+          </span>
+          <textarea
+            rows={5}
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            className={cn(INPUT, "h-auto resize-y py-3")}
+            placeholder="Elige una variante de arriba o escríbelo a mano."
+          />
+        </label>
 
         <div className="flex flex-wrap items-center gap-gap-sm">
           <input
@@ -420,7 +706,9 @@ export function PublicacionesView({
                   </button>
                 )}
               </div>
-              <p className="whitespace-pre-wrap text-small text-ink">{p.texto}</p>
+              <p className="whitespace-pre-wrap text-small text-ink">
+                {p.texto}
+              </p>
               {p.imagenUrl && (
                 <Image
                   src={p.imagenUrl}

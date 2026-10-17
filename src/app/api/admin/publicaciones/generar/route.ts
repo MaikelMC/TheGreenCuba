@@ -3,6 +3,7 @@ import { isAdminRequest } from "@/lib/admin-server";
 import { getPlaceById } from "@/lib/db/queries";
 import { generarVariantesPublicacion } from "@/lib/ai/publicaciones";
 import { perfilDesdePlace } from "@/lib/publicaciones";
+import { ganchosRecientesDe } from "@/lib/publicaciones-server";
 import { puede } from "@/lib/plans-server";
 import { siteConfig } from "@/config/site";
 import { rateLimit } from "@/lib/rate-limit";
@@ -76,9 +77,14 @@ export async function POST(req: NextRequest) {
   }
 
   const perfil = perfilDesdePlace(place, siteConfig.url);
+  const ganchosRecientes = await ganchosRecientesDe(negocioId).catch(() => []);
 
   try {
-    const { variantes, provider } = await generarVariantesPublicacion(perfil);
+    const { variantes, provider, fallback, datosEscasos } =
+      await generarVariantesPublicacion(perfil, {
+        ganchosRecientes,
+        direccion: place.address || undefined,
+      });
     if (variantes.length === 0) {
       return NextResponse.json(
         { error: "La IA no devolvió ninguna variante. Intenta de nuevo." },
@@ -89,6 +95,8 @@ export async function POST(req: NextRequest) {
       ok: true,
       variantes,
       provider,
+      fallback,
+      datosEscasos,
       enlacePerfil: perfil.enlacePerfil,
     });
   } catch (error) {

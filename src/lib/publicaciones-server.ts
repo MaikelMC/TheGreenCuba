@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { places, publicaciones } from "@/lib/db/schema";
 import { toPublicacion, type Publicacion } from "@/lib/db/mappers";
@@ -24,6 +24,33 @@ import { generateId } from "@/lib/utils";
 /** Enlace a la ficha pública: la llamada a la acción que va dentro del post. */
 export function enlacePerfilDe(negocioId: string): string {
   return `${siteConfig.url.replace(/\/+$/, "")}/place/${negocioId}`;
+}
+
+/**
+ * El primer renglón de las últimas tres publicaciones del negocio.
+ *
+ * Es lo que viaja como `ganchos_recientes` para que el modelo no repita el mismo
+ * arranque semana tras semana. Se leen todas, no solo las publicadas: lo que el
+ * dueño ya tiene en cola tampoco debe duplicarse. Si la tabla está vacía, la
+ * lista sale vacía y el campo se omite del prompt.
+ */
+export async function ganchosRecientesDe(negocioId: string): Promise<string[]> {
+  const filas = await db
+    .select({ texto: publicaciones.texto })
+    .from(publicaciones)
+    .where(eq(publicaciones.negocioId, negocioId))
+    .orderBy(desc(publicaciones.createdAt))
+    .limit(3);
+
+  return filas
+    .map(
+      (fila) =>
+        fila.texto
+          .split("\n")
+          .map((linea) => linea.trim())
+          .find(Boolean) ?? "",
+    )
+    .filter(Boolean);
 }
 
 export type ResultadoEncolar =

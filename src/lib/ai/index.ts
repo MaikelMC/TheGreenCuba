@@ -39,12 +39,28 @@ export interface ConsumoIa {
   tokensOut: number;
 }
 
+/** Un esquema JSON opcional para los proveedores que admiten salida tipada. */
+export interface EsquemaJson {
+  name: string;
+  schema: Record<string, unknown>;
+}
+
 /** Ejecuta una llamada JSON contra un proveedor concreto. Lanza si falla. */
 async function callProviderJSON<T>(
   provider: ResolvedProvider,
-  opts: { system: string; user: string; maxTokens: number; temperature: number },
+  opts: {
+    system: string;
+    user: string;
+    maxTokens: number;
+    temperature: number;
+    topP?: number;
+    /** Esfuerzo de razonamiento bajo; solo se envía a modelos que lo entienden. */
+    reasoningEffort?: "low" | "medium" | "high";
+    jsonSchema?: EsquemaJson;
+  },
 ): Promise<{ data: T } & ConsumoIa> {
-  const { system, user, maxTokens, temperature } = opts;
+  const { system, user, maxTokens, temperature, topP, reasoningEffort, jsonSchema } =
+    opts;
 
   if (provider.vendor === "gemini") {
     const response = await fetch(
@@ -61,6 +77,17 @@ async function callProviderJSON<T>(
             temperature,
             maxOutputTokens: maxTokens,
             responseMimeType: "application/json",
+            ...(topP != null ? { topP } : {}),
+            /* `thinkingBudget: 0` desactiva el razonamiento en la familia 2.5/3.
+               En modelos que no lo soportan el campo se omite: mandarlo a ciegas
+               puede devolver un 400. */
+            ...(reasoningEffort && /gemini-(2\.5|3)/i.test(provider.model)
+              ? {
+                  thinkingConfig: {
+                    thinkingBudget: reasoningEffort === "low" ? 0 : 1024,
+                  },
+                }
+              : {}),
           },
         }),
         signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
@@ -97,7 +124,25 @@ async function callProviderJSON<T>(
       ],
       temperature,
       max_tokens: maxTokens,
-      response_format: { type: "json_object" },
+      ...(topP != null ? { top_p: topP } : {}),
+      /* `reasoning_effort` es de la familia gpt-oss. En el resto de modelos
+         compatibles se omite para no arriesgar un 400 por campo desconocido. */
+      ...(reasoningEffort && /gpt-oss/i.test(provider.model)
+        ? { reasoning_effort: reasoningEffort }
+        : {}),
+      /* Salida con esquema solo donde el modelo lo admite (gpt-oss). En los
+         demás sigue el modo JSON, que ya era el que funcionaba. */
+      response_format:
+        jsonSchema && /gpt-oss/i.test(provider.model)
+          ? {
+              type: "json_schema",
+              json_schema: {
+                name: jsonSchema.name,
+                schema: jsonSchema.schema,
+                strict: true,
+              },
+            }
+          : { type: "json_object" },
     }),
     signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
   });
@@ -135,6 +180,9 @@ export async function chatJSON<T>(
     user: string;
     maxTokens?: number;
     temperature?: number;
+    topP?: number;
+    reasoningEffort?: "low" | "medium" | "high";
+    jsonSchema?: EsquemaJson;
     providers?: ResolvedProvider[];
   },
 ): Promise<{ data: T; provider: string } & ConsumoIa> {
@@ -156,6 +204,9 @@ export async function chatJSON<T>(
         user: opts.user,
         maxTokens,
         temperature,
+        topP: opts.topP,
+        reasoningEffort: opts.reasoningEffort,
+        jsonSchema: opts.jsonSchema,
       });
       return { data, provider: provider.name, tokensIn, tokensOut };
     } catch (error) {

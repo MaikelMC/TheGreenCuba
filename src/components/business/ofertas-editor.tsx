@@ -248,7 +248,7 @@ function Fila({
       <div className="min-w-0 flex-1">
         <p className="truncate text-small font-medium text-ink">{oferta.titulo}</p>
         <p className="truncate text-meta text-ink-soft/75">
-          {producto?.name ?? "Producto ya no está en la carta"}
+          {producto?.name ?? "Producto ya no está en el catálogo"}
           {precios && (
             <>
               {" · "}
@@ -311,7 +311,7 @@ function Formulario({
     <div className="flex flex-col gap-gap-xs rounded-xl border border-verde-300/60 bg-verde-50/40 p-gap-sm">
       <div className="grid grid-cols-1 gap-gap-sm lg:grid-cols-2">
         <div className="flex flex-col gap-gap-xs">
-          <Label htmlFor="ofProducto">Producto de la carta</Label>
+          <Label htmlFor="ofProducto">Producto del catálogo</Label>
           <Select
             value={borrador.productoId}
             onValueChange={(v) => campo("productoId", v)}

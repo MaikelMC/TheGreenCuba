@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { canManagePlace } from "@/lib/admin-server";
 import { getPlaceById } from "@/lib/db/queries";
 import { generarVariantesPublicacion } from "@/lib/ai/publicaciones";
-import { perfilDesdePlace } from "@/lib/publicaciones";
+import {
+  MAX_PROMPT,
+  perfilDesdePlace,
+  type ProductoParaPost,
+} from "@/lib/publicaciones";
 import { puede } from "@/lib/plans-server";
+import { ganchosRecientesDe } from "@/lib/publicaciones-server";
 import { siteConfig } from "@/config/site";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -75,10 +80,47 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const perfil = perfilDesdePlace(place, siteConfig.url);
+  /* El producto se busca **en la carta de este negocio**, no en la del cliente:
+     un id ajeno no puede colarse en el prompt. Si no aparece, es un error del
+     formulario y se dice, en vez de generar un texto sobre otro producto. */
+  const productoId =
+    typeof body.productoId === "string" ? body.productoId.trim() : "";
+  let producto: ProductoParaPost | undefined;
+  if (productoId) {
+    const item = place.menu.find((p) => p.id === productoId);
+    if (!item) {
+      return NextResponse.json(
+        { error: "El producto no está en tu carta." },
+        { status: 400 },
+      );
+    }
+    producto = { nombre: item.name, precio: item.price?.trim() || undefined };
+  }
+
+  const prompt =
+    typeof body.prompt === "string"
+      ? body.prompt.trim().slice(0, MAX_PROMPT)
+      : "";
+  /* El destacado entra en el perfil aunque el corte de ocho productos lo haya
+     dejado fuera: es el eje del post. */
+  const perfil = perfilDesdePlace(
+    place,
+    siteConfig.url,
+    Date.now(),
+    productoId || undefined,
+  );
+  /* Si el negocio ya publicó, sus ganchos viajan para que el modelo no repita
+     el mismo arranque. Una tabla vacía no es un error. */
+  const ganchosRecientes = await ganchosRecientesDe(placeId).catch(() => []);
 
   try {
-    const { variantes, provider } = await generarVariantesPublicacion(perfil);
+    const { variantes, provider, fallback, datosEscasos } =
+      await generarVariantesPublicacion(perfil, {
+        prompt: prompt || undefined,
+        producto,
+        ganchosRecientes,
+        direccion: place.address || undefined,
+      });
     if (variantes.length === 0) {
       return NextResponse.json(
         { error: "La IA no devolvió ninguna variante. Intenta de nuevo." },
@@ -89,6 +131,8 @@ export async function POST(req: NextRequest) {
       ok: true,
       variantes,
       provider,
+      fallback,
+      datosEscasos,
       enlacePerfil: perfil.enlacePerfil,
     });
   } catch (error) {

@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { UserMenu } from "@/components/layout/user-menu";
 import { EASE } from "@/lib/motion";
+import { puedeSalir } from "@/lib/unsaved-guard";
 import {
   Sheet,
   SheetClose,
@@ -123,6 +124,11 @@ export function PanelShell({
      servidor con sus tres oleadas de consultas, justo lo que este armazón evita
      desde el principio. */
   const go = (view: PanelView) => {
+    /* La pantalla que se está dejando puede tener trabajo sin guardar —el
+       catálogo, sobre todo— y ella es la única que sabe qué se pierde. Si su
+       guardia dice que no, no se cambia de sección: `puedeSalir()` ya se ha
+       encargado de preguntar. */
+    if (view !== activeView && !puedeSalir()) return;
     setActiveView(view);
     setDrawerOpen(false);
 
@@ -153,6 +159,11 @@ export function PanelShell({
       <header className="sticky top-0 z-50 bg-sand-warm/90 backdrop-blur-[16px] border-b border-ink/5 h-header flex items-center px-3 gap-2 sm:px-gap-md sm:gap-gap-sm shrink-0">
         <Link
           href="/home"
+          /* Salir del panel también pasa por la guardia: es la misma pérdida de
+             trabajo que cambiar de sección, solo que por otra puerta. */
+          onClick={(e) => {
+            if (!puedeSalir()) e.preventDefault();
+          }}
           className="size-11 grid place-items-center rounded-full hover:bg-verde-50 transition-colors duration-500 ease-outquint text-ink-soft/75 hover:text-verde-600 shrink-0"
           aria-label="Volver al inicio"
         >

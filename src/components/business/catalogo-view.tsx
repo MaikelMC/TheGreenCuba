@@ -19,9 +19,18 @@ import {
   Plus,
   Save,
   Search,
+  Trash2,
   X,
 } from "lucide-react";
 import { cn, menuTagFallback, menuTagStyles } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { aGuardar, conIds, huella } from "@/lib/catalogo";
 import { AvailabilityControl } from "@/components/business/menu-item-editor";
 import { ImportarCatalogo } from "@/components/admin/importar-catalogo";
@@ -31,6 +40,7 @@ import { prepareImage } from "@/lib/storage/compress";
 import { pruneMenuImages } from "@/lib/menu-images";
 import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
 import { limiteDe, type Funcion } from "@/lib/plans";
+import { registrarGuarda } from "@/lib/unsaved-guard";
 import type { UserPlace, UserPlaceMenuItem } from "@/lib/places-store";
 
 /* La clave con la que se agrupa lo que no tiene categoría. Un centinela y no
@@ -44,25 +54,62 @@ const SIN_CATEGORIA = "\u0000sin";
    un carácter nulo, así que los dos valores no pueden confundirse. */
 const AGOTADOS = `${SIN_CATEGORIA}agotados`;
 
+/* Alto 44 px y, en el móvil, 16 px de texto: por debajo de 16 el navegador de
+   iOS hace zoom al enfocar el campo y la fila entera se sale del encuadre. En
+   escritorio baja a 14 px, que es lo que pide la densidad de la lista. El anillo
+   de foco lo pone `Input` —el del sistema—, así que aquí solo se cambia el color
+   del borde al enfocar. */
 const INPUT =
-  "w-full h-10 px-gap-sm border border-ink/10 rounded-xl font-lv text-small bg-white text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
+  "h-11 w-full px-gap-sm border border-ink/10 rounded-xl font-lv text-body bg-white text-ink outline-none transition-colors duration-500 ease-outquint focus-visible:border-verde-400 sm:text-small";
 
 const BOTON =
-  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full font-lv-display text-small font-semibold transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer";
+  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full font-lv-display text-small font-semibold transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2";
+
+/** Clave del borrador del catálogo en curso, por negocio. */
+function claveBorrador(placeId: string): string {
+  return `la-verde:catalogo-borrador:${placeId}`;
+}
+
+/** Recorta un precio a lo que puede ser un número: dígitos, coma, punto y aire. */
+function limpiarPrecio(valor: string): string {
+  return valor.replace(/[^\d.,\s]/g, "").slice(0, 14);
+}
 
 /**
- * La carta, en su propia sección.
+ * Cuántos productos se han tocado desde el último guardado: altas, bajas y
+ * cambios de campo. `huella()` ya dice **si** hay cambios; esto dice cuántos,
+ * que es lo que necesita el aviso de la barra.
+ */
+function contarCambios(
+  actual: UserPlaceMenuItem[],
+  guardado: UserPlaceMenuItem[],
+): number {
+  const antes = new Map(
+    guardado.map((item) => [item.id, JSON.stringify(item)]),
+  );
+  let cambios = 0;
+  for (const item of actual) {
+    if (antes.get(item.id) !== JSON.stringify(item)) cambios += 1;
+    antes.delete(item.id);
+  }
+  return cambios + antes.size;
+}
+
+/**
+ * El catálogo, en su propia sección.
  *
  * Antes esto vivía dentro de «Editar ficha», como una lista más entre el horario
  * y las ofertas. Y no son la misma cosa: la ficha se rellena una vez y se deja
- * quieta; la carta se cambia cada semana, se busca un plato concreto, se marca
- * lo que se acabó. Aquí está con lo que eso pide —buscador, filtro por
+ * quieta; el catálogo se cambia cada semana, se busca un plato concreto, se
+ * marca lo que se acabó. Aquí está con lo que eso pide —buscador, filtro por
  * categoría, grupos— y con la importación por CSV, que hasta ahora solo existía
  * en administración.
  *
  * La lista se guarda entera con el mismo `PATCH` de la ficha, en su propia
  * barra: el editor ya no manda `menu`, así que guardar la ficha no puede pisar
- * lo que se cambie aquí.
+ * lo que se cambie aquí. Y lo que no se ha guardado no se pierde porque la
+ * pantalla se cierre: queda un borrador en `localStorage` que se ofrece al
+ * volver, además del aviso antes de salir de la sección.
  */
 export function CatalogoView({
   place,
@@ -96,6 +143,12 @@ export function CatalogoView({
   const [filtro, setFiltro] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /* El error del tope va aparte porque se pinta pegado al botón que lo provoca:
+     al fondo de la pantalla no lo ve nadie y el botón se lee como roto. */
+  const [errorTope, setErrorTope] = useState<string | null>(null);
+  /* El borrador sin guardar que quedó de la visita anterior. Se enseña como
+     aviso y no se aplica solo: el dueño decide si lo recupera. */
+  const [borrador, setBorrador] = useState<UserPlaceMenuItem[] | null>(null);
 
   /* El producto recién creado: se lleva el foco para que el cursor caiga en su
      nombre sin tener que buscarlo en la lista. */
@@ -163,6 +216,81 @@ export function CatalogoView({
     if (filtro === AGOTADOS && agotados === 0) setFiltro(null);
   }, [filtro, agotados]);
 
+  /* ── El borrador y la salida ─────────────────────────────────────────────
+
+     El trabajo largo —una carta entera— no puede depender de que nadie cierre
+     la pantalla. Tres redes, de la más barata a la más cara: el borrador se
+     escribe en cada cambio, al cerrar la pestaña el navegador pregunta, y al
+     cambiar de sección el armazón consulta la guardia de aquí abajo. */
+
+  /* El borrador se lee una sola vez, al montar, y solo se ofrece si de verdad
+     hay algo distinto de lo guardado: un borrador igual que la base es ruido. */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const crudo = window.localStorage.getItem(claveBorrador(place.id));
+      if (!crudo) return;
+      const parsed = JSON.parse(crudo) as unknown;
+      if (!Array.isArray(parsed) || parsed.length === 0) return;
+      const recuperado = conIds(parsed as UserPlaceMenuItem[]);
+      if (huella(recuperado) === huella(guardado.current)) {
+        window.localStorage.removeItem(claveBorrador(place.id));
+        return;
+      }
+      setBorrador(recuperado);
+    } catch {
+      /* Sin `localStorage` o con el JSON roto se sigue sin borrador: la barra de
+         guardar y el aviso de salida siguen ahí. */
+    }
+  }, [place.id]);
+
+  /* Saber si el borrador se escribió **en esta visita**: al montar, `sucio` es
+     falso porque el estado acaba de sembrarse de la base, y borrar el archivo
+     ahí se llevaba por delante el borrador que el aviso de arriba está
+     ofreciendo. Solo se borra después de haberlo escrito. */
+  const borradorEscrito = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (sucio) {
+        borradorEscrito.current = true;
+        window.localStorage.setItem(
+          claveBorrador(place.id),
+          JSON.stringify(items),
+        );
+      } else if (borradorEscrito.current) {
+        borradorEscrito.current = false;
+        window.localStorage.removeItem(claveBorrador(place.id));
+      }
+    } catch {
+      /* Se llenó el almacén: el aviso de guardar sigue siendo la red. */
+    }
+  }, [items, sucio, place.id]);
+
+  /* La guardia vive en un módulo porque el que pregunta —`PanelShell`— es padre
+     de esta pantalla y no puede leer su estado. Se registra solo con cambios sin
+     guardar y se retira sola en cuanto se guarda. */
+  useEffect(() => {
+    if (!sucio) return;
+    registrarGuarda(() =>
+      window.confirm(
+        "Tienes cambios sin guardar en el catálogo. Si sales ahora se descartan. ¿Salir igual?",
+      ),
+    );
+    /* Cerrar la pestaña o recargar no pasa por el armazón: para eso está el
+       aviso del propio navegador. */
+    const alCerrar = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", alCerrar);
+    return () => {
+      registrarGuarda(null);
+      window.removeEventListener("beforeunload", alCerrar);
+    };
+  }, [sucio]);
+
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
     return items.filter((item) => {
@@ -204,6 +332,29 @@ export function CatalogoView({
   const nombreCategoria = (clave: string) =>
     clave === SIN_CATEGORIA ? "Sin categoría" : clave;
 
+  /* Los productos sin nombre. Se marcan antes de guardar para que el aviso diga
+     cuáles y no «hay un producto», que obliga a buscarlo a ojo por toda la
+     lista. */
+  const sinNombre = useMemo(
+    () =>
+      new Set(items.filter((item) => !item.name.trim()).map((item) => item.id)),
+    [items],
+  );
+
+  const cambios = useMemo(
+    () => contarCambios(items, guardado.current),
+    [items],
+  );
+
+  /* Las categorías ya usadas, sin el centinela: se ofrecen en pastillas dentro
+     de la fila, que es el camino que sí existe en Safari de iOS —ahí `datalist`
+     no pinta nada y el campo se quedaba sin sugerencias—. */
+  const categoriasUsadas = useMemo(
+    () =>
+      categorias.map((c) => c.clave).filter((clave) => clave !== SIN_CATEGORIA),
+    [categorias],
+  );
+
   /* ── Mutaciones ────────────────────────────────────────────────────────── */
 
   const patch = useCallback(
@@ -217,11 +368,12 @@ export function CatalogoView({
 
   const añadir = useCallback(() => {
     if (tope !== null && items.length >= tope) {
-      setError(
+      setErrorTope(
         `Tu plan permite hasta ${tope} productos y ya tienes ${items.length}. Quita alguno o mejora tu plan.`,
       );
       return;
     }
+    setErrorTope(null);
     setError(null);
     /* Con el filtro de agotados puesto, se quita: el producto nuevo nace
        disponible, así que no saldría en la lista y «Añadir» parecería no hacer
@@ -353,10 +505,49 @@ export function CatalogoView({
     [place.id, patch],
   );
 
+  /** Recupera el borrador que quedó sin guardar en la visita anterior. */
+  const recuperarBorrador = useCallback(() => {
+    if (!borrador) return;
+    setItems(borrador);
+    setBorrador(null);
+    setError(null);
+    toast.success("Recuperado el catálogo sin guardar");
+  }, [borrador]);
+
+  /** Tira el borrador: el catálogo se queda como está en la base. */
+  const descartarBorrador = useCallback(() => {
+    setBorrador(null);
+    try {
+      window.localStorage.removeItem(claveBorrador(place.id));
+    } catch {
+      /* Nada que limpiar si el almacén no está. */
+    }
+  }, [place.id]);
+
+  /** Vuelve la lista a la última versión guardada, sin salir de la sección. */
+  const descartarCambios = useCallback(() => {
+    if (
+      !window.confirm(
+        "Se descarta lo que no has guardado y el catálogo vuelve a como estaba. ¿Seguir?",
+      )
+    ) {
+      return;
+    }
+    setItems(guardado.current);
+    setBusqueda("");
+    setFiltro(null);
+    setError(null);
+    setErrorTope(null);
+    setNuevoId(null);
+  }, []);
+
   const guardar = useCallback(async () => {
-    if (items.some((item) => !item.name.trim())) {
+    const faltan = items.filter((item) => !item.name.trim());
+    if (faltan.length > 0) {
       setError(
-        "Hay un producto sin nombre. Ponle uno o bórralo antes de guardar.",
+        faltan.length === 1
+          ? "Hay un producto sin nombre —está marcado en rojo—. Ponle uno o bórralo antes de guardar."
+          : `Hay ${faltan.length} productos sin nombre —están marcados en rojo—. Ponles uno o bórralos antes de guardar.`,
       );
       return;
     }
@@ -383,7 +574,14 @@ export function CatalogoView({
     guardado.current = limpio;
     setItems(limpio);
     setNuevoId(null);
-    toast.success("Carta guardada");
+    /* Guardado es que ya no hay nada que recuperar. */
+    setBorrador(null);
+    try {
+      window.localStorage.removeItem(claveBorrador(place.id));
+    } catch {
+      /* Sin almacén no hay borrador que limpiar. */
+    }
+    toast.success("Catálogo guardado");
     /* El catálogo público y el panel son de servidor: sin esto siguen leyendo
        la carta vieja hasta que caduque la caché. */
     router.refresh();
@@ -392,8 +590,42 @@ export function CatalogoView({
   const alcanzoTope = tope !== null && items.length >= tope;
 
   return (
-    <>
+    /* El relleno de abajo es el sitio de la barra de guardado: sin él, con
+       cambios sin guardar, la barra flotaba sobre la última fila y tapaba su
+       control de disponibilidad. */
+    <div className={cn("flex flex-col", sucio && "pb-[92px]")}>
       <h1 className="sr-only">Catálogo</h1>
+
+      {/* El borrador de la visita anterior, si lo hay. Va arriba del todo porque
+          es lo primero que hay que decidir: recuperarlo o tirarlo. */}
+      {borrador && (
+        <div
+          role="status"
+          className="mb-gap-md flex flex-wrap items-center gap-gap-sm rounded-2xl border border-verde-200 bg-verde-50 px-gap-md py-gap-sm"
+        >
+          <p className="min-w-0 flex-1 text-small text-ink">
+            Nos quedó un catálogo sin guardar de la última vez con{" "}
+            {borrador.length} producto{borrador.length === 1 ? "" : "s"}. ¿Lo
+            recuperas?
+          </p>
+          <div className="flex shrink-0 items-center gap-gap-sm">
+            <button
+              type="button"
+              onClick={recuperarBorrador}
+              className="cursor-pointer rounded-full bg-verde-400 px-gap-md py-2 font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-500 ease-outquint hover:bg-verde-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+            >
+              Recuperar
+            </button>
+            <button
+              type="button"
+              onClick={descartarBorrador}
+              className="cursor-pointer font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+            >
+              Descartar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Un solo input para toda la lista: cada producto lleva una sola foto. */}
       <input
@@ -428,7 +660,7 @@ export function CatalogoView({
             strokeWidth={1.8}
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft/50"
           />
-          <input
+          <Input
             type="search"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
@@ -462,6 +694,7 @@ export function CatalogoView({
           <button
             type="button"
             onClick={añadir}
+            aria-describedby={errorTope ? "catalogo-tope" : undefined}
             disabled={alcanzoTope}
             className={cn(
               BOTON,
@@ -478,17 +711,31 @@ export function CatalogoView({
         </div>
       </div>
 
+      {/* El aviso del tope, pegado al botón que lo provoca: al fondo de la
+          pantalla llegaba después de toda la lista, o no llegaba. */}
+      {errorTope && (
+        <p
+          id="catalogo-tope"
+          role="alert"
+          className="mt-gap-sm rounded-xl border border-amber-200 bg-amber-50 px-3 py-[7px] text-meta font-medium text-ink"
+        >
+          {errorTope}
+        </p>
+      )}
+
       {sucio && !mostrarImport && (
         <p className="mt-gap-sm text-meta text-ink-soft/75">
-          Guarda la carta para poder importar: el CSV se suma a lo guardado.
+          Guarda el catálogo para poder importar: el CSV se suma a lo guardado.
         </p>
       )}
 
       {/* ── Resumen y filtros ───────────────────────────────────────────── */}
       <div className="mt-gap-md flex flex-col gap-gap-sm">
-        <p className="text-meta text-ink-soft/75">
+        <p className="text-meta text-ink-soft/75" aria-live="polite">
           {items.length} producto{items.length === 1 ? "" : "s"}
-          {tope !== null ? ` de ${tope} — el tope de tu plan` : " en la carta"}
+          {tope !== null
+            ? ` de ${tope} — el tope de tu plan`
+            : " en el catálogo"}
         </p>
 
         {/* Una sola fila que se desliza, como la de la carta pública: los
@@ -596,11 +843,11 @@ export function CatalogoView({
         </section>
       )}
 
-      {/* ── La carta ────────────────────────────────────────────────────── */}
+      {/* ── El catálogo ──────────────────────────────────────────────────── */}
       {items.length === 0 ? (
         <EstadoVacio
-          titulo="Tu carta está vacía"
-          texto="Añade tu primer producto —o sube la carta entera desde un CSV— y aparecerá en tu ficha y en el menú público."
+          titulo="Tu catálogo está vacío"
+          texto="Añade tu primer producto —o sube el catálogo entero desde un CSV— y aparecerá en tu ficha y en tu menú público."
           accion={
             <button
               type="button"
@@ -637,75 +884,119 @@ export function CatalogoView({
         />
       ) : (
         <div className="mt-gap-lg flex flex-col gap-gap-lg">
-          {grupos.map((grupo) => (
-            <section key={grupo.clave} className="flex flex-col">
-              <h2 className="mb-gap-xs flex items-baseline gap-gap-xs font-lv-display text-body font-semibold text-ink">
-                {nombreCategoria(grupo.clave)}
-                <span className="text-meta font-medium text-ink-soft/65">
-                  {grupo.items.length}
-                </span>
-              </h2>
-              <div className="rounded-2xl border border-ink/5 bg-white px-gap-md">
-                {grupo.items.map((item) => (
-                  <FilaProducto
-                    key={item.id}
-                    item={item}
-                    recienCreado={item.id === nuevoId}
-                    subiendo={subiendoId === item.id}
-                    canHoyHay={canHoyHay}
-                    /* «Hoy hay» escribe al momento contra el producto que ya
+          {grupos.map((grupo, i) => {
+            /* El id ata el grupo a su encabezado: un lector de pantalla anuncia
+               «Tragos, region, 6 productos» al entrar en la sección, en vez de
+               dejar el conteo suelto. */
+            const idGrupo = `catalogo-grupo-${i}`;
+            return (
+              <section
+                key={grupo.clave}
+                aria-labelledby={idGrupo}
+                className="flex flex-col"
+              >
+                <h2
+                  id={idGrupo}
+                  className="mb-gap-xs flex items-baseline gap-gap-xs font-lv-display text-body font-semibold text-ink"
+                >
+                  {nombreCategoria(grupo.clave)}
+                  <span className="text-meta font-medium text-ink-soft/75">
+                    {grupo.items.length}
+                  </span>
+                </h2>
+                <div className="rounded-2xl border border-ink/5 bg-white px-gap-md">
+                  {grupo.items.map((item) => (
+                    <FilaProducto
+                      key={item.id}
+                      item={item}
+                      recienCreado={item.id === nuevoId}
+                      subiendo={subiendoId === item.id}
+                      canHoyHay={canHoyHay}
+                      /* «Hoy hay» escribe al momento contra el producto que ya
                        está en la base: en uno recién añadido y sin guardar
                        contestaba «Producto no encontrado». Se pregunta por
                        `guardado`, que es justo la lista que sí está guardada. */
-                    persistido={guardado.current.some((p) => p.id === item.id)}
-                    busyEstado={busyEstado === item.id}
-                    listaCategorias={categoriaListId}
-                    onPatch={patch}
-                    onEliminar={eliminar}
-                    onElegirFoto={elegirFoto}
-                    onSetEstado={setEstado}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
+                      persistido={guardado.current.some(
+                        (p) => p.id === item.id,
+                      )}
+                      busyEstado={busyEstado === item.id}
+                      listaCategorias={categoriaListId}
+                      categoriasUsadas={categoriasUsadas}
+                      sinNombre={sinNombre.has(item.id)}
+                      onPatch={patch}
+                      onEliminar={eliminar}
+                      onElegirFoto={elegirFoto}
+                      onSetEstado={setEstado}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
         </div>
       )}
 
+      {/* Los errores van juntos y **arriba de la barra**: al pulsar «Guardar» se
+          está abajo, así que ahí sí se leen. Cada uno con su canal —guardado y
+          disponibilidad— en vez de compartir un solo hueco. */}
       {(error || errorEstado) && (
-        <p
-          role="alert"
-          className="mt-gap-md rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
-        >
-          {error ?? errorEstado}
-        </p>
+        <div className="mt-gap-md flex flex-col gap-gap-xs">
+          {error && (
+            <p
+              role="alert"
+              className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+            >
+              {error}
+            </p>
+          )}
+          {errorEstado && (
+            <p
+              role="alert"
+              className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+            >
+              {errorEstado}
+            </p>
+          )}
+        </div>
       )}
 
       {/* La barra solo aparece con algo que guardar: si no, es un botón que no
-          hace nada ocupando sitio en cada visita. */}
+          hace nada ocupando sitio en cada visita. Dice cuántos cambios hay y
+          deja descartarlos sin recargar, que es lo que antes obligaba a salir y
+          volver. */}
       {sucio && (
-        <div className="sticky bottom-4 z-40 mt-gap-lg flex justify-end">
+        <div className="sticky bottom-4 z-40 mt-gap-lg flex flex-wrap items-center justify-end gap-gap-sm rounded-full bg-sand-warm/85 px-gap-sm py-[6px] backdrop-blur-[8px]">
+          <p className="mr-auto pl-gap-sm font-lv-display text-meta font-medium text-ink-soft/75">
+            {cambios} cambio{cambios === 1 ? "" : "s"} sin guardar
+          </p>
+          <button
+            type="button"
+            onClick={descartarCambios}
+            className="h-11 cursor-pointer rounded-full px-gap-md font-lv-display text-small font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-white hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+          >
+            Descartar
+          </button>
           <button
             type="button"
             onClick={() => void guardar()}
             disabled={saving}
-            className="inline-flex h-12 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+            className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2"
           >
             {saving ? (
               <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
             ) : (
               <Save size={16} strokeWidth={1.8} />
             )}
-            {saving ? "Guardando…" : "Guardar carta"}
+            {saving ? "Guardando…" : "Guardar catálogo"}
           </button>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
 /**
- * Una fila de la carta.
+ * Una fila del catálogo.
  *
  * Misma información que la del editor de administración, pero en su propio
  * componente: aquí la lista se filtra y se agrupa, y meter eso dentro del editor
@@ -720,6 +1011,8 @@ function FilaProducto({
   persistido,
   busyEstado,
   listaCategorias,
+  categoriasUsadas,
+  sinNombre,
   onPatch,
   onEliminar,
   onElegirFoto,
@@ -733,6 +1026,10 @@ function FilaProducto({
   persistido: boolean;
   busyEstado: boolean;
   listaCategorias: string;
+  /** Categorías ya usadas, para ofrecerlas como pastillas donde `datalist` no llega. */
+  categoriasUsadas: string[];
+  /** Sin nombre: se marca en rojo para que el aviso de guardar diga cuál es. */
+  sinNombre: boolean;
   onPatch: (id: string, campos: Partial<UserPlaceMenuItem>) => void;
   onEliminar: (id: string) => void;
   onElegirFoto: (id: string) => void;
@@ -749,6 +1046,11 @@ function FilaProducto({
      donde se usa; el estado es local porque la fila deja de existir en cuanto
      se manda: no hay dónde guardarlo fuera. */
   const [categoria, setCategoria] = useState(item.category ?? "");
+  /* Con el campo de categoría enfocado se ofrecen las que ya existen en
+     pastillas. Es el camino que sí existe en Safari de iOS, donde `datalist` no
+     pinta nada: sin esto, el campo se quedaba sin sugerencias justo en el
+     navegador que más se usa aquí. */
+  const [sugiriendo, setSugiriendo] = useState(false);
 
   /** Vuelca lo escrito, ya recortado —que es como lo deja `aGuardar`— para que
       el campo y lo guardado no se separen tras un guardado. */
@@ -758,8 +1060,15 @@ function FilaProducto({
     if (limpia !== (item.category ?? "")) onPatch(id, { category: limpia });
   };
 
+  /** Elige una categoría existente desde las pastillas. */
+  const elegirCategoria = (clave: string) => {
+    setCategoria(clave);
+    setSugiriendo(false);
+    if (clave !== (item.category ?? "")) onPatch(id, { category: clave });
+  };
+
   return (
-    <div className="group flex items-start gap-gap-sm border-b border-ink/5 py-gap-sm last:border-b-0">
+    <div className="group flex scroll-mt-[88px] items-start gap-gap-sm border-b border-ink/5 py-gap-sm last:border-b-0">
       <div className="relative size-14 shrink-0 overflow-hidden rounded-2xl border border-ink/5 transition-colors duration-500 ease-outquint group-hover:border-verde-300 sm:size-16">
         <button
           type="button"
@@ -791,7 +1100,10 @@ function FilaProducto({
             type="button"
             onClick={() => onPatch(id, { image: undefined })}
             aria-label={`Quitar la foto de ${nombre}`}
-            className="absolute right-[4px] top-[4px] z-10 grid size-5 cursor-pointer place-items-center rounded-full bg-ink/70 text-white opacity-0 transition-opacity duration-500 ease-outquint focus-visible:opacity-100 group-hover:opacity-100"
+            /* Siempre visible: en el móvil no hay `hover`, y con la X escondida
+               quitar una foto era imposible desde el teléfono, que es donde se
+               trabaja. */
+            className="absolute right-[4px] top-[4px] z-10 grid size-8 cursor-pointer place-items-center rounded-full bg-ink/70 text-white transition-colors duration-500 ease-outquint hover:bg-ink/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
             <X size={12} strokeWidth={2} />
           </button>
@@ -799,22 +1111,29 @@ function FilaProducto({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-gap-xs">
-        <input
+        <Input
           type="text"
           value={item.name}
           autoFocus={recienCreado}
           onChange={(e) => onPatch(id, { name: e.target.value })}
           placeholder="Nombre del producto o servicio"
           aria-label="Nombre del producto"
-          className={cn(INPUT, "font-semibold")}
+          aria-invalid={sinNombre || undefined}
+          className={cn(
+            INPUT,
+            "font-semibold",
+            /* Sin nombre se marca aquí y no solo en el aviso de abajo: el ojo
+               tiene que encontrar la fila sola. */
+            sinNombre && "border-destructive/40 bg-destructive/5",
+          )}
         />
-        <input
+        <Input
           type="text"
           value={item.description}
           onChange={(e) => onPatch(id, { description: e.target.value })}
           placeholder="Descripción breve"
           aria-label="Descripción del producto"
-          className={cn(INPUT, "text-meta text-ink-soft/75")}
+          className={cn(INPUT, "text-ink-soft/75 sm:text-meta")}
         />
         {/* `flex-wrap` para que la etiqueta caiga abajo cuando no quepa, en vez
             de empujar la fila fuera de la tarjeta en el móvil. Y `shrink-0` en
@@ -832,47 +1151,65 @@ function FilaProducto({
                con el nodo viejo. Mandándolo en cada tecla, el campo soltaba el
                cursor a la primera letra: no se podía corregir una categoría ni
                escribir una nueva. */
-            onBlur={commitCategoria}
+            onFocus={() => setSugiriendo(true)}
+            onBlur={() => {
+              commitCategoria();
+              setSugiriendo(false);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") e.currentTarget.blur();
             }}
             placeholder="Categoría"
             list={listaCategorias}
             aria-label="Categoría del producto"
-            className={cn(INPUT, "w-[124px] shrink-0 text-meta sm:w-[148px]")}
+            className={cn(
+              INPUT,
+              "w-[124px] shrink-0 sm:w-[148px] sm:text-meta",
+            )}
           />
           {/* Precio y moneda envuelven como una sola pieza: es lo pedido —la
               moneda pegada al precio, a su derecha— y en el móvil es lo que
               impide que el salto de línea los separe en dos renglones
               distintos. La moneda no lleva `INPUT` a propósito: ese trae
               `w-full`, y un ancho de campo completo en esta fila (`flex-wrap`)
-              le daba un renglón propio con solo la etiqueta más larga,
-              «USD Clásica», que es la de MLC. Sin él mide lo que mide su
-              opción más larga y no la corta. */}
+              le daba un renglón propio con solo la etiqueta más larga. */}
           <div className="flex shrink-0 items-center gap-gap-xs">
-            <input
+            <Input
               type="text"
               value={item.price}
-              onChange={(e) => onPatch(id, { price: e.target.value })}
+              /* Se limpia lo que se escribe: el precio solo puede ser número, y
+                 un carácter suelto de más viajaba hasta la carta pública. */
+              onChange={(e) =>
+                onPatch(id, { price: limpiarPrecio(e.target.value) })
+              }
+              inputMode="decimal"
               placeholder="0"
               aria-label="Precio"
-              className={cn(INPUT, "w-[56px] font-lv-display sm:w-[80px]")}
+              className={cn(INPUT, "w-[64px] font-lv-display sm:w-[80px]")}
             />
-            <select
+            {/* El `Select` del sistema y no un `<select>` nativo: en la misma
+                fila convive con los campos de arriba y un desplegable del
+                navegador se lee como de otra aplicación. */}
+            <Select
               value={item.currency}
-              onChange={(e) => onPatch(id, { currency: e.target.value })}
-              aria-label="Moneda del producto"
-              className="h-10 cursor-pointer rounded-xl border border-ink/10 bg-white px-gap-xs font-lv-display text-meta text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20"
+              onValueChange={(valor) => onPatch(id, { currency: valor })}
             >
-              <option value="MLC">USD Clásica</option>
-              <option value="CUP">CUP</option>
-              <option value="USD">USD</option>
-              {/* EUR falta en el `<select>` y sí está en `MONEDAS` del
-                  importador: una carta importada con precios en euros se
-                  quedaba con el desplegable en blanco y no había forma de
-                  volver a elegirla. */}
-              <option value="EUR">EUR</option>
-            </select>
+              <SelectTrigger
+                aria-label="Moneda del producto"
+                className="h-11 w-auto shrink-0 gap-[6px] px-gap-xs font-lv-display text-body sm:text-small"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {/* El rótulo dice la sigla **y** el nombre de la calle: «USD
+                    Clásica» solo, junto a un «USD» a secas, es una trampa para
+                    elegir la moneda equivocada. */}
+                <SelectItem value="MLC">MLC · USD Clásica</SelectItem>
+                <SelectItem value="CUP">CUP</SelectItem>
+                <SelectItem value="USD">USD</SelectItem>
+                <SelectItem value="EUR">EUR</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           {item.tag && (
             <span
@@ -884,20 +1221,44 @@ function FilaProducto({
               {item.tag}
             </span>
           )}
+          {/* Las categorías ya usadas, en pastillas, mientras el campo tiene el
+              foco. Es el camino que sí existe en Safari de iOS, donde
+              `datalist` no pinta nada: sin esto, el campo se quedaba sin
+              sugerencias en el navegador que más se usa aquí. */}
+          {sugiriendo && categoriasUsadas.length > 0 && (
+            <div className="flex w-full flex-wrap items-center gap-[6px]">
+              {categoriasUsadas.map((clave) => (
+                <button
+                  key={clave}
+                  type="button"
+                  /* El `mousedown` se cancela para que el campo no pierda el
+                     foco antes del clic: si no, `onBlur` cerraría la fila de
+                     pastillas justo antes de poder pulsar una. */
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => elegirCategoria(clave)}
+                  className="cursor-pointer rounded-full border border-ink/10 bg-sand px-[10px] py-[3px] font-lv-display text-[11px] font-medium text-ink-soft/75 transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+                >
+                  {clave}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* La columna de acciones, a la derecha y fuera de la de campos: son
-          acciones sobre el producto, no datos suyos. La X arriba —donde el ojo
-          ya la busca— y «Hoy hay» debajo, que es lo que pidió el dueño. */}
-      <div className="flex shrink-0 flex-col items-center gap-gap-xs">
+          acciones sobre el producto, no datos suyos. La papelera arriba y «Hoy
+          hay» debajo, con 12 px de aire: los dos blancos miden 44 px y el pulgar
+          pasa por aquí al hacer scroll. */}
+      <div className="flex shrink-0 flex-col items-center gap-gap-sm">
         <button
           type="button"
           onClick={() => onEliminar(id)}
           aria-label={`Eliminar ${nombre}`}
-          className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border border-ink/10 text-ink-soft/75 transition-all duration-500 ease-outquint hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+          className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full border border-ink/10 text-ink-soft/75 transition-all duration-500 ease-outquint hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40"
         >
-          <X size={16} strokeWidth={1.8} />
+          {/* Papelera y no una X: la X en esta app significa «cerrar». */}
+          <Trash2 size={16} strokeWidth={1.8} />
         </button>
         {canHoyHay && persistido && (
           <AvailabilityControl
@@ -928,12 +1289,12 @@ function Filtro({
       onClick={onClick}
       aria-pressed={activo}
       className={cn(
-        /* Alto fijo y `items-center` —los mismos 36 px del chip de la carta—
+        /* Alto fijo y `items-center` —40 px, el mínimo del sistema para un chip—
            para que la fila no se escalone cuando una categoría trae un nombre
            largo; `shrink-0` y `whitespace-nowrap` porque la fila ya no
            envuelve: si la pastilla se encogiera, el nombre partiría en dos
            líneas dentro de una pastilla más baja que sus vecinas. */
-        "inline-flex h-9 shrink-0 cursor-pointer select-none items-center whitespace-nowrap rounded-full border px-[14px] font-lv-display text-meta font-medium transition-all duration-500 ease-outquint active:scale-[0.98]",
+        "inline-flex h-10 shrink-0 cursor-pointer select-none items-center whitespace-nowrap rounded-full border px-[14px] font-lv-display text-meta font-medium transition-all duration-500 ease-outquint active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2",
         activo
           ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
           : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
@@ -943,7 +1304,9 @@ function Filtro({
       <span
         className={cn(
           "ml-[6px]",
-          activo ? "text-verde-950/70" : "text-ink-soft/50",
+          /* El contador también es texto: a `/50` sobre blanco se quedaba en
+             3,1:1 y con sol en la puerta no se lee. */
+          activo ? "text-verde-950" : "text-ink-soft/75",
         )}
       >
         {cuenta}
@@ -962,7 +1325,12 @@ function EstadoVacio({
   accion: React.ReactNode;
 }) {
   return (
-    <div className="mt-gap-lg flex flex-col items-center gap-gap-sm rounded-2xl border border-dashed border-ink/10 bg-white/60 px-gap-lg py-gap-xl text-center">
+    <div
+      /* Se anuncia al aparecer: cuando el filtro deja la lista vacía, el aviso
+         es justo lo que hay que decir y sin esto el cambio era mudo. */
+      role="status"
+      className="mt-gap-lg flex flex-col items-center gap-gap-sm rounded-2xl border border-dashed border-ink/10 bg-white/60 px-gap-lg py-gap-xl text-center"
+    >
       <h2 className="font-lv-display text-body font-semibold text-ink">
         {titulo}
       </h2>

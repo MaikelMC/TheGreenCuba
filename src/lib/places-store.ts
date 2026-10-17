@@ -180,8 +180,9 @@ export interface UserPlace {
   icon?: string;
   /**
    * Logotipo del negocio, en el bucket. Vacío o ausente significa «enseña la
-   * portada» y, si tampoco hay fotos, el icono de la categoría. Lo sube el
-   * formulario de administración con `LogoUpload`.
+   * portada» y, si tampoco hay fotos, el icono de la categoría. Lo sube con
+   * `LogoUpload` tanto el formulario de administración como el panel del
+   * negocio.
    */
   logoUrl?: string;
   lat: number;

@@ -41,6 +41,7 @@ import { FormSection, FormSections } from "@/components/business/form-section";
 import { PanelShell } from "@/components/business/panel-shell";
 import { DashboardStats } from "@/components/business/dashboard-stats";
 import { EstadisticasPanel } from "@/components/business/estadisticas-panel";
+import { LogoUpload } from "@/components/business/logo-upload";
 import { PhotoGrid } from "@/components/business/photo-grid";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { CatalogoView } from "@/components/business/catalogo-view";
@@ -242,6 +243,7 @@ export function BusinessPanel({
               <PublicacionesView
                 key={place.id}
                 placeId={place.id}
+                productos={place.menu}
                 funciones={funciones}
                 onVerPlanes={() => setView("planes")}
               />
@@ -406,7 +408,9 @@ function DashboardView({
             )}
             {place.menu.length === 0 && (
               <li>
-                <span className="font-semibold text-ink">Publica tu carta</span>{" "}
+                <span className="font-semibold text-ink">
+                  Publica tu catálogo
+                </span>{" "}
                 en «Lo que ofreces».
               </li>
             )}
@@ -472,6 +476,10 @@ function EditorView({
     categories.find((c) => c.label === place.category)?.value ?? "",
   );
   const [icon, setIcon] = useState<string | null>(place.icon ?? null);
+  /* El logo se sube desde aquí igual que desde el formulario de administración:
+     la ruta `/api/places/[id]/logo` es la misma y admite al dueño. La URL se
+     queda en el estado hasta que se guarda la ficha, como las fotos del menú. */
+  const [logoUrl, setLogoUrl] = useState(place.logoUrl ?? "");
   const [description, setDescription] = useState(place.description);
   const [address, setAddress] = useState(place.address);
   const [barrio, setBarrio] = useState(place.barrio);
@@ -526,6 +534,9 @@ function EditorView({
       name: trimmed,
       category: categoryLabel,
       icon: icon ?? undefined,
+      /* Cadena vacía borra el logo (`toPlaceValues` la convierte en `null`), que
+         es lo que hace «Quitar» en el propio componente. */
+      logoUrl: logoUrl.trim(),
       description: description.trim(),
       address: address.trim(),
       barrio: barrio.trim(),
@@ -568,6 +579,7 @@ function EditorView({
     name,
     categoryLabel,
     icon,
+    logoUrl,
     description,
     address,
     barrio,
@@ -592,6 +604,16 @@ function EditorView({
           title="Fotos del lugar"
           icon={<ImageIcon size={18} strokeWidth={1.8} />}
         >
+          {/* El logo va antes de la rejilla, como en el formulario de
+              administración: es el que más se ve —círculo de la ficha,
+              miniatura de las tarjetas y disco del pin— y la rejilla ocupa
+              varios renglones, así que debajo quedaba enterrado. */}
+          <LogoUpload
+            placeId={place.id}
+            value={logoUrl}
+            onChange={setLogoUrl}
+            className="mb-gap-lg"
+          />
           <PhotoGrid placeId={place.id} placeName={name || place.name} />
         </FormSection>
 
@@ -1042,8 +1064,8 @@ function SettingsView({
     }
     toast.success(
       siguiente
-        ? "Pedidos por WhatsApp activados en tu carta."
-        : "Pedidos por WhatsApp desactivados. Tu carta sigue igual, sin carrito.",
+        ? "Pedidos por WhatsApp activados en tu catálogo."
+        : "Pedidos por WhatsApp desactivados. Tu catálogo sigue igual, sin carrito.",
     );
   }
 
@@ -1312,7 +1334,7 @@ function SettingsView({
                 <Switch
                   checked={pedidos}
                   onToggle={() => void alternarPedidos()}
-                  label="Recibir pedidos en mi carta"
+                  label="Recibir pedidos en mi catálogo"
                 />
               </div>
 
@@ -1385,7 +1407,7 @@ function SettingsView({
                   </div>
                   <div className="text-meta text-ink-soft/75">
                     {reservas
-                      ? "El botón aparece en tu ficha y en tu carta."
+                      ? "El botón aparece en tu ficha y en tu catálogo."
                       : "El botón está oculto; el resto de la ficha se ve igual."}
                   </div>
                 </div>

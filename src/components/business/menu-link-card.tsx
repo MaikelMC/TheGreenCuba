@@ -416,7 +416,7 @@ export function MenuLinkCard({
         Tu menú online
       </h2>
       <p className="mt-gap-xs max-w-[60ch] text-small text-ink-soft/75">
-        Tu carta se abre{" "}
+        Tu catálogo se abre{" "}
         <strong className="font-semibold text-ink">sin pedir cuenta</strong>.
         Compártela o imprime el QR.
       </p>

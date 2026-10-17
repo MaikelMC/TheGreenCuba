@@ -18,7 +18,11 @@ import {
 import { cn } from "@/lib/utils";
 import { nombreDe, type Plan } from "@/lib/plans";
 import { useCatalogo } from "@/providers/catalogo-provider";
-import { ESTADO_LABEL, type EstadoPublicacion } from "@/lib/publicaciones";
+import {
+  ESTADO_LABEL,
+  type EstadoPublicacion,
+  type VariantePublicacion,
+} from "@/lib/publicaciones";
 
 /**
  * La cola de publicaciones de Facebook, para administración.
@@ -29,6 +33,11 @@ import { ESTADO_LABEL, type EstadoPublicacion } from "@/lib/publicaciones";
  * enlace del post ya hecho a mano. Los tres botones del final de cada tarjeta
  * —copiar, descargar, marcar publicada— son exactamente ese flujo.
  */
+
+const ANGULO_LABEL: Record<VariantePublicacion["angulo"], string> = {
+  directa: "Directa",
+  antojo: "Antojo",
+};
 
 interface Publicacion {
   id: string;
@@ -320,7 +329,8 @@ export function PublicacionesQueue() {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [generando, setGenerando] = useState(false);
-  const [variantes, setVariantes] = useState<string[]>([]);
+  const [variantes, setVariantes] = useState<VariantePublicacion[]>([]);
+  const [datosEscasos, setDatosEscasos] = useState(false);
 
   const cargar = useCallback(async () => {
     try {
@@ -362,6 +372,7 @@ export function PublicacionesQueue() {
   const seleccionar = useCallback((id: string) => {
     setSelectedId(id);
     setVariantes([]);
+    setDatosEscasos(false);
   }, []);
 
   const generar = useCallback(async () => {
@@ -375,7 +386,8 @@ export function PublicacionesQueue() {
         body: JSON.stringify({ negocioId: seleccionado.id }),
       });
       const body = (await res.json().catch(() => ({}))) as {
-        variantes?: string[];
+        variantes?: VariantePublicacion[];
+        datosEscasos?: boolean;
         error?: string;
       };
       if (!res.ok || !body.variantes?.length) {
@@ -383,6 +395,7 @@ export function PublicacionesQueue() {
         return;
       }
       setVariantes(body.variantes);
+      setDatosEscasos(Boolean(body.datosEscasos));
     } catch {
       toast.error("No hubo respuesta del servidor al generar.");
     } finally {
@@ -412,6 +425,7 @@ export function PublicacionesQueue() {
         }
         toast.success("Publicación en cola");
         setVariantes([]);
+        setDatosEscasos(false);
         await cargar();
       } catch {
         toast.error("No hubo respuesta del servidor. No se guardó nada.");
@@ -638,6 +652,12 @@ export function PublicacionesQueue() {
                     {generando ? "Generando…" : "Generar texto con IA"}
                   </button>
 
+                  {datosEscasos && (
+                    <p className="rounded-xl border border-ink/10 bg-sand px-gap-md py-gap-sm text-meta text-ink-soft/70">
+                      Completa tu ficha y te saldrán mejores publicaciones.
+                    </p>
+                  )}
+
                   {variantes.length > 0 && (
                     <div className="flex flex-col gap-gap-sm">
                       <p className="font-lv-display text-meta font-semibold text-ink-soft/75">
@@ -649,13 +669,16 @@ export function PublicacionesQueue() {
                             key={i}
                             className="flex flex-col gap-gap-sm rounded-xl border border-verde-200 bg-verde-50/50 p-gap-sm"
                           >
+                            <span className="inline-flex w-fit items-center rounded-full border border-verde-200 bg-white px-[10px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-verde-700">
+                              {ANGULO_LABEL[variante.angulo]}
+                            </span>
                             <p className="whitespace-pre-wrap text-small text-ink">
-                              {variante}
+                              {variante.texto}
                             </p>
                             <div className="mt-auto flex flex-wrap gap-gap-xs">
                               <button
                                 type="button"
-                                onClick={() => void copiarTexto(variante)}
+                                onClick={() => void copiarTexto(variante.texto)}
                                 className="inline-flex h-9 cursor-pointer items-center gap-[6px] rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink-soft/75 hover:bg-sand"
                               >
                                 <Copy size={14} strokeWidth={1.8} />
@@ -663,7 +686,7 @@ export function PublicacionesQueue() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => void guardarVariante(variante)}
+                                onClick={() => void guardarVariante(variante.texto)}
                                 className="inline-flex h-9 cursor-pointer items-center gap-[6px] rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 hover:bg-verde-300"
                               >
                                 <Check size={14} strokeWidth={2} />

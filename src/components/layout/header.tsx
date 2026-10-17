@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Search, Mic, Loader2, MapPin } from "lucide-react";
+import { Search, Mic, Loader2, MapPin, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchActions, useSearchState } from "@/providers/search-provider";
 import { searchAddress, type GeocodeSuggestion } from "@/lib/map/geocode";
@@ -62,6 +62,12 @@ function timeAgo(at: number): string {
   return days === 1 ? "ayer" : `hace ${days} días`;
 }
 
+/** Búsquedas recientes visibles sin desplegar el resto. */
+const RECENT_PREVIEW = 2;
+
+/** Direcciones visibles sin desplegar el resto. */
+const ADDR_PREVIEW = 3;
+
 /** Rótulo de sección del desplegable: el eyebrow del design system. */
 const EYEBROW =
   "px-gap-md pb-[4px] font-lv-display text-[10px] font-semibold text-verde-600 uppercase tracking-[0.22em]";
@@ -69,6 +75,43 @@ const EYEBROW =
 /** Fila del desplegable (dirección, sugerencia o búsqueda reciente). */
 const ROW =
   "flex items-center gap-gap-sm w-full px-gap-md py-[10px] text-left hover:bg-sand transition-colors duration-500";
+
+/**
+ * «Ver más» / «Ver menos» de una lista del desplegable. El `mousedown` se
+ * cancela para que el campo no pierda el foco y el desplegable no se cierre al
+ * desplegar la lista.
+ */
+function ShowMoreButton({
+  expanded,
+  remaining,
+  onToggle,
+}: {
+  expanded: boolean;
+  remaining: number;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-expanded={expanded}
+      className="flex items-center justify-center gap-[6px] w-full px-gap-md pt-[6px] pb-[10px] text-meta font-medium text-ink-soft/70 transition-colors duration-500 hover:text-verde-700"
+      onMouseDown={(e) => {
+        e.preventDefault();
+        onToggle();
+      }}
+    >
+      {expanded ? "Ver menos" : `Ver ${remaining} más`}
+      <ChevronDown
+        size={14}
+        strokeWidth={1.8}
+        className={cn(
+          "transition-transform duration-300",
+          expanded && "rotate-180",
+        )}
+      />
+    </button>
+  );
+}
 
 interface HeaderProps {
   onSearch?: (query: string) => void;
@@ -96,6 +139,12 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
   /* Arranca vacío y se llena al enfocar: leer `localStorage` durante el render
      haría que el HTML del servidor y el del navegador no coincidieran. */
   const [recent, setRecent] = useState<RecentSearch[]>([]);
+  /* El historial enseña solo las dos últimas; el resto queda detrás de «Ver
+     más». Se recoge otra vez cada vez que se abre el desplegable. */
+  const [showAllRecent, setShowAllRecent] = useState(false);
+  /* Mismo criterio para las direcciones: las tres primeras y el resto detrás
+     de «Ver más». Se recoge cada vez que llega una búsqueda nueva. */
+  const [showAllAddr, setShowAllAddr] = useState(false);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const addrTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -171,6 +220,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
     if (addrTimer.current) clearTimeout(addrTimer.current);
     if (raw.trim().length < 3) {
       setAddrResults([]);
+      setShowAllAddr(false);
       return;
     }
     const seq = ++addrSeq.current;
@@ -179,6 +229,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
         const results = await searchAddress(raw);
         if (seq !== addrSeq.current) return;
         setAddrResults(results);
+        setShowAllAddr(false);
       } catch {
         if (seq !== addrSeq.current) return;
         setAddrResults([]);
@@ -261,6 +312,8 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
               /* Se relee en cada apertura: el historial lo escribe el home al
                  buscar, y este header sigue montado mientras eso pasa. */
               setRecent(readRecentSearches());
+              setShowAllRecent(false);
+              setShowAllAddr(false);
               setSuggestions(buildSearchSuggestions({ places, ...suggestionOrigin(userId) }));
               if (query.trim().length >= 3) handleQueryChange(query);
               else setAddrResults([]);
@@ -308,7 +361,10 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
                   <div className={cn(EYEBROW, "pt-[10px]")}>
                     Direcciones
                   </div>
-                  {addrResults.map((s, i) => {
+                  {(showAllAddr
+                    ? addrResults
+                    : addrResults.slice(0, ADDR_PREVIEW)
+                  ).map((s, i) => {
                     const main = [s.street, s.housenumber]
                       .filter(Boolean)
                       .join(" ");
@@ -351,6 +407,13 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
                       </motion.button>
                     );
                   })}
+                  {addrResults.length > ADDR_PREVIEW && (
+                    <ShowMoreButton
+                      expanded={showAllAddr}
+                      remaining={addrResults.length - ADDR_PREVIEW}
+                      onToggle={() => setShowAllAddr((v) => !v)}
+                    />
+                  )}
                   <div className="h-px bg-ink/5 mx-gap-md my-[4px]" />
                 </>
               )}
@@ -404,7 +467,10 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
                   <div className={EYEBROW}>
                     Búsquedas recientes
                   </div>
-                  {recent.map((s, i) => (
+                  {(showAllRecent
+                    ? recent
+                    : recent.slice(0, RECENT_PREVIEW)
+                  ).map((s, i) => (
                     <motion.button
                       key={s.query}
                       type="button"
@@ -430,6 +496,13 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
                       </div>
                     </motion.button>
                   ))}
+                  {recent.length > RECENT_PREVIEW && (
+                    <ShowMoreButton
+                      expanded={showAllRecent}
+                      remaining={recent.length - RECENT_PREVIEW}
+                      onToggle={() => setShowAllRecent((v) => !v)}
+                    />
+                  )}
                 </>
               )}
             </motion.div>
