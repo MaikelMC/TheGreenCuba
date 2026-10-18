@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
+import { Clock, Sparkles, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface OfferBannerProps {
@@ -23,6 +24,16 @@ interface OfferBannerProps {
   className?: string;
 }
 
+/**
+ * La oferta flash de la ficha.
+ *
+ * Es la primera cosa que debe verse al entrar al negocio, así que la tarjeta se
+ * separa del resto sin salirse del sistema: fondo verde del tema, un filo de
+ * color a la izquierda, dos halos suaves y un brillo que cruza una sola vez al
+ * aparecer. Los adornos son `aria-hidden` y translúcidos, de modo que funcionan
+ * igual sobre el fondo claro y el oscuro —los tokens `verde-50`, `verde-200` y
+ * `white/60` ya tienen su pareja oscura en `globals.css`—.
+ */
 export function OfferBanner({
   label,
   text,
@@ -41,30 +52,77 @@ export function OfferBanner({
       viewport={{ once: true, margin: "-32px" }}
       transition={{ type: "spring", stiffness: 320, damping: 28 }}
       className={cn(
-        "mx-gap-md mb-gap-md p-gap-md bg-verde-50 border border-verde-200 rounded-2xl",
+        "relative mx-gap-md mb-gap-md overflow-hidden rounded-2xl border border-verde-200 bg-verde-50 p-gap-md shadow-soft",
         className,
       )}
     >
-      <div className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600 mb-[6px]">
-        {label}
-      </div>
-      <div className="font-lv-display text-small font-semibold text-ink leading-snug">
-        {text}
-      </div>
-      {precio && (
-        <div className="mt-[6px] flex items-baseline gap-gap-xs">
-          <span className="font-lv-display text-meta text-ink-soft/60 line-through">
-            {precio.de}
+      {/* Adornos. Van primero y detrás del contenido. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-3 left-0 w-[5px] rounded-r-full bg-verde-400"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -right-8 -top-10 size-28 rounded-full bg-verde-400/20 blur-2xl"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -bottom-10 -left-6 size-24 rounded-full bg-verde-300/20 blur-2xl"
+      />
+      <Sparkles
+        aria-hidden
+        size={44}
+        strokeWidth={1.2}
+        className="pointer-events-none absolute -right-1 -top-1 text-verde-600 opacity-20"
+      />
+      {/* El brillo cruza una vez al entrar; no se repite ni responde a nada. */}
+      <motion.span
+        aria-hidden
+        initial={{ x: "-130%" }}
+        whileInView={{ x: "160%" }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.9, delay: 0.2, ease: "easeInOut" }}
+        className="pointer-events-none absolute inset-y-0 w-1/3 -skew-x-12 bg-white/30 blur-md"
+      />
+
+      <div className="relative">
+        <div className="flex flex-wrap items-center justify-between gap-gap-xs">
+          <span className="inline-flex items-center gap-[6px] rounded-full bg-verde-400 px-[10px] py-[4px] font-lv-display text-[10px] font-bold uppercase tracking-[0.18em] text-verde-950 shadow-soft">
+            <Tag size={12} strokeWidth={2.2} />
+            {label}
           </span>
-          <span className="font-lv-display text-body font-semibold text-verde-600">
-            {precio.por}
-          </span>
+          <Sparkles
+            size={14}
+            strokeWidth={2}
+            className="text-verde-600 opacity-60"
+            aria-hidden
+          />
         </div>
-      )}
-      {description && (
-        <div className="mt-[6px] text-meta text-ink-soft/75">{description}</div>
-      )}
-      <div className="text-meta text-ink-soft/75 mt-[6px]">{expiry}</div>
+
+        <div className="mt-gap-sm font-lv-display text-body font-bold leading-snug text-ink">
+          {text}
+        </div>
+
+        {description && (
+          <div className="mt-[6px] text-meta text-ink-soft/75">{description}</div>
+        )}
+
+        {precio && (
+          <div className="mt-gap-sm flex flex-wrap items-baseline gap-x-gap-sm gap-y-1 rounded-xl border border-dashed border-verde-300/60 bg-white/60 px-gap-sm py-2">
+            <span className="font-lv-display text-meta text-ink-soft/60 line-through">
+              {precio.de}
+            </span>
+            <span className="font-lv-display text-[20px] font-bold leading-none text-verde-600">
+              {precio.por}
+            </span>
+          </div>
+        )}
+
+        <div className="mt-gap-sm flex items-center gap-[6px] border-t border-dashed border-verde-300/50 pt-gap-xs text-[11px] font-medium text-ink-soft/75">
+          <Clock size={12} strokeWidth={2} className="shrink-0" aria-hidden />
+          <span className="min-w-0">{expiry}</span>
+        </div>
+      </div>
     </motion.div>
   );
 }
