@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import {
   ArrowUpRight,
+  AtSign,
   CalendarDays,
   ChevronDown,
   Clock,
@@ -20,7 +21,6 @@ import {
   Save,
   Store,
   Tag,
-  User as UserIcon,
   Zap,
 } from "lucide-react";
 import { cn, sanitizePhone } from "@/lib/utils";
@@ -608,6 +608,11 @@ interface BorradorFicha {
   description: string;
   address: string;
   barrio: string;
+  phone: string;
+  website: string;
+  whatsapp: string;
+  instagram: string;
+  facebook: string;
   schedule: string;
   status: PlaceStatus;
   payments: string[];
@@ -653,6 +658,14 @@ function EditorView({
   const [description, setDescription] = useState(place.description);
   const [address, setAddress] = useState(place.address);
   const [barrio, setBarrio] = useState(place.barrio);
+  /* Contacto. Vive aquí y no en Ajustes: el formulario de administración ya
+     edita estos cinco campos, y tenerlos en dos pantallas del panel obligaba a
+     buscar en cuál estaba la versión buena. */
+  const [phone, setPhone] = useState(place.phone ?? "");
+  const [website, setWebsite] = useState(place.website ?? "");
+  const [whatsapp, setWhatsapp] = useState(place.whatsapp ?? "");
+  const [instagram, setInstagram] = useState(place.instagram ?? "");
+  const [facebook, setFacebook] = useState(place.facebook ?? "");
   const [schedule, setSchedule] = useState(place.schedule);
   const [status, setStatus] = useState<PlaceStatus>(place.status);
   const [payments, setPayments] = useState<string[]>(place.payments);
@@ -690,6 +703,11 @@ function EditorView({
       description,
       address,
       barrio,
+      phone,
+      website,
+      whatsapp,
+      instagram,
+      facebook,
       schedule,
       status,
       payments,
@@ -706,6 +724,11 @@ function EditorView({
       description,
       address,
       barrio,
+      phone,
+      website,
+      whatsapp,
+      instagram,
+      facebook,
       schedule,
       status,
       payments,
@@ -730,7 +753,7 @@ function EditorView({
     const trimmed = name.trim();
     if (!trimmed) {
       setError(
-        "El nombre del negocio no puede quedar vacío. Está en «Información básica».",
+        "El nombre del negocio no puede quedar vacío. Está en «Información del negocio».",
       );
       return;
     }
@@ -739,6 +762,20 @@ function EditorView({
         "Marca tu negocio en el mapa antes de guardar. Está en «Ubicación en el mapa».",
       );
       return;
+    }
+    /* El número de WhatsApp se guarda normalizado (`+53XXXXXXXX`) porque de él
+       sale el enlace de los pedidos. Lo que no se entiende se rechaza aquí, con
+       la misma frase que la ruta. */
+    let numeroWhatsapp = "";
+    if (whatsapp.trim()) {
+      const normalizado = normalizarWhatsappCubano(whatsapp);
+      if (!normalizado) {
+        setError(
+          "Ese WhatsApp no parece cubano. Escríbelo como +53 5 123 4567.",
+        );
+        return;
+      }
+      numeroWhatsapp = normalizado;
     }
 
     setError(null);
@@ -754,6 +791,11 @@ function EditorView({
       description: description.trim(),
       address: address.trim(),
       barrio: barrio.trim(),
+      phone: phone.trim(),
+      website: website.trim(),
+      whatsapp: numeroWhatsapp,
+      instagram: instagram.trim(),
+      facebook: facebook.trim(),
       lat: location.lat,
       lng: location.lng,
       schedule: schedule.trim(),
@@ -805,6 +847,11 @@ function EditorView({
     description,
     address,
     barrio,
+    phone,
+    website,
+    whatsapp,
+    instagram,
+    facebook,
     location,
     schedule,
     status,
@@ -881,6 +928,13 @@ function EditorView({
     setDescription(borrador.description);
     setAddress(borrador.address);
     setBarrio(borrador.barrio);
+    /* `?? ""`: los borradores escritos antes de que el contacto entrara en el
+       editor no traen estos campos. */
+    setPhone(borrador.phone ?? "");
+    setWebsite(borrador.website ?? "");
+    setWhatsapp(borrador.whatsapp ?? "");
+    setInstagram(borrador.instagram ?? "");
+    setFacebook(borrador.facebook ?? "");
     setSchedule(borrador.schedule);
     setStatus(borrador.status);
     setPayments(borrador.payments);
@@ -975,8 +1029,8 @@ function EditorView({
         </FormSection>
 
         <FormSection
-          title="Información básica"
-          icon={<UserIcon size={18} strokeWidth={1.8} />}
+          title="Información del negocio"
+          icon={<Store size={18} strokeWidth={1.8} />}
         >
           <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
             <div className="flex flex-col gap-gap-xs">
@@ -986,7 +1040,7 @@ function EditorView({
                 className={INPUT}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Nombre que aparece en La Verde"
+                placeholder="Ej: Paladar El Sabroso"
               />
             </div>
             <div className="flex flex-col gap-gap-xs">
@@ -1011,15 +1065,14 @@ function EditorView({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-col gap-gap-xs lg:col-span-2">
-              <Label htmlFor="bizDesc">Descripción</Label>
-              <textarea
-                id="bizDesc"
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe tu negocio: es el texto que el buscador usa para recomendarte."
-                className="flex h-auto min-h-[100px] w-full resize-y rounded-xl border border-ink/10 bg-white px-4 py-3 text-body leading-relaxed text-ink outline-none transition-colors duration-500 ease-outquint placeholder:text-ink-soft/75 focus:border-verde-400 focus:ring-2 focus:ring-verde-400/30"
+            <div className="flex flex-col gap-gap-xs">
+              <Label htmlFor="bizBarrio">Barrio / Municipio</Label>
+              <Input
+                id="bizBarrio"
+                className={INPUT}
+                value={barrio}
+                onChange={(e) => setBarrio(e.target.value)}
+                placeholder="Ej: Centro histórico, Vista Alegre..."
               />
             </div>
             <div className="flex flex-col gap-gap-xs">
@@ -1029,17 +1082,87 @@ function EditorView({
                 className={INPUT}
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="Dirección completa"
+                placeholder="Ej: Calle 12 #45, entre 7 y 9"
               />
             </div>
             <div className="flex flex-col gap-gap-xs">
-              <Label htmlFor="bizBarrio">Barrio / Municipio</Label>
+              <Label htmlFor="bizPhone">Teléfono</Label>
               <Input
-                id="bizBarrio"
+                id="bizPhone"
+                type="tel"
+                autoComplete="tel"
                 className={INPUT}
-                value={barrio}
-                onChange={(e) => setBarrio(e.target.value)}
-                placeholder="Ej: Centro histórico"
+                value={phone}
+                onChange={(e) => setPhone(sanitizePhone(e.target.value))}
+                placeholder="Ej: +53 5 123 4567"
+              />
+            </div>
+            <div className="flex flex-col gap-gap-xs lg:col-span-2">
+              <Label htmlFor="bizDesc">Descripción</Label>
+              <textarea
+                id="bizDesc"
+                rows={4}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe el negocio para que la IA lo recomiende mejor..."
+                className="flex h-auto min-h-[100px] w-full resize-y rounded-xl border border-ink/10 bg-white px-4 py-3 text-body leading-relaxed text-ink outline-none transition-colors duration-500 ease-outquint placeholder:text-ink-soft/75 focus:border-verde-400 focus:ring-2 focus:ring-verde-400/30"
+              />
+            </div>
+          </div>
+        </FormSection>
+
+        <FormSection
+          title="Contacto"
+          icon={<AtSign size={18} strokeWidth={1.8} />}
+        >
+          <p className="mb-gap-sm text-meta text-ink-soft/75">
+            Enlaces que aparecen como botones en tu ficha. Todo es opcional: el
+            que quede vacío no se pinta.
+          </p>
+          <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
+            <div className="flex flex-col gap-gap-xs">
+              <Label htmlFor="bizWebsite">Sitio web</Label>
+              <Input
+                id="bizWebsite"
+                className={INPUT}
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                placeholder="Ej: laverde.cu"
+              />
+            </div>
+            <div className="flex flex-col gap-gap-xs">
+              <Label htmlFor="bizWhatsapp">WhatsApp</Label>
+              <Input
+                id="bizWhatsapp"
+                type="tel"
+                autoComplete="tel"
+                className={INPUT}
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(sanitizePhone(e.target.value))}
+                placeholder="Ej: +53 5 123 4567"
+              />
+              <p className="text-meta text-ink-soft/75">
+                Número distinto del teléfono: es el que abre la conversación.
+              </p>
+            </div>
+            <div className="flex flex-col gap-gap-xs">
+              <Label htmlFor="bizInstagram">Instagram</Label>
+              <Input
+                id="bizInstagram"
+                className={INPUT}
+                value={instagram}
+                onChange={(e) => setInstagram(e.target.value)}
+                placeholder="https://instagram.com/laverde"
+              />
+            </div>
+            <div className="flex flex-col gap-gap-xs">
+              <Label htmlFor="bizFacebook">Facebook</Label>
+              <Input
+                id="bizFacebook"
+                className={INPUT}
+                value={facebook}
+                onChange={(e) => setFacebook(e.target.value)}
+                placeholder="https://facebook.com/laverde"
               />
             </div>
           </div>
@@ -1380,20 +1503,13 @@ function SettingsView({
      primera: se convierte en la pregunta, con el número de personas que se
      van a soltar delante. */
   const [confirmandoLiberar, setConfirmandoLiberar] = useState(false);
-  const [whatsapp, setWhatsapp] = useState(place.whatsapp ?? "");
-  const [phone, setPhone] = useState(place.phone ?? "");
-  const [website, setWebsite] = useState(place.website ?? "");
-  const [instagram, setInstagram] = useState(place.instagram ?? "");
-  const [facebook, setFacebook] = useState(place.facebook ?? "");
-  const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const cat = useCatalogo();
 
   /* `null` si ya lo tiene. Es el mismo texto que usa el candado de «Hoy hay»:
      una sola forma de decir «esto se abre con un módulo o un pack». */
   const bloqueo = bloqueoDe(funciones, "whatsapp_pedido", cat);
   const bloqueoReservas = bloqueoDe(funciones, "reservas_whatsapp", cat);
-  const tieneNumero = Boolean(whatsapp.trim());
+  const tieneNumero = Boolean(place.whatsapp?.trim());
 
   /**
    * El interruptor escribe al momento.
@@ -1582,48 +1698,6 @@ function SettingsView({
     }
   }
 
-  /**
-   * El contacto se guarda de una vez, con su botón.
-   *
-   * No es un interruptor y no escribe al teclear: son cinco campos que se
-   * escriben a medias, y mandar cada pulsación dejaría la ficha con números
-   * incompletos mientras se teclea.
-   */
-  async function guardarContacto() {
-    let numero = "";
-    if (whatsapp.trim()) {
-      const normalizado = normalizarWhatsappCubano(whatsapp);
-      if (!normalizado) {
-        setError(
-          "Ese WhatsApp no parece cubano. Escríbelo como +53 5 123 4567.",
-        );
-        return;
-      }
-      numero = normalizado;
-    }
-
-    setError(null);
-    setGuardando(true);
-    const guardado = await updatePlace(place.id, {
-      whatsapp: numero,
-      phone: phone.trim(),
-      website: website.trim(),
-      instagram: instagram.trim(),
-      facebook: facebook.trim(),
-    });
-    setGuardando(false);
-
-    if (!guardado) {
-      setError(
-        "No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada.",
-      );
-      return;
-    }
-    /* Se pinta ya normalizado, que es como quedó guardado. */
-    setWhatsapp(numero);
-    toast.success("Contacto guardado");
-  }
-
   return (
     <>
       <h1 className="sr-only">Ajustes</h1>
@@ -1701,8 +1775,8 @@ function SettingsView({
               {pedidos && !tieneNumero && (
                 <p className="mt-gap-sm rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-3 py-[7px] text-meta font-medium text-ink">
                   Falta tu número de WhatsApp: sin él no hay a dónde mandar el
-                  pedido y el carrito no se enseña. Añádelo en «Cómo te
-                  contactan», aquí abajo.
+                  pedido y el carrito no se enseña. Añádelo en «Editar ficha»,
+                  sección «Contacto».
                 </p>
               )}
             </>
@@ -1780,8 +1854,8 @@ function SettingsView({
               {reservas && !tieneNumero && (
                 <p className="mt-gap-sm rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-3 py-[7px] text-meta font-medium text-ink">
                   Falta tu número de WhatsApp: sin él no hay a dónde mandar la
-                  reserva y el botón no se enseña. Añádelo en «Cómo te
-                  contactan», aquí abajo.
+                  reserva y el botón no se enseña. Añádelo en «Editar ficha»,
+                  sección «Contacto».
                 </p>
               )}
 
@@ -2016,120 +2090,6 @@ function SettingsView({
           funciones={funciones}
           onVerPlanes={onVerPlanes}
         />
-
-        {/* ── Contacto ────────────────────────────────────────────────────
-            Los cuatro campos que hasta ahora solo se podían cambiar en el
-            formulario de alta del perfil. El número de WhatsApp es el que
-            alimenta el bloque de arriba, así que vive pegado a él. */}
-        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md">
-          <h2 className="font-lv-display text-body font-semibold text-ink">
-            Cómo te contactan
-          </h2>
-          <p className="mt-gap-xs max-w-[62ch] text-small text-ink-soft/75">
-            Lo que dejes vacío no se pinta en tu ficha.
-          </p>
-
-          <div className="mt-gap-md grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-            <div className="flex flex-col gap-gap-xs">
-              <Label htmlFor="ajWhatsapp">
-                WhatsApp{" "}
-                <span className="text-verde-700">
-                  (con él llegan los pedidos)
-                </span>
-              </Label>
-              <Input
-                id="ajWhatsapp"
-                type="tel"
-                autoComplete="tel"
-                value={whatsapp}
-                onChange={(e) => setWhatsapp(sanitizePhone(e.target.value))}
-                placeholder="+53 5 123 4567"
-                className={INPUT}
-              />
-            </div>
-
-            <div className="flex flex-col gap-gap-xs">
-              <Label htmlFor="ajPhone">Teléfono de la ficha</Label>
-              <Input
-                id="ajPhone"
-                type="tel"
-                autoComplete="tel"
-                value={phone}
-                onChange={(e) => setPhone(sanitizePhone(e.target.value))}
-                placeholder="+53 7 866 1234"
-                className={INPUT}
-              />
-            </div>
-
-            <div className="flex flex-col gap-gap-xs">
-              <Label htmlFor="ajWebsite">Sitio web</Label>
-              <Input
-                id="ajWebsite"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                placeholder="Ej: https://laverde.cu"
-                className={INPUT}
-              />
-            </div>
-
-            <div className="flex flex-col gap-gap-xs">
-              <Label htmlFor="ajInstagram">Instagram</Label>
-              <Input
-                id="ajInstagram"
-                value={instagram}
-                onChange={(e) => setInstagram(e.target.value)}
-                placeholder="Ej: @laverde"
-                className={INPUT}
-              />
-            </div>
-
-            <div className="flex flex-col gap-gap-xs">
-              <Label htmlFor="ajFacebook">Facebook</Label>
-              <Input
-                id="ajFacebook"
-                value={facebook}
-                onChange={(e) => setFacebook(e.target.value)}
-                placeholder="Ej: laverde.cu"
-                className={INPUT}
-              />
-            </div>
-          </div>
-
-          <AnimatePresence>
-            {error && (
-              <motion.p
-                key="aj-error"
-                role="alert"
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                className="mt-gap-sm rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-ink"
-              >
-                {error}
-              </motion.p>
-            )}
-          </AnimatePresence>
-
-          <button
-            type="button"
-            onClick={() => void guardarContacto()}
-            disabled={guardando}
-            className="mt-gap-md inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
-          >
-            {guardando ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                Guardando…
-              </>
-            ) : (
-              <>
-                <Save size={16} strokeWidth={1.8} />
-                Guardar contacto
-              </>
-            )}
-          </button>
-        </section>
 
         {/* ── Lo que solo se consulta ─────────────────────────────────────
             De lectura, y por eso sin botón.

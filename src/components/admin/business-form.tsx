@@ -39,12 +39,18 @@ import {
 } from "@/lib/energia";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { MenuItemEditor } from "@/components/business/menu-item-editor";
+import { OfertasEditor } from "@/components/business/ofertas-editor";
 import {
   MapLocationPicker,
   type LocationPoint,
 } from "@/components/map/MapLocationPicker";
 import { usePlaces } from "@/providers/places-provider";
-import type { NewUserPlace, PlaceStatus, UserPlace } from "@/lib/places-store";
+import type {
+  NewUserPlace,
+  PlaceStatus,
+  UserPlace,
+  UserPlaceOferta,
+} from "@/lib/places-store";
 
 const SCHEDULE_PRESETS = [
   "8:00 – 16:00",
@@ -54,10 +60,24 @@ const SCHEDULE_PRESETS = [
   "24 horas",
 ];
 
-const STATUS_OPTIONS: { value: PlaceStatus; label: string }[] = [
-  { value: "active", label: "Activo" },
-  { value: "closed", label: "Cerrado" },
-  { value: "temporary_closed", label: "Temporalmente cerrado" },
+/* Mismas etiquetas y los mismos avisos que el panel del negocio: el estado es
+   el mismo dato y se explica igual en los dos sitios. */
+const STATUS_OPTIONS: { value: PlaceStatus; label: string; hint: string }[] = [
+  {
+    value: "active",
+    label: "Abierto",
+    hint: "Es lo que se enseña por defecto.",
+  },
+  {
+    value: "temporary_closed",
+    label: "Cerrado temporalmente",
+    hint: "La ficha avisa de que ahora no abre.",
+  },
+  {
+    value: "closed",
+    label: "Cerrado",
+    hint: "La ficha se sigue viendo, marcada como cerrada.",
+  },
 ];
 
 /* `Input`, `Label` y `Button` viven en `components/ui` con el sistema viejo y
@@ -109,9 +129,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
   const [schedule, setSchedule] = useState(initial?.schedule ?? "");
   const [payments, setPayments] = useState<string[]>(initial?.payments ?? []);
   const [menu, setMenu] = useState(initial?.menu ?? []);
-  const [offerEnabled, setOfferEnabled] = useState(Boolean(initial?.offer));
-  const [offerText, setOfferText] = useState(initial?.offer?.text ?? "");
-  const [offerExpiry, setOfferExpiry] = useState(initial?.offer?.expiry ?? "");
+  const [ofertas, setOfertas] = useState<UserPlaceOferta[]>(
+    initial?.ofertas ?? [],
+  );
   const [status, setStatus] = useState<PlaceStatus>(
     initial?.status ?? "active",
   );
@@ -181,6 +201,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
       menu: menu
         .filter((item) => item.name.trim().length > 0)
         .map((item) => ({
+          /* El `id` tiene que viajar: las ofertas flash apuntan a un producto
+             por él, y sin esto el vínculo se rompía en cada guardado del admin. */
+          id: item.id,
           name: item.name,
           description: item.description,
           price: item.price,
@@ -189,10 +212,11 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
           category: item.category?.trim() || undefined,
           image: item.image || undefined,
         })),
-      offer:
-        offerEnabled && offerText.trim()
-          ? { text: offerText.trim(), expiry: offerExpiry.trim() }
-          : null,
+      ofertas,
+      /* Ya no se edita aquí —lo sustituyen las ofertas flash—, pero el tipo lo
+         exige y los proyectos todavía leen este cartel: se conserva el que
+         hubiera en vez de borrarlo al guardar cualquier otro campo. */
+      offer: initial?.offer ?? null,
       status,
       /* El sello lo escribe solo el panel de administración: el `PATCH` le tira
          el campo a cualquier otro, así que aquí es donde se enciende. */
@@ -247,9 +271,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
     schedule,
     payments,
     menu,
-    offerEnabled,
-    offerText,
-    offerExpiry,
+    ofertas,
     status,
     verificado,
     energia,
@@ -474,42 +496,28 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
         </FormSection>
 
         <FormSection
-          title="Horarios"
-          icon={<Clock size={18} strokeWidth={1.8} />}
+          title="Ubicación en el mapa"
+          icon={<MapPin size={18} strokeWidth={1.8} />}
         >
-          <div className="flex flex-col gap-gap-sm">
-            <div className="flex flex-col gap-gap-xs">
-              <label htmlFor="bfSchedule" className={LABEL}>
-                Horario de atención
-              </label>
-              <input
-                id="bfSchedule"
-                value={schedule}
-                onChange={(e) => setSchedule(e.target.value)}
-                placeholder="Ej: 10:00 – 22:00"
-                className={INPUT}
-              />
-            </div>
-            <div className="flex flex-wrap gap-[6px]">
-              {SCHEDULE_PRESETS.map((preset) => (
-                <motion.button
-                  key={preset}
-                  type="button"
-                  whileTap={{ scale: 0.94 }}
-                  onClick={() => setSchedule(preset)}
-                  aria-pressed={schedule === preset}
-                  className={cn(
-                    "px-[14px] py-2 rounded-full border font-lv-display text-meta font-medium cursor-pointer select-none transition-all duration-500 ease-outquint active:scale-[0.98]",
-                    schedule === preset
-                      ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
-                      : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
-                  )}
-                >
-                  {preset}
-                </motion.button>
-              ))}
-            </div>
-          </div>
+          <p className="text-meta text-ink-soft/75 mb-gap-sm">
+            Escribe la dirección (ej: Calle Heredia e/ San Pedro y Santo Tomás),
+            elige la coincidencia y ajusta el pin en el mapa. El punto cae sobre
+            la calle, no al lado.
+          </p>
+          <MapLocationPicker
+            value={location}
+            onChange={setLocation}
+            onResolved={(r) => {
+              if (!r) return;
+              // No pisa una dirección escrita con entre-calles ("e/ A y B").
+              setAddress((prev) =>
+                prev.trim() === "" || !/e\/|entre/i.test(prev)
+                  ? r.address
+                  : prev,
+              );
+              setBarrio((prev) => (prev.trim() ? prev : r.barrio));
+            }}
+          />
         </FormSection>
 
         <FormSection
@@ -542,6 +550,45 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-gap-md">
           <FormSection
+            title="Horario"
+            icon={<Clock size={18} strokeWidth={1.8} />}
+          >
+            <div className="flex flex-col gap-gap-sm">
+              <div className="flex flex-col gap-gap-xs">
+                <label htmlFor="bfSchedule" className={LABEL}>
+                  Horario de atención
+                </label>
+                <input
+                  id="bfSchedule"
+                  value={schedule}
+                  onChange={(e) => setSchedule(e.target.value)}
+                  placeholder="Ej: 10:00 – 22:00"
+                  className={INPUT}
+                />
+              </div>
+              <div className="flex flex-wrap gap-[6px]">
+                {SCHEDULE_PRESETS.map((preset) => (
+                  <motion.button
+                    key={preset}
+                    type="button"
+                    whileTap={{ scale: 0.94 }}
+                    onClick={() => setSchedule(preset)}
+                    aria-pressed={schedule === preset}
+                    className={cn(
+                      "px-[14px] py-2 rounded-full border font-lv-display text-meta font-medium cursor-pointer select-none transition-all duration-500 ease-outquint active:scale-[0.98]",
+                      schedule === preset
+                        ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
+                        : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
+                    )}
+                  >
+                    {preset}
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+          </FormSection>
+
+          <FormSection
             title="Métodos de pago"
             icon={<CreditCard size={18} strokeWidth={1.8} />}
           >
@@ -554,58 +601,26 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
               onChange={setPayments}
             />
           </FormSection>
-
-          <FormSection
-            title="Oferta especial"
-            icon={<Tag size={18} strokeWidth={1.8} />}
-          >
-            <ToggleRow
-              label="Oferta activa"
-              hint="Muestra un banner de oferta en la ficha"
-              checked={offerEnabled}
-              onChange={() => setOfferEnabled((prev) => !prev)}
-            />
-            <AnimatePresence initial={false}>
-              {offerEnabled && (
-                <motion.div
-                  key="offer-fields"
-                  initial={{ opacity: 0, height: 0, y: -4 }}
-                  animate={{ opacity: 1, height: "auto", y: 0 }}
-                  exit={{ opacity: 0, height: 0, y: -4 }}
-                  transition={{ duration: 0.3, ease: EASE }}
-                  className="overflow-hidden"
-                >
-                  <div className="space-y-gap-xs mt-gap-sm">
-                    <div className="flex flex-col gap-gap-xs">
-                      <label htmlFor="bfOfferText" className={LABEL}>
-                        Texto de la oferta
-                      </label>
-                      <input
-                        id="bfOfferText"
-                        value={offerText}
-                        onChange={(e) => setOfferText(e.target.value)}
-                        placeholder="Ej: 2x1 en bebidas, Almuerzo del día..."
-                        className={INPUT}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-gap-xs">
-                      <label htmlFor="bfOfferExpiry" className={LABEL}>
-                        Válido hasta
-                      </label>
-                      <input
-                        id="bfOfferExpiry"
-                        value={offerExpiry}
-                        onChange={(e) => setOfferExpiry(e.target.value)}
-                        placeholder="Ej: Válido hasta el 30 de septiembre"
-                        className={INPUT}
-                      />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </FormSection>
         </div>
+
+        {/* Las mismas ofertas flash que edita el dueño en su panel. Antes había
+            aquí un cartel de texto libre que la ficha pública de un negocio
+            normal ya no pinta: los dos lados editaban cosas distintas. */}
+        <FormSection
+          title="Ofertas flash"
+          icon={<Tag size={18} strokeWidth={1.8} />}
+        >
+          <p className="text-meta text-ink-soft/75 mb-gap-sm">
+            Rebaja un producto de la carta por tiempo limitado. Sale en la ficha
+            con el precio tachado y la chapita «Oferta».
+          </p>
+          <OfertasEditor
+            ofertas={ofertas}
+            onChange={setOfertas}
+            menu={menu.map((m, i) => ({ ...m, id: m.id ?? String(i) }))}
+            max={null}
+          />
+        </FormSection>
 
         <FormSection
           title="Lo que ofrece"
@@ -696,7 +711,12 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
               <SelectContent>
                 {STATUS_OPTIONS.map((s) => (
                   <SelectItem key={s.value} value={s.value}>
-                    {s.label}
+                    <span className="inline-flex flex-col">
+                      <span>{s.label}</span>
+                      <span className="text-meta text-ink-soft/75">
+                        {s.hint}
+                      </span>
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -715,31 +735,6 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
               onChange={() => setVerificado((prev) => !prev)}
             />
           </div>
-        </FormSection>
-
-        <FormSection
-          title="Ubicación en el mapa"
-          icon={<MapPin size={18} strokeWidth={1.8} />}
-        >
-          <p className="text-meta text-ink-soft/75 mb-gap-sm">
-            Escribe la dirección (ej: Calle Heredia e/ San Pedro y Santo Tomás),
-            elige la coincidencia y ajusta el pin en el mapa. El punto cae sobre
-            la calle, no al lado.
-          </p>
-          <MapLocationPicker
-            value={location}
-            onChange={setLocation}
-            onResolved={(r) => {
-              if (!r) return;
-              // No pisa una dirección escrita con entre-calles ("e/ A y B").
-              setAddress((prev) =>
-                prev.trim() === "" || !/e\/|entre/i.test(prev)
-                  ? r.address
-                  : prev,
-              );
-              setBarrio((prev) => (prev.trim() ? prev : r.barrio));
-            }}
-          />
         </FormSection>
 
         <AnimatePresence>
