@@ -751,6 +751,7 @@ function EditorView({
       setError(
         "El nombre del negocio no puede quedar vacío. Está en «Información del negocio».",
       );
+      document.getElementById("bizName")?.focus();
       return;
     }
     if (!location) {
@@ -769,6 +770,7 @@ function EditorView({
         setError(
           "Ese WhatsApp no parece cubano. Escríbelo como +53 5 123 4567.",
         );
+        document.getElementById("bizWhatsapp")?.focus();
         return;
       }
       numeroWhatsapp = normalizado;
@@ -1060,7 +1062,7 @@ function EditorView({
                 className={INPUT}
                 value={barrio}
                 onChange={(e) => setBarrio(e.target.value)}
-                placeholder="Ej: Centro histórico, Vista Alegre..."
+                placeholder="Ej: Centro histórico, Vista Alegre…"
               />
             </div>
             <div className="flex flex-col gap-gap-xs">
@@ -1092,7 +1094,7 @@ function EditorView({
                 rows={4}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe el negocio para que la IA lo recomiende mejor..."
+                placeholder="Describe el negocio para que la IA lo recomiende mejor…"
                 className="flex h-auto min-h-[100px] w-full resize-y rounded-xl border border-ink/10 bg-white px-4 py-3 text-body leading-relaxed text-ink outline-none transition-colors duration-500 ease-outquint placeholder:text-ink-soft/75 focus:border-verde-400 focus:ring-2 focus:ring-verde-400/30"
               />
             </div>
@@ -1112,6 +1114,11 @@ function EditorView({
               <Label htmlFor="bizWebsite">Sitio web</Label>
               <Input
                 id="bizWebsite"
+                name="website"
+                type="url"
+                inputMode="url"
+                autoComplete="url"
+                spellCheck={false}
                 className={INPUT}
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
@@ -1137,6 +1144,10 @@ function EditorView({
               <Label htmlFor="bizInstagram">Instagram</Label>
               <Input
                 id="bizInstagram"
+                name="instagram"
+                type="url"
+                inputMode="url"
+                spellCheck={false}
                 className={INPUT}
                 value={instagram}
                 onChange={(e) => setInstagram(e.target.value)}
@@ -1147,6 +1158,10 @@ function EditorView({
               <Label htmlFor="bizFacebook">Facebook</Label>
               <Input
                 id="bizFacebook"
+                name="facebook"
+                type="url"
+                inputMode="url"
+                spellCheck={false}
                 className={INPUT}
                 value={facebook}
                 onChange={(e) => setFacebook(e.target.value)}
@@ -1236,7 +1251,7 @@ function EditorView({
                     onClick={() => setSchedule(preset)}
                     aria-pressed={schedule === preset}
                     className={cn(
-                      "cursor-pointer select-none rounded-full border px-[14px] py-2 font-lv-display text-meta font-medium transition-all duration-500 ease-outquint active:scale-[0.98]",
+                      "cursor-pointer select-none rounded-full border px-[14px] py-2 font-lv-display text-meta font-medium transition-colors duration-500 ease-outquint active:scale-[0.98]",
                       schedule === preset
                         ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
                         : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
@@ -1375,7 +1390,7 @@ function EditorView({
           type="button"
           onClick={save}
           disabled={saving}
-          className="inline-flex h-12 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+          className="inline-flex h-12 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
         >
           {saving ? (
             <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
@@ -1532,6 +1547,7 @@ function SettingsView({
       setErrorReservas(
         "El aforo tiene que ser un número entero de personas, o quedar vacío.",
       );
+      document.getElementById("ajAforo")?.focus();
       return;
     }
 
@@ -1543,6 +1559,7 @@ function SettingsView({
       setErrorReservas(
         "El cupo diario tiene que ser un número entero de personas, o quedar vacío.",
       );
+      document.getElementById("ajCupoDia")?.focus();
       return;
     }
 
@@ -1691,7 +1708,7 @@ function SettingsView({
               <button
                 type="button"
                 onClick={onVerPlanes}
-                className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+                className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
               >
                 Ver los planes
               </button>
@@ -1771,7 +1788,7 @@ function SettingsView({
               <button
                 type="button"
                 onClick={onVerPlanes}
-                className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+                className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
               >
                 Ver los planes
               </button>
@@ -2001,7 +2018,7 @@ function SettingsView({
                     type="button"
                     onClick={() => void guardarReservas()}
                     disabled={guardandoReservas}
-                    className="inline-flex h-11 cursor-pointer items-center gap-gap-xs self-start rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+                    className="inline-flex h-11 cursor-pointer items-center gap-gap-xs self-start rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
                   >
                     {guardandoReservas ? (
                       <>
@@ -2053,12 +2070,12 @@ function SettingsView({
             El plan se queda porque el enlace de verdad está en su tarjeta del
             dashboard, y aquí se lee sin salir de Ajustes. */}
         <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-          <div className="rounded-2xl border border-ink/5 bg-white p-gap-md">
+          <dl className="rounded-2xl border border-ink/5 bg-white p-gap-md">
             {/* Estaba escrito a fuego «Básico (gratis)» para todo el mundo. Ahora
                 es el plan que hay de verdad, resuelto en el servidor. */}
             <Row label="Plan actual" value={nombreDe(plan, cat)} />
             <Row label="Contacto de soporte" value={SUPPORT_EMAIL} />
-          </div>
+          </dl>
         </div>
 
         <button

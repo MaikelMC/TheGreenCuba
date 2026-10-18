@@ -271,7 +271,7 @@ function Fila({
         <button
           type="button"
           onClick={onEditar}
-          className="cursor-pointer font-lv-display text-meta font-semibold text-verde-600 transition-colors duration-500 ease-outquint hover:text-verde-700"
+          className="inline-flex h-11 cursor-pointer items-center rounded-full px-2 font-lv-display text-meta font-semibold text-verde-600 transition-colors duration-500 ease-outquint hover:bg-verde-50 hover:text-verde-700"
         >
           Editar
         </button>
@@ -279,7 +279,7 @@ function Fila({
           type="button"
           onClick={onQuitar}
           aria-label={`Quitar la oferta ${oferta.titulo}`}
-          className="cursor-pointer text-ink-soft/60 transition-colors duration-500 ease-outquint hover:text-destructive"
+          className="-mr-2 grid size-11 cursor-pointer place-items-center rounded-full text-ink-soft/60 transition-colors duration-500 ease-outquint hover:bg-destructive/10 hover:text-destructive"
         >
           <Trash2 size={16} strokeWidth={1.8} />
         </button>

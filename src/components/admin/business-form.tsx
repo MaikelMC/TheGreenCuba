@@ -88,9 +88,9 @@ const INPUT =
   "h-11 w-full rounded-xl border border-ink/10 bg-white px-4 text-body text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
 const BTN_PRIMARY =
-  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition-colors duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none";
 const BTN_OUTLINE =
-  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full border border-ink/10 bg-white text-ink font-lv-display text-small font-semibold hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full border border-ink/10 bg-white text-ink font-lv-display text-small font-semibold hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 transition-colors duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none";
 
 interface BusinessFormProps {
   initial?: UserPlace;
@@ -165,6 +165,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
       setFormError(
         "Escribe el nombre del negocio. Está en «Información del negocio».",
       );
+      document.getElementById("bfName")?.focus();
       return;
     }
     if (!location) {
@@ -373,7 +374,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                 id="bfBarrio"
                 value={barrio}
                 onChange={(e) => setBarrio(e.target.value)}
-                placeholder="Ej: Centro histórico, Vista Alegre..."
+                placeholder="Ej: Centro histórico, Vista Alegre…"
                 className={INPUT}
               />
             </div>
@@ -414,7 +415,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                 rows={4}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe el negocio para que la IA lo recomiende mejor..."
+                placeholder="Describe el negocio para que la IA lo recomiende mejor…"
                 className={cn(
                   INPUT,
                   "h-auto min-h-[100px] py-3 resize-y leading-relaxed whitespace-pre-wrap font-lv text-body",
@@ -440,6 +441,11 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
               </label>
               <input
                 id="bfWebsite"
+                name="website"
+                type="url"
+                inputMode="url"
+                autoComplete="url"
+                spellCheck={false}
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
                 placeholder="Ej: laverde.cu"
@@ -468,6 +474,10 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
               </label>
               <input
                 id="bfInstagram"
+                name="instagram"
+                type="url"
+                inputMode="url"
+                spellCheck={false}
                 value={instagram}
                 onChange={(e) => setInstagram(e.target.value)}
                 placeholder="https://instagram.com/laverde"
@@ -483,6 +493,10 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
               </label>
               <input
                 id="bfFacebook"
+                name="facebook"
+                type="url"
+                inputMode="url"
+                spellCheck={false}
                 value={facebook}
                 onChange={(e) => setFacebook(e.target.value)}
                 placeholder="https://facebook.com/laverde"
@@ -575,7 +589,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                     onClick={() => setSchedule(preset)}
                     aria-pressed={schedule === preset}
                     className={cn(
-                      "px-[14px] py-2 rounded-full border font-lv-display text-meta font-medium cursor-pointer select-none transition-all duration-500 ease-outquint active:scale-[0.98]",
+                      "px-[14px] py-2 rounded-full border font-lv-display text-meta font-medium cursor-pointer select-none transition-colors duration-500 ease-outquint active:scale-[0.98]",
                       schedule === preset
                         ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
                         : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
@@ -770,7 +784,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
           >
             <Send size={16} strokeWidth={1.8} />
             {submitting
-              ? "Guardando..."
+              ? "Guardando…"
               : initial
                 ? "Guardar cambios"
                 : "Agregar negocio"}
@@ -809,7 +823,9 @@ function ToggleRow({
         aria-checked={checked}
         aria-label={label}
         className={cn(
-          "w-[48px] h-[28px] rounded-full relative cursor-pointer border-none p-0 transition-colors duration-500 ease-outquint shrink-0",
+          /* Mismo truco que `Switch` en el panel: el carril mide 28 px, y el
+             pseudoelemento estira el área tocable hasta 44 sin cambiar el dibujo. */
+          "w-[48px] h-[28px] rounded-full relative cursor-pointer border-none p-0 transition-colors duration-500 ease-outquint shrink-0 after:absolute after:inset-x-0 after:-inset-y-2 after:content-['']",
           checked ? "bg-verde-400" : "bg-ink/10",
         )}
       >

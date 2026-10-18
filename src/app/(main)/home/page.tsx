@@ -240,7 +240,7 @@ function userPlaceToHomePlace(
 
 const SHEET_TITLES: Record<SheetState, { title: string; subtitle: string }> = {
   default: { title: "Recomendaciones", subtitle: "Lugares cerca de ti" },
-  searching: { title: "Buscando", subtitle: "Analizando tu consulta..." },
+  searching: { title: "Buscando", subtitle: "Analizando tu consulta…" },
   results: { title: "Resultados", subtitle: "Lugares que coinciden con tu búsqueda" },
   "no-results": {
     title: "Sin resultados",
@@ -271,19 +271,66 @@ function DetailOverlay({
   onNavigate,
   route,
   userLocation,
+  liked,
+  onLike,
 }: {
   place: HomePlace | null;
   onClose: () => void;
   onNavigate?: (place: HomePlace) => void;
   route?: RouteResult | null;
   userLocation: { lat: number; lng: number; accuracy?: number } | null;
+  liked: boolean;
+  onLike: () => void;
 }) {
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  /* El cierre por Escape, el foco inicial y la trampa de Tab convierten la
+     ficha en un diálogo de verdad: antes, con teclado, el foco se quedaba
+     detrás del overlay. */
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!place) return;
+    const previo = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== "Tab" || !panelRef.current) return;
+      const enfocables = panelRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (enfocables.length === 0) return;
+      const primero = enfocables.item(0);
+      const ultimo = enfocables.item(enfocables.length - 1);
+      if (!primero || !ultimo) return;
+      if (e.shiftKey && document.activeElement === primero) {
+        e.preventDefault();
+        ultimo.focus();
+      } else if (!e.shiftKey && document.activeElement === ultimo) {
+        e.preventDefault();
+        primero.focus();
+      }
+    };
+    window.addEventListener("keydown", alTeclear);
+    return () => {
+      window.removeEventListener("keydown", alTeclear);
+      previo?.focus?.();
+    };
+  }, [place]);
+
   return (
     <AnimatePresence>
       {place && (
         <div className="fixed inset-0 z-[400] flex flex-col">
-          <motion.div
-            className="absolute inset-0 bg-ink/50"
+          <motion.button
+            type="button"
+            aria-label="Cerrar"
+            tabIndex={-1}
+            className="absolute inset-0 w-full border-0 bg-ink/50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -291,6 +338,11 @@ function DetailOverlay({
             onClick={onClose}
           />
           <motion.div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={place.name}
+            tabIndex={-1}
             className="absolute bottom-0 left-0 right-0 bg-white rounded-t-4xl flex flex-col max-h-[85vh]"
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
@@ -315,6 +367,7 @@ function DetailOverlay({
                 className="text-verde-600"
               />
               <motion.button
+                ref={closeRef}
                 whileTap={{ scale: 0.9 }}
                 onClick={onClose}
                 className="absolute top-gap-sm right-gap-sm size-9 rounded-full bg-white/90 backdrop-blur grid place-items-center text-ink shadow-soft z-[5]"
@@ -395,7 +448,7 @@ function DetailOverlay({
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   onClick={() => onNavigate?.(place)}
-                  className="flex flex-1 items-center justify-center gap-2 min-h-12 px-6 py-3 rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+                  className="flex flex-1 items-center justify-center gap-2 min-h-12 px-6 py-3 rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
                 >
                   <Navigation size={18} strokeWidth={1.8} />
                   Cómo llegar
@@ -428,10 +481,21 @@ function DetailOverlay({
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.9 }}
-                    className="flex-1 size-12 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 transition-colors duration-500 hover:border-verde-300 hover:text-verde-600"
+                    onClick={onLike}
+                    aria-pressed={liked}
+                    className={cn(
+                      "flex-1 size-12 rounded-full border grid place-items-center transition-colors duration-500",
+                      liked
+                        ? "border-verde-300 text-verde-600"
+                        : "border-ink/10 text-ink-soft/75 hover:border-verde-300 hover:text-verde-600",
+                    )}
                     aria-label="Favorito"
                   >
-                    <Heart size={18} strokeWidth={1.8} />
+                    <Heart
+                      size={18}
+                      fill={liked ? "currentColor" : "none"}
+                      strokeWidth={1.8}
+                    />
                   </motion.button>
                 </div>
               </motion.div>
@@ -487,7 +551,10 @@ const PlaceCardRow = memo(function PlaceCardRow({
   onDoubleClick: (place: HomePlace) => void;
 }) {
   return (
-    <div onDoubleClick={() => onDoubleClick(place)}>
+    <div
+      className="[content-visibility:auto] [contain-intrinsic-size:auto_88px]"
+      onDoubleClick={() => onDoubleClick(place)}
+    >
       <PlaceCard
         index={index}
         name={place.name}
@@ -530,11 +597,19 @@ function HomePageContent() {
      lista de guardados que usa el perfil. */
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = useState("all");
+  /* Categoría y filtros viven en la URL además de aquí: una vista filtrada se
+     puede compartir y «atrás» devuelve a ella. Se escriben con
+     `replaceState`, no con navegación de Next, para no pagar renders de
+     servidor en cada chip. */
+  const [activeCategory, setActiveCategory] = useState(
+    () => searchParams.get("categoria") ?? "all",
+  );
   /* Filtros acumulables del mapa. Viven aquí y no dentro de `PlaceFilters`
      porque es esta pantalla la que filtra: allí se encendían y no salían de
      casa. */
-  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(
+    () => new Set(searchParams.getAll("filtro")),
+  );
   const [detailPlace, setDetailPlace] = useState<HomePlace | null>(null);
   const [userLocation, setUserLocation] = useState<{
     lat: number;
@@ -709,17 +784,29 @@ function HomePageContent() {
     };
   }, []);
 
+  const syncFilterUrl = useCallback(
+    (categoria: string, filtros: Set<string>) => {
+      const url = new URL(window.location.href);
+      if (categoria === "all") url.searchParams.delete("categoria");
+      else url.searchParams.set("categoria", categoria);
+      url.searchParams.delete("filtro");
+      filtros.forEach((f) => url.searchParams.append("filtro", f));
+      window.history.replaceState(null, "", url);
+    },
+    [],
+  );
+
   const toggleFilter = useCallback(
     (value: string) => {
-      trackFilterToggle(value, !activeFilters.has(value));
-      setActiveFilters((prev) => {
-        const next = new Set(prev);
-        if (next.has(value)) next.delete(value);
-        else next.add(value);
-        return next;
-      });
+      const activo = !activeFilters.has(value);
+      trackFilterToggle(value, activo);
+      const next = new Set(activeFilters);
+      if (activo) next.add(value);
+      else next.delete(value);
+      setActiveFilters(next);
+      syncFilterUrl(activeCategory, next);
     },
-    [activeFilters],
+    [activeFilters, activeCategory, syncFilterUrl],
   );
 
   /* Un solo filtrado para los dos sitios que pintan el catálogo —los pines del
@@ -1343,6 +1430,7 @@ function HomePageContent() {
           onSelect={(value) => {
             setActiveCategory(value);
             trackCategorySelect(value);
+            syncFilterUrl(value, activeFilters);
           }}
         />
         <PlaceFilters
@@ -1525,7 +1613,7 @@ function HomePageContent() {
                   <button
                     key={s}
                     onClick={() => handleSearch(s)}
-                    className="px-3.5 py-2 rounded-full border border-ink/10 bg-white font-lv-display text-small font-medium text-ink-soft/75 transition-all duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
+                    className="px-3.5 py-2 rounded-full border border-ink/10 bg-white font-lv-display text-small font-medium text-ink-soft/75 transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
                   >
                     {s}
                   </button>
@@ -1571,6 +1659,10 @@ function HomePageContent() {
       {/* Detail overlay */}
       <DetailOverlay
         place={detailPlace}
+        liked={detailPlace ? likedIds.has(detailPlace.id) : false}
+        onLike={() => {
+          if (detailPlace) handleLike(detailPlace.id);
+        }}
         onClose={() => {
           setDetailPlace(null);
           handleClearRoute();

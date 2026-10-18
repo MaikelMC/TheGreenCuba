@@ -209,6 +209,7 @@ export function PanelShell({
                 key={item.id}
                 type="button"
                 onClick={() => go(item.id)}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "relative flex items-center gap-gap-sm w-full px-gap-md py-3 rounded-full text-small font-medium transition-colors duration-500 ease-outquint text-left border-none bg-transparent cursor-pointer font-lv-display",
                   isActive ? "text-verde-700 font-semibold" : "text-ink-soft/75 hover:bg-sand",
@@ -310,6 +311,7 @@ export function PanelShell({
                   key={item.id}
                   type="button"
                   onClick={() => go(item.id)}
+                  aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "flex items-center gap-3 w-full px-4 py-3 rounded-xl text-base font-medium transition-colors duration-200 text-left cursor-pointer",
                     isActive

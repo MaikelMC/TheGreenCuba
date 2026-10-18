@@ -176,7 +176,7 @@ export function OfertasView({
             <button
               type="button"
               onClick={onVerPlanes}
-              className="inline-flex h-11 cursor-pointer items-center rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+              className="inline-flex h-11 cursor-pointer items-center rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
             >
               Ver planes
             </button>
@@ -208,7 +208,7 @@ export function OfertasView({
             type="button"
             onClick={() => void save()}
             disabled={saving}
-            className="inline-flex h-12 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+            className="inline-flex h-12 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
           >
             {saving ? (
               <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />

@@ -99,12 +99,14 @@ export function OfferBanner({
           />
         </div>
 
-        <div className="mt-gap-sm font-lv-display text-body font-bold leading-snug text-ink">
+        <div className="mt-gap-sm break-words font-lv-display text-body font-bold leading-snug text-ink">
           {text}
         </div>
 
         {description && (
-          <div className="mt-[6px] text-meta text-ink-soft/75">{description}</div>
+          <div className="mt-[6px] break-words text-meta text-ink-soft/75">
+            {description}
+          </div>
         )}
 
         {precio && (
