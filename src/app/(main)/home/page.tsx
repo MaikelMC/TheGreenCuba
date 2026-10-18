@@ -78,6 +78,7 @@ import {
   userProvinceLabel,
 } from "@/lib/user-province";
 import { pushRecentSearch } from "@/lib/recent-searches-store";
+import { readActivity, toggleSaved } from "@/lib/activity-store";
 import { saveAiRecommendations } from "@/lib/ai-recommendation-store";
 import { sharePlace } from "@/lib/share";
 import { fetchMe, refreshSession } from "@/lib/session-client";
@@ -240,7 +241,7 @@ function userPlaceToHomePlace(
 const SHEET_TITLES: Record<SheetState, { title: string; subtitle: string }> = {
   default: { title: "Recomendaciones", subtitle: "Lugares cerca de ti" },
   searching: { title: "Buscando", subtitle: "Analizando tu consulta..." },
-  results: { title: "Resultados", subtitle: "4 cafés tranquilos en Santiago" },
+  results: { title: "Resultados", subtitle: "Lugares que coinciden con tu búsqueda" },
   "no-results": {
     title: "Sin resultados",
     subtitle: "Intenta con otra búsqueda",
@@ -524,7 +525,11 @@ function HomePageContent() {
      `true` desde la primera— y los resultados quedaban escondidos bajo la hoja
      recogida. */
   const [openKey, setOpenKey] = useState(0);
-  const [likedIds, setLikedIds] = useState<Set<string>>(new Set(["6"]));
+  /* Vacío al montar, nunca sembrado: el corazón tiene que decir la verdad
+     mientras llega `fetchMe`. El efecto de abajo lo rellena desde la misma
+     lista de guardados que usa el perfil. */
+  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [userId, setUserId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState("all");
   /* Filtros acumulables del mapa. Viven aquí y no dentro de `PlaceFilters`
      porque es esta pantalla la que filtra: allí se encendían y no salían de
@@ -651,6 +656,10 @@ function HomePageContent() {
       .then((data) => {
         if (!alive) return;
 
+        const resolvedId = data.authenticated ? (data.user?.id ?? null) : null;
+        setUserId(resolvedId);
+        setLikedIds(new Set(readActivity(resolvedId).savedIds));
+
         if (data.authenticated && data.user?.id) {
           /* Una sola vez por persona: a quien entró con Google se le pregunta
              aquí, no en el alta, porque nunca vio la casilla. */
@@ -684,6 +693,8 @@ function HomePageContent() {
         }
       })
       .catch(() => {
+        setUserId(null);
+        setLikedIds(new Set(readActivity(null).savedIds));
         setHasSavedProfileLocation(false);
         const fallbackPrefs = readUserPreferences();
         setUserPreferences(fallbackPrefs);
@@ -849,13 +860,14 @@ function HomePageContent() {
   }, [listVisiblePlaces, categories, userLocation, userPreferences]);
 
   const handleLike = useCallback((id: string) => {
+    const saved = toggleSaved(id, userId);
     setLikedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (saved) next.add(id);
+      else next.delete(id);
       return next;
     });
-  }, []);
+  }, [userId]);
 
   /* Tocar una card de recomendaciones baja la hoja a su vista más baja: el
      negocio se queda resaltado en el mapa, y con la lista delante no se veía. */
