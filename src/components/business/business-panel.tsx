@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -87,6 +87,7 @@ import {
   MapLocationPicker,
   type LocationPoint,
 } from "@/components/map/MapLocationPicker";
+import { registrarGuarda } from "@/lib/unsaved-guard";
 import { usePlaces } from "@/providers/places-provider";
 import type { VisitasPanel } from "@/lib/eventos";
 import type {
@@ -598,6 +599,29 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** Lo que queda en `localStorage` cuando se sale de la ficha sin guardar. */
+interface BorradorFicha {
+  name: string;
+  categoryValue: string;
+  icon: string | null;
+  logoUrl: string;
+  description: string;
+  address: string;
+  barrio: string;
+  schedule: string;
+  status: PlaceStatus;
+  payments: string[];
+  energia: EnergiaRespaldo | "sin";
+  notaApagon: string;
+  ofertas: UserPlaceOferta[];
+  location: LocationPoint | null;
+}
+
+/** Clave del borrador de la ficha en curso, por negocio. */
+function claveBorradorFicha(placeId: string): string {
+  return `la-verde:ficha-borrador:${placeId}`;
+}
+
 function EditorView({
   place,
   funciones,
@@ -653,6 +677,50 @@ function EditorView({
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  /* Todo lo que escribe el botón, en una sola pieza: la huella decide si hay
+     trabajo pendiente y el mismo objeto es lo que se guarda como borrador.
+     `guardado` es la última versión que el servidor confirmó. */
+  const estadoFicha = useMemo<BorradorFicha>(
+    () => ({
+      name,
+      categoryValue,
+      icon,
+      logoUrl,
+      description,
+      address,
+      barrio,
+      schedule,
+      status,
+      payments,
+      energia,
+      notaApagon,
+      ofertas,
+      location,
+    }),
+    [
+      name,
+      categoryValue,
+      icon,
+      logoUrl,
+      description,
+      address,
+      barrio,
+      schedule,
+      status,
+      payments,
+      energia,
+      notaApagon,
+      ofertas,
+      location,
+    ],
+  );
+  const huella = JSON.stringify(estadoFicha);
+  const guardado = useRef(huella);
+  const sucio = huella !== guardado.current;
+  /* El borrador sin guardar de la visita anterior. Se ofrece, no se aplica
+     solo: el dueño decide si lo recupera. */
+  const [borrador, setBorrador] = useState<BorradorFicha | null>(null);
 
   const categoryLabel =
     categories.find((c) => c.value === categoryValue)?.label ?? place.category;
@@ -716,6 +784,14 @@ function EditorView({
       return;
     }
 
+    guardado.current = huella;
+    /* Guardado es que ya no hay nada que recuperar. */
+    setBorrador(null);
+    try {
+      window.localStorage.removeItem(claveBorradorFicha(place.id));
+    } catch {
+      /* Sin almacén no hay borrador que limpiar. */
+    }
     toast.success("Cambios guardados");
     /* El servidor vuelve a leer la ficha para el dashboard, que es de servidor.
        El formulario no se resiembra —su estado es del cliente y ya tiene lo que
@@ -736,14 +812,149 @@ function EditorView({
     energia,
     notaApagon,
     ofertas,
+    huella,
     place.id,
     updatePlace,
     router,
   ]);
 
+  /* ── El borrador y la salida ─────────────────────────────────────────────
+     La ficha es la pantalla más larga del panel, así que lleva las mismas tres
+     redes que el catálogo: el borrador se escribe en cada cambio, al cerrar la
+     pestaña el navegador pregunta, y al cambiar de sección el armazón consulta
+     la guardia de aquí abajo. */
+
+  /* Se lee una sola vez, al montar. Un borrador igual que la base es ruido y se
+     borra sin ofrecerlo. */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const crudo = window.localStorage.getItem(claveBorradorFicha(place.id));
+      if (!crudo) return;
+      if (crudo === guardado.current) {
+        window.localStorage.removeItem(claveBorradorFicha(place.id));
+        return;
+      }
+      const parsed = JSON.parse(crudo) as unknown;
+      if (!parsed || typeof parsed !== "object") return;
+      const recuperado = parsed as BorradorFicha;
+      if (
+        typeof recuperado.name !== "string" ||
+        !Array.isArray(recuperado.payments) ||
+        !Array.isArray(recuperado.ofertas)
+      ) {
+        return;
+      }
+      setBorrador(recuperado);
+    } catch {
+      /* Sin `localStorage` o con el JSON roto se sigue sin borrador: la guardia
+         y el botón de guardar siguen siendo la red. */
+    }
+  }, [place.id]);
+
+  /* Solo se borra el borrador si lo escribió esta visita: al montar `sucio` es
+     falso y borrarlo ahí se llevaría por delante el que el aviso está
+     ofreciendo. */
+  const borradorEscrito = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (sucio) {
+        borradorEscrito.current = true;
+        window.localStorage.setItem(claveBorradorFicha(place.id), huella);
+      } else if (borradorEscrito.current) {
+        borradorEscrito.current = false;
+        window.localStorage.removeItem(claveBorradorFicha(place.id));
+      }
+    } catch {
+      /* Almacén lleno o bloqueado: la guardia de salida sigue siendo la red. */
+    }
+  }, [huella, sucio, place.id]);
+
+  const recuperarBorrador = useCallback(() => {
+    if (!borrador) return;
+    setName(borrador.name);
+    setCategoryValue(borrador.categoryValue);
+    setIcon(borrador.icon);
+    setLogoUrl(borrador.logoUrl);
+    setDescription(borrador.description);
+    setAddress(borrador.address);
+    setBarrio(borrador.barrio);
+    setSchedule(borrador.schedule);
+    setStatus(borrador.status);
+    setPayments(borrador.payments);
+    setEnergia(borrador.energia);
+    setNotaApagon(borrador.notaApagon);
+    setOfertas(borrador.ofertas);
+    setLocation(borrador.location);
+    setBorrador(null);
+    setError(null);
+    toast.success("Recuperada la ficha sin guardar");
+  }, [borrador]);
+
+  const descartarBorrador = useCallback(() => {
+    setBorrador(null);
+    try {
+      window.localStorage.removeItem(claveBorradorFicha(place.id));
+    } catch {
+      /* Nada que limpiar si el almacén no está. */
+    }
+  }, [place.id]);
+
+  /* La misma red que el catálogo: el armazón pregunta antes de cambiar de
+     sección y el navegador antes de cerrar la pestaña. Se retira sola cuando no
+     queda nada pendiente, incluido el instante posterior a guardar. */
+  useEffect(() => {
+    if (!sucio) return;
+    registrarGuarda(() =>
+      window.confirm(
+        "Tienes cambios sin guardar en la ficha. Si sales ahora se descartan. ¿Salir igual?",
+      ),
+    );
+    const alCerrar = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", alCerrar);
+    return () => {
+      registrarGuarda(null);
+      window.removeEventListener("beforeunload", alCerrar);
+    };
+  }, [sucio]);
+
   return (
     <>
       <h1 className="sr-only">Editar ficha</h1>
+
+      {/* El borrador de la visita anterior, si lo hay. Va arriba del todo porque
+          es lo primero que hay que decidir: recuperarlo o tirarlo. */}
+      {borrador && (
+        <div
+          role="status"
+          className="mb-gap-md flex flex-wrap items-center gap-gap-sm rounded-2xl border border-verde-200 bg-verde-50 px-gap-md py-gap-sm"
+        >
+          <p className="min-w-0 flex-1 text-small text-ink">
+            Nos quedó una ficha sin guardar de la última vez. ¿La recuperas?
+          </p>
+          <div className="flex shrink-0 items-center gap-gap-sm">
+            <button
+              type="button"
+              onClick={recuperarBorrador}
+              className="cursor-pointer rounded-full bg-verde-400 px-gap-md py-2 font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-500 ease-outquint hover:bg-verde-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+            >
+              Recuperar
+            </button>
+            <button
+              type="button"
+              onClick={descartarBorrador}
+              className="cursor-pointer font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+            >
+              Descartar
+            </button>
+          </div>
+        </div>
+      )}
 
       <FormSections>
         <FormSection
