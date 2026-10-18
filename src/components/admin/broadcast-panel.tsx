@@ -179,7 +179,7 @@ export function BroadcastPanel() {
               {history.map((b, i) => (
                 <motion.li
                   key={b.id}
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04, duration: 0.3 }}
                   className="py-gap-sm border-b border-ink/5 last:border-b-0"

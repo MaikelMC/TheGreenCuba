@@ -297,7 +297,7 @@ export function ProviderManager() {
               {providers.map((p, i) => (
                 <motion.div
                   key={p.id}
-                  initial={{ opacity: 0, y: 12 }}
+                  initial={false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                   layout
@@ -419,7 +419,7 @@ export function ProviderManager() {
                   <motion.button
                     key={preset.label}
                     type="button"
-                    initial={{ opacity: 0, scale: 0.94 }}
+                    initial={false}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: i * 0.05, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                     whileHover={{ y: -2 }}

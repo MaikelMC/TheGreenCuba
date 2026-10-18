@@ -192,7 +192,7 @@ export function SupportPanel() {
             return (
               <motion.article
                 key={ticket.id}
-                initial={{ opacity: 0, y: 12 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(index * 0.03, 0.3), duration: 0.3 }}
                 className="rounded-2xl border border-ink/5 bg-white p-gap-md"

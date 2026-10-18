@@ -64,7 +64,10 @@ export function DashboardStats({ stats, className }: DashboardStatsProps) {
         return (
           <motion.div
             key={s.label}
-            initial={{ opacity: 0, y: 16 }}
+            /* `false` y no `{ opacity: 0 }`: con `initial`, el HTML del
+               servidor salía con las tarjetas invisibles hasta que hidrataba
+               el JavaScript, y en una conexión lenta la sección parecía vacía. */
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{
               delay: i * 0.06,

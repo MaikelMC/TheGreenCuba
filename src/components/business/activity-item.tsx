@@ -26,7 +26,7 @@ const dotStyles: Record<ActivityType, string> = {
 export function ActivityItem({ type, children, time, className, index = 0 }: ActivityItemProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, x: -12 }}
+      initial={false}
       whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true, margin: "-24px" }}
       transition={{ delay: index * 0.04, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}

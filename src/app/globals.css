@@ -932,6 +932,29 @@
   animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Entrada de la vista en los paneles de negocio y administración.
+ *
+ * Va en CSS y no en `motion` a propósito: con `motion`, el `initial` viajaba
+ * en el HTML del servidor como `opacity: 0` inline, así que en una conexión
+ * lenta la sección se quedaba vacía hasta que llegaba el JavaScript y corría
+ * la animación.
+ *
+ * Y no toca `opacity`: el desvanecido de `fadeInUp` empezaba en transparente,
+ * así que la sección entera parpadeaba a blanco antes de aparecer. Aquí solo
+ * sube 6 px; el contenido se ve desde el primer frame. */
+@keyframes viewIn {
+  from {
+    transform: translateY(6px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.lv-view-in {
+  animation: viewIn 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 /* ─── Leaflet overrides ─── */
 /* Geometría compartida de los controles flotantes del mapa. El zoom los
    consume aquí abajo (CSS de Leaflet) y el botón "Mi ubicación" desde el TSX
@@ -1308,6 +1331,7 @@ html[data-theme="dark"]
   .typing-dot,
   .animate-chip-pop,
   .animate-fade-in-up,
+  .lv-view-in,
   .searching-ring,
   .searching-status,
   .searching-progress {

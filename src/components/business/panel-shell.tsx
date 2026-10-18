@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import {
   ArrowLeft,
@@ -19,7 +19,6 @@ import {
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { UserMenu } from "@/components/layout/user-menu";
-import { EASE } from "@/lib/motion";
 import { puedeSalir } from "@/lib/unsaved-guard";
 import {
   Sheet,
@@ -102,6 +101,16 @@ export function PanelShell({
   className,
 }: PanelShellProps) {
   const [activeView, setActiveView] = useState<PanelView>(defaultView);
+  const contenidoRef = useRef<HTMLDivElement>(null);
+
+  /* El scroll vive en el contenedor de la vista, no en la ventana: al cambiar
+     de sección se quedaba a la altura de la anterior, y una vista corta parecía
+     vacía hasta que se tocaba la pantalla. También se vuelve arriba al cambiar
+     de negocio, que es otra pantalla con otra altura. */
+  useEffect(() => {
+    const contenido = contenidoRef.current;
+    if (contenido) contenido.scrollTop = 0;
+  }, [activeView, businessName]);
   /* El mismo cajón lateral que el panel de administración, en vez del dock
      inferior: dos armazones distintos para dos paneles hermanos se leían como
      dos productos. Aquí sigue habiendo una sola lista de secciones —el dock
@@ -242,7 +251,7 @@ export function PanelShell({
         </aside>
 
         {/* Main Content */}
-        <div className="flex-1 min-w-0 overflow-y-auto">
+        <div ref={contenidoRef} className="flex-1 min-w-0 overflow-y-auto">
           {/* En móvil el aire se recorta a 12 px, como en la cabecera del home.
               Con los 16 px de escritorio más los 16 de cada `FormSection` se
               iban 64 px de los 360 de pantalla, y las filas de horarios no
@@ -252,21 +261,16 @@ export function PanelShell({
               después en el CSS, el valor de móvil se comía el de `lg`. */}
           <div className="px-gap-sm pt-gap-sm pb-gap-md sm:px-gap-md sm:pt-gap-md lg:px-gap-xl lg:pt-gap-xl lg:pb-gap-xl flex flex-col min-h-full">
             {above}
-            {/* Sin `AnimatePresence` y sin `mode="wait"`: con la espera, la
-                vista nueva no se montaba hasta que la vieja terminaba de salir,
-                y cada cambio de sección costaba 400 ms de salida más 400 de
-                entrada mirando al vacío. Ahora React desmonta la anterior de
-                golpe y esta entra fundiéndose en 180 ms. La clave se queda: la
-                vista cambia de verdad. */}
-            <motion.div
-              key={activeView}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18, ease: EASE }}
-              className="flex flex-col min-h-full"
-            >
+            {/* Sin `AnimatePresence` y sin espera: React desmonta la vista
+                anterior de golpe y la nueva entra fundiéndose en 180 ms. La
+                animación va por CSS y no con `motion`: el `initial` de
+                `motion` viajaba en el HTML del servidor como `opacity: 0`, y
+                en una conexión lenta la sección se quedaba en blanco hasta
+                que llegaba el JavaScript. La clave sigue cambiando para que
+                la animación se repita en cada sección. */}
+            <div key={activeView} className="lv-view-in flex flex-col min-h-full">
               {children(activeView, go)}
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>

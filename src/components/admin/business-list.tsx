@@ -240,7 +240,7 @@ export function BusinessList() {
             return (
               <motion.div
                 key={p.id}
-                initial={{ opacity: 0, y: 14 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
                   delay: i * 0.04,

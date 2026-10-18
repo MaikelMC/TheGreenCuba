@@ -137,7 +137,7 @@ export default function AdminDashboardPage() {
                 {attention.map((p, i) => (
                   <motion.div
                     key={p.id}
-                    initial={{ opacity: 0, x: -12 }}
+                    initial={false}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{
                       delay: i * 0.05,
@@ -190,7 +190,7 @@ export default function AdminDashboardPage() {
               {byCategory.map((c, i) => (
                 <motion.div
                   key={c.label}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{
                     delay: i * 0.05,

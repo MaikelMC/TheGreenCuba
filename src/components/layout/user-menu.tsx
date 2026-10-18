@@ -251,6 +251,18 @@ export function UserMenu({
   const handleSelect = useCallback(
     (path: string) => {
       setOpen(false);
+      /* Los dos paneles entran con carga completa y no con navegación de cliente.
+         Son las dos rutas más pesadas de la app —los armazones de admin y de
+         negocio, cada uno con su propio árbol de componentes— y en una
+         navegación suave el navegador no recibe HTML de la ruta nueva: tras el
+         esqueleto se quedaba la pantalla vacía hasta que llegaban todos los
+         trozos de JavaScript. Con una carga completa el servidor manda el panel
+         ya pintado y el contenido se ve sin esperar al cliente. El resto de
+         secciones, que comparten la app cargada, siguen navegando sin recargar. */
+      if (path === "/business" || path === "/admin") {
+        window.location.assign(path);
+        return;
+      }
       router.push(path);
     },
     [router],

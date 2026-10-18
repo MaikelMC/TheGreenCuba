@@ -302,10 +302,14 @@ function BusinessCard({ business }: { business: BusinessSummary }) {
         </div>
 
         {business.isActive ? (
-          <Link href="/business" className={cn(BTN_PRIMARY, "w-full")}>
+          /* `<a>` y no `<Link>`: entrar al panel pide una carga completa. En una
+             navegación suave no hay HTML de `/business` y, entre el esqueleto y
+             la carga del árbol de cliente del panel, la pantalla se quedaba
+             vacía unos segundos. Así llega pintado del servidor. */
+          <a href="/business" className={cn(BTN_PRIMARY, "w-full")}>
             Ir al panel de mi negocio
             <ArrowRight size={16} strokeWidth={1.8} />
-          </Link>
+          </a>
         ) : (
           <p className="rounded-xl bg-sand px-gap-md py-gap-sm text-meta text-ink-soft/75">
             El panel se abre solo cuando un administrador apruebe tu solicitud.

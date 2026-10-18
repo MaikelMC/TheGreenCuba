@@ -3,7 +3,7 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   BarChart3,
   LayoutDashboard,
@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/layout/user-menu";
-import { EASE } from "@/lib/motion";
 import {
   Sheet,
   SheetClose,
@@ -135,11 +134,21 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const contenidoRef = useRef<HTMLElement>(null);
 
   // Cerrar menú al navegar
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname, searchParams]);
+
+  /* El scroll vive en `<main>`, no en la ventana, así que Next no lo toca al
+     navegar: sin esto, entrar a una sección corta desde otra larga dejaba la
+     vista a media altura y parecía vacía hasta que el usuario tocaba. Cada
+     sección empieza arriba. */
+  useEffect(() => {
+    const main = contenidoRef.current;
+    if (main) main.scrollTop = 0;
+  }, [pathname]);
 
   /* Y cerrarlo si la ventana crece de 1024 px: ahí el cajón no existe —las
      secciones son la barra lateral— y quedaría abierto e invisible, con la
@@ -220,25 +229,25 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </aside>
 
         {/* Main Content */}
-        <main id="content" className="flex-1 min-w-0 overflow-y-auto">
+        <main
+          id="content"
+          ref={contenidoRef}
+          className="flex-1 min-w-0 overflow-y-auto"
+        >
           {/* En móvil el aire se recorta a 12 px, como en el panel de negocio.
               Cada eje por su cuenta: el atajo `p-gap-*` también pone
               `padding-bottom` y, como las variantes responsive salen después en
               el CSS, se comía el hueco del dock de 640 px para arriba, donde el
               dock sigue visible (`lg:hidden`). */}
           <div className="px-gap-sm pt-gap-sm pb-dock-clear sm:px-gap-md sm:pt-gap-md lg:px-gap-xl lg:pt-gap-xl lg:pb-gap-xl flex flex-col min-h-full">
-            {/* Sin `mode="wait"`: el mismo cambio que en el panel de negocio.
-                Con la espera, cada navegación costaba 400 ms de salida más 400
-                de entrada con la pantalla vacía en medio. */}
-            <motion.div
-              key={pathname}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18, ease: EASE }}
-              className="flex flex-col min-h-full"
-            >
+            {/* La entrada va por CSS y no con `motion`. Con `motion`, el
+                `initial` salía en el HTML del servidor como `opacity: 0`
+                inline: en una conexión lenta la sección se quedaba en blanco
+                hasta que llegaba el JavaScript. La clave sigue cambiando para
+                que la animación se repita en cada navegación. */}
+            <div key={pathname} className="lv-view-in flex flex-col min-h-full">
               {children}
-            </motion.div>
+            </div>
           </div>
         </main>
       </div>

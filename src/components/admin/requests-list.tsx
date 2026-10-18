@@ -143,7 +143,7 @@ export function RequestsList() {
           {requests.map((place, index) => (
             <motion.div
               key={place.id}
-              initial={{ opacity: 0, y: 12 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.04, duration: 0.35 }}
               className="rounded-2xl border border-ink/5 bg-white p-gap-md"

@@ -204,7 +204,7 @@ export function TopPlaces() {
           {(expanded ? rows : rows.slice(0, 3)).map((place, i) => (
             <motion.li
               key={place.id}
-              initial={{ opacity: 0, y: 8 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{
                 delay: i * 0.03,
