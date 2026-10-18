@@ -49,7 +49,9 @@ export function MobileDock({
             "flex min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-[2px] rounded-full py-2",
             "font-lv-display text-[10px] font-medium transition-colors duration-500 ease-outquint",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40",
-            active ? "bg-verde-50 text-verde-700" : "text-ink-soft/75",
+            active
+              ? "bg-verde-50 text-verde-700"
+              : "text-ink-soft/75 hover:bg-sand hover:text-ink",
           );
           const content = (
             <>

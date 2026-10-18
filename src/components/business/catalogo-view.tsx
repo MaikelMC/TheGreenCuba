@@ -63,7 +63,7 @@ const INPUT =
   "h-11 w-full px-gap-sm border border-ink/10 rounded-xl font-lv text-body bg-white text-ink outline-none transition-colors duration-500 ease-outquint focus-visible:border-verde-400 sm:text-small";
 
 const BOTON =
-  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full font-lv-display text-small font-semibold transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2";
+  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full font-lv-display text-small font-semibold transition duration-500 ease-outquint active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2";
 
 /** Clave del borrador del catálogo en curso, por negocio. */
 function claveBorrador(placeId: string): string {
@@ -980,7 +980,7 @@ export function CatalogoView({
             type="button"
             onClick={() => void guardar()}
             disabled={saving}
-            className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2"
+            className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2"
           >
             {saving ? (
               <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
@@ -1255,7 +1255,7 @@ function FilaProducto({
           type="button"
           onClick={() => onEliminar(id)}
           aria-label={`Eliminar ${nombre}`}
-          className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full border border-ink/10 text-ink-soft/75 transition-all duration-500 ease-outquint hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40"
+          className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full border border-ink/10 text-ink-soft/75 transition duration-500 ease-outquint hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40"
         >
           {/* Papelera y no una X: la X en esta app significa «cerrar». */}
           <Trash2 size={16} strokeWidth={1.8} />
@@ -1294,7 +1294,7 @@ function Filtro({
            largo; `shrink-0` y `whitespace-nowrap` porque la fila ya no
            envuelve: si la pastilla se encogiera, el nombre partiría en dos
            líneas dentro de una pastilla más baja que sus vecinas. */
-        "inline-flex h-10 shrink-0 cursor-pointer select-none items-center whitespace-nowrap rounded-full border px-[14px] font-lv-display text-meta font-medium transition-all duration-500 ease-outquint active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2",
+        "inline-flex h-10 shrink-0 cursor-pointer select-none items-center whitespace-nowrap rounded-full border px-[14px] font-lv-display text-meta font-medium transition duration-500 ease-outquint active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2",
         activo
           ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
           : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",

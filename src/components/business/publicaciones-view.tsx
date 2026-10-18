@@ -434,7 +434,7 @@ export function PublicacionesView({
                   onClick={() => elegirProducto("")}
                   aria-pressed={!productoId}
                   className={cn(
-                    "flex w-full touch-manipulation cursor-pointer items-center gap-gap-sm rounded-2xl border p-2.5 text-left transition-all duration-300 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40",
+                    "flex w-full touch-manipulation cursor-pointer items-center gap-gap-sm rounded-2xl border p-2.5 text-left transition duration-300 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40",
                     productoId
                       ? "border-ink/5 bg-white hover:border-verde-200 hover:bg-verde-50/40"
                       : "border-verde-300 bg-verde-50/60",
@@ -479,7 +479,7 @@ export function PublicacionesView({
                     onClick={() => elegirProducto(item.id)}
                     aria-pressed={item.id === productoId}
                     className={cn(
-                      "flex w-full touch-manipulation cursor-pointer items-center gap-gap-sm rounded-2xl border p-2.5 text-left transition-all duration-300 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40",
+                      "flex w-full touch-manipulation cursor-pointer items-center gap-gap-sm rounded-2xl border p-2.5 text-left transition duration-300 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40",
                       item.id === productoId
                         ? "border-verde-300 bg-verde-50/60"
                         : "border-ink/5 bg-white hover:border-verde-200 hover:bg-verde-50/40",

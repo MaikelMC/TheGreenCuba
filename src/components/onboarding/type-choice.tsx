@@ -18,7 +18,7 @@ interface TypeChoiceProps {
 }
 
 const CARD =
-  "group flex min-h-[176px] w-full flex-col justify-between gap-gap-md rounded-[24px] p-gap-lg text-left transition-all duration-500 ease-outquint active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 focus-visible:ring-offset-2";
+  "group flex min-h-[176px] w-full flex-col justify-between gap-gap-md rounded-[24px] p-gap-lg text-left transition duration-500 ease-outquint active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 focus-visible:ring-offset-2";
 
 export function TypeChoice({ onChoose }: TypeChoiceProps) {
   return (

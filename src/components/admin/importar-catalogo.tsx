@@ -28,7 +28,7 @@ const INPUT =
   "px-gap-sm border border-ink/10 rounded-xl font-lv text-small bg-white text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 
 const BOTON =
-  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full font-lv-display text-small font-semibold transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer";
+  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full font-lv-display text-small font-semibold transition duration-500 ease-outquint active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer";
 
 const ESTADO_CLASE: Record<FilaValidada["estado"], string> = {
   nuevo: "bg-verde-50 text-verde-600",
@@ -553,7 +553,7 @@ export function ImportarCatalogo({
                         type="button"
                         onClick={() => eliminarFila(f.numero)}
                         aria-label={`Eliminar fila ${f.numero}`}
-                        className="size-9 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 hover:border-destructive/30 hover:text-destructive hover:bg-destructive/10 transition-all duration-500 ease-outquint"
+                        className="size-9 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 hover:border-destructive/30 hover:text-destructive hover:bg-destructive/10 transition duration-500 ease-outquint"
                       >
                         <Trash2 size={15} strokeWidth={1.8} />
                       </button>

@@ -170,13 +170,13 @@ export function Hero() {
                   después de crear la cuenta continúa con sus preferencias. */}
               <Link
                 href="/register"
-                className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-verde-400 px-6 py-3 font-lv-display text-sm font-semibold leading-none text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+                className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-verde-400 px-6 py-3 font-lv-display text-sm font-semibold leading-none text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
               >
                 Probar La Verde
               </Link>
               <Link
                 href="#como-funciona"
-                className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-white/5 px-6 py-3 font-lv-display text-sm font-semibold leading-none text-white transition-all duration-500 ease-outquint hover:bg-white/10 active:scale-[0.98]"
+                className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-white/5 px-6 py-3 font-lv-display text-sm font-semibold leading-none text-white transition duration-500 ease-outquint hover:bg-white/10 active:scale-[0.98]"
               >
                 Cómo funciona
               </Link>
@@ -216,7 +216,7 @@ export function Hero() {
                   solo como se centraba en el `<button>`. */}
               <Link
                 href="/login"
-                className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-verde-400 px-5 text-sm font-semibold text-verde-950 transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] max-md:w-full max-md:text-center"
+                className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-verde-400 px-5 text-sm font-semibold text-verde-950 transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] max-md:w-full max-md:text-center"
               >
                 Buscar
               </Link>

@@ -235,7 +235,7 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
             >
               <span
                 className={cn(
-                  "block h-[7px] rounded-full transition-all duration-500 ease-outquint",
+                  "block h-[7px] rounded-full transition-[width,background-color] duration-500 ease-outquint",
                   i === current
                     ? "w-[20px] bg-verde-600"
                     : "w-[7px] bg-ink/20",
@@ -254,7 +254,7 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
           <button
             type="button"
             onClick={() => goTo(current - 1)}
-            className="absolute top-1/2 -translate-y-1/2 left-gap-xs size-11 rounded-full bg-white/85 backdrop-blur grid place-items-center shadow-soft text-ink transition-all duration-500 ease-outquint hover:bg-white hover:shadow-card [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
+            className="absolute top-1/2 -translate-y-1/2 left-gap-xs size-11 rounded-full bg-white/85 backdrop-blur grid place-items-center shadow-soft text-ink transition duration-500 ease-outquint hover:bg-white hover:shadow-card [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
             aria-label="Foto anterior"
           >
             <ChevronLeft size={18} strokeWidth={1.8} />
@@ -262,7 +262,7 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
           <button
             type="button"
             onClick={() => goTo(current + 1)}
-            className="absolute top-1/2 -translate-y-1/2 right-gap-xs size-11 rounded-full bg-white/85 backdrop-blur grid place-items-center shadow-soft text-ink transition-all duration-500 ease-outquint hover:bg-white hover:shadow-card [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
+            className="absolute top-1/2 -translate-y-1/2 right-gap-xs size-11 rounded-full bg-white/85 backdrop-blur grid place-items-center shadow-soft text-ink transition duration-500 ease-outquint hover:bg-white hover:shadow-card [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
             aria-label="Foto siguiente"
           >
             <ChevronRight size={18} strokeWidth={1.8} />

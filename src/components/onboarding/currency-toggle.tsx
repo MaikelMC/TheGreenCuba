@@ -19,7 +19,7 @@ export function CurrencyToggle({
   return (
     <button
       className={cn(
-        "flex items-center gap-4 px-5 py-4 border rounded-2xl shadow-soft transition-all duration-500 ease-outquint w-full text-left",
+        "flex items-center gap-4 px-5 py-4 border rounded-2xl shadow-soft transition duration-500 ease-outquint w-full text-left",
         active
           ? "border-verde-400 bg-verde-50"
           : "border-ink/5 bg-white hover:border-verde-300 hover:bg-verde-50",
@@ -29,7 +29,7 @@ export function CurrencyToggle({
     >
       <span
         className={cn(
-          "size-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-500",
+          "size-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition duration-500",
           active ? "bg-verde-400 border-verde-400" : "border-ink/20",
         )}
       >

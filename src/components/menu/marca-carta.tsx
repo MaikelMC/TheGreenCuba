@@ -44,7 +44,7 @@ export function MarcaCarta({ panelHref }: { panelHref: string }) {
       className="inline-flex shrink-0 items-center gap-gap-xs font-lv-display text-small font-semibold text-verde-700 transition-colors duration-500 ease-outquint hover:text-verde-600"
     >
       <Logo className="h-[20px] w-auto shrink-0" />
-      La Verde
+      <span translate="no">La Verde</span>
       <ArrowUpRight size={13} strokeWidth={2} className="shrink-0" />
     </Link>
   );

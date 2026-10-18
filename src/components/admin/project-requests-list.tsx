@@ -97,7 +97,7 @@ export function ProjectRequestsList() {
       <p className="text-small text-ink-soft/75">{requests.length} proyectos pendientes de aprobación</p>
 
       {error && <p className="rounded-xl bg-red-50 px-gap-md py-3 text-small font-medium text-red-700">{error}</p>}
-      {loading && <div className="flex items-center gap-gap-xs text-small text-ink-soft/75"><Loader2 size={18} className="animate-spin" /> Cargando solicitudes...</div>}
+      {loading && <div className="flex items-center gap-gap-xs text-small text-ink-soft/75"><Loader2 size={18} className="animate-spin" /> Cargando solicitudes…</div>}
       {!loading && requests.length === 0 && <div className="rounded-2xl border border-ink/10 bg-white p-gap-lg text-small text-ink-soft/75">No hay solicitudes de proyectos pendientes.</div>}
 
       <div className="grid gap-gap-md">

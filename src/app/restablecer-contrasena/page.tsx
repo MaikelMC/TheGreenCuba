@@ -23,7 +23,7 @@ function ResetPasswordFallback() {
         </div>
         <div className="flex items-center justify-center py-6 text-small text-ink-soft">
           <Loader2 size={16} className="mr-2 animate-spin" />
-          Cargando...
+          Cargando…
         </div>
       </section>
     </main>

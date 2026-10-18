@@ -46,7 +46,7 @@ export function ProjectsView() {
             <button
               type="button"
               onClick={() => setMode("business")}
-              className="group flex min-h-[190px] flex-col justify-between rounded-[24px] border border-ink/10 bg-white p-gap-lg text-left shadow-[0_18px_50px_-32px_rgba(20,42,30,0.55)] transition-all duration-500 hover:-translate-y-1 hover:border-verde-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400"
+              className="group flex min-h-[190px] flex-col justify-between rounded-[24px] border border-ink/10 bg-white p-gap-lg text-left shadow-[0_18px_50px_-32px_rgba(20,42,30,0.55)] transition duration-500 hover:-translate-y-1 hover:border-verde-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400"
             >
               <span>
                 <Store className="text-verde-700" size={24} strokeWidth={1.8} />
@@ -58,7 +58,7 @@ export function ProjectsView() {
             <button
               type="button"
               onClick={() => setMode("registration")}
-              className="group flex min-h-[190px] flex-col justify-between rounded-[24px] border border-ink/10 bg-ink p-gap-lg text-left text-white transition-all duration-500 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400"
+              className="group flex min-h-[190px] flex-col justify-between rounded-[24px] border border-ink/10 bg-ink p-gap-lg text-left text-white transition duration-500 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400"
             >
               <span>
                 <Megaphone className="text-verde-300" size={24} strokeWidth={1.8} />
@@ -118,7 +118,7 @@ export function ProjectsView() {
         <button
           type="button"
             onClick={() => setMode("registration")}
-          className="group flex min-h-[210px] flex-col justify-between rounded-[24px] border border-ink/10 bg-ink p-gap-lg text-left text-white transition-all duration-500 ease-outquint hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400"
+          className="group flex min-h-[210px] flex-col justify-between rounded-[24px] border border-ink/10 bg-ink p-gap-lg text-left text-white transition duration-500 ease-outquint hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400"
         >
           <span>
             <span className="grid size-12 place-items-center rounded-2xl bg-verde-300 text-verde-950">

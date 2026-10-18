@@ -96,7 +96,7 @@ export function SupportRequest() {
           <button
             type="submit"
             disabled={sending || subject.trim().length < 3 || message.trim().length < 10}
-            className="inline-flex h-11 cursor-pointer items-center justify-center gap-gap-xs self-start rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 disabled:opacity-50 disabled:pointer-events-none"
+            className="inline-flex h-11 cursor-pointer items-center justify-center gap-gap-xs self-start rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 disabled:opacity-50 disabled:pointer-events-none"
           >
             {sending ? <Loader2 size={16} strokeWidth={1.8} className="animate-spin" /> : <Send size={16} strokeWidth={1.8} />}
             {sending ? "Enviando…" : "Enviar reporte"}

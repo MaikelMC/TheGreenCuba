@@ -497,7 +497,7 @@ export function MenuItemEditor({
           <button
             type="button"
             onClick={() => remove(item.id)}
-            className="size-9 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 shrink-0 hover:border-destructive/30 hover:text-destructive hover:bg-destructive/10 transition-all duration-500 ease-outquint"
+            className="size-9 rounded-full border border-ink/10 grid place-items-center text-ink-soft/75 shrink-0 hover:border-destructive/30 hover:text-destructive hover:bg-destructive/10 transition duration-500 ease-outquint"
             aria-label="Eliminar item"
           >
             <X size={16} strokeWidth={1.8} />
@@ -508,7 +508,7 @@ export function MenuItemEditor({
       <button
         type="button"
         onClick={add}
-        className="flex items-center justify-center gap-gap-xs py-gap-sm border border-dashed border-ink/10 rounded-2xl text-ink-soft/75 font-lv-display text-small font-medium cursor-pointer hover:border-verde-300 hover:text-verde-600 hover:bg-verde-50 transition-all duration-500 ease-outquint w-full mt-gap-xs"
+        className="flex items-center justify-center gap-gap-xs py-gap-sm border border-dashed border-ink/10 rounded-2xl text-ink-soft/75 font-lv-display text-small font-medium cursor-pointer hover:border-verde-300 hover:text-verde-600 hover:bg-verde-50 transition duration-500 ease-outquint w-full mt-gap-xs"
       >
         <Plus size={18} strokeWidth={1.8} />
         Añadir producto o servicio

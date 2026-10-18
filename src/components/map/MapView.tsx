@@ -13,7 +13,7 @@ const MapContent = dynamic(
       <div className="map-loading absolute inset-0 flex items-center justify-center bg-sand-deep">
         <div className="flex flex-col items-center gap-3">
           <div className="size-8 animate-spin rounded-full border-2 border-verde-400 border-t-transparent" />
-          <span className="text-small text-ink-soft/75">Cargando mapa...</span>
+          <span className="text-small text-ink-soft/75">Cargando mapa…</span>
         </div>
       </div>
     ),
@@ -49,7 +49,7 @@ class MapErrorBoundary extends Component<
                 this.setState({ hasError: false });
                 this.props.onRetry();
               }}
-              className="rounded-full bg-verde-400 px-5 py-2.5 font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+              className="rounded-full bg-verde-400 px-5 py-2.5 font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
             >
               Reintentar
             </button>

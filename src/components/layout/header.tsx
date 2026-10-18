@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Search, Mic, Loader2, MapPin, ChevronDown } from "lucide-react";
+import { Search, Loader2, MapPin, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchActions, useSearchState } from "@/providers/search-provider";
 import { searchAddress, type GeocodeSuggestion } from "@/lib/map/geocode";
@@ -269,7 +269,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
       <a href="/home" className="flex items-center gap-gap-xs shrink-0">
         <Logo className="h-[26px] w-auto shrink-0" />
         <span className="font-lv-display text-[19px] font-bold tracking-[-0.02em] text-ink max-sm:hidden">
-          La Verde
+          <span translate="no">La Verde</span>
         </span>
       </a>
 
@@ -278,7 +278,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
         <form
           onSubmit={handleSubmit}
           className={cn(
-            "home-search-form flex items-center gap-2 sm:gap-gap-xs bg-white border border-ink/10 rounded-full pl-3 pr-3 sm:pl-[14px] sm:pr-2 transition-all duration-500 ease-outquint cursor-text",
+            "home-search-form flex items-center gap-2 sm:gap-gap-xs bg-white border border-ink/10 rounded-full pl-3 pr-3 sm:pl-[14px] sm:pr-2 transition duration-500 ease-outquint cursor-text",
             focused && "border-verde-400 shadow-[0_0_0_3px_rgba(53,175,109,0.15)]",
             effectiveIsSearching && "border-verde-400",
           )}
@@ -327,15 +327,6 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
             className="flex-1 border-none bg-transparent outline-none text-[15px] text-ink min-w-0 py-[11px] placeholder:text-ink-soft/75"
             autoComplete="off"
           />
-          {/* El micrófono no tiene `onClick`: es un botón muerto de 44 px que en
-              móvil se comía el ancho del campo. Ahí se oculta. */}
-          <button
-            type="button"
-            className="size-11 shrink-0 rounded-full grid place-items-center text-ink-soft/75 transition-colors duration-500 hover:bg-verde-50 hover:text-verde-600 max-sm:hidden"
-            aria-label="Buscar por voz"
-          >
-            <Mic size={18} strokeWidth={1.8} />
-          </button>
           {/* Sin botón de enviar: el formulario ya se confirma con Enter desde
               el propio campo, y el botón se comía el ancho útil en móvil. */}
           {effectiveIsSearching && (

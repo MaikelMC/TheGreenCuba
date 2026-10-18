@@ -251,7 +251,7 @@ export function PhotoGrid({ placeId, placeName, className }: PhotoGridProps) {
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={busy}
-            className="aspect-square rounded-2xl border border-dashed border-ink/10 flex flex-col items-center justify-center gap-[6px] cursor-pointer text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 transition-all duration-500 ease-outquint disabled:opacity-40 disabled:cursor-default disabled:hover:border-ink/10 disabled:hover:bg-transparent"
+            className="aspect-square rounded-2xl border border-dashed border-ink/10 flex flex-col items-center justify-center gap-[6px] cursor-pointer text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 transition duration-500 ease-outquint disabled:opacity-40 disabled:cursor-default disabled:hover:border-ink/10 disabled:hover:bg-transparent"
           >
             {busy ? (
               <Loader2 size={24} strokeWidth={1.8} className="animate-spin" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Tag, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -53,10 +53,20 @@ export function OfertasEditor({
   const [borrador, setBorrador] = useState<Borrador | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const ahora = Date.now();
+  /* `Date.now()` en el render no es determinista entre servidor y cliente.
+     Arranca en 0 y el efecto fija la hora; con 0 no se cuenta ninguna oferta,
+     así que el tope no se pinta por error en el primer fotograma. */
+  const [ahora, setAhora] = useState(0);
+  useEffect(() => {
+    setAhora(Date.now());
+  }, []);
+
   /* El mismo recuento que hace la ruta: las que no han caducado, incluidas las
      programadas —una oferta de mañana ocupa el sitio de una de hoy—. */
-  const enPie = ofertas.filter((o) => o.termina > ahora).length;
+  const enPie =
+    ahora === 0
+      ? 0
+      : ofertas.filter((o) => o.termina > ahora).length;
   const lleno = max !== null && enPie >= max;
 
   const objetivos = menu.filter((item) => item.id);

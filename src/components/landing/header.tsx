@@ -56,7 +56,7 @@ export function Header() {
         >
           {/* El PNG trae su propio degradado verde: sin círculo detrás. */}
           <Logo className="h-[26px] w-auto shrink-0" />
-          La Verde
+          <span translate="no">La Verde</span>
         </Link>
 
         <nav className="hidden items-center gap-gap-xl sm:flex">

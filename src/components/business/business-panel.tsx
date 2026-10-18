@@ -1462,7 +1462,13 @@ function SettingsView({
   const [ocupacion, setOcupacion] = useState<Record<string, number> | null>(
     null,
   );
-  const [fechaCupo, setFechaCupo] = useState(() => fechaLocalIso(new Date()));
+  /* Vacía al montar y se rellena en el efecto: `new Date()` en el
+     inicializador discrepa entre servidor y cliente cerca de medianoche o con
+     otra zona horaria. */
+  const [fechaCupo, setFechaCupo] = useState("");
+  useEffect(() => {
+    setFechaCupo(fechaLocalIso(new Date()));
+  }, []);
   const [liberando, setLiberando] = useState(false);
   /* Liberar un día no se deshace solo, así que el botón no dispara a la
      primera: se convierte en la pregunta, con el número de personas que se

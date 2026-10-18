@@ -113,7 +113,7 @@ export default function ForgotPasswordPage() {
         {sent ? (
           <Link
             href="/login"
-            className="inline-flex h-12 w-full items-center justify-center gap-gap-sm rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+            className="inline-flex h-12 w-full items-center justify-center gap-gap-sm rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
           >
             Volver al acceso
           </Link>
@@ -150,14 +150,14 @@ export default function ForgotPasswordPage() {
               type="submit"
               disabled={loading}
               aria-busy={loading}
-              className="inline-flex h-12 w-full items-center justify-center gap-gap-xs rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 cursor-pointer"
+              className="inline-flex h-12 w-full items-center justify-center gap-gap-xs rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 cursor-pointer"
             >
               {loading ? (
                 <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
               ) : (
                 <ArrowRight size={16} strokeWidth={1.8} />
               )}
-              {loading ? "Enviando..." : "Enviar enlace"}
+              {loading ? "Enviando…" : "Enviar enlace"}
             </button>
           </form>
         )}

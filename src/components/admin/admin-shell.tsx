@@ -164,7 +164,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <ArrowLeft size={18} strokeWidth={1.8} />
         </Link>
         <div className="font-lv-display font-bold text-[18px] text-ink tracking-[-0.02em] whitespace-nowrap flex-1 truncate">
-          La Verde <span className="font-medium text-verde-600">Admin</span>
+          <span translate="no">La Verde</span>{" "}
+          <span className="font-medium text-verde-600">Admin</span>
         </div>
         <span className="font-lv-display text-meta font-semibold bg-verde-50 text-verde-600 px-[10px] py-[3px] rounded-full border border-verde-200 whitespace-nowrap max-sm:hidden">
           Panel de administración
@@ -219,7 +220,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 min-w-0 overflow-y-auto">
+        <main id="content" className="flex-1 min-w-0 overflow-y-auto">
           {/* En móvil el aire se recorta a 12 px, como en el panel de negocio.
               Cada eje por su cuenta: el atajo `p-gap-*` también pone
               `padding-bottom` y, como las variantes responsive salen después en

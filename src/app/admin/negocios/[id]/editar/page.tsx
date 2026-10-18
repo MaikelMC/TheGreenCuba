@@ -35,7 +35,7 @@ export default function EditarNegocioPage() {
         actions={
           <Link
             href="/admin/negocios"
-            className="inline-flex items-center gap-[6px] h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98]"
+            className="inline-flex items-center gap-[6px] h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition duration-500 ease-outquint active:scale-[0.98]"
           >
             <ArrowLeft size={16} strokeWidth={1.8} />
             Volver a negocios
@@ -69,7 +69,7 @@ export default function EditarNegocioPage() {
       <div className="mt-gap-lg">
         <Link
           href={`/admin/negocios/${place.id}/importar`}
-          className="inline-flex items-center gap-gap-xs h-11 px-gap-lg rounded-full bg-white border border-ink/10 text-ink font-lv-display text-small font-semibold hover:border-verde-300 hover:text-verde-600 transition-all duration-500 ease-outquint"
+          className="inline-flex items-center gap-gap-xs h-11 px-gap-lg rounded-full bg-white border border-ink/10 text-ink font-lv-display text-small font-semibold hover:border-verde-300 hover:text-verde-600 transition duration-500 ease-outquint"
         >
           <Upload size={16} strokeWidth={1.8} />
           Importar catálogo por CSV

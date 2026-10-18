@@ -182,7 +182,7 @@ export function ProjectManagementPanel() {
     <div className="project-panel flex min-h-dvh flex-col bg-sand font-lv text-ink">
       <header className="sticky top-0 z-40 flex h-header shrink-0 items-center gap-2 border-b border-ink/5 bg-sand-warm/90 px-3 backdrop-blur-[16px] sm:px-gap-md">
         <Link href="/home" aria-label="Volver al inicio" className="grid size-9 shrink-0 place-items-center rounded-full text-ink-soft/75 hover:bg-verde-50 hover:text-verde-600"><ArrowLeft size={18} /></Link>
-        <div className="font-lv-display text-[18px] font-bold text-ink">La Verde <span className="font-medium text-verde-600">Proyectos</span></div>
+        <div className="font-lv-display text-[18px] font-bold text-ink"><span translate="no">La Verde</span> <span className="font-medium text-verde-600">Proyectos</span></div>
         <div className="flex-1" />
         <UserMenu />
       </header>
@@ -208,7 +208,7 @@ export function ProjectManagementPanel() {
             )}
             {error && <p role="alert" className="rounded-xl bg-red-50 px-gap-md py-3 text-small font-medium text-red-700">{error}</p>}
             {loading ? (
-              <div className="flex min-h-48 items-center justify-center gap-gap-xs text-small text-ink-soft/75"><Loader2 size={18} className="animate-spin" /> Cargando el panel...</div>
+              <div className="flex min-h-48 items-center justify-center gap-gap-xs text-small text-ink-soft/75"><Loader2 size={18} className="animate-spin" /> Cargando el panel…</div>
             ) : !project ? (
               <section className="flex min-h-64 flex-col items-center justify-center gap-gap-sm text-center">
                 <Megaphone size={28} className="text-verde-600" />

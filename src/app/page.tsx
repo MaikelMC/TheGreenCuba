@@ -81,6 +81,9 @@ export default async function LandingPage() {
       />
       <MotionConfig reducedMotion="user">
         <div className="lv-grain flex min-h-screen min-h-dvh flex-col bg-sand font-lv text-ink">
+          <a href="#content" className="skip-link">
+            Saltar al contenido
+          </a>
           <Header />
 
           <main id="content" className="flex-1">

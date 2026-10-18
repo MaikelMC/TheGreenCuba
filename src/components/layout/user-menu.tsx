@@ -344,6 +344,8 @@ export function UserMenu({
             <img
               src={resolvedAvatarUrl}
               alt="Foto de perfil"
+              width={36}
+              height={36}
               className="h-full w-full object-cover"
             />
           ) : (

@@ -194,6 +194,7 @@ export default function AdminUsersPage() {
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          aria-label="Buscar usuarios por nombre, correo o rol"
           placeholder="Buscar por nombre, correo o rol"
           className="min-w-0 flex-1 bg-transparent text-small text-ink outline-none placeholder:text-ink-soft/70"
         />
@@ -207,7 +208,7 @@ export default function AdminUsersPage() {
 
       <section className="overflow-hidden rounded-2xl border border-ink/5 bg-white">
         {loading ? (
-          <p className="p-gap-lg text-small text-ink-soft/75">Cargando usuarios...</p>
+          <p className="p-gap-lg text-small text-ink-soft/75">Cargando usuarios…</p>
         ) : filteredUsers.length === 0 ? (
           <p className="p-gap-lg text-small text-ink-soft/75">No hay usuarios que coincidan.</p>
         ) : (

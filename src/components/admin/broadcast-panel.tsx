@@ -144,7 +144,7 @@ export function BroadcastPanel() {
           <button
             type="submit"
             disabled={sending || title.trim().length === 0 || message.trim().length === 0}
-            className="inline-flex h-11 cursor-pointer items-center justify-center gap-gap-xs self-start rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 disabled:opacity-50 disabled:pointer-events-none"
+            className="inline-flex h-11 cursor-pointer items-center justify-center gap-gap-xs self-start rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 disabled:opacity-50 disabled:pointer-events-none"
           >
             {sending ? (
               <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
@@ -196,7 +196,7 @@ export function BroadcastPanel() {
                   <p className="text-meta text-ink-soft/75 line-clamp-2 mt-[2px]">{b.message}</p>
                   <p className="text-[11px] text-ink-soft/60 mt-[2px]">
                     {b.senderName ?? "Administración"} ·{" "}
-                    {new Date(b.createdAt).toLocaleString("es-ES", {
+                    {new Date(b.createdAt).toLocaleString("es-CU", {
                       day: "2-digit",
                       month: "2-digit",
                       year: "numeric",

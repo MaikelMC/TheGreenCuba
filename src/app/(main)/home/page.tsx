@@ -1524,7 +1524,7 @@ function HomePageContent() {
                 <div className="size-9 rounded-xl bg-gradient-to-br from-verde-400 to-verde-600 grid place-items-center text-white shrink-0">
                   <MessageCircle size={18} strokeWidth={1.8} />
                 </div>
-                <p className="text-small leading-relaxed text-ink">
+                <p aria-live="polite" className="text-small leading-relaxed text-ink">
                   {sheetState === "results" && aiState && aiState.summary
                     ? aiState.summary
                     : !hydrated

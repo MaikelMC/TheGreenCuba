@@ -106,7 +106,7 @@ export function RequestsList() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar solicitud por nombre, barrio o categoría..."
+            placeholder="Buscar solicitud por nombre, barrio o categoría…"
             aria-label="Buscar solicitudes"
             className={cn(FILTER, "w-full pl-9 text-body")}
           />
@@ -237,7 +237,7 @@ export function RequestsList() {
                   <div className="flex items-center gap-gap-xs">
                     <Clock3 size={14} strokeWidth={1.8} className="text-verde-600" />
                     <span>
-                      Enviado el {new Date(place.createdAt).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                      Enviado el {new Date(place.createdAt).toLocaleDateString("es-CU", { day: "2-digit", month: "2-digit", year: "numeric" })}
                     </span>
                   </div>
                 </div>

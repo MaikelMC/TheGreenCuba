@@ -77,7 +77,7 @@ function rowStatus(place: UserPlace): { label: string; cls: string } {
 }
 
 const FILTER =
-  "h-[42px] pl-4 pr-10 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition-all duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer appearance-none";
+  "h-[42px] pl-4 pr-10 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer appearance-none";
 
 /* 44 px en móvil, donde las acciones van en su propia fila y hay sitio; 36 px
    a partir de `sm`, donde la fila vuelve a ser una sola línea y hay que
@@ -159,7 +159,7 @@ export function BusinessList() {
         <Link
           href="/admin/negocios/nuevo"
           aria-label="Nuevo negocio"
-          className="inline-flex items-center gap-gap-xs h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] shrink-0"
+          className="inline-flex items-center gap-gap-xs h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition duration-500 ease-outquint active:scale-[0.98] shrink-0"
         >
           <Plus size={18} strokeWidth={1.8} />
           <span className="max-sm:hidden">Nuevo negocio</span>
@@ -176,16 +176,16 @@ export function BusinessList() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por nombre, barrio o categoría..."
+            placeholder="Buscar por nombre, barrio o categoría…"
             aria-label="Buscar negocios"
-            className="w-full pl-10 pr-4 h-[42px] rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition-all duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-text"
+            className="w-full pl-10 pr-4 h-[42px] rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-text"
           />
         </div>
         <div className="relative">
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="w-full h-[42px] pl-4 pr-10 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition-all duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer appearance-none"
+            className="w-full h-[42px] pl-4 pr-10 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer appearance-none"
             aria-label="Filtrar por categoría"
           >
             <option value="all">Todas las categorías</option>
@@ -205,7 +205,7 @@ export function BusinessList() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full h-[42px] pl-4 pr-10 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition-all duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer appearance-none"
+            className="w-full h-[42px] pl-4 pr-10 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer appearance-none"
             aria-label="Filtrar por estado"
           >
             <option value="all">Todos los estados</option>

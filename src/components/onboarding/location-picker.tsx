@@ -37,7 +37,7 @@ function LocationOption({
       role="radio"
       aria-checked={selected}
       className={cn(
-        "flex items-center gap-3 p-3 border rounded-2xl shadow-soft transition-all duration-500 ease-outquint text-left w-full",
+        "flex items-center gap-3 p-3 border rounded-2xl shadow-soft transition duration-500 ease-outquint text-left w-full",
         selected
           ? "border-verde-400 bg-verde-50"
           : "border-ink/5 bg-white hover:border-verde-300 hover:bg-verde-50",
@@ -46,7 +46,7 @@ function LocationOption({
     >
       <span
         className={cn(
-          "size-3 rounded-full border-2 flex-shrink-0 transition-all duration-500",
+          "size-3 rounded-full border-2 flex-shrink-0 transition duration-500",
           selected
             ? "bg-verde-400 border-verde-400 ring-[3px] ring-verde-400/20"
             : "border-ink/20",
@@ -81,7 +81,7 @@ export function LocationPicker({ selected, onSelect, gpsDetected, gpsLabel, onUs
       <button
         onClick={onUseGPS}
         className={cn(
-          "flex items-center justify-center gap-2 w-full py-3 border-2 rounded-full cursor-pointer font-lv-display text-small font-semibold transition-all duration-500 ease-outquint mt-1",
+          "flex items-center justify-center gap-2 w-full py-3 border-2 rounded-full cursor-pointer font-lv-display text-small font-semibold transition duration-500 ease-outquint mt-1",
           gpsDetected
             ? "border-solid border-verde-300 text-verde-600"
             : "border-dashed border-ink/10 text-ink-soft/75 hover:border-verde-300 hover:text-verde-600",

@@ -23,7 +23,7 @@ export function LoginButton({ className, fullWidth }: LoginButtonProps) {
         // easeOutQuint en línea, y halo del propio verde del botón.
         "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full bg-verde-400 px-6 py-3 font-lv-display text-sm font-semibold leading-none text-verde-950",
         "shadow-primary-halo",
-        "transition-all duration-500 ease-outquint",
+        "transition duration-500 ease-outquint",
         "hover:bg-verde-300 active:scale-[0.98]",
         fullWidth && "w-full",
         className,

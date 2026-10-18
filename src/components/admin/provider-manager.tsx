@@ -351,7 +351,7 @@ export function ProviderManager() {
                     >
                       <span
                         className={cn(
-                          "absolute top-[3px] size-[18px] rounded-full bg-white shadow-soft transition-all duration-500 ease-outquint",
+                          "absolute top-[3px] size-[18px] rounded-full bg-white shadow-soft transition duration-500 ease-outquint",
                           p.enabled ? "left-[21px]" : "left-[3px]",
                         )}
                       />
@@ -512,7 +512,7 @@ export function ProviderManager() {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, apiKey: e.target.value }))
                 }
-                placeholder={editing ? "Dejar en blanco para conservar" : "sk-..."}
+                placeholder={editing ? "Dejar en blanco para conservar" : "sk-…"}
                 className={INPUT}
               />
             </div>
@@ -570,7 +570,7 @@ export function ProviderManager() {
               type="button"
               onClick={handleSubmit}
               disabled={saving}
-              className="w-full h-11 mt-gap-xs rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none inline-flex items-center justify-center gap-gap-xs"
+              className="w-full h-11 mt-gap-xs rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none inline-flex items-center justify-center gap-gap-xs"
             >
               {saving ? (
                 <Loader2 size={18} className="animate-spin" />

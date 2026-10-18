@@ -177,7 +177,7 @@ const SECTION_ICONS: Record<SectionId, ReactNode> = {
     para que no puedan desincronizarse. */
 type FormError = { message: string; sections: SectionId[] };
 const BTN_PRIMARY =
-  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none";
 
 /**
  * «Tengo un negocio», la sección del perfil.
@@ -672,7 +672,7 @@ export function BusinessForm({
                 onClick={() => setSchedule(preset)}
                 aria-pressed={schedule === preset}
                 className={cn(
-                  "select-none rounded-full border px-[14px] py-2 font-lv-display text-meta font-medium transition-all duration-500 ease-outquint active:scale-[0.98]",
+                  "select-none rounded-full border px-[14px] py-2 font-lv-display text-meta font-medium transition duration-500 ease-outquint active:scale-[0.98]",
                   schedule === preset
                     ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
                     : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
@@ -718,7 +718,7 @@ export function BusinessForm({
               <label
                 key={option.id}
                 className={cn(
-                  "relative flex flex-col gap-gap-sm rounded-2xl border p-gap-md transition-all duration-500 ease-outquint",
+                  "relative flex flex-col gap-gap-sm rounded-2xl border p-gap-md transition duration-500 ease-outquint",
                   coming
                     ? "cursor-default border-ink/10 bg-white"
                     : "cursor-pointer focus-within:ring-2 focus-within:ring-verde-400/40",
@@ -1012,7 +1012,7 @@ export function BusinessForm({
             <button
               type="button"
               onClick={handleWizardBack}
-              className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full border border-ink/10 bg-white px-6 py-3 font-lv-display text-sm font-semibold text-ink transition-all duration-500 ease-outquint hover:bg-verde-50 active:scale-[0.98]"
+              className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full border border-ink/10 bg-white px-6 py-3 font-lv-display text-sm font-semibold text-ink transition duration-500 ease-outquint hover:bg-verde-50 active:scale-[0.98]"
             >
               Atrás
             </button>
@@ -1020,7 +1020,7 @@ export function BusinessForm({
               type="button"
               onClick={handleWizardNext}
               disabled={sending || (activeId === "esencial" && !ready)}
-              className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-verde-400 px-6 py-3 font-lv-display text-sm font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40"
+              className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-verde-400 px-6 py-3 font-lv-display text-sm font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40"
             >
               {sending && (
                 <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />

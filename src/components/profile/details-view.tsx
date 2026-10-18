@@ -44,7 +44,7 @@ const CURRENCIES = [
 /* El halo del botón primario del sistema. Vive suelto porque lo usa el botón
    del final del formulario; el de la cabecera se lo pone el armazón. */
 const SAVE_BTN =
-  "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint font-lv-display font-semibold cursor-pointer";
+  "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300 transition duration-500 ease-outquint font-lv-display font-semibold cursor-pointer";
 
 interface DetailsViewProps {
   prefs: UserPreferences;
@@ -104,6 +104,8 @@ export function DetailsView({ prefs, set, toggle, onSave, saved }: DetailsViewPr
               <img
                 src={prefs.avatarUrl}
                 alt="Foto de perfil"
+                width={80}
+                height={80}
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -270,7 +272,7 @@ function Chip({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        "inline-flex cursor-pointer select-none items-center gap-[6px] rounded-full border px-[14px] py-2 font-lv-display text-small font-medium transition-all duration-500 ease-outquint active:scale-[0.98]",
+        "inline-flex cursor-pointer select-none items-center gap-[6px] rounded-full border px-[14px] py-2 font-lv-display text-small font-medium transition duration-500 ease-outquint active:scale-[0.98]",
         selected
           ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
           : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",

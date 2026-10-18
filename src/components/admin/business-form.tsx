@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
@@ -152,6 +152,44 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
   );
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  /* Fotografía de los valores iniciales: si algo cambia, cerrar la pestaña
+     avisa antes de perder lo escrito, como en los editores del panel. */
+  const datos = {
+    name,
+    categoryValue,
+    icon,
+    logoUrl,
+    barrio,
+    address,
+    phone,
+    website,
+    whatsapp,
+    instagram,
+    facebook,
+    description,
+    schedule,
+    payments,
+    menu,
+    ofertas,
+    status,
+    verificado,
+    energia,
+    notaApagon,
+    location,
+  };
+  const inicial = useRef(JSON.stringify(datos));
+  const sucio = JSON.stringify(datos) !== inicial.current;
+
+  useEffect(() => {
+    if (!sucio) return;
+    const alCerrar = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", alCerrar);
+    return () => window.removeEventListener("beforeunload", alCerrar);
+  }, [sucio]);
 
   /* La etiqueta de la categoría elegida, que es la que indexa el catálogo de
      iconos, y el icono que se enseña: el elegido o el de esa categoría. */

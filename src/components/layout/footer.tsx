@@ -9,7 +9,7 @@ export function Footer() {
           <div className="max-w-[280px]">
             <div className="font-lv-display text-[18px] font-bold text-white flex items-center gap-gap-xs mb-gap-sm">
               <Logo className="h-[22px] w-auto shrink-0" />
-              La Verde
+              <span translate="no">La Verde</span>
             </div>
             <p className="text-[14px] leading-[1.6] text-white/70">
               La plataforma de descubrimiento de lugares en Cuba. Encuentra lo que buscas hablando como hablas.

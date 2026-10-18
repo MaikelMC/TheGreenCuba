@@ -109,7 +109,7 @@ export default async function LinksPage() {
                     dateTime={person.createdAt.toISOString()}
                     className="shrink-0 text-meta text-ink-soft/70"
                   >
-                    {person.createdAt.toLocaleDateString("es-ES", {
+                    {person.createdAt.toLocaleDateString("es-CU", {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",

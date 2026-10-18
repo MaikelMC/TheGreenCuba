@@ -16,7 +16,7 @@ export function SignOutButton() {
     <button
       type="button"
       onClick={() => void logout()}
-      className="inline-flex items-center gap-gap-xs h-11 px-gap-lg rounded-full border border-ink/10 bg-white text-ink font-lv-display text-small font-semibold hover:border-verde-300 hover:bg-verde-50 transition-all duration-500 ease-outquint active:scale-[0.98] cursor-pointer"
+      className="inline-flex items-center gap-gap-xs h-11 px-gap-lg rounded-full border border-ink/10 bg-white text-ink font-lv-display text-small font-semibold hover:border-verde-300 hover:bg-verde-50 transition duration-500 ease-outquint active:scale-[0.98] cursor-pointer"
     >
       <ArrowLeft size={16} strokeWidth={1.8} />
       Entrar con otra cuenta

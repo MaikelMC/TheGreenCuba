@@ -292,7 +292,7 @@ function ModuloTile({
       <div className="mt-auto pt-gap-lg">
         <a
           href={`mailto:${SUPPORT_EMAIL}?subject=${asunto}`}
-          className="flex h-11 items-center justify-center rounded-full border border-ink/10 bg-white font-lv-display text-small font-semibold text-ink transition-all duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700"
+          className="flex h-11 items-center justify-center rounded-full border border-ink/10 bg-white font-lv-display text-small font-semibold text-ink transition duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700"
         >
           Quiero {modulo.nombre}
         </a>
@@ -377,7 +377,7 @@ function PackTile({
             onClick={onElegir}
             disabled={cargando || bloqueado}
             className={cn(
-              "flex h-11 w-full items-center justify-center gap-gap-xs rounded-full font-lv-display text-small font-semibold transition-all duration-500 ease-outquint disabled:cursor-not-allowed disabled:opacity-60",
+              "flex h-11 w-full items-center justify-center gap-gap-xs rounded-full font-lv-display text-small font-semibold transition duration-500 ease-outquint disabled:cursor-not-allowed disabled:opacity-60",
               destacado
                 ? "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300 active:scale-[0.98]"
                 : "border border-ink/10 bg-white text-ink hover:border-verde-300 hover:text-verde-700",
@@ -396,7 +396,7 @@ function PackTile({
           <a
             href={`mailto:${SUPPORT_EMAIL}?subject=${asunto}`}
             className={cn(
-              "flex h-11 items-center justify-center rounded-full font-lv-display text-small font-semibold transition-all duration-500 ease-outquint",
+              "flex h-11 items-center justify-center rounded-full font-lv-display text-small font-semibold transition duration-500 ease-outquint",
               destacado
                 ? "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300 active:scale-[0.98]"
                 : "border border-ink/10 bg-white text-ink hover:border-verde-300 hover:text-verde-700",

@@ -12,7 +12,7 @@ import {
 } from "@/lib/notificaciones";
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("es-ES", {
+  return new Date(value).toLocaleDateString("es-CU", {
     day: "2-digit",
     month: "short",
     year: "numeric",

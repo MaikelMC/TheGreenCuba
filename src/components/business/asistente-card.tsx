@@ -149,7 +149,7 @@ export function AsistenteCard({
           <button
             type="button"
             onClick={onVerPlanes}
-            className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+            className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
           >
             <Lock size={15} strokeWidth={1.8} />
             Ver los planes
@@ -225,7 +225,7 @@ export function AsistenteCard({
                     href={estado.enlace}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+                    className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
                   >
                     <Bot size={15} strokeWidth={1.8} />
                     Abrir en Telegram
@@ -251,7 +251,7 @@ export function AsistenteCard({
               type="button"
               onClick={() => void generar()}
               disabled={generando || !estado}
-              className="inline-flex h-11 w-fit cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+              className="inline-flex h-11 w-fit cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
             >
               <Bot size={15} strokeWidth={1.8} />
               {generando ? "Generando…" : "Generar código"}

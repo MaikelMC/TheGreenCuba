@@ -90,7 +90,7 @@ export const LocateButton = memo(function LocateButton({
         aria-busy={locating}
         className={cn(
           box,
-          "relative cursor-pointer transition-all duration-500 ease-outquint hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 active:scale-95 disabled:cursor-wait",
+          "relative cursor-pointer transition duration-500 ease-outquint hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 active:scale-95 disabled:cursor-wait",
           done
             ? "border-verde-400 bg-verde-50 text-verde-600 ring-4 ring-verde-400/20"
             : "text-ink",

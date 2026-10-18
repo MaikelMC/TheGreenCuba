@@ -922,7 +922,7 @@ export default function OnboardingPage() {
             {currentStep > 0 && (
               <button
                 onClick={handleBack}
-                className="inline-flex items-center justify-center gap-2 flex-1 px-6 py-3 rounded-full font-lv-display text-sm font-semibold border border-ink/10 bg-white text-ink transition-all duration-500 ease-outquint min-h-12 hover:bg-verde-50 active:scale-[0.98]"
+                className="inline-flex items-center justify-center gap-2 flex-1 px-6 py-3 rounded-full font-lv-display text-sm font-semibold border border-ink/10 bg-white text-ink transition duration-500 ease-outquint min-h-12 hover:bg-verde-50 active:scale-[0.98]"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -939,7 +939,7 @@ export default function OnboardingPage() {
             <button
               onClick={handleContinue}
               disabled={!canProceed()}
-              className="inline-flex items-center justify-center gap-2 flex-1 px-6 py-3 rounded-full font-lv-display text-sm font-semibold bg-verde-400 text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint min-h-12 hover:bg-verde-300 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
+              className="inline-flex items-center justify-center gap-2 flex-1 px-6 py-3 rounded-full font-lv-display text-sm font-semibold bg-verde-400 text-verde-950 shadow-primary-halo transition duration-500 ease-outquint min-h-12 hover:bg-verde-300 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
             >
               {currentStep === TOTAL_STEPS - 1 ? "Comenzar" : "Continuar"}
             </button>
@@ -991,7 +991,7 @@ export default function OnboardingPage() {
             <div className="px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-4 bg-gradient-to-t from-sand-warm via-sand-warm to-transparent flex flex-shrink-0">
               <button
                 onClick={() => setBusinessStep(1)}
-                className="inline-flex items-center justify-center gap-2 flex-1 px-6 py-3 rounded-full font-lv-display text-sm font-semibold bg-verde-400 text-verde-950 shadow-primary-halo transition-all duration-500 ease-outquint min-h-12 hover:bg-verde-300 active:scale-[0.98]"
+                className="inline-flex items-center justify-center gap-2 flex-1 px-6 py-3 rounded-full font-lv-display text-sm font-semibold bg-verde-400 text-verde-950 shadow-primary-halo transition duration-500 ease-outquint min-h-12 hover:bg-verde-300 active:scale-[0.98]"
               >
                 Continuar
               </button>

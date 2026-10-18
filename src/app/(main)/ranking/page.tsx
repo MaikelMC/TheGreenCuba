@@ -39,7 +39,7 @@ function mes(periodo: string): string {
   /* Valores por defecto para el compilador: `periodo` siempre es «YYYY-MM». */
   const [anio = 0, mesNum = 1] = periodo.split("-").map(Number);
   const nombre = new Date(Date.UTC(anio, mesNum - 1, 1)).toLocaleDateString(
-    "es-ES",
+    "es-CU",
     { month: "long", year: "numeric", timeZone: "UTC" },
   );
   return nombre.charAt(0).toUpperCase() + nombre.slice(1);

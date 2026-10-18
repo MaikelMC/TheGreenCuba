@@ -25,7 +25,7 @@ const PickerMap = dynamic(
     ssr: false,
     loading: () => (
       <div className="map-loading h-full w-full grid place-items-center bg-sand-deep">
-        <span className="text-small text-ink-soft/75">Cargando mapa...</span>
+        <span className="text-small text-ink-soft/75">Cargando mapa…</span>
       </div>
     ),
   },
@@ -281,7 +281,7 @@ export function MapLocationPicker({
                 setAreaQuery(e.target.value);
               }}
               onFocus={() => setShowSuggestions(true)}
-              placeholder="Buscar dirección, calle o lugar..."
+              placeholder="Buscar dirección, calle o lugar…"
               className={cn(FIELD, "pl-11 pr-10")}
             />
             {searchingAddr && <Loader2 size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 animate-spin text-verde-600" />}
@@ -304,7 +304,7 @@ export function MapLocationPicker({
                 <span className="truncate text-small text-ink">{area.name} <span className="text-meta text-ink-soft/60">{area.province}</span></span>
               </button>
             ))}
-            {searchingAreas && <span className="block px-gap-sm py-gap-sm text-meta text-ink-soft/75">Buscando en Cuba...</span>}
+            {searchingAreas && <span className="block px-gap-sm py-gap-sm text-meta text-ink-soft/75">Buscando en Cuba…</span>}
             {!searchingAddr && !searchingAreas && suggestions.length === 0 && displayedAreas.length === 0 && <span className="block px-gap-sm py-gap-sm text-meta text-ink-soft/75">Sin coincidencias. También puedes tocar el mapa.</span>}
           </div>
         )}
@@ -338,7 +338,7 @@ export function MapLocationPicker({
           )}
         >
           <Crosshair size={14} strokeWidth={1.8} className={cn(locateBusy && "animate-spin")} />
-          {locateBusy ? "Ubicando..." : "Mi ubicación"}
+          {locateBusy ? "Ubicando…" : "Mi ubicación"}
         </button>
       </div>
 

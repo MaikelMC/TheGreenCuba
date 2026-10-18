@@ -124,7 +124,7 @@ export function ResetPasswordForm({
         {deadLink ? (
           <Link
             href="/forgot-password"
-            className="inline-flex h-12 w-full items-center justify-center gap-gap-sm rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+            className="inline-flex h-12 w-full items-center justify-center gap-gap-sm rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
           >
             Pedir otro enlace
           </Link>
@@ -179,14 +179,14 @@ export function ResetPasswordForm({
               type="submit"
               disabled={loading}
               aria-busy={loading}
-              className="inline-flex h-12 w-full items-center justify-center gap-gap-xs rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo transition-all duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 cursor-pointer"
+              className="inline-flex h-12 w-full items-center justify-center gap-gap-xs rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 cursor-pointer"
             >
               {loading ? (
                 <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
               ) : (
                 <ArrowRight size={16} strokeWidth={1.8} />
               )}
-              {loading ? "Guardando..." : "Guardar contraseña"}
+              {loading ? "Guardando…" : "Guardar contraseña"}
             </button>
           </form>
         )}

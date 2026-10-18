@@ -57,7 +57,7 @@ export default function AdminDashboardPage() {
         <Link
           href="/admin/negocios/nuevo"
           aria-label="Nuevo negocio"
-          className="inline-flex items-center gap-gap-xs h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] shrink-0"
+          className="inline-flex items-center gap-gap-xs h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition duration-500 ease-outquint active:scale-[0.98] shrink-0"
         >
           <Plus size={18} strokeWidth={1.8} />
           <span className="max-sm:hidden">Nuevo negocio</span>

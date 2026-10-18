@@ -30,13 +30,13 @@ const SLIDE = {
 };
 
 const PAGE_BTN =
-  "grid place-items-center size-9 rounded-full border border-ink/10 bg-white text-ink cursor-pointer transition-all duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 disabled:opacity-35 disabled:pointer-events-none";
+  "grid place-items-center size-9 rounded-full border border-ink/10 bg-white text-ink cursor-pointer transition duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 disabled:opacity-35 disabled:pointer-events-none";
 
 /* `shrink-0` + `whitespace-nowrap`: en el teléfono las pastillas no caben y sin
    eso el navegador las encoge y parte el nombre en dos líneas. Es la misma
    pastilla que la de la carta, que ya se comporta así. */
 const CHIP =
-  "h-8 shrink-0 whitespace-nowrap px-gap-sm rounded-full border font-lv-display text-meta font-semibold cursor-pointer transition-all duration-500 ease-outquint";
+  "h-8 shrink-0 whitespace-nowrap px-gap-sm rounded-full border font-lv-display text-meta font-semibold cursor-pointer transition duration-500 ease-outquint";
 const CHIP_ON = "bg-verde-400 border-verde-400 text-verde-950";
 const CHIP_OFF =
   "bg-white border-ink/10 text-ink-soft/75 hover:border-verde-300 hover:text-verde-600";

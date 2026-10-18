@@ -96,7 +96,7 @@ export function Features() {
                 key={f.title}
                 variants={fadeUp}
                 whileTap={{ scale: 0.98 }}
-                className="group rounded-4xl border border-ink/5 bg-white p-7 shadow-soft transition-all duration-500 ease-outquint hover:-translate-y-1 hover:shadow-card"
+                className="group rounded-4xl border border-ink/5 bg-white p-7 shadow-soft transition duration-500 ease-outquint hover:-translate-y-1 hover:shadow-card"
               >
                 <motion.div
                   variants={popIn}

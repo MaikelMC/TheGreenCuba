@@ -249,7 +249,7 @@ export function ProjectList() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Buscar proyectos..."
+            placeholder="Buscar proyectos…"
             aria-label="Buscar proyectos"
             className={`${INPUT} pl-9`}
           />
@@ -258,7 +258,7 @@ export function ProjectList() {
 
       {error && <p role="alert" className="rounded-xl bg-red-50 px-gap-md py-3 text-small font-medium text-red-700">{error}</p>}
       {loading ? (
-        <div className="flex items-center gap-gap-xs text-small text-ink-soft/75"><Loader2 size={18} className="animate-spin" /> Cargando proyectos...</div>
+        <div className="flex items-center gap-gap-xs text-small text-ink-soft/75"><Loader2 size={18} className="animate-spin" /> Cargando proyectos…</div>
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-ink/10 bg-white p-gap-lg text-small text-ink-soft/75">
           {query ? "No hay proyectos que coincidan con la búsqueda." : "Todavía no hay proyectos aprobados."}

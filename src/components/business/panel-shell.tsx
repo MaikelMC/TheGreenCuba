@@ -176,7 +176,8 @@ export function PanelShell({
           <ArrowLeft size={18} strokeWidth={1.8} />
         </Link>
         <div className="font-lv-display font-bold text-[18px] text-ink tracking-[-0.02em] whitespace-nowrap">
-          La Verde <span className="font-medium text-verde-600">Panel</span>
+          <span translate="no">La Verde</span>{" "}
+          <span className="font-medium text-verde-600">Panel</span>
         </div>
         <div className="flex-1 min-w-0" />
         {publicado && (
@@ -241,7 +242,7 @@ export function PanelShell({
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 min-w-0 overflow-y-auto">
+        <div className="flex-1 min-w-0 overflow-y-auto">
           {/* En móvil el aire se recorta a 12 px, como en la cabecera del home.
               Con los 16 px de escritorio más los 16 de cada `FormSection` se
               iban 64 px de los 360 de pantalla, y las filas de horarios no
@@ -267,7 +268,7 @@ export function PanelShell({
               {children(activeView, go)}
             </motion.div>
           </div>
-        </main>
+        </div>
       </div>
 
       {/* Cajón lateral (móvil). Es el `Sheet` del sistema —Radix Dialog por

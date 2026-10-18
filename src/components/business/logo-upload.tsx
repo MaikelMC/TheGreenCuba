@@ -115,7 +115,7 @@ export function LogoUpload({
         onClick={() => inputRef.current?.click()}
         disabled={busy}
         aria-label={value ? "Cambiar el logo" : "Subir un logo"}
-        className="relative size-20 shrink-0 overflow-hidden rounded-full border border-dashed border-ink/15 bg-sand-warm grid place-items-center cursor-pointer text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 transition-all duration-500 ease-outquint disabled:opacity-50 disabled:cursor-default"
+        className="relative size-20 shrink-0 overflow-hidden rounded-full border border-dashed border-ink/15 bg-sand-warm grid place-items-center cursor-pointer text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 transition duration-500 ease-outquint disabled:opacity-50 disabled:cursor-default"
       >
         {value ? (
           <Image src={value} alt="" fill sizes="80px" className="object-cover" />

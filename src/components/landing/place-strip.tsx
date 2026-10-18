@@ -51,7 +51,7 @@ function PlaceCard({
     <Link
       href={`/place/${place.id}`}
       tabIndex={clone ? -1 : undefined}
-      className="group flex w-[280px] shrink-0 transform flex-col gap-4 rounded-xl border border-ink/5 bg-white p-4 shadow-sm transition-all duration-300 ease-outquint hover:scale-[1.02] hover:border-verde-300 hover:shadow-card focus-visible:scale-[1.02]"
+      className="group flex w-[280px] shrink-0 transform flex-col gap-4 rounded-xl border border-ink/5 bg-white p-4 shadow-sm transition duration-300 ease-outquint hover:scale-[1.02] hover:border-verde-300 hover:shadow-card focus-visible:scale-[1.02]"
     >
       <div className="flex items-center gap-3">
         {/* La marca del negocio si la subió, y si no el icono de ubicación. La

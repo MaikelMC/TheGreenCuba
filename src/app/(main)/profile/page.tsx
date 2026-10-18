@@ -28,7 +28,7 @@ import {
 
 /* El halo del botón primario del sistema, para el guardado de la cabecera. */
 const SAVE_BTN =
-  "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint font-lv-display font-semibold cursor-pointer";
+  "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300 transition duration-500 ease-outquint font-lv-display font-semibold cursor-pointer";
 
 /**
  * Armazón del perfil. Las tres secciones se cambian con el dock, sin tocar la

@@ -32,7 +32,7 @@ interface PlacePopupProps {
 const ACTION =
   "flex-1 min-h-9 inline-flex items-center justify-center gap-[5px] rounded-full px-3 " +
   "font-lv-display text-small font-semibold whitespace-nowrap " +
-  "transition-all duration-500 ease-outquint active:scale-[0.98] " +
+  "transition duration-500 ease-outquint active:scale-[0.98] " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400";
 
 const META = "font-lv-display text-meta tabular-nums";

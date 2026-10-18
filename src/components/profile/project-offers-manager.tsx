@@ -208,7 +208,7 @@ export function ProjectOffersManager({
                       className="inline-flex h-9 items-center gap-1 rounded-full border border-ink/10 px-gap-sm font-lv-display text-meta font-semibold text-ink hover:bg-sand disabled:opacity-60"
                     >
                       {saving && savingOfferId === offer.id ? <Loader2 size={14} className="animate-spin" /> : isOfferSaved(offer) ? <Check size={14} /> : <Save size={14} />}
-                      {saving && savingOfferId === offer.id ? "Guardando..." : isOfferSaved(offer) ? "Guardada" : "Guardar oferta"}
+                      {saving && savingOfferId === offer.id ? "Guardando…" : isOfferSaved(offer) ? "Guardada" : "Guardar oferta"}
                     </button>
                   <button type="button" onClick={() => moveOffer(index, -1)} disabled={saving || index === 0} aria-label="Subir oferta" className="grid size-9 place-items-center rounded-full text-ink-soft hover:bg-sand disabled:opacity-40"><ArrowUp size={16} /></button>
                   <button type="button" onClick={() => moveOffer(index, 1)} disabled={saving || index === offers.length - 1} aria-label="Bajar oferta" className="grid size-9 place-items-center rounded-full text-ink-soft hover:bg-sand disabled:opacity-40"><ArrowDown size={16} /></button>
@@ -260,7 +260,7 @@ export function ProjectOffersManager({
           className="inline-flex h-11 items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 hover:bg-verde-300 disabled:opacity-60"
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          {saving ? "Guardando..." : "Guardar ofertas"}
+          {saving ? "Guardando…" : "Guardar ofertas"}
         </button>
       </div>
     </section>

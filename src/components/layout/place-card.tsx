@@ -57,29 +57,28 @@ export function PlaceCard({
 }: PlaceCardProps) {
   return (
     <motion.div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      /* Patrón botón de WAI-ARIA: Enter y Space activan. Space hace
-         preventDefault para no scrollear la página al activar la tarjeta. */
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect?.();
-        }
-      }}
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.99 }}
       className={cn(
-        "flex gap-[14px] p-[14px] border rounded-2xl cursor-pointer transition-all duration-500 ease-outquint",
+        "relative flex gap-[14px] p-[14px] border rounded-2xl transition-[border-color,background-color,box-shadow] duration-500 ease-outquint",
         selected
           ? "border-verde-400 bg-verde-50"
           : "border-ink/5 bg-white hover:border-verde-300 hover:shadow-soft",
       )}
     >
+      {/* La tarjeta entera selecciona, pero el control real es este botón: el
+          teclado lo alcanza y los botones de acción quedan por encima. */}
+      {onSelect && (
+        <button
+          type="button"
+          onClick={onSelect}
+          aria-label={`Seleccionar ${name}`}
+          className="absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 focus-visible:ring-offset-2"
+        />
+      )}
       {/* Thumbnail. Antes el emoji de la categoría a 28 px, que en Windows y en
           Android se dibuja distinto; después el mismo icono del pin. Ahora manda
           el logo del negocio cuando lo hay: es su marca y se reconoce antes que
@@ -134,7 +133,7 @@ export function PlaceCard({
       </div>
 
       {/* Actions */}
-      <div className="flex flex-col justify-between items-end shrink-0">
+      <div className="relative z-10 flex flex-col justify-between items-end shrink-0">
         <motion.button
           type="button"
           whileTap={{ scale: 0.85 }}

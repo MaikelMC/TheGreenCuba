@@ -50,12 +50,21 @@ export function OfertasView({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const ahora = Date.now();
-  const enCurso = ofertas.filter(
-    (o) => o.inicia <= ahora && o.termina > ahora,
-  ).length;
-  const programadas = ofertas.filter((o) => o.inicia > ahora).length;
-  const terminadas = ofertas.filter((o) => o.termina <= ahora).length;
+  /* La hora se fija tras montar: `Date.now()` en el render no coincide entre
+     servidor y cliente y los tres contadores se pintaban distintos. */
+  const [ahora, setAhora] = useState<number | null>(null);
+  useEffect(() => {
+    setAhora(Date.now());
+  }, []);
+
+  const enCurso =
+    ahora === null
+      ? 0
+      : ofertas.filter((o) => o.inicia <= ahora && o.termina > ahora).length;
+  const programadas =
+    ahora === null ? 0 : ofertas.filter((o) => o.inicia > ahora).length;
+  const terminadas =
+    ahora === null ? 0 : ofertas.filter((o) => o.termina <= ahora).length;
 
   const save = useCallback(async () => {
     setError(null);

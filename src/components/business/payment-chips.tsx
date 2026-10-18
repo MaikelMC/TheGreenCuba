@@ -66,7 +66,7 @@ export function PaymentChips({
             onClick={() => toggle(opt.id)}
             aria-pressed={isActive}
             className={cn(
-              "inline-flex items-center gap-[6px] px-[14px] py-2 rounded-full border font-lv-display text-small font-medium cursor-pointer select-none transition-all duration-500 ease-outquint active:scale-[0.98]",
+              "inline-flex items-center gap-[6px] px-[14px] py-2 rounded-full border font-lv-display text-small font-medium cursor-pointer select-none transition duration-500 ease-outquint active:scale-[0.98]",
               isActive
                 ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
                 : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",

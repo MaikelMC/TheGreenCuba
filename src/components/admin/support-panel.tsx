@@ -156,7 +156,7 @@ export function SupportPanel() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por asunto, mensaje o usuario..."
+            placeholder="Buscar por asunto, mensaje o usuario…"
             aria-label="Buscar tickets"
             className={cn(FILTER, "w-full pl-9 text-body")}
           />
@@ -214,7 +214,7 @@ export function SupportPanel() {
                     </div>
                     <p className="text-meta text-ink-soft/75 mt-[2px]">
                       {ticket.userSnapshot?.name ?? "Usuario"} · {ticket.userSnapshot?.email ?? ticket.email} ·{" "}
-                      {new Date(ticket.createdAt).toLocaleDateString("es-ES", {
+                      {new Date(ticket.createdAt).toLocaleDateString("es-CU", {
                         day: "2-digit",
                         month: "2-digit",
                         year: "numeric",
@@ -288,7 +288,7 @@ export function SupportPanel() {
               onChange={(e) => setReply(e.target.value)}
               rows={5}
               maxLength={3000}
-              placeholder="Escribe la respuesta para el usuario..."
+              placeholder="Escribe la respuesta para el usuario…"
               aria-label="Respuesta al ticket"
               className="mt-gap-sm min-h-[120px] w-full resize-y rounded-xl border border-ink/10 bg-sand-warm px-3 py-3 text-small text-ink outline-none transition-colors focus:border-verde-400 focus:bg-white focus:ring-2 focus:ring-verde-400/20"
             />

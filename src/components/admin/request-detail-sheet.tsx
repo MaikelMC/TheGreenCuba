@@ -88,7 +88,7 @@ function Chip({ children }: { children: React.ReactNode }) {
 function formatDate(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value || "—";
-  return date.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return date.toLocaleDateString("es-CU", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 interface RequestDetailSheetProps {

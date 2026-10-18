@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { type ReactNode } from "react";
+import { MotionConfig } from "motion/react";
 import { getAppUser } from "@/lib/auth/user";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { listCategories, listPlaces } from "@/lib/db/queries";
@@ -38,7 +39,11 @@ export const dynamic = "force-dynamic";
  * antes de pintar nada. El panel aparece con los datos puestos en vez de con
  * una pantalla de carga. Las dos consultas van en paralelo y no encadenadas.
  */
-export default async function AdminLayout({ children }: { children: ReactNode }) {
+export default async function AdminLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const user = await getAppUser();
 
   if (user?.role !== "admin") {
@@ -55,22 +60,27 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   ]);
 
   return (
-    <PlacesProvider
-      initialPlaces={places ?? undefined}
-      initialCategories={categories ?? undefined}
-      /* El único árbol que ve el catálogo entero: aquí es donde se aprueba lo
+    <MotionConfig reducedMotion="user">
+      <a href="#content" className="skip-link">
+        Saltar al contenido
+      </a>
+      <PlacesProvider
+        initialPlaces={places ?? undefined}
+        initialCategories={categories ?? undefined}
+        /* El único árbol que ve el catálogo entero: aquí es donde se aprueba lo
          pendiente y se reabre lo cerrado. El resto del sitio pide solo lo
          publicado. `listPlaces()` sin opciones ya devuelve todo, así que los
          datos iniciales y el `refreshPlaces` del provider coinciden. */
-      includeUnpublished
-    >
-      {/* El catálogo de planes, por el mismo motivo que las fichas: el panel ya
+        includeUnpublished
+      >
+        {/* El catálogo de planes, por el mismo motivo que las fichas: el panel ya
           está consultando Neon, así que leerlo aquí no cuesta un viaje extra y
           el editor de planes y el de suscripciones arrancan con los valores de
           hoy en vez de con los del despliegue. */}
-      <CatalogoProvider catalogo={catalogo ?? undefined}>
-        <AdminShell>{children}</AdminShell>
-      </CatalogoProvider>
-    </PlacesProvider>
+        <CatalogoProvider catalogo={catalogo ?? undefined}>
+          <AdminShell>{children}</AdminShell>
+        </CatalogoProvider>
+      </PlacesProvider>
+    </MotionConfig>
   );
 }

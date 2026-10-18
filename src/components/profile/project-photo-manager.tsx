@@ -340,7 +340,7 @@ export function ProjectPhotoManager({
               const isGif = item.file.type === "image/gif" || item.file.name.toLowerCase().endsWith(".gif");
               return (
                 <figure key={item.id} className="relative flex aspect-square flex-col overflow-hidden rounded-xl border border-ink/10 bg-sand">
-                  <img src={item.previewUrl} alt={`Foto agregada: ${item.file.name}`} className="min-h-0 flex-1 object-cover" />
+                  <img src={item.previewUrl} alt={`Foto agregada: ${item.file.name}`} width={400} height={400} className="min-h-0 flex-1 object-cover" />
                   {isGif && <figcaption className="absolute left-2 top-2 rounded-full bg-ink/75 px-2 py-1 text-[10px] font-semibold text-white">GIF</figcaption>}
                   <div className="flex shrink-0 flex-wrap gap-1 border-t border-ink/10 bg-white p-1.5">
                     <button type="button" onClick={() => changeUploadRole(item, "cover")} disabled={busy || isGif} className="flex-1 rounded-full px-2 py-1 text-[10px] font-semibold text-ink-soft hover:bg-verde-50 hover:text-verde-700 disabled:opacity-40">Portada</button>
@@ -374,7 +374,7 @@ export function ProjectPhotoManager({
             className="inline-flex h-11 items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 hover:bg-verde-300 disabled:opacity-60"
           >
             {busy ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {busy ? "Guardando cambios..." : "Guardar cambios"}
+            {busy ? "Guardando cambios…" : "Guardar cambios"}
           </button>
         </div>
       )}

@@ -24,18 +24,18 @@ export function WelcomeSplash({ onComplete }: WelcomeSplashProps) {
     // del sistema. `lv-grain` le quita el aspecto plano al degradado.
     <div
       className={cn(
-        "lv-grid-glow lv-grain absolute inset-0 z-20 flex flex-col items-center justify-center text-center text-white transition-all duration-500",
+        "lv-grid-glow lv-grain absolute inset-0 z-20 flex flex-col items-center justify-center text-center text-white transition duration-500",
         hidden ? "scale-110 opacity-0 pointer-events-none" : "",
       )}
     >
       <Logo className="h-[72px] w-auto mb-6 animate-pulse-ring" />
       <div className="font-lv-display text-[clamp(36px,10vw,56px)] font-bold tracking-[-0.03em] mb-2">
-        La Verde
+        <span translate="no">La Verde</span>
       </div>
       <div className="text-lead text-white/70 mb-12">
         Encuentra tu lugar en Cuba
       </div>
-      <div className="text-small text-white/35">Comenzando...</div>
+      <div className="text-small text-white/35">Comenzando…</div>
     </div>
   );
 }

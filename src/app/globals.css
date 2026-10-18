@@ -740,6 +740,25 @@
     text-wrap: pretty;
   }
 
+  /* Enlace de salto: fuera de pantalla hasta que el teclado lo enfoca. */
+  .skip-link {
+    position: fixed;
+    left: 0.75rem;
+    top: -100%;
+    z-index: 999;
+    border-radius: 0.75rem;
+    background: #fff;
+    padding: 0.5rem 1rem;
+    color: #08130d;
+    font-size: 0.875rem;
+    font-weight: 600;
+    box-shadow: 0 8px 24px -8px rgba(8, 19, 13, 0.25);
+  }
+
+  .skip-link:focus {
+    top: 0.75rem;
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -1280,6 +1299,20 @@ html[data-theme="dark"]
     /* verde-400 */ transparent
   );
   animation: searchingProgress 1.2s linear infinite;
+}
+
+/* Las animaciones decorativas —esqueletos, puntos de escritura, entradas y el
+   radar de búsqueda— se apagan con movimiento reducido. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer,
+  .typing-dot,
+  .animate-chip-pop,
+  .animate-fade-in-up,
+  .searching-ring,
+  .searching-status,
+  .searching-progress {
+    animation: none;
+  }
 }
 
 /* ─── Marca de las pantallas de acceso ───

@@ -14,7 +14,7 @@ export function StepBar({ currentStep, totalSteps }: StepIndicatorProps) {
         <div
           key={i}
           className={cn(
-            "flex-1 h-1 rounded-full transition-all duration-500 ease-outquint",
+            "flex-1 h-1 rounded-full transition-colors duration-500 ease-outquint",
             i < currentStep
               ? "bg-verde-600"
               : i === currentStep
@@ -34,7 +34,7 @@ export function StepDots({ currentStep, totalSteps }: StepIndicatorProps) {
         <div
           key={i}
           className={cn(
-            "h-2 rounded-full transition-all duration-500 ease-outquint",
+            "h-2 rounded-full transition-[width,background-color] duration-500 ease-outquint",
             i === currentStep
               ? "bg-verde-400 w-6 rounded-[4px]"
               : i < currentStep

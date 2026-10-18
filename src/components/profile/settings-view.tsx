@@ -159,7 +159,7 @@ export function SettingsView() {
         </h2>
         <div className="flex items-center gap-gap-sm">
           {avatarUrl ? (
-            <img src={avatarUrl} alt="Foto de perfil" className="size-11 shrink-0 rounded-full border-2 border-verde-200 object-cover" />
+            <img src={avatarUrl} alt="Foto de perfil" width={44} height={44} className="size-11 shrink-0 rounded-full border-2 border-verde-200 object-cover" />
           ) : (
             <span className="grid size-11 shrink-0 place-items-center rounded-full border-2 border-verde-200 bg-verde-50 font-lv-display text-body font-bold text-verde-600">
               {(user?.name ?? "·").charAt(0)}
@@ -303,7 +303,7 @@ export function SettingsView() {
                 ) : (
                   <Trash2 size={16} strokeWidth={1.8} />
                 )}
-                {deleting ? "Borrando..." : "Borrar definitivamente"}
+                {deleting ? "Borrando…" : "Borrar definitivamente"}
               </button>
             </DialogFooter>
           </DialogContent>
@@ -322,7 +322,7 @@ export function SettingsView() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`${label} de La Verde`}
-                className="grid size-12 place-items-center rounded-2xl border border-ink/10 bg-white text-ink-soft/75 shadow-soft transition-all duration-500 ease-outquint hover:-translate-y-0.5 hover:border-verde-300 hover:text-verde-600 active:scale-95"
+                className="grid size-12 place-items-center rounded-2xl border border-ink/10 bg-white text-ink-soft/75 shadow-soft transition duration-500 ease-outquint hover:-translate-y-0.5 hover:border-verde-300 hover:text-verde-600 active:scale-95"
               >
                 <Icon size={20} strokeWidth={1.8} />
               </a>

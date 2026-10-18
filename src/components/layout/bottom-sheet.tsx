@@ -246,10 +246,22 @@ export function BottomSheet({
     >
       {/* Handle */}
       <div
+        /* El asa también es un botón: el gesto no puede ser la única forma de
+           abrir o contraer. Enter y Space hacen lo mismo que un toque. */
+        role="button"
+        tabIndex={0}
+        aria-expanded={state === "full"}
+        aria-label="Mostrar u ocultar el panel"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            cycleState();
+          }
+        }}
         /* `touch-none`: el gesto es del asa, no del navegador. Sin esto el
            WebView se lo adjudica al primer movimiento y responde con
            `pointercancel`, que es de donde salían los toques perdidos. */
-        className="flex justify-center py-[10px] pb-[6px] cursor-grab active:cursor-grabbing shrink-0 touch-none"
+        className="flex justify-center py-[10px] pb-[6px] cursor-grab active:cursor-grabbing shrink-0 touch-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-verde-400/50"
         onPointerDown={handlePointerDown}
       >
         <div
@@ -276,7 +288,10 @@ export function BottomSheet({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-gutter py-gap-sm pb-gutter scrollbar-hide">
+      <div
+        inert={isDragging}
+        className="flex-1 overflow-y-auto px-gutter py-gap-sm pb-gutter scrollbar-hide"
+      >
         {children}
       </div>
 

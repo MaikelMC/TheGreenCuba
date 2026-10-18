@@ -36,7 +36,7 @@ export function CTASection() {
             <LoginButton />
             <Link
               href="#como-funciona"
-              className="landing-cta-secondary inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-ink/10 bg-white px-6 py-3 font-lv-display text-sm font-semibold leading-none text-ink transition-all duration-500 ease-outquint hover:bg-verde-50 active:scale-[0.98]"
+              className="landing-cta-secondary inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-ink/10 bg-white px-6 py-3 font-lv-display text-sm font-semibold leading-none text-ink transition duration-500 ease-outquint hover:bg-verde-50 active:scale-[0.98]"
             >
               Saber más
             </Link>

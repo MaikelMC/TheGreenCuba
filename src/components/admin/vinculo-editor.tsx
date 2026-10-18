@@ -30,7 +30,7 @@ const INPUT =
   "h-11 w-full rounded-xl border border-ink/10 bg-white px-4 text-body text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
 const BOTON =
-  "inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full px-gap-lg font-lv-display text-small font-semibold transition-all duration-500 ease-outquint active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60";
+  "inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full px-gap-lg font-lv-display text-small font-semibold transition duration-500 ease-outquint active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60";
 
 export function VinculoEditor({ placeId }: { placeId: string }) {
   const [owner, setOwner] = useState<Owner | null>(null);

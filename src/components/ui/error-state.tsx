@@ -10,7 +10,7 @@ import { StateView } from "./state-view";
    siempre gana sobre la base de `cva` y acaba decidiendo el orden de la
    hoja de estilos. */
 const BTN =
-  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full font-lv-display text-small font-semibold whitespace-nowrap cursor-pointer transition-all duration-500 ease-outquint active:scale-[0.98]";
+  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full font-lv-display text-small font-semibold whitespace-nowrap cursor-pointer transition duration-500 ease-outquint active:scale-[0.98]";
 const BTN_PRIMARY = `${BTN} bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300`;
 const BTN_OUTLINE = `${BTN} border border-ink/10 bg-white text-ink hover:border-verde-300 hover:bg-verde-50`;
 

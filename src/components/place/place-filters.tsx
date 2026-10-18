@@ -58,7 +58,7 @@ export function PlaceFilters({
             aria-pressed={isActive}
             title={disabled ? "Necesita tu ubicación para poder filtrar" : undefined}
             className={cn(
-              "shrink-0 inline-flex items-center gap-[6px] px-3 py-1.5 rounded-full border font-lv-display text-meta font-medium whitespace-nowrap transition-all duration-500 ease-outquint",
+              "shrink-0 inline-flex items-center gap-[6px] px-3 py-1.5 rounded-full border font-lv-display text-meta font-medium whitespace-nowrap transition duration-500 ease-outquint",
               isActive
                 ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
                 : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",

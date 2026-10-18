@@ -487,14 +487,14 @@ export function AuthCard({
           type="submit"
           disabled={loading}
           aria-busy={loading}
-          className="mt-gap-2xs inline-flex items-center justify-center gap-gap-xs w-full h-12 rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition-all duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none cursor-pointer"
+          className="mt-gap-2xs inline-flex items-center justify-center gap-gap-xs w-full h-12 rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none cursor-pointer"
         >
           {loading ? (
             <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
           ) : (
             <ArrowRight size={16} strokeWidth={1.8} />
           )}
-          {loading ? "Comprobando..." : copy.cta}
+          {loading ? "Comprobando…" : copy.cta}
         </button>
 
         {/* Aviso de las cuentas de Google, visible **siempre** en el acceso y no
@@ -562,7 +562,7 @@ export function AuthCard({
             </svg>
           )}
           {googleLoading
-            ? "Conectando con Google..."
+            ? "Conectando con Google…"
             : mode === "login"
               ? "Iniciar sesión con Google"
               : "Registrarse con Google"}

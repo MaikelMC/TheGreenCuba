@@ -33,7 +33,7 @@ function StepCard({
   return (
     <motion.div
       variants={fadeUp}
-      className="grid grid-cols-1 items-start gap-gap-md rounded-4xl border border-ink/5 bg-white p-7 shadow-soft transition-all duration-500 ease-outquint hover:-translate-y-1 hover:shadow-card md:block"
+      className="grid grid-cols-1 items-start gap-gap-md rounded-4xl border border-ink/5 bg-white p-7 shadow-soft transition duration-500 ease-outquint hover:-translate-y-1 hover:shadow-card md:block"
     >
       <motion.div
         variants={popIn}

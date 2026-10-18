@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import Link from "next/link";
+import { MotionConfig } from "motion/react";
 import { Clock, MapPin, Wallet } from "lucide-react";
 import { Logo } from "@/components/layout/logo";
 
@@ -40,106 +41,122 @@ const PILLARS = [
  */
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="lv-grain relative min-h-screen min-h-dvh bg-sand font-lv text-ink lg:grid lg:h-dvh lg:min-h-0 lg:grid-cols-[1.05fr_1fr] lg:overflow-hidden">
-      {/* El cielo de móvil, aparte del panel de escritorio: uno se pinta detrás
+    <MotionConfig reducedMotion="user">
+      <div className="lv-grain relative min-h-screen min-h-dvh bg-sand font-lv text-ink lg:grid lg:h-dvh lg:min-h-0 lg:grid-cols-[1.05fr_1fr] lg:overflow-hidden">
+        <a href="#content" className="skip-link">
+          Saltar al contenido
+        </a>
+        {/* El cielo de móvil, aparte del panel de escritorio: uno se pinta detrás
           de todo y el otro es una columna. Comparten la clase, no la caja. */}
-      <div
-        aria-hidden
-        className="auth-mobile-glow lv-grid-glow pointer-events-none absolute inset-0 lg:hidden"
-      />
-
-      {/* Todo lo de dentro es de escritorio: por debajo de `lg` esta columna no
-          se pinta, así que no hacen falta prefijos. Si vuelve a haber una
-          versión móvil de este panel, se añaden aquí. */}
-      <aside className="auth-brand-panel lv-grid-glow relative hidden flex-col gap-gap-lg overflow-hidden px-gap-3xl py-gap-3xl lg:flex lg:justify-between">
-        {/* Halo de marca: el mismo par de radiales del hero, aquí para que el
-            borde inferior del panel no corte en seco. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute -bottom-40 -right-24 size-[420px] rounded-full bg-verde-500/20 blur-[120px]"
+          className="auth-mobile-glow lv-grid-glow pointer-events-none absolute inset-0 lg:hidden"
         />
 
-        <Link
-          href="/"
-          className="relative inline-flex items-center gap-gap-md self-start transition-opacity duration-500 ease-outquint hover:opacity-80"
-        >
-          {/* El halo va en su propia caja y no en el enlace entero: pegado al
-              enlace, el resplandor saldría también por detrás del nombre y
-              convertiría las letras en una mancha verde. */}
-          <span className="relative inline-flex shrink-0">
-            <span
-              aria-hidden
-              className="logo-breath absolute -inset-4 rounded-full bg-verde-400/25 blur-xl"
-            />
-            <Logo className="logo-float relative h-12 w-auto" />
-          </span>
-          <span className="font-lv-display text-[26px] font-bold tracking-[-0.02em] text-white">
-            La Verde
-          </span>
-        </Link>
+        {/* Todo lo de dentro es de escritorio: por debajo de `lg` esta columna no
+          se pinta, así que no hacen falta prefijos. Si vuelve a haber una
+          versión móvil de este panel, se añaden aquí. */}
+        <aside className="auth-brand-panel lv-grid-glow relative hidden flex-col gap-gap-lg overflow-hidden px-gap-3xl py-gap-3xl lg:flex lg:justify-between">
+          {/* Halo de marca: el mismo par de radiales del hero, aquí para que el
+            borde inferior del panel no corte en seco. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -bottom-40 -right-24 size-[420px] rounded-full bg-verde-500/20 blur-[120px]"
+          />
 
-        <div className="relative mt-4 flex flex-col gap-gap-md">
-          <p className="inline-flex self-start items-center rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-200 backdrop-blur-sm">
-            Descubrimiento de lugares
-          </p>
-
-          {/* Una sola frase con degradado por sección, como manda el sistema.
-              Va como `<p>` y no como titular: es reclamo de marca, y el único
-              encabezado de la pantalla tiene que ser el del formulario, que es
-              lo que la persona ha venido a hacer. */}
-          <p className="font-lv-display text-[38px] font-bold leading-[1.15] tracking-normal text-white text-balance">
-            Escribe lo que buscas.{" "}
-            <span className="bg-gradient-to-r from-verde-200 via-verde-300 to-emerald-400 bg-clip-text text-transparent">
-              La Verde te lleva.
-            </span>
-          </p>
-
-          <ul className="flex flex-col gap-gap-md pt-gap-xs">
-            {PILLARS.map(({ icon: Icon, title, text }) => (
-              <li key={title} className="flex items-start gap-gap-sm">
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-verde-300 backdrop-blur-sm">
-                  <Icon size={16} strokeWidth={1.8} />
-                </span>
-                <span className="min-w-0">
-                  <span className="block font-lv-display text-small font-semibold text-white">
-                    {title}
-                  </span>
-                  <span className="block text-meta text-white/70 text-pretty">{text}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <p className="relative font-lv-display text-[10px] uppercase tracking-[0.22em] text-white/35">
-          Santiago de Cuba · Cuba
-        </p>
-      </aside>
-
-      <main className="auth-form-scroll relative flex min-h-screen min-h-dvh items-center justify-center px-gutter py-gap-2xl lg:h-dvh lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:px-gap-xl">
-        <div className="my-auto flex w-full max-w-[420px] flex-col gap-gap-lg lg:my-auto">
-          {/* La marca corona la tarjeta, sobre el cielo. Solo en móvil: en
-              escritorio ya está arriba de la columna oscura y repetirla aquí
-              sería decir dos veces lo mismo. */}
           <Link
             href="/"
-            className="inline-flex items-center gap-gap-sm self-center transition-opacity duration-500 ease-outquint hover:opacity-80 lg:hidden"
+            className="relative inline-flex items-center gap-gap-md self-start transition-opacity duration-500 ease-outquint hover:opacity-80"
           >
+            {/* El halo va en su propia caja y no en el enlace entero: pegado al
+              enlace, el resplandor saldría también por detrás del nombre y
+              convertiría las letras en una mancha verde. */}
             <span className="relative inline-flex shrink-0">
               <span
                 aria-hidden
-                className="logo-breath absolute -inset-3 rounded-full bg-verde-400/25 blur-lg"
+                className="logo-breath absolute -inset-4 rounded-full bg-verde-400/25 blur-xl"
               />
-              <Logo className="logo-float relative h-9 w-auto" />
+              <Logo className="logo-float relative h-12 w-auto" />
             </span>
-            <span className="font-lv-display text-[22px] font-bold tracking-[-0.02em] text-white">
+            <span
+              translate="no"
+              className="font-lv-display text-[26px] font-bold tracking-[-0.02em] text-white"
+            >
               La Verde
             </span>
           </Link>
 
-          {children}
-        </div>
-      </main>
-    </div>
+          <div className="relative mt-4 flex flex-col gap-gap-md">
+            <p className="inline-flex self-start items-center rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-200 backdrop-blur-sm">
+              Descubrimiento de lugares
+            </p>
+
+            {/* Una sola frase con degradado por sección, como manda el sistema.
+              Va como `<p>` y no como titular: es reclamo de marca, y el único
+              encabezado de la pantalla tiene que ser el del formulario, que es
+              lo que la persona ha venido a hacer. */}
+            <p className="font-lv-display text-[38px] font-bold leading-[1.15] tracking-normal text-white text-balance">
+              Escribe lo que buscas.{" "}
+              <span className="bg-gradient-to-r from-verde-200 via-verde-300 to-emerald-400 bg-clip-text text-transparent">
+                La Verde te lleva.
+              </span>
+            </p>
+
+            <ul className="flex flex-col gap-gap-md pt-gap-xs">
+              {PILLARS.map(({ icon: Icon, title, text }) => (
+                <li key={title} className="flex items-start gap-gap-sm">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-verde-300 backdrop-blur-sm">
+                    <Icon size={16} strokeWidth={1.8} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block font-lv-display text-small font-semibold text-white">
+                      {title}
+                    </span>
+                    <span className="block text-meta text-white/70 text-pretty">
+                      {text}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="relative font-lv-display text-[10px] uppercase tracking-[0.22em] text-white/35">
+            Santiago de Cuba · Cuba
+          </p>
+        </aside>
+
+        <main
+          id="content"
+          className="auth-form-scroll relative flex min-h-screen min-h-dvh items-center justify-center px-gutter py-gap-2xl lg:h-dvh lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:px-gap-xl"
+        >
+          <div className="my-auto flex w-full max-w-[420px] flex-col gap-gap-lg lg:my-auto">
+            {/* La marca corona la tarjeta, sobre el cielo. Solo en móvil: en
+              escritorio ya está arriba de la columna oscura y repetirla aquí
+              sería decir dos veces lo mismo. */}
+            <Link
+              href="/"
+              className="inline-flex items-center gap-gap-sm self-center transition-opacity duration-500 ease-outquint hover:opacity-80 lg:hidden"
+            >
+              <span className="relative inline-flex shrink-0">
+                <span
+                  aria-hidden
+                  className="logo-breath absolute -inset-3 rounded-full bg-verde-400/25 blur-lg"
+                />
+                <Logo className="logo-float relative h-9 w-auto" />
+              </span>
+              <span
+                translate="no"
+                className="font-lv-display text-[22px] font-bold tracking-[-0.02em] text-white"
+              >
+                La Verde
+              </span>
+            </Link>
+
+            {children}
+          </div>
+        </main>
+      </div>
+    </MotionConfig>
   );
 }

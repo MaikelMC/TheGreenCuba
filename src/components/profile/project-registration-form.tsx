@@ -623,7 +623,7 @@ export function ProjectRegistrationForm({ onBack, onSaved, onUpdated, project, s
             className="inline-flex h-11 items-center justify-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-[0_18px_40px_-12px_rgba(53,175,109,0.6)] transition-colors hover:bg-verde-300"
           >
             <Send size={16} />
-            {sending ? "Guardando..." : submitted ? "Proyecto guardado" : project ? "Guardar cambios" : "Enviar proyecto"}
+            {sending ? "Guardando…" : submitted ? "Proyecto guardado" : project ? "Guardar cambios" : "Enviar proyecto"}
           </button>
         </div>
       </form>

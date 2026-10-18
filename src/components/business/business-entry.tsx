@@ -23,7 +23,7 @@ export function BusinessEntry({ hasBusiness = false }: BusinessEntryProps) {
       <div className="grid gap-gap-md md:grid-cols-2">
         <Link
           href="/profile?seccion=negocio"
-          className="group flex min-h-[250px] flex-col justify-between rounded-[24px] border border-ink/10 bg-white p-gap-lg shadow-[0_18px_50px_-32px_rgba(20,42,30,0.55)] transition-all duration-500 ease-outquint hover:-translate-y-1 hover:border-verde-300 hover:shadow-[0_24px_60px_-30px_rgba(53,175,109,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 focus-visible:ring-offset-2"
+          className="group flex min-h-[250px] flex-col justify-between rounded-[24px] border border-ink/10 bg-white p-gap-lg shadow-[0_18px_50px_-32px_rgba(20,42,30,0.55)] transition duration-500 ease-outquint hover:-translate-y-1 hover:border-verde-300 hover:shadow-[0_24px_60px_-30px_rgba(53,175,109,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 focus-visible:ring-offset-2"
         >
           <div>
             <span className="grid size-12 place-items-center rounded-2xl bg-verde-50 text-verde-700">

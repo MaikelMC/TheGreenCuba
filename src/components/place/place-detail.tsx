@@ -212,7 +212,7 @@ const DESC_EXPANDED = "40em";
    sin forma ni área: ni se veían como algo tocable, ni llegaban a los 44 px de
    alto que pide un dedo. */
 const BTN_OUTLINE =
-  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full border border-ink/10 bg-white text-ink font-lv-display text-small font-semibold cursor-pointer hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 transition-all duration-500 ease-outquint active:scale-[0.98]";
+  "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full border border-ink/10 bg-white text-ink font-lv-display text-small font-semibold cursor-pointer hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 transition duration-500 ease-outquint active:scale-[0.98]";
 
 /* El chevron acompaña al botón sin robarle el foco: mismo trazo que el resto de
    los iconos de la ficha. */

@@ -42,7 +42,7 @@ function ExampleCard({
     <motion.div
       variants={fadeUp}
       whileTap={{ scale: 0.98 }}
-      className="landing-search-example-card flex flex-col gap-3.5 rounded-4xl border border-ink/5 bg-white p-7 shadow-soft transition-all duration-500 ease-outquint hover:-translate-y-1 hover:shadow-card"
+      className="landing-search-example-card flex flex-col gap-3.5 rounded-4xl border border-ink/5 bg-white p-7 shadow-soft transition duration-500 ease-outquint hover:-translate-y-1 hover:shadow-card"
     >
       <p className="landing-search-example-copy text-[17px] font-medium leading-[1.5] text-ink text-pretty">
         <span className="font-lv-display text-[24px] text-verde-600/40" aria-hidden>
