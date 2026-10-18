@@ -520,18 +520,28 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     name === undefined ? body : { ...body, name },
     categoryId,
   );
-  if (Object.keys(values).length === 0) {
+  /* Las ofertas flash pueden ser lo único que viaja en el cuerpo: su sección
+     del panel manda `{ ofertas }` y nada más, porque no toca ninguna columna
+     de `places`. Antes ese caso caía en «No hay nada que actualizar» **después**
+     de haber reemplazado las ofertas: la base cambiaba y el panel recibía un
+     400 que decía que no se había guardado nada. Sin ofertas en el cuerpo, el
+     cuerpo vacío sigue siendo un error. */
+  if (Object.keys(values).length === 0 && !Array.isArray(body.ofertas)) {
     return NextResponse.json(
       { error: "No hay nada que actualizar" },
       { status: 400 },
     );
   }
 
-  const [row] = await db
-    .update(places)
-    .set(values)
-    .where(eq(places.id, id))
-    .returning();
+  /* Sin columnas que escribir no se lanza un `update` con `set({})` —Drizzle lo
+     rechaza—: se relee la fila para tener el `row` que usan los avisos. */
+  const [row] = Object.keys(values).length > 0
+    ? await db
+        .update(places)
+        .set(values)
+        .where(eq(places.id, id))
+        .returning()
+    : await db.select().from(places).where(eq(places.id, id)).limit(1);
   if (!row) {
     return NextResponse.json(
       { error: "Negocio no encontrado" },

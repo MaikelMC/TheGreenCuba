@@ -137,7 +137,7 @@ export function OfertasEditor({
   if (objetivos.length === 0) {
     return (
       <p className="text-meta text-ink-soft/75">
-        Primero publica tu carta en «Lo que ofreces»: una oferta flash rebaja el
+        Primero publica tu carta en «Catálogo»: una oferta flash rebaja el
         precio de un producto, y ahora mismo no hay ninguno al que apuntar.
       </p>
     );

@@ -49,7 +49,7 @@ import { PhotoGrid } from "@/components/business/photo-grid";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { CatalogoView } from "@/components/business/catalogo-view";
 import { PedidosView } from "@/components/business/pedidos-view";
-import { OfertasEditor } from "@/components/business/ofertas-editor";
+import { OfertasView } from "@/components/business/ofertas-view";
 import { MenuLinkCard } from "@/components/business/menu-link-card";
 import { PlanCard } from "@/components/business/plan-card";
 import { PlansSection } from "@/components/business/plans-section";
@@ -62,9 +62,7 @@ import {
 } from "@/components/business/business-switcher";
 import {
   bloqueoDe,
-  limiteDe,
   nombreDe,
-  textoBloqueo,
   type ClaveModulo,
   type Funcion,
   type Plan,
@@ -93,7 +91,6 @@ import type { VisitasPanel } from "@/lib/eventos";
 import type {
   PlaceStatus,
   UserPlace,
-  UserPlaceOferta,
   UserPlacePatch,
 } from "@/lib/places-store";
 
@@ -282,6 +279,18 @@ export function BusinessPanel({
                anterior. */
             return (
               <EditorView
+                key={place.id}
+                place={place}
+                funciones={funciones}
+                onVerPlanes={() => setView("planes")}
+              />
+            );
+          case "ofertas":
+            /* Sección propia, como la carta: las ofertas se cambian cada
+               semana y la ficha se toca una vez. Con la `key` por negocio, el
+               selector remonta la vista al cambiar de ficha. */
+            return (
+              <OfertasView
                 key={place.id}
                 place={place}
                 funciones={funciones}
@@ -618,7 +627,6 @@ interface BorradorFicha {
   payments: string[];
   energia: EnergiaRespaldo | "sin";
   notaApagon: string;
-  ofertas: UserPlaceOferta[];
   location: LocationPoint | null;
 }
 
@@ -637,10 +645,7 @@ function EditorView({
   onVerPlanes: () => void;
 }) {
   const router = useRouter();
-  const cat = useCatalogo();
   const { categories, updatePlace } = usePlaces();
-  const puedeOfertas = funciones.includes("ofertas_flash");
-  const maxOfertas = limiteDe(new Set(funciones), "ofertas_vigentes_max", cat);
 
   /* El estado se siembra del negocio y no se vuelve a sincronizar: a partir de
      aquí manda lo que escriba el dueño. Sincronizarlo con el `place` que llega
@@ -677,13 +682,6 @@ function EditorView({
     place.energiaRespaldo ?? "sin",
   );
   const [notaApagon, setNotaApagon] = useState(place.notaApagon ?? "");
-  /* Las ofertas flash sustituyen al cartel de texto que había aquí. `place.offer`
-     sigue existiendo en el tipo —lo usan los proyectos— pero el panel de negocio
-     ya no lo escribe: se manda la lista entera y lo que no se nombre en el
-     `PATCH` se queda como estaba. */
-  const [ofertas, setOfertas] = useState<UserPlaceOferta[]>(
-    place.ofertas ?? [],
-  );
   const [location, setLocation] = useState<LocationPoint | null>({
     lat: place.lat,
     lng: place.lng,
@@ -713,7 +711,6 @@ function EditorView({
       payments,
       energia,
       notaApagon,
-      ofertas,
       location,
     }),
     [
@@ -734,7 +731,6 @@ function EditorView({
       payments,
       energia,
       notaApagon,
-      ofertas,
       location,
     ],
   );
@@ -801,15 +797,10 @@ function EditorView({
       schedule: schedule.trim(),
       status,
       payments,
-      /* La carta **no** viaja aquí: se edita en su propia sección y esa manda su
-         propio `PATCH` con `{ menu }`. Al no nombrarla, esto no toca la columna
-         y el guardado de la ficha no puede pisar lo que el dueño acaba de
-         cambiar en el catálogo. */
-      /* Las ofertas flash van enteras en cada guardado, como la carta: la ruta
-         las escribe en su tabla y comprueba el plan. `offer` ya no se manda, y
-         eso **no borra** el cartel viejo del negocio que lo tuviera: sin el
-         campo, `toPlaceValues` no toca las columnas. Ver el mapeo. */
-      ofertas,
+      /* La carta y las ofertas flash **no** viajan aquí: cada una se edita en
+         su propia sección y manda su propio `PATCH`. Al no nombrarlas, el
+         guardado de la ficha no puede pisar lo que el dueño acaba de cambiar
+         en el catálogo o en las ofertas. */
       /* La energía va aquí por lo mismo que la disponibilidad: es una lista
          blanca y lo que no se nombre se pierde en cada guardado. */
       energiaRespaldo: energia === "sin" ? null : energia,
@@ -858,7 +849,6 @@ function EditorView({
     payments,
     energia,
     notaApagon,
-    ofertas,
     huella,
     place.id,
     updatePlace,
@@ -887,8 +877,7 @@ function EditorView({
       const recuperado = parsed as BorradorFicha;
       if (
         typeof recuperado.name !== "string" ||
-        !Array.isArray(recuperado.payments) ||
-        !Array.isArray(recuperado.ofertas)
+        !Array.isArray(recuperado.payments)
       ) {
         return;
       }
@@ -940,7 +929,6 @@ function EditorView({
     setPayments(borrador.payments);
     setEnergia(borrador.energia);
     setNotaApagon(borrador.notaApagon);
-    setOfertas(borrador.ofertas);
     setLocation(borrador.location);
     setBorrador(null);
     setError(null);
@@ -1275,44 +1263,6 @@ function EditorView({
             />
           </FormSection>
         </div>
-
-        <FormSection
-          title="Ofertas flash"
-          icon={<Tag size={18} strokeWidth={1.8} />}
-        >
-          {/* La sección se cierra entera sin la función, en vez de enseñar el
-              formulario con un candado encima: sin Marketing activo el tope es
-              0, así que no hay nada que rellenar y sí una frase que explica
-              cómo se abre. El servidor lo vuelve a comprobar de todas formas
-              —el cuerpo del `PATCH` se puede escribir a mano—. */}
-          {puedeOfertas ? (
-            <OfertasEditor
-              ofertas={ofertas}
-              onChange={setOfertas}
-              menu={(place.menu ?? []).map((m, i) => ({
-                ...m,
-                id: m.id ?? String(i),
-              }))}
-              max={maxOfertas}
-            />
-          ) : (
-            <div className="flex flex-col gap-gap-xs">
-              <p className="text-meta text-ink-soft/75">
-                {textoBloqueo("ofertas_flash", cat)}: rebaja un producto de
-                tu carta por tiempo limitado y sale con el precio tachado en
-                tu ficha, además de la chapita «Oferta» en la tarjeta y en el
-                pin del mapa.
-              </p>
-              <button
-                type="button"
-                onClick={onVerPlanes}
-                className="cursor-pointer self-start rounded-full border border-ink/10 bg-white px-gap-md py-2 font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-600"
-              >
-                Ver planes
-              </button>
-            </div>
-          )}
-        </FormSection>
 
         <FormSection
           title="Energía de respaldo"

@@ -12,6 +12,7 @@ import {
   Menu,
   Settings,
   Sparkles,
+  Tag,
   Utensils,
   X,
 } from "lucide-react";
@@ -32,6 +33,7 @@ export type PanelView =
   | "catalogo"
   | "pedidos"
   | "editor"
+  | "ofertas"
   | "publicaciones"
   | "planes"
   | "settings";
@@ -85,6 +87,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "catalogo", label: "Catálogo", icon: Utensils },
   { id: "pedidos", label: "Pedidos", icon: ClipboardList },
   { id: "editor", label: "Editar", icon: Edit },
+  { id: "ofertas", label: "Ofertas", icon: Tag },
   { id: "publicaciones", label: "Publicar", icon: Megaphone },
   { id: "planes", label: "Planes", icon: Sparkles },
   { id: "settings", label: "Ajustes", icon: Settings },

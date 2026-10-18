@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { puedeSalir } from "@/lib/unsaved-guard";
 
 /**
  * Un negocio que se puede abrir en el panel.
@@ -55,6 +56,12 @@ export function BusinessSwitcher({
             <Link
               key={negocio.id}
               href={`/business?negocio=${encodeURIComponent(negocio.id)}`}
+              /* Cambiar de negocio desmonta la vista en curso, y las secciones
+                 con trabajo sin guardar (catálogo, ficha, ofertas) se apagan con
+                 ella: la guardia tiene que preguntar aquí también. */
+              onClick={(e) => {
+                if (!activo && !puedeSalir()) e.preventDefault();
+              }}
               aria-current={activo ? "page" : undefined}
               className={cn(
                 "inline-flex items-center gap-gap-xs rounded-full border px-gap-md py-[8px] font-lv-display text-small transition-colors duration-500 ease-outquint",
