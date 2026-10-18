@@ -37,10 +37,10 @@ import {
 /**
  * El carrito del menú público, y el enlace que lo convierte en un pedido.
  *
- * El pedido sigue siendo un mensaje: el carrito vive en el navegador
- * —`localStorage`, para que recargar la carta no borre lo que ya se eligió— y
- * lo que abre WhatsApp es la URL de `wa.me` con el pedido escrito dentro. La
- * Verde no lo cobra ni lo sirve.
+ * El pedido sigue siendo un mensaje: el carrito vive en el navegador —en
+ * `localStorage`, pero solo mientras se está en la carta: recargarla no borra
+ * lo elegido, salir sí— y lo que abre WhatsApp es la URL de `wa.me` con el
+ * pedido escrito dentro. La Verde no lo cobra ni lo sirve.
  *
  * Lo que cambió es que **también deja una copia**: al confirmar se manda el
  * mismo carrito a `/api/pedidos`, y el negocio lo ve en el historial de su
@@ -92,6 +92,34 @@ function leerGuardado(clave: string): LineaPedido[] {
     return [];
   }
 }
+
+/**
+ * Si esta carga del documento es un refresco de la misma página.
+ *
+ * El carrito sobrevive al refresco —quien recarga la carta por un corte de red
+ * no debería perder lo que ya eligió— y a nada más: al salir y volver, la
+ * selección empieza vacía. El tipo sigue siendo el de la carga original del
+ * documento aunque la vuelta a la carta sea una navegación interna de Next, así
+ * que vale también para ese caso.
+ */
+function esRecarga(): boolean {
+  try {
+    const entrada = performance.getEntriesByType("navigation")[0];
+    return (
+      (entrada as PerformanceNavigationTiming | undefined)?.type === "reload"
+    );
+  } catch {
+    /* Sin la API se empieza vacío: es el lado seguro de la regla. */
+    return false;
+  }
+}
+
+/**
+ * Las cartas con su proveedor montado. React en modo estricto monta, desmonta
+ * y vuelve a montar los efectos seguidos; sin esta marca, el desmontaje de
+ * prueba borraría la selección nada más abrir la carta.
+ */
+const carritosVivos = new Set<string>();
 
 /**
  * El carrito guardado, puesto al día con la carta de hoy.
@@ -199,9 +227,14 @@ export function PedidoProvider({
      El `alDia` va aquí, una sola vez al cargar: es el momento en que el carrito
      guardado se cruza con la carta que acaba de llegar del servidor. */
   useEffect(() => {
-    setLineas(alDia(leerGuardado(clave), productos));
+    /* Solo un refresco conserva la selección. Cualquier otra entrada —cerrar
+       la pestaña y volver, o salir del sitio— empieza con el carrito vacío. */
+    const recarga = esRecarga();
+    setLineas(alDia(recarga ? leerGuardado(clave) : [], productos));
     try {
-      setDireccion(window.localStorage.getItem(claveDir) ?? "");
+      setDireccion(
+        recarga ? (window.localStorage.getItem(claveDir) ?? "") : "",
+      );
     } catch {
       /* Sin `localStorage` la dirección se escribe igual, solo no persiste. */
     }
@@ -223,6 +256,46 @@ export function PedidoProvider({
       /* Cuota llena o modo privado: el carrito sigue, solo no persiste. */
     }
   }, [clave, claveDir, lineas, direccion, hidratado]);
+
+  /* Salir de la carta se lleva la selección. El desmontaje cubre la navegación
+     interna y la comprobación de `esRecarga` al montar cubre cerrar la pestaña
+     o salir del sitio, donde no hay desmontaje que valga. `queueMicrotask` deja
+     que el remontaje del modo estricto vuelva a marcar la carta como viva
+     antes de borrar nada. */
+  useEffect(() => {
+    carritosVivos.add(clave);
+    return () => {
+      carritosVivos.delete(clave);
+      queueMicrotask(() => {
+        if (carritosVivos.has(clave)) return;
+        try {
+          window.localStorage.removeItem(clave);
+          window.localStorage.removeItem(claveDir);
+        } catch {
+          /* Sin almacenamiento —o bloqueado— no queda nada que limpiar. */
+        }
+      });
+    };
+  }, [clave, claveDir]);
+
+  /* Una página restaurada desde la caché del navegador no vuelve a montar
+     React: la selección de antes sigue en memoria y el desmontaje no llegó a
+     correr, así que se limpia aquí. */
+  useEffect(() => {
+    const alVolver = (evento: PageTransitionEvent) => {
+      if (!evento.persisted) return;
+      setLineas([]);
+      setDeshacer(null);
+      try {
+        window.localStorage.removeItem(clave);
+        window.localStorage.removeItem(claveDir);
+      } catch {
+        /* Sin almacenamiento no hay nada que limpiar. */
+      }
+    };
+    window.addEventListener("pageshow", alVolver);
+    return () => window.removeEventListener("pageshow", alVolver);
+  }, [clave, claveDir]);
 
   const agregar = useCallback((producto: ProductoPedible) => {
     setLineas((prev) => {
@@ -627,6 +700,12 @@ export function PedidoProvider({
                   onClick={() => {
                     guardarPedido();
                     setPidiendo(false);
+                    /* El pedido ya salió: el carrito se vacía para que quien
+                       vuelva a la pestaña no lo mande otra vez sin querer. La
+                       dirección se conserva. */
+                    setLineas([]);
+                    setDeshacer(null);
+                    setAbierto(false);
                   }}
                   className="inline-flex h-10 min-w-0 items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 sm:px-gap-md sm:text-small"
                 >
