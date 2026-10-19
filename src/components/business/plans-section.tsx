@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Check, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { SUPPORT_EMAIL } from "@/lib/legal";
 import {
   PACKS_ORDER,
   PLAN_ORDER,
@@ -36,8 +35,9 @@ import { useCatalogo } from "@/providers/catalogo-provider";
  * más popular» clava el mismo plan para todo el mundo y, cuando alguien ya lo
  * tiene, le pone la insignia a lo que ya paga.
  *
- * No hay pasarela todavía, y no se finge una: el botón abre el correo con el
- * asunto ya puesto, que es lo que de verdad funciona hoy.
+ * El botón abre una factura de QvaPay para un mes del pack o del módulo. El
+ * importe y el derecho contratado los resuelve el servidor; la activación llega
+ * por webhook, así que al volver de QvaPay hay que recargar para verlo.
  *
  * La excepción es el **negocio de prueba**: `puedeElegirPlan` enciende un
  * selector que guarda el pack sin más, porque su único propósito es poder ver
@@ -46,14 +46,11 @@ import { useCatalogo } from "@/providers/catalogo-provider";
  */
 export function PlansSection({
   plan,
-  negocio,
   placeId,
   puedeElegirPlan = false,
 }: {
   /** El pack efectivo del negocio, resuelto en el servidor. */
   plan: Plan;
-  /** Para que el correo diga de qué negocio se trata sin preguntarlo. */
-  negocio: string;
   /** El id del negocio, para saber a qué ruta pedir el cambio de plan. */
   placeId: string;
   /** Solo el negocio de prueba cambia de plan a voluntad. */
@@ -62,6 +59,8 @@ export function PlansSection({
   const router = useRouter();
   const cat = useCatalogo();
   const [pendiente, setPendiente] = useState<Plan | null>(null);
+  /** «plan:pro» o «modulo:menu_pro» mientras se abre la factura. */
+  const [pagando, setPagando] = useState<string | null>(null);
 
   const indice = PLAN_ORDER.indexOf(plan);
   const siguiente = PLAN_ORDER[indice + 1] ?? null;
@@ -92,6 +91,34 @@ export function PlansSection({
       toast.error("No se pudo cambiar el plan.");
     } finally {
       setPendiente(null);
+    }
+  }
+
+  /* Abre la factura de QvaPay en la misma pestaña. `window.open` después de un
+     `await` lo bloquea el navegador; navegar no. El plan se activa por webhook,
+     así que al volver basta recargar para verlo. */
+  async function pagar(tipo: "plan" | "modulo", clave: string) {
+    const objetivo = `${tipo}:${clave}`;
+    if (pagando) return;
+    setPagando(objetivo);
+    try {
+      const res = await fetch("/api/pagos/qvapay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId, tipo, clave }),
+      });
+      const data = (await res.json().catch(() => null)) as
+        | { url?: string; error?: string }
+        | null;
+      if (!res.ok || !data?.url) {
+        toast.error(data?.error ?? "No se pudo abrir el pago.");
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      toast.error("No se pudo abrir el pago.");
+    } finally {
+      setPagando(null);
     }
   }
 
@@ -129,7 +156,13 @@ export function PlansSection({
       >
         <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
           {(Object.keys(cat.modulos) as ClaveModulo[]).map((clave) => (
-            <ModuloTile key={clave} clave={clave} negocio={negocio} />
+            <ModuloTile
+              key={clave}
+              clave={clave}
+              pagando={pagando === `modulo:${clave}`}
+              bloqueado={pagando !== null}
+              onPagar={() => pagar("modulo", clave)}
+            />
           ))}
         </div>
       </Bloque>
@@ -142,11 +175,13 @@ export function PlansSection({
               pack={p}
               actual={plan}
               destacado={p === siguiente}
-              negocio={negocio}
               puedeElegirPlan={puedeElegirPlan}
               cargando={pendiente === p}
               bloqueado={pendiente !== null && pendiente !== p}
+              pagando={pagando === `plan:${p}`}
+              pagandoAlgo={pagando !== null}
               onElegir={() => elegir(p)}
+              onPagar={() => pagar("plan", p)}
             />
           ))}
         </div>
@@ -264,16 +299,17 @@ function Proximamente() {
 /** Un módulo suelto: su precio, su lema y sus funciones. */
 function ModuloTile({
   clave,
-  negocio,
+  pagando,
+  bloqueado,
+  onPagar,
 }: {
   clave: ClaveModulo;
-  negocio: string;
+  pagando: boolean;
+  bloqueado: boolean;
+  onPagar: () => void;
 }) {
   const cat = useCatalogo();
   const modulo = cat.modulos[clave];
-  const asunto = encodeURIComponent(
-    `Quiero el módulo ${modulo.nombre} — ${negocio}`,
-  );
 
   return (
     <article className="flex flex-col rounded-4xl border border-ink/5 bg-white p-gap-lg">
@@ -290,12 +326,21 @@ function ModuloTile({
       {/* `mt-auto` para que los botones caigan a la misma altura aunque las
           listas midan distinto. */}
       <div className="mt-auto pt-gap-lg">
-        <a
-          href={`mailto:${SUPPORT_EMAIL}?subject=${asunto}`}
-          className="flex h-11 items-center justify-center rounded-full border border-ink/10 bg-white font-lv-display text-small font-semibold text-ink transition duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700"
+        <button
+          type="button"
+          onClick={onPagar}
+          disabled={pagando || bloqueado}
+          className="flex h-11 w-full items-center justify-center gap-gap-xs rounded-full border border-ink/10 bg-white font-lv-display text-small font-semibold text-ink transition duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Quiero {modulo.nombre}
-        </a>
+          {pagando ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Abriendo…
+            </>
+          ) : (
+            "Contratar por 1 mes"
+          )}
+        </button>
       </div>
     </article>
   );
@@ -306,30 +351,28 @@ function PackTile({
   pack,
   actual,
   destacado,
-  negocio,
   puedeElegirPlan,
   cargando,
   bloqueado,
+  pagando,
+  pagandoAlgo,
   onElegir,
+  onPagar,
 }: {
   pack: Pack;
   actual: Plan;
   destacado: boolean;
-  negocio: string;
   puedeElegirPlan: boolean;
   cargando: boolean;
   bloqueado: boolean;
+  pagando: boolean;
+  pagandoAlgo: boolean;
   onElegir: () => void;
+  onPagar: () => void;
 }) {
   const cat = useCatalogo();
   const datos = cat.packs[pack];
   const esActual = pack === actual;
-
-  /* Subir o bajar no cambian el correo, solo el asunto: quien atiende necesita
-     saber qué se pide antes de abrir el mensaje. */
-  const asunto = encodeURIComponent(
-    `Quiero ${esActual ? "información sobre" : "el pack"} ${nombreDe(pack, cat)} — ${negocio}`,
-  );
 
   return (
     <article
@@ -367,7 +410,7 @@ function PackTile({
       {/* `mt-auto` para que los tres botones caigan a la misma altura aunque las
           listas midan distinto. */}
       <div className="mt-auto pt-gap-lg">
-        {esActual ? (
+        {esActual && puedeElegirPlan ? (
           <p className="flex h-11 items-center justify-center rounded-full border border-verde-200 bg-verde-50 font-lv-display text-small font-semibold text-verde-700">
             Es el que tienes
           </p>
@@ -393,17 +436,28 @@ function PackTile({
             )}
           </button>
         ) : (
-          <a
-            href={`mailto:${SUPPORT_EMAIL}?subject=${asunto}`}
+          <button
+            type="button"
+            onClick={onPagar}
+            disabled={pagando || pagandoAlgo}
             className={cn(
-              "flex h-11 items-center justify-center rounded-full font-lv-display text-small font-semibold transition duration-500 ease-outquint",
+              "flex h-11 w-full items-center justify-center gap-gap-xs rounded-full font-lv-display text-small font-semibold transition duration-500 ease-outquint disabled:cursor-not-allowed disabled:opacity-60",
               destacado
                 ? "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300 active:scale-[0.98]"
                 : "border border-ink/10 bg-white text-ink hover:border-verde-300 hover:text-verde-700",
             )}
           >
-            Quiero {nombreDe(pack, cat)}
-          </a>
+            {pagando ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Abriendo…
+              </>
+            ) : esActual ? (
+              "Renovar 1 mes"
+            ) : (
+              "Contratar por 1 mes"
+            )}
+          </button>
         )}
       </div>
     </article>

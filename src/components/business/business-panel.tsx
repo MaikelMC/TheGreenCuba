@@ -302,7 +302,6 @@ export function BusinessPanel({
               <PlansSection
                 key={place.id}
                 plan={plan}
-                negocio={place.name}
                 placeId={place.id}
                 puedeElegirPlan={puedeElegirPlan}
               />
