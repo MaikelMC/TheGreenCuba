@@ -912,16 +912,24 @@ function HomePageContent() {
     [mapVisiblePlaces, categories],
   );
 
-  const filteredPlaces = useMemo<HomePlace[]>(() => {
-    /* Origen para medir cercanía: el GPS si lo hay y, si no, el centro de la
-       provincia del perfil. Antes el fallback no existía y la lista quedaba
-       sin orden para quien no había dado permiso de ubicación — el mismo
-       criterio que ya usa el desplegable de sugerencias del header. */
+  /* Origen para medir cercanía: el GPS si lo hay y, si no, el centro de la
+     provincia del perfil. Antes el fallback no existía y la lista quedaba
+     sin orden para quien no había dado permiso de ubicación — el mismo
+     criterio que ya usa el desplegable de sugerencias del header.
+
+     Vive fuera de `filteredPlaces` porque también lo necesita `resultPlaces`
+     para las tarjetas que no pasan por la lista recortada por provincia. */
+  const distanceOrigin = useMemo(() => {
     const profileCenter = preferredLocationCenter(userPreferences?.location);
-    const origin =
+    return (
       userLocation ??
       getLastKnownPosition() ??
-      (profileCenter ? { lat: profileCenter[0], lng: profileCenter[1] } : null);
+      (profileCenter ? { lat: profileCenter[0], lng: profileCenter[1] } : null)
+    );
+  }, [userLocation, userPreferences]);
+
+  const filteredPlaces = useMemo<HomePlace[]>(() => {
+    const origin = distanceOrigin;
     const ranked = userPreferences
       ? personalizePlaces(listVisiblePlaces, userPreferences)
       : listVisiblePlaces;
@@ -944,7 +952,7 @@ function HomePageContent() {
     return measured.map(({ place, distanceM }) =>
       userPlaceToHomePlace(place, categories, distanceM),
     );
-  }, [listVisiblePlaces, categories, userLocation, userPreferences]);
+  }, [listVisiblePlaces, categories, distanceOrigin, userPreferences]);
 
   const handleLike = useCallback((id: string) => {
     const saved = toggleSaved(id, userId);
@@ -1385,6 +1393,17 @@ function HomePageContent() {
   const resultPlaces = useMemo<HomePlace[]>(() => {
     if (!aiState || aiState.matches.length === 0) return filteredPlaces;
     const byId = new Map(filteredPlaces.map((p) => [p.id, p]));
+    /* Respaldo con el catálogo entero: cuando la consulta nombra otra
+       provincia, la búsqueda viaja con todos los lugares y el modelo puede
+       devolver uno que la lista recortada por provincia ya descartó. Sin
+       esto, la respuesta de la IA lo mencionaba y su tarjeta no salía. */
+    for (const p of places) {
+      if (byId.has(p.id)) continue;
+      const distanceM = distanceOrigin
+        ? haversineM(distanceOrigin, { lat: p.lat, lng: p.lng })
+        : null;
+      byId.set(p.id, userPlaceToHomePlace(p, categories, distanceM));
+    }
     const picked: HomePlace[] = [];
     const seen = new Set<string>();
     for (const m of aiState.matches) {
@@ -1395,7 +1414,7 @@ function HomePageContent() {
       }
     }
     return picked;
-  }, [aiState, filteredPlaces]);
+  }, [aiState, filteredPlaces, places, categories, distanceOrigin]);
   const recommendationCount = filteredPlaces.length;
   const shownCount =
     sheetState === "results" ? resultPlaces.length : recommendationCount;
