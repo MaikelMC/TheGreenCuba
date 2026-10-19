@@ -45,6 +45,7 @@ import {
   getCurrentPosition,
   getLastKnownPosition,
 } from "@/lib/map/geolocation";
+import { readMapView, saveMapView } from "@/lib/map/map-view-store";
 import {
   buildDirectRoute,
   buildGoogleMapsUrl,
@@ -643,13 +644,23 @@ function HomePageContent() {
      solo al iniciar sesión. Con la semilla síncrona el MapContainer nace
      directo en la ciudad correcta y, si /api/me confirma la misma, el guard de
      igualdad de MapChildren ni siquiera dispara el flyTo. */
+  /* La última vista del mapa, guardada al moverse. Entrar a una ficha o a otra
+     sección desmonta el home; sin esto, al volver el mapa arrancaba en el
+     centro de la provincia y se perdía el encuadre que el usuario había dejado. */
+  const restoredMapView = useMemo(
+    () => readMapView(readUserPreferences().location),
+    [],
+  );
   const [initialCenter, setInitialCenter] = useState<[number, number] | null>(
     () => {
+      if (restoredMapView) return [restoredMapView.lat, restoredMapView.lng];
       if (typeof window === "undefined") return null;
       return preferredLocationCenter(readUserPreferences().location);
     },
   );
-  const [disableAutoFit, setDisableAutoFit] = useState(initialCenter !== null);
+  const [disableAutoFit, setDisableAutoFit] = useState(
+    restoredMapView !== null || initialCenter !== null,
+  );
   const [userPreferences, setUserPreferences] =
     useState<UserPreferences | null>(null);
   const [hasSavedProfileLocation, setHasSavedProfileLocation] = useState(false);
@@ -751,7 +762,9 @@ function HomePageContent() {
           );
 
           const preferredCenter = resolveInitialCenter(storedPrefs);
-          if (preferredCenter) {
+          /* Con una vista restaurada no se recoloca el mapa: la vuelta tiene
+             que enseñar exactamente lo que se dejó, no la ciudad del perfil. */
+          if (preferredCenter && !restoredMapView) {
             setInitialCenter(preferredCenter);
             setDisableAutoFit(true);
           }
@@ -762,7 +775,7 @@ function HomePageContent() {
         const fallbackPrefs = readUserPreferences();
         setUserPreferences(fallbackPrefs);
         const fallbackCenter = resolveInitialCenter(fallbackPrefs);
-        if (fallbackCenter) {
+        if (fallbackCenter && !restoredMapView) {
           setInitialCenter(fallbackCenter);
           setDisableAutoFit(true);
         }
@@ -774,7 +787,7 @@ function HomePageContent() {
         const fallbackPrefs = readUserPreferences();
         setUserPreferences(fallbackPrefs);
         const fallbackCenter = resolveInitialCenter(fallbackPrefs);
-        if (fallbackCenter) {
+        if (fallbackCenter && !restoredMapView) {
           setInitialCenter(fallbackCenter);
           setDisableAutoFit(true);
         }
@@ -1311,11 +1324,11 @@ function HomePageContent() {
           ? ([cached.lat, cached.lng] as [number, number])
           : null;
 
-    if (preferredCenter) {
+    if (preferredCenter && !restoredMapView) {
       setInitialCenter(preferredCenter);
       setDisableAutoFit(true);
     }
-  }, [userPreferences]);
+  }, [userPreferences, restoredMapView]);
 
   // Request location once when the home view loads, so the first map shown is
   // the user's local area (works on desktop and mobile). We first apply the
@@ -1326,7 +1339,11 @@ function HomePageContent() {
     // Con onboarding completado y una provincia guardada, la primera vista es
     // SIEMPRE la ciudad elegida. El cache de geolocalización solo sirve como
     // respaldo y no debe desplazar el mapa sobre esa elección.
-    if (!userPreferences || hasSavedProfileLocation) {
+    //
+    // Y con una vista restaurada tampoco: el GPS volaría el mapa desde donde
+    // lo dejó el usuario —el regreso perdería el encuadre otra vez—. El botón
+    // «Mi ubicación» sigue pidiéndola cuando se quiera.
+    if (!userPreferences || hasSavedProfileLocation || restoredMapView) {
       return;
     }
 
@@ -1362,7 +1379,7 @@ function HomePageContent() {
     return () => {
       cancelled = true;
     };
-  }, [handleUserLocated, hasSavedProfileLocation, userPreferences]);
+  }, [handleUserLocated, hasSavedProfileLocation, userPreferences, restoredMapView]);
 
   // Show session notice if coming from login
   useEffect(() => {
@@ -1426,8 +1443,20 @@ function HomePageContent() {
         places={mapPlaces}
         selectedPlaceId={selectedId}
         initialCenter={initialCenter ?? undefined}
-        initialZoom={disableAutoFit ? 13 : undefined}
+        initialZoom={restoredMapView?.zoom ?? (disableAutoFit ? 13 : undefined)}
         disableAutoFit={disableAutoFit}
+        /* Cada vez que el mapa se asienta se guarda dónde quedó: es lo que se
+           restaura al volver desde otra sección o desde una ficha. La lectura
+           síncrona de preferencias da la provincia ya guardada, también
+           después de cambiarla en Ajustes. */
+        onMapMove={(_, center, zoom) =>
+          saveMapView(
+            center[0],
+            center[1],
+            zoom,
+            readUserPreferences().location,
+          )
+        }
         onPlaceSelect={(place) => handleMarkerClick(place.id)}
         onMapClick={handleDeselect}
         onPlaceRoute={(place) => {
