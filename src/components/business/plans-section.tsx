@@ -48,6 +48,7 @@ export function PlansSection({
   plan,
   placeId,
   puedeElegirPlan = false,
+  planElegido = null,
 }: {
   /** El pack efectivo del negocio, resuelto en el servidor. */
   plan: Plan;
@@ -55,6 +56,11 @@ export function PlansSection({
   placeId: string;
   /** Solo el negocio de prueba cambia de plan a voluntad. */
   puedeElegirPlan?: boolean;
+  /**
+   * El pack que se pulsó en la portada y viaja hasta aquí. Se marca para que
+   * se pague ese y no haya que volver a buscarlo entre las tres tarjetas.
+   */
+  planElegido?: Pack | null;
 }) {
   const router = useRouter();
   const cat = useCatalogo();
@@ -135,6 +141,16 @@ export function PlansSection({
         </p>
       )}
 
+      {planElegido && (
+        <p className="mb-gap-md rounded-2xl border border-verde-200 bg-verde-50/60 px-gap-md py-gap-sm text-small text-verde-900">
+          <span className="font-semibold">
+            Elegiste {nombreDe(planElegido, cat)}.
+          </span>{" "}
+          Paga el mes en su tarjeta y la suscripción se activa al confirmarse
+          el pago.
+        </p>
+      )}
+
       <Bloque
         titulo="Lo que ya tienes"
         detalle="Incluido en cualquier negocio de La Verde, con o sin plan."
@@ -174,6 +190,7 @@ export function PlansSection({
               key={p}
               pack={p}
               actual={plan}
+              elegido={p === planElegido}
               destacado={p === siguiente}
               puedeElegirPlan={puedeElegirPlan}
               cargando={pendiente === p}
@@ -350,6 +367,7 @@ function ModuloTile({
 function PackTile({
   pack,
   actual,
+  elegido,
   destacado,
   puedeElegirPlan,
   cargando,
@@ -361,6 +379,8 @@ function PackTile({
 }: {
   pack: Pack;
   actual: Plan;
+  /** El pack pulsado en la portada: manda sobre «Tu plan» mientras se cobra. */
+  elegido: boolean;
   destacado: boolean;
   puedeElegirPlan: boolean;
   cargando: boolean;
@@ -372,17 +392,22 @@ function PackTile({
 }) {
   const cat = useCatalogo();
   const datos = cat.packs[pack];
-  const esActual = pack === actual;
+  /* Con un pack elegido, «Tu plan» se aparta: lo útil ahora es señalar el que
+     se va a pagar, no el que corre durante la prueba. */
+  const esActual = pack === actual && !elegido;
 
   return (
     <article
       className={cn(
         "relative flex flex-col rounded-4xl border bg-white p-gap-lg",
-        destacado ? "border-verde-300 shadow-card" : "border-ink/5",
+        destacado || elegido
+          ? "border-verde-300 shadow-card"
+          : "border-ink/5",
         esActual && "ring-2 ring-verde-400/35",
+        elegido && "ring-2 ring-verde-500",
       )}
     >
-      {destacado && !esActual && (
+      {destacado && !esActual && !elegido && (
         <span className="absolute -top-[11px] left-gap-lg inline-flex items-center gap-[4px] rounded-full bg-verde-400 px-gap-sm py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-verde-950">
           <Sparkles size={11} strokeWidth={2.2} />
           Recomendado
@@ -393,11 +418,15 @@ function PackTile({
         <h3 className="font-lv-display text-h3 font-bold tracking-[-0.01em] text-ink">
           {nombreDe(pack, cat)}
         </h3>
-        {esActual && (
+        {elegido ? (
+          <span className="inline-flex items-center rounded-full bg-verde-400 px-[10px] py-[3px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em] text-verde-950">
+            Elegido
+          </span>
+        ) : esActual ? (
           <span className="inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-[10px] py-[3px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em] text-verde-700">
             Tu plan
           </span>
-        )}
+        ) : null}
       </div>
 
       <Precio usd={datos.usd} />
@@ -442,7 +471,7 @@ function PackTile({
             disabled={pagando || pagandoAlgo}
             className={cn(
               "flex h-11 w-full items-center justify-center gap-gap-xs rounded-full font-lv-display text-small font-semibold transition duration-500 ease-outquint disabled:cursor-not-allowed disabled:opacity-60",
-              destacado
+              destacado || elegido
                 ? "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300 active:scale-[0.98]"
                 : "border border-ink/10 bg-white text-ink hover:border-verde-300 hover:text-verde-700",
             )}
@@ -452,6 +481,8 @@ function PackTile({
                 <Loader2 size={16} className="animate-spin" />
                 Abriendo…
               </>
+            ) : elegido ? (
+              "Pagar 1 mes"
             ) : esActual ? (
               "Renovar 1 mes"
             ) : (

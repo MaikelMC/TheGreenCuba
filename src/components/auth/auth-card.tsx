@@ -178,7 +178,9 @@ export function AuthCard({
     setError(null);
     try {
       const callbackURL = new URL(
-        mode === "register" ? "/api/google-auth-complete" : (next ?? "/home"),
+        mode === "register"
+          ? `/api/google-auth-complete${next ? `?next=${encodeURIComponent(next)}` : ""}`
+          : (next ?? "/home"),
         window.location.origin,
       ).toString();
       const errorCallbackURL = new URL(

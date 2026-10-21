@@ -65,6 +65,7 @@ import {
   nombreDe,
   type ClaveModulo,
   type Funcion,
+  type Pack,
   type Plan,
 } from "@/lib/plans";
 import { useCatalogo } from "@/providers/catalogo-provider";
@@ -160,6 +161,7 @@ export function BusinessPanel({
   funciones,
   modulos,
   puedeElegirPlan,
+  planElegido = null,
   negocios,
 }: {
   place: UserPlace;
@@ -191,6 +193,8 @@ export function BusinessPanel({
   modulos: ClaveModulo[];
   /** Solo el negocio de prueba: puede cambiarse de plan a voluntad. */
   puedeElegirPlan: boolean;
+  /** El pack pulsado en la portada, para marcarlo en su tarjeta. */
+  planElegido?: Pack | null;
   /**
    * Los negocios que esta cuenta puede abrir, para el selector de arriba.
    *
@@ -304,6 +308,7 @@ export function BusinessPanel({
                 plan={plan}
                 placeId={place.id}
                 puedeElegirPlan={puedeElegirPlan}
+                planElegido={planElegido}
               />
             );
           case "settings":

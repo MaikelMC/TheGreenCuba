@@ -143,7 +143,7 @@ export function Pricing() {
               </ul>
 
               <Link
-                href="/profile?seccion=negocio"
+                href={`/register?next=${encodeURIComponent(`/onboarding?plan=${plan.key}`)}`}
                 className={cn(
                   "mt-7 inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition duration-300 ease-outquint active:scale-[0.98]",
                   plan.destacado

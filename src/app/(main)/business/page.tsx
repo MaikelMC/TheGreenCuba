@@ -4,13 +4,14 @@ import { getPlaceById, ownerPlaces, placeStats } from "@/lib/db/queries";
 import { statsVisitas } from "@/lib/eventos-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { DEV_PLACE_ID, devPlace, ownsDevPlace } from "@/lib/dev-place";
-import { limiteDe } from "@/lib/plans";
+import { PACKS_ORDER, limiteDe, type Pack } from "@/lib/plans";
 import { publicacionesDeLaSemana } from "@/lib/publicaciones-server";
 import { funcionesDeNegocio, modulosDe, planEfectivoDe } from "@/lib/plans-server";
 import { menuUrl } from "@/lib/structured-data";
 import { CatalogoProvider } from "@/providers/catalogo-provider";
 import { BusinessPanel } from "@/components/business/business-panel";
 import { BusinessEntry } from "@/components/business/business-entry";
+import { PlansSection } from "@/components/business/plans-section";
 import type { NegocioPanel } from "@/components/business/business-switcher";
 
 /**
@@ -36,12 +37,16 @@ import type { NegocioPanel } from "@/components/business/business-switcher";
 export default async function BusinessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ negocio?: string }>;
+  searchParams: Promise<{ negocio?: string; seccion?: string; plan?: string }>;
 }) {
   const user = await getAppUser();
   if (!user) redirect("/login?next=/business");
 
-  const { negocio: pedido } = await searchParams;
+  const { negocio: pedido, seccion, plan: planPedido } = await searchParams;
+  const planElegido: Pack | null =
+    planPedido && (PACKS_ORDER as readonly string[]).includes(planPedido)
+      ? (planPedido as Pack)
+      : null;
 
   /* Los negocios que se pueden abrir aquí, en orden: primero los que reclama
      en `business_owners`, y luego el negocio de prueba, que no está en esa
@@ -107,8 +112,34 @@ export default async function BusinessPage({
      ponytail: `isActive` es la única señal de aprobación que existe, así que
      cerrar un negocio ya publicado también le cierra el panel a su dueño. El
      día que eso incomode hace falta un estado de aprobación aparte de la
-     publicación, no otra consulta aquí. */
-  if (!place.isActive) redirect("/profile?seccion=negocio");
+     publicación, no otra consulta aquí.
+
+     La excepción es `?seccion=planes`: quien elige un plan en la portada
+     termina aquí antes de que lo aprueben, y el cobro no depende de la
+     publicación —`/api/pagos/qvapay` comprueba propiedad, no `isActive`—. Se
+     enseña solo la sección de planes, sin el resto del panel. */
+  if (!place.isActive) {
+    if (seccion !== "planes") redirect("/profile?seccion=negocio");
+
+    return (
+      <CatalogoProvider catalogo={cat}>
+        <div className="mx-auto w-full max-w-container px-gutter py-gap-lg md:px-gutter-lg">
+          <p className="rounded-2xl border border-verde-200 bg-verde-50/60 px-gap-md py-gap-sm text-small text-verde-900">
+            <span className="font-semibold">Tu negocio está en revisión.</span>{" "}
+            Puedes pagar el plan ahora: la suscripción se aplica en cuanto un
+            administrador apruebe la solicitud.
+          </p>
+          <div className="mt-gap-md">
+            <PlansSection
+              plan={plan}
+              placeId={place.id}
+              planElegido={planElegido}
+            />
+          </div>
+        </div>
+      </CatalogoProvider>
+    );
+  }
 
   /* La URL absoluta de la carta se resuelve aquí y no en el cliente: el QR
      necesita la dirección entera, y `window.location.origin` en el panel de un
@@ -132,6 +163,7 @@ export default async function BusinessPage({
         /* El negocio de prueba es el único con selector de plan propio: los demás
            cambian por la pasarela o por administración. */
         puedeElegirPlan={isDev}
+        planElegido={planElegido}
         negocios={negocios}
       />
     </CatalogoProvider>

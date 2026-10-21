@@ -16,6 +16,7 @@ import { StepBar, StepDots } from "@/components/onboarding/step-indicator";
 import { PreferencesScreen } from "@/components/onboarding/preferences-screen";
 import { BusinessForm } from "@/components/profile/business-view";
 import { PlacesProvider } from "@/providers/places-provider";
+import { PACKS_ORDER, type Pack } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 import {
   readUserPreferences,
@@ -367,6 +368,11 @@ export default function OnboardingPage() {
      pantalla de elección. No cuenta como paso: no lleva barra de progreso ni se
      vuelve a ella. */
   const [path, setPath] = useState<"user" | "business" | null>(null);
+  /* El pack que se pulsó en la portada. Llega en `?plan=` y manda en dos
+     sitios: salta la elección de camino —ya dijo que viene a registrar un
+     negocio— y, al terminar el formulario, abre los planes con ese pack
+     marcado para cobrarlo. */
+  const [planElegido, setPlanElegido] = useState<Pack | null>(null);
   /* El asistente de negocio. El 0 es la ciudad y del 1 al 6, las secciones del
      formulario, que van numeradas desde cero dentro de `BusinessForm`. */
   const [businessStep, setBusinessStep] = useState(0);
@@ -482,6 +488,19 @@ export default function OnboardingPage() {
     locationDetectionStarted.current = true;
     void handleUseGPS();
   }, [onLocationScreen]);
+
+  /* Se lee del `window` y no de `useSearchParams` a propósito: este árbol se
+     pinta entero en el cliente después de saber si hay sesión, así que no hay
+     diferencia de hidratación que evitar, y `PACKS_ORDER` valida el valor
+     antes de guardarlo. */
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("plan");
+    if (!raw) return;
+    setPath("business");
+    if ((PACKS_ORDER as readonly string[]).includes(raw)) {
+      setPlanElegido(raw as Pack);
+    }
+  }, []);
 
   const handleSplashDone = useCallback(() => {
     setSplashDone(true);
@@ -668,13 +687,18 @@ export default function OnboardingPage() {
   }, [persistPreferences, router]);
 
   /* Final del camino de negocio. El negocio ya está creado —lo hizo el
-     formulario— y aquí solo se cierra el onboarding. **No navega**: la última
-     pantalla es la confirmación, y de ahí sale el usuario con su botón. Si el
-     guardado falla, el aviso lo dice y la confirmación sigue en pie. */
+     formulario— y aquí solo se cierra el onboarding. Sin pack elegido **no
+     navega**: la última pantalla es la confirmación, y de ahí sale el usuario
+     con su botón. Con pack, en cambio, se va derecho a los planes con ese pack
+     marcado: la solicitud queda pendiente, pero el pago puede hacerse ya y la
+     suscripción se aplica cuando administración aprueba el negocio. */
   const handleBusinessSubmitted = useCallback(() => {
     setBusinessDone(true);
     void persistPreferences();
-  }, [persistPreferences]);
+    if (planElegido) {
+      router.push(`/business?seccion=planes&plan=${planElegido}`);
+    }
+  }, [persistPreferences, planElegido, router]);
 
   /* «Ahora no»: sale del asistente sin crear ningún negocio. Marca el onboarding
      como completado igual, que es lo que evita que al volver a entrar se repita
