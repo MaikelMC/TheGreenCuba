@@ -37,9 +37,11 @@ import { AUTH_USER_HEADER, isProtected, needsAppUser } from "@/lib/session";
  * protegen solas: las de administración con `isAdminRequest`, y `/api/me`
  * devolviendo `authenticated: false`.
  *
- * Lo público es la landing y la ficha de lugar. La ficha se queda fuera de las
- * reglas porque los enlaces se comparten: pedir cuenta para abrir un enlace
- * rompe el enlace.
+ * Lo público es la landing, la ficha de lugar y el mapa (`/home`). La ficha se
+ * queda fuera de las reglas porque los enlaces se comparten: pedir cuenta para
+ * abrir un enlace rompe el enlace. El mapa se abre sin sesión para que
+ * cualquiera explore el catálogo; lo único cerrado es la búsqueda con IA, que
+ * se comprueba en `/api/ai/search`, no aquí.
  *
  * Y una cosa que no es una puerta sino un recado: `?ref=` —el código de un
  * afiliado— se copia a una cookie. Va aquí porque este es el único sitio que

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { motion } from "motion/react";
 import {
   Sheet,
   SheetClose,
@@ -11,15 +10,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { LoginButton } from "@/components/landing/login-button";
 import { Logo } from "@/components/layout/logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { EASE } from "./anim";
+import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
-  { href: "#como-funciona", label: "Cómo funciona" },
-  { href: "#ejemplos", label: "Ejemplos" },
+  { href: "#como-funciona", label: "Funciones" },
   { href: "#lugares", label: "Lugares" },
+  { href: "#planes", label: "Planes" },
 ];
 
 export function Header() {
@@ -43,19 +41,18 @@ export function Header() {
   }, []);
 
   return (
-    <motion.header
-      initial={{ y: -12, opacity: 1 }}
-      animate={{ y: visible ? 0 : -100, opacity: visible ? 1 : 0 }}
-      transition={{ duration: 0.45, ease: EASE }}
+    <header
       onFocusCapture={() => setVisible(true)}
-      className="fixed inset-x-0 top-0 z-50 px-gutter pt-[calc(0.75rem+env(safe-area-inset-top))] md:px-gutter-lg"
+      className={cn(
+        "fixed inset-x-0 top-0 z-50 px-gutter pt-[calc(0.75rem+env(safe-area-inset-top))] transition-transform duration-300 ease-outquint md:px-gutter-lg",
+        visible ? "translate-y-0" : "-translate-y-[140%]",
+      )}
     >
-      <div className="landing-nav-surface mx-auto flex h-14 max-w-3xl items-center justify-between rounded-full bg-verde-950/70 pl-4 pr-2 ring-1 ring-white/10 backdrop-blur-2xl">
+      <div className="landing-nav-surface mx-auto flex h-14 max-w-3xl items-center justify-between rounded-full border border-ink/10 bg-white/85 pl-4 pr-2 shadow-soft backdrop-blur-xl">
         <Link
           href="/"
-          className="flex items-center gap-2 font-lv-display text-[20px] font-bold tracking-[-0.02em] text-white"
+          className="flex items-center gap-2 font-lv-display text-[20px] font-bold tracking-[-0.02em] text-ink"
         >
-          {/* El PNG trae su propio degradado verde: sin círculo detrás. */}
           <Logo className="h-[26px] w-auto shrink-0" />
           <span translate="no">La Verde</span>
         </Link>
@@ -65,7 +62,7 @@ export function Header() {
             <a
               key={link.href}
               href={link.href}
-              className="landing-nav-link text-[15px] text-white/70 transition-colors duration-500 hover:text-white"
+              className="landing-nav-link text-[15px] text-ink-soft/70 transition-colors duration-300 hover:text-ink"
             >
               {link.label}
             </a>
@@ -73,16 +70,19 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-gap-md">
-          {/* Sobre la pastilla oscura el disco blanco desentonaba: aquí el
-              botón va sin fondo, con el icono en blanco. */}
-          <ThemeToggle className="size-10 border-white/15 bg-white/10 text-white shadow-none hover:border-white/25 hover:bg-white/20 hover:text-white" />
+          <ThemeToggle className="size-11 border-ink/10 bg-white text-ink shadow-none hover:bg-verde-50" />
 
-          <LoginButton className="px-[18px] py-2.5 max-sm:hidden" />
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-ink/15 px-[18px] py-2.5 font-lv-display text-sm font-semibold leading-none text-ink transition duration-300 ease-outquint hover:border-ink/30 hover:bg-white active:scale-[0.98] max-sm:hidden"
+          >
+            Iniciar sesión
+          </Link>
 
           <Sheet>
             <SheetTrigger asChild>
               <button
-                className="grid size-10 place-items-center rounded-full text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-300/70 sm:hidden"
+                className="grid size-11 place-items-center rounded-full text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-500/70 sm:hidden"
                 aria-label="Abrir menú"
               >
                 <svg
@@ -108,20 +108,25 @@ export function Header() {
                   <SheetClose key={link.href} asChild>
                     <a
                       href={link.href}
-                      className="landing-mobile-nav-link text-[17px] font-medium text-foreground transition-colors hover:text-accent"
+                      className="landing-mobile-nav-link flex min-h-11 items-center text-[17px] font-medium text-foreground transition-colors hover:text-accent"
                     >
                       {link.label}
                     </a>
                   </SheetClose>
                 ))}
                 <SheetClose asChild>
-                  <LoginButton className="mt-gap-sm w-full py-3" />
+                  <Link
+                    href="/login"
+                    className="mt-gap-sm inline-flex w-full items-center justify-center rounded-full bg-ink py-3 font-lv-display text-sm font-semibold text-white"
+                  >
+                    Iniciar sesión
+                  </Link>
                 </SheetClose>
               </nav>
             </SheetContent>
           </Sheet>
         </div>
       </div>
-    </motion.header>
+    </header>
   );
 }

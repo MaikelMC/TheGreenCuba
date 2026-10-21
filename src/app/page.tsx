@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import { MotionConfig } from "motion/react";
 import {
   Header,
   Hero,
-  HowItWorks,
-  SearchExamples,
-  Features,
+  Bento,
+  Pricing,
   PlaceStrip,
   CTASection,
 } from "@/components/landing";
@@ -79,25 +77,22 @@ export default async function LandingPage() {
           __html: JSON.stringify(WEBSITE_JSON_LD).replace(/</g, "\\u003c"),
         }}
       />
-      <MotionConfig reducedMotion="user">
-        <div className="lv-grain flex min-h-screen min-h-dvh flex-col bg-sand font-lv text-ink">
-          <a href="#content" className="skip-link">
-            Saltar al contenido
-          </a>
-          <Header />
+      <div className="lv-dot-grid flex min-h-screen min-h-dvh flex-col font-lv-display text-ink">
+        <a href="#content" className="skip-link">
+          Saltar al contenido
+        </a>
+        <Header />
 
-          <main id="content" className="flex-1">
-            <Hero />
-            <HowItWorks />
-            <SearchExamples />
-            <Features />
-            <PlaceStrip places={await loadStripPlaces()} />
-            <CTASection />
-          </main>
+        <main id="content" className="flex-1">
+          <Hero />
+          <Bento />
+          <PlaceStrip places={await loadStripPlaces()} />
+          <Pricing />
+          <CTASection />
+        </main>
 
-          <Footer />
-        </div>
-      </MotionConfig>
+        <Footer />
+      </div>
     </>
   );
 }

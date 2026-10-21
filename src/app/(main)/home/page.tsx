@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   Suspense,
@@ -24,6 +25,7 @@ import {
   DollarSign,
   MessageCircle,
   ExternalLink,
+  Lock,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn, formatDateRange } from "@/lib/utils";
@@ -94,7 +96,13 @@ import {
 } from "@/lib/analytics";
 import { trackPlaceMetric } from "@/lib/place-metrics";
 
-type SheetState = "default" | "searching" | "results" | "no-results" | "error";
+type SheetState =
+  | "default"
+  | "searching"
+  | "results"
+  | "no-results"
+  | "error"
+  | "guest";
 
 /* Cuántas entradas de «Lo que ofrece» viajan a la búsqueda con IA.
    El formulario no pone tope a la carta, así que lo pone aquí: sin él, ochenta
@@ -250,6 +258,10 @@ const SHEET_TITLES: Record<SheetState, { title: string; subtitle: string }> = {
   error: {
     title: "Error de conexión",
     subtitle: "Verifica tu conexión a internet",
+  },
+  guest: {
+    title: "La IA necesita una cuenta",
+    subtitle: "El mapa sigue abierto para todos",
   },
 };
 
@@ -581,6 +593,10 @@ const PlaceCardRow = memo(function PlaceCardRow({
 function HomePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  /* Llegada desde «Ver el mapa» de la portada: la ubicación ya se pidió en ese
+     toque y lo que el visitante quiere ver es su zona, no la última vista del
+     mapa ni la provincia del perfil. */
+  const locateOnArrival = searchParams.get("ubicacion") === "1";
   const [sheetState, setSheetState] = useState<SheetState>("default");
   const [selectedId, setSelectedId] = useState<string>("6");
   /* Contador, no booleano: cada gesto pide otra vez bajar la hoja a su vista
@@ -598,6 +614,12 @@ function HomePageContent() {
      lista de guardados que usa el perfil. */
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
+  /* «No se sabe» no es «no hay sesión». Solo se bloquea la búsqueda cuando
+     `/api/me` ha dicho que no hay cuenta; mientras no contesta, la petición
+     viaja y el servidor decide. */
+  const [authState, setAuthState] = useState<"unknown" | "in" | "out">(
+    "unknown",
+  );
   /* Categoría y filtros viven en la URL además de aquí: una vista filtrada se
      puede compartir y «atrás» devuelve a ella. Se escriben con
      `replaceState`, no con navegación de Next, para no pagar renders de
@@ -648,14 +670,24 @@ function HomePageContent() {
      sección desmonta el home; sin esto, al volver el mapa arrancaba en el
      centro de la provincia y se perdía el encuadre que el usuario había dejado. */
   const restoredMapView = useMemo(
-    () => readMapView(readUserPreferences().location),
-    [],
+    () =>
+      locateOnArrival ? null : readMapView(readUserPreferences().location),
+    [locateOnArrival],
   );
   const [initialCenter, setInitialCenter] = useState<[number, number] | null>(
     () => {
       if (restoredMapView) return [restoredMapView.lat, restoredMapView.lng];
       if (typeof window === "undefined") return null;
-      return preferredLocationCenter(readUserPreferences().location);
+      /* La posición pedida al tocar «Ver el mapa» ya está en caché. Arranca
+         ahí, sin pasar por La Habana. Sin posición, manda la provincia. */
+      const cached = getLastKnownPosition();
+      if (locateOnArrival) {
+        return cached ? [cached.lat, cached.lng] : null;
+      }
+      return (
+        preferredLocationCenter(readUserPreferences().location) ??
+        (cached ? [cached.lat, cached.lng] : null)
+      );
     },
   );
   const [disableAutoFit, setDisableAutoFit] = useState(
@@ -744,6 +776,7 @@ function HomePageContent() {
 
         const resolvedId = data.authenticated ? (data.user?.id ?? null) : null;
         setUserId(resolvedId);
+        setAuthState(data.authenticated ? "in" : "out");
         setLikedIds(new Set(readActivity(resolvedId).savedIds));
 
         if (data.authenticated && data.user?.id) {
@@ -764,7 +797,7 @@ function HomePageContent() {
           const preferredCenter = resolveInitialCenter(storedPrefs);
           /* Con una vista restaurada no se recoloca el mapa: la vuelta tiene
              que enseñar exactamente lo que se dejó, no la ciudad del perfil. */
-          if (preferredCenter && !restoredMapView) {
+          if (preferredCenter && !restoredMapView && !locateOnArrival) {
             setInitialCenter(preferredCenter);
             setDisableAutoFit(true);
           }
@@ -775,7 +808,7 @@ function HomePageContent() {
         const fallbackPrefs = readUserPreferences();
         setUserPreferences(fallbackPrefs);
         const fallbackCenter = resolveInitialCenter(fallbackPrefs);
-        if (fallbackCenter && !restoredMapView) {
+        if (fallbackCenter && !restoredMapView && !locateOnArrival) {
           setInitialCenter(fallbackCenter);
           setDisableAutoFit(true);
         }
@@ -787,7 +820,7 @@ function HomePageContent() {
         const fallbackPrefs = readUserPreferences();
         setUserPreferences(fallbackPrefs);
         const fallbackCenter = resolveInitialCenter(fallbackPrefs);
-        if (fallbackCenter && !restoredMapView) {
+        if (fallbackCenter && !restoredMapView && !locateOnArrival) {
           setInitialCenter(fallbackCenter);
           setDisableAutoFit(true);
         }
@@ -998,6 +1031,15 @@ function HomePageContent() {
 
   const handleSearch = useCallback(
     async (query: string) => {
+      /* Invitado: el mapa se explora, pero la IA es de cuentas. Se le dice
+         justo al intentarlo, sin gastar una petición ni una llamada al modelo. */
+      if (authState === "out") {
+        setSearchingQuery(query);
+        setOpenKey((k) => k + 1);
+        setSheetState("guest");
+        return;
+      }
+
       setSearchingQuery(query);
       /* Abre la hoja en cuanto arranca la búsqueda, siempre: primera o décima. */
       setOpenKey((k) => k + 1);
@@ -1080,6 +1122,12 @@ function HomePageContent() {
           }),
           signal: controller.signal,
         });
+        /* El servidor manda: si la sesión no vale, se enseña el aviso aunque
+           `/api/me` todavía no hubiera contestado. */
+        if (res.status === 401) {
+          setSheetState("guest");
+          return;
+        }
         const data = (await res.json().catch(() => null)) as {
           ok?: boolean;
           matches?: { id: string; reason: string }[];
@@ -1112,7 +1160,7 @@ function HomePageContent() {
         searchCtx.setIsSearching(false);
       }
     },
-    [places, searchCtx, userLocation, userPreferences],
+    [authState, places, searchCtx, userLocation, userPreferences],
   );
 
   useEffect(() => {
@@ -1324,11 +1372,11 @@ function HomePageContent() {
           ? ([cached.lat, cached.lng] as [number, number])
           : null;
 
-    if (preferredCenter && !restoredMapView) {
+    if (preferredCenter && !restoredMapView && !locateOnArrival) {
       setInitialCenter(preferredCenter);
       setDisableAutoFit(true);
     }
-  }, [userPreferences, restoredMapView]);
+  }, [userPreferences, restoredMapView, locateOnArrival]);
 
   // Request location once when the home view loads, so the first map shown is
   // the user's local area (works on desktop and mobile). We first apply the
@@ -1343,7 +1391,10 @@ function HomePageContent() {
     // Y con una vista restaurada tampoco: el GPS volaría el mapa desde donde
     // lo dejó el usuario —el regreso perdería el encuadre otra vez—. El botón
     // «Mi ubicación» sigue pidiéndola cuando se quiera.
-    if (!userPreferences || hasSavedProfileLocation || restoredMapView) {
+    if (!userPreferences) return;
+    /* «Ver el mapa» pide la ubicación aunque el perfil ya tenga provincia:
+       quien pulsó el botón pidió ver su zona, no la ciudad guardada. */
+    if (!locateOnArrival && (hasSavedProfileLocation || restoredMapView)) {
       return;
     }
 
@@ -1358,7 +1409,9 @@ function HomePageContent() {
       });
     }
 
-    getCurrentPosition({ useCache: false })
+    /* Al llegar de «Ver el mapa» la lectura recién tomada sirve; pedir otro
+       fix retrasa el centrado y gasta batería sin mejorar nada. */
+    getCurrentPosition({ useCache: locateOnArrival })
       .then((pos) => {
         if (cancelled) return;
         handleUserLocated(pos.lat, pos.lng, pos.accuracy);
@@ -1379,7 +1432,13 @@ function HomePageContent() {
     return () => {
       cancelled = true;
     };
-  }, [handleUserLocated, hasSavedProfileLocation, userPreferences, restoredMapView]);
+  }, [
+    handleUserLocated,
+    hasSavedProfileLocation,
+    userPreferences,
+    restoredMapView,
+    locateOnArrival,
+  ]);
 
   // Show session notice if coming from login
   useEffect(() => {
@@ -1577,7 +1636,9 @@ function HomePageContent() {
                     ? aiState.summary
                     : !hydrated
                       ? "Estoy viendo qué hay cerca de ti…"
-                      : `Según tu ubicación en ${userProvinceLabel(userPreferences) ?? "Cuba"}, encontré ${provinceScopedPlaces.length} lugares que podrían gustarte. Explora el mapa o busca con lenguaje natural.`}
+                      : authState === "out"
+                        ? `Explora el mapa y las ${provinceScopedPlaces.length} fichas disponibles. La búsqueda con IA necesita una cuenta.`
+                        : `Según tu ubicación en ${userProvinceLabel(userPreferences) ?? "Cuba"}, encontré ${provinceScopedPlaces.length} lugares que podrían gustarte. Explora el mapa o busca con lenguaje natural.`}
                 </p>
               </motion.div>
 
@@ -1698,6 +1759,47 @@ function HomePageContent() {
                 <strong>Tip para conexiones lentas:</strong> La Verde guarda tus
                 búsquedas recientes en caché. Puedes ver los últimos resultados
                 sin conexión.
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        )}
+
+        {/* Guest state: el mapa es libre, la búsqueda con IA no. */}
+        {sheetState === "guest" && (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key="guest"
+              variants={popIn}
+              initial="hidden"
+              animate="show"
+              exit={{ opacity: 0, y: -14, transition: { duration: 0.2 } }}
+            >
+              <div className="flex flex-col items-center px-2 pb-2 text-center">
+                <span className="grid size-12 place-items-center rounded-2xl bg-verde-50 text-verde-700">
+                  <Lock size={22} strokeWidth={1.8} aria-hidden />
+                </span>
+                <h3 className="mt-4 font-lv-display text-lg font-bold tracking-[-0.02em] text-ink">
+                  La búsqueda con IA necesita una cuenta
+                </h3>
+                <p className="mt-2 max-w-[40ch] text-small leading-relaxed text-ink-soft/75 text-pretty">
+                  Puedes explorar el mapa, las fichas y las recomendaciones sin
+                  iniciar sesión. Para buscar en lenguaje natural, entra o crea
+                  tu cuenta.
+                </p>
+                <div className="mt-5 flex w-full flex-col gap-2 sm:flex-row">
+                  <Link
+                    href="/login?next=%2Fhome"
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-verde-400 px-5 font-lv-display text-small font-semibold text-verde-950 transition-colors duration-500 hover:bg-verde-300"
+                  >
+                    Iniciar sesión
+                  </Link>
+                  <Link
+                    href="/register?next=%2Fhome"
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full border border-ink/15 px-5 font-lv-display text-small font-semibold text-ink transition-colors duration-500 hover:border-ink/30 hover:bg-sand"
+                  >
+                    Crear cuenta
+                  </Link>
+                </div>
               </div>
             </motion.div>
           </AnimatePresence>

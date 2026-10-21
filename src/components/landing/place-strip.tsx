@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { MapPin, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Reveal } from "./reveal";
 
 /**
  * Lugares reales de la base, servidos en la landing.
@@ -51,7 +52,7 @@ function PlaceCard({
     <Link
       href={`/place/${place.id}`}
       tabIndex={clone ? -1 : undefined}
-      className="group flex w-[280px] shrink-0 transform flex-col gap-4 rounded-xl border border-ink/5 bg-white p-4 shadow-sm transition duration-300 ease-outquint hover:scale-[1.02] hover:border-verde-300 hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 focus-visible:ring-offset-2"
+      className="group flex w-[280px] shrink-0 transform flex-col gap-4 rounded-3xl border border-ink/10 bg-white p-4 shadow-soft transition duration-300 ease-outquint hover:scale-[1.02] hover:border-verde-300 hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 focus-visible:ring-offset-2"
     >
       <div className="flex items-center gap-3">
         {/* La marca del negocio si la subió, y si no el icono de ubicación. La
@@ -156,32 +157,37 @@ export function PlaceStrip({ places }: { places: PlaceStripPlace[] }) {
   return (
     <section
       id="lugares"
-      className="border-t border-ink/5 bg-sand py-24 sm:py-32 scroll-mt-20"
+      className="scroll-mt-20 border-t border-ink/10 py-20 sm:py-28"
     >
       <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
-        <div className="mx-auto mb-gap-3xl max-w-[46ch] text-center">
-          <p className="landing-features-label inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-3.5 py-1.5 font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
-            Negocios de verdad
+        <div className="mx-auto mb-gap-2xl max-w-[46ch] text-center">
+          <p className="lv-mono text-[11px] uppercase tracking-[0.2em] text-verde-700">
+            02 / 04 · Lugares
           </p>
-          <h2 className="mt-gap-sm font-lv-display text-[32px] font-bold leading-tight tracking-[-0.02em] text-ink text-balance">
-            Fichas completas por provincia
-          </h2>
-          <p className="mt-gap-sm text-body leading-relaxed text-ink-soft/75 text-pretty">
-            Dirección, horarios, precios y las monedas que acepta cada uno. Toca
-            uno y lo ves tal como lo ve quien lo busca.
-          </p>
+          <Reveal
+            as="h2"
+            text="Fichas completas por provincia."
+            accent="provincia"
+            className="mt-4 font-lv-display text-[clamp(30px,4.5vw,48px)] font-bold leading-[1.05] tracking-[-0.035em] text-ink text-balance"
+          />
+          <Reveal
+            as="p"
+            text="Dirección, horarios, precios y las monedas que acepta cada uno. Toca uno y lo ves tal como lo ve quien lo busca."
+            delay={120}
+            className="mt-4 text-base leading-relaxed text-ink-soft/75 text-pretty"
+          />
 
-          {/* Province filter pills - always visible for debugging */}
+          {/* Filtro por provincia: vive en la URL y sobrevive al refresco. */}
           <div className="mx-auto mt-6 flex flex-wrap gap-2 justify-center">
             <button
               type="button"
               onClick={() => selectProvince(null)}
               aria-pressed={selectedProvince === null}
               className={cn(
-                "px-4 py-2 rounded-full font-lv-display text-sm font-medium",
+                "inline-flex min-h-11 items-center justify-center rounded-full px-4 py-2 font-lv-display text-sm font-medium transition duration-300",
                 selectedProvince === null
-                  ? "bg-verde-500 text-white"
-                  : "border border-ink/20 bg-white text-ink hover:bg-verde-50",
+                  ? "bg-ink text-white"
+                  : "border border-ink/15 bg-white text-ink hover:border-ink/30",
               )}
             >
               Todas las provincias
@@ -193,10 +199,10 @@ export function PlaceStrip({ places }: { places: PlaceStripPlace[] }) {
                 onClick={() => selectProvince(province)}
                 aria-pressed={selectedProvince === province}
                 className={cn(
-                  "px-4 py-2 rounded-full font-lv-display text-sm font-medium",
+                  "inline-flex min-h-11 items-center justify-center rounded-full px-4 py-2 font-lv-display text-sm font-medium transition duration-300",
                   selectedProvince === province
-                    ? "bg-verde-500 text-white"
-                    : "border border-ink/20 bg-white text-ink hover:bg-verde-50",
+                    ? "bg-ink text-white"
+                    : "border border-ink/15 bg-white text-ink hover:border-ink/30",
                 )}
               >
                 {province}
@@ -217,7 +223,7 @@ export function PlaceStrip({ places }: { places: PlaceStripPlace[] }) {
             Cada copia lleva su propio `gap` y `pr` para que el hueco entre la
             última ficha y la primera de la vuelta sea el mismo que entre
             fichas; con el gap en el contenedor ese hueco queda a la mitad. */}
-        <div className="mt-8 overflow-hidden rounded-2xl border border-ink/5 py-4">
+        <div className="mt-8 overflow-hidden rounded-3xl border border-ink/10 bg-white/50 py-4">
           {filteredPlaces.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <p className="text-body text-ink-soft/75">

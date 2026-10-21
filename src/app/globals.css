@@ -150,6 +150,12 @@
     background-color: #0e1720 !important;
   }
 
+  /* `bg-white/50` es el carril de lugares de la portada. No estaba en la lista
+     y en oscuro pintaba un bloque gris claro detrás de tarjetas oscuras. */
+  html[data-theme="dark"] .bg-white\/50 {
+    background-color: rgba(237, 247, 240, 0.03) !important;
+  }
+
   /* La barra de filtros de la carta es `bg-background`, que en oscuro cae en la
      regla de arriba —`#0e1720`, el color de **superficie**—. Pero el fondo de
      esa página no es una superficie: es el `body`, que en oscuro pinta
@@ -399,6 +405,43 @@
     box-shadow: 0 0 0 1px rgba(237, 247, 240, 0.08);
   }
 
+  /* `bg-ink` es el mismo verde que el fondo de la portada (#08130d): la tarjeta
+     Pro, el panel CTA y los botones sólidos se fundían con la página. Un
+     escalón de superficie los devuelve, solo dentro de la portada. */
+  html[data-theme="dark"] .lv-dot-grid .bg-ink {
+    background-color: #12241a !important;
+  }
+
+  html[data-theme="dark"] .lv-dot-grid .border-ink {
+    border-color: rgba(237, 247, 240, 0.16) !important;
+  }
+
+  /* Las sombras del sistema están teñidas de `ink` y en oscuro no se ven. Se
+     cambian por un halo verde tenue, el mismo acento del fondo. La barra del
+     nav queda fuera: ya trae su propio anillo. */
+  html[data-theme="dark"] .lv-dot-grid .shadow-soft:not(.landing-nav-surface) {
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.45),
+      0 8px 24px -12px rgba(53, 175, 109, 0.14);
+  }
+
+  html[data-theme="dark"] .lv-dot-grid .shadow-card {
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.45),
+      0 16px 40px -16px rgba(53, 175, 109, 0.2);
+  }
+
+  /* El CTA sólido del hero es tinta sobre tinta: en oscuro se perdía el
+     contorno. Sube a verde profundo y lleva un anillo interior claro. */
+  html[data-theme="dark"] .landing-cta-solid {
+    background-color: #173522 !important;
+    box-shadow: inset 0 0 0 1px rgba(237, 247, 240, 0.28);
+  }
+
+  html[data-theme="dark"] .landing-cta-solid:hover {
+    background-color: #21442e !important;
+  }
+
   html[data-theme="dark"] .landing-mobile-nav-link {
     color: #f4faf6 !important;
   }
@@ -489,6 +532,14 @@
     color: rgba(237, 247, 240, 0.85) !important;
   }
 
+  /* Las opacidades bajas de la portada (índices del bento, «Sin descargas»,
+     placeholder de Telegram). Sin regla quedaban tinta sobre tinta: ~1.07:1. */
+  html[data-theme="dark"] .text-ink-soft\/55,
+  html[data-theme="dark"] .text-ink-soft\/50,
+  html[data-theme="dark"] .text-ink-soft\/45 {
+    color: rgba(237, 247, 240, 0.65) !important;
+  }
+
   /* El `text-ink-soft` a secas (sin opacidad) no estaba cubierto: la lista
      «Lo que puedes hacer ahora» del panel de negocio, los términos y varios
      botones de admin lo usan y quedaban tinta sobre tinta. Va un punto más
@@ -505,10 +556,26 @@
     background-color: rgba(237, 247, 240, 0.16) !important;
   }
 
+  /* Puntos del navegador dibujado del hero. */
+  html[data-theme="dark"] .bg-ink\/15 {
+    background-color: rgba(237, 247, 240, 0.22) !important;
+  }
+
   html[data-theme="dark"] .border-ink\/5,
   html[data-theme="dark"] .border-ink\/10,
   html[data-theme="dark"] .divide-ink\/5 {
     border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  /* `border-ink/15` es el borde de los botones fantasma, los filtros de
+     provincia y el CTA de los planes: en oscuro desaparecía y el control
+     quedaba sin forma. */
+  html[data-theme="dark"] .border-ink\/15 {
+    border-color: rgba(237, 247, 240, 0.22) !important;
+  }
+
+  html[data-theme="dark"] [class~="hover:border-ink/30"]:hover {
+    border-color: rgba(237, 247, 240, 0.34) !important;
   }
 
   /* Tokens que el bloque de arriba no cubre y sí usan la ficha de lugar, el
@@ -859,6 +926,131 @@
     pointer-events: none;
     opacity: 0.035;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
+/* ─── Portada 2026 ───
+   Fondo claro con grilla de puntos, micro-etiquetas mono del sistema y el
+   reveal por palabras. Todo en CSS: ni una dependencia de animación. */
+
+.lv-dot-grid {
+  background-color: #fbf9f4;
+  background-image: radial-gradient(rgba(8, 19, 13, 0.09) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-position: -1px -1px;
+}
+
+html[data-theme="dark"] .lv-dot-grid {
+  background-color: #08130d;
+  background-image: radial-gradient(
+    rgba(237, 247, 240, 0.09) 1px,
+    transparent 1px
+  );
+}
+
+.lv-mono {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+.lv-reveal-word {
+  display: inline-block;
+  transition:
+    opacity 600ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 600ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* El contenido nace **visible**. Solo se oculta lo que está fuera de pantalla,
+   y ese armado lo hace el JS al montar: así el H1 entra en el LCP desde el
+   primer pintado y sin JavaScript no se esconde nada. */
+.lv-reveal[data-armed="true"]:not([data-shown="true"]) .lv-reveal-word {
+  opacity: 0;
+  transform: translateY(18px);
+  filter: blur(6px);
+  transition: none;
+}
+
+.lv-reveal[data-shown="true"] .lv-reveal-word {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+.lv-accent-word {
+  color: #0f7a41;
+  text-decoration-line: underline;
+  text-decoration-color: rgba(53, 175, 109, 0.35);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.12em;
+}
+
+html[data-theme="dark"] .lv-accent-word,
+.lv-accent-on-dark .lv-accent-word {
+  color: #9be3b4;
+  text-decoration-color: rgba(155, 227, 180, 0.35);
+}
+
+/* Mapa abstracto de las miniaturas: dos calles y una grilla de puntos. */
+.lv-mini-map {
+  background-color: #f1eee5;
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent 44%,
+      rgba(8, 19, 13, 0.07) 44%,
+      rgba(8, 19, 13, 0.07) 56%,
+      transparent 56%
+    ),
+    linear-gradient(
+      0deg,
+      transparent 60%,
+      rgba(8, 19, 13, 0.07) 60%,
+      rgba(8, 19, 13, 0.07) 72%,
+      transparent 72%
+    ),
+    radial-gradient(rgba(8, 19, 13, 0.12) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    100% 100%,
+    14px 14px;
+}
+
+html[data-theme="dark"] .lv-mini-map {
+  background-color: #14201a;
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent 44%,
+      rgba(237, 247, 240, 0.08) 44%,
+      rgba(237, 247, 240, 0.08) 56%,
+      transparent 56%
+    ),
+    linear-gradient(
+      0deg,
+      transparent 60%,
+      rgba(237, 247, 240, 0.08) 60%,
+      rgba(237, 247, 240, 0.08) 72%,
+      transparent 72%
+    ),
+    radial-gradient(rgba(237, 247, 240, 0.12) 1px, transparent 1px);
+}
+
+/* El SVG del mapa del hero lleva el trazo en línea, así que el cambio de fondo
+   de `.lv-mini-map` no lo alcanzaba y en oscuro quedaba un mapa vacío. */
+html[data-theme="dark"] .lv-map-streets {
+  stroke: rgba(237, 247, 240, 0.14);
+}
+
+html[data-theme="dark"] .lv-map-blocks {
+  fill: rgba(237, 247, 240, 0.07);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lv-reveal-word {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
   }
 }
 

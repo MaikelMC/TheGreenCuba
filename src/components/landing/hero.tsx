@@ -1,247 +1,133 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion, useReducedMotion } from "motion/react";
-import { cn } from "@/lib/utils";
-import { EASE, fadeUp, heroContainer } from "./anim";
+import { ArrowRight, MapPin, Play, Search, Sparkles } from "lucide-react";
+import { Reveal } from "./reveal";
+import { ViewMapLink } from "./view-map-link";
 
-const PHRASES = [
-  "Un café tranquilo cerca de mí que acepte USD Clásica",
-  "Restaurante con vista al mar para hoy",
-  "¿Dónde puedo comprar frutas baratas en Vedado?",
-  "¿Dónde encuentro un bar con son cubano esta noche?",
-  "Lugar con wifi para trabajar remoto",
-];
-
-function TypingAnimation({ paused }: { paused: boolean }) {
-  const reduceMotion = useReducedMotion();
-  const [displayed, setDisplayed] = useState("");
-  const [showCursor, setShowCursor] = useState(true);
-
-  /* Con movimiento reducido no hay bucle ni cursor: se queda la primera frase
-     entera. Además el bucle se detiene mientras el puntero o el foco están
-     encima, que es el control de pausa que pide una animación automática. */
-  useEffect(() => {
-    if (reduceMotion || paused) return;
-    let phraseIdx = 0;
-    let charIdx = 0;
-    let isDeleting = false;
-    let timeout: ReturnType<typeof setTimeout>;
-
-    function step() {
-      const current = PHRASES[phraseIdx] ?? "";
-      if (!isDeleting) {
-        setDisplayed(current.substring(0, charIdx + 1));
-        charIdx++;
-        if (charIdx === current.length) {
-          isDeleting = true;
-          timeout = setTimeout(step, 2000);
-          return;
-        }
-        timeout = setTimeout(step, 55 + Math.random() * 35);
-      } else {
-        setDisplayed(current.substring(0, charIdx - 1));
-        charIdx--;
-        if (charIdx === 0) {
-          isDeleting = false;
-          phraseIdx = (phraseIdx + 1) % PHRASES.length;
-          timeout = setTimeout(step, 400);
-          return;
-        }
-        timeout = setTimeout(step, 30);
-      }
-    }
-
-    timeout = setTimeout(step, 400);
-    return () => clearTimeout(timeout);
-  }, [reduceMotion, paused]);
-
-  useEffect(() => {
-    if (reduceMotion || paused) return;
-    const blink = setInterval(() => {
-      setShowCursor((v) => !v);
-    }, 530);
-    return () => clearInterval(blink);
-  }, [reduceMotion, paused]);
-
-  if (reduceMotion) return <span>{PHRASES[0]}</span>;
-
+function BrowserMockup() {
   return (
-    <span>
-      {displayed}
-      <span
-        className={cn(
-          "ml-[1px] text-verde-300",
-          showCursor ? "opacity-100" : "opacity-0",
-        )}
-      >
-        |
-      </span>
-    </span>
-  );
-}
-
-/**
- * Provincias del marquee. Es decorativo — el sistema pide que los nombres
- * propios vayan aquí y no en el titular. Las 15 provincias más la Isla de la
- * Juventud, que es municipio especial y no provincia.
- */
-const ZONES = [
-  "Pinar del Río",
-  "Artemisa",
-  "La Habana",
-  "Mayabeque",
-  "Matanzas",
-  "Cienfuegos",
-  "Villa Clara",
-  "Sancti Spíritus",
-  "Ciego de Ávila",
-  "Camagüey",
-  "Las Tunas",
-  "Granma",
-  "Holguín",
-  "Santiago de Cuba",
-  "Guantánamo",
-  "Isla de la Juventud",
-];
-
-function ZonesMarquee() {
-  return (
-    <div
-      aria-hidden
-      className="relative flex overflow-hidden border-t border-white/10 py-5 [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]"
-    >
-      {/* El carril lleva la lista duplicada: `animate-marquee` desplaza -50%,
-          que es exactamente una copia, así que el bucle no tiene costura. */}
-      <div className="flex w-max shrink-0 animate-marquee gap-10 hover:[animation-play-state:paused] motion-reduce:animate-none">
-        {[...ZONES, ...ZONES].map((zone, i) => (
-          <span
-            key={i}
-            className="whitespace-nowrap font-lv-display text-[13px] uppercase tracking-[0.22em] text-white/35"
-          >
-            {zone}
+    <div className="relative mx-auto mt-14 w-full max-w-5xl sm:mt-20">
+      <div className="relative h-[340px] overflow-hidden rounded-t-[24px] border border-b-0 border-ink/10 bg-white shadow-card sm:h-[420px]">
+        <div className="flex h-10 items-center gap-3 border-b border-ink/10 bg-sand-warm px-4">
+          <span className="flex gap-1.5" aria-hidden>
+            <span className="size-2.5 rounded-full bg-ink/15" />
+            <span className="size-2.5 rounded-full bg-ink/15" />
+            <span className="size-2.5 rounded-full bg-ink/15" />
           </span>
-        ))}
+          <span className="lv-mono mx-auto truncate rounded-full border border-ink/10 bg-white px-4 py-1 text-[10px] uppercase tracking-[0.14em] text-ink-soft/65">
+            laverde.kynari.dev/mapa
+          </span>
+          <span className="w-11" aria-hidden />
+        </div>
+
+        <div className="lv-mini-map relative h-full">
+          <svg
+            aria-hidden
+            viewBox="0 0 800 420"
+            className="absolute inset-0 h-full w-full"
+            preserveAspectRatio="none"
+          >
+            <g
+              className="lv-map-streets"
+              fill="none"
+              stroke="rgba(8,19,13,0.12)"
+              strokeWidth="2"
+            >
+              <path d="M-20 110C150 110 210 72 380 72s260 54 440 54" />
+              <path d="M120 -20c0 140 40 190 40 300s-50 110-50 160" />
+              <path d="M560 -20c0 110-60 170-60 260s70 110 70 200" />
+            </g>
+            <g className="lv-map-blocks" fill="rgba(8,19,13,0.05)">
+              <rect x="70" y="140" width="120" height="70" rx="8" />
+              <rect x="230" y="210" width="90" height="110" rx="8" />
+              <rect x="620" y="170" width="120" height="90" rx="8" />
+              <rect x="340" y="40" width="80" height="60" rx="8" />
+            </g>
+            <g fill="none" stroke="#35af6d" strokeWidth="3" strokeLinecap="round">
+              <path d="M390 330c60-40 90-80 90-130" strokeDasharray="6 8" />
+            </g>
+          </svg>
+
+          <div className="absolute left-[38%] top-[46%] -translate-x-1/2 -translate-y-full">
+            <span className="relative grid size-10 place-items-center rounded-full bg-verde-500 text-white shadow-primary-halo">
+              <MapPin size={19} strokeWidth={2} aria-hidden />
+              <span className="absolute inset-0 -z-10 animate-pulse-ring rounded-full bg-verde-400/40 motion-reduce:animate-none" />
+            </span>
+          </div>
+          <div className="absolute left-[68%] top-[34%] size-7 rounded-full border-2 border-white bg-verde-300 shadow-soft" />
+          <div className="absolute left-[22%] top-[66%] size-6 rounded-full border-2 border-white bg-verde-200 shadow-soft" />
+
+          <div className="absolute inset-x-4 top-5 mx-auto flex max-w-[440px] items-center gap-3 rounded-full border border-ink/10 bg-white/95 px-4 py-2.5 shadow-card backdrop-blur">
+            <Search size={17} className="shrink-0 text-ink-soft/65" aria-hidden />
+            <span className="min-w-0 flex-1 truncate text-sm text-ink-soft/80">
+              ¿dónde comer tacos?
+            </span>
+            <Sparkles size={15} className="shrink-0 text-verde-500" aria-hidden />
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-ink text-white">
+              <ArrowRight size={14} aria-hidden />
+            </span>
+          </div>
+
+          <div className="absolute bottom-6 left-4 hidden items-center gap-2 rounded-2xl border border-ink/10 bg-white/95 px-3 py-2 shadow-soft backdrop-blur sm:flex">
+            <span className="size-1.5 rounded-full bg-verde-500" aria-hidden />
+            <span className="text-xs font-medium text-ink-soft/75">
+              3 lugares cerca de ti
+            </span>
+          </div>
+        </div>
       </div>
+
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#fbf9f4] to-transparent dark:from-[#08130d]"
+      />
     </div>
   );
 }
 
 export function Hero() {
-  const [typingPaused, setTypingPaused] = useState(false);
-
   return (
-    // `lv-grid-glow` es el cielo del sistema: dos radiales verdes sobre un
-    // degradado casi negro. Único fondo oscuro de la landing junto al footer.
-    <section className="landing-hero lv-grid-glow relative flex min-h-[100dvh] flex-col overflow-hidden pt-28">
-      <div className="flex flex-1 items-center pb-16">
-        <div className="mx-auto w-full max-w-container px-gutter md:px-gutter-lg">
-          <motion.div
-            initial="hidden"
-            animate="show"
-            variants={heroContainer}
-            className="relative mx-auto max-w-[720px] text-center"
-          >
-            <motion.p
-              variants={fadeUp}
-              className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-200 backdrop-blur-sm"
-            >
-              Descubrimiento de lugares
-            </motion.p>
+    <section className="relative overflow-hidden pt-28 sm:pt-36">
+      <div className="mx-auto w-full max-w-container px-gutter md:px-gutter-lg">
+        <div className="mx-auto max-w-4xl text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-ink/10 bg-white px-3.5 py-1.5 text-xs font-medium text-ink-soft shadow-lv-xs">
+            <span className="relative flex size-2" aria-hidden>
+              <span className="absolute inline-flex h-full w-full rounded-full bg-verde-400 opacity-60" />
+              <span className="relative inline-flex size-2 rounded-full bg-verde-600" />
+            </span>
+            Nuevo · Menú QR y asistente por Telegram
+          </span>
 
-            <motion.h1
-              initial={{ opacity: 1, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.65, ease: EASE }}
-              className="mt-5 text-hero font-lv-display font-bold text-white text-balance"
-            >
-              Escribe lo que buscas.
-              <br />
-              {/* Degradado de marca: una sola frase por sección. */}
-              <span className="bg-gradient-to-r from-verde-200 via-verde-300 to-emerald-400 bg-clip-text text-transparent">
-                La Verde te lleva.
-              </span>
-            </motion.h1>
+          <Reveal
+            as="h1"
+            text="Tu negocio, justo en la verde."
+            accent="la verde"
+            className="mx-auto mt-6 max-w-[15ch] font-lv-display text-[clamp(44px,8vw,86px)] font-bold leading-[0.96] tracking-[-0.04em] text-ink text-balance"
+          />
 
-            <motion.p
-              variants={fadeUp}
-              className="mx-auto mt-gap-xl max-w-[52ch] text-lead text-white/70 text-pretty"
-            >
-              Pregúntale a La Verde como si hablaras con un amigo y encuentra
-              el lugar que buscas en Cuba.
-            </motion.p>
+          <Reveal
+            as="p"
+            text="Tu negocio en el mapa, tu menú en un QR y tu asistente en Telegram."
+            delay={240}
+            className="mx-auto mt-6 max-w-[46ch] text-base leading-relaxed text-ink-soft/75 text-pretty sm:text-lg"
+          />
 
-            <motion.div
-              variants={fadeUp}
-              className="mt-gap-xl flex flex-wrap justify-center gap-gap-sm"
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              href="/register"
+              className="landing-cta-solid inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-ink px-6 py-3.5 font-lv-display text-sm font-semibold leading-none text-white transition duration-300 ease-outquint hover:bg-ink-soft active:scale-[0.98] sm:w-auto"
             >
-              {/* La puerta de entrada para una persona nueva es el registro:
-                  después de crear la cuenta continúa con sus preferencias. */}
-              <Link
-                href="/register"
-                className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-verde-400 px-6 py-3 font-lv-display text-sm font-semibold leading-none text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
-              >
-                Probar La Verde
-              </Link>
-              <Link
-                href="#como-funciona"
-                className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-white/5 px-6 py-3 font-lv-display text-sm font-semibold leading-none text-white transition duration-500 ease-outquint hover:bg-white/10 active:scale-[0.98]"
-              >
-                Cómo funciona
-              </Link>
-            </motion.div>
-
-            {/* Pastilla solo a partir de `md`. Apilado, `rounded-full` muerde
-                52px por esquina y el botón de dentro, con radio 20px, se sale
-                de esa curva. En móvil va `rounded-4xl`, que respeta la caja. */}
-            <motion.div
-              variants={fadeUp}
-              onMouseEnter={() => setTypingPaused(true)}
-              onMouseLeave={() => setTypingPaused(false)}
-              onFocusCapture={() => setTypingPaused(true)}
-              onBlurCapture={() => setTypingPaused(false)}
-              className="mx-auto mt-gap-2xl flex w-full max-w-[600px] flex-col gap-2 rounded-4xl border border-white/10 bg-white/5 p-1.5 backdrop-blur-sm md:flex-row md:items-center md:rounded-full"
-            >
-              <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2">
-                <div className="ml-2 flex size-10 shrink-0 items-center justify-center text-verde-300">
-                  <svg
-                    aria-hidden
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                  >
-                    <path d="M9.5 3.5a6 6 0 1 0 0 12 6 6 0 0 0 0-12z" />
-                    <path d="M21 21l-4.35-4.35" />
-                  </svg>
-                </div>
-                <div aria-hidden className="min-w-0 flex-1 truncate py-2 text-left text-[16px] text-white/50">
-                  <TypingAnimation paused={typingPaused} />
-                </div>
-              </div>
-              {/* `min-h-11` iguala el botón con la fila del input: antes medía
-                  40px contra 45px y en móvil se notaba el desnivel. */}
-              {/* La barra es decorativa —no hay campo que enviar—, así que el
-                  botón lleva al login, que es donde la búsqueda existe de
-                  verdad. `inline-flex` porque en un `<a>` el texto no se centra
-                  solo como se centraba en el `<button>`. */}
-              <Link
-                href="/login"
-                aria-label="Inicia sesión para buscar"
-                className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-verde-400 px-5 text-sm font-semibold text-verde-950 transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] max-md:w-full max-md:text-center"
-              >
-                Buscar
-              </Link>
-            </motion.div>
-          </motion.div>
+              Agregar mi negocio
+              <ArrowRight size={16} aria-hidden />
+            </Link>
+            <ViewMapLink className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-ink/15 bg-white/70 px-6 py-3.5 font-lv-display text-sm font-semibold leading-none text-ink transition duration-300 ease-outquint hover:border-ink/30 hover:bg-white active:scale-[0.98] sm:w-auto">
+              <Play size={12} fill="currentColor" aria-hidden />
+              Ver el mapa
+            </ViewMapLink>
+          </div>
         </div>
-      </div>
 
-      <ZonesMarquee />
+        <BrowserMockup />
+      </div>
     </section>
   );
 }

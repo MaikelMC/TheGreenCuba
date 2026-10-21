@@ -36,7 +36,9 @@ export const PROTECTED_PREFIXES = [
   "/projects",
   "/profile",
   "/onboarding",
-  "/home",
+  /* `/home` **no** está aquí a propósito: el mapa, las fichas y las
+     recomendaciones se abren sin sesión. La búsqueda con IA es la única pieza
+     cerrada, y se defiende en su propia ruta (`/api/ai/search`). */
   /* La sección de afiliados. Aquí la puerta es «hay sesión» y nada más: quién es
      afiliado se comprueba dentro de la página, contra su propio código, porque
      el proxy no consulta la base a propósito. */

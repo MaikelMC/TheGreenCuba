@@ -137,6 +137,17 @@ export async function POST(req: NextRequest) {
   const limited = rateLimit(req, RATE_LIMIT, RATE_WINDOW_MS);
   if (!limited.ok) return tooMany(limited.retryAfterSeconds);
 
+  /* La búsqueda con IA es lo único que exige cuenta. El mapa, las fichas y las
+     recomendaciones se abren sin sesión, pero esto se comprueba **en el
+     servidor**: el cliente solo puede enseñar el aviso antes de llamar. */
+  const user = await getAppUser().catch(() => null);
+  if (!user) {
+    return NextResponse.json(
+      { ok: false, error: "auth_required" },
+      { status: 401 },
+    );
+  }
+
   try {
     const body = (await req.json()) as { query?: unknown; places?: unknown; userProvince?: unknown };
     const query = cleanString(body.query).trim();
@@ -169,20 +180,8 @@ export async function POST(req: NextRequest) {
         ? cleanString(body.userProvince).trim()
         : null;
 
-    /* Quién busca, para poder contar usuarios únicos por búsqueda. En
-       anónimo devuelve `null` y el evento va sin usuario, que es lo normal.
-       Un fallo resolviendo la sesión no puede tumbar una búsqueda: se sigue
-       sin usuario.
-
-       **No se espera aquí.** Es una consulta a Neon que solo hace falta para
-       la analítica; dejar que bloquee la llamada al modelo sumaba su ida y
-       vuelta entera a cada búsqueda. Se lanza ya y se recoge cuando el modelo
-       ya está trabajando. */
-    const userPromise = getAppUser().catch(() => null);
-
     const candidates = catalogForQuery(query, places);
     if (candidates.length === 0) {
-      const user = await userPromise;
       trackEvent({
         type: "search_no_results",
         userId: user?.id ?? null,
@@ -199,13 +198,11 @@ export async function POST(req: NextRequest) {
     }
 
     const recommendation = recommendPlaces(query, candidates, userProvince);
-    /* Se marca el rechazo como atendido mientras se resuelve la sesión: si el
-       modelo falla antes de que llegue la consulta, sin esto Node lo vería
-       como rechazo sin manejar aunque el `await` de abajo lo recoja. */
+    /* Se marca el rechazo como atendido por si el modelo falla antes de que la
+       promesa se recoja abajo. */
     recommendation.catch(() => {});
-    const user = await userPromise;
     const baseEvent = {
-      userId: user?.id ?? null,
+      userId: user.id,
       searchQuery: query,
       province: userProvince,
     };
