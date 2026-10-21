@@ -22,6 +22,34 @@ function baseUrl(provider: ResolvedProvider): string {
    failover: 12 s deja el peor caso realista por debajo del corte del cliente. */
 const PROVIDER_TIMEOUT_MS = 12_000;
 
+/**
+ * Cuánto se salta un proveedor que acaba de fallar.
+ *
+ * La cadena es secuencial y cada proveedor caído cuesta su intento completo:
+ * con varios respondiendo 403/429, una búsqueda simple pagaba la suma de todos
+ * —medido aquí: ~5 s de espera inútil antes de llegar al que sí contesta—. Sin
+ * esta memoria, cada búsqueda repetía el mismo paseo. Cinco minutos es el
+ * espacio típico de una caída transitoria o de una cuota que se recupera; para
+ * una clave revocada o una IP bloqueada, el reintento de dentro de cinco
+ * minutos es barato.
+ *
+ * Vive en memoria del proceso: en serverless cada instancia caliente aprende
+ * por su cuenta, que es exactamente el alcance que hace falta.
+ */
+const PROVIDER_COOLDOWN_MS = 5 * 60_000;
+const providerCooldownUntil = new Map<string, number>();
+
+/** La clave de la cadena es la que comparten el endpoint nativo y el
+ *  compatible de Gemini: misma clave y mismo modelo, un solo fallo cuenta. */
+function providerKey(provider: ResolvedProvider): string {
+  return `${provider.apiKey}|${provider.model}`;
+}
+
+function isCoolingDown(provider: ResolvedProvider): boolean {
+  const until = providerCooldownUntil.get(providerKey(provider));
+  return until !== undefined && until > Date.now();
+}
+
 /* Exportada porque la prueba de conexión del panel tiene que juzgar la
    respuesta con el mismo rasero que la cadena real: si aquí se acepta un JSON
    envuelto en ``` y allí no, la prueba aprobaría proveedores que luego fallan. */
@@ -197,7 +225,15 @@ export async function chatJSON<T>(
   const temperature = opts.temperature ?? AI_CONFIG.temperature;
   const errors: string[] = [];
 
-  for (const provider of providers) {
+  /* Los que acaban de fallar van al final, no se descartan: si se enfriaron
+     todos, la cadena vuelve a ser la completa y una caída global no deja la IA
+     muda para siempre. */
+  const chain = [
+    ...providers.filter((p) => !isCoolingDown(p)),
+    ...providers.filter((p) => isCoolingDown(p)),
+  ];
+
+  for (const provider of chain) {
     try {
       const { data, tokensIn, tokensOut } = await callProviderJSON<T>(provider, {
         system: opts.system,
@@ -208,8 +244,13 @@ export async function chatJSON<T>(
         reasoningEffort: opts.reasoningEffort,
         jsonSchema: opts.jsonSchema,
       });
+      providerCooldownUntil.delete(providerKey(provider));
       return { data, provider: provider.name, tokensIn, tokensOut };
     } catch (error) {
+      providerCooldownUntil.set(
+        providerKey(provider),
+        Date.now() + PROVIDER_COOLDOWN_MS,
+      );
       errors.push(error instanceof Error ? error.message : String(error));
     }
   }

@@ -172,22 +172,24 @@ export async function POST(req: NextRequest) {
     /* Quién busca, para poder contar usuarios únicos por búsqueda. En
        anónimo devuelve `null` y el evento va sin usuario, que es lo normal.
        Un fallo resolviendo la sesión no puede tumbar una búsqueda: se sigue
-       sin usuario. */
-    const user = await getAppUser().catch(() => null);
-    const baseEvent = {
-      userId: user?.id ?? null,
-      searchQuery: query,
-      province: userProvince,
-    };
+       sin usuario.
 
-    /* El evento de intento se registra antes de llamar al modelo: una búsqueda
-       que revienta después también ocurrió, y saber cuántas fallan es parte
-       del dato. */
-    trackEvent({ type: "search_performed", ...baseEvent });
+       **No se espera aquí.** Es una consulta a Neon que solo hace falta para
+       la analítica; dejar que bloquee la llamada al modelo sumaba su ida y
+       vuelta entera a cada búsqueda. Se lanza ya y se recoge cuando el modelo
+       ya está trabajando. */
+    const userPromise = getAppUser().catch(() => null);
 
     const candidates = catalogForQuery(query, places);
     if (candidates.length === 0) {
-      trackEvent({ type: "search_no_results", ...baseEvent, resultCount: 0 });
+      const user = await userPromise;
+      trackEvent({
+        type: "search_no_results",
+        userId: user?.id ?? null,
+        searchQuery: query,
+        province: userProvince,
+        resultCount: 0,
+      });
       return NextResponse.json({
         ok: true,
         matches: [],
@@ -196,7 +198,24 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const { data, provider } = await recommendPlaces(query, candidates, userProvince);
+    const recommendation = recommendPlaces(query, candidates, userProvince);
+    /* Se marca el rechazo como atendido mientras se resuelve la sesión: si el
+       modelo falla antes de que llegue la consulta, sin esto Node lo vería
+       como rechazo sin manejar aunque el `await` de abajo lo recoja. */
+    recommendation.catch(() => {});
+    const user = await userPromise;
+    const baseEvent = {
+      userId: user?.id ?? null,
+      searchQuery: query,
+      province: userProvince,
+    };
+
+    /* El evento de intento se registra antes de esperar al modelo: una búsqueda
+       que revienta después también ocurrió, y saber cuántas fallan es parte
+       del dato. */
+    trackEvent({ type: "search_performed", ...baseEvent });
+
+    const { data, provider } = await recommendation;
 
     // Solo devolver ids de lugares que realmente existen en el catálogo enviado.
     const validIds = new Set(candidates.map((p) => p.id));
