@@ -628,7 +628,8 @@
   }
 
   html[data-theme="dark"] .text-verde-600,
-  html[data-theme="dark"] .text-verde-700 {
+  html[data-theme="dark"] .text-verde-700,
+  html[data-theme="dark"] .text-verde-900 {
     color: #9be3b4 !important;
   }
 

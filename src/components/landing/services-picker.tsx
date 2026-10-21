@@ -86,8 +86,8 @@ export function ServicesPicker() {
                 className={cn(
                   "flex cursor-pointer items-start gap-3 rounded-2xl border p-3.5 transition-colors duration-300 focus-within:ring-2 focus-within:ring-verde-400/40",
                   activo
-                    ? "border-verde-400 bg-verde-50/70"
-                    : "border-ink/10 hover:border-ink/25",
+                    ? "border-verde-400 bg-verde-50/60"
+                    : "border-ink/10 hover:border-ink/30",
                 )}
               >
                 <input
@@ -102,7 +102,7 @@ export function ServicesPicker() {
                     "mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border transition-colors duration-300",
                     activo
                       ? "border-verde-500 bg-verde-400 text-verde-950"
-                      : "border-ink/20 bg-white",
+                      : "border-ink/15 bg-white",
                   )}
                 >
                   {activo && <Check size={13} strokeWidth={3} />}
@@ -132,7 +132,7 @@ export function ServicesPicker() {
               : `${elegidos.length} ${elegidos.length === 1 ? "servicio" : "servicios"} · ${precioUsd(total)} USD/mes`}
           </p>
           {elegidos.length === 0 ? (
-            <span className="inline-flex cursor-not-allowed items-center justify-center rounded-full bg-verde-400/40 px-5 py-3 text-sm font-semibold text-verde-950/60">
+            <span className="inline-flex cursor-not-allowed items-center justify-center rounded-full bg-ink/10 px-5 py-3 text-sm font-semibold text-ink-soft">
               Continuar
             </span>
           ) : (
