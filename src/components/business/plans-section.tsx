@@ -58,6 +58,7 @@ export function PlansSection({
   placeId,
   puedeElegirPlan = false,
   planElegido = null,
+  modulosElegidos = [],
 }: {
   /** El pack efectivo del negocio, resuelto en el servidor. */
   plan: Plan;
@@ -70,6 +71,11 @@ export function PlansSection({
    * se pague ese y no haya que volver a buscarlo entre las tres tarjetas.
    */
   planElegido?: Pack | null;
+  /**
+   * Los servicios sueltos marcados en la portada. Mismo papel que el pack: se
+   * señalan para pagarlos sin volver a buscarlos.
+   */
+  modulosElegidos?: readonly ClaveModulo[];
 }) {
   const router = useRouter();
   const cat = useCatalogo();
@@ -86,6 +92,8 @@ export function PlansSection({
 
   const indice = PLAN_ORDER.indexOf(plan);
   const siguiente = PLAN_ORDER[indice + 1] ?? null;
+  /* Para nombrar el servicio en singular; con varios solo se cuenta. */
+  const primerModulo = modulosElegidos[0];
 
   /* El cambio de plan es un POST a la ruta del fixture y luego un `refresh`:
      el plan llega resuelto del servidor a todo el panel —el candado de «Hoy
@@ -174,10 +182,14 @@ export function PlansSection({
         </p>
       )}
 
-      {planElegido && (
+      {(planElegido || modulosElegidos.length > 0) && (
         <p className="mb-gap-md rounded-2xl border border-verde-200 bg-verde-50/60 px-gap-md py-gap-sm text-small text-verde-900">
           <span className="font-semibold">
-            Elegiste {nombreDe(planElegido, cat)}.
+            {planElegido
+              ? `Elegiste ${nombreDe(planElegido, cat)}.`
+              : modulosElegidos.length === 1 && primerModulo
+                ? `Elegiste ${cat.modulos[primerModulo].nombre}.`
+                : `Elegiste ${modulosElegidos.length} servicios.`}
           </span>{" "}
           Paga el mes en su tarjeta y la suscripción se activa al confirmarse
           el pago.
@@ -208,6 +220,7 @@ export function PlansSection({
             <ModuloTile
               key={clave}
               clave={clave}
+              elegido={modulosElegidos.includes(clave)}
               pagando={pagando === `modulo:${clave}`}
               bloqueado={pagando !== null}
               onPagar={() =>
@@ -414,11 +427,14 @@ function Proximamente() {
 /** Un módulo suelto: su precio, su lema y sus funciones. */
 function ModuloTile({
   clave,
+  elegido,
   pagando,
   bloqueado,
   onPagar,
 }: {
   clave: ClaveModulo;
+  /** Marcado en la portada: se paga este, no hace falta buscarlo. */
+  elegido: boolean;
   pagando: boolean;
   bloqueado: boolean;
   onPagar: () => void;
@@ -427,10 +443,24 @@ function ModuloTile({
   const modulo = cat.modulos[clave];
 
   return (
-    <article className="flex flex-col rounded-4xl border border-ink/5 bg-white p-gap-lg">
-      <h3 className="font-lv-display text-body font-bold tracking-[-0.01em] text-ink">
-        {modulo.nombre}
-      </h3>
+    <article
+      className={cn(
+        "flex flex-col rounded-4xl border bg-white p-gap-lg",
+        elegido
+          ? "border-verde-300 shadow-card ring-2 ring-verde-500"
+          : "border-ink/5",
+      )}
+    >
+      <div className="flex items-center gap-gap-xs">
+        <h3 className="font-lv-display text-body font-bold tracking-[-0.01em] text-ink">
+          {modulo.nombre}
+        </h3>
+        {elegido && (
+          <span className="inline-flex items-center rounded-full bg-verde-400 px-[10px] py-[3px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em] text-verde-950">
+            Elegido
+          </span>
+        )}
+      </div>
       <Precio usd={modulo.usd} />
       <p className="mt-gap-2xs text-small text-ink-soft/75">{modulo.lema}</p>
 
@@ -445,13 +475,20 @@ function ModuloTile({
           type="button"
           onClick={onPagar}
           disabled={pagando || bloqueado}
-          className="flex h-11 w-full items-center justify-center gap-gap-xs rounded-full border border-ink/10 bg-white font-lv-display text-small font-semibold text-ink transition duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className={cn(
+            "flex h-11 w-full items-center justify-center gap-gap-xs rounded-full font-lv-display text-small font-semibold transition duration-500 ease-outquint disabled:cursor-not-allowed disabled:opacity-60",
+            elegido
+              ? "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300 active:scale-[0.98]"
+              : "border border-ink/10 bg-white text-ink hover:border-verde-300 hover:text-verde-700",
+          )}
         >
           {pagando ? (
             <>
               <Loader2 size={16} className="animate-spin" />
               Abriendo…
             </>
+          ) : elegido ? (
+            "Pagar 1 mes"
           ) : (
             "Contratar por 1 mes"
           )}

@@ -16,7 +16,7 @@ import { StepBar, StepDots } from "@/components/onboarding/step-indicator";
 import { PreferencesScreen } from "@/components/onboarding/preferences-screen";
 import { BusinessForm } from "@/components/profile/business-view";
 import { PlacesProvider } from "@/providers/places-provider";
-import { PACKS_ORDER, type Pack } from "@/lib/plans";
+import { MODULOS, PACKS_ORDER, type ClaveModulo, type Pack } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 import {
   readUserPreferences,
@@ -373,6 +373,10 @@ export default function OnboardingPage() {
      negocio— y, al terminar el formulario, abre los planes con ese pack
      marcado para cobrarlo. */
   const [planElegido, setPlanElegido] = useState<Pack | null>(null);
+  /* Los servicios sueltos que se marcaron en la portada. Mismo papel que el
+     pack: saltan la elección de camino y, al terminar el alta, abren los planes
+     con ellos ya señalados. */
+  const [modulosElegidos, setModulosElegidos] = useState<ClaveModulo[]>([]);
   /* El asistente de negocio. El 0 es la ciudad y del 1 al 6, las secciones del
      formulario, que van numeradas desde cero dentro de `BusinessForm`. */
   const [businessStep, setBusinessStep] = useState(0);
@@ -494,11 +498,19 @@ export default function OnboardingPage() {
      diferencia de hidratación que evitar, y `PACKS_ORDER` valida el valor
      antes de guardarlo. */
   useEffect(() => {
-    const raw = new URLSearchParams(window.location.search).get("plan");
-    if (!raw) return;
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get("plan");
+    const rawModulos = params.get("modulos");
+    if (!raw && !rawModulos) return;
     setPath("business");
-    if ((PACKS_ORDER as readonly string[]).includes(raw)) {
+    if (raw && (PACKS_ORDER as readonly string[]).includes(raw)) {
       setPlanElegido(raw as Pack);
+    }
+    if (rawModulos) {
+      /* Solo las claves que existen: la URL es de fuera y no se confía en ella. */
+      setModulosElegidos(
+        rawModulos.split(",").filter((m): m is ClaveModulo => m in MODULOS),
+      );
     }
   }, []);
 
@@ -687,18 +699,23 @@ export default function OnboardingPage() {
   }, [persistPreferences, router]);
 
   /* Final del camino de negocio. El negocio ya está creado —lo hizo el
-     formulario— y aquí solo se cierra el onboarding. Sin pack elegido **no
-     navega**: la última pantalla es la confirmación, y de ahí sale el usuario
-     con su botón. Con pack, en cambio, se va derecho a los planes con ese pack
-     marcado: la solicitud queda pendiente, pero el pago puede hacerse ya y la
-     suscripción se aplica cuando administración aprueba el negocio. */
+     formulario— y aquí solo se cierra el onboarding. Sin pack ni servicios
+     elegidos **no navega**: la última pantalla es la confirmación, y de ahí
+     sale el usuario con su botón. Con una elección, en cambio, se va derecho a
+     los planes con eso marcado: la solicitud queda pendiente, pero el pago
+     puede hacerse ya y la suscripción se aplica cuando administración aprueba
+     el negocio. */
   const handleBusinessSubmitted = useCallback(() => {
     setBusinessDone(true);
     void persistPreferences();
     if (planElegido) {
       router.push(`/business?seccion=planes&plan=${planElegido}`);
+    } else if (modulosElegidos.length > 0) {
+      router.push(
+        `/business?seccion=planes&modulos=${modulosElegidos.join(",")}`,
+      );
     }
-  }, [persistPreferences, planElegido, router]);
+  }, [persistPreferences, planElegido, modulosElegidos, router]);
 
   /* «Ahora no»: sale del asistente sin crear ningún negocio. Marca el onboarding
      como completado igual, que es lo que evita que al volver a entrar se repita

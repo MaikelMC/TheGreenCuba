@@ -162,6 +162,7 @@ export function BusinessPanel({
   modulos,
   puedeElegirPlan,
   planElegido = null,
+  modulosElegidos = [],
   negocios,
 }: {
   place: UserPlace;
@@ -195,6 +196,8 @@ export function BusinessPanel({
   puedeElegirPlan: boolean;
   /** El pack pulsado en la portada, para marcarlo en su tarjeta. */
   planElegido?: Pack | null;
+  /** Los servicios sueltos pulsados en la portada, por el mismo motivo. */
+  modulosElegidos?: readonly ClaveModulo[];
   /**
    * Los negocios que esta cuenta puede abrir, para el selector de arriba.
    *
@@ -309,6 +312,7 @@ export function BusinessPanel({
                 placeId={place.id}
                 puedeElegirPlan={puedeElegirPlan}
                 planElegido={planElegido}
+                modulosElegidos={modulosElegidos}
               />
             );
           case "settings":

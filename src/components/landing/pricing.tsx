@@ -10,6 +10,7 @@ import {
   type Pack,
 } from "@/lib/plans";
 import { Reveal } from "./reveal";
+import { ServicesPicker } from "./services-picker";
 
 interface Plan {
   key: "gratis" | Pack;
@@ -156,6 +157,8 @@ export function Pricing() {
             </article>
           ))}
         </div>
+
+        <ServicesPicker />
       </div>
     </section>
   );

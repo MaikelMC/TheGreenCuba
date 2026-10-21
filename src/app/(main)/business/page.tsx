@@ -4,7 +4,13 @@ import { getPlaceById, ownerPlaces, placeStats } from "@/lib/db/queries";
 import { statsVisitas } from "@/lib/eventos-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { DEV_PLACE_ID, devPlace, ownsDevPlace } from "@/lib/dev-place";
-import { PACKS_ORDER, limiteDe, type Pack } from "@/lib/plans";
+import {
+  MODULOS,
+  PACKS_ORDER,
+  limiteDe,
+  type ClaveModulo,
+  type Pack,
+} from "@/lib/plans";
 import { publicacionesDeLaSemana } from "@/lib/publicaciones-server";
 import { funcionesDeNegocio, modulosDe, planEfectivoDe } from "@/lib/plans-server";
 import { menuUrl } from "@/lib/structured-data";
@@ -37,16 +43,31 @@ import type { NegocioPanel } from "@/components/business/business-switcher";
 export default async function BusinessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ negocio?: string; seccion?: string; plan?: string }>;
+  searchParams: Promise<{
+    negocio?: string;
+    seccion?: string;
+    plan?: string;
+    modulos?: string;
+  }>;
 }) {
   const user = await getAppUser();
   if (!user) redirect("/login?next=/business");
 
-  const { negocio: pedido, seccion, plan: planPedido } = await searchParams;
+  const {
+    negocio: pedido,
+    seccion,
+    plan: planPedido,
+    modulos: modulosPedidos,
+  } = await searchParams;
   const planElegido: Pack | null =
     planPedido && (PACKS_ORDER as readonly string[]).includes(planPedido)
       ? (planPedido as Pack)
       : null;
+  /* Los servicios sueltos que vienen de la portada. Igual que el pack: se
+     validan contra el catálogo y solo se usan para marcarlos. */
+  const modulosElegidos: ClaveModulo[] = (modulosPedidos?.split(",") ?? []).filter(
+    (m): m is ClaveModulo => m in MODULOS,
+  );
 
   /* Los negocios que se pueden abrir aquí, en orden: primero los que reclama
      en `business_owners`, y luego el negocio de prueba, que no está en esa
@@ -134,6 +155,7 @@ export default async function BusinessPage({
               plan={plan}
               placeId={place.id}
               planElegido={planElegido}
+              modulosElegidos={modulosElegidos}
             />
           </div>
         </div>
@@ -164,6 +186,7 @@ export default async function BusinessPage({
            cambian por la pasarela o por administración. */
         puedeElegirPlan={isDev}
         planElegido={planElegido}
+        modulosElegidos={modulosElegidos}
         negocios={negocios}
       />
     </CatalogoProvider>
