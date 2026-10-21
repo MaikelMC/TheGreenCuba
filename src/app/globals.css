@@ -412,6 +412,13 @@
     background-color: #12241a !important;
   }
 
+  /* Las miniaturas del bento van en `bg-sand` dentro de tarjetas `bg-white`.
+     En oscuro las dos caen en la misma superficie (#0e1720) y el bloque
+     interior desaparece; la arena sube un escalón, como en el resto de la app. */
+  html[data-theme="dark"] .lv-dot-grid .bg-sand {
+    background-color: #16212b !important;
+  }
+
   html[data-theme="dark"] .lv-dot-grid .border-ink {
     border-color: rgba(237, 247, 240, 0.16) !important;
   }
