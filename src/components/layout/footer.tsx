@@ -3,7 +3,7 @@ import { Logo } from "./logo";
 
 export function Footer() {
   return (
-    <footer className="landing-footer bg-verde-950 pt-16 pb-10 text-[14px] text-white/70">
+    <footer className="landing-footer bg-verde-950 pt-16 pb-[calc(2.5rem+env(safe-area-inset-bottom))] text-[14px] text-white/70">
       <div className="mx-auto max-w-container px-5 md:px-8">
         <div className="flex flex-wrap justify-between items-start gap-gap-xl">
           <div className="max-w-[280px]">
@@ -62,7 +62,7 @@ export function Footer() {
           </div>
         </div>
         <p className="mt-gap-2xl border-t border-white/10 pt-gap-lg text-[13px]">
-          &copy; 2026 La Verde. Hecho en Cuba.
+          &copy; {new Date().getFullYear()} La Verde. Hecho en Cuba.
         </p>
       </div>
     </footer>

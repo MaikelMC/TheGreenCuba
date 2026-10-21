@@ -7,7 +7,7 @@ const STEPS = [
   {
     title: "Escribe lo que quieres",
     description:
-      "No necesitas elegir categorías ni llenar filtros. Simplemente describe lo que buscas como lo harías con un amigo: \"un café tranquilo cerca de mí que acepte USD Clásica\".",
+      "No necesitas elegir categorías ni llenar filtros. Simplemente describe lo que buscas como lo harías con un amigo: “un café tranquilo cerca de mí que acepte USD Clásica”.",
   },
   {
     title: "La Verde interpreta",
@@ -62,7 +62,7 @@ export function HowItWorks() {
   return (
     <section
       id="como-funciona"
-      className="border-t border-ink/5 bg-sand py-24 sm:py-32"
+      className="scroll-mt-24 border-t border-ink/5 bg-sand py-24 sm:py-32"
     >
       <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
         <motion.div

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { EASE, fadeUp, heroContainer } from "./anim";
 
@@ -14,11 +14,16 @@ const PHRASES = [
   "Lugar con wifi para trabajar remoto",
 ];
 
-function TypingAnimation() {
+function TypingAnimation({ paused }: { paused: boolean }) {
+  const reduceMotion = useReducedMotion();
   const [displayed, setDisplayed] = useState("");
   const [showCursor, setShowCursor] = useState(true);
 
+  /* Con movimiento reducido no hay bucle ni cursor: se queda la primera frase
+     entera. Además el bucle se detiene mientras el puntero o el foco están
+     encima, que es el control de pausa que pide una animación automática. */
   useEffect(() => {
+    if (reduceMotion || paused) return;
     let phraseIdx = 0;
     let charIdx = 0;
     let isDeleting = false;
@@ -50,14 +55,17 @@ function TypingAnimation() {
 
     timeout = setTimeout(step, 400);
     return () => clearTimeout(timeout);
-  }, []);
+  }, [reduceMotion, paused]);
 
   useEffect(() => {
+    if (reduceMotion || paused) return;
     const blink = setInterval(() => {
       setShowCursor((v) => !v);
     }, 530);
     return () => clearInterval(blink);
-  }, []);
+  }, [reduceMotion, paused]);
+
+  if (reduceMotion) return <span>{PHRASES[0]}</span>;
 
   return (
     <span>
@@ -106,7 +114,7 @@ function ZonesMarquee() {
     >
       {/* El carril lleva la lista duplicada: `animate-marquee` desplaza -50%,
           que es exactamente una copia, así que el bucle no tiene costura. */}
-      <div className="flex w-max shrink-0 animate-marquee gap-10 motion-reduce:animate-none">
+      <div className="flex w-max shrink-0 animate-marquee gap-10 hover:[animation-play-state:paused] motion-reduce:animate-none">
         {[...ZONES, ...ZONES].map((zone, i) => (
           <span
             key={i}
@@ -121,6 +129,8 @@ function ZonesMarquee() {
 }
 
 export function Hero() {
+  const [typingPaused, setTypingPaused] = useState(false);
+
   return (
     // `lv-grid-glow` es el cielo del sistema: dos radiales verdes sobre un
     // degradado casi negro. Único fondo oscuro de la landing junto al footer.
@@ -187,11 +197,16 @@ export function Hero() {
                 de esa curva. En móvil va `rounded-4xl`, que respeta la caja. */}
             <motion.div
               variants={fadeUp}
+              onMouseEnter={() => setTypingPaused(true)}
+              onMouseLeave={() => setTypingPaused(false)}
+              onFocusCapture={() => setTypingPaused(true)}
+              onBlurCapture={() => setTypingPaused(false)}
               className="mx-auto mt-gap-2xl flex w-full max-w-[600px] flex-col gap-2 rounded-4xl border border-white/10 bg-white/5 p-1.5 backdrop-blur-sm md:flex-row md:items-center md:rounded-full"
             >
               <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2">
                 <div className="ml-2 flex size-10 shrink-0 items-center justify-center text-verde-300">
                   <svg
+                    aria-hidden
                     width="20"
                     height="20"
                     viewBox="0 0 24 24"
@@ -204,8 +219,8 @@ export function Hero() {
                     <path d="M21 21l-4.35-4.35" />
                   </svg>
                 </div>
-                <div className="min-w-0 flex-1 truncate py-2 text-left text-[16px] text-white/50">
-                  <TypingAnimation />
+                <div aria-hidden className="min-w-0 flex-1 truncate py-2 text-left text-[16px] text-white/50">
+                  <TypingAnimation paused={typingPaused} />
                 </div>
               </div>
               {/* `min-h-11` iguala el botón con la fila del input: antes medía
@@ -216,6 +231,7 @@ export function Hero() {
                   solo como se centraba en el `<button>`. */}
               <Link
                 href="/login"
+                aria-label="Inicia sesión para buscar"
                 className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-verde-400 px-5 text-sm font-semibold text-verde-950 transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] max-md:w-full max-md:text-center"
               >
                 Buscar

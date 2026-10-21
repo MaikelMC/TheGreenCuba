@@ -166,6 +166,16 @@ export async function POST(req: NextRequest) {
   if (!name) {
     return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
   }
+  /* Sin provincia la tarjeta del landing pinta una línea vacía y la ficha no
+     sale en los filtros por provincia. Es un dato de presentación en toda la
+     app, así que el alta no lo deja en blanco. */
+  const province = typeof body.province === "string" ? body.province.trim() : "";
+  if (!province) {
+    return NextResponse.json(
+      { error: "La provincia es obligatoria" },
+      { status: 400 },
+    );
+  }
   if (!Number.isFinite(body.lat) || !Number.isFinite(body.lng)) {
     return NextResponse.json(
       { error: "Hacen falta coordenadas válidas: el negocio no se puede situar en el mapa." },

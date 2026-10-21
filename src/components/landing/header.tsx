@@ -47,7 +47,8 @@ export function Header() {
       initial={{ y: -12, opacity: 1 }}
       animate={{ y: visible ? 0 : -100, opacity: visible ? 1 : 0 }}
       transition={{ duration: 0.45, ease: EASE }}
-      className="fixed inset-x-0 top-0 z-50 px-gutter pt-3 md:px-gutter-lg"
+      onFocusCapture={() => setVisible(true)}
+      className="fixed inset-x-0 top-0 z-50 px-gutter pt-[calc(0.75rem+env(safe-area-inset-top))] md:px-gutter-lg"
     >
       <div className="landing-nav-surface mx-auto flex h-14 max-w-3xl items-center justify-between rounded-full bg-verde-950/70 pl-4 pr-2 ring-1 ring-white/10 backdrop-blur-2xl">
         <Link
@@ -81,10 +82,11 @@ export function Header() {
           <Sheet>
             <SheetTrigger asChild>
               <button
-                className="grid size-10 place-items-center rounded-full text-white sm:hidden"
+                className="grid size-10 place-items-center rounded-full text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-300/70 sm:hidden"
                 aria-label="Abrir menú"
               >
                 <svg
+                  aria-hidden
                   width="22"
                   height="22"
                   viewBox="0 0 24 24"

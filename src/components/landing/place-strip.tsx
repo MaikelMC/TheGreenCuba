@@ -51,7 +51,7 @@ function PlaceCard({
     <Link
       href={`/place/${place.id}`}
       tabIndex={clone ? -1 : undefined}
-      className="group flex w-[280px] shrink-0 transform flex-col gap-4 rounded-xl border border-ink/5 bg-white p-4 shadow-sm transition duration-300 ease-outquint hover:scale-[1.02] hover:border-verde-300 hover:shadow-card focus-visible:scale-[1.02]"
+      className="group flex w-[280px] shrink-0 transform flex-col gap-4 rounded-xl border border-ink/5 bg-white p-4 shadow-sm transition duration-300 ease-outquint hover:scale-[1.02] hover:border-verde-300 hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 focus-visible:ring-offset-2"
     >
       <div className="flex items-center gap-3">
         {/* La marca del negocio si la subió, y si no el icono de ubicación. La
@@ -67,26 +67,31 @@ function PlaceCard({
               className="object-cover"
             />
           ) : (
-            <MapPin size={17} strokeWidth={1.8} />
+            <MapPin size={17} strokeWidth={1.8} aria-hidden />
           )}
         </span>
-        <div className="flex-1">
-          <h3 className="font-lv-display text-base font-semibold tracking-[-0.01em] text-ink group-hover:text-verde-700">
+        <div className="min-w-0 flex-1">
+          <h3 className="break-words font-lv-display text-base font-semibold tracking-[-0.01em] text-ink group-hover:text-verde-700">
             {place.name}
           </h3>
           <p className="flex items-center gap-2 text-sm text-ink-soft/75">
-            {place.category}
+            <span className="truncate">{place.category}</span>
             {place.barrio ? (
               <>
-                <span className="mx-1">·</span>
-                <span>{place.barrio}</span>
+                <span className="mx-1 shrink-0">·</span>
+                <span className="truncate">{place.barrio}</span>
               </>
             ) : null}
           </p>
           {place.rating ? (
             <div className="mt-1 flex items-center gap-1 text-sm font-semibold text-verde-600">
-              <Star size={14} fill="currentColor" />
-              <span>{place.rating.toFixed(1)}</span>
+              <Star size={14} fill="currentColor" aria-hidden />
+              <span>
+                {place.rating.toLocaleString("es-CU", {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })}
+              </span>
             </div>
           ) : null}
         </div>
@@ -105,6 +110,24 @@ export function PlaceStrip({ places }: { places: PlaceStripPlace[] }) {
   const [selectedProvince, setSelectedProvince] = React.useState<string | null>(
     null,
   );
+
+  /* El filtro vive en la URL: se puede compartir y sobrevive al refresco. Se
+     lee después de montar para no romper la hidratación, y se escribe con
+     `replaceState` para no recargar ni perder la posición de la página. */
+  React.useEffect(() => {
+    const province = new URLSearchParams(window.location.search).get(
+      "provincia",
+    );
+    if (province) setSelectedProvince(province);
+  }, []);
+
+  function selectProvince(province: string | null) {
+    setSelectedProvince(province);
+    const url = new URL(window.location.href);
+    if (province) url.searchParams.set("provincia", province);
+    else url.searchParams.delete("provincia");
+    window.history.replaceState(null, "", url);
+  }
 
   if (places.length === 0) return null;
 
@@ -152,7 +175,8 @@ export function PlaceStrip({ places }: { places: PlaceStripPlace[] }) {
           <div className="mx-auto mt-6 flex flex-wrap gap-2 justify-center">
             <button
               type="button"
-              onClick={() => setSelectedProvince(null)}
+              onClick={() => selectProvince(null)}
+              aria-pressed={selectedProvince === null}
               className={cn(
                 "px-4 py-2 rounded-full font-lv-display text-sm font-medium",
                 selectedProvince === null
@@ -166,7 +190,8 @@ export function PlaceStrip({ places }: { places: PlaceStripPlace[] }) {
               <button
                 key={province}
                 type="button"
-                onClick={() => setSelectedProvince(province)}
+                onClick={() => selectProvince(province)}
+                aria-pressed={selectedProvince === province}
                 className={cn(
                   "px-4 py-2 rounded-full font-lv-display text-sm font-medium",
                   selectedProvince === province
@@ -203,7 +228,7 @@ export function PlaceStrip({ places }: { places: PlaceStripPlace[] }) {
           ) : (
             <div
               id="places-track"
-              className="flex w-max animate-marquee hover:[animation-play-state:paused] motion-reduce:animate-none motion-reduce:hover:[animation-play-state:running] [mask-image:linear-gradient(to_right,transparent,black_5%,black_95%,transparent)]"
+              className="flex w-max animate-marquee hover:[animation-play-state:paused] focus-within:[animation-play-state:paused] motion-reduce:animate-none [mask-image:linear-gradient(to_right,transparent,black_5%,black_95%,transparent)]"
             >
               {[0, 1].map((copy) => (
                 <div

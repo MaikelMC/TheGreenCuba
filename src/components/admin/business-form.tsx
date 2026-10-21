@@ -44,6 +44,7 @@ import {
   MapLocationPicker,
   type LocationPoint,
 } from "@/components/map/MapLocationPicker";
+import { CUBA_PROVINCES } from "@/lib/user-preferences-store";
 import { usePlaces } from "@/providers/places-provider";
 import type {
   NewUserPlace,
@@ -116,6 +117,9 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
      escribe en la base es el PATCH del formulario al guardar. */
   const [logoUrl, setLogoUrl] = useState(initial?.logoUrl ?? "");
   const [barrio, setBarrio] = useState(initial?.barrio ?? "");
+  /* La provincia no se pedía y las fichas nacían con «» en la columna: sus
+     tarjetas del landing salían sin provincia y no entraban en los filtros. */
+  const [province, setProvince] = useState(initial?.province ?? "");
   const [address, setAddress] = useState(initial?.address ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
   /* Sección «Contacto». Mismos cuatro campos que el formulario del perfil:
@@ -161,6 +165,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
     icon,
     logoUrl,
     barrio,
+    province,
     address,
     phone,
     website,
@@ -206,6 +211,13 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
       document.getElementById("bfName")?.focus();
       return;
     }
+    if (!province) {
+      setFormError(
+        "Elige la provincia del negocio. Está en «Información del negocio».",
+      );
+      document.getElementById("bfProvince")?.focus();
+      return;
+    }
     if (!location) {
       setFormError(
         "Elige el punto del negocio en el mapa: toca el mapa para colocar el pin o usa el botón 'Mi ubicación'. Está en «Ubicación en el mapa».",
@@ -226,6 +238,11 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
       lng: location.lng,
       address: address.trim(),
       barrio: barrio.trim(),
+      /* Ciudad y provincia comparten valor: es la convención del alta desde el
+         perfil, y de ahí comen el filtro de provincias del landing y el
+         `PostalAddress` del marcado estructurado. */
+      city: province,
+      province,
       phone: phone.trim(),
       website: website.trim(),
       whatsapp: whatsapp.trim(),
@@ -301,6 +318,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
     logoUrl,
     address,
     barrio,
+    province,
     phone,
     website,
     whatsapp,
@@ -403,6 +421,24 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex flex-col gap-gap-xs">
+              <label htmlFor="bfProvince" className={LABEL}>
+                Provincia
+              </label>
+              <select
+                id="bfProvince"
+                value={province}
+                onChange={(e) => setProvince(e.target.value)}
+                className={INPUT}
+              >
+                <option value="">Elige una provincia…</option>
+                {CUBA_PROVINCES.map((option) => (
+                  <option key={option.value} value={option.label}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="flex flex-col gap-gap-xs">
               <label htmlFor="bfBarrio" className={LABEL}>

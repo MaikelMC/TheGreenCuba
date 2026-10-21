@@ -10,6 +10,7 @@ const FEATURES = [
       "No es un chatbot genérico. La Verde conoce barrios, monedas, horarios y costumbres cubanas para darte resultados reales.",
     icon: (
       <svg
+        aria-hidden
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -28,6 +29,7 @@ const FEATURES = [
       "La Verde te recomienda según tu ubicación, la hora, el momento y lo que buscas. Como un amigo que conoce bien la ciudad.",
     icon: (
       <svg
+        aria-hidden
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -46,6 +48,7 @@ const FEATURES = [
       "Funciona con conexión lenta. Usa mapas ligeros, caché inteligente y estados de carga para que nunca veas una pantalla en blanco.",
     icon: (
       <svg
+        aria-hidden
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -95,7 +98,6 @@ export function Features() {
               <motion.div
                 key={f.title}
                 variants={fadeUp}
-                whileTap={{ scale: 0.98 }}
                 className="group rounded-4xl border border-ink/5 bg-white p-7 shadow-soft transition duration-500 ease-outquint hover:-translate-y-1 hover:shadow-card"
               >
                 <motion.div

@@ -102,6 +102,14 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* El desplazamiento suave también es movimiento: con la preferencia activa
+     los anclas saltan sin animación. */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
   body {
     @apply bg-background text-foreground font-body antialiased;
     text-rendering: optimizeLegibility;
@@ -757,6 +765,27 @@
 
   .skip-link:focus {
     top: 0.75rem;
+  }
+
+  /* Foco visible de la navegación de la portada y del pie. El outline por
+     defecto se pierde sobre la pastilla translúcida del header y sobre el
+     verde oscuro del footer, así que se declara un anillo de la marca. */
+  .landing-nav-surface a:focus-visible {
+    outline: 2px solid #9fddb9; /* verde-300 */
+    outline-offset: 2px;
+    border-radius: 9999px;
+  }
+
+  .landing-mobile-nav-link:focus-visible {
+    outline: 2px solid #0f7a41; /* verde-600 */
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+
+  .landing-footer a:focus-visible {
+    outline: 2px solid #9fddb9; /* verde-300 */
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 
   .scrollbar-hide {

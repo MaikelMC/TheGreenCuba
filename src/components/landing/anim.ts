@@ -4,15 +4,15 @@ import type { Variants } from "motion/react";
 // aquí, así que no cambia.
 export const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
-// El sistema pide reveals lentos (0.9s) y un desenfoque que se disuelve. El
-// desenfoque es lo que hace que la entrada se lea como "aparece" y no como
-// "se desliza".
+// El sistema pide reveals lentos (0.9s). Solo opacidad y desplazamiento: el
+// desenfoque que había antes también se animaba, cuesta en gama baja y
+// `reducedMotion="user"` no lo apaga, así que se quedaba con movimiento
+// reducido. La entrada sigue leyéndose como "aparece".
 export const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 30, filter: "blur(6px)" },
+  hidden: { opacity: 0, y: 30 },
   show: {
     opacity: 1,
     y: 0,
-    filter: "blur(0px)",
     transition: { duration: 0.9, ease: EASE },
   },
 };
