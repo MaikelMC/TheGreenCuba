@@ -20,6 +20,15 @@ export const TERMS_UPDATED_LABEL = "septiembre de 2026";
 export const SUPPORT_EMAIL = "laverdecuba@gmail.com";
 
 /**
+ * El WhatsApp que recibe los pagos por transferencia en CUP.
+ *
+ * Mientras no exista el cobro automático, quien elige transferir sale de la
+ * pasarela y acuerda el pago por aquí. En cuanto haya API de transferencias,
+ * este número deja de pintarse y el flujo vuelve a ser el mismo que QvaPay.
+ */
+export const SUPPORT_WHATSAPP = "+5355336238";
+
+/**
  * Quién responde de los datos.
  *
  * Todavía no hay entidad constituida, así que queda el hueco marcado en lugar de

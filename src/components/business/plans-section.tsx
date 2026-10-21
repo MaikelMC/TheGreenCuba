@@ -2,9 +2,18 @@
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, Sparkles } from "lucide-react";
+import { Check, Loader2, MessageCircle, Sparkles, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { whatsappHref } from "@/lib/contact-links";
+import { SUPPORT_WHATSAPP } from "@/lib/legal";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   PACKS_ORDER,
   PLAN_ORDER,
@@ -67,6 +76,13 @@ export function PlansSection({
   const [pendiente, setPendiente] = useState<Plan | null>(null);
   /** «plan:pro» o «modulo:menu_pro» mientras se abre la factura. */
   const [pagando, setPagando] = useState<string | null>(null);
+  /** Lo que se va a cobrar, mientras se elige QvaPay o transferencia. */
+  const [cobro, setCobro] = useState<{
+    tipo: "plan" | "modulo";
+    clave: string;
+    nombre: string;
+    usd: number;
+  } | null>(null);
 
   const indice = PLAN_ORDER.indexOf(plan);
   const siguiente = PLAN_ORDER[indice + 1] ?? null;
@@ -128,6 +144,23 @@ export function PlansSection({
     }
   }
 
+  /* Antes de abrir nada se pregunta el método: QvaPay cobra al momento y la
+     transferencia en CUP se acuerda por WhatsApp, que es lo único que hay
+     mientras el cobro automático de transferencias no exista. */
+  function pedirMetodo(
+    tipo: "plan" | "modulo",
+    clave: string,
+    nombre: string,
+    usd: number,
+  ) {
+    if (pagando) return;
+    setCobro({ tipo, clave, nombre, usd });
+  }
+
+  const mensajeCup = cobro
+    ? `Hola, quiero pagar ${cobro.nombre} de La Verde (${cobro.usd} USD al mes, ${textoCup(cobro.usd, cat)}) por transferencia en CUP.`
+    : "";
+
   return (
     <section>
       {/* El nombre de la sección no se repite: ya está en el navbar. */}
@@ -177,7 +210,14 @@ export function PlansSection({
               clave={clave}
               pagando={pagando === `modulo:${clave}`}
               bloqueado={pagando !== null}
-              onPagar={() => pagar("modulo", clave)}
+              onPagar={() =>
+                pedirMetodo(
+                  "modulo",
+                  clave,
+                  cat.modulos[clave].nombre,
+                  cat.modulos[clave].usd,
+                )
+              }
             />
           ))}
         </div>
@@ -198,7 +238,9 @@ export function PlansSection({
               pagando={pagando === `plan:${p}`}
               pagandoAlgo={pagando !== null}
               onElegir={() => elegir(p)}
-              onPagar={() => pagar("plan", p)}
+              onPagar={() =>
+                pedirMetodo("plan", p, nombreDe(p, cat), cat.packs[p].usd)
+              }
             />
           ))}
         </div>
@@ -216,6 +258,62 @@ export function PlansSection({
           La prueba entra sola al registrarte y no hay que pagar nada por ella.
         </li>
       </ul>
+
+      {/* QvaPay sigue siendo el camino automático; la transferencia en CUP
+          acaba en el WhatsApp de soporte hasta que exista su API. */}
+      <Dialog
+        open={cobro !== null}
+        onOpenChange={(abierto) => {
+          if (!abierto && !pagando) setCobro(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Cómo quieres pagar?</DialogTitle>
+            <DialogDescription>
+              {cobro && (
+                <>
+                  {cobro.nombre} · {cobro.usd} USD al mes (
+                  {textoCup(cobro.usd, cat)})
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-gap-sm">
+            <button
+              type="button"
+              onClick={() => {
+                if (!cobro) return;
+                const { tipo, clave } = cobro;
+                setCobro(null);
+                void pagar(tipo, clave);
+              }}
+              disabled={pagando !== null}
+              className="flex h-11 w-full items-center justify-center gap-gap-xs rounded-full bg-verde-400 font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Wallet size={16} strokeWidth={2} />
+              Pagar con QvaPay
+            </button>
+
+            <a
+              href={`${whatsappHref(SUPPORT_WHATSAPP)}?text=${encodeURIComponent(mensajeCup)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setCobro(null)}
+              className="flex h-11 w-full items-center justify-center gap-gap-xs rounded-full border border-ink/10 bg-white font-lv-display text-small font-semibold text-ink transition duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700"
+            >
+              <MessageCircle size={16} strokeWidth={2} />
+              Transferir en CUP por WhatsApp
+            </a>
+          </div>
+
+          <p className="text-meta text-ink-soft/75">
+            La transferencia se acuerda en el chat. El plan se activa cuando se
+            confirme el pago.
+          </p>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
