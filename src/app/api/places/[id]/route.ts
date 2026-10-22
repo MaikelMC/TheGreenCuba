@@ -12,9 +12,17 @@ import { DEV_PLACE_ID } from "@/lib/dev-place";
 import { saveDevPlaceOverride } from "@/lib/dev-place-server";
 import { trackEvent } from "@/lib/analytics/events";
 import { db } from "@/lib/db";
-import { businessOwners, notifications, ofertas, places, users } from "@/lib/db/schema";
+import {
+  businessOwners,
+  notifications,
+  novedades,
+  ofertas,
+  places,
+  users,
+} from "@/lib/db/schema";
 import { generateId } from "@/lib/utils";
 import { validarOferta } from "@/lib/ofertas";
+import { cambiosDeCarta } from "@/lib/novedades";
 import { toPlaceValues, toUserPlace } from "@/lib/db/mappers";
 import {
   getPlaceById,
@@ -51,11 +59,18 @@ type Params = { params: Promise<{ id: string }> };
 async function leerFichaPrevia(id: string): Promise<{
   menu: UserPlaceMenuItem[];
   status: PlaceStatus;
+  description: string | null;
+  schedule: string | null;
   ofertaIds: Set<string>;
 }> {
   const [filas, ofertasPrevias] = await Promise.all([
     db
-      .select({ menu: places.menu, status: places.status })
+      .select({
+        menu: places.menu,
+        status: places.status,
+        description: places.description,
+        schedule: places.schedule,
+      })
       .from(places)
       .where(eq(places.id, id))
       .limit(1),
@@ -75,8 +90,18 @@ async function leerFichaPrevia(id: string): Promise<{
     /* El respaldo no adivina nada: sin fila, el `update` de abajo responde 404 y
        no hay ningún aviso que mandar. */
     status: fila?.status ?? "active",
+    description: fila?.description ?? null,
+    schedule: fila?.schedule ?? null,
     ofertaIds: new Set(ofertasPrevias.map((f) => f.id)),
   };
+}
+
+/** ¿Cambió el texto de verdad? Vacío y `null` son lo mismo: «no lo dijo». */
+function difiereTexto(
+  antes: string | null | undefined,
+  ahora: string | null | undefined,
+): boolean {
+  return (antes ?? "").trim() !== (ahora ?? "").trim();
 }
 
 /**
@@ -412,7 +437,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const previo =
     Array.isArray(body.ofertas) ||
     Array.isArray(body.menu) ||
-    body.status !== undefined
+    body.status !== undefined ||
+    body.description !== undefined ||
+    body.schedule !== undefined
       ? await leerFichaPrevia(id)
       : null;
 
@@ -651,6 +678,82 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       after(async () => {
         await avisarCambios(id, avisos);
       });
+    }
+  }
+
+  /* ── Novedades del home ────────────────────────────────────────────────
+     Lo que el negocio cambió en su carta o en su ficha se guarda para que el
+     home lo pueda enseñar. Solo para negocios verificados: los demás no salen
+     en la sección aunque guarden. Las **ofertas no se guardan aquí**; viven en
+     su tabla y el endpoint las lee en vivo.
+
+     Best-effort a propósito: esto es un extra, y un fallo al escribirlo no
+     puede tumbar el guardado que el dueño acaba de hacer. */
+  if (previo && row.verificado) {
+    const { productosNuevos, cambiosPrecio } = cambiosDeCarta(
+      previo.menu,
+      row.menu,
+    );
+    const filas: (typeof novedades.$inferInsert)[] = [];
+
+    for (const producto of productosNuevos) {
+      filas.push({
+        id: generateId(),
+        negocioId: id,
+        tipo: "producto_nuevo",
+        titulo: `Nuevo en la carta: ${producto.nombre}`,
+        productoId: producto.productoId ?? null,
+        productoNombre: producto.nombre,
+        imagenUrl: producto.imagenUrl ?? null,
+      });
+    }
+
+    for (const producto of cambiosPrecio) {
+      filas.push({
+        id: generateId(),
+        negocioId: id,
+        tipo: "cambio_precio",
+        titulo: `${producto.nombre} cambió de precio`,
+        productoId: producto.productoId ?? null,
+        productoNombre: producto.nombre,
+        imagenUrl: producto.imagenUrl ?? null,
+        precioAntes: producto.precioAntes ?? null,
+        precioAhora: producto.precio,
+      });
+    }
+
+    if (row.status === "active" && previo.status !== "active") {
+      filas.push({
+        id: generateId(),
+        negocioId: id,
+        tipo: "actualizacion",
+        titulo: "Volvió a abrir",
+      });
+    }
+    if (difiereTexto(previo.description, row.description)) {
+      filas.push({
+        id: generateId(),
+        negocioId: id,
+        tipo: "actualizacion",
+        titulo: "Descripción actualizada",
+      });
+    }
+    if (difiereTexto(previo.schedule, row.schedule)) {
+      filas.push({
+        id: generateId(),
+        negocioId: id,
+        tipo: "actualizacion",
+        titulo: "Horario actualizado",
+        texto: row.schedule?.trim() || null,
+      });
+    }
+
+    if (filas.length > 0) {
+      try {
+        await db.insert(novedades).values(filas);
+      } catch {
+        /* Sin novedad, pero el guardado sigue. */
+      }
     }
   }
 

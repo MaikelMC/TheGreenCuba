@@ -36,6 +36,7 @@ import { PlaceCard } from "@/components/layout/place-card";
 import { SearchingAnimation } from "@/components/layout/searching-animation";
 import { MapView } from "@/components/map/MapView";
 import { MapNotifications } from "@/components/map/map-notifications";
+import { NovedadesMapa } from "@/components/map/novedades-mapa";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { PlaceFilters } from "@/components/place/place-filters";
 import { StateView } from "@/components/ui/state-view";
@@ -1558,6 +1559,11 @@ function HomePageContent() {
             interruptor de claro/oscuro. Van juntos para que se apilen con la
             misma separación sin repetir la posición en dos sitios. */}
         <div className="absolute right-gutter top-[110px] z-30 flex flex-col items-end gap-[10px]">
+          <NovedadesMapa
+            ubicacion={userLocation}
+            provincia={userProvinceLabel(userPreferences)}
+            userId={userId}
+          />
           <MapNotifications />
           <ThemeToggle />
         </div>

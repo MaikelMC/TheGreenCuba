@@ -1,6 +1,6 @@
 "use client";
 
-import { Children, useState, type ReactNode } from "react";
+import { Children, useRef, useState, type ReactNode, type TouchEvent } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 /**
@@ -18,14 +18,43 @@ const FLECHA =
 
 export function OfertasCarrusel({ children }: { children: ReactNode }) {
   const [indice, setIndice] = useState(0);
+  const inicio = useRef<{ x: number; y: number } | null>(null);
   const tarjetas = Children.toArray(children);
   const total = tarjetas.length;
 
   if (total < 2) return <>{tarjetas}</>;
 
+  /* Un dedo sobre la tarjeta también pasa de oferta. Solo cuenta el gesto
+     claramente horizontal: si el desplazamiento vertical manda, el usuario
+     está haciendo scroll y no se toca nada. */
+  const alTocar = (evento: TouchEvent) => {
+    const toque = evento.touches[0];
+    inicio.current = toque
+      ? { x: toque.clientX, y: toque.clientY }
+      : null;
+  };
+
+  const alSoltar = (evento: TouchEvent) => {
+    const desde = inicio.current;
+    inicio.current = null;
+    if (!desde) return;
+
+    const toque = evento.changedTouches[0];
+    if (!toque) return;
+    const dx = toque.clientX - desde.x;
+    const dy = toque.clientY - desde.y;
+    if (Math.abs(dx) < 40 || Math.abs(dx) <= Math.abs(dy)) return;
+
+    setIndice((i) => Math.min(total - 1, Math.max(0, i + (dx < 0 ? 1 : -1))));
+  };
+
   return (
     <div>
-      <div className="overflow-hidden">
+      <div
+        className="overflow-hidden touch-pan-y"
+        onTouchStart={alTocar}
+        onTouchEnd={alSoltar}
+      >
         <div
           className="flex transition-transform duration-500 ease-outquint"
           style={{ transform: `translateX(-${indice * 100}%)` }}

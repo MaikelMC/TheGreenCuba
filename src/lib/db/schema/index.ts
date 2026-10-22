@@ -27,3 +27,4 @@ export * from "./place_overrides";
 export * from "./ranking";
 export * from "./catalogo_planes";
 export * from "./pagos";
+export * from "./novedades";

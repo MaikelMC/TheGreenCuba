@@ -46,8 +46,11 @@ export function userProvinceLabel(prefs: UserPreferences | null | undefined): st
   return label;
 }
 
+/** Lo mínimo para situar un negocio: sirve una fila de `places` recortada. */
+type ConUbicacion = Pick<UserPlace, "province" | "city">;
+
 /** La provincia del negocio, tal como la escribió quien lo dio de alta. */
-function placeProvince(p: UserPlace): string {
+function placeProvince(p: ConUbicacion): string {
   return (p.province || p.city || "").trim();
 }
 
@@ -65,7 +68,7 @@ function placeProvince(p: UserPlace): string {
  * de eso se encarga `placeOutsideUserProvince`, y la diferencia tiene su
  * porqué escrito allí.
  */
-export function placeInUserProvince(place: UserPlace, provinceLabel: string): boolean {
+export function placeInUserProvince(place: ConUbicacion, provinceLabel: string): boolean {
   const placeP = normalize(placeProvince(place));
   if (!placeP) return false;
   const target = normalize(provinceLabel);
@@ -93,7 +96,7 @@ export function placeInUserProvince(place: UserPlace, provinceLabel: string): bo
  * administración, que sin esto ofrecería las dieciséis provincias en cuanto
  * hubiera una solicitud sin rellenar.
  */
-export function placeOutsideUserProvince(place: UserPlace, provinceLabel: string): boolean {
+export function placeOutsideUserProvince(place: ConUbicacion, provinceLabel: string): boolean {
   if (!normalize(placeProvince(place))) return false;
   return !placeInUserProvince(place, provinceLabel);
 }

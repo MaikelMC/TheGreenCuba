@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
+import { PuntoNuevo } from "@/components/ui/punto-nuevo";
 import {
   AlertCircle,
   Bell,
@@ -169,34 +170,7 @@ export function MapNotifications() {
         className="relative grid size-11 place-items-center rounded-full border border-ink/10 bg-white text-ink shadow-soft transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-600"
       >
         <Bell size={18} strokeWidth={1.8} />
-        {unread > 0 && (
-          <span
-            aria-hidden
-            className="absolute right-[2px] top-[2px] grid place-items-center"
-          >
-            {/* El halo que late es lo que hace que se vea de reojo; el punto
-                sólido queda para quien pide menos movimiento.
-
-                Ensanchado y con tres paradas: de una sola pasada el halo salía
-                disparado y el ciclo volvía a empezar de golpe. Con la parada de
-                en medio crece en dos tramos, arranca más suave, y la vuelta al
-                principio pilla la opacidad ya en cero. */}
-            <motion.span
-              className="absolute size-3 rounded-full bg-verde-500"
-              animate={{
-                opacity: [0.45, 0.16, 0],
-                scale: [1, 1.42, 1.9],
-              }}
-              transition={{
-                duration: 2.4,
-                repeat: Infinity,
-                ease: "easeInOut",
-                times: [0, 0.55, 1],
-              }}
-            />
-            <span className="relative size-3 rounded-full bg-verde-500 ring-2 ring-white" />
-          </span>
-        )}
+        {unread > 0 && <PuntoNuevo className="right-[2px] top-[2px]" />}
       </motion.button>
 
       <AnimatePresence>
