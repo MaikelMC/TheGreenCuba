@@ -1,18 +1,16 @@
 import { Fragment, type ReactNode } from "react";
+import { BuscadorMenu } from "@/components/menu/buscador-menu";
 
 /**
- * El filtro por categoría de la carta.
+ * El filtro por categoría y el buscador de productos de la carta.
  *
- * **No filtra: salta.** La carta entera está siempre en la página y un chip
- * lleva hasta el grupo que nombra. Antes escondía los demás grupos —y por eso
- * necesitaba estado y era isla de cliente—, pero quien tocaba una categoría
- * perdía de vista el resto y el chip pasaba a decir qué estaba viendo en vez de
- * dónde ir.
+ * **Los chips no filtran: saltan.** La carta entera está siempre en la página y
+ * un chip lleva hasta el grupo que nombra. Al ser anclas el navegador se
+ * encarga: funcionan sin JavaScript, el gesto de atrás devuelve a donde estabas
+ * y el enlace de una categoría se puede copiar.
  *
- * Al ser anclas el navegador se encarga: funcionan sin JavaScript, el gesto de
- * atrás devuelve a donde estabas y el enlace de una categoría se puede copiar.
- * Los grupos le siguen llegando montados desde el servidor, así que esto no
- * cuesta ni una fila de JavaScript.
+ * El buscador sí es isla de cliente, pero solo para ocultar tarjetas que ya
+ * están servidas: no pide nada ni repinta la carta. Ver `BuscadorMenu`.
  */
 
 export interface CartaGrupo {
@@ -45,35 +43,33 @@ export function CartaMenu({ groups }: { groups: CartaGrupo[] }) {
   const conNombre = groups.filter((group) => group.name !== null);
 
   return (
-    <>
-      {conNombre.length > 1 && (
-        <nav
-          aria-label="Categorías del menú"
-          /* Una sola fila que se desliza en horizontal. `flex-wrap` las apilaba
-             en tres o cuatro líneas en el teléfono y empujaba la carta hacia
-             abajo.
-             `sticky` con fondo opaco: el filtro sigue a mano al bajar por la
-             carta —si no, hay que volver arriba para cambiar de categoría— y el
-             fondo tapa las tarjetas que pasan por debajo. `carta-filtros` es
-             quien fija el color en oscuro: ahí el fondo de la página es el del
-             `body` (`#08130d`), no el de una superficie, y `bg-background` solo
-             caía en el `#0e1720` de las tarjetas. Ver `globals.css`.
+    <div data-carta>
+      {/* `sticky` con fondo opaco: el buscador y los chips siguen a mano al
+          bajar por la carta —si no, hay que volver arriba para buscar o cambiar
+          de categoría— y el fondo tapa las tarjetas que pasan por debajo.
+          `carta-filtros` es quien fija el color en oscuro: ahí el fondo de la
+          página es el del `body` (`#08130d`), no el de una superficie, y
+          `bg-background` solo caía en el `#0e1720` de las tarjetas. Ver
+          `globals.css`.
 
-             El alto sale del token, y el desplazamiento horizontal vive en el
-             div de dentro: el degradado del borde se aplica con una máscara, y
-             una máscara sobre el nav apagaría también su fondo, que es lo que
-             tapa las tarjetas al pasar por debajo. */
-          className="carta-filtros sticky top-0 z-20 mb-gap-sm h-[var(--carta-filtros-h)] bg-background"
-        >
-          <div className="carta-filtros-scroll scrollbar-hide flex h-full items-center gap-[6px] overflow-x-auto">
-            {conNombre.map((group) => (
-              <a key={group.name} href={`#${group.id}`} className={CHIP}>
-                {group.name}
-              </a>
-            ))}
-          </div>
-        </nav>
-      )}
+          La fila de chips, cuando existe, se desliza en horizontal: `flex-wrap`
+          las apilaba en tres o cuatro líneas en el teléfono y empujaba la carta
+          hacia abajo. El degradado del borde va en el div del scroll y no en la
+          barra: una máscara sobre la barra apagaría también su fondo, que es lo
+          que tapa las tarjetas al pasar por debajo. */}
+      <BuscadorMenu>
+        {conNombre.length > 1 && (
+          <nav aria-label="Categorías del menú">
+            <div className="carta-filtros-scroll scrollbar-hide flex items-center gap-[6px] overflow-x-auto">
+              {conNombre.map((group) => (
+                <a key={group.name} href={`#${group.id}`} className={CHIP}>
+                  {group.name}
+                </a>
+              ))}
+            </div>
+          </nav>
+        )}
+      </BuscadorMenu>
 
       {/* La clave va por nombre y no por `id`: el nombre es lo que agrupa, así
           que es único; el `id` sale de `slugify` y dos nombres distintos pueden
@@ -83,6 +79,17 @@ export function CartaMenu({ groups }: { groups: CartaGrupo[] }) {
           {group.node}
         </Fragment>
       ))}
-    </>
+
+      {/* Lo enciende `BuscadorMenu` solo cuando hay un término y ninguna
+          tarjeta coincide. `role="status"` lo anuncia quien usa lector. */}
+      <p
+        data-sin-resultados
+        role="status"
+        hidden
+        className="rounded-3xl border border-ink/5 bg-white p-gap-md text-center text-small text-ink-soft/75 shadow-soft"
+      >
+        No hay productos que coincidan con la búsqueda.
+      </p>
+    </div>
   );
 }

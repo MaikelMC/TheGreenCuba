@@ -41,6 +41,10 @@ import {
 } from "@/components/menu/pedido-whatsapp";
 import { EventosMenu } from "@/components/menu/eventos-menu";
 import { CartaMenu, type CartaGrupo } from "@/components/menu/carta-menu";
+import {
+  OfertasHero,
+  type OfertaDestacada,
+} from "@/components/menu/ofertas-hero";
 import { ReservaWhatsApp } from "@/components/place/reserva-whatsapp";
 import { SeguidorBoton } from "@/components/place/seguidor-boton";
 import { MarcaCarta } from "@/components/menu/marca-carta";
@@ -209,8 +213,11 @@ function MenuRow({
   return (
     <div
       /* `data-producto` lo lee la isla de eventos para contar qué se ve. Es el
-         nombre y no el id porque el id puede faltar en las entradas viejas. */
+         nombre y no el id porque el id puede faltar en las entradas viejas.
+         `data-buscar` es el texto que mira el buscador: nombre y descripción,
+         para que «sin cebolla» también encuentre el plato. */
       data-producto={item.name}
+      data-buscar={`${item.name} ${item.description}`}
       /* El apagado de lo agotado va por token, no con `opacity` en la caja: la
          opacidad arrastra también las chapitas de dentro y «Agotado» caía a
          2,3:1. Lo que se apaga es lo que el ojo lee —la foto y el nombre—, y así
@@ -386,6 +393,27 @@ export default async function MenuPage({
      cron y sin escribir nada. Ver `src/lib/ofertas.ts`. */
   const ofertas = ofertasVigentes(place.ofertas);
 
+  /* Las que se pueden destacar: la oferta tiene que apuntar a una entrada que
+     siga en la carta (una huérfana no tiene ni precio ni foto que enseñar) y
+     una sola tarjeta por producto. `ofertas` ya viene ordenada por caducidad,
+     así que la primera que gana es la más urgente, igual que en la fila. */
+  const ofertasDestacadas: OfertaDestacada[] = [];
+  const productosConOferta = new Set<string>();
+  for (const oferta of ofertas) {
+    if (productosConOferta.has(oferta.productoId)) continue;
+    const item = place.menu.find((entrada) => entrada.id === oferta.productoId);
+    if (!item) continue;
+    productosConOferta.add(oferta.productoId);
+    ofertasDestacadas.push({
+      oferta,
+      item,
+      productoId: oferta.productoId,
+      precios: precioConOferta(item.price, oferta),
+      pedible: puedePedir && !estaAgotado(item),
+      agotado: estaAgotado(item),
+    });
+  }
+
   /* El botón de reserva, resuelto con el mismo ayudante que la ficha. El plan lo
      decidió `reservaHabilitada` en el mapeo; aquí solo se traduce a botón. */
   const reserva = configReserva(place);
@@ -433,6 +461,9 @@ export default async function MenuPage({
       node: (
         <div
           id={id}
+          /* `data-grupo` lo lee el buscador para esconder la categoría entera
+             cuando ninguno de sus productos coincide. */
+          data-grupo
           /* El desplazamiento del ancla tiene que librar la barra de filtros, que
            va pegajosa arriba; si no, el titular del grupo amanece debajo de
            ella. `--carta-filtros-h` es su alto y vive en `globals.css`. */
@@ -721,7 +752,16 @@ export default async function MenuPage({
         )}
       </header>
 
-      <section className="mt-gap-lg">
+      {/* Las ofertas vivas, antes que la carta: es lo que el negocio quiere que
+          se vea sin bajar. El componente no pinta nada si no hay ninguna. */}
+      <OfertasHero ofertas={ofertasDestacadas} />
+
+      <section
+        id="menu"
+        /* Las tarjetas de oferta sin categoría enlazan aquí; el salto tiene que
+           librar la barra pegajosa, igual que los chips. */
+        className="mt-gap-lg scroll-mt-[calc(var(--carta-filtros-h)+var(--gap-lg))]"
+      >
         {/* A `text-h3`, el mismo alto que los titulares de categoría: a 16 px
             el titular de la sección quedaba más pequeño que los `h3` que
             encabeza, y la vista decía lo contrario que el marcado. */}

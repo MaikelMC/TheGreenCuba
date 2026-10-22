@@ -7,6 +7,7 @@ import {
   ofertaDe,
   ofertasVigentes,
   parsePrecio,
+  parseRango,
   precioConOferta,
   precioRebajado,
   validarOferta,
@@ -65,12 +66,32 @@ test("un precio de texto libre solo cuenta si es una cifra entera", () => {
   assert.equal(parsePrecio("Desde 8"), null);
 });
 
+test("el rango se lee por sus dos extremos, ordenados", () => {
+  assert.deepEqual(parseRango("100-400"), [100, 400]);
+  assert.deepEqual(parseRango("3–5 USD"), [3, 5]);
+  assert.deepEqual(parseRango(" 3 a 5 "), [3, 5]);
+  assert.deepEqual(parseRango("4,50-2,50"), [2.5, 4.5]);
+  /* Lo que no es exactamente un rango no se adivina. */
+  assert.equal(parseRango("Desde 8"), null);
+  assert.equal(parseRango("100-400 por persona"), null);
+  assert.equal(parseRango("150"), null);
+});
+
 test("porcentaje sobre la carta", () => {
   const diez = oferta({ descuentoPct: 10 });
   assert.deepEqual(precioConOferta("150", diez), { de: "150", por: "135" });
   assert.equal(precioRebajado(2.5, 50), 1.25);
-  /* Sin cifra que tachar no se pinta nada, en vez de inventarse un precio. */
-  assert.equal(precioConOferta("3–5 USD", diez), null);
+  /* Un rango también se rebaja: cada extremo por su cuenta. */
+  assert.deepEqual(precioConOferta("3–5 USD", diez), {
+    de: "3–5 USD",
+    por: "2.7–4.5",
+  });
+  assert.deepEqual(precioConOferta("100-400", oferta({ descuentoPct: 30 })), {
+    de: "100-400",
+    por: "70–280",
+  });
+  /* Lo que no es ni cifra ni rango sigue sin tocarse. */
+  assert.equal(precioConOferta("Desde 8", diez), null);
 });
 
 test("precio rebajado escrito a mano: se enseña tal cual", () => {

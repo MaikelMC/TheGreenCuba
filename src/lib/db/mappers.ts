@@ -17,6 +17,7 @@ import {
 import { enlaceSeguidores } from "@/lib/seguidores";
 import { siteConfig } from "@/config/site";
 import { slugify } from "@/lib/utils";
+import { conIds } from "@/lib/catalogo";
 
 /**
  * Traducción entre las filas de Neon y los tipos que usa la app.
@@ -153,7 +154,13 @@ export function toUserPlace(
        «Tranquilo» y «Con música» del mapa no tenían nada que mirar. */
     vibe: row.vibe ?? [],
     payments: row.paymentMethods ?? [],
-    menu: (row.menu ?? []) as UserPlaceMenuItem[],
+    /* Las entradas guardadas antes de que existiera `id` no lo tienen, y una
+       oferta creada desde el panel apunta al id de respaldo que pone `conIds`
+       (el índice). Sin rellenarlo aquí, esa oferta no encontraba su producto en
+       la carta pública y no salía ni el tachado ni el bloque de ofertas. La
+       misma función que usa el editor, para que el id sea el mismo en los dos
+       lados. Al guardar la carta, el id de respaldo pasa a ser definitivo. */
+    menu: conIds((row.menu ?? []) as UserPlaceMenuItem[]),
     /* El cartel de texto que había aquí se sustituye por las ofertas flash. Las
        columnas `offer_text`/`offer_expiry` siguen en la tabla y siguen
        llegando, porque **los proyectos sí las usan** —ofrecen un paquete, no un

@@ -61,7 +61,11 @@ import {
 import { toast } from "sonner";
 import type { MapPlace } from "@/components/map/types";
 import { usePlaces } from "@/providers/places-provider";
-import { placeIcon, type BusinessCategory } from "@/lib/places";
+import {
+  FILLER_PLACE_IDS,
+  placeIcon,
+  type BusinessCategory,
+} from "@/lib/places";
 import { matchesPlaceFilters } from "@/lib/place-filters";
 import { hayOferta } from "@/lib/ofertas";
 import { energiaParaIA } from "@/lib/energia";
@@ -885,10 +889,15 @@ function HomePageContent() {
   /* Y la lista del panel, que es la que recomienda: ahí sí manda la provincia,
      con los mismos chips encima. Son dos universos a propósito —el mapa
      enseña, la lista sugiere— y por eso el recorte provincial ya no puede
-     colarse en los pines. */
+     colarse en los pines.
+
+     Las fichas de relleno se caen aquí y solo aquí: siguen dibujando su pin en
+     el mapa, pero no se recomiendan. */
   const listVisiblePlaces = useMemo(
     () =>
-      provinceScopedPlaces.filter((p) => matchesPlaceFilters(p, filterContext)),
+      provinceScopedPlaces.filter(
+        (p) => !FILLER_PLACE_IDS.has(p.id) && matchesPlaceFilters(p, filterContext),
+      ),
     [provinceScopedPlaces, filterContext],
   );
 

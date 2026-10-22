@@ -1,4 +1,5 @@
 import { formatDistanceM, haversineM, type RoutePoint } from "@/lib/map/routing";
+import { FILLER_PLACE_IDS } from "@/lib/places";
 import { recommendationScore } from "@/lib/personalized-recommendations";
 import type { UserPlace } from "@/lib/places-store";
 import type { UserPreferences } from "@/lib/user-preferences-store";
@@ -62,6 +63,8 @@ export function buildSearchSuggestions({
   preferences,
 }: SuggestionInput): SearchSuggestion[] {
   const near = places
+    /* Las fichas de relleno decoran el mapa, no se recomiendan. */
+    .filter((place) => !FILLER_PLACE_IDS.has(place.id))
     .map((place) => ({
       place,
       distanceM: haversineM(origin, { lat: place.lat, lng: place.lng }),

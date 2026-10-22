@@ -284,17 +284,11 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
           )}
           onClick={() => inputRef.current?.focus()}
         >
-          {effectiveIsSearching ? (
+          {effectiveIsSearching && (
             <Loader2
               size={18}
               strokeWidth={1.8}
               className="text-verde-600 shrink-0 animate-spin"
-            />
-          ) : (
-            <Search
-              size={18}
-              strokeWidth={1.8}
-              className="text-verde-600 shrink-0"
             />
           )}
           <input
@@ -327,8 +321,16 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
             className="flex-1 border-none bg-transparent outline-none text-[15px] text-ink min-w-0 py-[11px] placeholder:text-ink-soft/75"
             autoComplete="off"
           />
-          {/* Sin botón de enviar: el formulario ya se confirma con Enter desde
-              el propio campo, y el botón se comía el ancho útil en móvil. */}
+          {/* Confirmar sin depender de Enter: en móvil el teclado muchas veces
+              oculta o no tiene la tecla de envío. */}
+          <button
+            type="submit"
+            aria-label="Buscar"
+            disabled={!query.trim() || effectiveIsSearching}
+            className="grid size-8 shrink-0 place-items-center rounded-full bg-verde-600 text-white transition hover:bg-verde-700 active:scale-95 disabled:bg-ink/10 disabled:text-ink-soft/50 disabled:hover:bg-ink/10"
+          >
+            <Search size={15} strokeWidth={2.4} aria-hidden />
+          </button>
           {effectiveIsSearching && (
             <div className="absolute inset-0 rounded-full pointer-events-none shadow-[inset_0_0_0_1px_rgba(53,175,109,0.5),0_0_16px_rgba(53,175,109,0.15)]" />
           )}

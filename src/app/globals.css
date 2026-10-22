@@ -46,14 +46,16 @@
        el `calc()` entero era inválido, `top` caía a `auto` y la columna no se
        pegaba nunca. Si cambia el token, cambia aquí. */
     --gap-lg: 24px;
-    /* La fila de categorías de la carta, que va pegajosa arriba. `alto` es la
-       pastilla y `h` la barra entera: el `scroll-margin-top` de cada grupo se
-       calcula desde `h`, y la barra y la pastilla se miden desde `alto`, así que
-       los tres números salen de uno solo y no pueden discrepar. Antes `h` era un
-       56 px escrito a mano para una barra que medía 42: los saltos de ancla
-       aterrizaban con 14 px de más. */
+    /* La barra pegajosa de la carta: buscador arriba y chips de categoría
+       debajo. Cada alto y el hueco que los separa son tokens, y `h` la barra
+       entera: el `scroll-margin-top` de cada grupo se calcula desde `h`, así que
+       los saltos de ancla no pueden discrepar del alto real. Si se añade otra
+       fila a la barra, se suma aquí. */
+    --carta-buscador-alto: 40px;
     --carta-chip-alto: 36px;
-    --carta-filtros-h: calc(var(--carta-chip-alto) + 8px);
+    --carta-filtros-h: calc(
+      var(--carta-buscador-alto) + var(--carta-chip-alto) + 6px
+    );
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     --duration-fast: 120ms;
     --duration-normal: 200ms;

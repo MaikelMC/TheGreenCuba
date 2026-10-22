@@ -10,7 +10,7 @@ import { TopDelMes } from "@/components/place/top-del-mes";
 import { siteConfig } from "@/config/site";
 import { listPlaces } from "@/lib/db/queries";
 import type { UserPlace } from "@/lib/places-store";
-import { categoryEmoji } from "@/lib/places";
+import { categoryEmoji, FILLER_PLACE_IDS } from "@/lib/places";
 import { placeUrl } from "@/lib/structured-data";
 import { cn } from "@/lib/utils";
 
@@ -39,18 +39,6 @@ import { cn } from "@/lib/utils";
 const TITLE = "Directorio de negocios y lugares en Cuba";
 const DESCRIPTION =
   "Todos los negocios de La Verde: restaurantes, cafeterías, bares, tiendas, hospedajes y más. Busca por nombre o filtra por provincia y categoría.";
-
-/**
- * Fichas de relleno de la siembra. Siguen en la base —algunas tienen historial
- * y otras están enlazadas desde fuera— pero no se ofrecen en el directorio
- * público. Se excluyen por `id`, que no cambia al renombrar el negocio.
- */
-const FILLER_PLACE_IDS = new Set([
-  "melia-santiago",
-  "hotel-casa-granda",
-  "hotel-cubanacan-imperial",
-  "hotel-las-americas",
-]);
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -298,8 +286,7 @@ export default async function DirectorioPage({
             Todos los negocios de Cuba, en un solo lugar.
           </h1>
           <p className="mt-4 max-w-[58ch] text-lead leading-relaxed text-ink-soft/75 text-pretty">
-            Busca por nombre, barrio o categoría. Cada ficha tiene dirección,
-            horario, precios y las monedas que acepta el negocio.
+            Busca por nombre, barrio o categoría.
           </p>
 
           {/* GET nativo: sin JavaScript, el estado vive en la URL y cada

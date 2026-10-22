@@ -10,9 +10,11 @@ import type { UserPlaceOferta } from "@/lib/places-store";
  * que `estaAgotado` en `disponibilidad.ts`.
  *
  * El precio de la carta es **texto libre** («150», «2.50», «3–5 USD»), así que
- * una rebaja por porcentaje solo se puede calcular cuando ese texto es una cifra
- * pelada. `parsePrecio` decide eso, y cuando no lo es el tachado simplemente no
- * se pinta: mejor no enseñar nada que enseñar un número inventado.
+ * una rebaja por porcentaje solo se puede calcular cuando ese texto se puede
+ * leer como número. `parsePrecio` cubre la cifra pelada y `parseRango` el rango
+ * («100-400», «3–5 USD»); en los dos casos la rebaja se aplica a cada extremo.
+ * Cuando no es ni una cosa ni la otra, el tachado no se pinta: mejor no enseñar
+ * nada que enseñar un número inventado.
  */
 
 /** Lo mínimo para saber si algo está vivo. Compartido con `UserPlaceOferta`. */
@@ -84,6 +86,30 @@ export function parsePrecio(texto: string): number | null {
   return Number(limpio);
 }
 
+/**
+ * Un rango de precio, con sus dos extremos ordenados.
+ *
+ * Acepta el guion, las rayas tipográficas y la «a» («100-400», «3–5», «3 a 5»),
+ * con decimales y con la moneda pegada al final («3–5 USD», «100-400$»). La
+ * moneda se ignora porque quien pinta ya la añade desde el campo `currency`.
+ *
+ * Devuelve `null` si el texto no es exactamente un rango: «Desde 8» o
+ * «100-400 por persona» siguen sin rebajarse, porque adivinar el alcance de una
+ * frase sería inventarse el precio.
+ */
+export function parseRango(texto: string): [number, number] | null {
+  const match =
+    /^(\d+(?:[.,]\d+)?)\s*(?:-|–|—|a)\s*(\d+(?:[.,]\d+)?)(?:\s*(?:usd|cup|mlc|eur|\$|€))?$/i.exec(
+      texto.trim(),
+    );
+  if (!match) return null;
+
+  const desde = Number((match[1] ?? "").replace(",", "."));
+  const hasta = Number((match[2] ?? "").replace(",", "."));
+  if (!Number.isFinite(desde) || !Number.isFinite(hasta)) return null;
+  return [Math.min(desde, hasta), Math.max(desde, hasta)];
+}
+
 /** Aplica un porcentaje y redondea a dos decimales, que es lo que ve el cliente. */
 export function precioRebajado(original: number, pct: number): number {
   return Math.round(original * (1 - pct / 100) * 100) / 100;
@@ -107,8 +133,23 @@ export function precioConOferta(
   if (oferta.descuentoPct == null) return null;
 
   const original = parsePrecio(precioCarta);
-  if (original === null) return null;
-  return { de: precioCarta, por: String(precioRebajado(original, oferta.descuentoPct)) };
+  if (original !== null) {
+    return {
+      de: precioCarta,
+      por: String(precioRebajado(original, oferta.descuentoPct)),
+    };
+  }
+
+  const rango = parseRango(precioCarta);
+  if (!rango) return null;
+
+  /* La raya tipográfica en el resultado, aunque el dueño escribiera un guion:
+     es un precio, no una resta. Los dos extremos se redondean igual. */
+  const [desde, hasta] = rango;
+  return {
+    de: precioCarta,
+    por: `${precioRebajado(desde, oferta.descuentoPct)}–${precioRebajado(hasta, oferta.descuentoPct)}`,
+  };
 }
 
 /**

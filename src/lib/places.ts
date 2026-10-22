@@ -1,3 +1,16 @@
+/**
+ * Fichas de relleno de la siembra. Siguen en la base y en el mapa —decoran y
+ * alguna está enlazada desde fuera—, pero no se ofrecen como recomendación ni
+ * en el directorio público. Se excluyen por `id`, que no cambia al renombrar
+ * el negocio.
+ */
+export const FILLER_PLACE_IDS = new Set([
+  "melia-santiago",
+  "hotel-casa-granda",
+  "hotel-cubanacan-imperial",
+  "hotel-las-americas",
+]);
+
 export interface BusinessCategory {
   value: string;
   label: string;
