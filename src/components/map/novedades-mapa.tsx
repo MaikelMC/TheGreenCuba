@@ -270,7 +270,7 @@ export function NovedadesMapa({ ubicacion, provincia, userId }: Props) {
                         </p>
                         <p className="mt-1 text-meta leading-relaxed text-ink-soft/75">
                           {lat || provincia
-                            ? "Cuando un negocio verificado de tu zona publique una oferta o cambie su carta, aparecerá aquí."
+                            ? "Cuando un negocio con plan de tu zona publique una oferta o cambie su carta, aparecerá aquí."
                             : "Activa tu ubicación para ver lo que hay cerca de ti."}
                         </p>
                       </div>

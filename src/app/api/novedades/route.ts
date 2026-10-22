@@ -26,9 +26,10 @@ import type { UserPlaceOferta } from "@/lib/places-store";
  * Ofertas y novedades de los negocios de pago cerca del usuario.
  *
  * Público y sin sesión: lo que se enseña ya es público en la ficha del negocio.
- * Entran **solo** los negocios verificados por administración y con algo de pago
- * activo (pack, módulo suelto o prueba Pro); el filtro de plan se hace aquí y no
- * en el cliente, que no puede decidirlo.
+ * Entra cualquier negocio activo con algo de pago vigente (pack, módulo suelto
+ * o prueba Pro). No hace falta que administración marque «verificado»: tener
+ * plan o servicio ya lo habilita. El filtro de plan se hace aquí y no en el
+ * cliente, que no puede decidirlo.
  *
  * `lat`/`lng` son opcionales. Con coordenadas entra lo que está a menos de
  * `RADIO_CERCA_M` **o** en la provincia del usuario; con solo provincia, lo de
@@ -76,17 +77,12 @@ export async function GET(req: NextRequest) {
     .from(places)
     .leftJoin(categories, eq(categories.id, places.categoryId))
     .leftJoin(suscripciones, eq(suscripciones.negocioId, places.id))
-    .where(
-      and(
-        eq(places.isActive, true),
-        eq(places.status, "active"),
-        eq(places.verificado, true),
-      ),
-    );
+    .where(and(eq(places.isActive, true), eq(places.status, "active")));
 
-  /* Verificado **y** de pago. `funcionesDe` siempre devuelve al menos las
-     funciones de Gratis; si no añade ninguna, el negocio no ha contratado nada
-     y no entra. La prueba Pro cuenta como pago mientras esté viva. */
+  /* Cualquier plan o servicio vigente habilita el negocio. `funcionesDe`
+     siempre devuelve al menos las funciones de Gratis; si no añade ninguna, no
+     ha contratado nada y no entra. La prueba Pro cuenta como pago mientras
+     esté viva. */
   const incluidos: {
     fila: (typeof filas)[number];
     distanciaM?: number;

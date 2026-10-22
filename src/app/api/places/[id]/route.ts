@@ -683,13 +683,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   /* ── Novedades del home ────────────────────────────────────────────────
      Lo que el negocio cambió en su carta o en su ficha se guarda para que el
-     home lo pueda enseñar. Solo para negocios verificados: los demás no salen
-     en la sección aunque guarden. Las **ofertas no se guardan aquí**; viven en
-     su tabla y el endpoint las lee en vivo.
+     home lo pueda enseñar. Se registra para cualquiera: el endpoint decide
+     después si el negocio tiene plan vigente. Las **ofertas no se guardan
+     aquí**; viven en su tabla y el endpoint las lee en vivo.
 
      Best-effort a propósito: esto es un extra, y un fallo al escribirlo no
      puede tumbar el guardado que el dueño acaba de hacer. */
-  if (previo && row.verificado) {
+  if (previo) {
     const { productosNuevos, cambiosPrecio } = cambiosDeCarta(
       previo.menu,
       row.menu,
