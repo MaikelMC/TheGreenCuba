@@ -181,38 +181,38 @@ export function Bento() {
         </div>
 
         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-          <BentoCard
+          <BentoCard
             title="Pin en el mapa"
             body="Apareces donde la gente busca, con dirección, horario y las monedas que aceptas."
             visual={<MapVisual />}
             className="lg:col-span-3"
           />
           <BentoCard
-            id="ejemplos"
+            id="ejemplos"
             title="Buscador con IA"
             body="Búsquedas en lenguaje natural que entienden barrios, monedas y costumbres cubanas."
             visual={<SearchVisual />}
             className="lg:col-span-3"
           />
-          <BentoCard
+          <BentoCard
             title="Menú QR"
             body="Tu carta online, lista para escanear sin descargar nada."
             visual={<QrVisual />}
             className="lg:col-span-2"
           />
-          <BentoCard
+          <BentoCard
             title="Pedidos y reservas"
             body="Recibe pedidos y reservas conectados a tu catálogo."
             visual={<OrdersVisual />}
             className="lg:col-span-2"
           />
-          <BentoCard
+          <BentoCard
             title="Facebook y Eventos"
             body="Publicaciones y eventos que llevan gente a tu puerta."
             visual={<EventVisual />}
             className="lg:col-span-2"
           />
-          <BentoCard
+          <BentoCard
             title="Asistente Telegram"
             body="Tu menú y tu negocio, desde el móvil, hablando. Sin entrar al panel."
             visual={<TelegramVisual />}
