@@ -188,21 +188,85 @@ export function NovedadesMapa({ ubicacion, provincia, userId }: Props) {
         }`}
       >
         <span className="relative grid place-items-center">
-          {/* Halo rojo muy suave: señala que hay ofertas sin competir con el
-              punto de «sin leer». Con movimiento reducido se queda fijo. */}
-          {hayOfertas && !reducir && (
-            <motion.span
-              aria-hidden
-              className="absolute size-7 rounded-full bg-lv-red/25 blur-[6px]"
-              animate={{ scale: [0.9, 1.15, 0.9], opacity: [0.35, 0.7, 0.35] }}
-              transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
-            />
+          {/* Dos halos desfasados: uno ancho y tenue que alumbra el botón, otro
+              más pegado a la llama. Los períodos distintos evitan que el brillo
+              se vea como un latido mecánico. */}
+          {hayOfertas && (
+            <>
+              <motion.span
+                aria-hidden
+                className="absolute size-11 rounded-full bg-lv-red/40 blur-[10px]"
+                animate={
+                  reducir
+                    ? { opacity: 0.5, scale: 1 }
+                    : {
+                        opacity: [0.28, 0.62, 0.34, 0.56, 0.28],
+                        scale: [0.9, 1.18, 1, 1.14, 0.9],
+                      }
+                }
+                transition={
+                  reducir
+                    ? { duration: 0 }
+                    : {
+                        duration: 3.6,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        times: [0, 0.25, 0.5, 0.75, 1],
+                      }
+                }
+              />
+              <motion.span
+                aria-hidden
+                className="absolute size-6 rounded-full bg-lv-red/50 blur-[4px]"
+                animate={
+                  reducir
+                    ? { opacity: 0.55, scale: 1 }
+                    : {
+                        opacity: [0.4, 0.8, 0.5, 0.75, 0.4],
+                        scale: [0.92, 1.12, 0.98, 1.08, 0.92],
+                      }
+                }
+                transition={
+                  reducir
+                    ? { duration: 0 }
+                    : {
+                        duration: 2.4,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        times: [0, 0.22, 0.5, 0.78, 1],
+                      }
+                }
+              />
+            </>
           )}
-          <Flame
-            size={18}
-            strokeWidth={hayOfertas ? 2 : 1.8}
-            className={`relative ${hayOfertas ? "fill-lv-red/15" : ""}`}
-          />
+          <motion.span
+            className="relative grid place-items-center"
+            style={{ transformOrigin: "50% 90%" }}
+            animate={
+              hayOfertas && !reducir
+                ? {
+                    scaleY: [1, 1.08, 0.96, 1.05, 1],
+                    rotate: [0, -2.5, 1.5, -1, 0],
+                  }
+                : undefined
+            }
+            transition={
+              hayOfertas && !reducir
+                ? {
+                    duration: 2.8,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    times: [0, 0.2, 0.5, 0.75, 1],
+                  }
+                : undefined
+            }
+          >
+            <Flame
+              size={18}
+              strokeWidth={hayOfertas ? 2 : 1.8}
+              className={hayOfertas ? "fill-lv-red/25" : undefined}
+            />
+          </motion.span>
         </span>
         {hayNuevo && <PuntoNuevo className="right-[2px] top-[2px]" />}
       </motion.button>
