@@ -162,7 +162,7 @@ export function PlaceStrip({ places }: { places: PlaceStripPlace[] }) {
       <div className="mx-auto max-w-container px-gutter md:px-gutter-lg">
         <div className="mx-auto mb-gap-2xl max-w-[46ch] text-center">
           <p className="lv-mono text-[11px] uppercase tracking-[0.2em] text-verde-700">
-            02 / 04 · Lugares
+            Lugares
           </p>
           <Reveal
             as="h2"

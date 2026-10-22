@@ -51,7 +51,7 @@ export function Pricing() {
       <div className="mx-auto w-full max-w-container px-gutter md:px-gutter-lg">
         <div className="mx-auto max-w-2xl text-center">
           <p className="lv-mono text-[11px] uppercase tracking-[0.2em] text-verde-700">
-            03 / 04 · Planes
+            Planes
           </p>
           <Reveal
             as="h2"

@@ -19,7 +19,7 @@ export function CTASection() {
 
           <div className="lv-accent-on-dark relative mx-auto max-w-3xl">
             <p className="lv-mono text-[11px] uppercase tracking-[0.2em] text-verde-300">
-              04 / 04 · Empieza
+              Empieza
             </p>
             <Reveal
               as="h2"

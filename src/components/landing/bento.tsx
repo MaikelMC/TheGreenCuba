@@ -115,7 +115,6 @@ function TelegramVisual() {
 }
 
 interface BentoCardProps {
-  index: number;
   title: string;
   body: string;
   visual: React.ReactNode;
@@ -125,7 +124,6 @@ interface BentoCardProps {
 }
 
 function BentoCard({
-  index,
   title,
   body,
   visual,
@@ -143,10 +141,7 @@ function BentoCard({
       )}
     >
       <div className={cn(wide && "lg:flex-1")}>
-        <p className="lv-mono text-[11px] uppercase tracking-[0.2em] text-ink-soft/65">
-          {String(index).padStart(2, "0")} / 06
-        </p>
-        <h3 className="mt-3 font-lv-display text-xl font-bold tracking-[-0.025em] text-ink sm:text-2xl">
+        <h3 className="font-lv-display text-xl font-bold tracking-[-0.025em] text-ink sm:text-2xl">
           {title}
         </h3>
         <p className="mt-2 max-w-[42ch] text-sm leading-relaxed text-ink-soft/75 text-pretty">
@@ -169,7 +164,7 @@ export function Bento() {
       <div className="mx-auto w-full max-w-container px-gutter md:px-gutter-lg">
         <div className="max-w-2xl">
           <p className="lv-mono text-[11px] uppercase tracking-[0.2em] text-verde-700">
-            01 / 04 · Producto
+            Producto
           </p>
           <Reveal
             as="h2"
@@ -186,44 +181,38 @@ export function Bento() {
         </div>
 
         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-          <BentoCard
-            index={1}
+          <BentoCard
             title="Pin en el mapa"
             body="Apareces donde la gente busca, con dirección, horario y las monedas que aceptas."
             visual={<MapVisual />}
             className="lg:col-span-3"
           />
           <BentoCard
-            id="ejemplos"
-            index={2}
+            id="ejemplos"
             title="Buscador con IA"
             body="Búsquedas en lenguaje natural que entienden barrios, monedas y costumbres cubanas."
             visual={<SearchVisual />}
             className="lg:col-span-3"
           />
-          <BentoCard
-            index={3}
+          <BentoCard
             title="Menú QR"
             body="Tu carta online, lista para escanear sin descargar nada."
             visual={<QrVisual />}
             className="lg:col-span-2"
           />
-          <BentoCard
-            index={4}
+          <BentoCard
             title="Pedidos y reservas"
             body="Recibe pedidos y reservas conectados a tu catálogo."
             visual={<OrdersVisual />}
             className="lg:col-span-2"
           />
-          <BentoCard
-            index={5}
+          <BentoCard
             title="Facebook y Eventos"
             body="Publicaciones y eventos que llevan gente a tu puerta."
             visual={<EventVisual />}
             className="lg:col-span-2"
           />
-          <BentoCard
-            index={6}
+          <BentoCard
             title="Asistente Telegram"
             body="Tu menú y tu negocio, desde el móvil, hablando. Sin entrar al panel."
             visual={<TelegramVisual />}
