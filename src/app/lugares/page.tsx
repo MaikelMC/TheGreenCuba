@@ -113,31 +113,37 @@ function PlaceDirectoryCard({ place }: { place: UserPlace }) {
   return (
     <Link
       href={`/place/${place.id}`}
-      className="group flex flex-col overflow-hidden rounded-3xl border border-ink/10 bg-white shadow-soft transition duration-300 ease-outquint hover:-translate-y-[2px] hover:border-verde-300 hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-500 focus-visible:ring-offset-2"
+      className="group flex flex-row overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-soft transition duration-300 ease-outquint hover:-translate-y-[2px] hover:border-verde-300 hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-500 focus-visible:ring-offset-2 sm:flex-col sm:rounded-3xl"
     >
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-verde-50">
+      {/* En móvil la tarjeta va en horizontal: una miniatura de 112 px y el
+          texto al lado. La versión vertical —imagen 4:3 a todo el ancho— dejaba
+          una tarjeta de media pantalla y el contenido apretado en el hueco que
+          sobraba. Desde `sm` vuelve a la rejilla de siempre. */}
+      <div className="relative aspect-square w-[112px] shrink-0 overflow-hidden bg-verde-50 sm:aspect-[4/3] sm:w-full">
         {image ? (
           <Image
             src={image}
             alt={cover ? `Foto de ${place.name}` : `Logo de ${place.name}`}
             fill
-            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 112px"
             quality={70}
             className={cn(
               "transition duration-500 ease-outquint group-hover:scale-[1.03]",
-              cover ? "object-cover" : "object-contain p-10",
+              cover ? "object-cover" : "object-contain p-4 sm:p-10",
             )}
           />
         ) : (
           <span
             aria-hidden
-            className="grid size-full place-items-center text-[56px]"
+            className="grid size-full place-items-center text-[32px] sm:text-[56px]"
           >
             {categoryEmoji(place.category)}
           </span>
         )}
 
-        <div className="absolute left-3 top-3 flex flex-wrap gap-1">
+        {/* A 112 px de ancho las pastillas no caben sin partirse. En móvil el
+            dato sigue en la ficha; aquí solo estorbaría. */}
+        <div className="absolute left-3 top-3 hidden flex-wrap gap-1 sm:flex">
           {place.selloVerificado && <SelloVerificado />}
           {place.topDelMes && <TopDelMes />}
           {closed && (
@@ -148,9 +154,9 @@ function PlaceDirectoryCard({ place }: { place: UserPlace }) {
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col p-gap-md">
-        <div className="flex items-start justify-between gap-gap-sm">
-          <h2 className="font-lv-display text-h3 font-bold leading-tight tracking-[-0.01em] text-ink group-hover:text-verde-700">
+      <div className="flex min-w-0 flex-1 flex-col justify-center p-gap-sm sm:justify-start sm:p-gap-md">
+        <div className="flex items-start justify-between gap-gap-xs sm:gap-gap-sm">
+          <h2 className="font-lv-display text-base font-bold leading-snug tracking-[-0.01em] text-ink group-hover:text-verde-700 sm:text-h3 sm:leading-tight">
             {place.name}
           </h2>
           {place.rating ? (
@@ -164,17 +170,17 @@ function PlaceDirectoryCard({ place }: { place: UserPlace }) {
           ) : null}
         </div>
 
-        <p className="mt-[2px] text-small text-ink-soft/75">
+        <p className="mt-1 text-small text-ink-soft/75">
           {[place.category, place.barrio].filter(Boolean).join(" · ")}
         </p>
 
         {place.description && (
-          <p className="mt-gap-xs line-clamp-3 text-small leading-relaxed text-ink-soft/75">
+          <p className="mt-gap-xs line-clamp-3 hidden text-small leading-relaxed text-ink-soft/75 sm:block">
             {place.description}
           </p>
         )}
 
-        <div className="mt-auto flex flex-wrap items-center gap-x-gap-sm gap-y-gap-xs pt-gap-sm text-meta text-ink-soft/75">
+        <div className="mt-gap-xs flex flex-wrap items-center gap-x-gap-sm gap-y-gap-xs text-meta text-ink-soft/75 sm:mt-auto sm:pt-gap-sm">
           <span className="inline-flex items-center gap-[4px]">
             <MapPin size={13} strokeWidth={1.8} aria-hidden />
             {[place.province, place.city].filter(Boolean).filter(
@@ -186,7 +192,9 @@ function PlaceDirectoryCard({ place }: { place: UserPlace }) {
               {place.priceLabel}
             </span>
           )}
-          <span className="ml-auto inline-flex items-center gap-[3px] font-lv-display font-semibold text-verde-700">
+          {/* La tarjeta entera es el enlace; en móvil el rótulo no cabe y no
+              hace falta. */}
+          <span className="ml-auto hidden items-center gap-[3px] font-lv-display font-semibold text-verde-700 sm:inline-flex">
             Ver ficha
             <ArrowUpRight size={13} strokeWidth={2} aria-hidden />
           </span>
@@ -386,7 +394,7 @@ export default async function DirectorioPage({
           </div>
 
           {filtered.length > 0 ? (
-            <div className="mt-gap-md grid gap-gap-md sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-gap-md grid gap-gap-sm sm:grid-cols-2 sm:gap-gap-md lg:grid-cols-3">
               {filtered.map((place) => (
                 <PlaceDirectoryCard key={place.id} place={place} />
               ))}
