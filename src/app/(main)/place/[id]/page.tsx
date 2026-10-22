@@ -54,10 +54,20 @@ function describe(place: {
   name: string;
   category: string;
   city?: string;
+  province?: string;
   barrio: string;
   description: string;
 }): { title: string; description: string } {
-  const where = place.city || place.barrio || "Cuba";
+  /* Ciudad y provincia cuando las dos aportan: «Restaurante en Vedado, La
+     Habana» cubre la búsqueda por municipio y por provincia. Se deduplica
+     porque en muchas fichas las dos columnas dicen lo mismo. */
+  const where =
+    [place.city, place.province]
+      .filter(Boolean)
+      .filter((value, index, list) => list.indexOf(value) === index)
+      .join(", ") ||
+    place.barrio ||
+    "Cuba";
   return {
     title: `${place.name} — ${place.category} en ${where}`,
     /* La descripción larga se recorta: Google corta alrededor de los 160
@@ -114,8 +124,14 @@ export async function generateMetadata({
        abrir—, pero no se ofrece al índice: es una página que dice «cerrado».
        Y el negocio de prueba no se indexa nunca, ni siquiera en producción
        cuando su dueño puede verlo. Ver `devPlaceIndexable`. */
+    /* `isActive` además de `status`: una ficha pendiente de aprobación tiene
+       una URL que abre —el enlace está compartido— pero no debe entrar en el
+       índice. `status` es lo que dice el dueño sobre si está abierto; esto es
+       lo que decide si la ficha existe para el público. */
     robots:
-      place.status === "active" && devPlaceIndexable(place.id)
+      place.isActive &&
+      place.status === "active" &&
+      devPlaceIndexable(place.id)
         ? undefined
         : { index: false, follow: true },
   };

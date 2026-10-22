@@ -26,6 +26,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1,
     },
     {
+      /* El directorio es la puerta completa al catálogo y el camino de enlaces
+         internos hacia cada ficha, así que va por encima del resto de páginas
+         estáticas. */
+      url: `${base}/lugares`,
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    {
       url: `${base}/terminos`,
       changeFrequency: "yearly",
       priority: 0.3,
@@ -34,7 +42,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const places = await listPlaces({ onlyActive: true, limit: 500 });
-    for (const place of places) {
+    /* Solo lo que la ficha declara indexable. Meter en el sitemap una URL que
+       lleva `noindex` —una ficha pendiente o un negocio cerrado— es una
+       contradicción que Google acaba penalizando en todo el archivo. */
+    for (const place of places.filter(
+      (item) => item.reviewStatus === "approved" && item.status === "active",
+    )) {
       entries.push({
         url: `${base}/place/${place.id}`,
         lastModified: place.updatedAt ? new Date(place.updatedAt) : undefined,

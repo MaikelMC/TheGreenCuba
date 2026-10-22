@@ -16,7 +16,9 @@ import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
   { href: "#como-funciona", label: "Funciones" },
-  { href: "#lugares", label: "Lugares" },
+  /* Al directorio completo, no al ancla de la portada: la tira de la landing
+     solo enseña doce fichas y esta es la página que tiene todas. */
+  { href: "/lugares", label: "Lugares" },
   { href: "#planes", label: "Planes" },
 ];
 

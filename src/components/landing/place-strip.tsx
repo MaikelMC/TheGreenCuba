@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Star } from "lucide-react";
+import { ArrowUpRight, MapPin, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Reveal } from "./reveal";
 
@@ -253,6 +253,19 @@ export function PlaceStrip({ places }: { places: PlaceStripPlace[] }) {
               ))}
             </div>
           )}
+        </div>
+
+        {/* La tira solo trae una muestra. El directorio es donde están todas
+            las fichas, con buscador y filtros, y es la página que enlaza a
+            cada negocio para los buscadores. */}
+        <div className="mt-6 flex justify-center">
+          <Link
+            href="/lugares"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ink/15 bg-white px-5 font-lv-display text-sm font-semibold text-ink transition duration-300 ease-outquint hover:border-verde-300 hover:bg-verde-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 focus-visible:ring-offset-2"
+          >
+            Ver el directorio completo
+            <ArrowUpRight size={15} strokeWidth={2} aria-hidden />
+          </Link>
         </div>
       </div>
     </section>

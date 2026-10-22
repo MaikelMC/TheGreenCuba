@@ -38,6 +38,16 @@ const WEBSITE_JSON_LD = {
   url: siteConfig.url,
   inLanguage: "es-CU",
   description: siteConfig.description,
+  /* El buscador del sitio es el del directorio, y se declara para que los
+     sistemas de respuesta sepan que /lugares?q= existe y resuelve búsquedas. */
+  potentialAction: {
+    "@type": "SearchAction",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: `${siteConfig.url.replace(/\/$/, "")}/lugares?q={search_term_string}`,
+    },
+    "query-input": "required name=search_term_string",
+  },
 };
 
 /* La tira de lugares se resuelve en el servidor: su HTML viaja con la página,
