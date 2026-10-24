@@ -62,6 +62,7 @@ import {
 import { toast } from "sonner";
 import type { MapPlace } from "@/components/map/types";
 import { usePlaces } from "@/providers/places-provider";
+import { CatalogSync } from "@/components/pwa/catalog-sync";
 import {
   FILLER_PLACE_IDS,
   placeIcon,
@@ -1680,6 +1681,10 @@ function HomePageContent() {
                         : `Según tu ubicación en ${userProvinceLabel(userPreferences) ?? "Cuba"}, encontré ${provinceScopedPlaces.length} lugares que podrían gustarte. Explora el mapa o busca con lenguaje natural.`}
                 </p>
               </motion.div>
+
+              {/* De cuándo son los datos y cómo volver a pedirlos. Va aquí y
+                  no en el header para que esté donde se mira el catálogo. */}
+              <CatalogSync />
 
               {/* Place list. Mientras el catálogo llega de la base, skeletons
                   con la forma de las tarjetas: sin esto el sheet contaba

@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -48,6 +49,17 @@ interface PlacesContextValue {
   /** Mensaje del último fallo. Los paneles lo pintan tal cual. */
   error: string | null;
   /**
+   * Cuándo se trajo el catálogo por última vez, en epoch ms.
+   *
+   * Vale tanto para una respuesta de red como para una copia servida por el
+   * service worker. Se guarda en `localStorage` para que el dato sobreviva a una
+   * recarga sin red: sin él, la pantalla offline no podría decir de cuándo son
+   * los datos.
+   */
+  lastSyncedAt: number | null;
+  /** `true` si la última respuesta la sirvió la caché del service worker. */
+  fromCache: boolean;
+  /**
    * Vuelve a pedir el catálogo entero. Lo usa el editor de fotos: las fotos
    * viajan por su propia ruta, así que la copia que tiene el provider se queda
    * sin ellas y la ficha pública —que lee de aquí— no las enseñaría hasta
@@ -67,9 +79,38 @@ interface PlacesContextValue {
 
 const PlacesContext = createContext<PlacesContextValue | null>(null);
 
-type Result<T> = { ok: true; data: T } | { ok: false; error: string };
+type Result<T> =
+  | { ok: true; data: T; cachedAt: number | null }
+  | { ok: false; error: string };
 
-/** Una llamada a la API que nunca lanza: el fallo se devuelve, no se propaga. */
+const CLAVE_SINCRONIA = "la-verde:catalog-synced-at";
+
+function leerSincronia(): number | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const guardado = window.localStorage.getItem(CLAVE_SINCRONIA);
+    const valor = guardado ? Number(guardado) : NaN;
+    return Number.isFinite(valor) ? valor : null;
+  } catch {
+    return null;
+  }
+}
+
+function guardarSincronia(valor: number): void {
+  try {
+    window.localStorage.setItem(CLAVE_SINCRONIA, String(valor));
+  } catch {
+    // Sin localStorage el dato vive lo que dure la pestaña.
+  }
+}
+
+/**
+ * Una llamada a la API que nunca lanza: el fallo se devuelve, no se propaga.
+ *
+ * `X-LV-Cached-At` lo pone el service worker al guardar una copia de
+ * `/api/places`. Si viene, la respuesta salió de caché y la fecha es la del
+ * momento en que se guardó, no la de ahora.
+ */
 async function request<T>(url: string, init?: RequestInit): Promise<Result<T>> {
   try {
     const res = await fetch(url, init);
@@ -81,7 +122,13 @@ async function request<T>(url: string, init?: RequestInit): Promise<Result<T>> {
         error: typeof detail === "string" ? detail : `El servidor respondió ${res.status}.`,
       };
     }
-    return { ok: true, data: payload as T };
+    const cachedAtRaw = res.headers.get("X-LV-Cached-At");
+    const cachedAt = cachedAtRaw ? Date.parse(cachedAtRaw) : NaN;
+    return {
+      ok: true,
+      data: payload as T,
+      cachedAt: Number.isFinite(cachedAt) ? cachedAt : null,
+    };
   } catch {
     /* `fetch` solo lanza si no hubo respuesta: red caída, servidor apagado. */
     return { ok: false, error: "No se pudo conectar con el servidor." };
@@ -139,6 +186,16 @@ export function PlacesProvider({
   );
   const [hydrated, setHydrated] = useState(hasInitialData);
   const [error, setError] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [fromCache, setFromCache] = useState(false);
+
+  const anotarSincronia = useCallback((placesResult: Result<unknown>) => {
+    if (!placesResult.ok) return;
+    const sello = placesResult.cachedAt ?? Date.now();
+    setLastSyncedAt(sello);
+    setFromCache(placesResult.cachedAt !== null);
+    guardarSincronia(sello);
+  }, []);
 
   /* La consulta del catálogo, atada al prop. Es una constante mientras el prop
      no cambie, que es lo que necesita el `useCallback` de abajo para no
@@ -152,6 +209,11 @@ export function PlacesProvider({
 
     let cancelled = false;
 
+    /* La fecha guardada se pinta antes de que llegue la respuesta. Si no hay
+       red y el service worker no tiene copia, es lo único que queda. */
+    const guardada = leerSincronia();
+    if (guardada) setLastSyncedAt(guardada);
+
     (async () => {
       const [placesResult, categoriesResult] = await Promise.all([
         request<UserPlace[]>(`/api/places${placesQuery}`),
@@ -159,8 +221,10 @@ export function PlacesProvider({
       ]);
       if (cancelled) return;
 
-      if (placesResult.ok) setPlaces(placesResult.data);
-      else setError(placesResult.error);
+      if (placesResult.ok) {
+        setPlaces(placesResult.data);
+        anotarSincronia(placesResult);
+      } else setError(placesResult.error);
 
       if (categoriesResult.ok) setCategories(categoriesResult.data);
       else setError(categoriesResult.error);
@@ -173,7 +237,7 @@ export function PlacesProvider({
     return () => {
       cancelled = true;
     };
-  }, [hasInitialData, placesQuery]);
+  }, [hasInitialData, placesQuery, anotarSincronia]);
 
   const refreshPlaces = useCallback(async () => {
     /* Con la consulta del prop y no sin ella: el panel de administración
@@ -181,9 +245,32 @@ export function PlacesProvider({
        pidiendo el catálogo público la lista perdería de golpe los negocios
        pendientes y cerrados, que son justo los que está mirando. */
     const result = await request<UserPlace[]>(`/api/places${placesQuery}`);
-    if (result.ok) setPlaces(result.data);
-    else setError(result.error);
-  }, [placesQuery]);
+    if (result.ok) {
+      setPlaces(result.data);
+      setError(null);
+      anotarSincronia(result);
+    } else setError(result.error);
+  }, [placesQuery, anotarSincronia]);
+
+  /* Al recuperar la conexión se refresca una vez sola. No hay bucle: el permiso
+     se rearma cuando se vuelve a perder la red, no en cada evento `online`. */
+  const yaRefrescado = useRef(false);
+  useEffect(() => {
+    const alVolver = () => {
+      if (yaRefrescado.current) return;
+      yaRefrescado.current = true;
+      void refreshPlaces();
+    };
+    const alPerder = () => {
+      yaRefrescado.current = false;
+    };
+    window.addEventListener("online", alVolver);
+    window.addEventListener("offline", alPerder);
+    return () => {
+      window.removeEventListener("online", alVolver);
+      window.removeEventListener("offline", alPerder);
+    };
+  }, [refreshPlaces]);
 
   const addPlace = useCallback(async (input: NewUserPlace) => {
     const result = await request<UserPlace>("/api/places", json("POST", input));
@@ -276,6 +363,8 @@ export function PlacesProvider({
       categories,
       hydrated,
       error,
+      lastSyncedAt,
+      fromCache,
       refreshPlaces,
       addPlace,
       updatePlace,
@@ -289,6 +378,8 @@ export function PlacesProvider({
       categories,
       hydrated,
       error,
+      lastSyncedAt,
+      fromCache,
       refreshPlaces,
       addPlace,
       updatePlace,

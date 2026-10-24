@@ -286,7 +286,11 @@ async function apiPublica(request) {
     if (sePuedeCachear(response)) {
       const headers = new Headers(response.headers);
       headers.set("X-LV-Cached-At", new Date().toISOString());
+      /* Al reconstruir la respuesta el cuerpo ya viene descomprimido: dejar
+         `Content-Encoding` haría que el navegador intentara descomprimir otra
+         vez y la respuesta fallara al leerse. */
       headers.delete("Content-Length");
+      headers.delete("Content-Encoding");
       const body = await response.clone().blob();
       const copy = new Response(body, {
         status: response.status,
@@ -336,6 +340,8 @@ async function imagen(request) {
   if (sePuedeCachear(response)) {
     const headers = new Headers(response.headers);
     headers.set("X-LV-Cached-At", new Date().toISOString());
+    headers.delete("Content-Length");
+    headers.delete("Content-Encoding");
     const body = await response.clone().blob();
     const copy = new Response(body, {
       status: response.status,
