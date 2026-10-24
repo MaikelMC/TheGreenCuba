@@ -18,7 +18,7 @@
  * desarrollo, y por eso la caché no vive dentro de un componente.
  */
 
-import { marcarAuth } from "@/lib/offline/store";
+import { borrarDatosOffline, leerAuth, marcarAuth } from "@/lib/offline/store";
 
 let cached: Promise<unknown> | null = null;
 
@@ -43,7 +43,20 @@ async function pedir(): Promise<unknown> {
      sigue viva. Se anota para que el modo offline sepa cuándo caduca: pasados
      siete días sin una confirmación, los snapshots privados se bloquean. */
   if (data.authenticated && data.user?.id) {
-    void marcarAuth(data.user.id, Date.now());
+    const userId = data.user.id;
+    try {
+      /* Si el teléfono cambió de cuenta, los snapshots de la anterior se
+         borran **antes** de que el nuevo escriba los suyos. Sin esto, el
+         segundo usuario abriría el panel offline y vería el negocio del
+         primero. */
+      const previa = await leerAuth();
+      if (previa && previa.userId !== userId) {
+        await borrarDatosOffline();
+      }
+    } catch {
+      // Un fallo del almacén local no puede impedir leer la sesión.
+    }
+    await marcarAuth(userId, Date.now());
   }
 
   return data;

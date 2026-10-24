@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn, menuTagFallback, menuTagStyles } from "@/lib/utils";
 import { prepareImage } from "@/lib/storage/compress";
+import { mensajeDeRed } from "@/lib/errores-red";
 import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 import {
   estaAgotado,
@@ -162,6 +163,7 @@ export function MenuItemEditor({
   /* Producto cuya disponibilidad se está cambiando ahora mismo. */
   const [estadoBusyId, setEstadoBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const reintentarEstado = useRef<(() => void) | null>(null);
   /* Foto elegida y todavía sin subir: el recorte va antes de la compresión. */
   const [pending, setPending] = useState<{ id: string; file: File } | null>(
     null,
@@ -224,14 +226,14 @@ export function MenuItemEditor({
           const data = (await res.json().catch(() => null)) as { error?: string } | null;
           throw new Error(data?.error ?? "No se pudo cambiar la disponibilidad.");
         }
+        reintentarEstado.current = null;
         patch(id, {
           disponibilidad: estado,
           agotadoHasta: estado === "agotado" ? (hasta ?? null) : null,
         });
       } catch (e) {
-        setError(
-          e instanceof Error ? e.message : "No se pudo cambiar la disponibilidad.",
-        );
+        setError(mensajeDeRed(e, "No se pudo cambiar la disponibilidad."));
+        reintentarEstado.current = () => void setEstado(id, estado, hasta);
       } finally {
         setEstadoBusyId(null);
       }
@@ -301,7 +303,8 @@ export function MenuItemEditor({
            en el catálogo y los bytes de la foto vivirían en el bucket. */
         update(id, "image", created.url);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "No se pudo subir la foto.");
+        reintentarEstado.current = null;
+        setError(mensajeDeRed(e, "No se pudo subir la foto."));
       } finally {
         setBusyId(null);
       }
@@ -521,12 +524,19 @@ export function MenuItemEditor({
       </button>
 
       {error && (
-        <p
+        <div
           role="alert"
-          className="mt-gap-sm px-3 py-[7px] rounded-xl bg-destructive/10 border border-destructive/25 text-meta text-destructive font-medium"
+          className="mt-gap-sm flex flex-wrap items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
         >
-          {error}
-        </p>
+          <span className="flex-1">{error}</span>
+          <button
+            type="button"
+            onClick={() => reintentarEstado.current?.()}
+            className="rounded-full border border-destructive/25 bg-white px-3 py-[5px] font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
+          >
+            Reintentar
+          </button>
+        </div>
       )}
     </div>
     {pending && (

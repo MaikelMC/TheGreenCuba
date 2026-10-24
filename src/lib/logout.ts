@@ -18,6 +18,8 @@
  * querer volver a entrar, y `/login` le pide la contraseña otra vez.
  */
 
+import { purgarDatosPrivados } from "@/lib/offline/store";
+
 /** Prefijos del navegador que pertenecen a la sesión que se está cerrando. */
 const POR_PREFIJO = [
   /* Preferencias: la clave de cada usuario y la del cajón de invitado. */
@@ -67,6 +69,17 @@ export async function logout(): Promise<void> {
     } catch {
       // El navegador puede bloquear localStorage en modo privado o sin permisos.
     }
+
+    /* Snapshot de negocio, de perfil y cachés de imágenes. Va aquí, en el
+       `finally`, por el mismo motivo que el resto: si `signOut()` falló por
+       red, los datos del usuario anterior no pueden quedarse en el teléfono.
+       En un dispositivo compartido eso es una fuga, no una molestia. */
+    try {
+      await purgarDatosPrivados();
+    } catch {
+      // IndexedDB o Cache Storage bloqueados: no hay nada más que hacer.
+    }
+
     window.location.assign("/");
   }
 }

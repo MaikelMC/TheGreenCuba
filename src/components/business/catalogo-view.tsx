@@ -11,6 +11,7 @@ import {
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { mensajeDeRed } from "@/lib/errores-red";
 import {
   FileUp,
   Image as ImageIcon,
@@ -156,6 +157,10 @@ export function CatalogoView({
   const [subiendoId, setSubiendoId] = useState<string | null>(null);
   const [busyEstado, setBusyEstado] = useState<string | null>(null);
   const [errorEstado, setErrorEstado] = useState<string | null>(null);
+  const [puedeReintentarGuardado, setPuedeReintentarGuardado] = useState(false);
+  /* La última acción de disponibilidad que falló, para reintentarla sin que el
+     dueño tenga que volver a buscar el producto. */
+  const reintentarEstado = useRef<(() => void) | null>(null);
   const [mostrarImport, setMostrarImport] = useState(false);
   /* Una importación escribe directamente en la base, así que la lista de aquí
      se queda vieja. Se vuelve a sembrar cuando el `refresh` trae el menú nuevo
@@ -435,7 +440,7 @@ export function CatalogoView({
         const creada = (await res.json()) as { url: string };
         patch(id, { image: creada.url });
       } catch (e) {
-        setError(e instanceof Error ? e.message : "No se pudo subir la foto.");
+        setError(mensajeDeRed(e, "No se pudo subir la foto."));
       } finally {
         setSubiendoId(null);
       }
@@ -484,6 +489,7 @@ export function CatalogoView({
         /* El aviso confirma **qué** acción se hizo, no solo que respondió el
            servidor: «agotado» y «agotado hasta mañana» dejan la fila igual a
            simple vista, y sin este texto no hay forma de saber cuál se pulsó. */
+        reintentarEstado.current = null;
         const nombre = guardado.current.find((item) => item.id === id)?.name;
         const accion =
           estado === "disponible"
@@ -493,11 +499,8 @@ export function CatalogoView({
               : "marcado como agotado";
         toast.success(nombre ? `«${nombre}» ${accion}` : `Producto ${accion}`);
       } catch (e) {
-        setErrorEstado(
-          e instanceof Error
-            ? e.message
-            : "No se pudo cambiar la disponibilidad.",
-        );
+        setErrorEstado(mensajeDeRed(e, "No se pudo cambiar la disponibilidad."));
+        reintentarEstado.current = () => void setEstado(id, estado, hasta);
       } finally {
         setBusyEstado(null);
       }
@@ -552,6 +555,7 @@ export function CatalogoView({
       return;
     }
     setError(null);
+    setPuedeReintentarGuardado(false);
     setSaving(true);
 
     /* La lista blanca vive en `aGuardar`, con su prueba al lado: aquí dentro no
@@ -565,6 +569,7 @@ export function CatalogoView({
       setError(
         "No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada.",
       );
+      setPuedeReintentarGuardado(true);
       return;
     }
 
@@ -942,20 +947,36 @@ export function CatalogoView({
       {(error || errorEstado) && (
         <div className="mt-gap-md flex flex-col gap-gap-xs">
           {error && (
-            <p
+            <div
               role="alert"
-              className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+              className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
             >
-              {error}
-            </p>
+              <span className="flex-1">{error}</span>
+              {puedeReintentarGuardado && (
+                <button
+                  type="button"
+                  onClick={() => void guardar()}
+                  className="rounded-full border border-destructive/25 bg-white px-3 py-[5px] font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
+                >
+                  Reintentar
+                </button>
+              )}
+            </div>
           )}
           {errorEstado && (
-            <p
+            <div
               role="alert"
-              className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+              className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
             >
-              {errorEstado}
-            </p>
+              <span className="flex-1">{errorEstado}</span>
+              <button
+                type="button"
+                onClick={() => reintentarEstado.current?.()}
+                className="rounded-full border border-destructive/25 bg-white px-3 py-[5px] font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
+              >
+                Reintentar
+              </button>
+            </div>
           )}
         </div>
       )}

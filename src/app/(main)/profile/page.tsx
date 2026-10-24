@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { fetchMe, refreshSession } from "@/lib/session-client";
 import { clavePerfil, guardarSnapshot } from "@/lib/offline/store";
 import { construirPerfilSnapshot } from "@/lib/offline/snapshots";
+import { mensajeDeRed } from "@/lib/errores-red";
 import { UserMenu } from "@/components/layout/user-menu";
 import { DetailsView } from "@/components/profile/details-view";
 import { PlacesView } from "@/components/profile/places-view";
@@ -47,6 +48,8 @@ export default function ProfilePage() {
   const [prefs, setPrefs] = useState<UserPreferences | null>(null);
   const [saved, setSaved] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
 
   /* La sección se puede pedir desde la URL, y hace falta que se pueda: «Para tu
      negocio» del menú lleva aquí, y el armazón no cambia de ruta —las cuatro
@@ -201,7 +204,10 @@ export default function ProfilePage() {
   }
 
   async function handleSave() {
-    if (!prefs) return;
+    if (!prefs || guardando) return;
+
+    setGuardando(true);
+    setErrorGuardado(null);
 
     writeUserPreferences({
       ...prefs,
@@ -223,27 +229,41 @@ export default function ProfilePage() {
         }),
       });
 
-      if (response.ok) {
-        /* El perfil acaba de cambiar: la sesión cacheada del módulo ya no vale
-           y el menú de usuario la estaría leyendo vieja hasta recargar. */
-        refreshSession();
-        const data = (await response.json()) as {
-          authenticated: boolean;
-          user: { name?: string; email?: string; imageUrl?: string | null } | null;
-        };
-
-        const savedUser = data.user;
-        if (data.authenticated && savedUser) {
-          setPrefs((current) => ({
-            ...(current ?? prefs),
-            name: savedUser.name || current?.name || prefs.name,
-            email: savedUser.email || current?.email || prefs.email,
-            avatarUrl: savedUser.imageUrl || current?.avatarUrl || prefs.avatarUrl,
-          }));
-        }
+      if (!response.ok) {
+        /* No se puede decir «guardado» si el servidor no lo confirmó. La copia
+           local se queda, pero el aviso es explícito y persistente. */
+        setErrorGuardado(
+          response.status >= 500
+            ? "El servidor no pudo guardar el perfil. Inténtalo otra vez."
+            : "No se pudo guardar el perfil. Revisa los datos e inténtalo otra vez.",
+        );
+        return;
       }
-    } catch {
-      // Si falla la escritura en DB, al menos se conserva la copia local del navegador.
+
+      /* El perfil acaba de cambiar: la sesión cacheada del módulo ya no vale y
+         el menú de usuario la estaría leyendo vieja hasta recargar. */
+      refreshSession();
+      const data = (await response.json()) as {
+        authenticated: boolean;
+        user: { name?: string; email?: string; imageUrl?: string | null } | null;
+      };
+
+      const savedUser = data.user;
+      if (data.authenticated && savedUser) {
+        setPrefs((current) => ({
+          ...(current ?? prefs),
+          name: savedUser.name || current?.name || prefs.name,
+          email: savedUser.email || current?.email || prefs.email,
+          avatarUrl: savedUser.imageUrl || current?.avatarUrl || prefs.avatarUrl,
+        }));
+      }
+    } catch (error) {
+      /* Antes esto se callaba y el usuario creía haber guardado. El mensaje
+         distingue «sin conexión» de un fallo del servidor. */
+      setErrorGuardado(mensajeDeRed(error, "No se pudo guardar el perfil."));
+      return;
+    } finally {
+      setGuardando(false);
     }
 
     setSaved(true);
@@ -273,6 +293,24 @@ export default function ProfilePage() {
           </motion.button>
         )}
       </TopBar>
+
+      {errorGuardado && (
+        <div
+          role="alert"
+          className="mx-auto flex w-full max-w-lg flex-wrap items-center gap-3 px-gap-sm pt-gap-sm sm:px-gap-md"
+        >
+          <p className="flex-1 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive">
+            {errorGuardado}
+          </p>
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            className="rounded-full border border-ink/10 bg-white px-3 py-[6px] text-meta font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       <div className="mx-auto max-w-lg px-gap-sm pt-gap-lg pb-dock-clear sm:px-gap-md">
         <AnimatePresence mode="wait">

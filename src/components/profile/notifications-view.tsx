@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Bell, CheckCheck, Clock3, Inbox, MailOpen, Megaphone, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { Skeleton } from "@/components/ui";
+import { mensajeDeRed } from "@/lib/errores-red";
 import {
   destinoAviso,
   esAvisoAprobado,
@@ -26,6 +28,7 @@ export function NotificationsView() {
   const [items, setItems] = useState<UserNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [aviso, setAviso] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/notifications")
@@ -36,11 +39,23 @@ export function NotificationsView() {
   }, []);
 
   async function markAllRead() {
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    });
+    setAviso(null);
+    try {
+      const response = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      if (!response.ok) {
+        setAviso("No se pudieron marcar como leídas. Inténtalo otra vez.");
+        return;
+      }
+    } catch (error) {
+      /* Antes se ignoraba la respuesta y las filas quedaban como leídas sin
+         que el servidor lo supiera. */
+      setAviso(mensajeDeRed(error, "No se pudieron marcar como leídas."));
+      return;
+    }
     setItems((current) =>
       current.map((item) => ({ ...item, readAt: item.readAt ?? new Date().toISOString() })),
     );
@@ -58,7 +73,15 @@ export function NotificationsView() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: item.id }),
-      }).catch(() => {});
+      })
+        .then((response) => {
+          if (!response.ok) {
+            toast.error("La notificación no se marcó como leída.");
+          }
+        })
+        .catch((error: unknown) => {
+          toast.error(mensajeDeRed(error, "La notificación no se marcó como leída."));
+        });
     }
 
     setItems((current) =>
@@ -98,6 +121,22 @@ export function NotificationsView() {
           </button>
         )}
       </header>
+
+      {aviso && (
+        <div
+          role="alert"
+          className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+        >
+          <span className="flex-1">{aviso}</span>
+          <button
+            type="button"
+            onClick={() => void markAllRead()}
+            className="rounded-full border border-destructive/25 bg-white px-3 py-[5px] font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       <nav className="flex items-center gap-1 border-b border-ink/10 py-3" aria-label="Filtrar notificaciones">
         {(["all", "unread"] as const).map((value) => (
