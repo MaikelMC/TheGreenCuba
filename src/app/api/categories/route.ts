@@ -25,7 +25,7 @@ export async function GET() {
        servir sin despertar la función. Es la ruta que más se pide y la que menos
        cambia: el panel las toca de tarde en tarde. */
     headers: {
-      "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+      "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
     },
   });
 }

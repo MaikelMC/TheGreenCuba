@@ -139,8 +139,12 @@ export async function GET(req: NextRequest) {
        minutos en verse en el borde, y `revalidateTag` no lo adelanta porque
        invalida la caché de datos, no la del CDN. */
     headers: {
+      /* `max-age=60` deja que el navegador —y el service worker, que respeta
+         la cabecera— reutilice el catálogo durante un minuto sin preguntar.
+         Sin él, cada montaje de `/home` volvía a pedirlo y el modo offline
+         dependía solo de la copia del SW. */
       "Cache-Control": cacheable
-        ? "public, s-maxage=300, stale-while-revalidate=600"
+        ? "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
         : "private, no-store",
     },
   });

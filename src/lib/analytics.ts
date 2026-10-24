@@ -24,7 +24,7 @@
  *   si mañana se reordena el DOM.
  */
 
-import posthog from "posthog-js";
+import type posthogJs from "posthog-js";
 
 /* El nombre canónico es `NEXT_PUBLIC_POSTHOG_KEY`; el wizard de PostHog escribe
    `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`. Se aceptan los dos para que re-ejecutar
@@ -48,33 +48,148 @@ const UTM_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 type Utm = Partial<Record<(typeof UTM_KEYS)[number], string>>;
 
+type ClientePostHog = typeof posthogJs;
+
+/*
+ * Carga diferida.
+ *
+ * `posthog-js` son ~40 KB de JavaScript que no hacen falta para pintar el
+ * mapa. Antes se importaba en el layout raíz y viajaba en el bundle inicial de
+ * todas las rutas, incluida la primera visita desde WhatsApp. Ahora el SDK se
+ * pide con `import()` después de `load` o de la primera interacción —lo que
+ * llegue antes— y solo si hay clave: sin `NEXT_PUBLIC_POSTHOG_KEY`, esta
+ * maquinaria no descarga nada.
+ *
+ * Los eventos que ocurren mientras el SDK viaja se guardan en una cola corta y
+ * se mandan al terminar de cargar. Sin eso, se perdería justo el `$pageview`
+ * de la entrada, que es el que cuenta la visita.
+ */
+let cliente: ClientePostHog | null = null;
+let arranque: Promise<ClientePostHog | null> | null = null;
+let programado = false;
+
+/** Una llamada al SDK que espera a que exista. */
+type Tarea = (ph: ClientePostHog) => void;
+const cola: Tarea[] = [];
+
+function hayClave(): boolean {
+  return Boolean(POSTHOG_KEY) && typeof window !== "undefined";
+}
+
 function isInitialized(): boolean {
-  return (
-    Boolean(POSTHOG_KEY) && typeof window !== "undefined" && posthog.__loaded
-  );
+  return hayClave();
+}
+
+function ejecutar(tarea: Tarea): void {
+  if (!hayClave()) return;
+  if (cliente) {
+    tarea(cliente);
+    return;
+  }
+  cola.push(tarea);
+  programarArranque();
 }
 
 /**
- * Inicializa PostHog una sola vez. Lo llama el provider del layout raíz.
+ * La fachada que usan los helpers de este archivo.
+ *
+ * Mantiene la misma forma que el SDK (`capture`, `identify`, `register`) para
+ * que las llamadas de abajo no sepan si PostHog ya cargó o no.
+ */
+const posthog = {
+  get __loaded(): boolean {
+    return cliente?.__loaded === true;
+  },
+  capture(event: string, props?: Record<string, unknown>): void {
+    ejecutar((ph) => ph.capture(event, props));
+  },
+  identify(userId: string, props?: { email?: string; name?: string }): void {
+    ejecutar((ph) => ph.identify(userId, props));
+  },
+  register(props: Record<string, unknown>): void {
+    ejecutar((ph) => ph.register(props));
+  },
+};
+
+function cargar(): Promise<ClientePostHog | null> {
+  if (arranque) return arranque;
+  if (!POSTHOG_KEY) return Promise.resolve(null);
+
+  arranque = import("posthog-js")
+    .then((modulo) => {
+      const ph = modulo.default;
+
+      if (!ph.__loaded) {
+        ph.init(POSTHOG_KEY, {
+          api_host: POSTHOG_HOST,
+          /* El pageview lo emite el provider en cada cambio de ruta; el
+             automático solo contaría la primera carga de cada visita. */
+          capture_pageview: false,
+          capture_exceptions: true,
+          persistence: "localStorage+cookie",
+        });
+      }
+
+      cliente = ph;
+
+      /* La atribución se restaura antes de vaciar la cola: así los eventos que
+         esperaban —incluido el primer `$pageview`— ya llevan las *super
+         properties* de la campaña. */
+      restoreAttribution();
+      for (const tarea of cola.splice(0)) tarea(ph);
+
+      return ph;
+    })
+    .catch(() => {
+      /* Un bloqueador de anuncios o una red caída no puede romper la página:
+         se pierde la analítica, no la app. Se permite reintentar en la
+         siguiente llamada. */
+      arranque = null;
+      return null;
+    });
+
+  return arranque;
+}
+
+/**
+ * Elige cuándo pedir el SDK: tras `load` o en la primera interacción.
+ *
+ * En una visita que solo mira el mapa sin tocar nada, `load` basta. Si la
+ * persona toca antes de que la página termine de cargar, se adelanta porque en
+ * ese momento ya está claro que va a interactuar.
+ */
+function programarArranque(): void {
+  if (programado || !hayClave()) return;
+  programado = true;
+
+  const arrancar = () => {
+    void cargar();
+  };
+
+  if (document.readyState === "complete") {
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(arrancar, { timeout: 3000 });
+    } else {
+      setTimeout(arrancar, 0);
+    }
+  } else {
+    window.addEventListener("load", arrancar, { once: true });
+  }
+
+  window.addEventListener("pointerdown", arrancar, { once: true, passive: true });
+  window.addEventListener("keydown", arrancar, { once: true });
+  window.addEventListener("scroll", arrancar, { once: true, passive: true });
+}
+
+/**
+ * Programa la carga de PostHog. Lo llama el provider del layout raíz.
  *
  * `capture_exceptions` manda los errores no capturados del navegador al
  * proyecto: es el "monitor" que faltaba — fallos de JS en producción con su
  * traza, sin depender de que alguien abra la consola.
  */
 export function initAnalytics(): void {
-  if (!POSTHOG_KEY || typeof window === "undefined") return;
-  if (posthog.__loaded) return;
-
-  posthog.init(POSTHOG_KEY, {
-    api_host: POSTHOG_HOST,
-    /* El pageview lo emite `PostHogPageView` en cada cambio de ruta; el
-       automático solo contaría la primera carga de cada visita. */
-    capture_pageview: false,
-    capture_exceptions: true,
-    persistence: "localStorage+cookie",
-  });
-
-  restoreAttribution();
+  programarArranque();
 }
 
 /** Pageview manual por ruta (SPA). `referrer` lo adjunta posthog-js él solo. */

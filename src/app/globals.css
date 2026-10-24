@@ -1622,9 +1622,13 @@ html[data-theme="dark"]
 
 /* Avisos flotantes: solo los nuestros.
    `NeonAuthUIProvider` —de `@neondatabase/auth-ui`— monta **su propio**
-   `<Toaster />` de sonner además del de `layout.tsx`, y envuelve toda la app.
+   `<Toaster />` de sonner además del de `layout.tsx`, y envolvía toda la app.
    Los dos leen el mismo almacén de sonner, así que cada `toast()` se pintaba
    dos veces: una pastilla por cada toaster.
+
+   El proveedor ya no está en el árbol (sacar sus ~50 KB del bundle público era
+   parte del trabajo de rendimiento), pero la regla se queda: si vuelve a
+   montarse en una ruta de acceso, no puede resucitar el aviso duplicado.
 
    El que se queda es el de `layout.tsx`, el único con el diseño del sistema y
    con el `mobileOffset` que lo sube por encima de la barra inferior. Al del
