@@ -30,6 +30,10 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/home",
     scope: "/",
     display: "standalone",
+    /* La app se diseñó en vertical —mapa arriba, hoja de recomendaciones
+       abajo— y las pantallas de arranque de iOS son verticales. Cambiar esto
+       exige generar también las variantes horizontales; no se toca sin esa
+       tanda. */
     orientation: "portrait",
     lang: "es",
     /* El cielo del hero (`.lv-grid-glow`): es el color que tiñe la pantalla de

@@ -59,7 +59,15 @@ export function PlaceCard({
     <motion.div
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      /* El retardo se corta a las ocho primeras tarjetas. Sin tope, la lista
+         completa —hasta doscientas— escalonaba una detrás de otra y las de
+         abajo tardaban segundos en aparecer, justo cuando el usuario ya había
+         bajado a buscarlas. */
+      transition={{
+        delay: Math.min(index, 8) * 0.05,
+        duration: 0.4,
+        ease: [0.22, 1, 0.36, 1],
+      }}
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.99 }}
       className={cn(

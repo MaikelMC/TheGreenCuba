@@ -18,7 +18,12 @@
  * desarrollo, y por eso la caché no vive dentro de un componente.
  */
 
-import { borrarDatosOffline, leerAuth, marcarAuth } from "@/lib/offline/store";
+import {
+  borrarDatosOffline,
+  leerAuth,
+  marcarAuth,
+  purgarCachesPrivadas,
+} from "@/lib/offline/store";
 
 let cached: Promise<unknown> | null = null;
 
@@ -51,7 +56,7 @@ async function pedir(): Promise<unknown> {
          primero. */
       const previa = await leerAuth();
       if (previa && previa.userId !== userId) {
-        await borrarDatosOffline();
+        await Promise.all([borrarDatosOffline(), purgarCachesPrivadas()]);
       }
     } catch {
       // Un fallo del almacén local no puede impedir leer la sesión.

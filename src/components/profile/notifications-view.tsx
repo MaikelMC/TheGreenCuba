@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Bell, CheckCheck, Clock3, Inbox, MailOpen, Megaphone, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -30,14 +30,27 @@ export function NotificationsView() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [aviso, setAviso] = useState<string | null>(null);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+
+  const cargar = useCallback(async () => {
+    setLoading(true);
+    setErrorCarga(null);
+    try {
+      const response = await fetch("/api/notifications");
+      if (!response.ok) throw new Error(`El servidor respondió ${response.status}.`);
+      const data = (await response.json()) as unknown;
+      setItems(Array.isArray(data) ? (data as UserNotification[]) : []);
+    } catch (error) {
+      setItems([]);
+      setErrorCarga(mensajeDeRed(error, "No se pudieron cargar las notificaciones."));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetch("/api/notifications")
-      .then((response) => (response.ok ? response.json() : []))
-      .then((data: UserNotification[]) => setItems(Array.isArray(data) ? data : []))
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
-  }, []);
+    void cargar();
+  }, [cargar]);
 
   async function markAllRead() {
     setAviso(null);
@@ -122,6 +135,22 @@ export function NotificationsView() {
           </button>
         )}
       </header>
+
+      {errorCarga && (
+        <div
+          role="alert"
+          className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+        >
+          <span className="flex-1">{errorCarga}</span>
+          <button
+            type="button"
+            onClick={() => void cargar()}
+            className="rounded-full border border-destructive/25 bg-white px-3 py-[5px] font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       <PushToggle />
 

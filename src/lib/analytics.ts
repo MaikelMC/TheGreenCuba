@@ -67,6 +67,10 @@ type ClientePostHog = typeof posthogJs;
 let cliente: ClientePostHog | null = null;
 let arranque: Promise<ClientePostHog | null> | null = null;
 let programado = false;
+/* Sin red no se pide el SDK: el `import()` fallaría igual, pero antes de
+   fallar deja un intento de descarga abierto. Se reintenta una sola vez al
+   volver la conexión. */
+let esperaRed = false;
 
 /** Una llamada al SDK que espera a que exista. */
 type Tarea = (ph: ClientePostHog) => void;
@@ -163,6 +167,19 @@ function programarArranque(): void {
   programado = true;
 
   const arrancar = () => {
+    if (!navigator.onLine) {
+      if (esperaRed) return;
+      esperaRed = true;
+      window.addEventListener(
+        "online",
+        () => {
+          esperaRed = false;
+          void cargar();
+        },
+        { once: true },
+      );
+      return;
+    }
     void cargar();
   };
 

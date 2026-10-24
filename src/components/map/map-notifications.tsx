@@ -67,7 +67,16 @@ export function MapNotifications() {
   }, []);
 
   useEffect(() => {
-    void load();
+    /* La campana no hace falta para pintar el mapa, así que su primera carga
+       espera a que el hilo principal quede libre. Abrirla o volver a la
+       pestaña sigue refrescando en el acto: el retraso no deja nunca una
+       lista vieja delante. */
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(() => void load(), { timeout: 2500 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = setTimeout(() => void load(), 800);
+    return () => clearTimeout(id);
   }, [load]);
 
   /* Al volver a la pestaña se refresca. El home puede llevar horas abierto y el

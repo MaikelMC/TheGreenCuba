@@ -157,6 +157,13 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Cache-Control", value: "public, max-age=604800" }],
       },
       {
+        /* Las pantallas de arranque de iOS solo cambian con el logo. Sin esta
+           cabecera heredan `max-age=0` y Safari las revalida en cada arranque
+           de la app instalada. */
+        source: "/splash/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=604800" }],
+      },
+      {
         source: "/offline.html",
         headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
       },

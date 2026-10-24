@@ -529,13 +529,15 @@ export function MenuItemEditor({
           className="mt-gap-sm flex flex-wrap items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
         >
           <span className="flex-1">{error}</span>
-          <button
-            type="button"
-            onClick={() => reintentarEstado.current?.()}
-            className="rounded-full border border-destructive/25 bg-white px-3 py-[5px] font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
-          >
-            Reintentar
-          </button>
+          {reintentarEstado.current && (
+            <button
+              type="button"
+              onClick={() => reintentarEstado.current?.()}
+              className="rounded-full border border-destructive/25 bg-white px-3 py-[5px] font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
+            >
+              Reintentar
+            </button>
+          )}
         </div>
       )}
     </div>

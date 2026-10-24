@@ -7,10 +7,10 @@ import { PostHogAnalytics } from "@/providers/posthog-provider";
 import { PwaRegister } from "@/components/pwa/pwa-register";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { Toaster } from "sonner";
-/* Estilos del paquete de auth. Se mantienen porque las pantallas de acceso
-   los usaban cuando el proveedor envolvía la app, pero el proveedor ya no
-   está: no hay ningún componente de `@neondatabase/auth-ui` montado. */
-import "@neondatabase/auth-ui/css";
+/* Sin el CSS de `@neondatabase/auth-ui`: no hay ningún componente de ese
+   paquete montado. Las pantallas de acceso usan las clases propias de
+   `auth-card.tsx`, y cargar la hoja del paquete solo engordaba el primer
+   pintado. */
 import "./globals.css";
 
 /* Las tres de la app, desde el repo, no desde Google. El motivo entero está en
@@ -68,6 +68,85 @@ const TITLE = "La Verde | Encuentra tu lugar en Cuba";
 const DESCRIPTION =
   "Encuentra los mejores lugares en Cuba con inteligencia artificial. Restaurantes, cafeterías, playas y más.";
 
+/* Pantallas de arranque de iOS. Sin `apple-touch-startup-image`, la app
+   instalada abre en blanco hasta que React pinta; Android ya usa el icono y
+   `background_color` del manifest, pero Safari no.
+ *
+ * Las imágenes salen de `public/logo.png` sobre el verde del manifest, las
+ * genera `sharp` y viven en `public/splash/`. Hay una por tamaño de pantalla
+ * porque iOS elige por `media`; si no coincide ninguna, vuelve al blanco. Solo
+ * se descarga la del dispositivo, entre 15 y 79 KB. */
+const IOS_STARTUP_IMAGES = [
+  {
+    url: "/splash/iphone-16-pro-max.png",
+    media: "(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)",
+  },
+  {
+    url: "/splash/iphone-16-pro.png",
+    media: "(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3)",
+  },
+  {
+    url: "/splash/iphone-plus.png",
+    media: "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)",
+  },
+  {
+    url: "/splash/iphone-16.png",
+    media: "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)",
+  },
+  {
+    url: "/splash/iphone-14.png",
+    media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)",
+  },
+  {
+    url: "/splash/iphone-12-mini.png",
+    media: "(device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3)",
+  },
+  {
+    url: "/splash/iphone-8-plus.png",
+    media: "(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)",
+  },
+  {
+    url: "/splash/iphone-13-pro-max.png",
+    media: "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)",
+  },
+  {
+    url: "/splash/iphone-11-pro-max.png",
+    media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)",
+  },
+  {
+    url: "/splash/iphone-11.png",
+    media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)",
+  },
+  {
+    url: "/splash/iphone-13-mini.png",
+    media: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)",
+  },
+  {
+    url: "/splash/iphone-se.png",
+    media: "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)",
+  },
+  {
+    url: "/splash/ipad-pro-12.png",
+    media: "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)",
+  },
+  {
+    url: "/splash/ipad-pro-11.png",
+    media: "(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)",
+  },
+  {
+    url: "/splash/ipad-pro-10.png",
+    media: "(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)",
+  },
+  {
+    url: "/splash/ipad-air.png",
+    media: "(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2)",
+  },
+  {
+    url: "/splash/ipad-mini.png",
+    media: "(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)",
+  },
+];
+
 export const metadata: Metadata = {
   /* Sin `metadataBase`, Next resuelve las URL relativas de Open Graph y de
      canonical contra `localhost:3000`: las previews al compartir salían con una
@@ -101,10 +180,21 @@ export const metadata: Metadata = {
      el icono se nombra con el dominio. El icono que iOS enseña no se declara
      aquí: lo resuelve `src/app/apple-icon.png` por la convención de Next.
      Android usa el manifest (`src/app/manifest.ts`). */
+  /* Next 16 emite `mobile-web-app-capable` (el nombre estándar) y ya no la
+     variante con prefijo `apple-`; Safari sigue leyendo esta última para abrir
+     la app instalada sin barra. Se declaran las dos. */
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+  },
   appleWebApp: {
     capable: true,
     title: siteConfig.name,
+    /* `default` mantiene la barra del sistema opaca y legible sobre la app
+       clara. `black-translucent` la vuelve transparente con texto blanco: se
+       pierde sobre el fondo arena del modo claro, y cambiarla a `black`
+       arregla el oscuro rompiendo el claro. iOS no admite un estilo por tema. */
     statusBarStyle: "default",
+    startupImage: IOS_STARTUP_IMAGES,
   },
   /* No se declara `robots` aquí: lo decide `robots.ts`, que además puede excluir
      rutas enteras del rastreo, cosa que una meta etiqueta no hace. */

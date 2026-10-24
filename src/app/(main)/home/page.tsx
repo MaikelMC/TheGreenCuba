@@ -60,7 +60,7 @@ import {
   type RoutePoint,
 } from "@/lib/map/routing";
 import { toast } from "sonner";
-import type { MapPlace } from "@/components/map/types";
+import type { MapPlace, MapViewProps } from "@/components/map/types";
 import { usePlaces } from "@/providers/places-provider";
 import { CatalogSync } from "@/components/pwa/catalog-sync";
 import {
@@ -1232,6 +1232,15 @@ function HomePageContent() {
     setSelectedId(id);
   }, []);
 
+  /* Envuelta estable para el mapa: `MapMarkers` memoriza cada pin y compara
+     `onSelect` por identidad. Con la flecha escrita en el JSX, cada cambio de
+     estado del home —abrir la hoja, tocar un filtro, escribir— re-renderizaba
+     los doscientos pines y recreaba su icono. */
+  const handlePlaceSelect = useCallback(
+    (place: MapPlace) => handleMarkerClick(place.id),
+    [handleMarkerClick],
+  );
+
   const handleCardDoubleClick = useCallback((place: HomePlace) => {
     setDetailPlace(place);
   }, []);
@@ -1255,6 +1264,15 @@ function HomePageContent() {
     (lat: number, lng: number, accuracy?: number) => {
       setUserLocation({ lat, lng, accuracy });
       setSheetState("default");
+    },
+    [],
+  );
+
+  /* También estable: `MapEventsHandler` vuelve a suscribir `moveend` cuando
+     cambia la identidad de la función, y esta se recreaba en cada render. */
+  const handleMapMove = useCallback<NonNullable<MapViewProps["onMapMove"]>>(
+    (_bounds, center, zoom) => {
+      saveMapView(center[0], center[1], zoom, readUserPreferences().location);
     },
     [],
   );
@@ -1326,6 +1344,17 @@ function HomePageContent() {
       return found ? userPlaceToHomePlace(found, categories, null) : null;
     },
     [places, categories],
+  );
+
+  /* Tercera función estable del mapa. Era una flecha en el JSX y bastaba para
+     que `MapMarkers` perdiera la memoria de sus pines: cambiaba de identidad en
+     cada render del home y arrastraba consigo el icono de cada marcador. */
+  const handlePlaceRoute = useCallback(
+    (place: MapPlace) => {
+      const target = placeById(place.id);
+      if (target) handleRouteFromPopup(target);
+    },
+    [placeById, handleRouteFromPopup],
   );
 
   /* Al llegar desde el botón "Cómo llegar" de la ficha (`?lugar=<id>`) la ruta
@@ -1530,20 +1559,10 @@ function HomePageContent() {
            restaura al volver desde otra sección o desde una ficha. La lectura
            síncrona de preferencias da la provincia ya guardada, también
            después de cambiarla en Ajustes. */
-        onMapMove={(_, center, zoom) =>
-          saveMapView(
-            center[0],
-            center[1],
-            zoom,
-            readUserPreferences().location,
-          )
-        }
-        onPlaceSelect={(place) => handleMarkerClick(place.id)}
+        onMapMove={handleMapMove}
+        onPlaceSelect={handlePlaceSelect}
         onMapClick={handleDeselect}
-        onPlaceRoute={(place) => {
-          const target = placeById(place.id);
-          if (target) handleRouteFromPopup(target);
-        }}
+        onPlaceRoute={handlePlaceRoute}
         userLocation={userLocation}
         onUserLocated={handleUserLocated}
         focusTarget={focusTarget}

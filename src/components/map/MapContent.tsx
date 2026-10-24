@@ -36,27 +36,35 @@ function MapEventsHandler({
   onMapMove?: MapViewProps["onMapMove"];
   onMapClick?: MapViewProps["onMapClick"];
 }) {
-  useMapEvents({
-    // Los pines no burbujean al mapa (`bubblingMouseEvents: false` en
-    // `L.Marker`), así que este click es siempre el del fondo del mapa.
-    click: () => onMapClick?.(),
-    moveend: (e) => {
-      if (!onMapMove) return;
-      const map = e.target;
-      const bounds = map.getBounds();
-      const center = map.getCenter();
-      onMapMove(
-        {
-          north: bounds.getNorth(),
-          south: bounds.getSouth(),
-          east: bounds.getEast(),
-          west: bounds.getWest(),
-        },
-        [center.lat, center.lng],
-        map.getZoom(),
-      );
-    },
-  });
+  /* `useMapEvents` desengancha y reengancha los eventos cada vez que cambia la
+     identidad del objeto que recibe. Se creaba en cada render, así que
+     cualquier cambio de estado del home volvía a suscribir el mapa entero. */
+  const handlers = useMemo<L.LeafletEventHandlerFnMap>(
+    () => ({
+      // Los pines no burbujean al mapa (`bubblingMouseEvents: false` en
+      // `L.Marker`), así que este click es siempre el del fondo del mapa.
+      click: () => onMapClick?.(),
+      moveend: (e) => {
+        if (!onMapMove) return;
+        const map = e.target;
+        const bounds = map.getBounds();
+        const center = map.getCenter();
+        onMapMove(
+          {
+            north: bounds.getNorth(),
+            south: bounds.getSouth(),
+            east: bounds.getEast(),
+            west: bounds.getWest(),
+          },
+          [center.lat, center.lng],
+          map.getZoom(),
+        );
+      },
+    }),
+    [onMapMove, onMapClick],
+  );
+
+  useMapEvents(handlers);
   return null;
 }
 

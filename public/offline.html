@@ -228,6 +228,7 @@
         var DB_NAME = "la-verde-offline";
         var DB_VERSION = 1;
         var MAX_EDAD_SESION_MS = 7 * 24 * 60 * 60 * 1000;
+        var dbAbierta = null;
 
         var $ = function (id) {
           return document.getElementById(id);
@@ -250,6 +251,7 @@
               }
             };
             peticion.onsuccess = function () {
+              dbAbierta = peticion.result;
               resolve(peticion.result);
             };
             peticion.onerror = function () {
@@ -518,6 +520,15 @@
               terminado = true;
               resolve();
             };
+
+            /* La conexión abierta al pintar bloquea `deleteDatabase`: sin
+               cerrarla, el navegador dispara `onblocked`, se resuelve como si
+               hubiera borrado y los datos siguen ahí. */
+            if (dbAbierta) {
+              dbAbierta.close();
+              dbAbierta = null;
+            }
+
             try {
               var peticion = indexedDB.deleteDatabase(DB_NAME);
               peticion.onsuccess = acabar;

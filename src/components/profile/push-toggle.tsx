@@ -222,6 +222,8 @@ export function PushToggle() {
     setAviso(null);
     setEstado("guardando");
 
+    let desuscrito = false;
+
     try {
       const registro = await navigator.serviceWorker.getRegistration();
       const suscripcion = await registro?.pushManager.getSubscription();
@@ -230,19 +232,32 @@ export function PushToggle() {
       /* Primero se da de baja en el navegador: si esto falla, no tiene sentido
          borrar la fila del servidor y quedarse con una suscripción viva que ya
          no se puede desactivar desde aquí. */
-      if (suscripcion) await suscripcion.unsubscribe();
+      if (suscripcion) {
+        await suscripcion.unsubscribe();
+        desuscrito = true;
+      }
 
       if (endpoint) {
-        await fetch("/api/push/unsubscribe", {
+        const response = await fetch("/api/push/unsubscribe", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint }),
         });
+        if (!response.ok) {
+          /* El navegador ya no recibirá nada; la fila sobrante se limpia sola
+             cuando el servicio push devuelva 404/410. No se puede decir que
+             sigue activo. */
+          setEstado("inactivo");
+          setAviso("Se desactivó en este dispositivo, pero no se pudo avisar al servidor.");
+          return;
+        }
       }
 
       setEstado("inactivo");
     } catch (error) {
-      setEstado("activo");
+      /* Si `unsubscribe()` falló, la suscripción sigue viva. Si ya se había
+         dado de baja y falló el aviso al servidor, no. */
+      setEstado(desuscrito ? "inactivo" : "activo");
       setAviso(mensajeDeRed(error, "No se pudieron desactivar los avisos. Inténtalo otra vez."));
     }
   }
