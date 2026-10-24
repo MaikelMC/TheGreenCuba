@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, index, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, index, unique, jsonb } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { places } from "./places";
 import { users } from "./users";
@@ -16,6 +16,12 @@ export const businessOwners = pgTable(
     role: text("role", { enum: ["owner", "manager", "editor"] })
       .default("owner")
       .notNull(),
+    /* Qué puede tocar un trabajador. El dueño (`role = owner`) no las mira:
+       tiene todas, y por eso su fila puede quedarse con la lista vacía. Se
+       guardan como jsonb y no como cuatro columnas booleanas porque los
+       permisos van a crecer —hoy son los de `permisos-negocio.ts`— y una
+       columna por permiso obligaría a migrar por cada uno. */
+    permissions: jsonb("permissions").$type<string[]>().default([]).notNull(),
     invitedAt: timestamp("invited_at").defaultNow().notNull(),
     acceptedAt: timestamp("accepted_at"),
   },

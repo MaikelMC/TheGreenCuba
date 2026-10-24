@@ -204,7 +204,7 @@ export async function GET(req: NextRequest) {
   if (!placeId) {
     return NextResponse.json({ error: "Falta el negocio." }, { status: 400 });
   }
-  if (!(await canManagePlace(req, placeId))) {
+  if (!(await canManagePlace(req, placeId, "pedidos"))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
@@ -246,7 +246,7 @@ export async function PATCH(req: NextRequest) {
   if (!placeId || !id || !esEstado(estado)) {
     return NextResponse.json({ error: "Datos inválidos." }, { status: 400 });
   }
-  if (!(await canManagePlace(req, placeId))) {
+  if (!(await canManagePlace(req, placeId, "pedidos"))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
   if (placeId === DEV_PLACE_ID) return NextResponse.json({ ok: true });

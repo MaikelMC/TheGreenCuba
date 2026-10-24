@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import {
   ArrowLeft,
+  Bot,
   ChevronRight,
   ClipboardList,
   Edit,
@@ -13,6 +14,7 @@ import {
   Settings,
   Sparkles,
   Tag,
+  Users,
   Utensils,
   X,
 } from "lucide-react";
@@ -34,6 +36,8 @@ export type PanelView =
   | "editor"
   | "ofertas"
   | "publicaciones"
+  | "telegram"
+  | "equipo"
   | "planes"
   | "settings";
 
@@ -59,6 +63,13 @@ interface PanelShellProps {
    */
   publicado?: boolean;
   defaultView?: PanelView;
+  /**
+   * Las secciones que esta cuenta puede abrir. Sin lista, todas.
+   *
+   * Es solo la barra: quien decide de verdad es el servidor. Existe para que un
+   * trabajador no vea pestañas que le van a devolver un 401 al pulsarlas.
+   */
+  vistas?: PanelView[];
   /**
    * Contenido que va **encima de la vista**, en todas las secciones.
    *
@@ -88,6 +99,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: "editor", label: "Editar", icon: Edit },
   { id: "ofertas", label: "Ofertas", icon: Tag },
   { id: "publicaciones", label: "Publicar", icon: Megaphone },
+  { id: "telegram", label: "Asistente", icon: Bot },
+  { id: "equipo", label: "Equipo", icon: Users },
   { id: "planes", label: "Planes", icon: Sparkles },
   { id: "settings", label: "Ajustes", icon: Settings },
 ];
@@ -96,11 +109,22 @@ export function PanelShell({
   businessName,
   publicado = false,
   defaultView = "dashboard",
+  vistas,
   above,
   children,
   className,
 }: PanelShellProps) {
-  const [activeView, setActiveView] = useState<PanelView>(defaultView);
+  /* La barra se filtra aquí y no en cada mapa: el cajón del móvil y la barra de
+     escritorio pintan la misma lista, y dos filtros son dos sitios donde
+     olvidarlo. */
+  const items = vistas
+    ? NAV_ITEMS.filter((item) => vistas.includes(item.id))
+    : NAV_ITEMS;
+  const [activeView, setActiveView] = useState<PanelView>(() =>
+    !vistas || vistas.includes(defaultView)
+      ? defaultView
+      : (items[0]?.id ?? defaultView),
+  );
   const contenidoRef = useRef<HTMLDivElement>(null);
 
   /* El scroll vive en el contenedor de la vista, no en la ventana: al cambiar
@@ -126,7 +150,11 @@ export function PanelShell({
      compensa. */
   useEffect(() => {
     const seccion = new URLSearchParams(window.location.search).get("seccion");
-    if (seccion && NAV_ITEMS.some((item) => item.id === seccion)) {
+    if (
+      seccion &&
+      NAV_ITEMS.some((item) => item.id === seccion) &&
+      (!vistas || vistas.includes(seccion as PanelView))
+    ) {
       setActiveView(seccion as PanelView);
     }
   }, []);
@@ -139,6 +167,9 @@ export function PanelShell({
      servidor con sus tres oleadas de consultas, justo lo que este armazón evita
      desde el principio. */
   const go = (view: PanelView) => {
+    /* Una sección que esta cuenta no tiene no se abre ni escribiendo la URL:
+       el armazón la ignora aquí, que es por donde pasan las dos barras. */
+    if (vistas && !vistas.includes(view)) return;
     /* La pantalla que se está dejando puede tener trabajo sin guardar —el
        catálogo, sobre todo— y ella es la única que sabe qué se pierde. Si su
        guardia dice que no, no se cambia de sección: `puedeSalir()` ya se ha
@@ -211,7 +242,7 @@ export function PanelShell({
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Desktop Sidebar */}
         <aside className="hidden lg:flex flex-col w-[260px] bg-white border-r border-ink/5 shrink-0 px-gap-sm pt-gap-md gap-[2px]">
-          {NAV_ITEMS.map((item) => {
+          {items.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
             return (
@@ -308,7 +339,7 @@ export function PanelShell({
             className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
             aria-label="Secciones del panel"
           >
-            {NAV_ITEMS.map((item) => {
+            {items.map((item) => {
               const Icon = item.icon;
               const isActive = activeView === item.id;
               return (

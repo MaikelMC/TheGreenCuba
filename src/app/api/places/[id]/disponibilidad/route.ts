@@ -17,7 +17,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
 
-  if (!(await canManagePlace(req, id))) {
+  if (!(await canManagePlace(req, id, "catalogo"))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 

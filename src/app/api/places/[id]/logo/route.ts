@@ -42,7 +42,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
 
   /* Sube el logo el dueño del negocio o un administrador, igual que las fotos. */
-  if (!(await canManagePlace(req, id))) {
+  if (!(await canManagePlace(req, id, "ficha"))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
 
-  if (!(await canManagePlace(req, id))) {
+  if (!(await canManagePlace(req, id, "ficha"))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 

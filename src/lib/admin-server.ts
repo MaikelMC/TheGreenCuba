@@ -1,10 +1,14 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { and, eq } from "drizzle-orm";
-import { getAppUser } from "@/lib/auth/user";
+import { getAppUser, type AppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { businessOwners } from "@/lib/db/schema";
 import { DEV_PLACE_ID, ownsDevPlace } from "@/lib/dev-place";
+import {
+  normalizarPermisos,
+  type PermisoNegocio,
+} from "@/lib/permisos-negocio";
 
 /** Clave de administración. Falla en seco si no está configurada (sin fallback). */
 export function getAdminKey(): string | null {
@@ -81,26 +85,88 @@ export async function isAdminRequest(req: NextRequest): Promise<boolean> {
  * administración; que un dueño pueda eliminar su negocio desde el panel es otra
  * decisión y no está tomada.
  */
-export async function canManagePlace(req: NextRequest, placeId: string): Promise<boolean> {
-  if (isValidAdminKey(req.headers.get("x-admin-key") ?? "")) return true;
+export interface AccesoNegocio {
+  /** El dueño puede todo, incluidos los planes y la gestión del equipo. */
+  esDueno: boolean;
+  /** Lo que puede tocar un trabajador. El dueño lo ignora: tiene todo. */
+  permisos: PermisoNegocio[];
+}
 
-  const user = await getAppUser();
-  if (!user) return false;
-  if (user.role === "admin") return true;
+/**
+ * El acceso de una cuenta a un negocio concreto, o `null` si no tiene ninguno.
+ *
+ * Es la única consulta que decide «¿puede esta persona tocar este negocio?».
+ * Los administradores y el negocio de prueba se resuelven antes de tocar la
+ * tabla; para el resto, la fila de `business_owners` manda.
+ *
+ * El rol `owner` de `users` no entra aquí a propósito: dice que llevas algún
+ * negocio, no cuál. La fila concreta es la que abre la puerta.
+ */
+export async function accesoNegocio(
+  user: AppUser,
+  placeId: string,
+): Promise<AccesoNegocio | null> {
+  if (user.role === "admin") return { esDueno: true, permisos: [] };
 
   /* El negocio de prueba no tiene fila en `business_owners` que consultar: su
      "propiedad" es la lista de cuentas dueñas (`dev-place.ts`). Se pregunta por
      `ownsDevPlace` y no por `canViewDevPlace` a propósito: editar es de quien lo
      lleva, no de quien puede verlo, y en desarrollo `canViewDevPlace` dice que sí
-     a cualquiera —así cualquier cuenta con sesión podía escribir en el fixture—.
-     Un administrador ya ha pasado por la rama de arriba. */
-  if (placeId === DEV_PLACE_ID) return ownsDevPlace(user.email);
+     a cualquiera —así cualquier cuenta con sesión podía escribir en el fixture—. */
+  if (placeId === DEV_PLACE_ID) {
+    return ownsDevPlace(user.email) ? { esDueno: true, permisos: [] } : null;
+  }
 
   const [row] = await db
-    .select({ placeId: businessOwners.placeId })
+    .select({ role: businessOwners.role, permissions: businessOwners.permissions })
     .from(businessOwners)
     .where(and(eq(businessOwners.userId, user.id), eq(businessOwners.placeId, placeId)))
     .limit(1);
 
-  return Boolean(row);
+  if (!row) return null;
+
+  return {
+    esDueno: row.role === "owner",
+    permisos: normalizarPermisos(row.permissions),
+  };
+}
+
+/**
+ * ¿Puede esta petición editar este negocio?
+ *
+ * Con `permiso`, además, un trabajador necesita ese permiso concreto; sin él, la
+ * pregunta es la de siempre, «¿este negocio es suyo?», y sirve para las rutas
+ * que no se trocean por permiso. El dueño y el administrador pasan siempre.
+ */
+export async function canManagePlace(
+  req: NextRequest,
+  placeId: string,
+  permiso?: PermisoNegocio,
+): Promise<boolean> {
+  if (isValidAdminKey(req.headers.get("x-admin-key") ?? "")) return true;
+
+  const user = await getAppUser();
+  if (!user) return false;
+
+  const acceso = await accesoNegocio(user, placeId);
+  if (!acceso) return false;
+  if (acceso.esDueno) return true;
+  if (!permiso) return true;
+
+  return acceso.permisos.includes(permiso);
+}
+
+/**
+ * ¿Es el dueño de este negocio? Para lo que no se delega: planes, pagos,
+ * publicaciones y el equipo. Un administrador también pasa.
+ */
+export async function esDuenoDePlace(
+  req: NextRequest,
+  placeId: string,
+): Promise<boolean> {
+  if (isValidAdminKey(req.headers.get("x-admin-key") ?? "")) return true;
+
+  const user = await getAppUser();
+  if (!user) return false;
+  return (await accesoNegocio(user, placeId))?.esDueno === true;
 }

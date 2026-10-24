@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, sql, type SQL } from "drizzle-orm";
 import { canManagePlace } from "@/lib/admin-server";
+import { getAppUser } from "@/lib/auth/user";
 import { CODIGO_TTL_MIN, enlaceVinculacion, generarCodigo } from "@/lib/asistente";
 import { db } from "@/lib/db";
 import { asistenteCodigos, telegramVinculos } from "@/lib/db/schema";
@@ -38,8 +39,19 @@ interface Estado {
   minutosValidez: number;
 }
 
+/**
+ * Cómo casar el código con quien lo generó. `null` es un vínculo de antes de
+ * los trabajadores —o uno creado por un script con `x-admin-key`—: no hay
+ * usuario al que atribuirlo y vale cualquier código huérfano.
+ */
+function deUsuario(userId: string | null): SQL {
+  return userId
+    ? eq(asistenteCodigos.userId, userId)
+    : isNull(asistenteCodigos.userId);
+}
+
 /** Lee el estado del negocio: vínculo, código vivo y enlace. */
-async function leerEstado(negocioId: string): Promise<Estado> {
+async function leerEstado(negocioId: string, userId: string | null): Promise<Estado> {
   const ahora = new Date();
   const bot = botUsuario();
 
@@ -55,6 +67,7 @@ async function leerEstado(negocioId: string): Promise<Estado> {
       .where(
         and(
           eq(asistenteCodigos.negocioId, negocioId),
+          deUsuario(userId),
           isNull(asistenteCodigos.usadoEn),
           gt(asistenteCodigos.expiraEn, ahora),
         ),
@@ -76,39 +89,52 @@ async function leerEstado(negocioId: string): Promise<Estado> {
   };
 }
 
-/** El negocio del cuerpo o de la query, ya comprobado contra el permiso. */
+/**
+ * El negocio y el usuario que pide, ya comprobados contra el permiso.
+ *
+ * El `userId` se guarda en el código porque el vínculo del chat lo necesita
+ * para saber qué permisos aplicar en cada mensaje. Los administradores y los
+ * scripts van con `null` —sin fila en `business_owners`— y el bot los trata
+ * como dueño, que es lo que son.
+ */
 async function autorizar(
   req: NextRequest,
   negocioId: string | null,
-): Promise<string | null> {
+): Promise<{ negocioId: string; userId: string | null } | null> {
   if (!negocioId) return null;
-  if (!(await canManagePlace(req, negocioId))) return null;
-  return negocioId;
+  if (!(await canManagePlace(req, negocioId, "telegram"))) return null;
+
+  const user = await getAppUser();
+  return {
+    negocioId,
+    userId: user && user.role !== "admin" ? user.id : null,
+  };
 }
 
 export async function GET(req: NextRequest) {
   const pedido = req.nextUrl.searchParams.get("negocioId")?.trim() ?? "";
-  const negocioId = await autorizar(req, pedido);
-  if (!negocioId) {
+  const acceso = await autorizar(req, pedido);
+  if (!acceso) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  if (!(await puede(negocioId, "asistente_ia"))) {
+  if (!(await puede(acceso.negocioId, "asistente_ia"))) {
     return NextResponse.json(
       { error: "El asistente de Telegram está disponible en el plan Pro." },
       { status: 403 },
     );
   }
 
-  return NextResponse.json(await leerEstado(negocioId));
+  return NextResponse.json(await leerEstado(acceso.negocioId, acceso.userId));
 }
 
 export async function POST(req: NextRequest) {
   const cuerpo = (await req.json().catch(() => ({}))) as { negocioId?: string };
-  const negocioId = await autorizar(req, cuerpo.negocioId?.trim() ?? null);
-  if (!negocioId) {
+  const acceso = await autorizar(req, cuerpo.negocioId?.trim() ?? null);
+  if (!acceso) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+  const { negocioId } = acceso;
 
   /* Sin bot configurado no se genera nada: el código no tendría a quién canjearlo
      y el dueño se quedaría mirando un número que no funciona. */
@@ -143,9 +169,10 @@ export async function POST(req: NextRequest) {
   await db.insert(asistenteCodigos).values({
     id: generateId(),
     negocioId,
+    userId: acceso.userId,
     codigo: generarCodigo(),
     expiraEn,
   });
 
-  return NextResponse.json(await leerEstado(negocioId));
+  return NextResponse.json(await leerEstado(negocioId, acceso.userId));
 }

@@ -195,7 +195,7 @@ export async function DELETE(req: NextRequest) {
     );
   }
 
-  if (!(await canManagePlace(req, negocioId))) {
+  if (!(await canManagePlace(req, negocioId, "pedidos"))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
@@ -230,7 +230,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Personas inválidas." }, { status: 400 });
   }
 
-  if (!(await canManagePlace(req, negocioId))) {
+  if (!(await canManagePlace(req, negocioId, "pedidos"))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 

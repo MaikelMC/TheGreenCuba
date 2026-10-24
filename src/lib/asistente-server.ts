@@ -6,11 +6,17 @@ import { invalidarCatalogo, placeStats } from "@/lib/db/queries";
 import {
   asistenteCodigos,
   asistenteLog,
+  businessOwners,
   placeMetrics,
   places,
   telegramUpdates,
   telegramVinculos,
 } from "@/lib/db/schema";
+import {
+  normalizarPermisos,
+  permisoDeAccion,
+  type PermisoNegocio,
+} from "@/lib/permisos-negocio";
 import { hastaManana, type Disponibilidad } from "@/lib/disponibilidad";
 import { setDisponibilidad } from "@/lib/disponibilidad-server";
 import { puede } from "@/lib/plans-server";
@@ -175,6 +181,10 @@ interface Negocio {
   menu: Menu;
   status: EstadoNegocio;
   schedule: string | null;
+  /** `null` en los vínculos anteriores a los trabajadores: se tratan como dueño. */
+  userId: string | null;
+  esDueno: boolean;
+  permisos: Set<PermisoNegocio>;
 }
 
 async function cargarNegocio(chatId: string): Promise<Negocio | null> {
@@ -185,13 +195,66 @@ async function cargarNegocio(chatId: string): Promise<Negocio | null> {
       menu: places.menu,
       status: places.status,
       schedule: places.schedule,
+      userId: telegramVinculos.userId,
+      rol: businessOwners.role,
+      permisos: businessOwners.permissions,
     })
     .from(telegramVinculos)
     .innerJoin(places, eq(places.id, telegramVinculos.negocioId))
+    /* La fila del trabajador, si la hay. Un vínculo sin `user_id` —anterior a
+       los trabajadores o creado por un script— no casa con nada y se queda
+       como dueño. */
+    .leftJoin(
+      businessOwners,
+      and(
+        eq(businessOwners.userId, telegramVinculos.userId),
+        eq(businessOwners.placeId, telegramVinculos.negocioId),
+      ),
+    )
     .where(eq(telegramVinculos.chatId, chatId))
     .limit(1);
 
-  return fila ?? null;
+  if (!fila) return null;
+
+  /* Un chat con usuario pero sin fila es alguien a quien le quitaron el acceso:
+     no se le deja ni leer. */
+  if (fila.userId && !fila.rol) return null;
+
+  const esDueno = !fila.userId || fila.rol === "owner";
+
+  return {
+    negocioId: fila.negocioId,
+    nombre: fila.nombre,
+    menu: fila.menu,
+    status: fila.status,
+    schedule: fila.schedule,
+    userId: fila.userId ?? null,
+    esDueno,
+    permisos: esDueno
+      ? new Set<PermisoNegocio>()
+      : new Set(normalizarPermisos(fila.permisos)),
+  };
+}
+
+/** ¿Puede este chat hacer algo que exige `permiso`? El dueño puede todo. */
+function permite(negocio: Negocio, permiso: PermisoNegocio | null): boolean {
+  if (!permiso) return true;
+  return negocio.esDueno || negocio.permisos.has(permiso);
+}
+
+/**
+ * La respuesta de una escritura que el trabajador no tiene permitida.
+ *
+ * Devuelve la forma de `Resultado` para que las mismas funciones que ejecutan
+ * los cambios puedan negarlos sin que cada camino —texto libre, regex, modelo,
+ * botón o confirmación— tenga que acordarse de comprobarlo.
+ */
+function negado(accion: string, permiso: PermisoNegocio): Resultado {
+  const motivo =
+    permiso === "catalogo"
+      ? "El dueño no te dio permiso para cambiar el catálogo."
+      : "El dueño no te dio permiso para cambiar la ficha del negocio.";
+  return { ok: false, accion, antes: null, despues: null, texto: motivo };
 }
 
 /** Un producto, con el índice que ocupa en la carta.
@@ -303,6 +366,7 @@ async function ejecutarDisponibilidad(
   estado: Disponibilidad,
   hasta: number | null,
 ): Promise<Resultado> {
+  if (!permite(negocio, "catalogo")) return negado("set_disponibilidad", "catalogo");
   const producto = productosDe(negocio.menu)[indice];
   const antes = estadoPrevio(negocio.menu, indice);
   if (!producto) {
@@ -351,6 +415,7 @@ async function ejecutarPrecio(
   indice: number,
   precio: string,
 ): Promise<Resultado> {
+  if (!permite(negocio, "catalogo")) return negado("set_precio", "catalogo");
   const menu = negocio.menu ?? [];
   const producto = productosDe(menu)[indice];
   const precioAntes = menu[indice]?.price ?? "";
@@ -404,6 +469,7 @@ async function ejecutarAgregarProductos(
   negocio: Negocio,
   nuevos: A.ProductoNuevo[],
 ): Promise<Resultado> {
+  if (!permite(negocio, "catalogo")) return negado("agregar_productos", "catalogo");
   const menu = negocio.menu ?? [];
   const vistos = new Set(
     menu.map((item) => A.sinAcento(A.sinArticulo(item.name))),
@@ -474,6 +540,7 @@ async function ejecutarEditarProducto(
     Pick<ItemMenu, "name" | "description" | "price" | "currency" | "tag" | "category">
   >,
 ): Promise<Resultado | null> {
+  if (!permite(negocio, "catalogo")) return negado("editar_producto", "catalogo");
   const menu = negocio.menu ?? [];
   const item = menu[indice];
   if (!item) return null;
@@ -512,6 +579,7 @@ async function ejecutarEliminarProducto(
   negocio: Negocio,
   indice: number,
 ): Promise<Resultado | null> {
+  if (!permite(negocio, "catalogo")) return negado("eliminar_producto", "catalogo");
   const menu = negocio.menu ?? [];
   const item = menu[indice];
   if (!item) return null;
@@ -538,6 +606,7 @@ async function ejecutarHorario(
   negocio: Negocio,
   texto: string,
 ): Promise<Resultado> {
+  if (!permite(negocio, "ficha")) return negado("set_horario", "ficha");
   const horarioAntes = negocio.schedule ?? "";
   await db
     .update(places)
@@ -561,6 +630,7 @@ async function ejecutarAbrirCerrar(
   negocio: Negocio,
   abierto: boolean,
 ): Promise<Resultado> {
+  if (!permite(negocio, "ficha")) return negado("abrir_cerrar_hoy", "ficha");
   const status: EstadoNegocio = abierto ? "active" : "closed";
   const antes = { status: negocio.status };
   await db
@@ -599,6 +669,15 @@ async function deshacer(logId: string, negocio: Negocio): Promise<string> {
     .limit(1);
 
   if (!fila) return "Ese cambio ya no se puede deshacer.";
+
+  /* Deshacer escribe igual que la acción original: mismo permiso, y se mira
+     ahora y no cuando se hizo el cambio. */
+  const exigido = permisoDeAccion(fila.accion);
+  if (!permite(negocio, exigido)) {
+    return exigido === "catalogo"
+      ? "El dueño no te dio permiso para cambiar el catálogo."
+      : "El dueño no te dio permiso para cambiar la ficha del negocio.";
+  }
 
   const antes = fila.antes as Record<string, unknown> | null;
   const despues = fila.despues as Record<string, unknown> | null;
@@ -854,6 +933,16 @@ async function manejarTexto(update: A.ParsedTelegram): Promise<void> {
     return;
   }
 
+  /* Un trabajador puede tener el chat vinculado y, aun así, que le quiten el
+     acceso al asistente: el permiso se mira en cada mensaje, no al vincular. */
+  if (!permite(negocio, "telegram")) {
+    await enviarTexto(
+      update.chat_id,
+      "El dueño te quitó el acceso al asistente. Pídele que te lo devuelva desde el panel.",
+    );
+    return;
+  }
+
   if (comando && A.esComandoValido(comando)) {
     /* Los de la lista negra son comandos de otros bots: no se atienden ni se
        mandan al modelo —que cobraría por un «/help»—, solo se desvían. */
@@ -954,7 +1043,10 @@ async function vincular(chatId: string, codigo: string): Promise<void> {
         gte(asistenteCodigos.expiraEn, ahora),
       ),
     )
-    .returning({ negocioId: asistenteCodigos.negocioId });
+    .returning({
+      negocioId: asistenteCodigos.negocioId,
+      userId: asistenteCodigos.userId,
+    });
 
   if (!canjeado) {
     await enviarTexto(
@@ -974,15 +1066,39 @@ async function vincular(chatId: string, codigo: string): Promise<void> {
     return;
   }
 
+  /* El rol guardado es informativo: los permisos reales se leen de
+     `business_owners` en cada mensaje, así que quitárselos a alguien surte
+     efecto sin volver a vincular el chat. */
+  const [staff] =
+    canjeado.userId === null
+      ? []
+      : await db
+          .select({ rol: businessOwners.role })
+          .from(businessOwners)
+          .where(
+            and(
+              eq(businessOwners.userId, canjeado.userId),
+              eq(businessOwners.placeId, negocioId),
+            ),
+          )
+          .limit(1);
+  const rol = !canjeado.userId || staff?.rol === "owner" ? "dueno" : "empleado";
+
   /* `onConflictDoUpdate` sobre el `unique` de `chat_id`: un chat, un negocio. Si
      ese chat ya estaba unido a otro, se reescribe —que es lo que se quiere al
      cambiar de negocio—. */
   await db
     .insert(telegramVinculos)
-    .values({ id: generateId(), negocioId, chatId, rol: "dueno" })
+    .values({
+      id: generateId(),
+      negocioId,
+      chatId,
+      userId: canjeado.userId,
+      rol,
+    })
     .onConflictDoUpdate({
       target: telegramVinculos.chatId,
-      set: { negocioId, rol: "dueno", updatedAt: ahora },
+      set: { negocioId, userId: canjeado.userId, rol, updatedAt: ahora },
     });
 
   const [place] = await db
@@ -1000,6 +1116,21 @@ async function vincular(chatId: string, codigo: string): Promise<void> {
 
 /* ── capa 1: comandos y botones ─────────────────────────────────────────── */
 
+/** El permiso que exige un comando. Los de lectura no exigen ninguno más. */
+function permisoDeComando(comando: string): PermisoNegocio | null {
+  switch (comando) {
+    case "nuevo":
+    case "agotado":
+    case "disponible":
+      return "catalogo";
+    case "abrir":
+    case "cerrar":
+      return "ficha";
+    default:
+      return null;
+  }
+}
+
 async function manejarComando(
   negocio: Negocio,
   update: A.ParsedTelegram,
@@ -1007,6 +1138,17 @@ async function manejarComando(
   resto: string,
 ): Promise<void> {
   const chatId = update.chat_id;
+
+  const exigido = permisoDeComando(comando);
+  if (!permite(negocio, exigido)) {
+    await enviarTexto(
+      chatId,
+      exigido === "catalogo"
+        ? "El dueño no te dio permiso para cambiar el catálogo."
+        : "El dueño no te dio permiso para cambiar la ficha del negocio.",
+    );
+    return;
+  }
 
   switch (comando) {
     case "ayuda":
@@ -1875,6 +2017,15 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
     await responderCallback(
       callbackId,
       "Este chat ya no está unido a ningún negocio.",
+      true,
+    );
+    return;
+  }
+
+  if (!permite(negocio, "telegram")) {
+    await responderCallback(
+      callbackId,
+      "El dueño te quitó el acceso al asistente.",
       true,
     );
     return;

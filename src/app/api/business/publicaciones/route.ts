@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, asc, eq } from "drizzle-orm";
-import { canManagePlace } from "@/lib/admin-server";
+import { esDuenoDePlace } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { publicaciones } from "@/lib/db/schema";
 import { toPublicacion } from "@/lib/db/mappers";
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   if (!placeId) {
     return NextResponse.json({ error: "Falta placeId" }, { status: 400 });
   }
-  if (!(await canManagePlace(req, placeId))) {
+  if (!(await esDuenoDePlace(req, placeId))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
   if (!placeId) {
     return NextResponse.json({ error: "Falta placeId" }, { status: 400 });
   }
-  if (!(await canManagePlace(req, placeId))) {
+  if (!(await esDuenoDePlace(req, placeId))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 

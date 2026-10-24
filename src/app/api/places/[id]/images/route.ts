@@ -72,7 +72,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   /* Sube fotos el dueño del negocio, no solo un administrador. Ver
      `canManagePlace`: el rol `owner` no basta, hace falta el vínculo concreto. */
-  if (!(await canManagePlace(req, id))) {
+  if (!(await canManagePlace(req, id, "ficha"))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
@@ -134,7 +134,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
 
-  if (!(await canManagePlace(req, id))) {
+  if (!(await canManagePlace(req, id, "ficha"))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 

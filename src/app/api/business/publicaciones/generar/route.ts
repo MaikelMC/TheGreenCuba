@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { canManagePlace } from "@/lib/admin-server";
+import { esDuenoDePlace } from "@/lib/admin-server";
 import { getPlaceById } from "@/lib/db/queries";
 import { generarVariantesPublicacion } from "@/lib/ai/publicaciones";
 import {
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   if (!placeId) {
     return NextResponse.json({ error: "Falta placeId" }, { status: 400 });
   }
-  if (!(await canManagePlace(req, placeId))) {
+  if (!(await esDuenoDePlace(req, placeId))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 

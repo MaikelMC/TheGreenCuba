@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { canManagePlace } from "@/lib/admin-server";
+import { esDuenoDePlace } from "@/lib/admin-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { siteConfig } from "@/config/site";
 import { db } from "@/lib/db";
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ese plan no existe." }, { status: 400 });
   }
 
-  if (!(await canManagePlace(req, placeId))) {
+  if (!(await esDuenoDePlace(req, placeId))) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
 

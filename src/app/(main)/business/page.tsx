@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { accesoNegocio } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { getPlaceById, ownerPlaces, placeStats } from "@/lib/db/queries";
 import { statsVisitas } from "@/lib/eventos-server";
@@ -117,6 +118,11 @@ export default async function BusinessPage({
 
   if (!place) redirect("/profile?seccion=negocio");
 
+  /* Qué puede tocar esta cuenta en este negocio. La página solo lo usa para
+     pintar: cada ruta que escribe lo vuelve a comprobar por su cuenta. */
+  const acceso = await accesoNegocio(user, place.id);
+  if (!acceso) redirect("/profile?seccion=negocio");
+
   /* Las estadísticas se piden **después** de las funciones porque son ellas las
      que deciden hasta dónde se consulta: un negocio Gratis no paga las otras
      consultas y lo que no tiene contratado no llega a salir de la base. Ver
@@ -140,7 +146,11 @@ export default async function BusinessPage({
      publicación —`/api/pagos/qvapay` comprueba propiedad, no `isActive`—. Se
      enseña solo la sección de planes, sin el resto del panel. */
   if (!place.isActive) {
-    if (seccion !== "planes") redirect("/profile?seccion=negocio");
+    /* Los planes y el pago son del dueño: un trabajador no tiene nada que hacer
+       en un negocio que todavía no está aprobado. */
+    if (seccion !== "planes" || !acceso.esDueno) {
+      redirect("/profile?seccion=negocio");
+    }
 
     return (
       <CatalogoProvider catalogo={cat}>
@@ -188,6 +198,8 @@ export default async function BusinessPage({
         planElegido={planElegido}
         modulosElegidos={modulosElegidos}
         negocios={negocios}
+        esDueno={acceso.esDueno}
+        permisos={acceso.permisos}
       />
     </CatalogoProvider>
   );

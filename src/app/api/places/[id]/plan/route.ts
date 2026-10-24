@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { canManagePlace } from "@/lib/admin-server";
+import { esDuenoDePlace } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { invalidarCatalogo } from "@/lib/db/queries";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
-  if (!(await canManagePlace(req, id))) {
+  if (!(await esDuenoDePlace(req, id))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { businessOwners, places, users } from "@/lib/db/schema";
@@ -52,10 +52,15 @@ export async function GET(req: NextRequest) {
     .select({ id: users.id, name: users.name, email: users.email })
     .from(businessOwners)
     .innerJoin(users, eq(businessOwners.userId, users.id))
-    .where(eq(businessOwners.placeId, negocioId))
-    /* El `role` de `business_owners` no entra: el panel solo escribe «owner» y
-       una fila con otro rol es indistinguible para el dueño. Si algún día hay
-       gestores, aquí es donde se enseña la diferencia. */
+    /* Solo el dueño. Desde que hay trabajadores, esta tabla tiene más de una
+       fila por negocio y sin el filtro el editor enseñaría a un empleado como
+       «dueño». */
+    .where(
+      and(
+        eq(businessOwners.placeId, negocioId),
+        eq(businessOwners.role, "owner"),
+      ),
+    )
     .limit(1);
 
   const vinculo: Vinculo = {
@@ -124,8 +129,18 @@ export async function POST(req: NextRequest) {
 
   /* Reemplazar y no sumar (ver la cabecera del archivo). El borrado va antes del
      `insert` para que el `unique (user_id, place_id)` no estorbe cuando la fila
-     que se escribe es la del que ya estaba. */
-  await db.delete(businessOwners).where(eq(businessOwners.placeId, negocioId));
+     que se escribe es la del que ya estaba.
+
+     Solo las filas `owner`: vincular un dueño nuevo no puede vaciar el equipo
+     de trabajadores de ese negocio. */
+  await db
+    .delete(businessOwners)
+    .where(
+      and(
+        eq(businessOwners.placeId, negocioId),
+        eq(businessOwners.role, "owner"),
+      ),
+    );
 
   await db.insert(businessOwners).values({
     id: generateId(),
@@ -172,8 +187,17 @@ export async function DELETE(req: NextRequest) {
   /* Desvincular no toca el rol del usuario: quitó el negocio, no la capacidad
      —`bootstrapRole` y el panel de usuarios siguen mandando ahí—. Y **no borra el
      negocio**: la ficha sigue publicada y sin dueño, que es justo el estado para
-     el que existe el botón de eliminar de la lista. */
-  await db.delete(businessOwners).where(eq(businessOwners.placeId, negocioId));
+     el que existe el botón de eliminar de la lista.
+
+     Igual que al vincular, solo se va el dueño: el equipo se queda. */
+  await db
+    .delete(businessOwners)
+    .where(
+      and(
+        eq(businessOwners.placeId, negocioId),
+        eq(businessOwners.role, "owner"),
+      ),
+    );
 
   return NextResponse.json({ owner: null });
 }

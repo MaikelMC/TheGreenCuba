@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { canManagePlace } from "@/lib/admin-server";
+import { esDuenoDePlace } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { publicaciones } from "@/lib/db/schema";
 
@@ -33,7 +33,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       { status: 404 },
     );
   }
-  if (!(await canManagePlace(req, actual.negocioId))) {
+  if (!(await esDuenoDePlace(req, actual.negocioId))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
   if (actual.estado === "publicada") {

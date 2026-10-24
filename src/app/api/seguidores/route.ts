@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  if (!(await canManagePlace(req, negocioId))) {
+  if (!(await canManagePlace(req, negocioId, "ficha"))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 

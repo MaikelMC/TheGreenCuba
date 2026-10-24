@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { places } from "./places";
+import { users } from "./users";
 
 /**
  * El asistente de Telegram: quién puede escribirle, qué le pidió y qué hizo.
@@ -90,6 +91,12 @@ export const telegramVinculos = pgTable(
     rol: text("rol", { enum: ["dueno", "empleado"] })
       .default("dueno")
       .notNull(),
+    /* Quién canjeó el código. Es lo que permite aplicar los permisos del
+       trabajador en cada mensaje: sin esto el chat solo sabría a qué negocio
+       pertenece, no a qué persona. `null` son los vínculos anteriores a los
+       trabajadores —y los que crea un administrador desde un script—: no hay a
+       quién recortar y se tratan como dueño. */
+    userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
 
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -133,6 +140,10 @@ export const asistenteCodigos = pgTable(
     expiraEn: timestamp("expira_en").notNull(),
     /** Cuándo se canjeó. `null` = sigue vivo (o caducó sin usarse). */
     usadoEn: timestamp("usado_en"),
+    /* Quién lo generó. Hace falta para dos cosas: que un trabajador solo vea su
+       propio código vivo —el de otro le daría los permisos de ese otro— y que
+       el vínculo sepa a quién pertenece el chat al canjearlo. */
+    userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
     /** Por qué chat se canjeó, para poder auditar un vínculo raro. */
     usadoPor: text("usado_por"),
 

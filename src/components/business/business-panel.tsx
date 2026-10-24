@@ -41,7 +41,10 @@ import {
 import { CategoryIcon } from "@/components/admin/category-icon";
 import { IconPicker } from "@/components/ui/icon-picker";
 import { FormSection, FormSections } from "@/components/business/form-section";
-import { PanelShell } from "@/components/business/panel-shell";
+import {
+  PanelShell,
+  type PanelView,
+} from "@/components/business/panel-shell";
 import { DashboardStats } from "@/components/business/dashboard-stats";
 import { EstadisticasPanel } from "@/components/business/estadisticas-panel";
 import { LogoUpload } from "@/components/business/logo-upload";
@@ -55,6 +58,7 @@ import { PlanCard } from "@/components/business/plan-card";
 import { PlansSection } from "@/components/business/plans-section";
 import { PublicacionesView } from "@/components/business/publicaciones-view";
 import { AsistenteCard } from "@/components/business/asistente-card";
+import { EquipoView } from "@/components/business/equipo-view";
 import { SeguidoresCard } from "@/components/business/seguidores-card";
 import {
   BusinessSwitcher,
@@ -94,6 +98,7 @@ import type {
   UserPlace,
   UserPlacePatch,
 } from "@/lib/places-store";
+import type { PermisoNegocio } from "@/lib/permisos-negocio";
 
 /** Los números reales que el panel puede contar. Se declaran aquí y no se
     importan de `queries.ts`: ese módulo arrastra la base de datos y la caché de
@@ -164,6 +169,8 @@ export function BusinessPanel({
   planElegido = null,
   modulosElegidos = [],
   negocios,
+  esDueno,
+  permisos,
 }: {
   place: UserPlace;
   stats: PlaceStats;
@@ -206,7 +213,35 @@ export function BusinessPanel({
    * activo, así que la lista no repite esa información.
    */
   negocios: NegocioPanel[];
+  /**
+   * Si quien mira es el dueño. Resuelto en el servidor con `accesoNegocio`.
+   *
+   * Solo pinta: cada ruta que escribe vuelve a comprobarlo. El dueño ve todas
+   * las secciones y reparte permisos; un trabajador ve las que le tocan.
+   */
+  esDueno: boolean;
+  /** Los permisos del trabajador. Vacío para el dueño: no los necesita. */
+  permisos: PermisoNegocio[];
 }) {
+  /* Una función de permiso, tres usos. El dueño pasa siempre; el trabajador
+     solo si el dueño le marcó esa casilla. */
+  const puede = (permiso: PermisoNegocio) =>
+    esDueno || permisos.includes(permiso);
+
+  /* Las secciones del armazón. El orden lo pone `NAV_ITEMS`; aquí solo se
+     decide cuáles existen para esta cuenta. */
+  const vistas: PanelView[] = [
+    "dashboard",
+    ...(puede("catalogo") ? (["catalogo", "ofertas"] as PanelView[]) : []),
+    ...(puede("pedidos") ? (["pedidos"] as PanelView[]) : []),
+    ...(puede("ficha") ? (["editor"] as PanelView[]) : []),
+    ...(esDueno ? (["publicaciones"] as PanelView[]) : []),
+    ...(puede("telegram") ? (["telegram"] as PanelView[]) : []),
+    ...(esDueno ? (["equipo"] as PanelView[]) : []),
+    ...(esDueno ? (["planes"] as PanelView[]) : []),
+    ...(puede("ficha") ? (["settings"] as PanelView[]) : []),
+  ];
+
   /* `businessName` sale de la ficha que se está viendo y no de `/api/me`: con el
      selector, «la tuya» puede ser el negocio de prueba, y `/api/me` solo conoce
      el que está en `business_owners`. El selector va en `above` —encima de la
@@ -215,9 +250,20 @@ export function BusinessPanel({
     <PanelShell
       businessName={place.name}
       publicado={place.isActive}
+      vistas={vistas}
       above={<BusinessSwitcher negocios={negocios} seleccionado={place.id} />}
     >
       {(view, setView) => {
+        /* El botón de planes de las tarjetas no tiene a dónde ir si esta cuenta
+           no paga el negocio: en vez de un botón mudo, se dice a quién
+           pedírselo. */
+        const onVerPlanes = esDueno
+          ? () => setView("planes")
+          : () =>
+              toast.info(
+                "Los planes los gestiona el dueño del negocio. Pídeselo y él lo cambia.",
+              );
+
         switch (view) {
           case "dashboard":
             return (
@@ -230,9 +276,10 @@ export function BusinessPanel({
                 plan={plan}
                 funciones={funciones}
                 modulos={modulos}
+                esDueno={esDueno}
                 /* El botón de la tarjeta de plan navega dentro del panel, no
                    fuera: la sección de planes es una vista más del armazón. */
-                onVerPlanes={() => setView("planes")}
+                onVerPlanes={onVerPlanes}
               />
             );
           case "catalogo":
@@ -245,7 +292,7 @@ export function BusinessPanel({
                 key={place.id}
                 place={place}
                 funciones={funciones}
-                onVerPlanes={() => setView("planes")}
+                onVerPlanes={onVerPlanes}
               />
             );
           case "pedidos":
@@ -257,7 +304,7 @@ export function BusinessPanel({
                 key={place.id}
                 placeId={place.id}
                 funciones={funciones}
-                onVerPlanes={() => setView("planes")}
+                onVerPlanes={onVerPlanes}
               />
             );
           case "publicaciones":
@@ -271,7 +318,7 @@ export function BusinessPanel({
                 placeId={place.id}
                 productos={place.menu}
                 funciones={funciones}
-                onVerPlanes={() => setView("planes")}
+                onVerPlanes={onVerPlanes}
               />
             );
           case "editor":
@@ -289,7 +336,7 @@ export function BusinessPanel({
                 key={place.id}
                 place={place}
                 funciones={funciones}
-                onVerPlanes={() => setView("planes")}
+                onVerPlanes={onVerPlanes}
               />
             );
           case "ofertas":
@@ -301,9 +348,26 @@ export function BusinessPanel({
                 key={place.id}
                 place={place}
                 funciones={funciones}
-                onVerPlanes={() => setView("planes")}
+                onVerPlanes={onVerPlanes}
               />
             );
+          case "telegram":
+            /* El asistente vivía dentro de Ajustes. Se saca a su propia
+               sección porque el trabajador puede tener el permiso de usarlo sin
+               tener el de tocar la ficha, y Ajustes es de la ficha. */
+            return (
+              <div className="flex flex-col gap-gap-md">
+                <h1 className="sr-only">Asistente de Telegram</h1>
+                <AsistenteCard
+                  key={place.id}
+                  place={place}
+                  funciones={funciones}
+                  onVerPlanes={onVerPlanes}
+                />
+              </div>
+            );
+          case "equipo":
+            return <EquipoView key={place.id} placeId={place.id} />;
           case "planes":
             return (
               <PlansSection
@@ -322,7 +386,7 @@ export function BusinessPanel({
                 place={place}
                 plan={plan}
                 funciones={funciones}
-                onVerPlanes={() => setView("planes")}
+                onVerPlanes={onVerPlanes}
               />
             );
         }
@@ -356,6 +420,7 @@ function DashboardView({
   plan,
   funciones,
   modulos,
+  esDueno,
   onVerPlanes,
 }: {
   place: UserPlace;
@@ -366,6 +431,8 @@ function DashboardView({
   plan: Plan;
   funciones: Funcion[];
   modulos: ClaveModulo[];
+  /** La tarjeta del plan solo se enseña a quien puede cambiarlo. */
+  esDueno: boolean;
   onVerPlanes: () => void;
 }) {
   /* La marca del negocio: logo, portada o el emoji de su categoría, en ese
@@ -573,7 +640,11 @@ function DashboardView({
           sinMarca={funciones.includes("qr_sin_marca")}
         />
 
-        <PlanCard plan={plan} modulos={modulos} onVerPlanes={onVerPlanes} />
+        {/* Un trabajador no paga ni elige plan: la tarjeta sería un botón que no
+            lleva a ningún sitio. La sección «Planes» tampoco está en su barra. */}
+        {esDueno && (
+          <PlanCard plan={plan} modulos={modulos} onVerPlanes={onVerPlanes} />
+        )}
       </div>
     </>
   );
@@ -2057,16 +2128,6 @@ function SettingsView({
             porque el panel ya es largo y esto es una pieza cerrada: se le da el
             negocio y el plan, y ella resuelve lo demás. */}
         <SeguidoresCard
-          place={place}
-          funciones={funciones}
-          onVerPlanes={onVerPlanes}
-        />
-
-        {/* ── Asistente de Telegram ───────────────────────────────────────
-            Misma forma que la de seguidores y por la misma razón: es una pieza
-            cerrada, con su lectura y su estado. Aquí el dueño saca el código
-            que une su chat al negocio. */}
-        <AsistenteCard
           place={place}
           funciones={funciones}
           onVerPlanes={onVerPlanes}

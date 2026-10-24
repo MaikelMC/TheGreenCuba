@@ -86,7 +86,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   /* El `id` primero: `canManagePlace` necesita saber de qué negocio se habla
      para decidir si quien llama es su dueño. */
-  if (!(await canManagePlace(req, id))) {
+  if (!(await canManagePlace(req, id, "catalogo"))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
@@ -239,7 +239,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
 
-  if (!(await canManagePlace(req, id))) {
+  if (!(await canManagePlace(req, id, "catalogo"))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 

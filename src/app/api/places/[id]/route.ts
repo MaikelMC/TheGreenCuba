@@ -152,14 +152,6 @@ export async function GET(_req: NextRequest, { params }: Params) {
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
 
-  /* El `id` se resuelve **antes** de la comprobación, y no después como estaba:
-     `canManagePlace` necesita saber de qué negocio se habla para decidir. El
-     dueño guarda su ficha desde el panel y es `owner`, no `admin`, así que la
-     comprobación de antes le devolvía un 401 en cada guardado. */
-  if (!(await canManagePlace(req, id))) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
   let body: Partial<UserPlace>;
   try {
     body = (await req.json()) as Partial<UserPlace>;
@@ -168,6 +160,27 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       { error: "Cuerpo JSON inválido" },
       { status: 400 },
     );
+  }
+
+  /* El `id` se resuelve **antes** de la comprobación, y no después como estaba:
+     `canManagePlace` necesita saber de qué negocio se habla para decidir. El
+     dueño guarda su ficha desde el panel y es `owner`, no `admin`, así que la
+     comprobación de antes le devolvía un 401 en cada guardado.
+
+     El cuerpo decide qué permiso hace falta. El panel manda secciones enteras
+     y separadas —la carta va sola, la ficha va sola—, así que un trabajador al
+     que solo le dejaron el catálogo no puede colar un cambio de horario en el
+     mismo `PATCH`. Si el cuerpo trae las dos cosas, hacen falta las dos. */
+  const tocaCatalogo = body.menu !== undefined || body.ofertas !== undefined;
+  const tocaFicha = Object.keys(body).some(
+    (clave) => clave !== "menu" && clave !== "ofertas",
+  );
+
+  if (tocaCatalogo && !(await canManagePlace(req, id, "catalogo"))) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+  if (tocaFicha && !(await canManagePlace(req, id, "ficha"))) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   /* La energía de respaldo es una de cuatro cadenas, o nada. La columna es

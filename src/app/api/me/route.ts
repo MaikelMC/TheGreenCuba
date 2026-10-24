@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth/server";
 import { getAppUser } from "@/lib/auth/user";
 import { isGoogleAccount, isMarketingOptedIn, setMarketingOptIn } from "@/lib/contacts";
@@ -399,11 +399,20 @@ export async function DELETE() {
      o sea que la base por sí sola no la borra: hay que hacerlo aquí.
 
      Con esto la página de términos puede decir la verdad cuando promete que
-     desaparecen «los negocios que lleves». */
+     desaparecen «los negocios que lleves».
+
+     Solo las filas `owner`: un trabajador que borra su cuenta no puede llevarse
+     por delante el negocio del jefe. Su vínculo cae en cascada con el usuario,
+     y la ficha se queda donde está. */
   const [owned] = await db
     .select({ placeId: businessOwners.placeId })
     .from(businessOwners)
-    .where(eq(businessOwners.userId, sessionUser.id))
+    .where(
+      and(
+        eq(businessOwners.userId, sessionUser.id),
+        eq(businessOwners.role, "owner"),
+      ),
+    )
     .limit(1);
 
   if (owned) {
