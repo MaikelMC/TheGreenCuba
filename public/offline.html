@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#06211a" />
+    <title>Sin conexión · La Verde</title>
+    <style>
+      :root {
+        --verde-950: #06211a;
+        --verde-700: #12704f;
+        --verde-400: #4ade80;
+        --sand: #f6f4ec;
+        --ink: #0e1720;
+        --ink-soft: #56635f;
+        --linea: rgba(14, 23, 32, 0.1);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--sand);
+        color: var(--ink);
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          sans-serif;
+        -webkit-text-size-adjust: 100%;
+      }
+      .wrap {
+        max-width: 520px;
+        margin: 0 auto;
+        padding: 32px 20px calc(32px + env(safe-area-inset-bottom, 0px));
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        background: var(--verde-950);
+        color: #fff;
+        padding: 8px 14px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .punto {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #f5b301;
+      }
+      h1 {
+        font-size: 26px;
+        line-height: 1.15;
+        margin: 18px 0 8px;
+      }
+      p {
+        line-height: 1.5;
+        margin: 0 0 12px;
+        color: var(--ink-soft);
+        font-size: 15px;
+      }
+      .aviso {
+        border: 1px solid var(--linea);
+        border-radius: 16px;
+        background: #fff;
+        padding: 14px 16px;
+        font-size: 14px;
+        color: var(--ink);
+      }
+      .acciones {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 18px 0 24px;
+      }
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        padding: 12px 18px;
+        font-size: 14px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+      }
+      .primario {
+        background: var(--verde-400);
+        color: var(--verde-950);
+      }
+      .secundario {
+        background: #fff;
+        color: var(--ink);
+        border: 1px solid var(--linea);
+      }
+      .peligro {
+        background: transparent;
+        color: #9b2c2c;
+        border: 1px solid rgba(155, 44, 44, 0.25);
+      }
+      section {
+        background: #fff;
+        border: 1px solid var(--linea);
+        border-radius: 18px;
+        padding: 16px;
+        margin-bottom: 14px;
+      }
+      h2 {
+        font-size: 16px;
+        margin: 0 0 4px;
+      }
+      .meta {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--ink-soft);
+        margin: 0 0 10px;
+      }
+      .dato {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 6px 0;
+        border-top: 1px solid var(--linea);
+        font-size: 14px;
+      }
+      .dato:first-of-type {
+        border-top: 0;
+      }
+      .dato span:first-child {
+        color: var(--ink-soft);
+      }
+      .dato span:last-child {
+        font-weight: 600;
+        text-align: right;
+        overflow-wrap: anywhere;
+      }
+      ul {
+        margin: 8px 0 0;
+        padding-left: 18px;
+      }
+      li {
+        font-size: 14px;
+        line-height: 1.5;
+        margin-bottom: 4px;
+      }
+      .vacio {
+        font-size: 14px;
+        color: var(--ink-soft);
+        margin: 0;
+      }
+      .oculto {
+        display: none;
+      }
+      footer {
+        margin-top: 22px;
+        font-size: 12px;
+        color: var(--ink-soft);
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <div class="badge"><span class="punto" aria-hidden="true"></span> Sin conexión</div>
+      <h1>No hay red ahora mismo</h1>
+      <p id="resumen">
+        Esta es la copia guardada en el teléfono. Se puede consultar, pero no modificar.
+      </p>
+
+      <div id="aviso-sin-datos" class="aviso oculto">
+        Todavía no hay datos guardados en este dispositivo. Abre la app una vez con conexión y
+        vuelve a intentarlo.
+      </div>
+
+      <div class="acciones">
+        <button type="button" class="primario" id="reintentar">Reintentar</button>
+        <button type="button" class="secundario" id="alternar" aria-expanded="true">
+          Ocultar datos guardados
+        </button>
+      </div>
+
+      <div id="datos">
+        <section aria-labelledby="titulo-negocio">
+          <h2 id="titulo-negocio">Mi negocio</h2>
+          <p class="meta" id="fecha-negocio"></p>
+          <div id="negocio"></div>
+        </section>
+
+        <section aria-labelledby="titulo-perfil">
+          <h2 id="titulo-perfil">Mi perfil</h2>
+          <p class="meta" id="fecha-perfil"></p>
+          <div id="perfil"></div>
+        </section>
+
+        <section aria-labelledby="titulo-catalogo">
+          <h2 id="titulo-catalogo">Catálogo guardado</h2>
+          <p class="meta">Productos de la última conexión</p>
+          <div id="catalogo"></div>
+        </section>
+      </div>
+
+      <div id="caducado" class="aviso oculto" style="margin-top: 8px">
+        La sesión lleva más de 7 días sin verificarse. Por seguridad, los datos privados quedan
+        bloqueados hasta que abras la app con conexión.
+      </div>
+
+      <div class="acciones" style="margin-top: 18px">
+        <button type="button" class="peligro" id="borrar">Borrar datos del dispositivo</button>
+      </div>
+
+      <footer>
+        La Verde · Sin conexión no se puede iniciar sesión, escribir ni sincronizar. Los datos que
+        ves son de la última vez que abriste la app con red.
+      </footer>
+    </main>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var DB_NAME = "la-verde-offline";
+        var DB_VERSION = 1;
+        var MAX_EDAD_SESION_MS = 7 * 24 * 60 * 60 * 1000;
+
+        var $ = function (id) {
+          return document.getElementById(id);
+        };
+
+        function abrirDB() {
+          return new Promise(function (resolve, reject) {
+            if (!("indexedDB" in window)) {
+              reject(new Error("sin indexedDB"));
+              return;
+            }
+            var peticion = indexedDB.open(DB_NAME, DB_VERSION);
+            peticion.onupgradeneeded = function () {
+              var db = peticion.result;
+              if (!db.objectStoreNames.contains("snapshots")) {
+                db.createObjectStore("snapshots", { keyPath: "key" });
+              }
+              if (!db.objectStoreNames.contains("meta")) {
+                db.createObjectStore("meta", { keyPath: "key" });
+              }
+            };
+            peticion.onsuccess = function () {
+              resolve(peticion.result);
+            };
+            peticion.onerror = function () {
+              reject(peticion.error || new Error("no se pudo abrir"));
+            };
+          });
+        }
+
+        function leer(db, store, key) {
+          return new Promise(function (resolve) {
+            try {
+              var tx = db.transaction(store, "readonly");
+              var peticion = tx.objectStore(store).get(key);
+              peticion.onsuccess = function () {
+                resolve(peticion.result || null);
+              };
+              peticion.onerror = function () {
+                resolve(null);
+              };
+            } catch {
+              resolve(null);
+            }
+          });
+        }
+
+        function leerTodo(db, store) {
+          return new Promise(function (resolve) {
+            try {
+              var tx = db.transaction(store, "readonly");
+              var peticion = tx.objectStore(store).getAll();
+              peticion.onsuccess = function () {
+                resolve(peticion.result || []);
+              };
+              peticion.onerror = function () {
+                resolve([]);
+              };
+            } catch {
+              resolve([]);
+            }
+          });
+        }
+
+        /* Todo lo que viene de la base se pinta con `textContent`: nunca con
+           `innerHTML`. Un nombre de negocio con etiquetas no debe ejecutarse. */
+        function linea(etiqueta, valor) {
+          if (valor === null || valor === undefined || valor === "") return null;
+          var fila = document.createElement("div");
+          fila.className = "dato";
+          var izq = document.createElement("span");
+          izq.textContent = etiqueta;
+          var der = document.createElement("span");
+          der.textContent = String(valor);
+          fila.appendChild(izq);
+          fila.appendChild(der);
+          return fila;
+        }
+
+        function fecha(valor) {
+          if (!valor) return "sin fecha";
+          var d = new Date(valor);
+          if (isNaN(d.getTime())) return "sin fecha";
+          return d.toLocaleString("es-CU", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        }
+
+        function lista(contenedor, titulo, elementos) {
+          if (!elementos.length) return;
+          var h = document.createElement("p");
+          h.className = "meta";
+          h.textContent = titulo;
+          contenedor.appendChild(h);
+          var ul = document.createElement("ul");
+          elementos.forEach(function (texto) {
+            var li = document.createElement("li");
+            li.textContent = texto;
+            ul.appendChild(li);
+          });
+          contenedor.appendChild(ul);
+        }
+
+        function estadoProducto(item) {
+          if (item.agotadoHasta && item.agotadoHasta > Date.now()) return "Agotado";
+          if (item.disponibilidad === "agotado") return "Agotado";
+          return "Disponible";
+        }
+
+        function renderNegocio(snapshot) {
+          var contenedor = $("negocio");
+          var fechaEl = $("fecha-negocio");
+          if (!snapshot || !snapshot.data) {
+            var vacio = document.createElement("p");
+            vacio.className = "vacio";
+            vacio.textContent = "No hay ficha de negocio guardada.";
+            contenedor.appendChild(vacio);
+            return;
+          }
+
+          var d = snapshot.data;
+          var place = d.place || {};
+          fechaEl.textContent = "Actualizado " + fecha(snapshot.savedAt);
+
+          var nombre = línea("Nombre", place.name);
+          if (nombre) contenedor.appendChild(nombre);
+          var direccion = línea("Dirección", [place.address, place.city].filter(Boolean).join(", "));
+          if (direccion) contenedor.appendChild(direccion);
+          var horario = línea("Horario", place.schedule);
+          if (horario) contenedor.appendChild(horario);
+          var telefono = línea("Teléfono", place.phone || place.whatsapp);
+          if (telefono) contenedor.appendChild(telefono);
+
+          var plan = d.plan ? d.plan.nombre || d.plan.id || String(d.plan) : null;
+          var planLinea = línea("Plan", plan);
+          if (planLinea) contenedor.appendChild(planLinea);
+
+          if (d.stats) {
+            var stats = [
+              ["Guardados", d.stats.saved],
+              ["Reseñas", d.stats.reviews],
+              ["Fotos", d.stats.photos],
+            ];
+            stats.forEach(function (par) {
+              var fila = linea(par[0], par[1]);
+              if (fila) contenedor.appendChild(fila);
+            });
+          }
+
+          if (d.visitas && d.visitas.resumen) {
+            contenedor.appendChild(linea("Visitas del mes", d.visitas.resumen.mes) || document.createTextNode(""));
+            contenedor.appendChild(linea("Visitas totales", d.visitas.resumen.total) || document.createTextNode(""));
+          }
+
+          if (Array.isArray(d.funciones) && d.funciones.length) {
+            lista(
+              contenedor,
+              "Funciones activas",
+              d.funciones.map(function (f) {
+                return String(f);
+              }),
+            );
+          }
+        }
+
+        function renderCatalogo(snapshot) {
+          var contenedor = $("catalogo");
+          var items = snapshot && snapshot.data && snapshot.data.place && snapshot.data.place.menu;
+          if (!Array.isArray(items) || !items.length) {
+            var vacio = document.createElement("p");
+            vacio.className = "vacio";
+            vacio.textContent = "No hay catálogo guardado.";
+            contenedor.appendChild(vacio);
+            return;
+          }
+          lista(
+            contenedor,
+            items.length + " productos",
+            items.slice(0, 60).map(function (item) {
+              var precio = [item.price, item.currency].filter(Boolean).join(" ");
+              return (
+                (item.name || "Producto") +
+                (precio ? " · " + precio : "") +
+                " · " +
+                estadoProducto(item)
+              );
+            }),
+          );
+        }
+
+        function renderPerfil(snapshot) {
+          var contenedor = $("perfil");
+          var fechaEl = $("fecha-perfil");
+          if (!snapshot || !snapshot.data) {
+            var vacio = document.createElement("p");
+            vacio.className = "vacio";
+            vacio.textContent = "No hay perfil guardado.";
+            contenedor.appendChild(vacio);
+            return;
+          }
+          var d = snapshot.data;
+          var user = d.user || {};
+          fechaEl.textContent = "Actualizado " + fecha(snapshot.savedAt);
+
+          var nombre = línea("Nombre", user.name);
+          if (nombre) contenedor.appendChild(nombre);
+          var correo = línea("Correo", user.email);
+          if (correo) contenedor.appendChild(correo);
+          var telefono = línea("Teléfono", user.phone);
+          if (telefono) contenedor.appendChild(telefono);
+          var ciudad = línea("Ciudad", user.locationCity);
+          if (ciudad) contenedor.appendChild(ciudad);
+        }
+
+        function bloquearPrivados() {
+          $("negocio").replaceChildren();
+          $("perfil").replaceChildren();
+          $("catalogo").replaceChildren();
+          $("fecha-negocio").textContent = "";
+          $("fecha-perfil").textContent = "";
+          $("caducado").classList.remove("oculto");
+          $("resumen").textContent = "Sin conexión. Los datos privados están bloqueados.";
+        }
+
+        function vaciar() {
+          $("negocio").replaceChildren();
+          $("perfil").replaceChildren();
+          $("catalogo").replaceChildren();
+          $("fecha-negocio").textContent = "";
+          $("fecha-perfil").textContent = "";
+          $("datos").classList.add("oculto");
+          $("aviso-sin-datos").classList.remove("oculto");
+          $("alternar").classList.add("oculto");
+        }
+
+        function pintar(db, snapshots, auth) {
+          var ahora = Date.now();
+          var caducada =
+            !auth || !auth.lastAuthAt || ahora - Number(auth.lastAuthAt) > MAX_EDAD_SESION_MS;
+
+          var primerNegocio = snapshots
+            .filter(function (s) {
+              return typeof s.key === "string" && s.key.indexOf("business:") === 0;
+            })
+            .sort(function (a, b) {
+              return String(b.savedAt).localeCompare(String(a.savedAt));
+            })[0];
+
+          var perfil = snapshots.filter(function (s) {
+            return typeof s.key === "string" && s.key.indexOf("profile:") === 0;
+          })[0];
+
+          if (!primerNegocio && !perfil) {
+            vaciar();
+            return;
+          }
+
+          if (caducada) {
+            bloquearPrivados();
+            return;
+          }
+
+          renderNegocio(primerNegocio);
+          renderPerfil(perfil);
+          renderCatalogo(primerNegocio);
+
+          var fechaMax = [primerNegocio, perfil]
+            .filter(Boolean)
+            .map(function (s) {
+              return s.savedAt;
+            })
+            .sort()
+            .pop();
+          if (fechaMax) {
+            $("resumen").textContent = "Última actualización: " + fecha(fechaMax) + ".";
+          }
+        }
+
+        function borrarTodo() {
+          return new Promise(function (resolve) {
+            var terminado = false;
+            var acabar = function () {
+              if (terminado) return;
+              terminado = true;
+              resolve();
+            };
+            try {
+              var peticion = indexedDB.deleteDatabase(DB_NAME);
+              peticion.onsuccess = acabar;
+              peticion.onerror = acabar;
+              peticion.onblocked = acabar;
+            } catch {
+              acabar();
+            }
+            if ("caches" in window) {
+              caches
+                .keys()
+                .then(function (names) {
+                  return Promise.all(
+                    names
+                      .filter(function (nombre) {
+                        return nombre.indexOf("lv-private-") === 0 || nombre.indexOf("lv-images-") === 0;
+                      })
+                      .map(function (nombre) {
+                        return caches.delete(nombre);
+                      }),
+                  );
+                })
+                .catch(function () {})
+                .then(acabar);
+            } else {
+              setTimeout(acabar, 50);
+            }
+          });
+        }
+
+        $("reintentar").addEventListener("click", function () {
+          window.location.reload();
+        });
+
+        $("alternar").addEventListener("click", function () {
+          var datos = $("datos");
+          var oculto = datos.classList.toggle("oculto");
+          $("alternar").textContent = oculto ? "Ver datos guardados" : "Ocultar datos guardados";
+          $("alternar").setAttribute("aria-expanded", oculto ? "false" : "true");
+        });
+
+        $("borrar").addEventListener("click", function () {
+          var seguro = window.confirm(
+            "Se borrarán los datos guardados de este dispositivo. ¿Continuar?",
+          );
+          if (!seguro) return;
+          borrarTodo().then(function () {
+            vaciar();
+            $("resumen").textContent = "Datos del dispositivo borrados.";
+          });
+        });
+
+        abrirDB()
+          .then(function (db) {
+            return Promise.all([
+              leerTodo(db, "snapshots"),
+              leer(db, "meta", "auth"),
+            ]);
+          })
+          .then(function (resultado) {
+            pintar(null, resultado[0], resultado[1]);
+          })
+          .catch(function () {
+            vaciar();
+          });
+      })();
+    </script>
+  </body>
+</html>

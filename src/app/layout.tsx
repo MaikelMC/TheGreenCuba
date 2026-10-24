@@ -5,6 +5,8 @@ import { siteConfig } from "@/config/site";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { PostHogAnalytics } from "@/providers/posthog-provider";
 import { Providers } from "@/providers/auth-provider";
+import { PwaRegister } from "@/components/pwa/pwa-register";
+import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -135,6 +137,10 @@ export default function RootLayout({
           <Providers>
             <PostHogAnalytics />
             {children}
+            {/* PWA. Los dos devuelven `null` si la bandera está apagada, así
+                que en producción hasta que se apruebe no se pinta nada. */}
+            <PwaRegister />
+            <InstallPrompt />
             {/* Avisos flotantes. La pastilla va en `ink` con texto blanco, como
                   la del panel de negocio: es el mismo aviso y tiene que leerse
                   igual. Los tokens `--foreground` / `--background` eran el

@@ -16,6 +16,10 @@ import { siteConfig } from "@/config/site";
  * `display: "standalone"` abre sin barra de navegador, como una app — el sitio
  * ya está pensado para móvil: `viewportFit: "cover"` y las utilidades
  * `.pb-safe-bottom` reservan el hueco del indicador de inicio de iOS.
+ *
+ * `start_url` apunta a `/home` y no a `/`: la portada es marketing y la app
+ * vive en `/home`. `id` se queda en `/` porque cambiarlo crea una instalación
+ * distinta y ya puede haber usuarios con el icono puesto.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -23,7 +27,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: siteConfig.name,
     description: siteConfig.description,
     id: "/",
-    start_url: "/",
+    start_url: "/home",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
@@ -35,16 +39,43 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#06211a",
     theme_color: "#06211a",
     categories: ["travel", "food", "lifestyle"],
+    /* Una app ya abierta se reutiliza en vez de abrir otra ventana: en Android
+       pulsar el icono con la PWA en segundo plano no debe acumular instancias. */
+    launch_handler: { client_mode: "navigate-existing" },
+    /* Accesos directos del icono instalado. Las URLs son rutas reales; no hay
+       iconos propios para ellos, así que el sistema usa el de la app. */
+    shortcuts: [
+      {
+        name: "Buscar lugares",
+        short_name: "Buscar",
+        description: "Explora el catálogo y el mapa de La Verde.",
+        url: "/home",
+      },
+      {
+        name: "Mi negocio",
+        short_name: "Mi negocio",
+        description: "Ficha, métricas y catálogo de tu negocio.",
+        url: "/business",
+      },
+      {
+        name: "Mi perfil",
+        short_name: "Mi perfil",
+        description: "Tus datos, preferencias y lugares guardados.",
+        url: "/profile",
+      },
+    ],
     icons: [
       {
         src: "/icons/icon-192.png",
         sizes: "192x192",
         type: "image/png",
+        purpose: "any",
       },
       {
         src: "/icons/icon-512.png",
         sizes: "512x512",
         type: "image/png",
+        purpose: "any",
       },
       {
         /* Android recorta un círculo para los iconos adaptativos: esta

@@ -137,6 +137,29 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: securityHeaders,
       },
+      /* Caché de los artefactos de la PWA. Sin esto, `/sw.js` hereda el
+         `max-age=0, must-revalidate` de los estáticos y el navegador consulta al
+         servidor en cada navegación; con él, el service worker se actualiza solo
+         cuando cambia el archivo, como debe ser.
+
+         Los iconos y el manifest sí pueden vivir una semana en caché: son
+         inmutables dentro de un despliegue y pesan lo suyo en datos móviles. */
+      {
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+      },
+      {
+        source: "/manifest.webmanifest",
+        headers: [{ key: "Cache-Control", value: "public, max-age=604800" }],
+      },
+      {
+        source: "/icons/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=604800" }],
+      },
+      {
+        source: "/offline.html",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+      },
     ];
   },
 };
