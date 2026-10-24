@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, Bell, CheckCheck, Clock3, Inbox, MailOpen, Megaphone, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui";
+import { PushToggle } from "@/components/profile/push-toggle";
 import { mensajeDeRed } from "@/lib/errores-red";
 import {
   destinoAviso,
@@ -121,6 +122,8 @@ export function NotificationsView() {
           </button>
         )}
       </header>
+
+      <PushToggle />
 
       {aviso && (
         <div

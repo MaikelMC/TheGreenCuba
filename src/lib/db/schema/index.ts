@@ -28,3 +28,4 @@ export * from "./ranking";
 export * from "./catalogo_planes";
 export * from "./pagos";
 export * from "./novedades";
+export * from "./push-subscriptions";

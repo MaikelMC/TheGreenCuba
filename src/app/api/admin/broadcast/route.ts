@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { desc, eq, sql } from "drizzle-orm";
 import { isAdminRequest } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { adminBroadcasts, notifications, users } from "@/lib/db/schema";
+import { enviarPushAUsuarios } from "@/lib/push-server";
 import { rateLimit } from "@/lib/rate-limit";
 import { generateId } from "@/lib/utils";
 
@@ -123,6 +124,18 @@ export async function POST(request: NextRequest) {
     message,
     recipientCount: recipients.length,
   });
+
+  /* El push va **después** de responder. `after` del servidor de Next 16 deja
+     la tarea viva cuando la respuesta ya salió: el administrador no espera a
+     que FCM, Mozilla y Apple contesten uno por uno, y el aviso in-app ya está
+     escrito aunque el push falle. Un envío a miles de dispositivos tardaría
+     más que el límite de la función. */
+  after(() =>
+    enviarPushAUsuarios(
+      recipients.map((recipient) => recipient.id),
+      { title, body: message, url: "/notifications", tag: `broadcast-${broadcastId}` },
+    ),
+  );
 
   return NextResponse.json({ id: broadcastId, recipients: recipients.length }, { status: 201 });
 }

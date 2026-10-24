@@ -302,6 +302,13 @@
       "when": 1792852433230,
       "tag": "0042_old_sinister_six",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1792860038180,
+      "tag": "0043_windy_jasper_sitwell",
+      "breakpoints": true
     }
   ]
 }
