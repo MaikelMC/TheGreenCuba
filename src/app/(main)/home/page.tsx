@@ -708,7 +708,7 @@ function HomePageContent() {
      leían de `localStorage` aquí aparte, así que la pantalla podía estar
      pintando un catálogo y el panel de admin editando otro: cambiar el icono
      de una categoría no movía ni un pin del mapa. */
-  const { places, categories, hydrated } = usePlaces();
+  const { places, categories, hydrated, refreshPlaces } = usePlaces();
 
   /* La provincia del perfil recorta el catálogo, y lo recorta **para dos
      sitios y solo dos**: la lista de recomendaciones y el catálogo que viaja a
@@ -1198,6 +1198,17 @@ function HomePageContent() {
     searchCtx.registerSuggestionsHandler(() => setPeekKey((k) => k + 1));
   }, [searchCtx]);
 
+  /* Vuelve a la lista de recomendaciones y vuelve a pedir el catálogo. Sale al paso
+     del callejón sin salida del error: «Reintentar» repite la búsqueda que ya
+     falló, y si la red sigue igual no hay forma de recuperar la lista sin
+     recargar la página. */
+  const handleReloadRecommendations = useCallback(() => {
+    setAiState(null);
+    setSearchingQuery("");
+    setSheetState("default");
+    void refreshPlaces();
+  }, [refreshPlaces]);
+
   const handleRetry = useCallback(() => {
     if (searchingQuery) {
       handleSearch(searchingQuery);
@@ -1618,6 +1629,19 @@ function HomePageContent() {
         title={sheetInfo.title}
         subtitle={sheetSubtitle}
         badge={showBadge ? String(shownCount) : undefined}
+        action={
+          sheetState !== "searching" ? (
+            <button
+              type="button"
+              onClick={handleReloadRecommendations}
+              aria-label="Recargar recomendaciones"
+              title="Recargar recomendaciones"
+              className="grid size-8 shrink-0 place-items-center rounded-full text-ink-soft/50 transition-colors duration-500 hover:bg-sand hover:text-ink"
+            >
+              <RefreshCw size={15} strokeWidth={1.8} aria-hidden />
+            </button>
+          ) : undefined
+        }
         forceOpen={sheetState === "searching"}
         peekSignal={peekKey}
         openSignal={openKey}

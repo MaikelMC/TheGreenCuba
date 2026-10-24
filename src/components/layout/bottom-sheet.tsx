@@ -32,6 +32,8 @@ interface BottomSheetProps {
   title: string | ReactNode;
   subtitle?: string;
   badge?: string;
+  /** Acción opcional a la derecha del titular, alineada con él. */
+  action?: ReactNode;
   className?: string;
   defaultState?: SheetState;
   /** Cuando es true, fuerza el sheet abierto (full) para revelar su contenido. */
@@ -57,6 +59,7 @@ export function BottomSheet({
   title,
   subtitle,
   badge,
+  action,
   className,
   defaultState = "peek",
   forceOpen = false,
@@ -274,14 +277,17 @@ export function BottomSheet({
 
       {/* Header */}
       <div className="px-5 pb-gap-sm border-b border-ink/5 shrink-0">
-        <h2 className="font-lv-display text-h3 font-bold text-ink flex items-center gap-gap-xs">
-          {title}
-          {badge && (
-            <span className="font-lv-display text-[10px] font-semibold bg-verde-50 text-verde-600 px-2 py-[2px] rounded-full tracking-[0.14em] uppercase">
-              {badge}
-            </span>
-          )}
-        </h2>
+        <div className="flex items-start justify-between gap-gap-sm">
+          <h2 className="font-lv-display text-h3 font-bold text-ink flex items-center gap-gap-xs">
+            {title}
+            {badge && (
+              <span className="font-lv-display text-[10px] font-semibold bg-verde-50 text-verde-600 px-2 py-[2px] rounded-full tracking-[0.14em] uppercase">
+                {badge}
+              </span>
+            )}
+          </h2>
+          {action}
+        </div>
         {subtitle && (
           <p className="text-small text-ink-soft/75 mt-[4px]">{subtitle}</p>
         )}

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prepareImage } from "@/lib/storage/compress";
+import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 
 interface LogoUploadProps {
   /**
@@ -39,6 +40,8 @@ export function LogoUpload({
 }: LogoUploadProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /* Archivo elegido y todavía sin subir: primero pasa por el recorte. */
+  const [pending, setPending] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   if (!placeId) {
@@ -49,8 +52,8 @@ export function LogoUpload({
     );
   }
 
-  async function upload(file: File | undefined) {
-    if (!file || !placeId) return;
+  async function upload(file: File) {
+    if (!placeId) return;
     setBusy(true);
     setError(null);
     try {
@@ -95,7 +98,8 @@ export function LogoUpload({
   }
 
   return (
-    <div className={cn("flex items-center gap-gap-md", className)}>
+    <>
+      <div className={cn("flex items-center gap-gap-md", className)}>
       <input
         ref={inputRef}
         type="file"
@@ -106,7 +110,7 @@ export function LogoUpload({
           /* Se vacía el input para que elegir otra vez el mismo archivo vuelva a
              disparar el `change`; si no, el segundo intento no hace nada. */
           e.target.value = "";
-          void upload(file);
+          if (file) setPending(file);
         }}
       />
 
@@ -131,8 +135,8 @@ export function LogoUpload({
           Logo del negocio
         </p>
         <p className="text-meta text-ink-soft/75 leading-relaxed">
-          Se ve en redondo en la ficha, en las tarjetas y en el pin del mapa. Lo
-          mejor es un cuadrado; se recorta solo.
+          Se ve en redondo en la ficha, en las tarjetas y en el pin del mapa.
+          Puedes recortarlo antes de subirlo.
         </p>
         <div className="mt-gap-xs flex items-center gap-gap-sm">
           <button
@@ -160,6 +164,18 @@ export function LogoUpload({
           </p>
         )}
       </div>
-    </div>
+      </div>
+      {pending && (
+        <ImageCropDialog
+          file={pending}
+          title="Recortar el logo"
+          onCancel={() => setPending(null)}
+          onConfirm={(cropped) => {
+            setPending(null);
+            void upload(cropped);
+          }}
+        />
+      )}
+    </>
   );
 }
