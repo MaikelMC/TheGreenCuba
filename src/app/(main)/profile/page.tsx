@@ -7,6 +7,8 @@ import { ArrowLeft, Save } from "lucide-react";
 import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { fetchMe, refreshSession } from "@/lib/session-client";
+import { clavePerfil, guardarSnapshot } from "@/lib/offline/store";
+import { construirPerfilSnapshot } from "@/lib/offline/snapshots";
 import { UserMenu } from "@/components/layout/user-menu";
 import { DetailsView } from "@/components/profile/details-view";
 import { PlacesView } from "@/components/profile/places-view";
@@ -110,6 +112,30 @@ export default function ProfilePage() {
            queda de red para quien lo escribió antes de que existiera: se enseña
            y se guarda en el primer «Guardar cambios». */
         const nextPhone = user.phone || nextLocalPrefs.phone;
+
+        /* Copia de lectura para el modo offline. Se guarda con el `fetchMe`
+           correcto, que es el único momento en que el servidor ha confirmado
+           quién es el usuario y qué preferencias tiene. */
+        if (nextUserId) void guardarSnapshot({
+          key: clavePerfil(nextUserId),
+          data: construirPerfilSnapshot({
+            user: {
+              id: nextUserId,
+              name: nextName,
+              email: nextEmail,
+              phone: nextPhone,
+              imageUrl: nextAvatar ?? null,
+              locationCity: user.locationCity,
+            },
+            preferences: {
+              ...nextLocalPrefs,
+              name: nextName,
+              email: nextEmail,
+              phone: nextPhone,
+              avatarUrl: nextAvatar,
+            },
+          }),
+        });
 
         setPrefs((current) => {
           const merged = {

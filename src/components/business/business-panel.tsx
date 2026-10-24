@@ -99,6 +99,8 @@ import type {
   UserPlacePatch,
 } from "@/lib/places-store";
 import type { PermisoNegocio } from "@/lib/permisos-negocio";
+import { claveNegocio, guardarSnapshot } from "@/lib/offline/store";
+import { construirNegocioSnapshot } from "@/lib/offline/snapshots";
 
 /** Los números reales que el panel puede contar. Se declaran aquí y no se
     importan de `queries.ts`: ese módulo arrastra la base de datos y la caché de
@@ -171,7 +173,10 @@ export function BusinessPanel({
   negocios,
   esDueno,
   permisos,
+  userId,
 }: {
+  /** Id del usuario de la sesión. Solo se usa para nombrar el snapshot offline. */
+  userId: string;
   place: UserPlace;
   stats: PlaceStats;
   /** Las estadísticas del mes, **ya recortadas por función** en el servidor. */
@@ -223,6 +228,40 @@ export function BusinessPanel({
   /** Los permisos del trabajador. Vacío para el dueño: no los necesita. */
   permisos: PermisoNegocio[];
 }) {
+  /* Copia de lectura para el modo offline. Se reescribe cuando cambia algo de
+     la ficha, de las métricas o del plan; el panel se resuelve en el servidor,
+     así que sin esto no habría nada que enseñar sin red.
+
+     Best-effort y en segundo plano: un fallo de IndexedDB no puede afectar al
+     panel que se está viendo. */
+  useEffect(() => {
+    void guardarSnapshot({
+      key: claveNegocio(userId, place.id),
+      data: construirNegocioSnapshot({
+        place,
+        stats,
+        visitas,
+        publicaciones,
+        plan,
+        funciones,
+        modulos,
+        negocios,
+        permisos,
+      }),
+    });
+  }, [
+    userId,
+    place,
+    stats,
+    visitas,
+    publicaciones,
+    plan,
+    funciones,
+    modulos,
+    negocios,
+    permisos,
+  ]);
+
   /* Una función de permiso, tres usos. El dueño pasa siempre; el trabajador
      solo si el dueño le marcó esa casilla. */
   const puede = (permiso: PermisoNegocio) =>

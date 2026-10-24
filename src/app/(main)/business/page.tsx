@@ -179,6 +179,7 @@ export default async function BusinessPage({
   return (
     <CatalogoProvider catalogo={cat}>
       <BusinessPanel
+        userId={user.id}
         place={place}
         stats={stats}
         visitas={visitas}

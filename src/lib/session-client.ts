@@ -18,6 +18,8 @@
  * desarrollo, y por eso la caché no vive dentro de un componente.
  */
 
+import { marcarAuth } from "@/lib/offline/store";
+
 let cached: Promise<unknown> | null = null;
 
 /**
@@ -32,7 +34,19 @@ let cachedForced = false;
 async function pedir(): Promise<unknown> {
   const response = await fetch("/api/me");
   if (!response.ok) throw new Error(`/api/me respondió ${response.status}`);
-  return response.json();
+  const data = (await response.json()) as {
+    authenticated?: boolean;
+    user?: { id?: string } | null;
+  };
+
+  /* Cada respuesta correcta con usuario es una confirmación de que la sesión
+     sigue viva. Se anota para que el modo offline sepa cuándo caduca: pasados
+     siete días sin una confirmación, los snapshots privados se bloquean. */
+  if (data.authenticated && data.user?.id) {
+    void marcarAuth(data.user.id, Date.now());
+  }
+
+  return data;
 }
 
 /**
