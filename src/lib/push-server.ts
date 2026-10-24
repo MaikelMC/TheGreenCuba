@@ -149,34 +149,54 @@ export async function enviarPushAUsuarios(
 
       if (status === 404 || status === 410) {
         resumen.eliminados += 1;
-        await db
-          .delete(pushSubscriptions)
-          .where(sql`${pushSubscriptions.id} = ${fila.id}`);
+        try {
+          await db
+            .delete(pushSubscriptions)
+            .where(sql`${pushSubscriptions.id} = ${fila.id}`);
+        } catch {
+          // La suscripción caducó igual; se borrará en el próximo envío.
+        }
         return;
       }
 
       resumen.fallidos += 1;
 
       if (status === 429 || (status !== undefined && status >= 500)) {
-        await db
-          .update(pushSubscriptions)
-          .set({ failureCount: sql`${pushSubscriptions.failureCount} + 1` })
-          .where(sql`${pushSubscriptions.id} = ${fila.id}`);
+        try {
+          await db
+            .update(pushSubscriptions)
+            .set({ failureCount: sql`${pushSubscriptions.failureCount} + 1` })
+            .where(sql`${pushSubscriptions.id} = ${fila.id}`);
+        } catch {
+          // El contador es diagnóstico: no puede tumbar el resto del envío.
+        }
       }
     }
   };
 
   for (let i = 0; i < userIds.length; i += USUARIOS_POR_LOTE) {
     const lote = userIds.slice(i, i + USUARIOS_POR_LOTE);
-    const filas = await db
-      .select({
-        id: pushSubscriptions.id,
-        endpoint: pushSubscriptions.endpoint,
-        p256dh: pushSubscriptions.p256dh,
-        auth: pushSubscriptions.auth,
-      })
-      .from(pushSubscriptions)
-      .where(inArray(pushSubscriptions.userId, lote));
+
+    let filas: Array<{ id: string; endpoint: string; p256dh: string; auth: string }>;
+    try {
+      filas = await db
+        .select({
+          id: pushSubscriptions.id,
+          endpoint: pushSubscriptions.endpoint,
+          p256dh: pushSubscriptions.p256dh,
+          auth: pushSubscriptions.auth,
+        })
+        .from(pushSubscriptions)
+        .where(inArray(pushSubscriptions.userId, lote));
+    } catch (error) {
+      /* Si la tabla aún no existe (migración pendiente) o la base no responde,
+         el aviso in-app sigue valiendo: se registra y se corta el push. */
+      console.warn(
+        "[push] No se pudieron leer las suscripciones:",
+        error instanceof Error ? error.message : "error desconocido",
+      );
+      break;
+    }
 
     pendientes += filas.length;
 
