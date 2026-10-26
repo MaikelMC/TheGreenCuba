@@ -32,7 +32,7 @@ import { siteConfig } from "@/config/site";
 import { clearActivity } from "@/lib/activity-store";
 import { SUPPORT_EMAIL } from "@/lib/legal";
 import { SupportRequest } from "@/components/profile/support-request";
-import { clearUserPreferences, readUserPreferences } from "@/lib/user-preferences-store";
+import { clearUserPreferences } from "@/lib/user-preferences-store";
 import { fetchMe, refreshSession } from "@/lib/session-client";
 import { logout } from "@/lib/logout";
 
@@ -56,7 +56,6 @@ interface SessionUser {
   id?: string;
   email: string;
   name: string;
-  imageUrl?: string | null;
   role: string;
   /** La versión de los términos que aceptó. `null` en cuentas anteriores a la
       casilla del alta. */
@@ -65,7 +64,6 @@ interface SessionUser {
 
 export function SettingsView() {
   const [user, setUser] = useState<SessionUser | null>(null);
-  const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   /* Sin esto, un doble clic manda dos borrados: el segundo llega cuando la fila
@@ -84,8 +82,6 @@ export function SettingsView() {
         if (alive && data.authenticated && data.user) {
           const nextUser = { ...data.user, id: (data.user as unknown as { id?: string }).id ?? "" };
           setUser(nextUser);
-          const prefs = readUserPreferences(nextUser.id ?? null);
-          if (prefs.avatarUrl) setLocalAvatarUrl(prefs.avatarUrl);
         }
       })
       .catch(() => {});
@@ -93,8 +89,6 @@ export function SettingsView() {
       alive = false;
     };
   }, []);
-
-  const avatarUrl = user?.imageUrl || localAvatarUrl || null;
 
   /**
    * Borrar la cuenta.
@@ -158,13 +152,9 @@ export function SettingsView() {
           Cuenta
         </h2>
         <div className="flex items-center gap-gap-sm">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="Foto de perfil" width={44} height={44} className="size-11 shrink-0 rounded-full border-2 border-verde-200 object-cover" />
-          ) : (
-            <span className="grid size-11 shrink-0 place-items-center rounded-full border-2 border-verde-200 bg-verde-50 font-lv-display text-body font-bold text-verde-600">
-              {(user?.name ?? "·").charAt(0)}
-            </span>
-          )}
+          <span className="grid size-11 shrink-0 place-items-center rounded-full border-2 border-verde-200 bg-verde-50 font-lv-display text-body font-bold text-verde-600">
+            {(user?.name ?? "·").charAt(0)}
+          </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-small font-medium text-ink">
               {user?.name ?? "Sin sesión"}

@@ -58,14 +58,12 @@ export interface PerfilSnapshotData {
     name: string;
     email: string;
     phone: string | null;
-    imageUrl: string | null;
     locationCity: string | null;
   };
   preferences: {
     name: string;
     email: string;
     phone: string;
-    avatarUrl?: string;
     location: string;
     locationName: string;
     interests: string[];
@@ -146,14 +144,12 @@ export function construirPerfilSnapshot({
     name: string;
     email: string;
     phone?: string | null;
-    imageUrl?: string | null;
     locationCity?: string | null;
   };
   preferences: {
     name: string;
     email: string;
     phone: string;
-    avatarUrl?: string;
     location: string;
     locationName: string;
     interests: string[];
@@ -168,14 +164,12 @@ export function construirPerfilSnapshot({
       name: user.name,
       email: user.email,
       phone: user.phone ?? null,
-      imageUrl: user.imageUrl ?? null,
       locationCity: user.locationCity ?? null,
     },
     preferences: {
       name: preferences.name,
       email: preferences.email,
       phone: preferences.phone,
-      avatarUrl: preferences.avatarUrl,
       location: preferences.location,
       locationName: preferences.locationName,
       interests: preferences.interests,

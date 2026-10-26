@@ -57,7 +57,7 @@ export default async function LinksPage() {
           Enlaces
         </h1>
         <div className="min-w-0 flex-1" />
-        <UserMenu initial={user.name.charAt(0)} avatarUrl={user.imageUrl ?? undefined} />
+        <UserMenu initial={user.name.charAt(0)} />
       </header>
 
       <main className="mx-auto flex w-full max-w-lg flex-col gap-gap-lg px-gap-sm pt-gap-lg pb-gap-xl sm:px-gap-md">

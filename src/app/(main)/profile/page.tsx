@@ -93,7 +93,6 @@ export default function ProfilePage() {
         id?: string;
         name: string;
         email: string;
-        imageUrl?: string | null;
         phone?: string | null;
         locationCity?: string | null;
         onboardingCompleted?: boolean;
@@ -110,7 +109,6 @@ export default function ProfilePage() {
 
         const nextName = user.name || nextLocalPrefs.name;
         const nextEmail = user.email || nextLocalPrefs.email;
-        const nextAvatar = user.imageUrl || nextLocalPrefs.avatarUrl;
         /* El teléfono llega de la cuenta desde que tiene columna. El local
            queda de red para quien lo escribió antes de que existiera: se enseña
            y se guarda en el primer «Guardar cambios». */
@@ -127,7 +125,6 @@ export default function ProfilePage() {
               name: nextName,
               email: nextEmail,
               phone: nextPhone,
-              imageUrl: nextAvatar ?? null,
               locationCity: user.locationCity,
             },
             preferences: {
@@ -135,7 +132,6 @@ export default function ProfilePage() {
               name: nextName,
               email: nextEmail,
               phone: nextPhone,
-              avatarUrl: nextAvatar,
             },
           }),
         });
@@ -146,7 +142,6 @@ export default function ProfilePage() {
             ...nextLocalPrefs,
             name: nextName,
             email: nextEmail,
-            avatarUrl: nextAvatar,
             phone: nextPhone,
           };
           writeUserPreferences(merged, nextUserId);
@@ -245,7 +240,7 @@ export default function ProfilePage() {
       refreshSession();
       const data = (await response.json()) as {
         authenticated: boolean;
-        user: { name?: string; email?: string; imageUrl?: string | null } | null;
+        user: { name?: string; email?: string } | null;
       };
 
       const savedUser = data.user;
@@ -254,7 +249,6 @@ export default function ProfilePage() {
           ...(current ?? prefs),
           name: savedUser.name || current?.name || prefs.name,
           email: savedUser.email || current?.email || prefs.email,
-          avatarUrl: savedUser.imageUrl || current?.avatarUrl || prefs.avatarUrl,
         }));
       }
     } catch (error) {
@@ -272,7 +266,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-dvh bg-sand font-lv text-ink">
-      <TopBar title={title} initial={prefs.name.charAt(0)} avatarUrl={prefs.avatarUrl}>
+      <TopBar title={title} initial={prefs.name.charAt(0)}>
         {view === "perfil" && (
           <motion.button
             type="button"
@@ -349,12 +343,10 @@ export default function ProfilePage() {
 function TopBar({
   title,
   initial,
-  avatarUrl,
   children,
 }: {
   title: string;
   initial?: string;
-  avatarUrl?: string;
   children?: React.ReactNode;
 }) {
   const [visible, setVisible] = useState(true);
@@ -394,7 +386,7 @@ function TopBar({
       </h1>
       <div className="min-w-0 flex-1" />
       {children}
-      <UserMenu initial={initial} avatarUrl={avatarUrl} />
+      <UserMenu initial={initial} />
     </motion.header>
   );
 }

@@ -240,6 +240,7 @@ export const COMANDOS: Record<string, string> = {
   help: "Te dice lo que puede hacer este asistente.",
   start: "Vincula este chat al negocio de tu código de panel.",
   carta: "Te manda la carta con precios y qué está agotado.",
+  catalogo: "Edita tus productos con botones: datos y estado, uno por uno.",
   nuevo: "Añade productos a tu carta desde el chat.",
   agotado: "Marca un producto como agotado, uno por uno, con botones.",
   disponible: "Marca un producto como disponible, uno por uno, con botones.",
@@ -667,10 +668,12 @@ export function buscarProducto(
 /** Lo mínimo que hace falta para contar un producto. Es el jsonb `places.menu`
  * visto desde aquí, pero declarado aparte para poder probarlo sin una carta. */
 export interface ItemCarta {
+  id?: string;
   name: string;
   description?: string;
   price?: string;
   currency?: string;
+  category?: string;
   tag?: string;
   disponibilidad?: EstadoProducto;
   agotadoHasta?: number | null;
@@ -757,6 +760,97 @@ export function textoCarta(
     "",
     `…y ${items.length - dentro.length} más. Mándame /agotado para ver el resto con botones.`,
   ].join("\n");
+}
+
+/* ── la ficha de un producto y sus campos ─────────────────────────
+   La edición guiada por botones: se toca un producto, se toca un campo y se
+   escribe solo el valor nuevo. Sin modelo, sin plantillas y sin recordar
+   comandos. Aquí viven los campos que se pueden cambiar y cómo se cuenta una
+   ficha; el servidor solo pinta botones y aplica lo que llega. */
+
+export type ClaveCampo =
+  | "name"
+  | "description"
+  | "price"
+  | "currency"
+  | "category"
+  | "tag";
+
+export interface CampoCatalogo {
+  /** El código que viaja en el callback (`f:<id>:p`): corto por el tope de 64. */
+  codigo: string;
+  clave: ClaveCampo;
+  label: string;
+  /** Lo que cabe en la carta. Más largo se recorta, no se rechaza. */
+  max: number;
+}
+
+export const CAMPOS_CATALOGO: readonly CampoCatalogo[] = [
+  { codigo: "n", clave: "name", label: "nombre", max: 120 },
+  { codigo: "d", clave: "description", label: "descripción", max: 300 },
+  { codigo: "p", clave: "price", label: "precio", max: 40 },
+  { codigo: "m", clave: "currency", label: "moneda", max: 10 },
+  { codigo: "c", clave: "category", label: "categoría", max: 60 },
+  { codigo: "e", clave: "tag", label: "etiqueta", max: 20 },
+] as const;
+
+export function campoDeCodigo(codigo: string): CampoCatalogo | null {
+  return CAMPOS_CATALOGO.find((c) => c.codigo === codigo) ?? null;
+}
+
+/** Lo que hay ahora en un campo, para enseñarlo al pedir el cambio. */
+export function valorDeCampo(item: ItemCarta, clave: ClaveCampo): string {
+  return (item[clave] ?? "").trim();
+}
+
+/**
+ * El valor que se guarda a partir de lo que escribió el dueño.
+ *
+ * Un guion vacía el campo. En el nombre eso sale como vacío y el llamador lo
+ * rechaza: un producto sin nombre no se puede enseñar ni buscar. El recorte va
+ * por puntos de código para no partir un emoji por la mitad.
+ */
+export function limpiarCampo(clave: ClaveCampo, texto: string): string {
+  const campo = CAMPOS_CATALOGO.find((c) => c.clave === clave);
+  const limpio = texto.trim();
+  if (!campo || limpio === "-") return "";
+  return Array.from(limpio).slice(0, campo.max).join("");
+}
+
+/** La ficha completa del producto: todo lo que se puede cambiar, con su valor
+ * de ahora. Un campo vacío se enseña como «—» para que se vea que existe. */
+export function textoFichaProducto(item: ItemCarta, agotado: boolean): string {
+  const valor = (v?: string) => v?.trim() || "—";
+  const precio = [item.price?.trim(), item.currency?.trim()]
+    .filter(Boolean)
+    .join(" ");
+  return [
+    item.name.trim(),
+    "",
+    `Estado: ${agotado ? "agotado" : "disponible"}`,
+    `Descripción: ${valor(item.description)}`,
+    `Precio: ${precio || "—"}`,
+    `Categoría: ${valor(item.category)}`,
+    `Etiqueta: ${valor(item.tag)}`,
+  ].join("\n");
+}
+
+/** La pregunta que acompaña al botón de un campo. */
+export function preguntaCampo(
+  campo: CampoCatalogo,
+  producto: string,
+  actual: string,
+): string {
+  const lineas = [
+    `Escribe el nuevo valor de «${campo.label}» para «${producto}».`,
+    actual
+      ? `Ahora mismo: ${recortarEtiqueta(actual, 200)}`
+      : "Ahora mismo: vacío.",
+  ];
+  if (campo.clave !== "name") {
+    lineas.push("", "Envía un guion «-» para dejarlo vacío.");
+  }
+  return lineas.join("\n");
 }
 
 /* ── alta de productos ─────────────────────────────────────────────

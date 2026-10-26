@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, ne, sql } from "drizzle-orm";
 import { revalidateTag, unstable_cache } from "next/cache";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
@@ -281,6 +281,12 @@ export interface ListPlacesOptions {
 
 export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
   const filters = [];
+  /* Una solicitud rechazada no es un negocio: es una fila que se conserva
+     apagada para que su dueño pueda corregirla y reenviarla desde el perfil.
+     Aparecía en la lista de negocios del panel con la píldora «Pendiente»,
+     como si siguiera esperando revisión. Se excluye siempre, también en la
+     consulta del panel, que es la que pedía todo. */
+  filters.push(ne(places.reviewStatus, "rejected"));
   if (options.city) filters.push(eq(places.city, options.city));
   if (options.categorySlug) filters.push(eq(categories.slug, options.categorySlug));
   if (options.onlyActive) filters.push(eq(places.isActive, true));

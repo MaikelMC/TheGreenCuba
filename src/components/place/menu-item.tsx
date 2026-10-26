@@ -87,12 +87,11 @@ export function MenuItem({
     >
       {/* La foto va arriba y el texto debajo, dentro de la misma caja: el
           contorno es lo que separa un producto del siguiente.
-          Alto fijo y no `aspect-square`: en la columna de escritorio la tarjeta
-          mide ~380 px, y un cuadrado de 380 px se comía la tarjeta entera: el
-          nombre y el precio no cabían sin desplazarla hacia abajo. Fijo mide lo
-          mismo en todas, que es lo que mantiene las cuatro tarjetas de la página
-          cuadradas entre ellas. */}
-      <div className="relative h-32 w-full overflow-hidden rounded-lv-lg border border-ink/5 bg-sand-deep text-verde-600 sm:h-40">
+          Cuadrada y con `object-cover`, igual que la tarjeta de la carta
+          pública (`/m/[slug]`): el mismo producto se tiene que ver igual al
+          saltar de la ficha a la carta, y la foto vertical de una botella se
+          recorta igual en las dos. */}
+      <div className="relative aspect-square w-full overflow-hidden rounded-lv-lg border border-ink/5 bg-sand-deep text-verde-600">
         {image ? (
           <Image
             src={image}

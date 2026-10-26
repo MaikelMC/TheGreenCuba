@@ -14,7 +14,6 @@ import {
 import { cn, menuTagFallback, menuTagStyles } from "@/lib/utils";
 import { prepareImage } from "@/lib/storage/compress";
 import { mensajeDeRed } from "@/lib/errores-red";
-import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 import {
   estaAgotado,
   hastaManana,
@@ -164,10 +163,6 @@ export function MenuItemEditor({
   const [estadoBusyId, setEstadoBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const reintentarEstado = useRef<(() => void) | null>(null);
-  /* Foto elegida y todavía sin subir: el recorte va antes de la compresión. */
-  const [pending, setPending] = useState<{ id: string; file: File } | null>(
-    null,
-  );
   const inputRef = useRef<HTMLInputElement>(null);
   /* A qué producto apunta el input: hay **un** selector para la lista entera,
      porque montar uno por fila obligaría a sincronizarlos con `items`. */
@@ -338,7 +333,6 @@ export function MenuItemEditor({
   ];
 
   return (
-    <>
     <div className={cn("flex flex-col", className)}>
       {/* Mismo aviso que `PhotoGrid` en el alta nueva: sin ficha no hay dónde
           colgar la foto, y el cuadrito sin más dejaría el fallo original —tocar
@@ -364,7 +358,7 @@ export function MenuItemEditor({
           e.target.value = "";
           const id = targetId.current;
           targetId.current = null;
-          if (file && id) setPending({ id, file });
+          if (file && id) void upload(id, file);
         }}
       />
 
@@ -541,18 +535,5 @@ export function MenuItemEditor({
         </div>
       )}
     </div>
-    {pending && (
-      <ImageCropDialog
-        file={pending.file}
-        title="Recortar la foto del producto"
-        onCancel={() => setPending(null)}
-        onConfirm={(cropped) => {
-          const id = pending.id;
-          setPending(null);
-          void upload(id, cropped);
-        }}
-      />
-    )}
-    </>
   );
 }

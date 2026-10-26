@@ -2,7 +2,6 @@ export interface UserPreferences {
   onboardingCompleted: boolean;
   name: string;
   email: string;
-  avatarUrl?: string;
   phone: string;
   location: string;
   locationName: string;
@@ -138,7 +137,6 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
      el correo reales los toma la sesión autenticada o el formulario de alta. */
   name: "Usuario",
   email: "",
-  avatarUrl: "",
   phone: "",
   location: FALLBACK_LOCATION,
   locationName: LOCATION_META[FALLBACK_LOCATION]!.label,
@@ -169,10 +167,6 @@ export function readUserPreferences(userId?: string | null): UserPreferences {
       onboardingCompleted: Boolean(p.onboardingCompleted),
       name: typeof p.name === "string" && p.name.length > 0 ? p.name : DEFAULT_USER_PREFERENCES.name,
       email: typeof p.email === "string" && p.email.length > 0 ? p.email : DEFAULT_USER_PREFERENCES.email,
-      avatarUrl:
-        typeof p.avatarUrl === "string" && p.avatarUrl.length > 0
-          ? p.avatarUrl
-          : DEFAULT_USER_PREFERENCES.avatarUrl,
       phone: typeof p.phone === "string" && p.phone.length > 0 ? p.phone : DEFAULT_USER_PREFERENCES.phone,
       location,
       locationName:

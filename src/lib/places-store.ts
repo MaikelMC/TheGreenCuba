@@ -324,6 +324,15 @@ export interface UserPlace {
    */
   plan?: PlacePlan | null;
   /**
+   * Si el negocio está dentro de los 30 días de prueba de Pro.
+   *
+   * Se resuelve en el servidor al mapear la fila, contra `suscripciones`, y no
+   * se deduce de `plan`: la prueba la recibe **todo negocio nuevo**, haya
+   * elegido «Prueba gratis» o «Plan de pago» al darse de alta. Mientras dura,
+   * el panel enseña esa píldora en vez del plan contratado.
+   */
+  enPrueba?: boolean;
+  /**
    * Si la ficha está publicada. `false` = pendiente de que un administrador la
    * apruebe, que es como nacen los negocios dados de alta desde el perfil.
    *

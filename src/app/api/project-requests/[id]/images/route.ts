@@ -5,7 +5,7 @@ import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { invalidarCatalogo } from "@/lib/db/queries";
 import { projectRequests } from "@/lib/db/schema";
-import { EXTENSION, MAX_GIF_UPLOAD_BYTES, MAX_UPLOAD_BYTES, sniffImageType } from "@/lib/storage/image";
+import { CAMERA_FORMATS, EXTENSION, MAX_GIF_UPLOAD_BYTES, MAX_UPLOAD_BYTES, sniffImageType } from "@/lib/storage/image";
 import { MAX_PROJECT_MEDIA } from "@/lib/storage/project-media";
 import { S3_BUCKET, S3_PUBLIC_URL, s3Client, s3ConfigProblem } from "@/lib/storage/s3";
 import { generateId } from "@/lib/utils";
@@ -90,6 +90,16 @@ export async function POST(req: NextRequest, { params }: Params) {
   const contentType = sniffImageType(bytes);
   if (!contentType) {
     return NextResponse.json({ error: "Usa una imagen JPEG, PNG, WebP o GIF." }, { status: 415 });
+  }
+  /* El DNG y el HEIC se aceptan en el catálogo y en las fotos de negocio, donde
+     el servidor los convierte. Aquí se guarda el archivo tal cual —el
+     compresor del navegador ya lo dejó en WebP—, así que un original de cámara
+     se guardaría roto. Mejor pedirlo en JPEG. */
+  if (CAMERA_FORMATS.has(contentType)) {
+    return NextResponse.json(
+      { error: "Convierte la foto a JPEG o PNG antes de subirla." },
+      { status: 415 },
+    );
   }
   if (contentType === "image/gif" && role !== "gallery") {
     return NextResponse.json({ error: "Los GIF animados solo se pueden añadir a la galería." }, { status: 415 });

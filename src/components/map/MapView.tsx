@@ -5,20 +5,27 @@ import { forwardRef, useState, Component, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { MapViewProps } from "./types";
 
-const MapContent = dynamic(
-  () => import("./MapContent").then((mod) => ({ default: mod.MapContent })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="map-loading absolute inset-0 flex items-center justify-center bg-sand-deep">
-        <div className="flex flex-col items-center gap-3">
-          <div className="size-8 animate-spin rounded-full border-2 border-verde-400 border-t-transparent" />
-          <span className="text-small text-ink-soft/75">Cargando mapa…</span>
-        </div>
+const cargarMapa = () =>
+  import("./MapContent").then((mod) => ({ default: mod.MapContent }));
+
+const MapContent = dynamic(cargarMapa, {
+  ssr: false,
+  loading: () => (
+    <div className="map-loading absolute inset-0 flex items-center justify-center bg-sand-deep">
+      <div className="flex flex-col items-center gap-3">
+        <div className="size-8 animate-spin rounded-full border-2 border-verde-400 border-t-transparent" />
+        <span className="text-small text-ink-soft/75">Cargando mapa…</span>
       </div>
-    ),
-  },
-);
+    </div>
+  ),
+});
+
+/* El trozo del mapa se pide al evaluar este módulo, no al montar el
+   componente. Antes la primera pintura encadenaba dos viajes —el JavaScript de
+   la ruta y, detrás, la descarga de Leaflet, porque `next/dynamic` no lanza su
+   import hasta el montaje—; así bajan en paralelo y el mapa ahorra una ida y
+   vuelta completa. En el servidor no se pide: el mapa es solo de navegador. */
+if (typeof window !== "undefined") void cargarMapa();
 
 class MapErrorBoundary extends Component<
   { children: ReactNode; onRetry: () => void },

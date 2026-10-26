@@ -229,7 +229,6 @@ export async function GET() {
       id: user.id,
       email: user.email,
       name: user.name,
-      imageUrl: user.imageUrl,
       phone: user.phone,
       termsVersion: user.termsVersion,
       role: user.role,
@@ -264,7 +263,6 @@ export async function POST(request: NextRequest) {
 
   const nextName = typeof payload.name === "string" ? payload.name.trim() : null;
   const nextEmail = typeof payload.email === "string" ? payload.email.trim() : null;
-  const nextAvatar = typeof payload.avatarUrl === "string" ? payload.avatarUrl : null;
   const nextLocation = typeof payload.location === "string" ? payload.location.trim() : null;
   const nextLocationName = typeof payload.locationName === "string" ? payload.locationName.trim() : null;
   const nextPhone = typeof payload.phone === "string" ? payload.phone.trim() : null;
@@ -285,7 +283,6 @@ export async function POST(request: NextRequest) {
     .set({
       name: nextName ?? sessionUser.name,
       email: nextEmail ?? sessionUser.email,
-      imageUrl: nextAvatar ?? sessionUser.imageUrl ?? null,
       /* `?? sessionUser.phone` y no `?? null`: el onboarding guarda las
          preferencias sin mandar el teléfono, y con un `null` seco cada paso por
          ahí lo habría borrado. Una cadena vacía sí lo borra —es lo que se manda
@@ -337,7 +334,6 @@ export async function POST(request: NextRequest) {
       id: user.id,
       email: user.email,
       name: user.name,
-      imageUrl: user.imageUrl,
       phone: user.phone,
       termsVersion: user.termsVersion,
       role: user.role,

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   buscarProducto,
+  campoDeCodigo,
   comandosTelegram,
   enlaceVinculacion,
   esComandoValido,
@@ -25,6 +26,10 @@ import {
   TELEGRAM_MAX_CHARS,
   parsearProductos,
   plantillaProductos,
+  limpiarCampo,
+  preguntaCampo,
+  textoFichaProducto,
+  valorDeCampo,
 } from "./asistente";
 
 /* ── helpers ─────────────────────────────────────────────────────── */
@@ -182,6 +187,7 @@ test("la lista de comandos sale de COMANDOS y sin duplicar la ayuda", () => {
   assert.deepEqual(nombres, [
     "start",
     "carta",
+    "catalogo",
     "nuevo",
     "agotado",
     "disponible",
@@ -644,4 +650,60 @@ test("el código de vinculación tiene el largo pedido y solo usa su alfabeto", 
     /* Sin las cuatro que se confunden al teclearlas en el móvil. */
     assert.match(codigo, /^[A-HJ-NP-Z2-9]+$/);
   }
+});
+
+/* ── catálogo guiado por botones ────────────────────────────────── */
+test("los códigos de campo resuelven a su clave y a nada si no existen", () => {
+  assert.equal(campoDeCodigo("p")?.clave, "price");
+  assert.equal(campoDeCodigo("e")?.clave, "tag");
+  assert.equal(campoDeCodigo("zz"), null);
+});
+
+test("limpiarCampo recorta al tope y el guion vacía", () => {
+  assert.equal(limpiarCampo("price", "  250 CUP  "), "250 CUP");
+  assert.equal(limpiarCampo("tag", "-"), "");
+  assert.equal(limpiarCampo("description", "-"), "");
+  /* En el nombre el guion también da vacío: el servidor lo rechaza antes de
+     escribir un producto sin nombre. */
+  assert.equal(limpiarCampo("name", "-"), "");
+  assert.equal(limpiarCampo("tag", "x".repeat(50)).length, 20);
+});
+
+test("la ficha enseña todos los datos y marca los vacíos", () => {
+  const texto = textoFichaProducto(
+    {
+      name: "Pan de queso",
+      description: "",
+      price: "25",
+      currency: "CUP",
+    },
+    true,
+  );
+  assert.match(texto, /Pan de queso/);
+  assert.match(texto, /Estado: agotado/);
+  assert.match(texto, /Descripción: —/);
+  assert.match(texto, /Precio: 25 CUP/);
+  assert.match(texto, /Categoría: —/);
+});
+
+test("valorDeCampo devuelve lo que hay hoy en el campo", () => {
+  assert.equal(
+    valorDeCampo({ name: "Pan", price: "25" }, "price"),
+    "25",
+  );
+  assert.equal(valorDeCampo({ name: "Pan" }, "tag"), "");
+});
+
+test("la pregunta del campo repite el valor actual y enseña cómo vaciar", () => {
+  const campo = campoDeCodigo("p");
+  assert.ok(campo);
+  const texto = preguntaCampo(campo, "Pan", "25 CUP");
+  assert.match(texto, /nuevo valor de «precio» para «Pan»/);
+  assert.match(texto, /Ahora mismo: 25 CUP/);
+  assert.match(texto, /guion «-»/);
+
+  /* El nombre no se puede vaciar, así que no se ofrece el guion. */
+  const nombre = campoDeCodigo("n");
+  assert.ok(nombre);
+  assert.doesNotMatch(preguntaCampo(nombre, "Pan", "Pan"), /guion/);
 });

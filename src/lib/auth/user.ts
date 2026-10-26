@@ -41,7 +41,6 @@ export interface AppUser {
   authUserId: string | null;
   email: string;
   name: string;
-  imageUrl: string | null;
   /** Opcional. Lo recoge el alta; el perfil lo deja cambiar después. */
   phone: string | null;
   /** Qué versión de los términos aceptó al darse de alta. `null` en las cuentas
@@ -164,7 +163,6 @@ function toAppUser(row: typeof users.$inferSelect): AppUser {
        `null` dejaría el hueco en blanco. El correo sin dominio es un nombre
        pobre, pero es un nombre. */
     name: row.name?.trim() || row.email.split("@")[0] || row.email,
-    imageUrl: row.imageUrl ?? null,
     phone: row.phone ?? null,
     termsVersion: row.termsVersion ?? null,
     role: isRole(row.role) ? row.role : "user",

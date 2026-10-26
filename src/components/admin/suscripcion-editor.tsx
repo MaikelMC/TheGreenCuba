@@ -117,6 +117,16 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
     }
   }, [placeId, plan, estado, trial, vence, descuento, modulos]);
 
+  /* Mientras la prueba sigue viva, es lo que el negocio tiene de verdad: el
+     plan contratado no entra hasta que vence. Se calcula con las fechas que ya
+     trae esta pantalla, sin otra consulta. */
+  const enPrueba = Boolean(
+    data &&
+      data.estado === "activa" &&
+      data.trialHasta &&
+      new Date(data.trialHasta).getTime() > Date.now(),
+  );
+
   return (
     <FormSection title="Plan y vigencia" icon={<BadgeCheck size={18} strokeWidth={1.8} />}>
       <p className="text-meta text-ink-soft/75">
@@ -128,7 +138,7 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
         <p className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
           Ahora mismo cuenta como
           <span className="inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-verde-700">
-            {nombreDe(data.planEfectivo, cat)}
+            {enPrueba ? "Prueba gratis" : nombreDe(data.planEfectivo, cat)}
           </span>
         </p>
       )}

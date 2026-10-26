@@ -5,7 +5,6 @@ import { Save, User, Mail, Phone, MapPin, Heart, Music, Wallet } from "lucide-re
 import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { CUBA_PROVINCES, type UserPreferences } from "@/lib/user-preferences-store";
-import { prepareImage } from "@/lib/storage/compress";
 import { focusProfileControl } from "@/components/profile/focus-profile-control";
 
 const INTERESTS = [
@@ -58,27 +57,6 @@ interface DetailsViewProps {
 export function DetailsView({ prefs, set, toggle, onSave, saved }: DetailsViewProps) {
   const { name } = prefs;
 
-  async function onAvatarChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    /* El avatar no se sube al bucket: se guarda como `data:` dentro de las
-       preferencias, así que viaja entero en cada carga del perfil. Antes iba el
-       archivo tal cual salía del móvil —varios MB de base64 por respuesta—; con
-       `prepareImage` sale ya reducido. Se pide un lado de 512 px porque no se
-       ve más grande que 80; el tope de 12 MB de la función sí se nota aquí, así
-       que si lanza se guarda el original, como antes, en vez de no guardar nada. */
-    const prepared = await prepareImage(file, { maxEdge: 512 }).catch(() => null);
-    const blob = prepared?.blob ?? file;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      set("avatarUrl", result);
-    };
-    reader.readAsDataURL(blob);
-  }
-
   return (
     <div className="flex flex-col gap-gap-xl" onPointerDownCapture={focusProfileControl}>
       <motion.div
@@ -87,36 +65,14 @@ export function DetailsView({ prefs, set, toggle, onSave, saved }: DetailsViewPr
         transition={{ duration: 0.45, ease: EASE }}
         className="flex flex-col items-center gap-gap-sm"
       >
-        <label className="group relative block cursor-pointer">
-          <input
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            onChange={onAvatarChange}
-          />
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
-            className="relative grid size-20 place-items-center overflow-hidden rounded-full border-2 border-verde-200 bg-verde-50 font-lv-display text-2xl font-bold text-verde-600"
-          >
-            {prefs.avatarUrl ? (
-              <img
-                src={prefs.avatarUrl}
-                alt="Foto de perfil"
-                width={80}
-                height={80}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              name.charAt(0)
-            )}
-            <span className="absolute inset-0 flex items-center justify-center rounded-full bg-ink/0 text-[10px] font-semibold uppercase tracking-[0.16em] text-white opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-hover:bg-ink/45">
-              Cambiar
-            </span>
-          </motion.div>
-        </label>
-        <p className="text-meta text-ink-soft/75">Foto de perfil</p>
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
+          className="grid size-20 place-items-center overflow-hidden rounded-full border-2 border-verde-200 bg-verde-50 font-lv-display text-2xl font-bold text-verde-600"
+        >
+          {name.charAt(0)}
+        </motion.div>
       </motion.div>
 
       <motion.div

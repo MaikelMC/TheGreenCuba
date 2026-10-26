@@ -9,6 +9,7 @@ import type {
 } from "@/lib/places-store";
 import {
   CATALOGO,
+  enTrial,
   funcionesDe,
   muestraSelloVerificado,
   type Catalogo,
@@ -193,6 +194,10 @@ export function toUserPlace(
       funciones.has("seguidores"),
     ),
     plan: row.plan,
+    /* La prueba se decide por la suscripción, no por el plan elegido en el
+       alta: todo negocio nuevo tiene 30 días de Pro, y durante ellos el panel
+       enseña «Prueba gratis» en vez de «Plan de pago». */
+    enPrueba: enTrial(row.suscripcion ?? null),
     isActive: row.isActive,
     reviewStatus: row.reviewStatus,
     /* El sello son **dos cosas a la vez**: que la administración haya verificado

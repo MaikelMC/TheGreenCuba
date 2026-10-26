@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { chatJSON } from "@/lib/ai";
 import { resolveBotProviders } from "@/lib/ai/providers-store";
 import { db } from "@/lib/db";
@@ -17,7 +17,11 @@ import {
   permisoDeAccion,
   type PermisoNegocio,
 } from "@/lib/permisos-negocio";
-import { hastaManana, type Disponibilidad } from "@/lib/disponibilidad";
+import {
+  estaAgotado,
+  hastaManana,
+  type Disponibilidad,
+} from "@/lib/disponibilidad";
 import { setDisponibilidad } from "@/lib/disponibilidad-server";
 import { puede } from "@/lib/plans-server";
 import { rateLimitKey } from "@/lib/rate-limit";
@@ -795,6 +799,7 @@ const AYUDA = [
   "Puedo hacer esto por ti:",
   "",
   "/carta — te mando tu carta con precios y qué está agotado",
+  "/catalogo — editar tus productos con botones: datos y estado",
   "/nuevo — añadir productos a tu carta desde el chat",
   "/agotado — marcar productos como agotados, con botones",
   "/disponible — volver a ponerlos",
@@ -813,6 +818,7 @@ const MENU: Boton[][] = [
     { text: "Ver mi carta", callback_data: "cmd:carta" },
     { text: "Mis estadísticas", callback_data: "cmd:stats" },
   ],
+  [{ text: "Editar mi catálogo", callback_data: "cmd:catalogo" }],
   [{ text: "Añadir productos", callback_data: "cmd:nuevo" }],
   [
     { text: "Marcar agotado", callback_data: "cmd:agotado" },
@@ -943,6 +949,12 @@ async function manejarTexto(update: A.ParsedTelegram): Promise<void> {
     return;
   }
 
+  if (comando) {
+    /* Cualquier barra cancela la espera de un valor de campo: si el dueño toca
+       otro sitio, el mensaje siguiente no es el valor de nada. */
+    await limpiarCampoPendiente(update.chat_id);
+  }
+
   if (comando && A.esComandoValido(comando)) {
     /* Los de la lista negra son comandos de otros bots: no se atienden ni se
        mandan al modelo —que cobraría por un «/help»—, solo se desvían. */
@@ -956,6 +968,10 @@ async function manejarTexto(update: A.ParsedTelegram): Promise<void> {
     await manejarComando(negocio, update, comando, parseo?.resto ?? "");
     return;
   }
+
+  /* Un campo esperando su valor va antes que el saludo y que la IA: el mensaje
+     es el valor, no una orden. */
+  if (await manejarCampoPendiente(negocio, update)) return;
 
   await manejarTextoLibre(negocio, update);
 }
@@ -1164,6 +1180,10 @@ async function manejarComando(
       await enviarTexto(chatId, A.textoCarta(negocio.menu ?? []));
       return;
 
+    case "catalogo":
+      await enviarPaginaCatalogo(negocio, chatId, 0);
+      return;
+
     case "nuevo":
       await enviarTexto(chatId, A.plantillaProductos());
       return;
@@ -1249,6 +1269,314 @@ async function enviarPaginaProductos(
     `¿Qué ${verbo}? Toca el producto (${desde + 1}–${desde + pagina.length} de ${productos.length}):`,
     filas,
   );
+}
+
+/* ── el catálogo guiado: producto → campo → valor ─────────────────────────
+   Todo lo que se puede hacer con la carta, sin escribir comandos ni pasar por el
+   modelo: una lista con un botón por producto, una ficha con un botón por campo
+   y un mensaje que pide solo el valor nuevo.
+
+   Los callbacks nuevos llevan el **id** del producto y no su índice. El id de
+   Telegram cabe en los 64 bytes (`f:<uuid>:p` son 40) y no se corre al borrar un
+   producto de en medio, que es lo que sí le pasa al índice de las listas viejas.
+
+   El valor que se espera no vive en memoria: se deja una fila `campo_producto`
+   pendiente en `asistente_log`, igual que las confirmaciones, así que sobrevive a
+   un arranque en frío. Al aplicarse se reescribe como `editar_producto`, y el
+   Deshacer de siempre la lee sin saber que nació de un botón. */
+
+const CAMPO_PENDIENTE_TTL_MS = 10 * 60_000;
+
+function productoAgotado(negocio: Negocio, indice: number): boolean {
+  const item = negocio.menu?.[indice];
+  return item ? estaAgotado(item, Date.now()) : false;
+}
+
+/** Un producto de la carta por id, con el índice que hoy ocupa. */
+function indicePorId(negocio: Negocio, productoId: string): number {
+  return indiceDe(productosDe(negocio.menu), productoId);
+}
+
+function idDe(negocio: Negocio, indice: number): string {
+  return negocio.menu?.[indice]?.id ?? String(indice);
+}
+
+/** La lista de productos, cada uno con su estado delante. */
+async function enviarPaginaCatalogo(
+  negocio: Negocio,
+  chatId: string,
+  desde: number,
+  mensajeId?: number,
+): Promise<void> {
+  const productos = productosDe(negocio.menu);
+  if (productos.length === 0) {
+    await enviarTexto(
+      chatId,
+      "Tu carta todavía no tiene productos. Mándame /nuevo para añadirlos y luego /catalogo para editarlos.",
+    );
+    return;
+  }
+
+  const pagina = productos.slice(desde, desde + A.TAMANO_PAGINA);
+  const filas: Boton[][] = pagina.map((p) => [
+    {
+      text: `${productoAgotado(negocio, p.indice) ? "⛔" : "✅"} ${A.recortarEtiqueta(p.name, 52)}`,
+      callback_data: `i:${p.id}`,
+    },
+  ]);
+
+  const nav: Boton[] = [];
+  if (desde > 0) {
+    nav.push({
+      text: "← Antes",
+      callback_data: `l:${Math.max(0, desde - A.TAMANO_PAGINA)}`,
+    });
+  }
+  if (desde + A.TAMANO_PAGINA < productos.length) {
+    nav.push({
+      text: "Después →",
+      callback_data: `l:${desde + A.TAMANO_PAGINA}`,
+    });
+  }
+  if (nav.length > 0) filas.push(nav);
+
+  const texto = `Tu catálogo (${desde + 1}–${desde + pagina.length} de ${productos.length}). Toca un producto para ver sus datos y editarlo:`;
+  if (mensajeId) await editarTexto(chatId, mensajeId, texto, filas);
+  else await enviarBotones(chatId, texto, filas);
+}
+
+/** Los botones de la ficha. Sin permiso de catálogo solo queda «Volver»: es más
+ * honesto que enseñar botones que van a contestar que no. */
+function botonesFicha(negocio: Negocio, indice: number): Boton[][] {
+  const id = idDe(negocio, indice);
+  const filas: Boton[][] = [];
+
+  if (permite(negocio, "catalogo")) {
+    const campo = (codigo: string, label: string): Boton => ({
+      text: label,
+      callback_data: `f:${id}:${codigo}`,
+    });
+    filas.push([campo("n", "Nombre"), campo("d", "Descripción")]);
+    filas.push([campo("p", "Precio"), campo("m", "Moneda")]);
+    filas.push([campo("c", "Categoría"), campo("e", "Etiqueta")]);
+    filas.push([
+      {
+        text: productoAgotado(negocio, indice)
+          ? "Marcar disponible"
+          : "Marcar agotado",
+        callback_data: `t:${id}`,
+      },
+    ]);
+    filas.push([{ text: "Quitar producto", callback_data: `x:${id}` }]);
+  }
+
+  filas.push([
+    {
+      text: "← Volver",
+      callback_data: `l:${Math.floor(indice / A.TAMANO_PAGINA) * A.TAMANO_PAGINA}`,
+    },
+  ]);
+  return filas;
+}
+
+/** La ficha de un producto. `mensajeId` la escribe encima del mensaje anterior
+ * —la lista, o la propia ficha— en vez de mandar otro mensaje. */
+async function enviarFichaProducto(
+  negocio: Negocio,
+  chatId: string,
+  productoId: string,
+  mensajeId?: number,
+  logId?: string | null,
+): Promise<void> {
+  const indice = indicePorId(negocio, productoId);
+  const item = indice === -1 ? undefined : negocio.menu?.[indice];
+
+  if (!item || indice === -1) {
+    const texto = "Ese producto ya no está en tu carta. Abre /catalogo y elige otro.";
+    if (mensajeId) await editarTexto(chatId, mensajeId, texto);
+    else await enviarTexto(chatId, texto);
+    return;
+  }
+
+  const sinPermiso = permite(negocio, "catalogo")
+    ? ""
+    : "\n\nNo tienes permiso para cambiar el catálogo.";
+  const texto = `${A.textoFichaProducto(item, productoAgotado(negocio, indice))}${sinPermiso}`;
+  const filas = botonesFicha(negocio, indice);
+  if (logId) filas.push([{ text: "Deshacer", callback_data: `u:${logId}` }]);
+
+  if (mensajeId) await editarTexto(chatId, mensajeId, texto, filas);
+  else await enviarBotones(chatId, texto, filas);
+}
+
+/** Deja anotado qué campo se está esperando y pide el valor. */
+async function pedirValorCampo(
+  negocio: Negocio,
+  chatId: string,
+  productoId: string,
+  codigo: string,
+): Promise<void> {
+  if (!permite(negocio, "catalogo")) {
+    await enviarTexto(
+      chatId,
+      "El dueño no te dio permiso para cambiar el catálogo.",
+    );
+    return;
+  }
+
+  const campo = A.campoDeCodigo(codigo);
+  const indice = indicePorId(negocio, productoId);
+  const item = indice === -1 ? undefined : negocio.menu?.[indice];
+  if (!campo || !item) {
+    await enviarTexto(
+      chatId,
+      "Ese producto ya no está en tu carta. Abre /catalogo y elige otro.",
+    );
+    return;
+  }
+
+  const logId = await registrarLog({
+    negocioId: negocio.negocioId,
+    chatId,
+    mensaje: null,
+    accion: "campo_producto",
+    antes: null,
+    despues: { productoId, campo: campo.codigo },
+    via: "comando",
+    pendiente: true,
+  });
+
+  if (!logId) {
+    await enviarTexto(chatId, "No pude dejar el cambio preparado. Prueba otra vez.");
+    return;
+  }
+
+  await enviarBotones(
+    chatId,
+    A.preguntaCampo(campo, item.name, A.valorDeCampo(item, campo.clave)),
+    [[{ text: "Cancelar", callback_data: `z:${logId}` }]],
+  );
+}
+
+/** La fila que espera el valor de un campo, si la hay y no ha caducado. */
+async function campoPendiente(negocio: Negocio, chatId: string) {
+  const [fila] = await db
+    .select()
+    .from(asistenteLog)
+    .where(
+      and(
+        eq(asistenteLog.chatId, chatId),
+        eq(asistenteLog.negocioId, negocio.negocioId),
+        eq(asistenteLog.accion, "campo_producto"),
+        eq(asistenteLog.pendiente, true),
+      ),
+    )
+    .orderBy(desc(asistenteLog.ts))
+    .limit(1);
+
+  if (!fila) return null;
+  if (Date.now() - fila.ts.getTime() > CAMPO_PENDIENTE_TTL_MS) {
+    await db.delete(asistenteLog).where(eq(asistenteLog.id, fila.id));
+    return null;
+  }
+  return fila;
+}
+
+/** Cualquier comando cancela la espera: si el dueño toca otro sitio, el mensaje
+ * siguiente no es un valor de campo. */
+async function limpiarCampoPendiente(chatId: string): Promise<void> {
+  await db
+    .delete(asistenteLog)
+    .where(
+      and(
+        eq(asistenteLog.chatId, chatId),
+        eq(asistenteLog.accion, "campo_producto"),
+        eq(asistenteLog.pendiente, true),
+      ),
+    );
+}
+
+/**
+ * ¿El mensaje es el valor de un campo que se estaba esperando?
+ *
+ * Devuelve `true` cuando lo consumió —aplicado o rechazado con una frase—, y
+ * `false` cuando no había nada esperando y el mensaje sigue su camino normal.
+ *
+ * La fila nace `campo_producto` y se reescribe como `editar_producto` al
+ * aplicarse: así el Deshacer la trata como cualquier otra edición, con su estado
+ * anterior y su producto.
+ */
+async function manejarCampoPendiente(
+  negocio: Negocio,
+  update: A.ParsedTelegram,
+): Promise<boolean> {
+  const fila = await campoPendiente(negocio, update.chat_id);
+  if (!fila) return false;
+
+  const guardado = (fila.despues ?? {}) as {
+    productoId?: string;
+    campo?: string;
+  };
+  const campo = A.campoDeCodigo(guardado.campo ?? "");
+  const productoId = guardado.productoId ?? "";
+  const indice = indicePorId(negocio, productoId);
+
+  if (!campo || indice === -1) {
+    await db.delete(asistenteLog).where(eq(asistenteLog.id, fila.id));
+    await enviarTexto(
+      update.chat_id,
+      "Ese producto ya no está en tu carta. Abre /catalogo y elige otro.",
+    );
+    return true;
+  }
+
+  const valor = A.limpiarCampo(campo.clave, update.texto);
+  if (campo.clave === "name" && !valor) {
+    await enviarTexto(
+      update.chat_id,
+      "El nombre no puede quedar vacío. Escribe otro, o toca «Cancelar» en el mensaje anterior.",
+    );
+    return true;
+  }
+
+  const cambios: Parameters<typeof ejecutarEditarProducto>[2] = {};
+  cambios[campo.clave] = valor;
+
+  const res = await ejecutarEditarProducto(negocio, indice, cambios);
+  if (!res || !res.ok) {
+    await db.delete(asistenteLog).where(eq(asistenteLog.id, fila.id));
+    await enviarTexto(
+      update.chat_id,
+      res?.texto ?? "Ese producto ya no está en tu carta.",
+    );
+    return true;
+  }
+
+  await db
+    .update(asistenteLog)
+    .set({
+      accion: "editar_producto",
+      mensaje: update.texto,
+      antes: res.antes as never,
+      despues: res.despues as never,
+      pendiente: false,
+    })
+    .where(eq(asistenteLog.id, fila.id));
+
+  const recargado = (await cargarNegocio(update.chat_id)) ?? negocio;
+  const indiceNuevo = indicePorId(recargado, productoId);
+  const item =
+    indiceNuevo === -1 ? undefined : recargado.menu?.[indiceNuevo];
+  const ficha = item
+    ? `\n\n${A.textoFichaProducto(item, estaAgotado(item, Date.now()))}`
+    : "";
+
+  const filas: Boton[][] = [];
+  if (item) filas.push([{ text: "Ver opciones", callback_data: `i:${productoId}` }]);
+  filas.push([{ text: "Deshacer", callback_data: `u:${fila.id}` }]);
+
+  await enviarBotones(update.chat_id, `${res.texto}${ficha}`, filas);
+  return true;
 }
 
 /* ── capa 2: texto libre sin modelo ─────────────────────────────────────── */
@@ -1821,7 +2149,7 @@ async function pedirConfirmacionEliminar(args: {
   chatId: string;
   mensaje: string;
   producto: string;
-  via: "regex" | "llm";
+  via: "comando" | "regex" | "llm";
   tokensIn?: number;
   tokensOut?: number;
 }): Promise<void> {
@@ -2042,6 +2370,134 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
       }
       await responderCallback(callbackId, "");
       await manejarComando(negocio, update, cmd, "");
+      return;
+    }
+
+    case "l": {
+      /* Paginar el catálogo no escribe: solo se reescribe el mensaje. */
+      const desde = Math.max(0, Number.parseInt(resto[0] ?? "0", 10) || 0);
+      await responderCallback(callbackId, "");
+      await enviarPaginaCatalogo(
+        negocio,
+        chatId,
+        desde,
+        update.callback_mensaje_id,
+      );
+      return;
+    }
+
+    case "i": {
+      await responderCallback(callbackId, "");
+      await enviarFichaProducto(
+        negocio,
+        chatId,
+        resto[0] ?? "",
+        update.callback_mensaje_id,
+      );
+      return;
+    }
+
+    case "f": {
+      if (!permite(negocio, "catalogo")) {
+        await responderCallback(
+          callbackId,
+          "El dueño no te dio permiso para cambiar el catálogo.",
+          true,
+        );
+        return;
+      }
+      await responderCallback(callbackId, "");
+      await pedirValorCampo(negocio, chatId, resto[0] ?? "", resto[1] ?? "");
+      return;
+    }
+
+    case "t": {
+      /* Agotado ↔ disponible en un solo toque: es el cambio más frecuente y no
+         tiene sentido pedir que lo escriba. */
+      const productoId = resto[0] ?? "";
+      const indice = indicePorId(negocio, productoId);
+      if (indice === -1) {
+        await responderCallback(
+          callbackId,
+          "Ese producto ya no está en tu carta.",
+          true,
+        );
+        return;
+      }
+
+      const estado: Disponibilidad = productoAgotado(negocio, indice)
+        ? "disponible"
+        : "agotado";
+      const res = await ejecutarDisponibilidad(negocio, indice, estado, null);
+      const logId = await registrarLog({
+        negocioId: negocio.negocioId,
+        chatId,
+        mensaje: null,
+        accion: res.accion,
+        antes: res.antes,
+        despues: res.despues,
+        via: "comando",
+      });
+
+      await responderCallback(callbackId, res.texto, !res.ok);
+      if (res.ok && update.callback_mensaje_id) {
+        const recargado = (await cargarNegocio(chatId)) ?? negocio;
+        await enviarFichaProducto(
+          recargado,
+          chatId,
+          productoId,
+          update.callback_mensaje_id,
+          logId,
+        );
+      }
+      return;
+    }
+
+    case "x": {
+      if (!permite(negocio, "catalogo")) {
+        await responderCallback(
+          callbackId,
+          "El dueño no te dio permiso para cambiar el catálogo.",
+          true,
+        );
+        return;
+      }
+      const indice = indicePorId(negocio, resto[0] ?? "");
+      const item = indice === -1 ? undefined : negocio.menu?.[indice];
+      if (!item) {
+        await responderCallback(
+          callbackId,
+          "Ese producto ya no está en tu carta.",
+          true,
+        );
+        return;
+      }
+      await responderCallback(callbackId, "");
+      /* Quitar se pregunta siempre: es el único gesto del catálogo que no se
+         arregla con un botón si el dueño no lo esperaba. */
+      await pedirConfirmacionEliminar({
+        negocio,
+        chatId,
+        mensaje: "",
+        producto: item.name,
+        via: "comando",
+      });
+      return;
+    }
+
+    case "z": {
+      /* Cancelar la espera de un valor: se borra la fila y se acaba. */
+      await db
+        .delete(asistenteLog)
+        .where(eq(asistenteLog.id, resto[0] ?? ""));
+      await responderCallback(callbackId, "Cancelado.");
+      if (update.callback_mensaje_id) {
+        await editarTexto(
+          chatId,
+          update.callback_mensaje_id,
+          "Cancelado. No cambié nada.",
+        );
+      }
       return;
     }
 

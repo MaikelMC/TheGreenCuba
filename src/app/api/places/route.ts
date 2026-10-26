@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { places, projectRequests } from "@/lib/db/schema";
 import { toNewPlaceValues, toUserPlace } from "@/lib/db/mappers";
 import {
+  getPlaceById,
   invalidarCatalogo,
   listPlaces,
   resolveCategoryId,
@@ -210,8 +211,12 @@ export async function POST(req: NextRequest) {
 
   invalidarCatalogo();
 
+  /* Se relee con la suscripción ya creada: el alta acaba de arrancar la prueba
+     de 30 días, y devolver la fila cruda dejaba al panel sin la píldora de
+     «Prueba gratis» hasta la siguiente recarga. */
+  const created = await getPlaceById(row!.id);
   return NextResponse.json(
-    toUserPlace({ ...row!, categoryName: body.category ?? null }),
+    created ?? toUserPlace({ ...row!, categoryName: body.category ?? null }),
     { status: 201 },
   );
 }

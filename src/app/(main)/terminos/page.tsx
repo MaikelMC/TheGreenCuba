@@ -179,7 +179,7 @@ export default function TerminosPage() {
                   </td>
                 </tr>
                 <tr className="border-b border-ink/5">
-                  <td className={TD}>Ciudad, foto de perfil</td>
+                  <td className={TD}>Ciudad</td>
                   <td className={TD}>El perfil</td>
                   <td className={TD}>Tu ficha.</td>
                 </tr>

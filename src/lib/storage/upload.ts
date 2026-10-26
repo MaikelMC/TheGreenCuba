@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { S3_BUCKET, S3_PUBLIC_URL, s3Client, s3ConfigProblem } from "./s3";
-import { EXTENSION, MAX_UPLOAD_BYTES, sniffImageType } from "./image";
+import {
+  CAMERA_FORMATS,
+  EXTENSION,
+  MAX_UPLOAD_BYTES,
+  sniffImageType,
+} from "./image";
 import { optimizeImage } from "./optimize";
 import { generateId } from "@/lib/utils";
 
@@ -88,10 +93,30 @@ export async function uploadImage(
   if (!detected) {
     return {
       ok: false,
-      error: "El archivo no es una imagen JPEG, PNG o WebP.",
+      error: "El archivo no es una imagen compatible: usa JPEG, PNG, WebP o HEIC.",
       status: 415,
     };
   }
+
+  /* El DNG de ProRAW no se convierte aquí. Su primer IFD es el mosaico del
+     sensor, y `sharp` —que recibe bytes y elige el cargador por los mágicos—
+     lo leería como TIFF normal y devolvería una foto con los colores rotos.
+     Además, un ProRAW real pesa unos 25 MB y no cabe en el cuerpo de una
+     petición en Vercel. Se pide la exportación en JPEG, que es lo que hace el
+     propio iPhone al compartir la foto. */
+  if (detected === "image/tiff") {
+    return {
+      ok: false,
+      error:
+        "El DNG de ProRAW no se puede convertir en el servidor. Exporta la foto como JPEG desde la app Fotos y vuelve a subirla.",
+      status: 415,
+    };
+  }
+
+  /* Un HEIC **siempre** se intenta convertir: el navegador no lo pinta y el
+     bucket no debe guardar el original. Las rutas que no recomprimen —la
+     galería del negocio y el logo— pasan por aquí igual que las del menú. */
+  const cameraFormat = CAMERA_FORMATS.has(detected);
 
   /* `optimize` es la red de seguridad del tope de peso del servidor: el
      navegador ya comprime, pero si no supo decodificar el archivo subiría el
@@ -104,11 +129,22 @@ export async function uploadImage(
      explícito deja que los dos encajen en la misma variable. */
   let bytes: Uint8Array<ArrayBufferLike> = originalBytes;
   let contentType = detected;
-  if (options.optimize) {
+  if (options.optimize || cameraFormat) {
     try {
       bytes = await optimizeImage(originalBytes);
       contentType = "image/webp";
     } catch (error) {
+      /* Con un formato de cámara no hay red de seguridad: guardar el original
+         dejaría una foto que ningún navegador sabe enseñar. Mejor explicarlo. */
+      if (cameraFormat) {
+        console.error("No se pudo convertir un formato de cámara:", error);
+        return {
+          ok: false,
+          error:
+            "No se pudo convertir la foto. Guárdala como JPEG o PNG y vuelve a subirla.",
+          status: 415,
+        };
+      }
       console.error("No se pudo recomprimir la imagen en el servidor:", error);
     }
   }

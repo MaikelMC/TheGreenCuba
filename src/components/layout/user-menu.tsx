@@ -7,7 +7,6 @@ import { User, Building2, ShieldCheck, LogOut, Link2, Megaphone, ChevronDown } f
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/session";
 import { logout } from "@/lib/logout";
-import { readUserPreferences } from "@/lib/user-preferences-store";
 import { fetchMe } from "@/lib/session-client";
 import { LoginButton } from "@/components/landing/login-button";
 
@@ -30,7 +29,6 @@ interface SessionUser {
   id?: string;
   email: string;
   name: string;
-  imageUrl?: string | null;
   role: Role;
   /** El negocio que lleva, si lleva alguno. Solo se lee para decidir si el
       enlace al panel ya tiene destino: mientras esté pendiente de aprobación,
@@ -119,13 +117,31 @@ const ITEMS: {
   },
 ];
 
-export function UserMenu({
-  initial,
-  avatarUrl,
-}: {
-  initial?: string;
-  avatarUrl?: string;
-}) {
+/**
+ * Las entradas que puede abrir un usuario. Vive fuera del componente porque la
+ * usan el render y el precargado, y las dos tienen que decir lo mismo: si el
+ * render ofrece una ruta que el precargado no calentó, vuelve el viaje en frío.
+ */
+function itemsFor(user: SessionUser) {
+  return ITEMS.filter(
+    (i) =>
+      i.roles.includes(user.role) &&
+      /* El panel de negocio no existe hasta que lo aprueban. El rol se
+         concede al enviar la solicitud, así que por sí solo no basta: el
+         negocio tiene que estar publicado. */
+      (i.path !== "/business" || Boolean(user.business?.isActive)) &&
+      /* Y «Enlaces» no existe hasta que un administrador lo active. Ningún
+         rol lo implica: es un permiso suelto, y sin él la página rebotaría
+         al perfil. */
+      (i.path !== "/enlaces" || Boolean(user.affiliateEnabled)) &&
+      /* «Administrar proyectos» solo aparece con el primero ya creado. El
+         rol no lo implica —cualquier usuario puede tener proyectos— y el
+         alta se hace desde «Tengo un negocio», en el perfil. */
+      (i.path !== "/projects" || Boolean(user.hasProjects)),
+  );
+}
+
+export function UserMenu({ initial }: { initial?: string }) {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(lastKnownUser);
   /* Tres estados, no dos: «todavía no se sabe» no es «no hay sesión». Con dos,
@@ -134,19 +150,9 @@ export function UserMenu({
   const [status, setStatus] = useState<"unknown" | "in" | "out">(
     lastKnownUser ? "in" : "unknown",
   );
-  const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const [hintOpen, setHintOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
-
-  useEffect(() => {
-    try {
-      const prefs = readUserPreferences(user?.id ?? null);
-      if (prefs.avatarUrl) setLocalAvatarUrl(prefs.avatarUrl);
-    } catch {
-      // Sin preferencias válidas, deja el avatar por defecto.
-    }
-  }, [user?.id]);
 
   /* El aviso de primera visita: quien acaba de entrar no sabe que ese botón
      esconde las secciones, así que se le señala una vez y no se le vuelve a
@@ -199,10 +205,6 @@ export function UserMenu({
         lastKnownUser = data.user;
         setUser(data.user);
         setStatus("in");
-        if (data.user?.id) {
-          const prefs = readUserPreferences(data.user.id);
-          if (prefs.avatarUrl) setLocalAvatarUrl(prefs.avatarUrl);
-        }
         return;
       }
 
@@ -248,6 +250,22 @@ export function UserMenu({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  /* Las secciones no están en pantalla como `<Link>`: viven dentro de este
+     menú y se abren con `router.push`. Next solo precarga lo que encuentra
+     enlazado, así que la primera entrada a cada una pagaba el viaje entero
+     —payload del servidor y trozo de JavaScript— con la pantalla quieta. En
+     cuanto se sabe quién es, se calientan las rutas que su menú ofrece. Los
+     dos paneles quedan fuera: entran con recarga completa a propósito (ver
+     `handleSelect`). */
+  useEffect(() => {
+    if (!user) return;
+    for (const item of itemsFor(user)) {
+      if (item.path !== "/business" && item.path !== "/admin") {
+        router.prefetch(item.path);
+      }
+    }
+  }, [user, router]);
+
   const handleSelect = useCallback(
     (path: string) => {
       setOpen(false);
@@ -276,8 +294,6 @@ export function UserMenu({
   // El nombre de la sesión manda sobre el `initial` que pase quien lo use: el
   // primero viene del servidor con la firma comprobada, el segundo es una
   // cadena escrita a mano en la llamada.
-  const resolvedAvatarUrl =
-    avatarUrl || user?.imageUrl || localAvatarUrl || null;
   const avatar = user?.name?.trim().charAt(0).toUpperCase() || initial;
   /* Sin `user` no se ofrece **ninguna** entrada, y antes se ofrecían todas.
      `/api/me` es un viaje de red: hasta que contesta no se sabe el rol, así que
@@ -286,24 +302,7 @@ export function UserMenu({
      cargar— y se lo dejaba puesto a quien no tiene sesión, que además se
      comía un enlace que rebota. Ausencia de dato no es «puede todo»: es que
      todavía no se sabe. */
-  const visible = user
-    ? ITEMS.filter(
-        (i) =>
-          i.roles.includes(user.role) &&
-          /* El panel de negocio no existe hasta que lo aprueban. El rol se
-             concede al enviar la solicitud, así que por sí solo no basta: el
-             negocio tiene que estar publicado. */
-          (i.path !== "/business" || Boolean(user.business?.isActive)) &&
-          /* Y «Enlaces» no existe hasta que un administrador lo active. Ningún
-             rol lo implica: es un permiso suelto, y sin él la página rebotaría
-             al perfil. */
-          (i.path !== "/enlaces" || Boolean(user.affiliateEnabled)) &&
-          /* «Administrar proyectos» solo aparece con el primero ya creado. El
-             rol no lo implica —cualquier usuario puede tener proyectos— y el
-             alta se hace desde «Tengo un negocio», en el perfil. */
-          (i.path !== "/projects" || Boolean(user.hasProjects)),
-      )
-    : [];
+  const visible = user ? itemsFor(user) : [];
 
   /* Sin sesión, un botón para entrar; sin saberlo todavía, nada.
 
@@ -313,9 +312,9 @@ export function UserMenu({
      volver a entrar, y ahí no había nada. Lo que se pinta en ese hueco es el
      mismo botón de la portada, que ya lleva a `/login`.
 
-     `initial` y `avatarUrl` cuentan como saberlo: solo los pasa una pantalla
-     cerrada (`/profile`), que ya tiene la sesión resuelta por el proxy. */
-  if (!user && !initial && !avatarUrl) {
+     `initial` cuenta como saberlo: solo lo pasa una pantalla cerrada
+     (`/profile`), que ya tiene la sesión resuelta por el proxy. */
+  if (!user && !initial) {
     if (status !== "out") return null;
     return (
       <LoginButton className="shrink-0 px-3 py-2 text-[13px] sm:px-[18px] sm:py-2.5 sm:text-sm" />
@@ -352,17 +351,7 @@ export function UserMenu({
         className="group flex shrink-0 cursor-pointer items-center gap-1 rounded-full bg-verde-950 py-1 pl-1 pr-[10px] text-white transition-colors duration-500 hover:bg-verde-800"
       >
         <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-verde-800 font-lv-display text-small font-bold">
-          {resolvedAvatarUrl ? (
-            <img
-              src={resolvedAvatarUrl}
-              alt="Foto de perfil"
-              width={36}
-              height={36}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            (avatar ?? <User size={18} strokeWidth={1.8} />)
-          )}
+          {avatar ?? <User size={18} strokeWidth={1.8} />}
         </span>
         <ChevronDown
           size={16}

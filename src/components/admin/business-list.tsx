@@ -268,12 +268,23 @@ export function BusinessList() {
                       <span className="font-lv-display text-small font-semibold text-ink truncate">
                         {p.name}
                       </span>
-                      {/* El plan sigue a la ficha después de aprobarla. Si solo
-                          se viera en solicitudes, aprobar parecería borrarlo. */}
-                      {p.plan && (
+                      {/* Todo negocio nuevo arranca con 30 días de prueba de
+                          Pro, eligiera lo que eligiera en el alta. Mientras la
+                          prueba vive, eso es lo que hay contratado de verdad y
+                          la píldora lo dice; después manda el plan elegido.
+                          El plan sigue a la ficha después de aprobarla: si
+                          solo se viera en solicitudes, aprobar parecería
+                          borrarlo. */}
+                      {p.enPrueba ? (
                         <span className="inline-flex items-center gap-[4px] rounded-full border border-verde-200 bg-verde-50 px-[7px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] text-verde-700">
-                          {PLAN_LABEL[p.plan]}
+                          {PLAN_LABEL.trial}
                         </span>
+                      ) : (
+                        p.plan && (
+                          <span className="inline-flex items-center gap-[4px] rounded-full border border-verde-200 bg-verde-50 px-[7px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] text-verde-700">
+                            {PLAN_LABEL[p.plan]}
+                          </span>
+                        )
                       )}
                       {p.isBoosted && (
                         <span className="inline-flex items-center gap-[4px] px-[7px] py-[2px] rounded-full bg-verde-100 border border-verde-200 font-lv-display text-[10px] font-semibold text-verde-700 uppercase tracking-[0.14em]">

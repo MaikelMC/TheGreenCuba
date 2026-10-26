@@ -40,7 +40,7 @@ export const siteConfig = {
        cada red, que es honesto pero no sirve de mucho. Se cambian aquí y solo
        aquí. */
     instagram: "https://www.instagram.com/laverdecuba",
-    facebook: "https://www.facebook.com/laverde",
+    facebook: "https://www.facebook.com/profile.php?id=61595112380969&mibextid=wwXIfr",
     whatsapp: "https://wa.me/",
   },
   mainNav: [

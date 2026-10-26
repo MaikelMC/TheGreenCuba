@@ -24,7 +24,6 @@ export {
   SheetTitle,
   SheetDescription,
 } from "./sheet";
-export { Avatar, AvatarImage, AvatarFallback } from "./avatar";
 export {
   Dialog,
   DialogPortal,

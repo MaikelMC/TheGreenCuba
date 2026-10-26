@@ -23,7 +23,46 @@ export const MAX_GIF_UPLOAD_BYTES = 2 * 1024 * 1024;
  * los formatos que produce el compresor más el JPEG y el PNG que se cuelan por
  * la vía de respaldo. Devuelve `null` para todo lo demás.
  */
-export function sniffImageType(bytes: Uint8Array): "image/webp" | "image/jpeg" | "image/png" | "image/gif" | null {
+export type SniffedType =
+  | "image/webp"
+  | "image/jpeg"
+  | "image/png"
+  | "image/gif"
+  | "image/tiff"
+  | "image/heic";
+
+/**
+ * Los formatos de cámara que el navegador no pinta.
+ *
+ * El HEIC se intenta convertir en el servidor: si la compilación de `sharp` lo
+ * sabe decodificar, queda en WebP; si no, la subida se rechaza con un mensaje
+ * que dice qué hacer, nunca guardando el original.
+ *
+ * El DNG de ProRAW es un TIFF cuyo primer IFD es el mosaico del sensor, no una
+ * foto en color, y `sharp` lo lee por la ruta de TIFF porque recibe bytes y no
+ * un nombre de archivo. Convertirlo así daría una imagen rota. Por eso el DNG
+ * se rechaza con un mensaje claro; ver `uploadImage`.
+ */
+export const CAMERA_FORMATS: ReadonlySet<SniffedType> = new Set([
+  "image/tiff",
+  "image/heic",
+]);
+
+/** Marcas del contenedor ISO BMFF que son fotos HEIC, no vídeo ni AVIF. */
+const HEIC_BRANDS = new Set([
+  "heic",
+  "heix",
+  "hevc",
+  "hevx",
+  "heim",
+  "heis",
+  "hevm",
+  "hevs",
+  "mif1",
+  "msf1",
+]);
+
+export function sniffImageType(bytes: Uint8Array): SniffedType | null {
   if (bytes.length < 12) return null;
 
   if (
@@ -67,6 +106,30 @@ export function sniffImageType(bytes: Uint8Array): "image/webp" | "image/jpeg" |
     return "image/webp";
   }
 
+  /* TIFF: `II*\0` en little endian o `MM\0*` en big endian. Aquí cae también el
+     DNG de ProRAW del iPhone, que es un TIFF con la foto del sensor y una vista
+     previa JPEG dentro. */
+  if (
+    (bytes[0] === 0x49 && bytes[1] === 0x49 && bytes[2] === 0x2a && bytes[3] === 0x00) ||
+    (bytes[0] === 0x4d && bytes[1] === 0x4d && bytes[2] === 0x00 && bytes[3] === 0x2a)
+  ) {
+    return "image/tiff";
+  }
+
+  /* HEIC: caja `ftyp` del contenedor ISO BMFF y la marca en los cuatro bytes
+     siguientes. El HEIC de iPhone entró aquí por el mismo motivo que el DNG:
+     es lo que sale de la cámara y no se puede pedir al usuario que lo cambie
+     a mano. */
+  if (
+    bytes[4] === 0x66 &&
+    bytes[5] === 0x74 &&
+    bytes[6] === 0x79 &&
+    bytes[7] === 0x70 &&
+    HEIC_BRANDS.has(String.fromCharCode(bytes[8]!, bytes[9]!, bytes[10]!, bytes[11]!))
+  ) {
+    return "image/heic";
+  }
+
   return null;
 }
 
@@ -76,4 +139,8 @@ export const EXTENSION: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/gif": "gif",
+  /* Los dos de cámara no deberían llegar aquí —se convierten a WebP antes de
+     guardarse—, pero la clave del objeto no puede salir con «.undefined». */
+  "image/tiff": "tif",
+  "image/heic": "heic",
 };
