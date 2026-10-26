@@ -39,7 +39,7 @@ export const siteConfig = {
        que sustituirlas por las de verdad: mientras tanto llevan a la portada de
        cada red, que es honesto pero no sirve de mucho. Se cambian aquí y solo
        aquí. */
-    instagram: "https://www.instagram.com/laverde",
+    instagram: "https://www.instagram.com/laverdecuba",
     facebook: "https://www.facebook.com/laverde",
     whatsapp: "https://wa.me/",
   },
