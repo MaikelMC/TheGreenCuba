@@ -169,11 +169,13 @@ export const metadata: Metadata = {
     url: siteConfig.url,
     title: TITLE,
     description: DESCRIPTION,
+    images: [{ url: "/api/og", width: 1200, height: 630, alt: "La Verde — descubre lugares en Cuba" }],
   },
   twitter: {
     card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
+    images: ["/api/og"],
   },
   /* Al «Agregar a la pantalla de inicio» en iOS: sin `capable` la app abre
      dentro de una pestaña de Safari con barra de direcciones, y sin `title`

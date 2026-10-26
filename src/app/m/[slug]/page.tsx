@@ -151,15 +151,11 @@ export async function generateMetadata({
       title,
       description,
       url: menuUrl(place.slug),
-      /* La foto del negocio manda cuando la hay. Y cuando no, la clave **no se
-         pone**: `images: undefined` sigue contando como declarada —Next
-         pregunta por `hasOwnProperty('images')`, ver
-         `next/dist/lib/metadata/resolve-metadata.js:149`— y da por hecho que la
-         página trae la suya. Sin logo ni foto, esa suposición dejaba la carta
-         sin imagen y el enlace compartido acababa enseñando la de La Verde.
-         Omitiendo la clave, hereda la tarjeta de `opengraph-image.tsx`, que es
-         la del negocio. */
-      ...(cover ? { images: [cover] } : {}),
+      /* La foto del negocio manda cuando la hay. Cuando no, la tarjeta del
+         negocio la genera `/api/og`: antes la servía `opengraph-image.tsx`,
+         pero la convención de metadatos metía `next/og` y sharp (~12 MB) en
+         el chunk de la página. */
+      images: cover ? [cover] : [`/api/og?slug=${place.slug}`],
     },
     twitter: { card: "summary_large_image", title, description },
     /* Solo se indexa un menú publicado y con algo dentro. El negocio de prueba

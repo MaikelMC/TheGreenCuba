@@ -110,14 +110,11 @@ export async function generateMetadata({
       title,
       description,
       url: placeUrl(place.id),
-      /* Solo se declara cuando hay imagen. `images: undefined` cuenta como
-         declarada —Next pregunta por `hasOwnProperty('images')`, ver
-         `next/dist/lib/metadata/resolve-metadata.js:149`— y da por hecho que la
-         ficha trae la suya: sin logo ni fotos se quedaba sin ninguna y el
-         enlace compartido acababa enseñando el icono de La Verde. Omitiendo la
-         clave, hereda la tarjeta de `opengraph-image.tsx`, que es la del
-         negocio. */
-      ...(cover ? { images: [cover] } : {}),
+      /* El logo o la primera foto mandan cuando existen. Cuando no, la tarjeta
+         del negocio la genera `/api/og`: antes la servía `opengraph-image.tsx`,
+         y esa convención metía `next/og` y sharp (~12 MB) en el chunk de la
+         página. */
+      images: cover ? [cover] : [`/api/og?place=${place.id}`],
     },
     twitter: { card: "summary_large_image", title, description },
     /* Un negocio cerrado se enseña —el enlace está compartido y tiene que

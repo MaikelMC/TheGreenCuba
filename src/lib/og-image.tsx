@@ -4,25 +4,15 @@ import path from "node:path";
 import { siteConfig } from "@/config/site";
 
 /**
- * Tarjeta de Open Graph del sitio — la vista previa que enseñan WhatsApp,
- * Instagram, Telegram o iMessage bajo el enlace compartido.
- *
- * El logo es el mismo PNG que usa el sitio en sus cabeceras
- * (`public/logo.png`), embebido como data URI: satori —el motor que pinta
- * esta imagen— no pide archivos por ruta, y una URL pública añadiría una
- * petición de red al render para algo que ya está en el repo.
- *
- * Los colores van a mano porque esto no es HTML del navegador: no hay
- * Tailwind ni variables CSS, solo estilos en línea dentro de un lienzo de
- * 1200×630. Son los tokens del sistema: verde profundo del modo oscuro
- * (#06211A), el verde de marca (#35AF6D) y el arena del fondo claro
- * (#F6F3EC).
+ * Tarjeta de Open Graph del sitio. Vive fuera de `opengraph-image.tsx` a
+ * propósito: la convención de metadatos mete este módulo —y con él `next/og`
+ * y su import dinámico de sharp— en un chunk raíz que cargan todas las
+ * páginas. Servida desde una ruta propia, solo la carga esa ruta.
  */
-export const alt = "La Verde — descubre lugares en Cuba";
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+export const OG_SIZE = { width: 1200, height: 630 };
+export const OG_ALT = "La Verde — descubre lugares en Cuba";
 
-export default async function OpengraphImage() {
+export async function renderOgImage() {
   const logo = await readFile(path.join(process.cwd(), "public", "logo.png"));
   const logoSrc = `data:image/png;base64,${logo.toString("base64")}`;
 
@@ -39,7 +29,6 @@ export default async function OpengraphImage() {
           padding: "72px 80px",
         }}
       >
-        {/* Marca: el logo real dentro de su ficha arena, como se ve en el sitio. */}
         <div style={{ display: "flex", alignItems: "center", gap: "28px" }}>
           <div
             style={{
@@ -72,7 +61,6 @@ export default async function OpengraphImage() {
           </div>
         </div>
 
-        {/* Mensaje principal. */}
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div
             style={{
@@ -91,7 +79,6 @@ export default async function OpengraphImage() {
           </div>
         </div>
 
-        {/* Dominio: reconocible de un vistazo en la conversación. */}
         <div
           style={{
             display: "flex",
@@ -111,6 +98,6 @@ export default async function OpengraphImage() {
         </div>
       </div>
     ),
-    size,
+    OG_SIZE,
   );
 }
