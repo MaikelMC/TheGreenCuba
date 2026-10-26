@@ -1,6 +1,6 @@
 import { getPlaceById, getPlaceBySlug } from "@/lib/db/queries";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
-import { OG_SIZE, logoEnLinea, tarjetaNegocio } from "@/lib/og-card";
+import { logoEnLinea, tarjetaNegocio } from "@/lib/og-card";
 import { renderOgImage } from "@/lib/og-image";
 
 /**
