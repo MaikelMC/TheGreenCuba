@@ -38,7 +38,9 @@ export function AsistenteCard({
   onVerPlanes: () => void;
 }) {
   const cat = useCatalogo();
-  const bloqueo = bloqueoDe(funciones, "asistente_ia", cat);
+  /* La tarjeta se abre desde Esencial: el bot actualiza la carta con comandos y
+     botones. La capa de IA llega con Pro, pero es el mismo chat. */
+  const bloqueo = bloqueoDe(funciones, "telegram_menu", cat);
 
   const [estado, setEstado] = useState<Estado | null>(null);
   const [generando, setGenerando] = useState(false);

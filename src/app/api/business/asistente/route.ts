@@ -50,6 +50,15 @@ function deUsuario(userId: string | null): SQL {
     : isNull(asistenteCodigos.userId);
 }
 
+/** ¿El plan incluye el bot? Esencial entra con `telegram_menu` (comandos y
+ * botones); Pro y el módulo suelto añaden la IA con `asistente_ia`. */
+async function puedeAsistente(negocioId: string): Promise<boolean> {
+  return (
+    (await puede(negocioId, "telegram_menu")) ||
+    (await puede(negocioId, "asistente_ia"))
+  );
+}
+
 /** Lee el estado del negocio: vínculo, código vivo y enlace. */
 async function leerEstado(negocioId: string, userId: string | null): Promise<Estado> {
   const ahora = new Date();
@@ -118,9 +127,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  if (!(await puede(acceso.negocioId, "asistente_ia"))) {
+  if (!(await puedeAsistente(acceso.negocioId))) {
     return NextResponse.json(
-      { error: "El asistente de Telegram está disponible en el plan Pro." },
+      { error: "El asistente de Telegram viene incluido desde el plan Esencial." },
       { status: 403 },
     );
   }
@@ -145,9 +154,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!(await puede(negocioId, "asistente_ia"))) {
+  if (!(await puedeAsistente(negocioId))) {
     return NextResponse.json(
-      { error: "El asistente de Telegram está disponible en el plan Pro." },
+      { error: "El asistente de Telegram viene incluido desde el plan Esencial." },
       { status: 403 },
     );
   }

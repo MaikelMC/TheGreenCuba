@@ -122,7 +122,13 @@ export const FUNCIONES = {
     disponible: true,
   },
 
-  /* Asistente. */
+  /* Asistente. Las dos puertas van separadas: el bot se vincula y actualiza la
+     carta con comandos y botones sin gastar modelo (`telegram_menu`), y la capa
+     de IA —entender frases libres— es lo que suma `asistente_ia`. */
+  telegram_menu: {
+    texto: "Actualiza tu menú desde Telegram en tiempo real",
+    disponible: true,
+  },
   asistente_ia: {
     texto: "Asistente de IA por Telegram conectado a tu negocio",
     disponible: true,
@@ -246,7 +252,8 @@ export const MODULOS = {
       "Actualizar elementos del estado en tu negocio",
     ].join("\n"),
     usd: 3,
-    funciones: ["asistente_ia"],
+    /* El módulo sigue dando el bot entero: la actualización del menú y la IA. */
+    funciones: ["telegram_menu", "asistente_ia"],
   },
 } as const satisfies Record<
   string,
@@ -269,6 +276,9 @@ const ESENCIAL: readonly Funcion[] = [
   "qr_sin_marca",
   "ofertas_flash",
   "fotos_ilimitadas",
+  /* Actualizar la carta desde el móvil, sin esperar al panel. El bot entiende
+     comandos y botones; la IA para frases libres sigue siendo de Pro. */
+  "telegram_menu",
   /* El pack nombra sus funciones en vez de componerse de módulos, así que lo
      que trae el Menú Pro hay que repetirlo aquí: sin esto, contratar el módulo
      suelto daría más que el pack que lo incluye. */
@@ -301,8 +311,8 @@ export const PACKS = {
     texto: [
       "Todo el plan Gratis",
       "Menú Pro(QR + Ofertas + Productos ilimitados)",
-      "Flujo de pedidos conectados al catálogo online",
-      "Agendar reservas en tu negocio",
+      "Actualización del menú en tiempo real por Telegram",
+      "Flujo de pedidos conectados catálogo + agendar reservas",
       "1 Publicación en grupos de facebook a la semana",
       "Avisos a usuarios conectados con tu negocio sobre tus novedades",
     ].join("\n"),

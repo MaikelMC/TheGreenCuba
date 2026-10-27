@@ -830,6 +830,16 @@ const MENU: Boton[][] = [
   ],
 ];
 
+/** Volver al menú. **Todo** mensaje que termina lo lleva: una pantalla sin
+ * botones obliga a subir a buscar el mensaje anterior o a mandar /start otra
+ * vez. */
+const BTN_MENU: Boton = { text: "← Menú", callback_data: "m" };
+
+/** La fila mínima de salida para un mensaje suelto. */
+function soloMenu(): Boton[][] {
+  return [[BTN_MENU]];
+}
+
 /** Lo que se contesta cuando no se entendió. En una constante y con el menú
  * detrás: el dueño que no se explicó tiene que poder seguir con un toque. */
 const NO_ENTENDI =
@@ -970,8 +980,9 @@ async function manejarTexto(update: A.ParsedTelegram): Promise<void> {
   }
 
   /* Un campo esperando su valor va antes que el saludo y que la IA: el mensaje
-     es el valor, no una orden. */
+     es el valor, no una orden. Lo mismo con el alta guiada. */
   if (await manejarCampoPendiente(negocio, update)) return;
+  if (await manejarAltaPendiente(negocio, update)) return;
 
   await manejarTextoLibre(negocio, update);
 }
@@ -1074,10 +1085,14 @@ async function vincular(chatId: string, codigo: string): Promise<void> {
 
   const negocioId = canjeado.negocioId;
 
-  if (!(await puede(negocioId, "asistente_ia"))) {
+  /* Dos puertas, una vinculación: `telegram_menu` entra desde Esencial y sirve
+     para todo lo que se hace con comandos y botones; `asistente_ia` añade la
+     capa de frases libres del plan Pro. */
+  const puedeMenu = await puede(negocioId, "telegram_menu");
+  if (!puedeMenu && !(await puede(negocioId, "asistente_ia"))) {
     await enviarTexto(
       chatId,
-      "Ese negocio no tiene el asistente contratado (es del plan Pro). Puedes activarlo desde el panel.",
+      "Ese negocio no tiene el asistente de Telegram contratado. Viene incluido en Esencial y Pro; puedes activarlo desde el panel.",
     );
     return;
   }
@@ -1173,19 +1188,23 @@ async function manejarComando(
       return;
 
     case "stats":
-      await enviarTexto(chatId, await textoStats(negocio.negocioId));
+      await enviarBotones(
+        chatId,
+        await textoStats(negocio.negocioId),
+        soloMenu(),
+      );
       return;
 
     case "carta":
-      await enviarTexto(chatId, A.textoCarta(negocio.menu ?? []));
+      await enviarBotones(chatId, A.textoCarta(negocio.menu ?? []), MENU);
       return;
 
     case "catalogo":
-      await enviarPaginaCatalogo(negocio, chatId, 0);
+      await enviarCategoriasCatalogo(negocio, chatId, 0);
       return;
 
     case "nuevo":
-      await enviarTexto(chatId, A.plantillaProductos());
+      await enviarMenuAlta(chatId);
       return;
 
     case "abrir":
@@ -1200,8 +1219,7 @@ async function manejarComando(
         despues: res.despues,
         via: "comando",
       });
-      await enviarTexto(chatId, res.texto);
-      await ofrecerDeshacer(chatId, logId);
+      await responderConDeshacer(chatId, res, logId);
       return;
     }
 
@@ -1215,7 +1233,7 @@ async function manejarComando(
 
     default:
       /* Comando conocido pero sin rama —`start` ya se atendió antes—. */
-      await enviarTexto(chatId, "Ese no lo tengo. Escribe /ayuda.");
+      await enviarBotones(chatId, "Ese no lo tengo. Escribe /ayuda.", soloMenu());
   }
 }
 
@@ -1232,9 +1250,13 @@ async function enviarPaginaProductos(
 ): Promise<void> {
   const productos = productosDe(negocio.menu);
   if (productos.length === 0) {
-    await enviarTexto(
+    await enviarBotones(
       chatId,
       "Tu carta todavía no tiene productos. Mándame /nuevo para añadirlos desde aquí y luego /carta para verla.",
+      [
+        [{ text: "Añadir productos", callback_data: "cmd:nuevo" }],
+        [BTN_MENU],
+      ],
     );
     return;
   }
@@ -1262,6 +1284,7 @@ async function enviarPaginaProductos(
     });
   }
   if (navegacion.length > 0) filas.push(navegacion);
+  filas.push([BTN_MENU]);
 
   const verbo = estado === "agotado" ? "se acabó" : "ya hay";
   await enviarBotones(
@@ -1301,8 +1324,10 @@ function idDe(negocio: Negocio, indice: number): string {
   return negocio.menu?.[indice]?.id ?? String(indice);
 }
 
-/** La lista de productos, cada uno con su estado delante. */
-async function enviarPaginaCatalogo(
+/** El catálogo, primero por categorías. La lista se enseña siempre, aunque solo
+ * haya una: es el paso desde el que se entra a sus productos y al que se vuelve
+ * con «← Categorías». */
+async function enviarCategoriasCatalogo(
   negocio: Negocio,
   chatId: string,
   desde: number,
@@ -1310,14 +1335,69 @@ async function enviarPaginaCatalogo(
 ): Promise<void> {
   const productos = productosDe(negocio.menu);
   if (productos.length === 0) {
-    await enviarTexto(
-      chatId,
-      "Tu carta todavía no tiene productos. Mándame /nuevo para añadirlos y luego /catalogo para editarlos.",
-    );
+    const texto =
+      "Tu carta todavía no tiene productos. Mándame /nuevo para añadirlos y luego /catalogo para editarlos.";
+    const filas: Boton[][] = [
+      [{ text: "Añadir productos", callback_data: "cmd:nuevo" }],
+      [BTN_MENU],
+    ];
+    if (mensajeId) await editarTexto(chatId, mensajeId, texto, filas);
+    else await enviarBotones(chatId, texto, filas);
     return;
   }
 
-  const pagina = productos.slice(desde, desde + A.TAMANO_PAGINA);
+  const categorias = A.categoriasDe(negocio.menu ?? []);
+  const pagina = categorias.slice(desde, desde + A.TAMANO_PAGINA);
+  const filas: Boton[][] = pagina.map((categoria, i) => [
+    {
+      text: `${A.recortarEtiqueta(categoria.nombre, 50)} (${categoria.indices.length})`,
+      callback_data: `g:${desde + i}`,
+    },
+  ]);
+
+  const nav: Boton[] = [];
+  if (desde > 0) {
+    nav.push({
+      text: "← Antes",
+      callback_data: `l:${Math.max(0, desde - A.TAMANO_PAGINA)}`,
+    });
+  }
+  if (desde + A.TAMANO_PAGINA < categorias.length) {
+    nav.push({
+      text: "Después →",
+      callback_data: `l:${desde + A.TAMANO_PAGINA}`,
+    });
+  }
+  if (nav.length > 0) filas.push(nav);
+  filas.push([BTN_MENU]);
+
+  const texto = `Tu catálogo por categorías (${desde + 1}–${desde + pagina.length} de ${categorias.length}). Elige una:`;
+  if (mensajeId) await editarTexto(chatId, mensajeId, texto, filas);
+  else await enviarBotones(chatId, texto, filas);
+}
+
+/** Los productos de una categoría, cada uno con su estado delante. */
+async function enviarProductosCategoria(
+  negocio: Negocio,
+  chatId: string,
+  categoriaIndice: number,
+  desde: number,
+  mensajeId?: number,
+): Promise<void> {
+  const productos = productosDe(negocio.menu);
+  const categorias = A.categoriasDe(negocio.menu ?? []);
+  const categoria = categorias[categoriaIndice];
+
+  /* La lista cambió entre que se pintó y el toque: se vuelve a empezar. */
+  if (!categoria) {
+    await enviarCategoriasCatalogo(negocio, chatId, 0, mensajeId);
+    return;
+  }
+
+  const dentro = categoria.indices
+    .map((i) => productos[i])
+    .filter((p): p is Producto => p !== undefined);
+  const pagina = dentro.slice(desde, desde + A.TAMANO_PAGINA);
   const filas: Boton[][] = pagina.map((p) => [
     {
       text: `${productoAgotado(negocio, p.indice) ? "⛔" : "✅"} ${A.recortarEtiqueta(p.name, 52)}`,
@@ -1329,20 +1409,41 @@ async function enviarPaginaCatalogo(
   if (desde > 0) {
     nav.push({
       text: "← Antes",
-      callback_data: `l:${Math.max(0, desde - A.TAMANO_PAGINA)}`,
+      callback_data: `g:${categoriaIndice}:${Math.max(0, desde - A.TAMANO_PAGINA)}`,
     });
   }
-  if (desde + A.TAMANO_PAGINA < productos.length) {
+  if (desde + A.TAMANO_PAGINA < dentro.length) {
     nav.push({
       text: "Después →",
-      callback_data: `l:${desde + A.TAMANO_PAGINA}`,
+      callback_data: `g:${categoriaIndice}:${desde + A.TAMANO_PAGINA}`,
     });
   }
   if (nav.length > 0) filas.push(nav);
 
-  const texto = `Tu catálogo (${desde + 1}–${desde + pagina.length} de ${productos.length}). Toca un producto para ver sus datos y editarlo:`;
+  filas.push([{ text: "← Categorías", callback_data: "l" }]);
+
+  const rango = `${desde + 1}–${desde + pagina.length} de ${dentro.length}`;
+  const texto = `«${A.recortarEtiqueta(categoria.nombre, 30)}» (${rango}). Toca un producto para ver sus datos y editarlo:`;
   if (mensajeId) await editarTexto(chatId, mensajeId, texto, filas);
   else await enviarBotones(chatId, texto, filas);
+}
+
+/** A dónde vuelve «← Volver» desde la ficha: a su categoría, en la página donde
+ * está el producto. */
+function botonVolver(negocio: Negocio, indice: number): Boton {
+  const categorias = A.categoriasDe(negocio.menu ?? []);
+  const clave = A.sinAcento((negocio.menu?.[indice]?.category ?? "").trim());
+  const categoria = categorias.find((c) => c.clave === clave);
+  if (categoria) {
+    const pos = categoria.indices.indexOf(indice);
+    const desde =
+      pos === -1 ? 0 : Math.floor(pos / A.TAMANO_PAGINA) * A.TAMANO_PAGINA;
+    return {
+      text: "← Volver",
+      callback_data: `g:${categorias.indexOf(categoria)}:${desde}`,
+    };
+  }
+  return { text: "← Volver", callback_data: "l" };
 }
 
 /** Los botones de la ficha. Sin permiso de catálogo solo queda «Volver»: es más
@@ -1370,12 +1471,7 @@ function botonesFicha(negocio: Negocio, indice: number): Boton[][] {
     filas.push([{ text: "Quitar producto", callback_data: `x:${id}` }]);
   }
 
-  filas.push([
-    {
-      text: "← Volver",
-      callback_data: `l:${Math.floor(indice / A.TAMANO_PAGINA) * A.TAMANO_PAGINA}`,
-    },
-  ]);
+  filas.push([botonVolver(negocio, indice)]);
   return filas;
 }
 
@@ -1393,8 +1489,9 @@ async function enviarFichaProducto(
 
   if (!item || indice === -1) {
     const texto = "Ese producto ya no está en tu carta. Abre /catalogo y elige otro.";
-    if (mensajeId) await editarTexto(chatId, mensajeId, texto);
-    else await enviarTexto(chatId, texto);
+    const filas: Boton[][] = [[{ text: "← Catálogo", callback_data: "l" }]];
+    if (mensajeId) await editarTexto(chatId, mensajeId, texto, filas);
+    else await enviarBotones(chatId, texto, filas);
     return;
   }
 
@@ -1417,20 +1514,26 @@ async function pedirValorCampo(
   codigo: string,
 ): Promise<void> {
   if (!permite(negocio, "catalogo")) {
-    await enviarTexto(
+    await enviarBotones(
       chatId,
       "El dueño no te dio permiso para cambiar el catálogo.",
+      soloMenu(),
     );
     return;
   }
+
+  /* Editar un campo cancela un alta a medias: el mensaje siguiente es el valor
+     del campo, no el nombre de un producto nuevo. */
+  await limpiarAltaPendiente(chatId);
 
   const campo = A.campoDeCodigo(codigo);
   const indice = indicePorId(negocio, productoId);
   const item = indice === -1 ? undefined : negocio.menu?.[indice];
   if (!campo || !item) {
-    await enviarTexto(
+    await enviarBotones(
       chatId,
       "Ese producto ya no está en tu carta. Abre /catalogo y elige otro.",
+      soloMenu(),
     );
     return;
   }
@@ -1447,7 +1550,11 @@ async function pedirValorCampo(
   });
 
   if (!logId) {
-    await enviarTexto(chatId, "No pude dejar el cambio preparado. Prueba otra vez.");
+    await enviarBotones(
+      chatId,
+      "No pude dejar el cambio preparado. Prueba otra vez.",
+      soloMenu(),
+    );
     return;
   }
 
@@ -1494,6 +1601,279 @@ async function limpiarCampoPendiente(chatId: string): Promise<void> {
         eq(asistenteLog.pendiente, true),
       ),
     );
+  await limpiarAltaPendiente(chatId);
+}
+
+/* ── el alta guiada: nombre → precio → categoría ──────────────────────────
+   Añadir un producto sin escribir la plantilla: el bot pide un dato cada vez y
+   los que se pueden elegir —la categoría— se tocan. El borrador vive en
+   `asistente_log` como las demás esperas, así que aguanta un arranque en frío.
+   Al final la fila se reescribe como `agregar_productos`, y el Deshacer de
+   siempre la lee sin saber que nació de botones. */
+
+type PasoAlta = "nombre" | "precio" | "categoria";
+
+interface BorradorAlta {
+  paso: PasoAlta;
+  nombre?: string;
+  precio?: string;
+}
+
+/** Borra el alta a medias del chat. Se usa al empezar otra y cuando cualquier
+ * comando demuestra que el dueño se fue a otro sitio. */
+function limpiarAltaPendiente(chatId: string): Promise<unknown> {
+  return db
+    .delete(asistenteLog)
+    .where(
+      and(
+        eq(asistenteLog.chatId, chatId),
+        eq(asistenteLog.accion, "alta_producto"),
+        eq(asistenteLog.pendiente, true),
+      ),
+    );
+}
+
+/** La fila del alta a medias, si la hay y no ha caducado. */
+async function altaPendiente(negocio: Negocio, chatId: string) {
+  const [fila] = await db
+    .select()
+    .from(asistenteLog)
+    .where(
+      and(
+        eq(asistenteLog.chatId, chatId),
+        eq(asistenteLog.negocioId, negocio.negocioId),
+        eq(asistenteLog.accion, "alta_producto"),
+        eq(asistenteLog.pendiente, true),
+      ),
+    )
+    .orderBy(desc(asistenteLog.ts))
+    .limit(1);
+
+  if (!fila) return null;
+  if (Date.now() - fila.ts.getTime() > CAMPO_PENDIENTE_TTL_MS) {
+    await db.delete(asistenteLog).where(eq(asistenteLog.id, fila.id));
+    return null;
+  }
+  return fila;
+}
+
+/** La fila de un alta por su id, comprobando que es de este negocio. */
+async function filaAlta(logId: string, negocio: Negocio) {
+  const [fila] = await db
+    .select()
+    .from(asistenteLog)
+    .where(
+      and(
+        eq(asistenteLog.id, logId),
+        eq(asistenteLog.negocioId, negocio.negocioId),
+        eq(asistenteLog.accion, "alta_producto"),
+        eq(asistenteLog.pendiente, true),
+      ),
+    )
+    .limit(1);
+  return fila ?? null;
+}
+
+/** Guarda el borrador y pide el siguiente dato. */
+async function pedirPasoAlta(
+  negocio: Negocio,
+  chatId: string,
+  logId: string,
+  borrador: BorradorAlta,
+): Promise<void> {
+  await db
+    .update(asistenteLog)
+    .set({ despues: borrador as never })
+    .where(eq(asistenteLog.id, logId));
+
+  const cancelar: Boton[][] = [
+    [{ text: "Cancelar", callback_data: `z:${logId}` }],
+    [BTN_MENU],
+  ];
+
+  if (borrador.paso === "precio") {
+    await enviarBotones(
+      chatId,
+      `¿Cuánto cuesta «${borrador.nombre}»? Escríbelo como quieres que salga —«200 CUP»— o toca «Sin precio».`,
+      [
+        [{ text: "Sin precio", callback_data: `a:omitir:${logId}` }],
+        ...cancelar,
+      ],
+    );
+    return;
+  }
+
+  /* La categoría se toca, no se escribe: son las que ya tiene la carta. Tocar
+     una nueva es escribir su nombre, y también vale. */
+  const categorias = A.categoriasDe(negocio.menu ?? []).filter(
+    (c) => c.clave !== "",
+  );
+  const filas: Boton[][] = categorias.map((categoria, i) => [
+    {
+      text: A.recortarEtiqueta(categoria.nombre, 50),
+      callback_data: `a:cat:${logId}:${i}`,
+    },
+  ]);
+  filas.push([{ text: "Sin categoría", callback_data: `a:cat:${logId}:-1` }]);
+  filas.push(...cancelar);
+
+  await enviarBotones(
+    chatId,
+    `¿En qué categoría va «${borrador.nombre}»? Toca una, o escribe el nombre de una nueva.`,
+    filas,
+  );
+}
+
+/** Crea el producto con lo recogido y cierra el alta. */
+async function cerrarAlta(
+  negocio: Negocio,
+  chatId: string,
+  logId: string,
+  borrador: BorradorAlta,
+  categoria: string,
+): Promise<void> {
+  const res = await ejecutarAgregarProductos(negocio, [
+    {
+      nombre: borrador.nombre ?? "",
+      descripcion: "",
+      precio: borrador.precio ?? "",
+      moneda: "",
+      categoria,
+      etiqueta: "",
+    },
+  ]);
+
+  if (!res.ok) {
+    await db.delete(asistenteLog).where(eq(asistenteLog.id, logId));
+    await enviarBotones(chatId, res.texto, [
+      [{ text: "Empezar de nuevo", callback_data: "a" }],
+      [BTN_MENU],
+    ]);
+    return;
+  }
+
+  /* La fila pasa de «alta a medias» a «alta hecha», con el antes y el después de
+     verdad: es lo que lee el Deshacer. */
+  await db
+    .update(asistenteLog)
+    .set({
+      accion: "agregar_productos",
+      antes: res.antes as never,
+      despues: res.despues as never,
+      pendiente: false,
+    })
+    .where(eq(asistenteLog.id, logId));
+
+  await enviarBotones(chatId, res.texto, [
+    [{ text: "Añadir otro", callback_data: "a" }],
+    [{ text: "Ver mi catálogo", callback_data: "cmd:catalogo" }],
+    [{ text: "Deshacer", callback_data: `u:${logId}` }],
+    [BTN_MENU],
+  ]);
+}
+
+/** La puerta de añadir productos: guiada con botones o pegando una lista, a
+ * elección. Antes solo existía la plantilla, y quien quería añadir uno tenía que
+ * escribirla entera. */
+async function enviarMenuAlta(chatId: string): Promise<void> {
+  await enviarBotones(chatId, "¿Cómo quieres añadir productos?", [
+    [{ text: "Uno a paso, con botones", callback_data: "a" }],
+    [{ text: "Varios de una vez, pegando una lista", callback_data: "a:p" }],
+    [BTN_MENU],
+  ]);
+}
+
+/** Arranca el alta guiada: borra lo que hubiera a medias y pide el nombre. */
+async function iniciarAlta(negocio: Negocio, chatId: string): Promise<void> {
+  if (!permite(negocio, "catalogo")) {
+    await enviarBotones(
+      chatId,
+      "El dueño no te dio permiso para cambiar el catálogo.",
+      soloMenu(),
+    );
+    return;
+  }
+
+  await limpiarCampoPendiente(chatId);
+
+  const logId = await registrarLog({
+    negocioId: negocio.negocioId,
+    chatId,
+    mensaje: null,
+    accion: "alta_producto",
+    antes: null,
+    despues: { paso: "nombre" },
+    via: "comando",
+    pendiente: true,
+  });
+
+  if (!logId) {
+    await enviarBotones(
+      chatId,
+      "No pude dejar el alta preparada. Prueba otra vez.",
+      soloMenu(),
+    );
+    return;
+  }
+
+  await enviarBotones(chatId, "Escribe el nombre del producto nuevo:", [
+    [{ text: "Cancelar", callback_data: `z:${logId}` }],
+    [BTN_MENU],
+  ]);
+}
+
+/**
+ * ¿El mensaje es un dato del alta guiada?
+ *
+ * Devuelve `true` cuando lo consumió —avanzó de paso o creó el producto— y
+ * `false` cuando no había alta esperando y el mensaje sigue su camino normal.
+ */
+async function manejarAltaPendiente(
+  negocio: Negocio,
+  update: A.ParsedTelegram,
+): Promise<boolean> {
+  const fila = await altaPendiente(negocio, update.chat_id);
+  if (!fila) return false;
+
+  const borrador = (fila.despues ?? { paso: "nombre" }) as BorradorAlta;
+
+  if (borrador.paso === "nombre") {
+    const nombre = A.limpiarCampo("name", update.texto);
+    if (!nombre) {
+      await enviarBotones(
+        update.chat_id,
+        "El nombre no puede quedar vacío. Escribe otro, o toca «Cancelar».",
+        [
+          [{ text: "Cancelar", callback_data: `z:${fila.id}` }],
+          [BTN_MENU],
+        ],
+      );
+      return true;
+    }
+    await pedirPasoAlta(negocio, update.chat_id, fila.id, {
+      paso: "precio",
+      nombre,
+    });
+    return true;
+  }
+
+  if (borrador.paso === "precio") {
+    await pedirPasoAlta(negocio, update.chat_id, fila.id, {
+      paso: "categoria",
+      nombre: borrador.nombre,
+      precio: A.limpiarCampo("price", update.texto),
+    });
+    return true;
+  }
+
+  await cerrarAlta(
+    negocio,
+    update.chat_id,
+    fila.id,
+    borrador,
+    A.limpiarCampo("category", update.texto),
+  );
+  return true;
 }
 
 /**
@@ -1523,18 +1903,20 @@ async function manejarCampoPendiente(
 
   if (!campo || indice === -1) {
     await db.delete(asistenteLog).where(eq(asistenteLog.id, fila.id));
-    await enviarTexto(
+    await enviarBotones(
       update.chat_id,
       "Ese producto ya no está en tu carta. Abre /catalogo y elige otro.",
+      soloMenu(),
     );
     return true;
   }
 
   const valor = A.limpiarCampo(campo.clave, update.texto);
   if (campo.clave === "name" && !valor) {
-    await enviarTexto(
+    await enviarBotones(
       update.chat_id,
       "El nombre no puede quedar vacío. Escribe otro, o toca «Cancelar» en el mensaje anterior.",
+      soloMenu(),
     );
     return true;
   }
@@ -1545,9 +1927,10 @@ async function manejarCampoPendiente(
   const res = await ejecutarEditarProducto(negocio, indice, cambios);
   if (!res || !res.ok) {
     await db.delete(asistenteLog).where(eq(asistenteLog.id, fila.id));
-    await enviarTexto(
+    await enviarBotones(
       update.chat_id,
       res?.texto ?? "Ese producto ya no está en tu carta.",
+      soloMenu(),
     );
     return true;
   }
@@ -1624,10 +2007,11 @@ async function manejarTextoLibre(
     /* Traía barras pero no se pudo leer: casi seguro que copió la plantilla
        entera o se saltó una línea. Mejor repetir el formato que pagar al
        modelo por adivinar. */
-    await enviarTexto(
+    await enviarBotones(
       chatId,
       "No pude leer esa lista. Cada producto tiene que ir en una línea, con los datos separados por «|».\n\n" +
         A.plantillaProductos(),
+      soloMenu(),
     );
     return;
   }
@@ -1635,7 +2019,7 @@ async function manejarTextoLibre(
   const intencion = A.intencionDeTexto(update.texto);
   if (intencion) {
     if (intencion.tipo === "nuevo_producto") {
-      await enviarTexto(chatId, A.plantillaProductos());
+      await enviarMenuAlta(chatId);
       return;
     }
 
@@ -1709,8 +2093,7 @@ async function manejarTextoLibre(
           despues: res.despues,
           via: "regex",
         });
-        await enviarTexto(chatId, res.texto);
-        await ofrecerDeshacer(chatId, logId);
+        await responderConDeshacer(chatId, res, logId);
         return;
       }
 
@@ -1756,8 +2139,22 @@ async function aplicarResultadoDirecto(
     despues: res.despues,
     via,
   });
-  await enviarTexto(chatId, res.texto);
-  if (res.ok) await ofrecerDeshacer(chatId, logId);
+  await responderConDeshacer(chatId, res, logId);
+}
+
+/** La respuesta de un cambio, con salida: Deshacer si quedó aplicado y el menú
+ * siempre. Una pantalla sin botón obliga a subir a buscar el mensaje anterior. */
+async function responderConDeshacer(
+  chatId: string,
+  res: Resultado,
+  logId: string | null,
+): Promise<void> {
+  const filas: Boton[][] = [];
+  if (res.ok && logId) {
+    filas.push([{ text: "Deshacer", callback_data: `u:${logId}` }]);
+  }
+  filas.push([BTN_MENU]);
+  await enviarBotones(chatId, res.texto, filas);
 }
 
 /* ── capa 3: el modelo ──────────────────────────────────────────────────── */
@@ -1779,6 +2176,17 @@ async function manejarConModelo(
   update: A.ParsedTelegram,
 ): Promise<void> {
   const chatId = update.chat_id;
+
+  /* Entender una frase libre es la capa que paga modelo, y es de Pro. En
+     Esencial el bot sigue trabajando con comandos y botones, que cuestan cero. */
+  if (!(await puede(negocio.negocioId, "asistente_ia"))) {
+    await enviarBotones(
+      chatId,
+      "Para entenderte con frases libres hace falta el asistente con IA, que es del plan Pro. Con tu plan puedo actualizar tu carta con comandos y botones:",
+      MENU,
+    );
+    return;
+  }
 
   const cuota = await cuotaIaDisponible(negocio.negocioId);
   if (!cuota) {
@@ -1867,7 +2275,7 @@ async function manejarConModelo(
       tokensIn,
       tokensOut,
     });
-    await enviarTexto(chatId, texto);
+    await enviarBotones(chatId, texto, accion === "ver_carta" ? MENU : soloMenu());
     return;
   }
 
@@ -1976,7 +2384,7 @@ async function manejarConModelo(
       tokensIn,
       tokensOut,
     });
-    await enviarTexto(chatId, res.texto);
+    await responderConDeshacer(chatId, res, null);
     return;
   }
 
@@ -1991,8 +2399,7 @@ async function manejarConModelo(
     tokensIn,
     tokensOut,
   });
-  await enviarTexto(chatId, res.texto);
-  await ofrecerDeshacer(chatId, logId);
+  await responderConDeshacer(chatId, res, logId);
 }
 
 /** El índice del producto que propuso el modelo, resuelto por parecido contra la
@@ -2080,9 +2487,10 @@ async function preguntarCual(args: {
   });
 
   if (!logId) {
-    await enviarTexto(
+    await enviarBotones(
       args.chatId,
       "No pude dejar el cambio preparado. Prueba otra vez.",
+      soloMenu(),
     );
     return;
   }
@@ -2128,9 +2536,10 @@ async function pedirConfirmacionPrecio(args: {
   });
 
   if (!logId) {
-    await enviarTexto(
+    await enviarBotones(
       args.chatId,
       "No pude dejar el cambio preparado. Prueba otra vez.",
+      soloMenu(),
     );
     return;
   }
@@ -2167,9 +2576,10 @@ async function pedirConfirmacionEliminar(args: {
   });
 
   if (!logId) {
-    await enviarTexto(
+    await enviarBotones(
       args.chatId,
       "No pude dejar el cambio preparado. Prueba otra vez.",
+      soloMenu(),
     );
     return;
   }
@@ -2373,16 +2783,101 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
       return;
     }
 
+    case "a": {
+      /* El alta guiada: `a` arranca, `a:p` manda la plantilla, `a:omitir` salta
+         el precio y `a:cat` elige la categoría de la fila que espera. */
+      if (!permite(negocio, "catalogo")) {
+        await responderCallback(
+          callbackId,
+          "El dueño no te dio permiso para cambiar el catálogo.",
+          true,
+        );
+        return;
+      }
+
+      const pasoAlta = resto[0] ?? "";
+
+      if (pasoAlta === "p") {
+        await responderCallback(callbackId, "");
+        await enviarBotones(chatId, A.plantillaProductos(), soloMenu());
+        return;
+      }
+
+      if (pasoAlta === "omitir") {
+        const fila = await filaAlta(resto[1] ?? "", negocio);
+        if (!fila) {
+          await responderCallback(callbackId, "Ese botón ya no vale.", true);
+          return;
+        }
+        const borrador = (fila.despues ?? {}) as BorradorAlta;
+        await responderCallback(callbackId, "");
+        await pedirPasoAlta(negocio, chatId, fila.id, {
+          paso: "categoria",
+          nombre: borrador.nombre,
+          precio: "",
+        });
+        return;
+      }
+
+      if (pasoAlta === "cat") {
+        const fila = await filaAlta(resto[1] ?? "", negocio);
+        if (!fila) {
+          await responderCallback(callbackId, "Ese botón ya no vale.", true);
+          return;
+        }
+        const borrador = (fila.despues ?? {}) as BorradorAlta;
+        const indiceCategoria = Number.parseInt(resto[2] ?? "-1", 10);
+        const categorias = A.categoriasDe(negocio.menu ?? []).filter(
+          (c) => c.clave !== "",
+        );
+        const categoria =
+          Number.isInteger(indiceCategoria) && indiceCategoria >= 0
+            ? (categorias[indiceCategoria]?.nombre ?? "")
+            : "";
+        await responderCallback(callbackId, "");
+        await cerrarAlta(negocio, chatId, fila.id, borrador, categoria);
+        return;
+      }
+
+      await responderCallback(callbackId, "");
+      await iniciarAlta(negocio, chatId);
+      return;
+    }
+
     case "l": {
-      /* Paginar el catálogo no escribe: solo se reescribe el mensaje. */
+      /* Las categorías del catálogo. Paginar no escribe: solo se reescribe el
+         mensaje. */
       const desde = Math.max(0, Number.parseInt(resto[0] ?? "0", 10) || 0);
       await responderCallback(callbackId, "");
-      await enviarPaginaCatalogo(
+      await enviarCategoriasCatalogo(
         negocio,
         chatId,
         desde,
         update.callback_mensaje_id,
       );
+      return;
+    }
+
+    case "g": {
+      /* Los productos de una categoría del catálogo. */
+      const categoria = Math.max(0, Number.parseInt(resto[0] ?? "0", 10) || 0);
+      const desde = Math.max(0, Number.parseInt(resto[1] ?? "0", 10) || 0);
+      await responderCallback(callbackId, "");
+      await enviarProductosCategoria(
+        negocio,
+        chatId,
+        categoria,
+        desde,
+        update.callback_mensaje_id,
+      );
+      return;
+    }
+
+    case "m": {
+      /* Volver al menú. Manda un mensaje nuevo: el anterior se queda como estaba
+         y siempre hay un camino de vuelta. */
+      await responderCallback(callbackId, "");
+      await enviarBotones(chatId, "¿Qué quieres hacer?", MENU);
       return;
     }
 
@@ -2486,16 +2981,30 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
     }
 
     case "z": {
-      /* Cancelar la espera de un valor: se borra la fila y se acaba. */
-      await db
-        .delete(asistenteLog)
-        .where(eq(asistenteLog.id, resto[0] ?? ""));
+      /* Cancelar la espera de un valor: se borra la fila y se acaba —con la
+         puerta de vuelta al producto si se sabe cuál era—. */
+      const logId = resto[0] ?? "";
+      const [fila] = await db
+        .select()
+        .from(asistenteLog)
+        .where(eq(asistenteLog.id, logId))
+        .limit(1);
+      await db.delete(asistenteLog).where(eq(asistenteLog.id, logId));
+
+      const productoId = (fila?.despues as { productoId?: string } | null)
+        ?.productoId;
+      const filas: Boton[][] = productoId
+        ? [[{ text: "← Volver al producto", callback_data: `i:${productoId}` }]]
+        : [];
+      filas.push([BTN_MENU]);
+
       await responderCallback(callbackId, "Cancelado.");
       if (update.callback_mensaje_id) {
         await editarTexto(
           chatId,
           update.callback_mensaje_id,
           "Cancelado. No cambié nada.",
+          filas,
         );
       }
       return;
@@ -2529,6 +3038,7 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
         });
       }
       if (nav.length > 0) filas.push(nav);
+      filas.push([BTN_MENU]);
       if (update.callback_mensaje_id) {
         const verbo = estado === "agotado" ? "se acabó" : "ya hay";
         await editarTexto(
@@ -2557,13 +3067,16 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
       });
       await responderCallback(callbackId, res.texto);
       if (update.callback_mensaje_id) {
+        const filas: Boton[][] = [];
+        if (logId) {
+          filas.push([{ text: "Deshacer", callback_data: `u:${logId}` }]);
+        }
+        filas.push([BTN_MENU]);
         await editarTexto(
           chatId,
           update.callback_mensaje_id,
           res.texto,
-          logId
-            ? [[{ text: "Deshacer", callback_data: `u:${logId}` }]]
-            : undefined,
+          filas,
         );
       }
       return;
@@ -2578,11 +3091,14 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
       );
       await responderCallback(callbackId, elegido.aviso, elegido.alerta);
       if (update.callback_mensaje_id) {
+        /* El menú siempre detrás: una pregunta que se queda sin salida obliga a
+           subir a buscar el mensaje anterior. */
+        const filas = [...(elegido.botones ?? []), [BTN_MENU]];
         await editarTexto(
           chatId,
           update.callback_mensaje_id,
           elegido.texto,
-          elegido.botones,
+          filas,
         );
       }
       return;
@@ -2592,7 +3108,12 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
       const texto = await deshacer(resto[0] ?? "", negocio);
       await responderCallback(callbackId, texto);
       if (update.callback_mensaje_id) {
-        await editarTexto(chatId, update.callback_mensaje_id, texto);
+        await editarTexto(
+          chatId,
+          update.callback_mensaje_id,
+          texto,
+          soloMenu(),
+        );
       }
       return;
     }
@@ -2607,6 +3128,7 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
           chatId,
           update.callback_mensaje_id,
           "Vale, no toco nada.",
+          soloMenu(),
         );
       }
       return;
@@ -2618,13 +3140,18 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
       if (update.callback_mensaje_id) {
         /* Con Deshacer si quedó aplicado: un cambio confirmado sigue siendo un
            cambio, y la promesa del asistente es que todo se puede deshacer. */
+        const filas: Boton[][] = [];
+        if (aplicado.logId) {
+          filas.push([
+            { text: "Deshacer", callback_data: `u:${aplicado.logId}` },
+          ]);
+        }
+        filas.push([BTN_MENU]);
         await editarTexto(
           chatId,
           update.callback_mensaje_id,
           aplicado.texto,
-          aplicado.logId
-            ? [[{ text: "Deshacer", callback_data: `u:${aplicado.logId}` }]]
-            : undefined,
+          filas,
         );
       }
       return;
@@ -2785,15 +3312,4 @@ async function aplicarPendiente(
     .where(eq(asistenteLog.id, logId));
 
   return { texto: res.texto, logId };
-}
-
-/** El botón «Deshacer» que acompaña a un cambio ya aplicado. */
-async function ofrecerDeshacer(
-  chatId: string,
-  logId: string | null,
-): Promise<void> {
-  if (!logId) return;
-  await enviarBotones(chatId, "¿Algo mal?", [
-    [{ text: "Deshacer", callback_data: `u:${logId}` }],
-  ]);
 }

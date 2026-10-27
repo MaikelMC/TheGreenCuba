@@ -149,6 +149,7 @@ test("cada pack trae exactamente sus extras sobre Gratis", () => {
     "qr_sin_marca",
     "reservas_whatsapp",
     "seguidores",
+    "telegram_menu",
     "whatsapp_pedido",
   ]);
   assert.deepEqual(orden(PACKS.publicidad_max.funciones), [
@@ -168,8 +169,21 @@ test("cada pack trae exactamente sus extras sobre Gratis", () => {
     "qr_sin_marca",
     "reservas_whatsapp",
     "seguidores",
+    "telegram_menu",
     "whatsapp_pedido",
   ]);
+});
+
+test("el bot entra desde Esencial y la IA sigue siendo de Pro", () => {
+  const esencial = funcionesDe(susc({ plan: "esencial" }), AHORA);
+  assert.ok(esencial.has("telegram_menu"), "Esencial no puede actualizar el menú");
+  assert.ok(!esencial.has("asistente_ia"), "Esencial no debe incluir la IA");
+
+  assert.ok(funcionesDe(susc({ plan: "pro" }), AHORA).has("asistente_ia"));
+  assert.deepEqual(
+    [...MODULOS.asistente_telegram.funciones].sort(),
+    ["asistente_ia", "telegram_menu"],
+  );
 });
 
 /* Si esto se rompe, las tarjetas mienten: enseñarían una función que no trae el

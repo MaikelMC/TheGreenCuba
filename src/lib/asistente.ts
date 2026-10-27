@@ -762,6 +762,53 @@ export function textoCarta(
   ].join("\n");
 }
 
+/* ── categorías ───────────────────────────────────────────────────
+   El catálogo se navega primero por categoría y después por producto. El
+   agrupado es puro y vive aquí: el servidor solo pinta lo que devuelve. */
+
+/** Lo que se pinta para los productos sin categoría. */
+export const SIN_CATEGORIA = "Sin categoría";
+
+export interface CategoriaCarta {
+  /** La categoría tal como se escribió la primera vez, para el botón. */
+  nombre: string;
+  /** La clave para comparar: sin acentos ni mayúsculas; vacía = sin categoría. */
+  clave: string;
+  /** Índices de la carta, en su orden. */
+  indices: number[];
+}
+
+/**
+ * Agrupa la carta por categoría, en el orden en que cada una aparece, con los
+ * productos sin categoría al final.
+ *
+ * Se agrupa por la forma normalizada —«Bebidas» y «bebidas» son la misma— y se
+ * pinta la primera que se escribió. Los índices son los de la carta, no los del
+ * grupo.
+ */
+export function categoriasDe(items: readonly ItemCarta[]): CategoriaCarta[] {
+  const grupos = new Map<string, CategoriaCarta>();
+  const sinCategoria: number[] = [];
+
+  items.forEach((item, indice) => {
+    const nombre = (item.category ?? "").trim();
+    if (!nombre) {
+      sinCategoria.push(indice);
+      return;
+    }
+    const clave = sinAcento(nombre);
+    const grupo = grupos.get(clave);
+    if (grupo) grupo.indices.push(indice);
+    else grupos.set(clave, { nombre, clave, indices: [indice] });
+  });
+
+  const salida = [...grupos.values()];
+  if (sinCategoria.length > 0) {
+    salida.push({ nombre: SIN_CATEGORIA, clave: "", indices: sinCategoria });
+  }
+  return salida;
+}
+
 /* ── la ficha de un producto y sus campos ─────────────────────────
    La edición guiada por botones: se toca un producto, se toca un campo y se
    escribe solo el valor nuevo. Sin modelo, sin plantillas y sin recordar

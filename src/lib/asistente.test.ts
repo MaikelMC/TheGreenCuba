@@ -3,6 +3,8 @@ import { test } from "node:test";
 import {
   buscarProducto,
   campoDeCodigo,
+  categoriasDe,
+  SIN_CATEGORIA,
   comandosTelegram,
   enlaceVinculacion,
   esComandoValido,
@@ -612,6 +614,32 @@ test("textoCarta nunca se pasa del tope de Telegram", () => {
     `demasiado largo: ${texto.length}`,
   );
   assert.match(texto, /más\./);
+});
+
+/* ── categorías ─────────────────────────────────────────────────── */
+test("categoriasDe agrupa sin acentos ni mayúsculas y deja sin categoría al final", () => {
+  const items = [
+    { name: "Café", category: "Bebidas" },
+    { name: "Pan", category: "Comida" },
+    { name: "Agua", category: "bebidas" },
+    { name: "Suelto" },
+  ];
+  const categorias = categoriasDe(items);
+
+  assert.deepEqual(
+    categorias.map((c) => c.nombre),
+    ["Bebidas", "Comida", SIN_CATEGORIA],
+  );
+  /* Los índices son de la carta, no del grupo: son los que resuelve el servidor. */
+  assert.deepEqual(categorias[0]?.indices, [0, 2]);
+  assert.deepEqual(categorias[2]?.indices, [3]);
+});
+
+test("categoriasDe con una carta sin categorías devuelve un solo grupo", () => {
+  const categorias = categoriasDe([{ name: "Pan" }, { name: "Café" }]);
+  assert.equal(categorias.length, 1);
+  assert.equal(categorias[0]?.nombre, SIN_CATEGORIA);
+  assert.deepEqual(categorias[0]?.indices, [0, 1]);
 });
 
 /* ── saludo ─────────────────────────────────────────────────────── */
