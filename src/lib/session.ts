@@ -77,7 +77,15 @@ export const AUTH_USER_HEADER = "x-lv-auth-user";
  * API, que no pasan por el proxy— y ahí sí revienta con E1180.
  */
 export function needsAppUser(pathname: string): boolean {
-  return pathname === "/login" || isProtected(pathname);
+  /* `/invitacion` no está en `PROTECTED_PREFIXES` a propósito: quien llega sin
+     sesión tiene que poder ver la pantalla y salir de ahí al alta. Pero su
+     página sí llama a `getAppUser`, así que necesita la cabecera del proxy. */
+  return (
+    pathname === "/login" ||
+    pathname === "/invitacion" ||
+    pathname.startsWith("/invitacion/") ||
+    isProtected(pathname)
+  );
 }
 
 /**

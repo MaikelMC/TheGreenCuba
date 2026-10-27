@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Plus, Trash2, Users } from "lucide-react";
+import { Link2, Loader2, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   PERMISOS_NEGOCIO,
   type PermisoNegocio,
 } from "@/lib/permisos-negocio";
+import { CopyLink } from "@/components/profile/copy-link";
 
 /**
  * El equipo del negocio: quién entra al panel y qué puede tocar cada uno.
@@ -32,6 +33,9 @@ interface Trabajador {
 const BOTON_PRIMARIO =
   "inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60";
 
+const BOTON_SECUNDARIO =
+  "inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-lg font-lv-display text-small font-semibold text-ink transition duration-500 ease-outquint hover:border-verde-300 hover:text-verde-600 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60";
+
 const INPUT =
   "h-11 w-full px-gap-sm border border-ink/10 rounded-xl font-lv text-body bg-white text-ink outline-none transition-colors duration-500 ease-outquint focus-visible:border-verde-400";
 
@@ -41,6 +45,8 @@ export function EquipoView({ placeId }: { placeId: string }) {
   const [email, setEmail] = useState("");
   const [nuevos, setNuevos] = useState<PermisoNegocio[]>(["catalogo"]);
   const [añadiendo, setAñadiendo] = useState(false);
+  const [invitando, setInvitando] = useState(false);
+  const [invitacion, setInvitacion] = useState<string | null>(null);
   const [guardando, setGuardando] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
@@ -101,6 +107,37 @@ export function EquipoView({ placeId }: { placeId: string }) {
       setError("No se pudo añadir. Revisa la conexión.");
     } finally {
       setAñadiendo(false);
+    }
+  }
+
+  /* El camino para quien todavía no tiene cuenta. No pide correo: el enlace se
+     manda por WhatsApp o como sea, y el que lo abra entra con la cuenta que
+     cree. Los permisos son los mismos que tiene marcados la sección. */
+  async function generarInvitacion() {
+    if (invitando) return;
+    setInvitando(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/negocio/invitaciones", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ negocioId: placeId, permisos: nuevos }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        url?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.url) {
+        setError(data.error ?? "No se pudo generar el enlace. Prueba otra vez.");
+        return;
+      }
+      setInvitacion(data.url);
+      toast.success("Enlace de invitación creado.");
+    } catch {
+      setError("No se pudo generar el enlace. Revisa la conexión.");
+    } finally {
+      setInvitando(false);
     }
   }
 
@@ -190,11 +227,12 @@ export function EquipoView({ placeId }: { placeId: string }) {
       <section className="rounded-2xl border border-ink/5 bg-white p-gap-md">
         <h2 className="flex items-center gap-gap-xs font-lv-display text-body font-semibold text-ink">
           <Users size={18} strokeWidth={1.8} className="text-verde-600" />
-          Añadir trabajador
+          Añadir o invitar
         </h2>
         <p className="mt-gap-xs max-w-[62ch] text-small text-ink-soft/75">
-          La persona tiene que haber entrado a La Verde al menos una vez. Marca
-          lo que podrá hacer; siempre entra al panel con su propia cuenta.
+          Marca lo que podrá hacer. Si ya tiene cuenta, añádela por correo; si
+          no, genera un enlace y mándaselo: al registrarse entra directo al
+          panel con estos permisos, sin pasar por el onboarding.
         </p>
 
         <div className="mt-gap-md flex flex-col gap-gap-sm border-t border-ink/5 pt-gap-sm">
@@ -229,11 +267,40 @@ export function EquipoView({ placeId }: { placeId: string }) {
 
           <Casillas
             marcados={nuevos}
-            onToggle={(clave) =>
-              setNuevos((actual) => alternarPermiso(actual, clave))
-            }
-            deshabilitado={añadiendo}
+            onToggle={(clave) => {
+              setNuevos((actual) => alternarPermiso(actual, clave));
+              /* El enlace que ya se generó lleva los permisos de antes:
+                 enseñarlo junto a la casilla nueva sería mentir. */
+              setInvitacion(null);
+            }}
+            deshabilitado={añadiendo || invitando}
           />
+
+          <div className="mt-gap-xs flex flex-col gap-gap-xs border-t border-ink/5 pt-gap-sm">
+            <button
+              type="button"
+              onClick={() => void generarInvitacion()}
+              disabled={invitando || añadiendo}
+              className={cn(BOTON_SECUNDARIO, "self-start")}
+            >
+              {invitando ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Link2 size={16} strokeWidth={1.8} />
+              )}
+              {invitando ? "Generando…" : "Generar enlace de invitación"}
+            </button>
+
+            {invitacion && (
+              <div className="flex flex-col gap-gap-xs">
+                <CopyLink url={invitacion} />
+                <p className="text-meta text-ink-soft/75">
+                  Vale 7 días y una sola vez. Mándalo a la persona que va a
+                  entrar al equipo.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 

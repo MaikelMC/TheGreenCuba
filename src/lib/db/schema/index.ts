@@ -9,6 +9,7 @@ export * from "./place_menu_items";
 export * from "./reviews";
 export * from "./saved_places";
 export * from "./business_owners";
+export * from "./business_invitations";
 export * from "./user_search_history";
 export * from "./notifications";
 export * from "./project_requests";

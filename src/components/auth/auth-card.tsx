@@ -584,7 +584,10 @@ export function AuthCard({
           <>
             ¿Sin cuenta?{" "}
             <Link
-              href="/register"
+              /* El destino viaja de un formulario al otro: quien abre una
+                 invitación cae en el alta, y si resulta que ya tenía cuenta el
+                 acceso tiene que devolverlo a la misma invitación. */
+              href={next ? `/register?next=${encodeURIComponent(next)}` : "/register"}
               className="font-semibold text-verde-300 transition-colors duration-500 ease-outquint hover:text-verde-200 lg:text-verde-600 lg:hover:text-verde-700"
             >
               Crear una
@@ -594,7 +597,7 @@ export function AuthCard({
           <>
             ¿Ya tienes cuenta?{" "}
             <Link
-              href="/login"
+              href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
               className="font-semibold text-verde-300 transition-colors duration-500 ease-outquint hover:text-verde-200 lg:text-verde-600 lg:hover:text-verde-700"
             >
               Entrar
