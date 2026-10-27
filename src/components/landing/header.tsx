@@ -53,10 +53,15 @@ export function Header() {
       <div className="landing-nav-surface mx-auto flex h-14 max-w-3xl items-center justify-between rounded-full border border-ink/10 bg-white/85 pl-4 pr-2 shadow-soft backdrop-blur-xl">
         <Link
           href="/"
-          className="flex items-center gap-2 font-lv-display text-[20px] font-bold tracking-[-0.02em] text-ink"
+          className="flex min-w-0 items-center gap-2 font-lv-display text-[20px] font-bold tracking-[-0.02em] text-ink"
         >
           <Logo className="h-[26px] w-auto shrink-0" />
-          <span translate="no">La Verde</span>
+          {/* En pantallas estrechas el nombre cede antes que el menú: con el
+              texto agrandado por el sistema, el botón de secciones es lo que
+              quedaba fuera de la pantalla. */}
+          <span translate="no" className="truncate">
+            La Verde
+          </span>
         </Link>
 
         <nav className="hidden items-center gap-gap-xl sm:flex">

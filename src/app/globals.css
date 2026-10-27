@@ -102,6 +102,14 @@
   html {
     scroll-behavior: smooth;
     -webkit-tap-highlight-color: transparent;
+    /* Android (Chrome y navegadores de dentro de apps) engorda el texto por su
+       cuenta cuando el ajuste de tamaño del sistema está alto. Los tamaños de
+       la interfaz van en píxeles y el mapa también, así que lo único que crece
+       es el texto: se rompen los renglones, la barra de arriba empuja el menú
+       fuera de pantalla y la página entera parece ampliada. Fijar la escala en
+       100 % apaga ese engorde; el zoom de pinza sigue funcionando. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   /* El desplazamiento suave también es movimiento: con la preferencia activa
