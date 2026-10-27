@@ -3,7 +3,19 @@
     solo aquí. */
 const PRODUCTION_APP_URL = "https://laverde.kynari.dev";
 
-const canonicalAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || PRODUCTION_APP_URL;
+/**
+ * `NEXT_PUBLIC_APP_URL` manda, salvo que un build de producción apunte a
+ * localhost. El `.env` local lleva `http://localhost:3000` para el dev server, y
+ * `next start` también lo lee: sin esta guarda, un build de producción servido
+ * desde esta máquina publica canonical, sitemap y robots con `localhost`, que no
+ * es rastreable para nadie. En desarrollo se sigue respetando.
+ */
+const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || "";
+const isLocalUrl = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/i.test(configuredAppUrl);
+const canonicalAppUrl =
+  configuredAppUrl && !(process.env.NODE_ENV === "production" && isLocalUrl)
+    ? configuredAppUrl.replace(/\/$/, "")
+    : PRODUCTION_APP_URL;
 
 export const siteConfig = {
   name: "La Verde",

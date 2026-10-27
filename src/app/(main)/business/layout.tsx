@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { type ReactNode } from "react";
 import { getAppUser } from "@/lib/auth/user";
@@ -11,6 +12,11 @@ import { getAppUser } from "@/lib/auth/user";
    validándolas. Queda un bloque de alarma por ruta y por build, todos falsos, y
    un fallo de sesión de verdad se pierde entre ellos. */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Panel del negocio",
+  robots: { index: false, follow: false },
+};
 
 /**
  * Puerta del panel de negocio.

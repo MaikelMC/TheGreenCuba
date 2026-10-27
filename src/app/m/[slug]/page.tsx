@@ -10,7 +10,7 @@ import {
   MessageCircle,
   Phone,
 } from "lucide-react";
-import { getPlaceBySlug } from "@/lib/db/queries";
+import { getPlaceBySlug, listCategories } from "@/lib/db/queries";
 import {
   DEV_PLACE_ID,
   canViewDevPlace,
@@ -20,7 +20,13 @@ import { getAppUser } from "@/lib/auth/user";
 import { whatsappHref } from "@/lib/contact-links";
 import { configReserva } from "@/lib/reserva";
 import { configSeguidores } from "@/lib/seguidores";
-import { menuUrl } from "@/lib/structured-data";
+import {
+  absoluteUrl,
+  breadcrumbJsonLd,
+  categoryPath,
+  menuUrl,
+  placeJsonLd,
+} from "@/lib/structured-data";
 import { categoryEmoji } from "@/lib/places";
 import { tieneFuncion } from "@/lib/plans-server";
 import {
@@ -119,6 +125,16 @@ const getPlace = cache(async (slug: string, overrideFor?: string) => {
   }
 });
 
+/** El slug real de la categoría, para una miga que no invente URLs. */
+const getCategorySlug = cache(async (name: string) => {
+  try {
+    const categories = await listCategories();
+    return categories.find((category) => category.label === name)?.value ?? null;
+  } catch {
+    return null;
+  }
+});
+
 export async function generateMetadata({
   params,
 }: {
@@ -127,12 +143,9 @@ export async function generateMetadata({
   const { slug } = await params;
   const place = await getPlace(slug);
 
-  if (!place) {
-    return {
-      title: "Menú no encontrado",
-      robots: { index: false, follow: true },
-    };
-  }
+  /* Sin `loading.tsx` propio, por lo mismo que la ficha: el límite de Suspense
+     mandaba la cáscara con 200 antes de que la página dijera 404. */
+  if (!place) notFound();
 
   const where = place.city || place.barrio || "Cuba";
   const count = place.menu.length;
@@ -360,6 +373,16 @@ export default async function MenuPage({
   const place = await getPlace(slug, overrideFor);
   if (!place) notFound();
 
+  const categorySlug = await getCategorySlug(place.category);
+  const breadcrumbs = breadcrumbJsonLd([
+    { name: "Inicio", url: absoluteUrl("/") },
+    { name: "Directorio", url: absoluteUrl("/lugares") },
+    ...(categorySlug
+      ? [{ name: place.category, url: absoluteUrl(categoryPath(categorySlug)) }]
+      : []),
+    { name: place.name, url: absoluteUrl(`/m/${place.slug}`) },
+  ]);
+
   const brand = place.logoUrl ?? place.photos?.[0]?.url ?? null;
   const whatsapp = place.whatsapp ? whatsappHref(place.whatsapp) : "";
   const phone = place.phone?.trim() ?? "";
@@ -509,6 +532,20 @@ export default async function MenuPage({
 
   const carta = (
     <div className="mx-auto w-full max-w-[680px] px-gutter py-gap-lg">
+      {/* El negocio y su miga, para que la carta indexada no sea una página
+          huérfana de entidad: apunta a la ficha y al hub de su categoría. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(placeJsonLd(place)).replace(/</g, "\\u003c"),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbs).replace(/</g, "\\u003c"),
+        }}
+      />
       {/* La isla que cuenta la carta. No pinta nada; ver `EventosMenu`. */}
       <EventosMenu negocioId={place.id} />
       {/* `flex-wrap`: en un teléfono de 320 px los controles no caben en una

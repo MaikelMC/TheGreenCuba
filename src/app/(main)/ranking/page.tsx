@@ -27,11 +27,21 @@ import {
  */
 export const dynamic = "force-dynamic";
 
+const RANKING_TITLE = "Top del mes";
+const RANKING_DESCRIPTION =
+  "Los negocios más visitados de su categoría en cada municipio de Cuba, según La Verde. El podio se renueva cada mes.";
+
 export const metadata: Metadata = {
-  title: "Top del mes · La Verde",
-  description:
-    "Los negocios más visitados de su categoría en cada municipio de Cuba, según La Verde. El podio se renueva cada mes.",
+  /* El template raíz añade «| La Verde»; no repetirlo aquí. */
+  title: RANKING_TITLE,
+  description: RANKING_DESCRIPTION,
   alternates: { canonical: "/ranking" },
+  openGraph: {
+    type: "website",
+    title: RANKING_TITLE,
+    description: RANKING_DESCRIPTION,
+    url: "/ranking",
+  },
 };
 
 /** «2026-09» → «septiembre de 2026». */

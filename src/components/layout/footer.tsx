@@ -20,6 +20,7 @@ export function Footer() {
               <h3 className="font-lv-display text-[14px] font-semibold text-white mb-gap-sm">Producto</h3>
               <a href="#como-funciona" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Cómo funciona</a>
               <a href="/lugares" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Directorio</a>
+              <a href="/ranking" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Top del mes</a>
               <a href="#ejemplos" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Ejemplos</a>
               <a href="/business" className="block text-[14px] text-white/70 py-[3px] transition-colors duration-500 hover:text-verde-300">Para negocios</a>
             </div>

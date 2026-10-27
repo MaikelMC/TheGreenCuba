@@ -362,6 +362,11 @@ export function PlaceDetail({
   // min-h-screen/min-h-dvh y se quedaría con el último igualmente.
   return (
     <div className={cn("min-h-dvh bg-sand font-lv text-ink", className)}>
+      {/* Un solo `h1` en el documento. Antes había dos —el de escritorio y el de
+          móvil—, cada uno en su rama responsiva pero los dos en el HTML. El
+          titular visible se queda como texto y este encabezado accesible es el
+          que leen los rastreadores y los lectores de pantalla. */}
+      <h1 className="sr-only">{place.name}</h1>
       {/* ─── Header ─── */}
       <header className="sticky top-0 z-50 h-header bg-sand-warm/90 backdrop-blur-[16px] border-b border-ink/5 flex items-center gap-gap-sm px-gutter">
         <button
@@ -424,9 +429,9 @@ export function PlaceDetail({
                 </span>
               )}
               <div className="min-w-0">
-                <h1 className="font-lv-display text-h1 font-bold text-white leading-tight tracking-[-0.02em] text-balance">
+                <p className="font-lv-display text-h1 font-bold text-white leading-tight tracking-[-0.02em] text-balance">
                   {place.name}
-                </h1>
+                </p>
                 <div className="flex items-center gap-gap-sm mt-gap-xs">
                   <span
                     className={cn(
@@ -761,9 +766,9 @@ export function PlaceDetail({
                 {/* `flex-1 min-w-0` para que una dirección larga rompa línea en
                     vez de empujar el nombre fuera de la pantalla. */}
                 <div className="min-w-0 flex-1">
-                  <h1 className="font-lv-display text-h3 font-bold leading-tight tracking-[-0.015em] text-ink text-balance">
+                  <p className="font-lv-display text-h3 font-bold leading-tight tracking-[-0.015em] text-ink text-balance">
                     {place.name}
-                  </h1>
+                  </p>
                   {/* Dos niveles y no una línea con un `·` en medio: la
                       dirección es la que puede ocupar dos renglones, así que va
                       arriba y con el icono alineado a su primera línea, no

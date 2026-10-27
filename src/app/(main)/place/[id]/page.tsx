@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
 import { cache } from "react";
-import { getPlaceById } from "@/lib/db/queries";
+import { notFound } from "next/navigation";
+import { getPlaceById, listCategories } from "@/lib/db/queries";
 import { getAppUser } from "@/lib/auth/user";
 import { DEV_PLACE_ID, canViewDevPlace, devPlaceIndexable } from "@/lib/dev-place";
-import { placeJsonLd, placeUrl } from "@/lib/structured-data";
+import {
+  absoluteUrl,
+  breadcrumbJsonLd,
+  categoryPath,
+  placeJsonLd,
+  placeUrl,
+} from "@/lib/structured-data";
 import { PlaceView } from "./place-view";
 
 /**
@@ -50,6 +57,20 @@ const getPlace = cache(async (id: string) => {
   }
 });
 
+/**
+ * El slug real de la categoría, para que la miga de pan apunte a una página que
+ * existe. No vale `slugify(place.category)`: «Vida nocturna» se guarda como
+ * `discoteca` en la tabla, y una URL inventada daría 404 en el JSON-LD.
+ */
+const getCategorySlug = cache(async (name: string) => {
+  try {
+    const categories = await listCategories();
+    return categories.find((category) => category.label === name)?.value ?? null;
+  } catch {
+    return null;
+  }
+});
+
 function describe(place: {
   name: string;
   category: string;
@@ -86,12 +107,10 @@ export async function generateMetadata({
   const { id } = await params;
   const place = await getPlace(id);
 
-  /* Una URL que no corresponde a ningún negocio no se indexa: si entra en el
-     índice, compite con las fichas buenas por las mismas consultas y no tiene
-     nada que ofrecer a quien llegue. */
-  if (!place) {
-    return { title: "Lugar no encontrado", robots: { index: false, follow: true } };
-  }
+  /* La URL de un negocio que no existe no se indexa: si entra en el índice,
+     compite con las fichas buenas y no tiene nada que ofrecer. Aquí y en la
+     página, porque la metadata también se resuelve por su cuenta. */
+  if (!place) notFound();
 
   const { title, description } = describe(place);
   /* El logo manda sobre la primera foto, como en la carta online: es lo que
@@ -142,20 +161,41 @@ export default async function PlacePage({
   const { id } = await params;
   const place = await getPlace(id);
 
+  /* Soft 404 real: antes esta página pintaba «Lugar no encontrado» con un 200.
+     Google lo trata como página delgada y la conserva en el índice. Con
+     `notFound()` la respuesta es 404. Sin el `loading.tsx` de esta carpeta:
+     ese límite de Suspense abría el stream antes del 404 y la respuesta volvía
+     a ser 200. El esqueleto lo pone ahora el `loading.tsx` de `(main)`. */
+  if (!place) notFound();
+
+  const categorySlug = await getCategorySlug(place.category);
+  const breadcrumbs = breadcrumbJsonLd([
+    { name: "Inicio", url: absoluteUrl("/") },
+    { name: "Directorio", url: absoluteUrl("/lugares") },
+    ...(categorySlug
+      ? [{ name: place.category, url: absoluteUrl(categoryPath(categorySlug)) }]
+      : []),
+    { name: place.name, url: placeUrl(place.id) },
+  ]);
+
   return (
     <>
-      {place && (
-        <script
-          type="application/ld+json"
-          /* Los datos del negocio los escribe su dueño desde el panel, así que
-             el `<` se escapa antes de meterlos en la página: sin eso, un nombre
-             con `</script>` dentro cierra la etiqueta y lo que venga detrás se
-             ejecuta como HTML. */
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(placeJsonLd(place)).replace(/</g, "\\u003c"),
-          }}
-        />
-      )}
+      <script
+        type="application/ld+json"
+        /* Los datos del negocio los escribe su dueño desde el panel, así que
+           el `<` se escapa antes de meterlos en la página: sin eso, un nombre
+           con `</script>` dentro cierra la etiqueta y lo que venga detrás se
+           ejecuta como HTML. */
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(placeJsonLd(place)).replace(/</g, "\\u003c"),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbs).replace(/</g, "\\u003c"),
+        }}
+      />
       <PlaceView id={id} initialPlace={place} />
     </>
   );

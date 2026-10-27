@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { type ReactNode } from "react";
 import { MotionConfig } from "motion/react";
@@ -17,6 +18,11 @@ import { CatalogoProvider } from "@/providers/catalogo-provider";
    validándolas. Queda un bloque de alarma por ruta y por build, todos falsos, y
    un fallo de sesión de verdad se pierde entre ellos. */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Administración",
+  robots: { index: false, follow: false },
+};
 
 /**
  * Puerta del panel de administración.

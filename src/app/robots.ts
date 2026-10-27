@@ -27,10 +27,31 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin", "/api", "/business", "/profile", "/onboarding", "/login", "/home"],
+        disallow: [
+          "/admin",
+          "/api",
+          "/business",
+          "/profile",
+          "/projects",
+          "/notifications",
+          "/enlaces",
+          "/onboarding",
+          "/login",
+          "/register",
+          "/verify-email",
+          "/forgot-password",
+          "/reset-password",
+          "/restablecer-contrasena",
+          /* Fichas de desarrollo: la ruta devuelve 404 en producción, pero no
+             hay razón para ofrecérsela a un rastreador. */
+          "/dev-login",
+          /* El mapa depende de la sesión y no tiene una versión «de todos». */
+          "/home",
+        ],
       },
     ],
     sitemap: `${siteConfig.url}/sitemap.xml`,
-    host: siteConfig.url,
+    /* `Host` espera el nombre del host, no la URL entera. */
+    host: new URL(siteConfig.url).host,
   };
 }

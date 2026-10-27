@@ -7,13 +7,24 @@ import {
   TERMS_VERSION,
 } from "@/lib/legal";
 
+const TERMS_TITLE = "Términos y privacidad";
+const TERMS_DESCRIPTION =
+  "Qué es La Verde, qué datos personales guarda, dónde los guarda, con quién los comparte y cómo borrarlos.";
+
 export const metadata: Metadata = {
-  title: "Términos y privacidad · La Verde",
-  description:
-    "Qué es La Verde, qué datos personales guarda, dónde los guarda, con quién los comparte y cómo borrarlos.",
+  /* Sin «· La Verde»: el template del layout raíz ya añade «| La Verde» y el
+     título salía duplicado. */
+  title: TERMS_TITLE,
+  description: TERMS_DESCRIPTION,
   /* Contenido público y enlazado desde el pie en todo el sitio: declara su
      propia URL canónica para no heredar ambigüedad de parámetros. */
   alternates: { canonical: "/terminos" },
+  openGraph: {
+    type: "website",
+    title: TERMS_TITLE,
+    description: TERMS_DESCRIPTION,
+    url: "/terminos",
+  },
 };
 
 /* Edad mínima. Es una decisión del producto, no una cifra que venga de la ley:

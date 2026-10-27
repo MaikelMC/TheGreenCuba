@@ -561,6 +561,10 @@
      apagados, los pasos inactivos del onboarding y la barra de búsqueda.
      En claro es un gris sutil sobre blanco; en oscuro era tinta sobre tinta
      y el asa desaparecía — sin ella no hay forma de recoger la hoja. */
+  html[data-theme="dark"] .bg-ink\/5 {
+    background-color: rgba(237, 247, 240, 0.08) !important;
+  }
+
   html[data-theme="dark"] .bg-ink\/10 {
     background-color: rgba(237, 247, 240, 0.16) !important;
   }
@@ -636,8 +640,12 @@
     border-color: #28533a !important;
   }
 
+  /* 800 faltaba: las chapitas de novedades (`bg-verde-100 text-verde-800`) y
+     el código del asistente (`bg-verde-50 text-verde-800`) quedaban verde
+     oscuro sobre verde oscuro, porque su fondo sí está en la lista de arriba. */
   html[data-theme="dark"] .text-verde-600,
   html[data-theme="dark"] .text-verde-700,
+  html[data-theme="dark"] .text-verde-800,
   html[data-theme="dark"] .text-verde-900 {
     color: #9be3b4 !important;
   }
@@ -719,6 +727,12 @@
     background-color: rgba(245, 158, 11, 0.12) !important;
   }
 
+  /* La chapita de «cambio de precio»: el fondo 100 no estaba en la lista y
+     seguía crema, mientras su texto ya se aclaraba a #fcd34d. */
+  html[data-theme="dark"] .bg-amber-100 {
+    background-color: rgba(245, 158, 11, 0.16) !important;
+  }
+
   html[data-theme="dark"] .border-amber-200 {
     border-color: rgba(245, 158, 11, 0.35) !important;
   }
@@ -742,6 +756,13 @@
   html[data-theme="dark"] .text-red-800,
   html[data-theme="dark"] [class~="hover:text-red-600"]:hover,
   html[data-theme="dark"] [class~="hover:text-red-700"]:hover {
+    color: #fca5a5 !important;
+  }
+
+  /* El rojo de marca usado como texto (chapita de oferta y botón de novedades)
+     daba ~4:1 sobre la superficie oscura. Mismo rojo aclarado que la familia
+     `red-*` de arriba, para no abrir otra escala. */
+  html[data-theme="dark"] .text-lv-red {
     color: #fca5a5 !important;
   }
 

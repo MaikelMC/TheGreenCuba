@@ -35,6 +35,7 @@ export const PROTECTED_PREFIXES = [
   "/business",
   "/projects",
   "/profile",
+  "/notifications",
   "/onboarding",
   /* `/home` **no** está aquí a propósito: el mapa, las fichas y las
      recomendaciones se abren sin sesión. La búsqueda con IA es la única pieza

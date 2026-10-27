@@ -1,8 +1,20 @@
+import type { Metadata } from "next";
 import { type ReactNode } from "react";
 import Link from "next/link";
 import { MotionConfig } from "motion/react";
 import { Clock, MapPin, Wallet } from "lucide-react";
 import { Logo } from "@/components/layout/logo";
+
+/**
+ * Acceso, alta, recuperación y verificación son pantallas de paso: no tienen
+ * contenido que indexar y, si entran, compiten con la portada por el nombre del
+ * sitio. `noindex` aquí cubre las cinco de una vez; `/register` además no estaba
+ * ni en `robots.txt`.
+ */
+export const metadata: Metadata = {
+  title: "Acceso",
+  robots: { index: false, follow: false },
+};
 
 /* Mismas tres promesas que la sección de cierre de la landing, en el mismo
    orden. No son adorno: son lo que distingue a La Verde de una lista de

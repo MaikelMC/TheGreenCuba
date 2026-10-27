@@ -497,7 +497,7 @@ export async function categorySlugTaken(slug: string): Promise<boolean> {
 
 export async function findCategoryBySlug(slug: string) {
   const [row] = await db
-    .select({ id: categories.id })
+    .select({ id: categories.id, name: categories.name, slug: categories.slug })
     .from(categories)
     .where(eq(categories.slug, slug))
     .limit(1);

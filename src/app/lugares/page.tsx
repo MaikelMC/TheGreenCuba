@@ -8,11 +8,17 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { SelloVerificado } from "@/components/place/sello-verificado";
 import { TopDelMes } from "@/components/place/top-del-mes";
 import { siteConfig } from "@/config/site";
-import { listPlaces } from "@/lib/db/queries";
+import { listCategories, listPlaces } from "@/lib/db/queries";
 import type { UserPlace } from "@/lib/places-store";
 import { categoryEmoji, FILLER_PLACE_IDS } from "@/lib/places";
-import { placeUrl } from "@/lib/structured-data";
-import { cn } from "@/lib/utils";
+import {
+  absoluteUrl,
+  breadcrumbJsonLd,
+  categoryPath,
+  cityPath,
+  placeUrl,
+} from "@/lib/structured-data";
+import { cn, slugify } from "@/lib/utils";
 
 /**
  * El directorio público de negocios.
@@ -40,18 +46,36 @@ const TITLE = "Directorio de negocios y lugares en Cuba";
 const DESCRIPTION =
   "Todos los negocios de La Verde: restaurantes, cafeterías, bares, tiendas, hospedajes y más. Busca por nombre o filtra por provincia y categoría.";
 
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: { canonical: "/lugares" },
-  openGraph: {
-    type: "website",
+/**
+ * Con filtros o búsqueda, la página es un resultado, no el directorio: se
+ * canoniza a `/lugares` y se marca `noindex` para que no compita con él ni llene
+ * el índice de combinaciones de `?q=`. Sin filtros sigue siendo la página que se
+ * indexa.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const hasFilters = Boolean(
+    one(params.q) || one(params.provincia) || one(params.categoria),
+  );
+
+  return {
     title: TITLE,
     description: DESCRIPTION,
-    url: `${siteConfig.url.replace(/\/$/, "")}/lugares`,
-  },
-  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
-};
+    alternates: { canonical: "/lugares" },
+    robots: hasFilters ? { index: false, follow: true } : undefined,
+    openGraph: {
+      type: "website",
+      title: TITLE,
+      description: DESCRIPTION,
+      url: `${siteConfig.url.replace(/\/$/, "")}/lugares`,
+    },
+    twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
+  };
+}
 
 type SearchParams = {
   q?: string | string[];
@@ -229,6 +253,28 @@ export default async function DirectorioPage({
 
   const hasFilters = Boolean(query || provincia || categoria);
 
+  const breadcrumbsJsonLd = breadcrumbJsonLd([
+    { name: "Inicio", url: absoluteUrl("/") },
+    { name: "Directorio", url: absoluteUrl("/lugares") },
+  ]);
+
+  /* Las categorías del catálogo llevan su `slug` real: «Vida nocturna» es
+     `discoteca` en la base y `slugify` daría una URL que no existe. */
+  let categorySlugByName = new Map<string, string>();
+  try {
+    categorySlugByName = new Map(
+      (await listCategories()).map((category) => [category.label, category.value]),
+    );
+  } catch {
+    /* Sin slugs se enseña el directorio sin chips; el listado sigue. */
+  }
+  const categoryLinks = categories
+    .map((name) => ({ name, slug: categorySlugByName.get(name) }))
+    .filter((item): item is { name: string; slug: string } => Boolean(item.slug));
+  const cityLinks = unique(places.map((place) => place.city ?? ""))
+    .map((city) => ({ name: city, slug: slugify(city) }))
+    .filter((city) => city.slug);
+
   const itemListJsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -248,6 +294,12 @@ export default async function DirectorioPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(itemListJsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbsJsonLd).replace(/</g, "\\u003c"),
         }}
       />
 
@@ -379,6 +431,50 @@ export default async function DirectorioPage({
               </Link>
             )}
           </div>
+
+          {/* Los hubs de categoría y ciudad. Son enlaces rastreables, no filtros
+              de formulario: Google necesita un camino a las páginas que compiten
+              por «cafeterías en Santiago de Cuba», no una URL con parámetros que
+              se canoniza al directorio. */}
+          {!hasFilters && (categoryLinks.length > 0 || cityLinks.length > 0) && (
+            <nav
+              aria-label="Explorar por categoría y ciudad"
+              className="mt-gap-lg flex flex-col gap-gap-sm"
+            >
+              {categoryLinks.length > 0 && (
+                <div className="flex flex-wrap items-center gap-gap-xs">
+                  <span className="font-lv-display text-meta font-semibold uppercase tracking-[0.12em] text-ink-soft/60">
+                    Categorías
+                  </span>
+                  {categoryLinks.map((category) => (
+                    <Link
+                      key={category.slug}
+                      href={categoryPath(category.slug)}
+                      className="inline-flex h-9 items-center rounded-full border border-ink/10 bg-white px-4 font-lv-display text-small font-semibold text-ink transition-colors hover:border-verde-300 hover:bg-verde-50"
+                    >
+                      {category.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
+              {cityLinks.length > 0 && (
+                <div className="flex flex-wrap items-center gap-gap-xs">
+                  <span className="font-lv-display text-meta font-semibold uppercase tracking-[0.12em] text-ink-soft/60">
+                    Ciudades
+                  </span>
+                  {cityLinks.map((city) => (
+                    <Link
+                      key={city.slug}
+                      href={cityPath(city.slug)}
+                      className="inline-flex h-9 items-center rounded-full border border-ink/10 bg-white px-4 font-lv-display text-small font-semibold text-ink transition-colors hover:border-verde-300 hover:bg-verde-50"
+                    >
+                      {city.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </nav>
+          )}
 
           {filtered.length > 0 ? (
             <div className="mt-gap-md grid gap-gap-sm sm:grid-cols-2 sm:gap-gap-md lg:grid-cols-3">
