@@ -278,7 +278,7 @@ export function BottomSheet({
       {/* Header */}
       <div className="px-5 pb-gap-sm border-b border-ink/5 shrink-0">
         <div className="flex items-start justify-between gap-gap-sm">
-          <h2 className="font-lv-display text-h3 font-bold text-ink flex items-center gap-gap-xs">
+          <h2 className="font-lv-display text-h3 font-semibold text-ink flex items-center gap-gap-xs">
             {title}
             {badge && (
               <span className="font-lv-display text-[10px] font-semibold bg-verde-50 text-verde-600 px-2 py-[2px] rounded-full tracking-[0.14em] uppercase">
@@ -289,7 +289,9 @@ export function BottomSheet({
           {action}
         </div>
         {subtitle && (
-          <p className="text-small text-ink-soft/75 mt-[4px]">{subtitle}</p>
+          <p className="mt-[2px] text-[13px] leading-[18px] text-[#5b6b7a] dark:text-[#9fb0c0]">
+            {subtitle}
+          </p>
         )}
       </div>
 

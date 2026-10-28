@@ -74,6 +74,22 @@ export function formatDate(date: Date, ahora: Date = new Date()): string {
 }
 
 /**
+ * «Hace cuánto», en palabras: «ahora mismo», «hace 5 min», «hace 2 h».
+ * Para la fecha del catálogo en la cabecera de recomendaciones.
+ */
+export function formatRelativeTime(
+  timestamp: number,
+  ahora: number = Date.now(),
+): string {
+  const minutos = Math.round((ahora - timestamp) / 60_000);
+  if (minutos < 1) return "ahora mismo";
+  if (minutos < 60) return `hace ${minutos} min`;
+  const horas = Math.round(minutos / 60);
+  if (horas < 24) return `hace ${horas} h`;
+  return `hace ${Math.round(horas / 24)} d`;
+}
+
+/**
  * Etiqueta visible de una moneda. MLC se muestra como "USD Clásica"
  * (mantenemos el valor interno "MLC" para compatibilidad con datos guardados).
  */

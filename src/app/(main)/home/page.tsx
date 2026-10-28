@@ -11,7 +11,6 @@ import {
   useMemo,
   memo,
 } from "react";
-import { useRouter } from "next/navigation";
 import {
   Search,
   Star,
@@ -28,7 +27,7 @@ import {
   Lock,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { cn, formatDateRange } from "@/lib/utils";
+import { cn, formatDateRange, formatRelativeTime } from "@/lib/utils";
 import { fadeUp, popIn, staggerContainer } from "@/lib/motion";
 import { CategoryBar } from "@/components/layout/category-bar";
 import { BottomSheet } from "@/components/layout/bottom-sheet";
@@ -62,7 +61,6 @@ import {
 import { toast } from "sonner";
 import type { MapPlace, MapViewProps } from "@/components/map/types";
 import { usePlaces } from "@/providers/places-provider";
-import { CatalogSync } from "@/components/pwa/catalog-sync";
 import {
   FILLER_PLACE_IDS,
   placeIcon,
@@ -553,29 +551,21 @@ const PlaceCardRow = memo(function PlaceCardRow({
   index,
   selected,
   liked,
-  onSelect,
   onLike,
-  onDetail,
   onLocate,
-  onDoubleClick,
 }: {
   place: HomePlace;
   index: number;
   selected: boolean;
   liked: boolean;
-  onSelect: (id: string) => void;
   onLike: (id: string) => void;
-  onDetail: (id: string) => void;
   onLocate: (place: HomePlace) => void;
-  onDoubleClick: (place: HomePlace) => void;
 }) {
   return (
-    <div
-      className="[content-visibility:auto] [contain-intrinsic-size:auto_88px]"
-      onDoubleClick={() => onDoubleClick(place)}
-    >
+    <div className="[content-visibility:auto] [contain-intrinsic-size:auto_98px]">
       <PlaceCard
         index={index}
+        href={`/place/${place.id}`}
         name={place.name}
         category={`${place.category} · ${place.barrio}`}
         rating={place.rating}
@@ -584,12 +574,11 @@ const PlaceCardRow = memo(function PlaceCardRow({
         icon={place.icon}
         logoUrl={place.logoUrl}
         topDelMes={place.topDelMes}
+        boosted={place.boosted}
         tags={place.tags}
         selected={selected}
         liked={liked}
-        onSelect={() => onSelect(place.id)}
         onLike={() => onLike(place.id)}
-        onDetail={() => onDetail(place.id)}
         onLocate={() => onLocate(place)}
       />
     </div>
@@ -597,7 +586,6 @@ const PlaceCardRow = memo(function PlaceCardRow({
 });
 
 function HomePageContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   /* Llegada desde «Ver el mapa» de la portada: la ubicación ya se pidió en ese
      toque y lo que el visitante quiere ver es su zona, no la última vista del
@@ -709,7 +697,8 @@ function HomePageContent() {
      leían de `localStorage` aquí aparte, así que la pantalla podía estar
      pintando un catálogo y el panel de admin editando otro: cambiar el icono
      de una categoría no movía ni un pin del mapa. */
-  const { places, categories, hydrated, refreshPlaces } = usePlaces();
+  const { places, categories, hydrated, lastSyncedAt, refreshPlaces } =
+    usePlaces();
 
   /* La provincia del perfil recorta el catálogo, y lo recorta **para dos
      sitios y solo dos**: la lista de recomendaciones y el catálogo que viaja a
@@ -1021,24 +1010,10 @@ function HomePageContent() {
     });
   }, [userId]);
 
-  /* Tocar una card de recomendaciones baja la hoja a su vista más baja: el
-     negocio se queda resaltado en el mapa, y con la lista delante no se veía. */
-  const handleSelect = useCallback((id: string) => {
-    setSelectedId(id);
-    setPeekKey((k) => k + 1);
-  }, []);
-
   // Tocar el fondo del mapa quita la selección, como en cualquier mapa.
   const handleDeselect = useCallback(() => {
     setSelectedId("");
   }, []);
-
-  const handleDetail = useCallback(
-    (id: string) => {
-      router.push(`/place/${id}`);
-    },
-    [router],
-  );
 
   const handleSearch = useCallback(
     async (query: string) => {
@@ -1240,10 +1215,6 @@ function HomePageContent() {
     (place: MapPlace) => handleMarkerClick(place.id),
     [handleMarkerClick],
   );
-
-  const handleCardDoubleClick = useCallback((place: HomePlace) => {
-    setDetailPlace(place);
-  }, []);
 
   /* Vuela el mapa hasta un lugar al tocar su botón de ubicación —el 📍 "Ver en
      el mapa" de la card—, lo resalta y baja la hoja a su vista más baja. Las
@@ -1513,7 +1484,9 @@ function HomePageContent() {
   const sheetSubtitle =
     sheetState === "results" && searchingQuery
       ? `Resultados para "${searchingQuery}"`
-      : sheetInfo.subtitle;
+      : sheetState === "default"
+        ? `Lugares cerca de ti${lastSyncedAt ? ` · actualizado ${formatRelativeTime(lastSyncedAt)}` : ""}`
+        : sheetInfo.subtitle;
 
   // En resultados, muestra SOLO los lugares que la IA eligió, respetando su orden.
   // En la vista por defecto (sin búsqueda) muestra todo el catálogo.
@@ -1654,11 +1627,11 @@ function HomePageContent() {
             <button
               type="button"
               onClick={handleReloadRecommendations}
-              aria-label="Recargar recomendaciones"
-              title="Recargar recomendaciones"
-              className="grid size-8 shrink-0 place-items-center rounded-full text-ink-soft/50 transition-colors duration-500 hover:bg-sand hover:text-ink"
+              aria-label="Actualizar recomendaciones"
+              title="Actualizar recomendaciones"
+              className="-my-2 -mr-[10px] grid size-11 shrink-0 place-items-center rounded-full text-ink-soft/60 transition-colors duration-500 hover:bg-sand hover:text-ink"
             >
-              <RefreshCw size={15} strokeWidth={1.8} aria-hidden />
+              <RefreshCw size={18} strokeWidth={1.8} aria-hidden="true" />
             </button>
           ) : undefined
         }
@@ -1701,22 +1674,18 @@ function HomePageContent() {
                 </p>
               </motion.div>
 
-              {/* De cuándo son los datos y cómo volver a pedirlos. Va aquí y
-                  no en el header para que esté donde se mira el catálogo. */}
-              <CatalogSync />
-
               {/* Place list. Mientras el catálogo llega de la base, skeletons
                   con la forma de las tarjetas: sin esto el sheet contaba
                   «0 lugares» y el mapa arrancaba sin pines hasta que la
                   respuesta aterrizaba de golpe. */}
-              <div className="flex flex-col gap-gap-sm" aria-busy={!hydrated}>
+              <div className="flex flex-col gap-[10px]" aria-busy={!hydrated}>
                 {!hydrated &&
                   [1, 2, 3].map((i) => (
                     <div
                       key={`sk-${i}`}
-                      className="flex gap-[14px] p-[14px] border border-ink/5 rounded-2xl"
+                      className="flex gap-[12px] rounded-2xl border border-ink/5 p-3"
                     >
-                      <Skeleton className="size-16 rounded-xl shrink-0" />
+                      <Skeleton className="size-16 rounded-lv-lg shrink-0" />
                       <div className="flex-1 flex flex-col gap-2 pt-1">
                         <Skeleton className="h-[14px] w-[65%]" />
                         <Skeleton className="h-[12px] w-[40%]" />
@@ -1731,11 +1700,8 @@ function HomePageContent() {
                     index={i}
                     selected={selectedId === place.id}
                     liked={likedIds.has(place.id)}
-                    onSelect={handleSelect}
                     onLike={handleLike}
-                    onDetail={handleDetail}
                     onLocate={handleLocate}
-                    onDoubleClick={handleCardDoubleClick}
                   />
                 ))}
               </div>
