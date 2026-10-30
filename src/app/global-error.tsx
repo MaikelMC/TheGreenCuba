@@ -55,6 +55,11 @@ export default function GlobalError({
             border: 1px solid rgba(8,19,13,0.10); }
           .ge-outline:hover { background: #EAF7EF; border-color: #67C792; }
           @media (prefers-reduced-motion: reduce) { .ge-btn { transition: none; } }
+          /* 100dvh cuando exista: en móvil la barra de URL deja 100vh corto
+             o largo según el momento. El estilo en línea mantiene el respaldo. */
+          @supports (min-height: 100dvh) {
+            body { min-height: 100dvh !important; }
+          }
         `}</style>
       </head>
       <body

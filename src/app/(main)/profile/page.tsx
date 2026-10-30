@@ -14,7 +14,7 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { DetailsView } from "@/components/profile/details-view";
 import { PlacesView } from "@/components/profile/places-view";
 import { SettingsView } from "@/components/profile/settings-view";
-import { ProjectsView } from "@/components/profile/projects-view";
+import { ProjectsView, type ProjectFlow } from "@/components/profile/projects-view";
 import { Skeleton } from "@/components/ui";
 import {
   DOCK_ITEMS,
@@ -36,18 +36,23 @@ const SAVE_BTN =
 /**
  * Armazón del perfil. Las tres secciones se cambian con el dock, sin tocar la
  * URL —el mismo criterio que sigue el panel de negocio—, así que el formulario
- * conserva lo escrito sin guardar al irse a mirar «Mis lugares» y volver.
+ * conserva lo escrito sin guardar al irse a mirar «Sobre mí» y volver.
  *
  * El estado de las preferencias vive aquí y no en la vista del formulario
  * porque el botón de guardar está en la cabecera, que es del armazón. Por eso
- * ese botón solo se pinta en la vista «Perfil»: en las otras dos no habría nada
- * que guardar y estaría mintiendo.
+ * ese botón solo se pinta donde hay algo que guardar: «Info» y «Sobre mí». El
+ * alta de negocio y proyecto se abre desde «Info» y no tiene entrada propia en
+ * el dock.
  */
 export default function ProfilePage() {
   const [view, setView] = useState<ProfileView>("perfil");
+  /* Qué alta se abrió desde las tarjetas de «Info». El dock no tiene una
+     sección de negocio propia: el flujo solo se alcanza desde ahí. */
+  const [projectFlow, setProjectFlow] = useState<ProjectFlow>("business");
   const [prefs, setPrefs] = useState<UserPreferences | null>(null);
   const [saved, setSaved] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [hasBusiness, setHasBusiness] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -60,9 +65,18 @@ export default function ProfilePage() {
      envolver la página en un `Suspense` y a renunciar al HTML estático que hoy
      se sirve. Para leer un parámetro una vez al montar, no compensa. */
   useEffect(() => {
-    const section = new URLSearchParams(window.location.search).get("seccion");
+    const params = new URLSearchParams(window.location.search);
+    const section = params.get("seccion");
     if (section === "proyectos") {
       window.location.replace("/projects");
+      return;
+    }
+    /* «negocio» ya no es una pestaña: los enlaces viejos
+       (`/profile?seccion=negocio`) siguen existiendo fuera de esta página, así
+       que llevan al alta correspondiente en vez de quedarse en Info. */
+    if (section === "negocio") {
+      setProjectFlow(params.get("modo") === "proyecto" ? "registration" : "business");
+      setView("negocio");
       return;
     }
     if (section && DOCK_ITEMS.some((item) => item.id === section)) {
@@ -83,6 +97,11 @@ export default function ProfilePage() {
     window.history.replaceState(null, "", url);
   }
 
+  function openProjectFlow(flow: ProjectFlow) {
+    setProjectFlow(flow);
+    changeView("negocio");
+  }
+
   useEffect(() => {
     const localPrefs = readUserPreferences(userId);
     setPrefs(localPrefs);
@@ -96,6 +115,7 @@ export default function ProfilePage() {
         phone?: string | null;
         locationCity?: string | null;
         onboardingCompleted?: boolean;
+        business?: { isActive: boolean } | null;
         preferences?: { interests?: string[]; moods?: string[]; currencies?: string[] } | null;
       } | null;
     }>()
@@ -105,6 +125,7 @@ export default function ProfilePage() {
 
         const nextUserId = user.id ?? null;
         setUserId(nextUserId);
+        setHasBusiness(Boolean(user.business));
         const nextLocalPrefs = mergeRemoteUserPreferences(readUserPreferences(nextUserId), user);
 
         const nextName = user.name || nextLocalPrefs.name;
@@ -153,7 +174,12 @@ export default function ProfilePage() {
       });
   }, []);
 
-  const title = DOCK_ITEMS.find((item) => item.id === view)?.label ?? "Perfil";
+  const title =
+    view === "negocio"
+      ? projectFlow === "business"
+        ? "Registrar negocio"
+        : "Registrar proyecto"
+      : DOCK_ITEMS.find((item) => item.id === view)?.label ?? "Perfil";
 
   if (!prefs) {
     /* Armazón con la forma de lo que viene: título y tres campos al ancho del
@@ -267,12 +293,12 @@ export default function ProfilePage() {
   return (
     <div className="min-h-dvh bg-sand font-lv text-ink">
       <TopBar title={title} initial={prefs.name.charAt(0)}>
-        {view === "perfil" && (
+        {(view === "perfil" || view === "lugares") && (
           <motion.button
             type="button"
             whileTap={{ scale: 0.98 }}
             onClick={handleSave}
-            className={cn(SAVE_BTN, "flex h-9 shrink-0 items-center gap-gap-xs rounded-full px-gap-md text-small")}
+            className={cn(SAVE_BTN, "flex h-11 shrink-0 items-center gap-gap-xs rounded-full px-gap-md text-small")}
           >
             <motion.span
               key={saved ? "saved" : "save"}
@@ -319,13 +345,15 @@ export default function ProfilePage() {
               <DetailsView
                 prefs={prefs}
                 set={set}
-                toggle={toggle}
-                onSave={handleSave}
-                saved={saved}
+                hasBusiness={hasBusiness}
+                onRegisterBusiness={() => openProjectFlow("business")}
+                onRegisterProject={() => openProjectFlow("registration")}
               />
             )}
-            {view === "lugares" && <PlacesView />}
-            {view === "negocio" && <ProjectsView />}
+            {view === "lugares" && <PlacesView prefs={prefs} toggle={toggle} />}
+            {view === "negocio" && (
+              <ProjectsView flow={projectFlow} onBack={() => changeView("perfil")} />
+            )}
             {view === "ajustes" && <SettingsView />}
           </motion.div>
         </AnimatePresence>
@@ -372,7 +400,7 @@ function TopBar({
     <motion.header
       animate={{ y: visible ? 0 : -100, opacity: visible ? 1 : 0 }}
       transition={{ duration: 0.3, ease: EASE }}
-      className="sticky top-0 z-50 flex h-header items-center gap-2 border-b border-ink/5 bg-sand-warm/90 px-3 backdrop-blur-[16px] sm:gap-gap-sm sm:px-gap-md"
+      className="safe-top sticky top-0 z-50 flex h-header items-center gap-2 border-b border-ink/5 bg-sand-warm/90 px-3 backdrop-blur-[16px] sm:gap-gap-sm sm:px-gap-md"
     >
       <Link
         href="/home"

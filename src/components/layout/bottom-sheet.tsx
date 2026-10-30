@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type SheetState = "peek" | "full";
@@ -131,102 +132,105 @@ export function BottomSheet({
     setState((prev) => (prev === "full" ? "peek" : "full"));
   }
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    const sheet = sheetRef.current;
-    if (!sheet) return;
-    startY.current = e.clientY;
-    didDrag.current = false;
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent, tapToToggle = true) => {
+      const sheet = sheetRef.current;
+      if (!sheet) return;
+      startY.current = e.clientY;
+      didDrag.current = false;
 
-    const style = getComputedStyle(sheet);
-    const matrix = new DOMMatrixReadOnly(style.transform);
-    startTranslate.current = matrix.m42;
-    floorY.current = sheet.offsetHeight - PEEK_INSET;
-    /* `setPointerCapture` lanza `NotFoundError` si el puntero ya no está
+      const style = getComputedStyle(sheet);
+      const matrix = new DOMMatrixReadOnly(style.transform);
+      startTranslate.current = matrix.m42;
+      floorY.current = sheet.offsetHeight - PEEK_INSET;
+      /* `setPointerCapture` lanza `NotFoundError` si el puntero ya no está
          activo, y dentro del WebView de Instagram pasa: la excepción cortaba el
          manejador antes de registrar los escuchas y el toque no hacía nada. Sin
          captura el gesto sigue entero —solo se pierde si el dedo se sale del
          asa—, así que el fallo no se propaga. */
-    try {
-      sheet.setPointerCapture(e.pointerId);
-    } catch {
-      /* sin captura; el resto del gesto corre igual */
-    }
-
-    const onMove = (ev: PointerEvent) => {
-      const dy = ev.clientY - startY.current;
-      // Solo se entra en modo arrastre cuando el dedo supera el umbral. El
-      // arrastre desactiva la transición CSS, así que activarlo en el
-      // pointerdown hacía que un simple toque saltara la hoja a
-      // `dragRef.current` de golpe. Ese era el arranque brusco al abrir.
-      if (!didDrag.current) {
-        if (Math.abs(dy) <= 5) return;
-        didDrag.current = true;
-        setIsDragging(true);
+      try {
+        sheet.setPointerCapture(e.pointerId);
+      } catch {
+        /* sin captura; el resto del gesto corre igual */
       }
-      // `translateY` se mide desde la posición abierta: 0 = abierta, positivo
-      // = más abajo. El `Math.min(0, ...)` anterior recortaba a 0 todo valor
-      // positivo, así que mover el dedo 6 px hacia arriba abría la hoja de
-      // golpe. Un dedo real casi siempre supera el umbral de 5 px, de modo
-      // que un toque normal caía justo en ese salto.
-      dragRef.current = Math.min(
-        floorY.current,
-        Math.max(0, startTranslate.current + dy),
-      );
-      setDragY(dragRef.current);
-    };
 
-    const cleanup = () => {
-      sheet.removeEventListener("pointermove", onMove);
-      sheet.removeEventListener("pointerup", onUp);
-      sheet.removeEventListener("pointercancel", onCancel);
-    };
+      const onMove = (ev: PointerEvent) => {
+        const dy = ev.clientY - startY.current;
+        // Solo se entra en modo arrastre cuando el dedo supera el umbral. El
+        // arrastre desactiva la transición CSS, así que activarlo en el
+        // pointerdown hacía que un simple toque saltara la hoja a
+        // `dragRef.current` de golpe. Ese era el arranque brusco al abrir.
+        if (!didDrag.current) {
+          if (Math.abs(dy) <= 5) return;
+          didDrag.current = true;
+          setIsDragging(true);
+        }
+        // `translateY` se mide desde la posición abierta: 0 = abierta, positivo
+        // = más abajo. El `Math.min(0, ...)` anterior recortaba a 0 todo valor
+        // positivo, así que mover el dedo 6 px hacia arriba abría la hoja de
+        // golpe. Un dedo real casi siempre supera el umbral de 5 px, de modo
+        // que un toque normal caía justo en ese salto.
+        dragRef.current = Math.min(
+          floorY.current,
+          Math.max(0, startTranslate.current + dy),
+        );
+        setDragY(dragRef.current);
+      };
 
-    const onUp = () => {
-      cleanup();
+      const cleanup = () => {
+        sheet.removeEventListener("pointermove", onMove);
+        sheet.removeEventListener("pointerup", onUp);
+        sheet.removeEventListener("pointercancel", onCancel);
+      };
 
-      if (didDrag.current) {
-        // Umbral sobre la posición final, no sobre el recorrido: así da igual
-        // desde qué estado arrancó el gesto. `offsetHeight - 120` es el mismo
-        // `calc(100% - 120px)` del estado peek, porque el porcentaje de
-        // `translateY` se resuelve contra la altura del propio elemento.
-        const peekY = sheet.offsetHeight - PEEK_INSET;
-        setIsDragging(false);
-        setState(dragRef.current < peekY / 2 ? "full" : "peek");
-      } else {
-        // Toque sin arrastre: `isDragging` nunca se tocó, la transición CSS
-        // siguió activa todo el tiempo y el cambio de estado anima igual que
-        // al cerrar.
-        cycleState();
-      }
-    };
+      const onUp = () => {
+        cleanup();
 
-    /* El WebView de dentro de Instagram se queda el gesto y no manda el
+        if (didDrag.current) {
+          // Umbral sobre la posición final, no sobre el recorrido: así da igual
+          // desde qué estado arrancó el gesto. `offsetHeight - 120` es el mismo
+          // `calc(100% - 120px)` del estado peek, porque el porcentaje de
+          // `translateY` se resuelve contra la altura del propio elemento.
+          const peekY = sheet.offsetHeight - PEEK_INSET;
+          setIsDragging(false);
+          setState(dragRef.current < peekY / 2 ? "full" : "peek");
+        } else if (tapToToggle) {
+          // Toque sin arrastre: `isDragging` nunca se tocó, la transición CSS
+          // siguió activa todo el tiempo y el cambio de estado anima igual que
+          // al cerrar.
+          cycleState();
+        }
+      };
+
+      /* El WebView de dentro de Instagram se queda el gesto y no manda el
          `pointerup`: sin atender la cancelación los escuchas se quedaban
          pegados al elemento, y el toque siguiente ejecutaba `onUp` dos veces.
          Como `cycleState` alterna, la segunda llamada devolvía la hoja a `peek`
          —abría y volvía a caer de golpe—, y cada gesto perdido dejaba un par
          más, hasta que la hoja se quedaba recogida y rebotando. Recargar
          arreglaba porque el componente arrancaba con la lista limpia. */
-    const onCancel = () => {
-      cleanup();
+      const onCancel = () => {
+        cleanup();
 
-      if (didDrag.current) {
-        // Gesto abortado a media: vuelve a reposo sin cambiar de estado.
-        didDrag.current = false;
-        setIsDragging(false);
-        setDragY(0);
-        return;
-      }
+        if (didDrag.current) {
+          // Gesto abortado a media: vuelve a reposo sin cambiar de estado.
+          didDrag.current = false;
+          setIsDragging(false);
+          setDragY(0);
+          return;
+        }
 
-      // Cancelado sin arrastre es un toque que el WebView se comió: no habrá
-      // `pointerup` (la cancelación lo sustituye), así que se atiende aquí.
-      cycleState();
-    };
+        // Cancelado sin arrastre es un toque que el WebView se comió: no habrá
+        // `pointerup` (la cancelación lo sustituye), así que se atiende aquí.
+        if (tapToToggle) cycleState();
+      };
 
-    sheet.addEventListener("pointermove", onMove);
-    sheet.addEventListener("pointerup", onUp);
-    sheet.addEventListener("pointercancel", onCancel);
-  }, []);
+      sheet.addEventListener("pointermove", onMove);
+      sheet.addEventListener("pointerup", onUp);
+      sheet.addEventListener("pointercancel", onCancel);
+    },
+    [],
+  );
 
   return (
     <div
@@ -236,7 +240,7 @@ export function BottomSheet({
         // `will-change-transform` promueve la sheet a su propia capa: el
         // deslizamiento se compone en GPU en vez de repintar en cada frame, que
         // en móvil es justo lo que se nota como tirones.
-        "fixed left-0 right-0 bottom-0 z-300 bg-white rounded-t-4xl shadow-[0_-8px_40px_-12px_rgba(8,19,13,0.18)] will-change-transform transition-[transform] [transition-duration:500ms] [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] max-h-[70vh] lg:max-h-none flex flex-col pb-safe-bottom",
+        "fixed left-0 right-0 bottom-0 z-300 bg-white rounded-t-4xl shadow-[0_-8px_40px_-12px_rgba(8,19,13,0.18)] will-change-transform transition-[transform] [transition-duration:500ms] [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] max-h-[70vh] supports-[height:100dvh]:max-h-[70dvh] lg:max-h-none flex flex-col pb-safe-bottom",
         // Al cerrar vuelve antes que al abrir: entrar despacio da sensación de
         // continuidad, salir despacio se hace pesado. El `data-state` ya cambió
         // cuando arranca la transición, así que cada dirección usa su duración.
@@ -254,6 +258,7 @@ export function BottomSheet({
         role="button"
         tabIndex={0}
         aria-expanded={state === "full"}
+        aria-controls="bottom-sheet-content"
         aria-label="Mostrar u ocultar el panel"
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -264,8 +269,10 @@ export function BottomSheet({
         /* `touch-none`: el gesto es del asa, no del navegador. Sin esto el
            WebView se lo adjudica al primer movimiento y responde con
            `pointercancel`, que es de donde salían los toques perdidos. */
-        className="flex justify-center py-[10px] pb-[6px] cursor-grab active:cursor-grabbing shrink-0 touch-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-verde-400/50"
-        onPointerDown={handlePointerDown}
+        /* 44 px de alto en total: antes eran 20 y el dedo se quedaba corto.
+           Sigue siendo un botón para teclado. */
+        className="flex min-h-11 items-center justify-center py-[10px] pb-[6px] cursor-grab active:cursor-grabbing shrink-0 touch-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-verde-400/50"
+        onPointerDown={(e) => handlePointerDown(e)}
       >
         <div
           className={cn(
@@ -275,8 +282,20 @@ export function BottomSheet({
         />
       </div>
 
-      {/* Header */}
-      <div className="px-5 pb-gap-sm border-b border-ink/5 shrink-0">
+      {/* Header. También es zona de arrastre, salvo sobre sus botones: quien
+          intenta bajar la hoja empujando el titular no encuentra nada si solo
+          responde el asa de 4 px. */}
+      <div
+        className="px-5 pb-gap-sm border-b border-ink/5 shrink-0 touch-none"
+        onPointerDown={(e) => {
+          if (
+            (e.target as Element).closest("button, a, input, select, textarea")
+          ) {
+            return;
+          }
+          handlePointerDown(e, false);
+        }}
+      >
         <div className="flex items-start justify-between gap-gap-sm">
           <h2 className="font-lv-display text-h3 font-semibold text-ink flex items-center gap-gap-xs">
             {title}
@@ -286,10 +305,35 @@ export function BottomSheet({
               </span>
             )}
           </h2>
-          {action}
+          <div className="-my-2 flex shrink-0 items-center gap-1">
+            {action}
+            {/* Salida explícita. El gesto y el asa siguen ahí, pero recoger la
+                hoja no puede depender de descubrirlos. */}
+            <button
+              type="button"
+              onClick={cycleState}
+              aria-expanded={state === "full"}
+              aria-controls="bottom-sheet-content"
+              aria-label={
+                state === "full" ? "Recoger el panel" : "Abrir el panel"
+              }
+              title={state === "full" ? "Recoger el panel" : "Abrir el panel"}
+              className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full text-ink-soft/60 transition-colors duration-500 hover:bg-sand hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/50"
+            >
+              <ChevronDown
+                size={18}
+                strokeWidth={2}
+                aria-hidden="true"
+                className={cn(
+                  "transition-transform duration-300",
+                  state === "full" && "rotate-180",
+                )}
+              />
+            </button>
+          </div>
         </div>
         {subtitle && (
-          <p className="mt-[2px] text-[13px] leading-[18px] text-[#5b6b7a] dark:text-[#9fb0c0]">
+          <p className="mt-[2px] pr-12 text-[13px] leading-[18px] text-[#5b6b7a] dark:text-[#9fb0c0]">
             {subtitle}
           </p>
         )}
@@ -297,8 +341,9 @@ export function BottomSheet({
 
       {/* Content */}
       <div
+        id="bottom-sheet-content"
         inert={isDragging}
-        className="flex-1 overflow-y-auto px-gutter py-gap-sm pb-gutter scrollbar-hide"
+        className="flex-1 overflow-y-auto overscroll-contain px-gutter py-gap-sm pb-gutter scrollbar-hide"
       >
         {children}
       </div>

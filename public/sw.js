@@ -18,7 +18,11 @@
  * borra las cachés de versiones anteriores.
  */
 
-const CACHE_VERSION = "lv-v1";
+/* v2: las navegaciones ya no caen a la copia guardada solo porque la red tarde
+   más de 4 s. Ese camino servía HTML de un despliegue anterior mientras había
+   conexión, y la app arrancaba con la sesión y los chunks viejos. Subir la
+   versión purga las cachés que quedaron con la regla anterior. */
+const CACHE_VERSION = "lv-v2";
 
 const STATIC_CACHE = `lv-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `lv-pages-${CACHE_VERSION}`;
@@ -257,26 +261,39 @@ function esRutaPublica(url) {
 }
 
 async function navegacion(request, url) {
+  const cache = await caches.open(PAGES_CACHE);
+  const red = fetch(request);
+
+  let response = null;
   try {
-    const response = await conTimeout(fetch(request), NAV_TIMEOUT_MS);
+    response = await conTimeout(red, NAV_TIMEOUT_MS);
+  } catch {
+    /* El timeout no cancela `red`: la petición sigue viva. Si hay conexión, se
+       espera a que conteste en vez de servir la copia guardada, que puede ser
+       de otro despliegue (chunks que ya no existen, sesión de antes). Solo sin
+       red se usa el documento guardado por debajo. */
+    if (self.navigator?.onLine !== false) {
+      response = await red.catch(() => null);
+    }
+  }
+
+  if (response) {
     if (sePuedeCachear(response) && esRutaPublica(url)) {
-      const cache = await caches.open(PAGES_CACHE);
       cache.put(request, response.clone()).catch(() => {});
     }
     return response;
-  } catch {
-    const cache = await caches.open(PAGES_CACHE);
-    const cached = await cache.match(request, { ignoreSearch: true });
-    if (cached) return cached;
-
-    const offline = await caches.match("/offline.html");
-    if (offline) return offline;
-
-    return new Response(
-      "<!doctype html><html lang=\"es\"><meta charset=\"utf-8\"><title>Sin conexión</title><p>Sin conexión.</p></html>",
-      { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } },
-    );
   }
+
+  const cached = await cache.match(request, { ignoreSearch: true });
+  if (cached) return cached;
+
+  const offline = await caches.match("/offline.html");
+  if (offline) return offline;
+
+  return new Response(
+    "<!doctype html><html lang=\"es\"><meta charset=\"utf-8\"><title>Sin conexión</title><p>Sin conexión.</p></html>",
+    { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } },
+  );
 }
 
 async function apiPublica(request) {

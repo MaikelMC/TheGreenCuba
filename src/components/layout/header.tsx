@@ -148,6 +148,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const addrTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const addrAbort = useRef<AbortController | null>(null);
   const addrSeq = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -187,15 +188,18 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
   }, []);
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
+    function handleClickOutside(e: PointerEvent) {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
+    /* `pointerdown` cubre el toque de iOS Safari y el de Android por igual;
+       `mousedown` se pierde en algunas superficies no interactivas del WebView. */
+    document.addEventListener("pointerdown", handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("pointerdown", handleClickOutside);
       if (addrTimer.current) clearTimeout(addrTimer.current);
+      addrAbort.current?.abort();
       addrSeq.current++;
     };
   }, []);
@@ -218,6 +222,8 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
   function handleQueryChange(raw: string) {
     setQuery(raw);
     if (addrTimer.current) clearTimeout(addrTimer.current);
+    /* La petición anterior deja de tener sentido en cuanto cambia el texto. */
+    addrAbort.current?.abort();
     if (raw.trim().length < 3) {
       setAddrResults([]);
       setShowAllAddr(false);
@@ -225,13 +231,16 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
     }
     const seq = ++addrSeq.current;
     addrTimer.current = setTimeout(async () => {
+      const controller = new AbortController();
+      addrAbort.current = controller;
       try {
-        const results = await searchAddress(raw);
+        const results = await searchAddress(raw, controller.signal);
         if (seq !== addrSeq.current) return;
         setAddrResults(results);
         setShowAllAddr(false);
       } catch {
         if (seq !== addrSeq.current) return;
+        if (controller.signal.aborted) return;
         setAddrResults([]);
       }
     }, 350);
@@ -239,6 +248,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
 
   function handleAddressPick(s: GeocodeSuggestion) {
     if (addrTimer.current) clearTimeout(addrTimer.current);
+    addrAbort.current?.abort();
     setShowSuggestions(false);
     const label =
       [s.street, s.housenumber].filter(Boolean).join(" ") +
@@ -254,7 +264,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
   return (
     // En móvil el aire se recorta a 12/8 px: con los 16/12 de escritorio el
     // campo de búsqueda se quedaba en ~88 px y el marcador no cabía.
-    <header className="map-navigation fixed top-0 left-0 right-0 z-200 h-header border-b border-ink/5 bg-sand-warm/90 backdrop-blur-[16px] flex items-center px-3 gap-2 sm:px-gap-md sm:gap-gap-sm md:px-gap-lg min-h-[56px] md:min-h-[60px] font-lv text-ink">
+    <header className="map-navigation safe-top fixed top-0 left-0 right-0 z-200 h-header border-b border-ink/5 bg-sand-warm/90 backdrop-blur-[16px] flex items-center px-3 gap-2 sm:px-gap-md sm:gap-gap-sm md:px-gap-lg min-h-[56px] md:min-h-[60px] font-lv text-ink">
       {/* Logo. El PNG ya trae su propio degradado verde, así que va suelto: el
           círculo `verde-400 → verde-600` que lo envolvía era del mismo tono y
           se lo comía.
@@ -327,7 +337,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
             type="submit"
             aria-label="Buscar"
             disabled={!query.trim() || effectiveIsSearching}
-            className="grid size-8 shrink-0 place-items-center rounded-full bg-verde-600 text-white transition hover:bg-verde-700 active:scale-95 disabled:bg-ink/10 disabled:text-ink-soft/50 disabled:hover:bg-ink/10"
+            className="grid size-11 shrink-0 place-items-center rounded-full bg-verde-600 text-white transition hover:bg-verde-700 active:scale-95 disabled:bg-ink/10 disabled:text-ink-soft/50 disabled:hover:bg-ink/10"
           >
             <Search size={15} strokeWidth={2.4} aria-hidden />
           </button>

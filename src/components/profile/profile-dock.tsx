@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { MapPin, Settings, Store, UserRound, type LucideIcon } from "lucide-react";
+import { Info, Settings, UserRound, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { spring } from "@/lib/motion";
 import { MobileDock } from "@/components/layout/mobile-dock";
@@ -15,11 +15,12 @@ interface DockItem {
   icon: LucideIcon;
 }
 
-/* Las secciones principales del perfil; la gestión de proyectos vive en el menú de usuario. */
+/* Las secciones principales del perfil; la gestión de proyectos vive en el menú
+   de usuario. El alta de negocio y de proyecto vive dentro de «Info», así que no
+   ocupa una entrada propia en el dock. */
 export const DOCK_ITEMS: DockItem[] = [
-  { id: "perfil", label: "Perfil", icon: UserRound },
-  { id: "lugares", label: "Mis lugares", icon: MapPin },
-  { id: "negocio", label: "Tengo un negocio", icon: Store },
+  { id: "perfil", label: "Info", icon: Info },
+  { id: "lugares", label: "Sobre mí", icon: UserRound },
   { id: "ajustes", label: "Configuración", icon: Settings },
 ];
 

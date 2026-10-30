@@ -45,7 +45,7 @@ export default async function LinksPage() {
 
   return (
     <div className="min-h-dvh bg-sand font-lv text-ink">
-      <header className="sticky top-0 z-50 flex h-header items-center gap-2 border-b border-ink/5 bg-sand-warm/90 px-3 backdrop-blur-[16px] sm:gap-gap-sm sm:px-gap-md">
+      <header className="safe-top sticky top-0 z-50 flex h-header items-center gap-2 border-b border-ink/5 bg-sand-warm/90 px-3 backdrop-blur-[16px] sm:gap-gap-sm sm:px-gap-md">
         <Link
           href="/home"
           className="grid size-9 shrink-0 place-items-center rounded-full text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-verde-50 hover:text-verde-600"

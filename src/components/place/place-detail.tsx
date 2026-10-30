@@ -368,7 +368,7 @@ export function PlaceDetail({
           que leen los rastreadores y los lectores de pantalla. */}
       <h1 className="sr-only">{place.name}</h1>
       {/* ─── Header ─── */}
-      <header className="sticky top-0 z-50 h-header bg-sand-warm/90 backdrop-blur-[16px] border-b border-ink/5 flex items-center gap-gap-sm px-gutter">
+      <header className="safe-top sticky top-0 z-50 h-header bg-sand-warm/90 backdrop-blur-[16px] border-b border-ink/5 flex items-center gap-gap-sm px-gutter">
         <button
           type="button"
           onClick={onBack}

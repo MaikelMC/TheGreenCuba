@@ -164,7 +164,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="admin-panel h-dvh bg-sand font-lv text-ink flex flex-col">
       {/* Top Bar */}
-      <header className="sticky top-0 z-50 bg-sand-warm/90 backdrop-blur-[16px] border-b border-ink/5 h-header flex items-center px-3 gap-2 sm:px-gap-md sm:gap-gap-sm shrink-0">
+      <header className="safe-top sticky top-0 z-50 bg-sand-warm/90 backdrop-blur-[16px] border-b border-ink/5 h-header flex items-center px-3 gap-2 sm:px-gap-md sm:gap-gap-sm shrink-0">
         <Link
           href="/home"
           className="size-11 grid place-items-center rounded-full hover:bg-verde-50 transition-colors duration-500 ease-outquint text-ink-soft/75 hover:text-verde-600 shrink-0"

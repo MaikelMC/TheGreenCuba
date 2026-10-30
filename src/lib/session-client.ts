@@ -37,7 +37,13 @@ let cached: Promise<unknown> | null = null;
 let cachedForced = false;
 
 async function pedir(): Promise<unknown> {
-  const response = await fetch("/api/me");
+  /* `no-store` explícito: la ruta también lo manda, pero Safari en iOS puede
+     reutilizar una respuesta anterior a la entrada y el header se quedaba con
+     el botón de «Iniciar sesión». */
+  const response = await fetch("/api/me", {
+    cache: "no-store",
+    credentials: "same-origin",
+  });
   if (!response.ok) throw new Error(`/api/me respondió ${response.status}`);
   const data = (await response.json()) as {
     authenticated?: boolean;

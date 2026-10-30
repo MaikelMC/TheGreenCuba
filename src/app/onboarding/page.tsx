@@ -514,6 +514,43 @@ export default function OnboardingPage() {
     }
   }, []);
 
+  /* Alto que ocupa el teclado, para `layout.tsx`: iOS Safari no encoge `dvh`
+     al escribir, así que el pie con «Continuar» quedaba tapado. Solo se mide
+     con un campo enfocado, para no encoger la pantalla al hacer pinch-zoom. */
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const raiz = document.documentElement;
+    const update = () => {
+      const activo = document.activeElement;
+      const escribiendo =
+        activo instanceof HTMLElement &&
+        (activo.tagName === "INPUT" ||
+          activo.tagName === "TEXTAREA" ||
+          activo.isContentEditable);
+      if (!escribiendo) {
+        raiz.style.setProperty("--kb-inset", "0px");
+        return;
+      }
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      raiz.style.setProperty("--kb-inset", `${Math.round(inset)}px`);
+    };
+    /* `focusout` llega antes de que el nuevo campo tome el foco. */
+    const programar = () => window.setTimeout(update, 80);
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    document.addEventListener("focusin", programar);
+    document.addEventListener("focusout", programar);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      document.removeEventListener("focusin", programar);
+      document.removeEventListener("focusout", programar);
+      raiz.style.removeProperty("--kb-inset");
+    };
+  }, []);
+
   const handleSplashDone = useCallback(() => {
     setSplashDone(true);
     setAnimTick((t) => t + 1);

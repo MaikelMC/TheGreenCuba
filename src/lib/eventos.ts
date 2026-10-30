@@ -91,33 +91,29 @@ export function parsearEvento(valor: unknown): EventoCliente | null {
 
 /* ── Lo que lee el panel ──────────────────────────────────────────────────────
    El tipo vive aquí, con el catálogo, y no en el módulo que consulta la base:
-   así el componente de cliente lo importa sin arrastrar el driver de Neon. Las
-   tres partes son opcionales porque el servidor solo rellena las que el plan
+   así el componente de cliente lo importa sin arrastrar el driver de Neon. La
+   parte opcional es tal porque el servidor solo la rellena si el plan la
    incluye —el candado se decide antes de salir de la base, no en el navegador—. */
 
 export interface VisitasPanel {
   /**
    * Visitas a la ficha o a la carta. Lo ve hasta Gratis.
    *
-   * `total` es el acumulado histórico y `mes`, el mes en curso: el dashboard
-   * enseña el total en su tarjeta y la sección de estadísticas el del mes, para
-   * que las dos cifras no digan lo mismo.
+   * `total` es el acumulado histórico y `mes`, el mes en curso. `ficha7` y
+   * `catalogo7` son los clics de la última semana separados por dónde entró la
+   * gente, que es la cifra que se mueve a diario.
    */
-  resumen: { mes: number; total: number };
+  resumen: {
+    mes: number;
+    total: number;
+    ficha7: number;
+    catalogo7: number;
+  };
   /** Visitas y llamadas a 7 y 30 días. Módulo Visibilidad, o un pack. */
   basicas?: {
     visitas7: number;
     llamadas7: number;
     visitas30: number;
     llamadas30: number;
-  };
-  /** Serie diaria, productos más vistos y reservas. Pro. */
-  completas?: {
-    /** Últimos 14 días, sin huecos: los días sin datos van a cero. */
-    serie: { fecha: string; conteo: number }[];
-    /** Los cinco productos que más se han visto en 30 días. */
-    topProductos: { nombre: string; conteo: number }[];
-    /** Toques al botón de reservar, a 7 y 30 días. Va en Pro como la función. */
-    reservas: { corto: number; largo: number };
   };
 }

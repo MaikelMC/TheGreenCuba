@@ -79,15 +79,24 @@ interface PhotonFeature {
   };
 }
 
-async function fetchJson(url: string, timeoutMs = 9000): Promise<unknown> {
+async function fetchJson(
+  url: string,
+  timeoutMs = 9000,
+  signal?: AbortSignal,
+): Promise<unknown> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  /* Cancelar la petición anterior deja de gastar datos cuando el usuario
+     sigue escribiendo: el debounce solo evitaba lanzarla, no la abortaba. */
+  const alAbortar = () => ctrl.abort();
+  signal?.addEventListener("abort", alAbortar, { once: true });
   try {
     const res = await fetch(url, { signal: ctrl.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } finally {
     clearTimeout(t);
+    signal?.removeEventListener("abort", alAbortar);
   }
 }
 
@@ -109,6 +118,7 @@ function streetLabel(feature: PhotonFeature): string {
 /** Búsqueda de direcciones con Photon. Devuelve calles de OSM ordenadas. */
 export async function searchAddress(
   query: string,
+  signal?: AbortSignal,
 ): Promise<GeocodeSuggestion[]> {
   const q = query.trim();
   if (q.length < 3) return [];
@@ -117,7 +127,7 @@ export async function searchAddress(
   const qSearch = CUBA_QUERY_TAIL.test(q) ? q : `${q}, Cuba`;
   const between = extractBetween(q);
   const url = `${PHOTON_URL}?q=${encodeURIComponent(qSearch)}&limit=6`;
-  const data = (await fetchJson(url)) as {
+  const data = (await fetchJson(url, 9000, signal)) as {
     features?: PhotonFeature[];
   } | null;
   if (!data?.features) return [];
@@ -155,7 +165,9 @@ export async function searchAddress(
 }
 
 /** Busca ciudades, municipios y pueblos de Cuba para el salto rápido del mapa. */
-export async function searchCubaAreas(query: string): Promise<AreaSuggestion[]> {
+export async function searchCubaAreas(
+  query: string,
+): Promise<AreaSuggestion[]> {
   const q = query.trim();
   if (q.length < 2) return [];
 
@@ -168,14 +180,22 @@ export async function searchCubaAreas(query: string): Promise<AreaSuggestion[]> 
       const properties = feature.properties;
       const type = properties.type;
       return (
-        ["city", "town", "village", "municipality", "district", "suburb"].includes(type ?? "") &&
+        [
+          "city",
+          "town",
+          "village",
+          "municipality",
+          "district",
+          "suburb",
+        ].includes(type ?? "") &&
         properties.country?.toLowerCase() === "cuba" &&
         Number.isFinite(feature.geometry.coordinates[0])
       );
     })
     .map((feature, index) => {
       const properties = feature.properties;
-      const name = properties.name ?? properties.city ?? properties.district ?? "";
+      const name =
+        properties.name ?? properties.city ?? properties.district ?? "";
       const province = properties.state ?? properties.city ?? "Cuba";
       return {
         id: `search-${name}-${feature.geometry.coordinates.join("-")}-${index}`,

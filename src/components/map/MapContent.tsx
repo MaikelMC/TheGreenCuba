@@ -29,6 +29,60 @@ import {
 import { filterValidPlaces } from "@/lib/map/coordinates";
 import type { MapPlace, MapViewProps } from "./types";
 
+/**
+ * Mantiene el lienzo de Leaflet del tamaño real de su caja.
+ *
+ * Leaflet mide el contenedor una sola vez, al montar. En un móvil esa caja
+ * cambia sola: la barra de URL de Safari se esconde, el teclado empuja el
+ * layout al enfocar el buscador, el giro del teléfono lo reordena. Con la
+ * medida vieja los mosaicos se pintan en el sitio equivocado, aparecen franjas
+ * grises y el mapa deja de responder hasta recargar la página.
+ *
+ * Las señales se agrupan en un frame para no invalidar diez veces seguidas.
+ * `pan: false` conserva el centro elegido por el usuario.
+ */
+function MapViewportSync() {
+  const map = useMap();
+
+  useEffect(() => {
+    let frame = 0;
+    const sync = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        map.invalidateSize({ pan: false, animate: false });
+      });
+    };
+
+    const container = map.getContainer();
+    const observer =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(sync) : null;
+    observer?.observe(container);
+
+    window.addEventListener("resize", sync);
+    window.addEventListener("orientationchange", sync);
+    const viewport = window.visualViewport;
+    viewport?.addEventListener("resize", sync);
+
+    function alVolver() {
+      if (document.visibilityState === "visible") sync();
+    }
+    document.addEventListener("visibilitychange", alVolver);
+
+    sync();
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("orientationchange", sync);
+      viewport?.removeEventListener("resize", sync);
+      document.removeEventListener("visibilitychange", alVolver);
+    };
+  }, [map]);
+
+  return null;
+}
+
 function MapEventsHandler({
   onMapMove,
   onMapClick,
@@ -81,7 +135,8 @@ function FitBoundsOnMount({
   const hasFit = useRef(false);
 
   useEffect(() => {
-    if (hasFit.current || places.length === 0 || hasUserLocation || disabled) return;
+    if (hasFit.current || places.length === 0 || hasUserLocation || disabled)
+      return;
     hasFit.current = true;
 
     const p = places;
@@ -150,7 +205,9 @@ function MapChildren({
       return;
     }
     lastFlownTo.current = userLocation;
-    map.flyTo([userLocation.lat, userLocation.lng], GEO_ZOOM, { duration: 0.8 });
+    map.flyTo([userLocation.lat, userLocation.lng], GEO_ZOOM, {
+      duration: 0.8,
+    });
   }, [userLocation, map, ready]);
 
   useEffect(() => {
@@ -251,7 +308,7 @@ export function MapContent({
   const hasUserLocation = Boolean(userLocation);
   const effectiveInitialCenter: [number, number] = userLocation
     ? [userLocation.lat, userLocation.lng]
-    : initialCenter ?? HAVANA_CENTER;
+    : (initialCenter ?? HAVANA_CENTER);
 
   useEffect(() => {
     setMounted(true);
@@ -278,6 +335,7 @@ export function MapContent({
       style={{ height: "100%", width: "100%" }}
     >
       <ZoomControl position="bottomleft" />
+      <MapViewportSync />
       <MapEventsHandler onMapMove={onMapMove} onMapClick={onMapClick} />
       <FitBoundsOnMount
         places={validPlaces}

@@ -35,9 +35,9 @@ import {
  * incluye la función, el dueño la acepta y hay número. Aquí no se comprueba
  * nada de eso — un candado de cliente no cierra nada y este, además, ni existe.
  *
- * El rastro es `click_reserva`, un gesto más como `click_whatsapp`: alimenta el
- * bloque Pro del panel del dueño (`EstadisticasPanel`), que enseña cuánta gente
- * pasó a WhatsApp. No es una reserva confirmada y la tarjeta lo dice.
+ * El rastro es `click_reserva`, un gesto más como `click_whatsapp`: queda
+ * registrado en las estadísticas anónimas del negocio. No es una reserva
+ * confirmada.
  */
 
 const INPUT =

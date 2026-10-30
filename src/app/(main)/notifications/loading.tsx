@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui";
 export default function NotificationsLoading() {
   return (
     <div className="min-h-dvh bg-sand font-lv text-ink" aria-busy>
-      <div className="sticky top-0 z-20 flex h-header items-center gap-2 border-b border-ink/5 bg-sand-warm/90 px-3 backdrop-blur-[16px] sm:gap-gap-sm sm:px-gap-md">
+      <div className="safe-top sticky top-0 z-20 flex h-header items-center gap-2 border-b border-ink/5 bg-sand-warm/90 px-3 backdrop-blur-[16px] sm:gap-gap-sm sm:px-gap-md">
         <Skeleton className="size-9 shrink-0 rounded-full" />
         <Skeleton className="h-[18px] w-[140px]" />
       </div>

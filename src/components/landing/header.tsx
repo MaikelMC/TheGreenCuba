@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { Logo } from "@/components/layout/logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { UserMenu } from "@/components/layout/user-menu";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
@@ -79,12 +80,11 @@ export function Header() {
         <div className="flex items-center gap-gap-md">
           <ThemeToggle className="size-11 border-ink/10 bg-white text-ink shadow-none hover:bg-verde-50" />
 
-          <Link
-            href="/login"
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-ink/15 px-[18px] py-2.5 font-lv-display text-sm font-semibold leading-none text-ink transition duration-300 ease-outquint hover:border-ink/30 hover:bg-white active:scale-[0.98] max-sm:hidden"
-          >
-            Iniciar sesión
-          </Link>
+          {/* La esquina la resuelve `UserMenu`, el mismo componente del mapa:
+              sin sesión pinta «Iniciar sesión» y con sesión, el avatar con las
+              secciones. Antes esto era un enlace fijo a `/login`, así que a
+              quien ya había entrado se le seguía ofreciendo entrar. */}
+          <UserMenu />
 
           <Sheet>
             <SheetTrigger asChild>
@@ -121,14 +121,9 @@ export function Header() {
                     </a>
                   </SheetClose>
                 ))}
-                <SheetClose asChild>
-                  <Link
-                    href="/login"
-                    className="mt-gap-sm inline-flex w-full items-center justify-center rounded-full bg-ink py-3 font-lv-display text-sm font-semibold text-white"
-                  >
-                    Iniciar sesión
-                  </Link>
-                </SheetClose>
+                {/* El acceso ya vive en la pastilla de la barra, que también
+                    se ve en móvil. Repetirlo aquí era la vía por la que alguien
+                    con sesión volvía a ver «Iniciar sesión». */}
               </nav>
             </SheetContent>
           </Sheet>

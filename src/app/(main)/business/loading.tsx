@@ -21,7 +21,7 @@ export default function BusinessLoading() {
         Cargando el panel…
       </span>
 
-      <header className="h-header shrink-0 border-b border-ink/5 bg-sand-warm/90 flex items-center px-3 gap-2 sm:px-gap-md">
+      <header className="safe-top h-header shrink-0 border-b border-ink/5 bg-sand-warm/90 flex items-center px-3 gap-2 sm:px-gap-md">
         <Skeleton className="size-11 rounded-full" />
         <Skeleton className="h-5 w-[150px]" />
         <div className="flex-1" />

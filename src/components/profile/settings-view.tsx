@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   SunMedium,
   Trash2,
+  UserRound,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -152,8 +153,8 @@ export function SettingsView() {
           Cuenta
         </h2>
         <div className="flex items-center gap-gap-sm">
-          <span className="grid size-11 shrink-0 place-items-center rounded-full border-2 border-verde-200 bg-verde-50 font-lv-display text-body font-bold text-verde-600">
-            {(user?.name ?? "·").charAt(0)}
+          <span className="grid size-11 shrink-0 place-items-center rounded-full border-2 border-verde-200 bg-verde-50 text-verde-600">
+            <UserRound size={20} strokeWidth={1.8} aria-hidden />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-small font-medium text-ink">

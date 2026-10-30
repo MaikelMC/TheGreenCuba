@@ -112,7 +112,12 @@ export function FormSection({
         "bg-white border rounded-2xl overflow-hidden transition-colors duration-500 ease-outquint",
         invalid
           ? "border-destructive/40 ring-1 ring-destructive/15"
-          : "border-ink/5",
+          : open
+            /* Abierta, la sección se delimita con el verde del sistema: el
+               `border-ink/5` de reposo es casi invisible en claro y no
+               distingue cuál está desplegada. */
+            ? "border-verde-500 ring-1 ring-verde-200/70 dark:ring-verde-800/70"
+            : "border-ink/5",
         className,
       )}
     >

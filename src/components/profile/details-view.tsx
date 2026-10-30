@@ -1,11 +1,23 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Save, User, Mail, Phone, MapPin, Heart, Music, Wallet } from "lucide-react";
+import {
+  ArrowRight,
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Heart,
+  Music,
+  Wallet,
+  Store,
+  Megaphone,
+} from "lucide-react";
 import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { CUBA_PROVINCES, type UserPreferences } from "@/lib/user-preferences-store";
 import { focusProfileControl } from "@/components/profile/focus-profile-control";
+import { FormSection, FormSections } from "@/components/business/form-section";
 
 const INTERESTS = [
   { value: "cafes", label: "Cafeterías" },
@@ -40,41 +52,26 @@ const CURRENCIES = [
   { value: "transfer", label: "Transferencia" },
 ];
 
-/* El halo del botón primario del sistema. Vive suelto porque lo usa el botón
-   del final del formulario; el de la cabecera se lo pone el armazón. */
-const SAVE_BTN =
-  "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300 transition duration-500 ease-outquint font-lv-display font-semibold cursor-pointer";
+type TogglePreference = (listKey: "interests" | "moods" | "currencies", value: string) => void;
 
 interface DetailsViewProps {
   prefs: UserPreferences;
   set: <K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) => void;
-  toggle: (listKey: "interests" | "moods" | "currencies", value: string) => void;
-  onSave: () => void;
-  saved: boolean;
+  hasBusiness: boolean;
+  onRegisterBusiness: () => void;
+  onRegisterProject: () => void;
 }
 
-/** «Perfil»: el formulario de preferencias, tal cual estaba en la página. */
-export function DetailsView({ prefs, set, toggle, onSave, saved }: DetailsViewProps) {
-  const { name } = prefs;
-
+/** «Info»: los datos de la cuenta y las puertas al alta de negocio o proyecto. */
+export function DetailsView({
+  prefs,
+  set,
+  hasBusiness,
+  onRegisterBusiness,
+  onRegisterProject,
+}: DetailsViewProps) {
   return (
     <div className="flex flex-col gap-gap-xl" onPointerDownCapture={focusProfileControl}>
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: EASE }}
-        className="flex flex-col items-center gap-gap-sm"
-      >
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
-          className="grid size-20 place-items-center overflow-hidden rounded-full border-2 border-verde-200 bg-verde-50 font-lv-display text-2xl font-bold text-verde-600"
-        >
-          {name.charAt(0)}
-        </motion.div>
-      </motion.div>
-
       <motion.div
         initial="hidden"
         animate="show"
@@ -126,67 +123,131 @@ export function DetailsView({ prefs, set, toggle, onSave, saved }: DetailsViewPr
           )}
         </Section>
 
-        <Section title="Lugares que te gustan" icon={Heart}>
-          <div className="flex flex-wrap gap-gap-xs">
-            {INTERESTS.map((it) => (
-              <Chip
-                key={it.value}
-                selected={prefs.interests.includes(it.value)}
-                onClick={() => toggle("interests", it.value)}
-                label={it.label}
-              />
-            ))}
+        <Section title="Tu negocio" icon={Store}>
+          <div className="grid grid-cols-2 gap-gap-sm">
+            <EntryCard
+              icon={Store}
+              title={hasBusiness ? "Gestionar mi negocio" : "Registrar negocio"}
+              description={
+                hasBusiness
+                  ? "Tu ficha, su estado y el acceso al panel."
+                  : "Local permanente con ficha y horarios."
+              }
+              onClick={onRegisterBusiness}
+            />
+            <EntryCard
+              icon={Megaphone}
+              title="Registrar proyecto"
+              description="Evento o actividad con fecha y reservas."
+              onClick={onRegisterProject}
+            />
           </div>
         </Section>
-
-        <Section title="Ambiente que buscas" icon={Music}>
-          <div className="flex flex-wrap gap-gap-xs">
-            {MOODS.map((m) => (
-              <Chip
-                key={m.value}
-                selected={prefs.moods.includes(m.value)}
-                onClick={() => toggle("moods", m.value)}
-                label={m.label}
-              />
-            ))}
-          </div>
-        </Section>
-
-        <Section title="Monedas que usas" icon={Wallet}>
-          <div className="flex flex-wrap gap-gap-xs">
-            {CURRENCIES.map((c) => (
-              <Chip
-                key={c.value}
-                selected={prefs.currencies.includes(c.value)}
-                onClick={() => toggle("currencies", c.value)}
-                label={c.label}
-              />
-            ))}
-          </div>
-        </Section>
-
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.98 }}
-          onClick={onSave}
-          className={cn(
-            SAVE_BTN,
-            "flex h-12 w-full items-center justify-center gap-gap-xs rounded-full text-body",
-          )}
-        >
-          <motion.span
-            key={saved ? "saved-cta" : "save-cta"}
-            initial={{ y: 6, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            className="inline-flex items-center gap-[6px]"
-          >
-            <Save size={16} strokeWidth={1.8} />
-            {saved ? "Preferencias guardadas" : "Guardar cambios"}
-          </motion.span>
-        </motion.button>
       </motion.div>
     </div>
+  );
+}
+
+/** Las preferencias de descubrimiento, que viven en «Sobre mí» desde que esa
+    sección recogió lo que antes estaba repartido por «Perfil». Se exporta para
+    que el armazón de «Sobre mí» las pinte con el mismo estado que guarda.
+
+    Van plegadas: son tres bloques de chips y, abiertos, empujaban la actividad
+    —lo que se viene a mirar— muy por debajo. Se reutiliza el acordeón del
+    formulario de negocio para no tener dos maneras de desplegar una sección. */
+export function PreferenceSections({
+  prefs,
+  toggle,
+}: {
+  prefs: UserPreferences;
+  toggle: TogglePreference;
+}) {
+  return (
+    <FormSections>
+      <FormSection
+        title="Lugares que te gustan"
+        icon={<Heart size={18} strokeWidth={1.8} />}
+      >
+        <div className="flex flex-wrap gap-gap-xs">
+          {INTERESTS.map((it) => (
+            <Chip
+              key={it.value}
+              selected={prefs.interests.includes(it.value)}
+              onClick={() => toggle("interests", it.value)}
+              label={it.label}
+            />
+          ))}
+        </div>
+      </FormSection>
+
+      <FormSection
+        title="Ambientes que buscas"
+        icon={<Music size={18} strokeWidth={1.8} />}
+      >
+        <div className="flex flex-wrap gap-gap-xs">
+          {MOODS.map((m) => (
+            <Chip
+              key={m.value}
+              selected={prefs.moods.includes(m.value)}
+              onClick={() => toggle("moods", m.value)}
+              label={m.label}
+            />
+          ))}
+        </div>
+      </FormSection>
+
+      <FormSection title="Monedas que usas" icon={<Wallet size={18} strokeWidth={1.8} />}>
+        <div className="flex flex-wrap gap-gap-xs">
+          {CURRENCIES.map((c) => (
+            <Chip
+              key={c.value}
+              selected={prefs.currencies.includes(c.value)}
+              onClick={() => toggle("currencies", c.value)}
+              label={c.label}
+            />
+          ))}
+        </div>
+      </FormSection>
+    </FormSections>
+  );
+}
+
+/* Tarjeta compacta de entrada a un alta. Dos en fila, con la información justa
+   para elegir: qué es y a dónde lleva. */
+function EntryCard({
+  icon: Icon,
+  title,
+  description,
+  onClick,
+}: {
+  icon: typeof Store;
+  title: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex min-h-[118px] flex-col items-start justify-between rounded-2xl border border-ink/10 bg-white p-gap-sm text-left text-ink shadow-soft transition duration-500 ease-outquint hover:border-verde-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400"
+    >
+      <span className="flex flex-col gap-gap-xs">
+        <span className="grid size-8 place-items-center rounded-xl bg-verde-50 text-verde-700">
+          <Icon size={17} strokeWidth={1.8} />
+        </span>
+        <span className="font-lv-display text-small font-semibold leading-tight">
+          {title}
+        </span>
+        <span className="text-meta leading-snug text-ink-soft/75">{description}</span>
+      </span>
+      <span className="mt-gap-xs inline-flex items-center gap-[3px] text-meta font-semibold text-verde-700">
+        Empezar
+        <ArrowRight
+          size={13}
+          className="transition-transform duration-500 group-hover:translate-x-0.5"
+        />
+      </span>
+    </button>
   );
 }
 

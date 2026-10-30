@@ -37,7 +37,6 @@ import { MapView } from "@/components/map/MapView";
 import { MapNotifications } from "@/components/map/map-notifications";
 import { NovedadesMapa } from "@/components/map/novedades-mapa";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { PlaceFilters } from "@/components/place/place-filters";
 import { StateView } from "@/components/ui/state-view";
 import { CategoryIcon } from "@/components/admin/category-icon";
 import { Button } from "@/components/ui/button";
@@ -93,7 +92,6 @@ import {
   trackAiSearchCompleted,
   trackAiSearchSubmitted,
   trackCategorySelect,
-  trackFilterToggle,
   trackMapLocate,
   trackMapMarkerClick,
   trackRouteRequested,
@@ -101,12 +99,7 @@ import {
 import { trackPlaceMetric } from "@/lib/place-metrics";
 
 type SheetState =
-  | "default"
-  | "searching"
-  | "results"
-  | "no-results"
-  | "error"
-  | "guest";
+  "default" | "searching" | "results" | "no-results" | "error" | "guest";
 
 /* Cuántas entradas de «Lo que ofrece» viajan a la búsqueda con IA.
    El formulario no pone tope a la carta, así que lo pone aquí: sin él, ochenta
@@ -219,8 +212,7 @@ function userPlaceToHomePlace(
       variant: p.status === "active" ? "open" : "default",
     },
   ];
-  if (p.selloVerificado)
-    tags.push({ label: "Verificado", variant: "open" });
+  if (p.selloVerificado) tags.push({ label: "Verificado", variant: "open" });
   /* Va antes que «Destacado» y «USD Clásica» a propósito: de una tarjeta se
      leen dos o tres chapitas, y una oferta que caduca hoy importa más que el
      medio de pago. */
@@ -254,7 +246,10 @@ function userPlaceToHomePlace(
 const SHEET_TITLES: Record<SheetState, { title: string; subtitle: string }> = {
   default: { title: "Recomendaciones", subtitle: "Lugares cerca de ti" },
   searching: { title: "Buscando", subtitle: "Analizando tu consulta…" },
-  results: { title: "Resultados", subtitle: "Lugares que coinciden con tu búsqueda" },
+  results: {
+    title: "Resultados",
+    subtitle: "Lugares que coinciden con tu búsqueda",
+  },
   "no-results": {
     title: "Sin resultados",
     subtitle: "Intenta con otra búsqueda",
@@ -624,7 +619,7 @@ function HomePageContent() {
   /* Filtros acumulables del mapa. Viven aquí y no dentro de `PlaceFilters`
      porque es esta pantalla la que filtra: allí se encendían y no salían de
      casa. */
-  const [activeFilters, setActiveFilters] = useState<Set<string>>(
+  const [activeFilters] = useState<Set<string>>(
     () => new Set(searchParams.getAll("filtro")),
   );
   const [detailPlace, setDetailPlace] = useState<HomePlace | null>(null);
@@ -825,6 +820,30 @@ function HomePageContent() {
     };
   }, []);
 
+  /* Safari restaura el home desde bfcache con el `authState` de la visita
+     anterior: quien acaba de entrar seguía viendo el aviso de invitado, y
+     quien había cerrado sesión seguía con el suyo. Se vuelve a preguntar sin
+     recargar la página. */
+  useEffect(() => {
+    function alRestaurar(evento: PageTransitionEvent) {
+      if (!evento.persisted) return;
+      refreshSession();
+      void fetchMe<{
+        authenticated?: boolean;
+        user?: { id?: string } | null;
+      }>()
+        .then((data) => {
+          const id = data.authenticated ? (data.user?.id ?? null) : null;
+          setUserId(id);
+          setAuthState(data.authenticated ? "in" : "out");
+          setLikedIds(new Set(readActivity(id).savedIds));
+        })
+        .catch(() => {});
+    }
+    window.addEventListener("pageshow", alRestaurar);
+    return () => window.removeEventListener("pageshow", alRestaurar);
+  }, []);
+
   const syncFilterUrl = useCallback(
     (categoria: string, filtros: Set<string>) => {
       const url = new URL(window.location.href);
@@ -835,19 +854,6 @@ function HomePageContent() {
       window.history.replaceState(null, "", url);
     },
     [],
-  );
-
-  const toggleFilter = useCallback(
-    (value: string) => {
-      const activo = !activeFilters.has(value);
-      trackFilterToggle(value, activo);
-      const next = new Set(activeFilters);
-      if (activo) next.add(value);
-      else next.delete(value);
-      setActiveFilters(next);
-      syncFilterUrl(activeCategory, next);
-    },
-    [activeFilters, activeCategory, syncFilterUrl],
   );
 
   /* Un solo filtrado para los dos sitios que pintan el catálogo —los pines del
@@ -887,7 +893,8 @@ function HomePageContent() {
   const listVisiblePlaces = useMemo(
     () =>
       provinceScopedPlaces.filter(
-        (p) => !FILLER_PLACE_IDS.has(p.id) && matchesPlaceFilters(p, filterContext),
+        (p) =>
+          !FILLER_PLACE_IDS.has(p.id) && matchesPlaceFilters(p, filterContext),
       ),
     [provinceScopedPlaces, filterContext],
   );
@@ -1000,15 +1007,18 @@ function HomePageContent() {
     );
   }, [listVisiblePlaces, categories, distanceOrigin, userPreferences]);
 
-  const handleLike = useCallback((id: string) => {
-    const saved = toggleSaved(id, userId);
-    setLikedIds((prev) => {
-      const next = new Set(prev);
-      if (saved) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }, [userId]);
+  const handleLike = useCallback(
+    (id: string) => {
+      const saved = toggleSaved(id, userId);
+      setLikedIds((prev) => {
+        const next = new Set(prev);
+        if (saved) next.add(id);
+        else next.delete(id);
+        return next;
+      });
+    },
+    [userId],
+  );
 
   // Tocar el fondo del mapa quita la selección, como en cualquier mapa.
   const handleDeselect = useCallback(() => {
@@ -1519,8 +1529,12 @@ function HomePageContent() {
   const shownCount =
     sheetState === "results" ? resultPlaces.length : recommendationCount;
 
+  /* `top` y no `pt`: `MapView` es `absolute inset-0` y un hijo absoluto toma
+     como origen el borde de padding, así que el `padding-top` no lo movía. El
+     mapa arrancaba en y=0 y los chips de categoría, a 8 px, quedaban detrás
+     del header fijo: invisibles y sin poder tocarse. */
   return (
-    <div className="fixed inset-0 pt-[var(--header-h)] font-lv text-ink">
+    <div className="fixed inset-x-0 bottom-0 top-[var(--header-h)] font-lv text-ink">
       <MapView
         ref={mapRef}
         places={mapPlaces}
@@ -1553,11 +1567,6 @@ function HomePageContent() {
             trackCategorySelect(value);
             syncFilterUrl(value, activeFilters);
           }}
-        />
-        <PlaceFilters
-          active={activeFilters}
-          onToggle={toggleFilter}
-          hasLocation={userLocation !== null}
         />
         {/* Columna flotante de la esquina: la campana arriba y, debajo, el
             interruptor de claro/oscuro. Van juntos para que se apilen con la
@@ -1663,7 +1672,10 @@ function HomePageContent() {
                 <div className="size-9 rounded-xl bg-gradient-to-br from-verde-400 to-verde-600 grid place-items-center text-white shrink-0">
                   <MessageCircle size={18} strokeWidth={1.8} />
                 </div>
-                <p aria-live="polite" className="text-small leading-relaxed text-ink">
+                <p
+                  aria-live="polite"
+                  className="text-small leading-relaxed text-ink"
+                >
                   {sheetState === "results" && aiState && aiState.summary
                     ? aiState.summary
                     : !hydrated

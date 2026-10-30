@@ -180,7 +180,7 @@ const BTN_PRIMARY =
   "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition duration-500 ease-outquint active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none";
 
 /**
- * «Tengo un negocio», la sección del perfil.
+ * El alta y la ficha del negocio, que se abren desde «Info» en el perfil.
  *
  * Es la puerta que un usuario normal no tenía. Antes de esto, el único camino
  * era una lista de espera que nadie escribía: existían el store, la API y la

@@ -2,9 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth/server";
 import { getAppUser } from "@/lib/auth/user";
-import { isGoogleAccount, isMarketingOptedIn, setMarketingOptIn } from "@/lib/contacts";
+import {
+  isGoogleAccount,
+  isMarketingOptedIn,
+  setMarketingOptIn,
+} from "@/lib/contacts";
 import { db } from "@/lib/db";
-import { businessOwners, categories, places, projectRequests, users } from "@/lib/db/schema";
+import {
+  businessOwners,
+  categories,
+  places,
+  projectRequests,
+  users,
+} from "@/lib/db/schema";
 import { devPlace, ownsDevPlace } from "@/lib/dev-place";
 import { asegurarAvisosDeNegocio } from "@/lib/notificaciones-server";
 import { TERMS_VERSION } from "@/lib/legal";
@@ -190,11 +200,22 @@ function asStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
+/* La sesión no se guarda en ninguna caché: ni la del navegador, ni una
+   intermedia. Safari en iOS reutiliza respuestas sin cabeceras explícitas, y
+   una `authenticated: false` anterior al login dejaba el header en «Iniciar
+   sesión» hasta recargar a mano. */
+const SIN_CACHE = { "Cache-Control": "no-store, no-cache, must-revalidate" };
+
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const user = await getAppUser();
 
   if (!user) {
-    return NextResponse.json({ authenticated: false, user: null });
+    return NextResponse.json(
+      { authenticated: false, user: null },
+      { headers: SIN_CACHE },
+    );
   }
 
   /* Las dos consultas a la vez y no encadenadas: el menú llama aquí en **cada**
@@ -222,36 +243,42 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({
-    marketing: await marketingState(user),
-    authenticated: true,
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      phone: user.phone,
-      termsVersion: user.termsVersion,
-      role: user.role,
-      locationCity: user.locationCity,
-      onboardingCompleted: user.onboardingCompleted,
-      preferences: user.preferences,
-      /* Solo el «sí o no»: el menú decide con esto si enseña «Enlaces». El
+  return NextResponse.json(
+    {
+      marketing: await marketingState(user),
+      authenticated: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        phone: user.phone,
+        termsVersion: user.termsVersion,
+        role: user.role,
+        locationCity: user.locationCity,
+        onboardingCompleted: user.onboardingCompleted,
+        preferences: user.preferences,
+        /* Solo el «sí o no»: el menú decide con esto si enseña «Enlaces». El
          código no viaja aquí porque la página lo lee del servidor, que es donde
          se arma el enlace. */
-      affiliateEnabled: Boolean(user.referralCode),
-      /* Solo el «sí o no»: el menú decide con esto si enseña «Administrar
+        affiliateEnabled: Boolean(user.referralCode),
+        /* Solo el «sí o no»: el menú decide con esto si enseña «Administrar
          proyectos». */
-      hasProjects,
-      business,
+        hasProjects,
+        business,
+      },
     },
-  });
+    { headers: SIN_CACHE },
+  );
 }
 
 export async function POST(request: NextRequest) {
   const sessionUser = await getAppUser();
 
   if (!sessionUser) {
-    return NextResponse.json({ authenticated: false, user: null }, { status: 401 });
+    return NextResponse.json(
+      { authenticated: false, user: null },
+      { status: 401 },
+    );
   }
 
   let payload: Record<string, unknown> = {};
@@ -261,14 +288,27 @@ export async function POST(request: NextRequest) {
     payload = {};
   }
 
-  const nextName = typeof payload.name === "string" ? payload.name.trim() : null;
-  const nextEmail = typeof payload.email === "string" ? payload.email.trim() : null;
-  const nextLocation = typeof payload.location === "string" ? payload.location.trim() : null;
-  const nextLocationName = typeof payload.locationName === "string" ? payload.locationName.trim() : null;
-  const nextPhone = typeof payload.phone === "string" ? payload.phone.trim() : null;
-  const nextOnboarding = typeof payload.onboardingCompleted === "boolean" ? payload.onboardingCompleted : null;
+  const nextName =
+    typeof payload.name === "string" ? payload.name.trim() : null;
+  const nextEmail =
+    typeof payload.email === "string" ? payload.email.trim() : null;
+  const nextLocation =
+    typeof payload.location === "string" ? payload.location.trim() : null;
+  const nextLocationName =
+    typeof payload.locationName === "string"
+      ? payload.locationName.trim()
+      : null;
+  const nextPhone =
+    typeof payload.phone === "string" ? payload.phone.trim() : null;
+  const nextOnboarding =
+    typeof payload.onboardingCompleted === "boolean"
+      ? payload.onboardingCompleted
+      : null;
   /* La aceptación de los términos, tal cual la manda el alta. */
-  const nextTermsVersion = typeof payload.termsVersion === "string" ? payload.termsVersion.trim() : null;
+  const nextTermsVersion =
+    typeof payload.termsVersion === "string"
+      ? payload.termsVersion.trim()
+      : null;
   /* `undefined` y no `false` cuando no viene: el perfil y el onboarding llaman
      aquí sin este campo, y tratar la ausencia como un «no» daría de baja a
      quien ya había dicho que sí. */
@@ -315,7 +355,10 @@ export async function POST(request: NextRequest) {
 
   const user = row ?? (await getAppUser());
   if (!user) {
-    return NextResponse.json({ authenticated: false, user: null }, { status: 404 });
+    return NextResponse.json(
+      { authenticated: false, user: null },
+      { status: 404 },
+    );
   }
 
   if (nextMarketingOptIn !== null) {
@@ -384,7 +427,10 @@ export async function DELETE() {
   const sessionUser = await getAppUser();
 
   if (!sessionUser) {
-    return NextResponse.json({ authenticated: false, user: null }, { status: 401 });
+    return NextResponse.json(
+      { authenticated: false, user: null },
+      { status: 401 },
+    );
   }
 
   /* El negocio que lleva, si lleva alguno, y se borra **antes** que su fila.
@@ -421,7 +467,10 @@ export async function DELETE() {
     .returning({ id: users.id });
 
   if (!deleted) {
-    return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Cuenta no encontrada" },
+      { status: 404 },
+    );
   }
 
   let accountDeleted = true;
@@ -430,7 +479,10 @@ export async function DELETE() {
     if (result?.error) accountDeleted = false;
   } catch (error) {
     accountDeleted = false;
-    console.error("Se borró la fila del usuario pero no la cuenta de Neon:", error);
+    console.error(
+      "Se borró la fila del usuario pero no la cuenta de Neon:",
+      error,
+    );
   }
 
   return NextResponse.json({ ok: true, id: deleted.id, accountDeleted });

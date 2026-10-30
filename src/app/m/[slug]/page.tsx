@@ -47,6 +47,8 @@ import {
 } from "@/components/menu/pedido-whatsapp";
 import { EventosMenu } from "@/components/menu/eventos-menu";
 import { CartaMenu, type CartaGrupo } from "@/components/menu/carta-menu";
+import { MenuHeader } from "@/components/menu/menu-header";
+import { siteConfig } from "@/config/site";
 import {
   OfertasHero,
   type OfertaDestacada,
@@ -483,10 +485,10 @@ export default async function MenuPage({
           /* `data-grupo` lo lee el buscador para esconder la categoría entera
              cuando ninguno de sus productos coincide. */
           data-grupo
-          /* El desplazamiento del ancla tiene que librar la barra de filtros, que
-           va pegajosa arriba; si no, el titular del grupo amanece debajo de
-           ella. `--carta-filtros-h` es su alto y vive en `globals.css`. */
-          className="scroll-mt-[calc(var(--carta-filtros-h)+var(--gap-lg))]"
+          /* El desplazamiento del ancla tiene que librar el encabezado pegajoso;
+           si no, el titular del grupo amanece debajo de él. `--menu-header-h`
+           lo escribe `MenuHeader` con el alto real medido. */
+          className="scroll-mt-[calc(var(--menu-header-h)_+_var(--gap-md))]"
         >
           {group.name && (
             <h3 className="mt-gap-md mb-gap-sm font-lv-display text-h3 font-bold uppercase tracking-tight text-ink">
@@ -530,8 +532,17 @@ export default async function MenuPage({
     };
   });
 
+  /* Solo los grupos con nombre tienen chip: las entradas sueltas van al final
+     de la carta y no hay categoría que las aisle. */
+  const chipsMenu = groupsUi.flatMap((group) =>
+    group.name ? [{ name: group.name, id: group.id }] : [],
+  );
+
   const carta = (
-    <div className="mx-auto w-full max-w-[680px] px-gutter py-gap-lg">
+    <div
+      data-carta
+      className="mx-auto w-full max-w-[680px] px-gutter py-gap-lg"
+    >
       {/* El negocio y su miga, para que la carta indexada no sea una página
           huérfana de entidad: apunta a la ficha y al hub de su categoría. */}
       <script
@@ -792,8 +803,8 @@ export default async function MenuPage({
       <section
         id="menu"
         /* Las tarjetas de oferta sin categoría enlazan aquí; el salto tiene que
-           librar la barra pegajosa, igual que los chips. */
-        className="mt-gap-lg scroll-mt-[calc(var(--carta-filtros-h)+var(--gap-lg))]"
+           librar el encabezado pegajoso, igual que los chips. */
+        className="mt-gap-lg scroll-mt-[calc(var(--menu-header-h)_+_var(--gap-md))]"
       >
         {/* A `text-h3`, el mismo alto que los titulares de categoría: a 16 px
             el titular de la sección quedaba más pequeño que los `h3` que
@@ -807,7 +818,23 @@ export default async function MenuPage({
             {place.name} todavía no ha publicado su menú aquí.
           </p>
         ) : (
-          <CartaMenu groups={groupsUi} />
+          <>
+            {/* La barra de siempre —buscador y chips— vuelve a su sitio,
+                dentro de la sección del menú; al bajar se queda pegada arriba
+                y solo entonces enseña el negocio en pequeño. */}
+            <MenuHeader
+              negocio={{
+                name: place.name,
+                status: place.status,
+                brand,
+                emoji: categoryEmoji(place.category),
+              }}
+              fichaHref={showFichaLink ? `/place/${place.id}` : null}
+              laVerdeHref={`${siteConfig.url.replace(/\/+$/, "")}/place/${place.id}`}
+              groups={chipsMenu}
+            />
+            <CartaMenu groups={groupsUi} />
+          </>
         )}
       </section>
 

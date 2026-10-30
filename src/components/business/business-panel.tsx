@@ -18,6 +18,7 @@ import {
   LogOut,
   MapPin,
   MessageCircle,
+  MousePointerClick,
   Save,
   Store,
   Tag,
@@ -46,7 +47,6 @@ import {
   type PanelView,
 } from "@/components/business/panel-shell";
 import { DashboardStats } from "@/components/business/dashboard-stats";
-import { EstadisticasPanel } from "@/components/business/estadisticas-panel";
 import { LogoUpload } from "@/components/business/logo-upload";
 import { PhotoGrid } from "@/components/business/photo-grid";
 import { PaymentChips } from "@/components/business/payment-chips";
@@ -488,6 +488,135 @@ function DashboardView({
     <>
       <h1 className="sr-only">Dashboard</h1>
 
+      {/* «Cómo apareces» pasa de una lista de etiquetas a una vista previa de
+          la ficha: la marca, el estado y los datos que alguien ve al
+          encontrarlo en el catálogo. Va lo primero del dashboard porque es la
+          tarjeta que más vale y la que el dueño viene a comprobar. */}
+      <section className="ficha-preview relative mb-gap-lg overflow-hidden rounded-3xl border border-verde-200 bg-gradient-to-br from-verde-50 via-white to-sand-warm p-gap-md shadow-soft sm:p-gap-lg">
+        {/* Dos halos fuera de la caja: dan profundidad sin meter una imagen
+            más, que en datos móviles se paga. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-verde-200/40 blur-3xl"
+        />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -bottom-24 -left-12 size-52 rounded-full bg-sand-deep/60 blur-3xl"
+        />
+
+        <div className="relative flex flex-wrap items-center justify-between gap-gap-sm">
+          <p className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.18em] text-verde-700">
+            Así te ven en La Verde
+          </p>
+          <Link
+            href={`/place/${place.id}`}
+            className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-verde-200 bg-white px-gap-sm font-lv-display text-meta font-semibold text-verde-700 transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
+          >
+            Ver mi ficha
+            <ArrowUpRight size={14} strokeWidth={2} />
+          </Link>
+        </div>
+
+        <div className="relative mt-gap-sm flex flex-wrap items-center gap-gap-sm">
+          <span className="relative grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-soft sm:size-[72px]">
+            {marca ? (
+              <Image
+                src={marca}
+                alt=""
+                fill
+                sizes="(min-width: 640px) 72px, 64px"
+                quality={70}
+                className="object-cover"
+              />
+            ) : (
+              <span aria-hidden className="text-[30px]">
+                {categoryEmoji(place.category)}
+              </span>
+            )}
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-gap-xs">
+              <h2 className="font-lv-display text-h3 font-bold tracking-[-0.02em] text-ink">
+                {place.name}
+              </h2>
+              <span
+                className={cn(
+                  "inline-flex shrink-0 items-center rounded-full border px-[10px] py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em]",
+                  place.isActive
+                    ? "border-verde-200 bg-verde-50 text-verde-700"
+                    : "border-ink/10 bg-sand text-ink-soft/75",
+                )}
+              >
+                {place.isActive ? "Publicada" : "Sin publicar"}
+              </span>
+            </div>
+            <p className="mt-[3px] flex flex-wrap items-center gap-x-gap-xs gap-y-[4px] text-small text-ink-soft/75">
+              <span>{place.category}</span>
+              <span aria-hidden className="text-ink/20">
+                ·
+              </span>
+              <span>{place.barrio || place.city || "Sin zona"}</span>
+              <span className="inline-flex items-center gap-[5px] font-medium text-ink-soft">
+                <span
+                  aria-hidden
+                  className={cn(
+                    "size-[6px] shrink-0 rounded-full",
+                    place.status === "active"
+                      ? "bg-verde-500"
+                      : "bg-ink/30",
+                  )}
+                />
+                {estadoLabel}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <dl className="relative mt-gap-md grid grid-cols-2 gap-gap-xs sm:grid-cols-4">
+          <DatoFicha icon={Tag} label="Categoría" value={place.category} />
+          <DatoFicha
+            icon={MapPin}
+            label="Zona"
+            value={place.barrio || place.city || "Sin zona"}
+          />
+          <DatoFicha
+            icon={Clock}
+            label="Horario"
+            value={place.schedule || "Sin horario"}
+          />
+          <DatoFicha
+            icon={MapPin}
+            label="Ubicación"
+            value={formatCoordinates({ lat: place.lat, lng: place.lng })}
+          />
+        </dl>
+
+        <div className="relative mt-gap-sm flex flex-wrap items-center justify-between gap-gap-xs border-t border-ink/5 pt-gap-sm">
+          <p className="flex min-w-0 items-start gap-[6px] text-meta text-ink-soft/75">
+            <MapPin
+              size={14}
+              strokeWidth={1.8}
+              className="mt-[1px] shrink-0 text-verde-600"
+            />
+            <span className="break-words">
+              {place.address || "Todavía no has escrito la dirección"}
+            </span>
+          </p>
+          <p className="text-meta text-ink-soft/75">
+            {place.isActive
+              ? "Visible en el catálogo y en el mapa"
+              : "Aún no aparece en el catálogo"}
+          </p>
+        </div>
+      </section>
+
+      {/* El rótulo de la sección, una sola palabra: el subtítulo que lo
+          acompañaba repetía lo que la propia cifra ya dice. */}
+      <h2 className="mb-gap-sm font-lv-display text-body font-semibold text-ink">
+        Estadísticas
+      </h2>
+
       {/* Cuatro cifras y ninguna inventada. Aquí había «342 visitas esta semana,
           +18%», «87 clics en Cómo llegar» y «156 recomendaciones IA»: no existe
           ninguna tabla que registre esas cosas, así que estaban escritas a mano.
@@ -534,140 +663,41 @@ function DashboardView({
         ]}
       />
 
-      {/* Las visitas van justo debajo de los números de la ficha: son la otra
-          mitad de «cómo va mi negocio», y el candado de los planes de arriba
-          está a un clic. */}
-      <EstadisticasPanel visitas={visitas} onVerPlanes={onVerPlanes} />
-
-      <div className="mt-gap-lg grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-        {/* «Cómo apareces» pasa de una lista de etiquetas a una vista previa de
-            la ficha: la marca, el estado y los datos que alguien ve al
-            encontrarlo en el catálogo. Ocupa las dos columnas porque es la
-            tarjeta que más vale del dashboard y la que el dueño viene a
-            comprobar. */}
-        <section className="ficha-preview relative overflow-hidden rounded-3xl border border-verde-200 bg-gradient-to-br from-verde-50 via-white to-sand-warm p-gap-md shadow-soft sm:p-gap-lg lg:col-span-2">
-          {/* Dos halos fuera de la caja: dan profundidad sin meter una imagen
-              más, que en datos móviles se paga. */}
-          <span
-            aria-hidden
-            className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-verde-200/40 blur-3xl"
-          />
-          <span
-            aria-hidden
-            className="pointer-events-none absolute -bottom-24 -left-12 size-52 rounded-full bg-sand-deep/60 blur-3xl"
-          />
-
-          <div className="relative flex flex-wrap items-center justify-between gap-gap-sm">
-            <p className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.18em] text-verde-700">
-              Así te ven en La Verde
-            </p>
-            <Link
-              href={`/place/${place.id}`}
-              className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-verde-200 bg-white px-gap-sm font-lv-display text-meta font-semibold text-verde-700 transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
-            >
-              Ver mi ficha
-              <ArrowUpRight size={14} strokeWidth={2} />
-            </Link>
+      {/* Los clics de la última semana, separados por dónde entró la gente: la
+          ficha (llegó al negocio) y la carta (abrió el menú). El total de
+          arriba cambia poco; estas dos cifras se mueven a diario y son las que
+          se miran al abrir el panel. */}
+      <section className="mt-gap-md rounded-2xl border border-ink/5 bg-white p-gap-md">
+        <div className="flex flex-wrap items-center justify-between gap-gap-sm">
+          <h2 className="flex items-center gap-gap-xs font-lv-display text-small font-semibold text-ink">
+            <MousePointerClick
+              size={18}
+              strokeWidth={1.8}
+              className="text-verde-600"
+            />
+            Clics en los últimos 7 días
+          </h2>
+          <span className="rounded-full bg-sand-deep px-[10px] py-[3px] font-lv-display text-meta text-ink-soft/75">
+            Ficha y catálogo
+          </span>
+        </div>
+        <dl className="mt-gap-sm grid grid-cols-2 gap-gap-md">
+          <div className="flex flex-col gap-[2px]">
+            <dt className="text-meta text-ink-soft/75">Ficha</dt>
+            <dd className="font-lv-display text-h3 font-bold tabular-nums leading-none text-ink">
+              {visitas.resumen.ficha7.toLocaleString("es-CU")}
+            </dd>
           </div>
-
-          <div className="relative mt-gap-sm flex flex-wrap items-center gap-gap-sm">
-            <span className="relative grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-soft sm:size-[72px]">
-              {marca ? (
-                <Image
-                  src={marca}
-                  alt=""
-                  fill
-                  sizes="(min-width: 640px) 72px, 64px"
-                  quality={70}
-                  className="object-cover"
-                />
-              ) : (
-                <span aria-hidden className="text-[30px]">
-                  {categoryEmoji(place.category)}
-                </span>
-              )}
-            </span>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-gap-xs">
-                <h2 className="font-lv-display text-h3 font-bold tracking-[-0.02em] text-ink">
-                  {place.name}
-                </h2>
-                <span
-                  className={cn(
-                    "inline-flex shrink-0 items-center rounded-full border px-[10px] py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em]",
-                    place.isActive
-                      ? "border-verde-200 bg-verde-50 text-verde-700"
-                      : "border-ink/10 bg-sand text-ink-soft/75",
-                  )}
-                >
-                  {place.isActive ? "Publicada" : "Sin publicar"}
-                </span>
-              </div>
-              <p className="mt-[3px] flex flex-wrap items-center gap-x-gap-xs gap-y-[4px] text-small text-ink-soft/75">
-                <span>{place.category}</span>
-                <span aria-hidden className="text-ink/20">
-                  ·
-                </span>
-                <span>{place.barrio || place.city || "Sin zona"}</span>
-                <span className="inline-flex items-center gap-[5px] font-medium text-ink-soft">
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "size-[6px] shrink-0 rounded-full",
-                      place.status === "active"
-                        ? "bg-verde-500"
-                        : "bg-ink/30",
-                    )}
-                  />
-                  {estadoLabel}
-                </span>
-              </p>
-            </div>
+          <div className="flex flex-col gap-[2px]">
+            <dt className="text-meta text-ink-soft/75">Catálogo</dt>
+            <dd className="font-lv-display text-h3 font-bold tabular-nums leading-none text-ink">
+              {visitas.resumen.catalogo7.toLocaleString("es-CU")}
+            </dd>
           </div>
+        </dl>
+      </section>
 
-          <dl className="relative mt-gap-md grid grid-cols-2 gap-gap-xs sm:grid-cols-4">
-            <DatoFicha
-              icon={Tag}
-              label="Categoría"
-              value={place.category}
-            />
-            <DatoFicha
-              icon={MapPin}
-              label="Zona"
-              value={place.barrio || place.city || "Sin zona"}
-            />
-            <DatoFicha
-              icon={Clock}
-              label="Horario"
-              value={place.schedule || "Sin horario"}
-            />
-            <DatoFicha
-              icon={MapPin}
-              label="Ubicación"
-              value={formatCoordinates({ lat: place.lat, lng: place.lng })}
-            />
-          </dl>
-
-          <div className="relative mt-gap-sm flex flex-wrap items-center justify-between gap-gap-xs border-t border-ink/5 pt-gap-sm">
-            <p className="flex min-w-0 items-start gap-[6px] text-meta text-ink-soft/75">
-              <MapPin
-                size={14}
-                strokeWidth={1.8}
-                className="mt-[1px] shrink-0 text-verde-600"
-              />
-              <span className="break-words">
-                {place.address || "Todavía no has escrito la dirección"}
-              </span>
-            </p>
-            <p className="text-meta text-ink-soft/75">
-              {place.isActive
-                ? "Visible en el catálogo y en el mapa"
-                : "Aún no aparece en el catálogo"}
-            </p>
-          </div>
-        </section>
-
+      <div className="mt-gap-md grid grid-cols-1 gap-gap-md lg:grid-cols-2">
         {/* El QR con o sin la marca de La Verde lo decide una función. Se lee
             de `funciones` y no se consulta al servidor: es cosmético, no un
             permiso que escriba nada, y las funciones ya vienen resueltas desde

@@ -271,11 +271,9 @@ export function getPlacePopupOptions() {
     closeButton: true,
     maxWidth: 300,
     minWidth: 260,
-    // 68 px arriba, no los 20 de antes: el header fijo mide 56–60 y el popup
-    // —ahora con portada— es más alto, así que con el margen viejo su cabecera
-    // se metía debajo del header y la tarjeta se veía a medias. El margen la
-    // deja entera dentro de la zona visible.
-    autoPanPadding: [16, 68] as [number, number],
+    // 16 px arriba: el mapa ya empieza debajo del header, así que sumar los
+    // 68 de antes dejaba el popup innecesariamente abajo.
+    autoPanPadding: [16, 16] as [number, number],
     // La hoja de recomendaciones recogida sigue tapando los últimos 120 px del
     // mapa. Sin este margen Leaflet daba por bueno un popup pegado al borde
     // inferior y el pin —que cuelga justo debajo de él— quedaba detrás de la

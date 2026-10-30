@@ -55,6 +55,10 @@ export const viewport: Viewport = {
   // No se bloquea el zoom: hacerlo rompe la accesibilidad (WCAG 1.4.4).
   maximumScale: 5,
   viewportFit: "cover",
+  /* Android: el teclado redimensiona el layout en vez de taparlo, así que los
+     botones fijos del onboarding y del panel siguen accesibles. iOS no usa
+     esta pista, pero tampoco empeora. */
+  interactiveWidget: "resizes-content",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     /* #0e1720 y no #1a1a1a: la superficie oscura real de la app. Con el gris
@@ -79,71 +83,88 @@ const DESCRIPTION =
 const IOS_STARTUP_IMAGES = [
   {
     url: "/splash/iphone-16-pro-max.png",
-    media: "(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)",
+    media:
+      "(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)",
   },
   {
     url: "/splash/iphone-16-pro.png",
-    media: "(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3)",
+    media:
+      "(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3)",
   },
   {
     url: "/splash/iphone-plus.png",
-    media: "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)",
+    media:
+      "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)",
   },
   {
     url: "/splash/iphone-16.png",
-    media: "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)",
+    media:
+      "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)",
   },
   {
     url: "/splash/iphone-14.png",
-    media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)",
+    media:
+      "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)",
   },
   {
     url: "/splash/iphone-12-mini.png",
-    media: "(device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3)",
+    media:
+      "(device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3)",
   },
   {
     url: "/splash/iphone-8-plus.png",
-    media: "(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)",
+    media:
+      "(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)",
   },
   {
     url: "/splash/iphone-13-pro-max.png",
-    media: "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)",
+    media:
+      "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)",
   },
   {
     url: "/splash/iphone-11-pro-max.png",
-    media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)",
+    media:
+      "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)",
   },
   {
     url: "/splash/iphone-11.png",
-    media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)",
+    media:
+      "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)",
   },
   {
     url: "/splash/iphone-13-mini.png",
-    media: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)",
+    media:
+      "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)",
   },
   {
     url: "/splash/iphone-se.png",
-    media: "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)",
+    media:
+      "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)",
   },
   {
     url: "/splash/ipad-pro-12.png",
-    media: "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)",
+    media:
+      "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)",
   },
   {
     url: "/splash/ipad-pro-11.png",
-    media: "(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)",
+    media:
+      "(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)",
   },
   {
     url: "/splash/ipad-pro-10.png",
-    media: "(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)",
+    media:
+      "(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)",
   },
   {
     url: "/splash/ipad-air.png",
-    media: "(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2)",
+    media:
+      "(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2)",
   },
   {
     url: "/splash/ipad-mini.png",
-    media: "(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)",
+    media:
+      "(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)",
   },
 ];
 
@@ -169,7 +190,14 @@ export const metadata: Metadata = {
     url: siteConfig.url,
     title: TITLE,
     description: DESCRIPTION,
-    images: [{ url: "/api/og", width: 1200, height: 630, alt: "La Verde — descubre lugares en Cuba" }],
+    images: [
+      {
+        url: "/api/og",
+        width: 1200,
+        height: 630,
+        alt: "La Verde — descubre lugares en Cuba",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",

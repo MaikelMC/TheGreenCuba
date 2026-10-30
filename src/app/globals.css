@@ -38,7 +38,13 @@
     --input: 90% 0.004 250;
     --ring: 62% 0.16 145;
     --radius: 10px;
-    --header-h: 56px;
+    /* El alto incluye el área segura superior: con `viewportFit: "cover"`
+       (layout.tsx), en la app instalada y en los iPhone con notch la barra
+       fija arrancaba debajo de la hora y los iconos de estado. Todo lo que se
+       mide desde `--header-h` (mapa, padding del main, desplegable del
+       buscador, alto máximo de la hoja en escritorio) queda también por
+       debajo. */
+    --header-h: calc(56px + env(safe-area-inset-top, 0px));
     /* Gemela en CSS del `gap-lg` de tailwind.config (24 px). Existe porque el
        desplazamiento `sticky` de la columna lateral de la ficha se calcula en
        una clase arbitraria —`top-[calc(var(--header-h)+var(--gap-lg))]`— y ahí
@@ -64,7 +70,7 @@
 
   @media (min-width: 640px) {
     :root {
-      --header-h: 60px;
+      --header-h: calc(60px + env(safe-area-inset-top, 0px));
     }
   }
 
@@ -1095,23 +1101,33 @@ html[data-theme="dark"] .lv-map-blocks {
 
 /* ─── Bottom sheet desktop override ─── */
 @media (min-width: 1024px) {
+  /* Sin `!important`: este bloque vive fuera de las capas de Tailwind, así
+     que ya gana a las utilidades `left-0`, `right-0`, `bottom-0` y
+     `max-h-*` sin necesidad de forzar. El `!important` anterior pisaba
+     también la posición del arrastre. */
   .bottom-sheet-desktop {
-    left: auto !important;
-    right: 20px !important;
-    bottom: 20px !important;
-    width: 400px !important;
-    max-height: calc(100vh - var(--header-h) - 40px) !important;
+    left: auto;
+    right: 20px;
+    bottom: 20px;
+    width: 400px;
+    max-height: calc(100vh - var(--header-h) - 40px);
     /* Mismo radio que la carcasa de doble bisel (2rem) y sombra teñida de
        `ink`, no del gris azulado anterior. */
-    border-radius: 2rem !important;
-    border: 1px solid rgba(8, 19, 13, 0.05) !important;
+    border-radius: 2rem;
+    border: 1px solid rgba(8, 19, 13, 0.05);
     box-shadow:
       0 0 0 1px rgba(255, 255, 255, 0.6),
-      0 20px 50px -16px rgba(8, 19, 13, 0.18) !important;
+      0 20px 50px -16px rgba(8, 19, 13, 0.18);
   }
-  .bottom-sheet-desktop[data-state="peek"] {
-    transform: translateY(calc(100% - 100px)) !important;
+  @supports (height: 100dvh) {
+    .bottom-sheet-desktop {
+      max-height: calc(100dvh - var(--header-h) - 40px);
+    }
   }
+  /* Sin `transform` propio en `peek`: lo pone el componente en línea con el
+     mismo `calc(100% - 120px)` que usa en móvil. El `!important` anterior
+     pisaba también la posición del arrastre, así que en escritorio la hoja no
+     se dejaba empujar. */
 }
 
 /* ─── Skeleton shimmer ─── */
@@ -1221,7 +1237,7 @@ html[data-theme="dark"] .lv-map-blocks {
    (`bottom-[var(--map-locate-bottom)]`), así no se desalinean al cambiar un
    tamaño: la posición del botón se deriva del alto real del control de zoom. */
 .leaflet-container {
-  --map-ctrl-size: 42px;
+  --map-ctrl-size: 44px;
   --map-ctrl-gap: 10px;
   /* Encima de la bottom sheet en su estado colapsado. */
   --map-ctrl-bottom: 144px;

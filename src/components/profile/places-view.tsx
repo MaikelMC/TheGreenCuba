@@ -9,6 +9,8 @@ import { MiniChart } from "@/components/business/mini-chart";
 import { categoryIcon } from "@/lib/places";
 import { EASE } from "@/lib/motion";
 import { fetchMe } from "@/lib/session-client";
+import type { UserPreferences } from "@/lib/user-preferences-store";
+import { PreferenceSections } from "@/components/profile/details-view";
 import {
   dailyHistogram,
   dayLabels,
@@ -34,14 +36,22 @@ interface SavedPlaceItem {
 const EMPTY_ACTIVITY: ActivityState = { visits: [], savedIds: [], stamps: [] };
 
 /**
- * «Mis lugares»: lo que este navegador sabe de tu uso.
+ * «Sobre mí»: tus preferencias y lo que este navegador sabe de tu uso.
  *
- * No hay analítica detrás. Estas cifras son las de aquí, y por eso la pantalla
- * no dice «popular» ni «tendencia»: dice cuántas veces has abierto cada sitio
- * tú. Antes, con cero actividad, se rellenaba con un historial de ejemplo; ya
- * no — los ceros son ceros de verdad y el aviso lo dice sin adornos.
+ * Arriba van los intereses, ambientes y monedas que antes vivían en «Perfil»;
+ * debajo, la actividad. No hay analítica detrás. Estas cifras son las de aquí,
+ * y por eso la pantalla no dice «popular» ni «tendencia»: dice cuántas veces
+ * has abierto cada sitio tú. Antes, con cero actividad, se rellenaba con un
+ * historial de ejemplo; ya no — los ceros son ceros de verdad y el aviso lo
+ * dice sin adornos.
  */
-export function PlacesView() {
+export function PlacesView({
+  prefs,
+  toggle,
+}: {
+  prefs: UserPreferences;
+  toggle: (listKey: "interests" | "moods" | "currencies", value: string) => void;
+}) {
   const [activity, setActivity] = useState<ActivityState | null>(null);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlaceItem[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -80,9 +90,14 @@ export function PlacesView() {
 
   if (!activity) {
     return (
-      <p className="py-gap-2xl text-center text-small text-ink-soft/75" aria-busy>
-        Cargando tu actividad…
-      </p>
+      <div className="places-activity flex flex-col gap-gap-xl">
+        <div className="flex flex-col gap-gap-md">
+          <PreferenceSections prefs={prefs} toggle={toggle} />
+        </div>
+        <p className="py-gap-2xl text-center text-small text-ink-soft/75" aria-busy>
+          Cargando tu actividad…
+        </p>
+      </div>
     );
   }
 
@@ -97,6 +112,10 @@ export function PlacesView() {
     <div className="places-activity flex flex-col gap-gap-xl">
       {/* Sin cabecera propia: el título de la sección ya lo dice la barra
           superior del perfil, y repetirlo aquí era decir lo mismo dos veces. */}
+      <div className="flex flex-col gap-gap-md">
+        <PreferenceSections prefs={prefs} toggle={toggle} />
+      </div>
+
       {top.length === 0 && saved.length === 0 && (
         <p className="flex items-start gap-gap-xs rounded-2xl border border-verde-200 bg-verde-50 px-gap-sm py-gap-xs text-meta text-verde-700">
           <Info size={15} strokeWidth={1.8} className="mt-[1px] shrink-0" aria-hidden />

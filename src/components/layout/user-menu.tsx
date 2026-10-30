@@ -3,11 +3,19 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { User, Building2, ShieldCheck, LogOut, Link2, Megaphone, ChevronDown } from "lucide-react";
+import {
+  User,
+  Building2,
+  ShieldCheck,
+  LogOut,
+  Link2,
+  Megaphone,
+  ChevronDown,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/session";
 import { logout } from "@/lib/logout";
-import { fetchMe } from "@/lib/session-client";
+import { fetchMe, refreshSession } from "@/lib/session-client";
 import { LoginButton } from "@/components/landing/login-button";
 
 /* Hairline entre filas en vez de `<div>` separadores sueltos: es el mismo
@@ -136,7 +144,7 @@ function itemsFor(user: SessionUser) {
       (i.path !== "/enlaces" || Boolean(user.affiliateEnabled)) &&
       /* «Administrar proyectos» solo aparece con el primero ya creado. El
          rol no lo implica —cualquier usuario puede tener proyectos— y el
-         alta se hace desde «Tengo un negocio», en el perfil. */
+         alta se hace desde «Info», en el perfil. */
       (i.path !== "/projects" || Boolean(user.hasProjects)),
   );
 }
@@ -211,8 +219,16 @@ export function UserMenu({ initial }: { initial?: string }) {
       /* La ruta contestó «no hay sesión»: el botón de entrar sale ya, sin
          esperar al reintento. No se pierde nada por enseñarlo antes de tiempo,
          porque si el reintento dice que sí —el viaje a Neon se cayó una vez— el
-         botón se cambia por el avatar. */
-      if (data) setStatus("out");
+         botón se cambia por el avatar.
+
+         Se limpia también el usuario: la sesión puede haber caducado entre dos
+         visitas, y dejar `user` puesto mantenía el avatar y un «Cerrar sesión»
+         para alguien que ya no tenía sesión. */
+      if (data) {
+        lastKnownUser = null;
+        setUser(null);
+        setStatus("out");
+      }
 
       /* Un segundo intento, y solo uno. La ruta resuelve la sesión contra Neon
          y, cuando esa ida falla, contesta `authenticated: false` —igual que si
@@ -228,26 +244,51 @@ export function UserMenu({ initial }: { initial?: string }) {
          acaba aquí: ofrecer entrar es mejor que dejar la esquina muerta. Antes
          no se pintaba nada, y quien volvía de la pantalla de inactividad se
          encontraba en el home sin menú, sin perfil y sin más salida que
-         adivinar que `/login` existe. */
-      setStatus("out");
+         adivinar que `/login` existe.
+
+         Pero si ya se sabía que había sesión, un doble fallo de red no la
+         convierte en «no hay sesión»: se conserva el avatar y se reintenta en
+         la próxima vuelta a la pestaña. */
+      if (!lastKnownUser) setStatus("out");
     }
 
     void load(0);
+
+    /* Safari iOS restaura la página desde bfcache con el DOM tal cual se dejó
+       y no vuelve a montar el componente. Sin esto, el avatar o el botón de
+       entrar se quedaban congelados hasta recargar a mano. */
+    function revalidar() {
+      if (document.visibilityState !== "visible") return;
+      void load(1);
+    }
+    function alRestaurar(evento: PageTransitionEvent) {
+      if (!evento.persisted) return;
+      refreshSession();
+      void load(1);
+    }
+    document.addEventListener("visibilitychange", revalidar);
+    window.addEventListener("pageshow", alRestaurar);
+
     return () => {
       alive = false;
       if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", revalidar);
+      window.removeEventListener("pageshow", alRestaurar);
     };
   }, []);
 
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
+    function handleClick(e: PointerEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
         setHintOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    /* `pointerdown` y no `mousedown`: en iOS Safari un toque fuera del menú
+       sobre un elemento no interactivo no siempre dispara `mousedown`, y el
+       desplegable se quedaba abierto. */
+    document.addEventListener("pointerdown", handleClick);
+    return () => document.removeEventListener("pointerdown", handleClick);
   }, []);
 
   /* Las secciones no están en pantalla como `<Link>`: viven dentro de este
@@ -288,6 +329,10 @@ export function UserMenu({ initial }: { initial?: string }) {
 
   const handleLogout = useCallback(() => {
     setOpen(false);
+    /* La copia en memoria no puede sobrevivir al cierre: aunque `logout()`
+       recarga la página al final, si la recarga se queda a medias el siguiente
+       montaje pintaría el avatar del usuario que acaba de salir. */
+    lastKnownUser = null;
     void logout();
   }, []);
 

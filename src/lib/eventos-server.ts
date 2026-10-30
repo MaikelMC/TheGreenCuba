@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { businessOwners, eventosDiarios, eventosUnicos } from "@/lib/db/schema";
 import { generateId } from "@/lib/utils";
@@ -127,15 +127,18 @@ export async function statsVisitas(
   funciones: ReadonlySet<Funcion>,
 ): Promise<VisitasPanel> {
   const mes = diaUtc().slice(0, 7);
+  const desde7 = diaUtc(6);
 
-  /* El mes y el total histórico en una sola consulta: `filter` deja cada suma
-     en su columna. Sin `gte`, el recorrido es todo el histórico del negocio,
-     pero es su histórico —el índice por negocio y fecha lo acota— y ahorra un
-     segundo viaje. */
-  const [resumen] = await db
+  /* El mes, el total histórico y la última semana en una sola consulta: `filter`
+     deja cada suma en su columna y el `groupBy` por tipo permite separar ficha
+     de carta sin un viaje más. Sin `gte`, el recorrido es todo el histórico del
+     negocio, pero es su histórico —el índice por negocio y fecha lo acota—. */
+  const filasResumen = await db
     .select({
+      tipo: eventosDiarios.tipo,
       mes: sql<number>`coalesce(sum(${eventosDiarios.conteo}) filter (where ${eventosDiarios.fecha} >= ${`${mes}-01`}), 0)::int`,
       total: sql<number>`coalesce(sum(${eventosDiarios.conteo}), 0)::int`,
+      semana: sql<number>`coalesce(sum(${eventosDiarios.conteo}) filter (where ${eventosDiarios.fecha} >= ${desde7}), 0)::int`,
     })
     .from(eventosDiarios)
     .where(
@@ -143,18 +146,22 @@ export async function statsVisitas(
         eq(eventosDiarios.negocioId, negocioId),
         inArray(eventosDiarios.tipo, TIPOS_VISTA),
       ),
-    );
+    )
+    .groupBy(eventosDiarios.tipo);
 
-  const panel: VisitasPanel = {
-    resumen: { mes: resumen?.mes ?? 0, total: resumen?.total ?? 0 },
-  };
+  const resumen = { mes: 0, total: 0, ficha7: 0, catalogo7: 0 };
+  for (const fila of filasResumen) {
+    resumen.mes += fila.mes;
+    resumen.total += fila.total;
+    if (fila.tipo === "vista_perfil") resumen.ficha7 += fila.semana;
+    else resumen.catalogo7 += fila.semana;
+  }
+
+  const panel: VisitasPanel = { resumen };
   if (!funciones.has("stats_basicas")) return panel;
 
   /* Las dos ventanas en una sola consulta: `filter` deja cada suma en su
-     columna, así que el viaje es uno y no dos. `click_reserva` viaja de más
-     —es una cifra de Pro y este tramo lo ve Visibilidad también— porque una fila
-     agregada más no cuesta un viaje: se le asigna solo en el tramo Pro. */
-  const desde7 = diaUtc(6);
+     columna, así que el viaje es uno y no dos. */
   const desde30 = diaUtc(29);
   const filas = await db
     .select({
@@ -167,11 +174,7 @@ export async function statsVisitas(
       and(
         eq(eventosDiarios.negocioId, negocioId),
         gte(eventosDiarios.fecha, desde30),
-        inArray(eventosDiarios.tipo, [
-          ...TIPOS_VISTA,
-          "click_llamar",
-          "click_reserva",
-        ]),
+        inArray(eventosDiarios.tipo, [...TIPOS_VISTA, "click_llamar"]),
       ),
     )
     .groupBy(eventosDiarios.tipo);
@@ -188,57 +191,6 @@ export async function statsVisitas(
     llamadas7: llamadas?.corto ?? 0,
     visitas30: suma("largo"),
     llamadas30: llamadas?.largo ?? 0,
-  };
-
-  if (!funciones.has("stats_completas")) return panel;
-
-  const DIAS = 14;
-  const serie = await db
-    .select({
-      fecha: eventosDiarios.fecha,
-      conteo: sql<number>`coalesce(sum(${eventosDiarios.conteo}), 0)::int`,
-    })
-    .from(eventosDiarios)
-    .where(
-      and(
-        eq(eventosDiarios.negocioId, negocioId),
-        inArray(eventosDiarios.tipo, TIPOS_VISTA),
-        gte(eventosDiarios.fecha, diaUtc(DIAS - 1)),
-      ),
-    )
-    .groupBy(eventosDiarios.fecha);
-
-  /* Los días sin visitas no existen en la tabla y el gráfico los necesita: sin
-     rellenar, las barras se reparten el ancho a saltos y la línea miente. */
-  const porDia = new Map(serie.map((f) => [f.fecha, f.conteo]));
-  const completa = Array.from({ length: DIAS }, (_, i) => {
-    const fecha = diaUtc(DIAS - 1 - i);
-    return { fecha, conteo: porDia.get(fecha) ?? 0 };
-  });
-
-  const top = await db
-    .select({
-      nombre: eventosDiarios.dimension,
-      conteo: sql<number>`coalesce(sum(${eventosDiarios.conteo}), 0)::int`,
-    })
-    .from(eventosDiarios)
-    .where(
-      and(
-        eq(eventosDiarios.negocioId, negocioId),
-        eq(eventosDiarios.tipo, "producto_visto"),
-        gte(eventosDiarios.fecha, desde30),
-      ),
-    )
-    .groupBy(eventosDiarios.dimension)
-    .orderBy(desc(sql`coalesce(sum(${eventosDiarios.conteo}), 0)`))
-    .limit(5);
-
-  const reservas = filas.find((f) => f.tipo === "click_reserva");
-
-  panel.completas = {
-    serie: completa,
-    topProductos: top.filter((f) => f.nombre !== ""),
-    reservas: { corto: reservas?.corto ?? 0, largo: reservas?.largo ?? 0 },
   };
 
   return panel;

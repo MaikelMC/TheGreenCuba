@@ -133,7 +133,7 @@ export function MapNotifications() {
   useEffect(() => {
     if (!open) return;
 
-    function onPointerDown(event: MouseEvent) {
+    function onPointerDown(event: PointerEvent) {
       if (ref.current && !ref.current.contains(event.target as Node)) {
         setOpen(false);
       }
@@ -142,10 +142,12 @@ export function MapNotifications() {
       if (event.key === "Escape") setOpen(false);
     }
 
-    document.addEventListener("mousedown", onPointerDown);
+    /* `pointerdown` y no `mousedown`: en iOS Safari un toque fuera del menú
+       sobre una zona no interactiva no siempre dispara `mousedown`. */
+    document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);

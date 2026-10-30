@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ShieldOff } from "lucide-react";
 import { AuthCard } from "@/components/auth/auth-card";
 import { SignOutButton } from "@/components/auth/sign-out-button";
@@ -34,6 +35,14 @@ export default async function LoginPage({
   const next = safeNext(params.next);
   const user = await getAppUser();
 
+  /* Con sesión abierta, el formulario de acceso sobra: quien llega aquí desde
+     el botón de la portada ya está dentro y escribir la contraseña otra vez no
+     hace nada bueno. Se devuelve a donde iba. El caso de rol pasa antes,
+     porque ese sí tiene algo que contar. */
+  if (user && params.motivo !== "rol") {
+    redirect(next ?? "/home");
+  }
+
   if (params.motivo === "rol" && user) {
     const section = (next && SECTION_NAMES[next.split("?")[0]!]) ?? null;
 
@@ -53,9 +62,13 @@ export default async function LoginPage({
 
         <p className="text-small text-ink-soft/75 text-pretty">
           Has entrado como{" "}
-          <span className="font-semibold text-ink">{ROLE_NAMES[user.role]}</span> con{" "}
-          <span className="font-semibold text-ink">{user.email}</span>
-          {section ? `, y ${section} pide otro rol.` : ", y esa sección pide otro rol."}
+          <span className="font-semibold text-ink">
+            {ROLE_NAMES[user.role]}
+          </span>{" "}
+          con <span className="font-semibold text-ink">{user.email}</span>
+          {section
+            ? `, y ${section} pide otro rol.`
+            : ", y esa sección pide otro rol."}
         </p>
 
         <div className="flex flex-wrap gap-gap-xs pt-gap-xs">

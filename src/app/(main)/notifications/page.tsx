@@ -10,7 +10,7 @@ export default function NotificationsPage() {
 
   return (
     <main className="relative min-h-dvh bg-sand font-lv text-ink">
-      <header className="sticky top-0 z-20 flex h-header items-center gap-2 border-b border-ink/5 bg-sand-warm/90 px-3 backdrop-blur-[16px] sm:gap-gap-sm sm:px-gap-md">
+      <header className="safe-top sticky top-0 z-20 flex h-header items-center gap-2 border-b border-ink/5 bg-sand-warm/90 px-3 backdrop-blur-[16px] sm:gap-gap-sm sm:px-gap-md">
         <button
           type="button"
           onClick={() => router.back()}
