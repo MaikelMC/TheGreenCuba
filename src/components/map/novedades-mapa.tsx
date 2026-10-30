@@ -298,7 +298,7 @@ export function NovedadesMapa({ ubicacion, provincia, userId }: Props) {
                   animate={{ y: 0 }}
                   exit={{ y: "100%" }}
                   transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                  className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col overflow-hidden rounded-t-4xl bg-white shadow-card outline-none"
+                  className="absolute inset-x-0 bottom-0 flex max-h-[70vh] flex-col overflow-hidden rounded-t-4xl bg-white shadow-card outline-none"
                 >
                   {/* La pestaña también cierra: es lo que se toca cuando la
                       hoja ya está abierta y la X queda lejos del pulgar. */}

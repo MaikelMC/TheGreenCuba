@@ -50,8 +50,13 @@ export function MapNotifications() {
   const [hasSession, setHasSession] = useState(false);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  /* Cada carga lleva número. Una respuesta vieja no pisa otra más nueva: la
+     carga inicial diferida puede volver después del refresco de la apertura
+     con las filas todavía sin leer y devolver el punto que se acaba de quitar. */
+  const loadSeq = useRef(0);
 
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
     const response = await fetch("/api/notifications").catch(() => null);
     if (!response) return;
     if (!response.ok) {
@@ -61,7 +66,7 @@ export function MapNotifications() {
     const data = (await response.json().catch(() => null)) as
       | UserNotification[]
       | null;
-    if (!Array.isArray(data)) return;
+    if (!Array.isArray(data) || seq !== loadSeq.current) return;
     setItems(data);
     setHasSession(true);
   }, []);
@@ -92,14 +97,38 @@ export function MapNotifications() {
       document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [load]);
 
-  /* Al abrir se refresca: la burbuja puede llevar horas montada y la lista en
-     memoria ser de la última vez. */
+  const markAllRead = useCallback(async () => {
+    /* Primero el servidor: si el PATCH no llega, el punto se queda. Marcarlas
+       en local antes dejaba la campana limpia y la base sin tocar, así que el
+       punto volvía en la siguiente carga. */
+    const response = await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    }).catch(() => null);
+    if (!response?.ok) return;
+    setItems((current) =>
+      current.map((item) => ({
+        ...item,
+        readAt: item.readAt ?? new Date().toISOString(),
+      })),
+    );
+  }, []);
+
   const toggle = useCallback(() => {
-    setOpen((current) => {
-      if (!current) void load();
-      return !current;
-    });
-  }, [load]);
+    setOpen((current) => !current);
+  }, []);
+
+  /* Abrir la lista cuenta como haberla visto. Va en un efecto y no en el clic
+     porque abrir también pasa por teclado, y porque el orden importa: primero
+     se refresca, luego se marca en el servidor y al final se limpia en local.
+     Encadenado, ninguna respuesta puede devolver el punto a «sin leer»; dentro
+     del `setOpen` el updater se ejecutaba dos veces en desarrollo y las dos
+     cargas competían entre sí. */
+  useEffect(() => {
+    if (!open) return;
+    void load().then(markAllRead);
+  }, [open, load, markAllRead]);
 
   useEffect(() => {
     if (!open) return;
@@ -120,20 +149,6 @@ export function MapNotifications() {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);
-
-  const markAllRead = useCallback(async () => {
-    setItems((current) =>
-      current.map((item) => ({
-        ...item,
-        readAt: item.readAt ?? new Date().toISOString(),
-      })),
-    );
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    }).catch(() => {});
-  }, []);
 
   /* Mismo destino que la pantalla completa: un aviso de rechazo lleva al panel
      del negocio, uno con lugar a la ficha, y el resto al perfil. */
