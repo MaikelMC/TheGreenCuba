@@ -288,7 +288,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
         <form
           onSubmit={handleSubmit}
           className={cn(
-            "home-search-form flex items-center gap-2 sm:gap-gap-xs bg-white border border-ink/10 rounded-full pl-3 pr-3 sm:pl-[14px] sm:pr-2 transition duration-500 ease-outquint cursor-text",
+            "home-search-form flex items-center gap-2 sm:gap-gap-xs bg-white border border-ink/10 rounded-full pl-3 pr-1 sm:pl-[14px] sm:pr-1 transition duration-500 ease-outquint cursor-text",
             focused && "border-verde-400 shadow-[0_0_0_3px_rgba(53,175,109,0.15)]",
             effectiveIsSearching && "border-verde-400",
           )}
