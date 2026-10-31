@@ -10,25 +10,28 @@ import {
   ArrowUpRight,
   AtSign,
   CalendarDays,
+  Check,
   ChevronDown,
   Clock,
   CreditCard,
+  Eye,
   Image as ImageIcon,
   Loader2,
   LogOut,
   MapPin,
+  Megaphone,
   MessageCircle,
   MousePointerClick,
+  Package,
   Save,
+  Search,
   Store,
-  Tag,
   Zap,
 } from "lucide-react";
 import { cn, sanitizePhone } from "@/lib/utils";
 import { normalizarWhatsappCubano } from "@/lib/contact-links";
 import { SUPPORT_EMAIL } from "@/lib/legal";
 import { logout } from "@/lib/logout";
-import { formatCoordinates } from "@/lib/map/coordinates";
 import { categoryEmoji, placeIcon } from "@/lib/places";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -42,10 +45,7 @@ import {
 import { CategoryIcon } from "@/components/admin/category-icon";
 import { IconPicker } from "@/components/ui/icon-picker";
 import { FormSection, FormSections } from "@/components/business/form-section";
-import {
-  PanelShell,
-  type PanelView,
-} from "@/components/business/panel-shell";
+import { PanelShell, type PanelView } from "@/components/business/panel-shell";
 import { DashboardStats } from "@/components/business/dashboard-stats";
 import { LogoUpload } from "@/components/business/logo-upload";
 import { PhotoGrid } from "@/components/business/photo-grid";
@@ -211,11 +211,11 @@ export function BusinessPanel({
   /** Los servicios sueltos pulsados en la portada, por el mismo motivo. */
   modulosElegidos?: readonly ClaveModulo[];
   /**
-   * Los negocios que esta cuenta puede abrir, para el selector de arriba.
+   * Los negocios que esta cuenta puede abrir, para el selector.
    *
-   * Con uno solo el selector no se pinta; con dos o más —el propio y el de
-   * prueba— permite cambiar sin salir del panel. `place.id` ya dice cuál está
-   * activo, así que la lista no repite esa información.
+   * En el dashboard se pinta dentro de la cabecera aunque haya uno solo —es el
+   * estado de la ficha—; en el resto de secciones solo aparece con dos o más,
+   * cuando de verdad hay algo que elegir. `place.id` ya dice cuál está activo.
    */
   negocios: NegocioPanel[];
   /**
@@ -290,7 +290,13 @@ export function BusinessPanel({
       businessName={place.name}
       publicado={place.isActive}
       vistas={vistas}
-      above={<BusinessSwitcher negocios={negocios} seleccionado={place.id} />}
+      /* El dashboard pinta el selector en su cabecera; el resto de secciones
+         lo llevan encima de la vista. */
+      above={(view) =>
+        view === "dashboard" ? null : (
+          <BusinessSwitcher negocios={negocios} seleccionado={place.id} />
+        )
+      }
     >
       {(view, setView) => {
         /* El botón de planes de las tarjetas no tiene a dónde ir si esta cuenta
@@ -315,6 +321,7 @@ export function BusinessPanel({
                 plan={plan}
                 funciones={funciones}
                 modulos={modulos}
+                negocios={negocios}
                 esDueno={esDueno}
                 /* El botón de la tarjeta de plan navega dentro del panel, no
                    fuera: la sección de planes es una vista más del armazón. */
@@ -438,9 +445,12 @@ export function BusinessPanel({
  * Aquí había un `ViewLead`: un encabezado por sección con el título visible y un
  * subtítulo. Sobraba por los dos lados. El título repetía lo que ya dice el
  * navbar —la barra lateral en escritorio, el dock en móvil—, y el subtítulo
- * repetía lo que ya dice el selector de negocio de arriba. La sección empieza
- * ahora en su contenido; queda un `h1` en `sr-only` para no romper el orden de
- * encabezados, que es lo que leen los lectores de pantalla.
+ * repetía lo que ya dice el selector de negocio de arriba. Las secciones
+ * empiezan en su contenido con un `h1` en `sr-only`, para no romper el orden de
+ * encabezados que leen los lectores de pantalla.
+ *
+ * El dashboard es la excepción: abre con un saludo visible porque es la
+ * pantalla de entrada y resume el negocio entero, no una sección más.
  */
 
 /**
@@ -459,6 +469,7 @@ function DashboardView({
   plan,
   funciones,
   modulos,
+  negocios,
   esDueno,
   onVerPlanes,
 }: {
@@ -470,6 +481,8 @@ function DashboardView({
   plan: Plan;
   funciones: Funcion[];
   modulos: ClaveModulo[];
+  /** Los negocios de la cuenta, para el selector de la cabecera. */
+  negocios: NegocioPanel[];
   /** La tarjeta del plan solo se enseña a quien puede cambiarlo. */
   esDueno: boolean;
   onVerPlanes: () => void;
@@ -486,136 +499,164 @@ function DashboardView({
 
   return (
     <>
-      <h1 className="sr-only">Dashboard</h1>
-
-      {/* «Cómo apareces» pasa de una lista de etiquetas a una vista previa de
-          la ficha: la marca, el estado y los datos que alguien ve al
-          encontrarlo en el catálogo. Va lo primero del dashboard porque es la
-          tarjeta que más vale y la que el dueño viene a comprobar. */}
-      <section className="ficha-preview relative mb-gap-lg overflow-hidden rounded-3xl border border-verde-200 bg-gradient-to-br from-verde-50 via-white to-sand-warm p-gap-md shadow-soft sm:p-gap-lg">
-        {/* Dos halos fuera de la caja: dan profundidad sin meter una imagen
-            más, que en datos móviles se paga. */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-verde-200/40 blur-3xl"
-        />
-        <span
-          aria-hidden
-          className="pointer-events-none absolute -bottom-24 -left-12 size-52 rounded-full bg-sand-deep/60 blur-3xl"
-        />
-
-        <div className="relative flex flex-wrap items-center justify-between gap-gap-sm">
-          <p className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.18em] text-verde-700">
-            Así te ven en La Verde
+      {/* Cabecera de página. Es la única vista que se titula: la barra lateral
+          ya nombra las demás secciones, y este saludo es lo que el dueño lee
+          al abrir el panel. */}
+      <header className="mb-gap-lg flex flex-wrap items-end justify-between gap-gap-md">
+        <div>
+          <p className="flex items-center gap-gap-xs font-lv-display text-[11px] font-semibold uppercase tracking-[0.16em] text-verde-700">
+            <span
+              aria-hidden
+              className="size-[7px] shrink-0 rounded-full bg-verde-500 shadow-[0_0_0_4px_rgba(24,149,79,0.1)]"
+            />
+            Panel del negocio
           </p>
+          <h1 className="mt-gap-xs font-lv-display text-[26px] font-bold leading-[1.12] tracking-[-0.03em] text-ink sm:text-[32px]">
+            Tu negocio, de un vistazo.
+          </h1>
+          <p className="mt-[4px] text-small text-ink-soft/70">
+            Lo importante de {place.name}, en un solo lugar.
+          </p>
+        </div>
+        <BusinessSwitcher negocios={negocios} seleccionado={place.id} compact />
+      </header>
+
+      {/* Vista previa de la ficha. Usa el hero oscuro del rediseño y **no** la
+          clase `ficha-preview`: su override de tema oscuro repintaría este
+          degradado. El blanco y los verdes claros funcionan en los dos temas. */}
+      <section className="relative mb-gap-lg overflow-hidden rounded-[26px] bg-[linear-gradient(116deg,#0e2a1e_0%,#153e2c_72%,#1d5238_100%)] p-gap-md text-white shadow-card ring-1 ring-white/5 sm:p-gap-lg">
+        {/* Adornos fuera de la caja: profundidad sin imágenes, que en datos
+            móviles se pagan. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -right-[90px] -top-[220px] size-[350px] rounded-full bg-[radial-gradient(circle,rgba(91,224,143,0.23),rgba(91,224,143,0)_68%)]"
+        />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-[130px] -bottom-[220px] size-[240px] rounded-full border border-verde-300/20 shadow-[0_0_0_28px_rgba(91,224,143,0.035),0_0_0_58px_rgba(91,224,143,0.025)]"
+        />
+
+        <div className="relative flex flex-wrap items-center justify-between gap-gap-md">
+          <div className="flex min-w-0 flex-wrap items-center gap-gap-sm">
+            <span className="relative size-16 shrink-0 overflow-hidden rounded-[20px] border border-white/25 bg-white p-1 shadow-[0_8px_24px_rgba(0,0,0,0.12)] sm:size-[68px]">
+              <span className="relative grid size-full place-items-center overflow-hidden rounded-[15px] bg-white">
+                {marca ? (
+                  <Image
+                    src={marca}
+                    alt=""
+                    fill
+                    sizes="(min-width: 640px) 60px, 56px"
+                    quality={70}
+                    className="object-cover"
+                  />
+                ) : (
+                  <span aria-hidden className="text-[30px]">
+                    {categoryEmoji(place.category)}
+                  </span>
+                )}
+              </span>
+            </span>
+
+            <div className="min-w-0">
+              <p className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.18em] text-verde-200">
+                Así te ven en La Verde
+              </p>
+              <div className="mt-[5px] flex flex-wrap items-center gap-gap-xs">
+                <h2 className="font-lv-display text-[21px] font-bold leading-[1.15] tracking-[-0.02em] sm:text-[25px]">
+                  {place.name}
+                </h2>
+                <span
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-[5px] rounded-full border px-[9px] py-[5px] font-lv-display text-[9px] font-semibold uppercase tracking-[0.14em]",
+                    place.isActive
+                      ? "border-verde-300/35 bg-verde-400/15 text-verde-100"
+                      : "border-white/20 bg-white/10 text-white/75",
+                  )}
+                >
+                  {place.isActive && <Check size={10} strokeWidth={3} />}
+                  {place.isActive ? "Publicada" : "Sin publicar"}
+                </span>
+              </div>
+              <p className="mt-[4px] flex flex-wrap items-center gap-x-gap-xs gap-y-[4px] text-small text-verde-100/75">
+                <span>{place.category}</span>
+                <span aria-hidden className="text-white/25">
+                  ·
+                </span>
+                <span>{place.barrio || place.city || "Sin zona"}</span>
+                <span className="inline-flex items-center gap-[5px] font-medium text-white/90">
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "size-[6px] shrink-0 rounded-full",
+                      place.status === "active"
+                        ? "bg-verde-400"
+                        : "bg-white/30",
+                    )}
+                  />
+                  {estadoLabel}
+                </span>
+              </p>
+            </div>
+          </div>
+
           <Link
             href={`/place/${place.id}`}
-            className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-verde-200 bg-white px-gap-sm font-lv-display text-meta font-semibold text-verde-700 transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
+            className="inline-flex shrink-0 items-center gap-gap-xs rounded-[13px] bg-white px-gap-md py-3 font-lv-display text-small font-bold text-verde-950 shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-transform duration-500 ease-outquint hover:-translate-y-[2px]"
           >
             Ver mi ficha
-            <ArrowUpRight size={14} strokeWidth={2} />
+            <ArrowUpRight size={15} strokeWidth={2} />
           </Link>
         </div>
 
-        <div className="relative mt-gap-sm flex flex-wrap items-center gap-gap-sm">
-          <span className="relative grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-soft sm:size-[72px]">
-            {marca ? (
-              <Image
-                src={marca}
-                alt=""
-                fill
-                sizes="(min-width: 640px) 72px, 64px"
-                quality={70}
-                className="object-cover"
-              />
-            ) : (
-              <span aria-hidden className="text-[30px]">
-                {categoryEmoji(place.category)}
-              </span>
-            )}
-          </span>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-gap-xs">
-              <h2 className="font-lv-display text-h3 font-bold tracking-[-0.02em] text-ink">
-                {place.name}
-              </h2>
-              <span
-                className={cn(
-                  "inline-flex shrink-0 items-center rounded-full border px-[10px] py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em]",
-                  place.isActive
-                    ? "border-verde-200 bg-verde-50 text-verde-700"
-                    : "border-ink/10 bg-sand text-ink-soft/75",
-                )}
-              >
-                {place.isActive ? "Publicada" : "Sin publicar"}
-              </span>
-            </div>
-            <p className="mt-[3px] flex flex-wrap items-center gap-x-gap-xs gap-y-[4px] text-small text-ink-soft/75">
-              <span>{place.category}</span>
-              <span aria-hidden className="text-ink/20">
-                ·
-              </span>
-              <span>{place.barrio || place.city || "Sin zona"}</span>
-              <span className="inline-flex items-center gap-[5px] font-medium text-ink-soft">
-                <span
-                  aria-hidden
-                  className={cn(
-                    "size-[6px] shrink-0 rounded-full",
-                    place.status === "active"
-                      ? "bg-verde-500"
-                      : "bg-ink/30",
-                  )}
-                />
-                {estadoLabel}
-              </span>
-            </p>
-          </div>
-        </div>
-
-        <dl className="relative mt-gap-md grid grid-cols-2 gap-gap-xs sm:grid-cols-4">
-          <DatoFicha icon={Tag} label="Categoría" value={place.category} />
-          <DatoFicha
-            icon={MapPin}
-            label="Zona"
-            value={place.barrio || place.city || "Sin zona"}
-          />
-          <DatoFicha
-            icon={Clock}
-            label="Horario"
-            value={place.schedule || "Sin horario"}
-          />
-          <DatoFicha
-            icon={MapPin}
-            label="Ubicación"
-            value={formatCoordinates({ lat: place.lat, lng: place.lng })}
-          />
-        </dl>
-
-        <div className="relative mt-gap-sm flex flex-wrap items-center justify-between gap-gap-xs border-t border-ink/5 pt-gap-sm">
-          <p className="flex min-w-0 items-start gap-[6px] text-meta text-ink-soft/75">
+        <div className="relative mt-gap-md flex flex-wrap items-center gap-x-gap-lg gap-y-gap-xs border-t border-white/10 pt-gap-sm text-meta text-verde-100/70">
+          <p className="flex min-w-0 items-start gap-[7px]">
             <MapPin
               size={14}
               strokeWidth={1.8}
-              className="mt-[1px] shrink-0 text-verde-600"
+              className="mt-[1px] shrink-0 text-verde-300"
             />
             <span className="break-words">
               {place.address || "Todavía no has escrito la dirección"}
             </span>
           </p>
-          <p className="text-meta text-ink-soft/75">
-            {place.isActive
-              ? "Visible en el catálogo y en el mapa"
-              : "Aún no aparece en el catálogo"}
+          <p className="flex items-center gap-[7px]">
+            <Clock
+              size={14}
+              strokeWidth={1.8}
+              className="shrink-0 text-verde-300"
+            />
+            <span>{place.schedule || "Sin horario"}</span>
+          </p>
+          <p className="flex items-center gap-[7px]">
+            <Eye
+              size={14}
+              strokeWidth={1.8}
+              className="shrink-0 text-verde-300"
+            />
+            <span>
+              {place.isActive
+                ? "Visible en el mapa y catálogo"
+                : "Aún no aparece en el catálogo"}
+            </span>
           </p>
         </div>
       </section>
 
-      {/* El rótulo de la sección, una sola palabra: el subtítulo que lo
-          acompañaba repetía lo que la propia cifra ya dice. */}
-      <h2 className="mb-gap-sm font-lv-display text-body font-semibold text-ink">
-        Estadísticas
-      </h2>
+      {/* Cabecera de la sección, como en el rediseño: un título que dice qué
+          se está mirando y el periodo, en vez de la palabra «Estadísticas». */}
+      <div className="mb-gap-sm flex flex-wrap items-end justify-between gap-gap-sm">
+        <div>
+          <h2 className="font-lv-display text-body font-semibold text-ink">
+            Actividad de tu negocio
+          </h2>
+          <p className="mt-[3px] text-small text-ink-soft/70">
+            Un resumen de lo que está pasando con tu ficha.
+          </p>
+        </div>
+        <span className="rounded-full border border-ink/10 bg-white px-[11px] py-[7px] font-lv-display text-meta font-semibold text-ink-soft/70">
+          Este mes
+        </span>
+      </div>
 
       {/* Cuatro cifras y ninguna inventada. Aquí había «342 visitas esta semana,
           +18%», «87 clics en Cómo llegar» y «156 recomendaciones IA»: no existe
@@ -632,13 +673,15 @@ function DashboardView({
         stats={[
           {
             label: "Clics a tu negocio",
-            value: visitas.resumen.total.toLocaleString("es-CU"),
-            hint: "Ficha y menú, en total",
+            value: visitas.resumen.mes.toLocaleString("es-CU"),
+            hint: "Ficha y menú, este mes",
+            icon: MousePointerClick,
           },
           {
             label: "Búsquedas",
             value: stats.aiMatches.toLocaleString("es-CU"),
             hint: "Apareciste como opción",
+            icon: Search,
           },
           {
             label: "Productos",
@@ -647,6 +690,7 @@ function DashboardView({
                la ficha ya viene cargada con su carta. */
             value: place.menu.length.toLocaleString("es-CU"),
             hint: "En tu catálogo",
+            icon: Package,
           },
           {
             label: "Publicaciones",
@@ -658,15 +702,20 @@ function DashboardView({
               publicaciones.tope > 0
                 ? `Quedan ${Math.max(publicaciones.tope - publicaciones.usadas, 0)} esta semana`
                 : "No incluido en tu plan",
+            icon: Megaphone,
+            progress:
+              publicaciones.tope > 0
+                ? (publicaciones.usadas / publicaciones.tope) * 100
+                : undefined,
             dimmed: publicaciones.tope === 0,
           },
         ]}
       />
 
       {/* Los clics de la última semana, separados por dónde entró la gente: la
-          ficha (llegó al negocio) y la carta (abrió el menú). El total de
-          arriba cambia poco; estas dos cifras se mueven a diario y son las que
-          se miran al abrir el panel. */}
+          ficha (llegó al negocio) y la carta (abrió el menú). La cifra del mes
+          cambia poco; estas dos se mueven a diario y son las que se miran al
+          abrir el panel. */}
       <section className="mt-gap-md rounded-2xl border border-ink/5 bg-white p-gap-md">
         <div className="flex flex-wrap items-center justify-between gap-gap-sm">
           <h2 className="flex items-center gap-gap-xs font-lv-display text-small font-semibold text-ink">
@@ -697,7 +746,10 @@ function DashboardView({
         </dl>
       </section>
 
-      <div className="mt-gap-md grid grid-cols-1 gap-gap-md lg:grid-cols-2">
+      {/* Cada sección con su cabecera y su tarjeta, como en el rediseño: ya no
+          van en una rejilla de dos columnas porque ambos ocupan el ancho
+          completo, y meterlas en una rejilla era lo que dejaba los huecos. */}
+      <div className="mt-gap-md flex flex-col gap-gap-lg">
         {/* El QR con o sin la marca de La Verde lo decide una función. Se lee
             de `funciones` y no se consulta al servidor: es cosmético, no un
             permiso que escriba nada, y las funciones ya vienen resueltas desde
@@ -716,29 +768,6 @@ function DashboardView({
         )}
       </div>
     </>
-  );
-}
-
-/** Un dato de la vista previa de la ficha. */
-function DatoFicha({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof MapPin;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-ink/10 bg-white/70 p-gap-sm backdrop-blur-[2px]">
-      <dt className="flex items-center gap-[6px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-verde-700">
-        <Icon size={13} strokeWidth={2} className="shrink-0" />
-        {label}
-      </dt>
-      <dd className="mt-[5px] break-words font-lv-display text-small font-semibold leading-snug text-ink">
-        {value}
-      </dd>
-    </div>
   );
 }
 
@@ -1790,7 +1819,10 @@ function SettingsView({
       toast.success("Cupo liberado: ese día vuelve a estar entero.", {
         action:
           liberadas > 0
-            ? { label: "Deshacer", onClick: () => void restaurarFecha(fecha, liberadas) }
+            ? {
+                label: "Deshacer",
+                onClick: () => void restaurarFecha(fecha, liberadas),
+              }
             : undefined,
       });
     } catch {

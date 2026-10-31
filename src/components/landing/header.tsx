@@ -52,9 +52,12 @@ export function Header() {
       )}
     >
       <div className="landing-nav-surface mx-auto flex h-14 max-w-3xl items-center justify-between rounded-full border border-ink/10 bg-white/85 pl-4 pr-2 shadow-soft backdrop-blur-xl">
+        {/* El relleno de 9 px y su margen negativo le dan 44 px de alto real
+            sin mover ni un píxel el logo: el texto ya medía lo suyo, pero el
+            icono solo, en móvil, se quedaba en 26 px de objetivo táctil. */}
         <Link
           href="/"
-          className="flex min-w-0 items-center gap-2 font-lv-display text-[20px] font-bold tracking-[-0.02em] text-ink"
+          className="-my-[9px] flex min-w-0 items-center gap-2 py-[9px] font-lv-display text-[20px] font-bold tracking-[-0.02em] text-ink"
         >
           <Logo className="h-[26px] w-auto shrink-0" />
           {/* En pantallas estrechas el nombre cede antes que el menú: con el

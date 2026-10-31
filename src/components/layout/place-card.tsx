@@ -180,12 +180,12 @@ export function PlaceCard({
             }
             className="relative z-[1] -my-[13px] inline-flex h-11 shrink-0 items-center rounded-full"
           >
-            <span className="inline-flex h-6 items-center gap-[3px] rounded-full bg-[#1a2733] px-[9px] font-lv-display text-[12px] font-medium leading-none text-[#d7e2ec] transition-colors duration-300 hover:bg-[#223443]">
+            <span className="inline-flex h-6 items-center gap-[3px] rounded-full bg-sand-deep px-[9px] font-lv-display text-[12px] font-medium leading-none text-ink-soft/75 transition-colors duration-300 hover:bg-sand">
               <MapPin
                 size={12}
                 strokeWidth={2}
                 aria-hidden="true"
-                className="text-[#86e3a3]"
+                className="text-verde-600"
               />
               {distanceLabel}
             </span>

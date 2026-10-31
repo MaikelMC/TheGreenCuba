@@ -76,9 +76,10 @@ interface PanelShellProps {
    * Lo usa el selector de negocio: elegir qué negocio miras no es una sección
    * más, tiene que seguir a la vista —si estás editando la ficha y cambias de
    * negocio, sigues editando, pero la otra— y por eso no puede vivir dentro de
-   * ninguna de ellas.
+   * ninguna de ellas. Recibe la vista activa porque el dashboard pinta el
+   * selector dentro de su propia cabecera y no quiere una copia encima.
    */
-  above?: React.ReactNode;
+  above?: (activeView: PanelView) => React.ReactNode;
   children: (
     activeView: PanelView,
     setView: (view: PanelView) => void,
@@ -199,7 +200,12 @@ export function PanelShell({
   }, [drawerOpen]);
 
   return (
-    <div className={cn("business-panel h-dvh bg-sand font-lv text-ink flex flex-col", className)}>
+    <div
+      className={cn(
+        "business-panel h-dvh bg-sand font-lv text-ink flex flex-col",
+        className,
+      )}
+    >
       {/* Top Bar. Igual que la cabecera del home: barra clara translúcida con
           hairline de tinta, no el `border-border` gris del sistema viejo. */}
       <header className="safe-top sticky top-0 z-50 bg-sand-warm/90 backdrop-blur-[16px] border-b border-ink/5 h-header flex items-center px-3 gap-2 sm:px-gap-md sm:gap-gap-sm shrink-0">
@@ -253,7 +259,9 @@ export function PanelShell({
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "relative flex items-center gap-gap-sm w-full px-gap-md py-3 rounded-full text-small font-medium transition-colors duration-500 ease-outquint text-left border-none bg-transparent cursor-pointer font-lv-display",
-                  isActive ? "text-verde-700 font-semibold" : "text-ink-soft/75 hover:bg-sand",
+                  isActive
+                    ? "text-verde-700 font-semibold"
+                    : "text-ink-soft/75 hover:bg-sand",
                 )}
               >
                 {isActive && (
@@ -263,7 +271,11 @@ export function PanelShell({
                     transition={{ type: "spring", stiffness: 380, damping: 32 }}
                   />
                 )}
-                <Icon size={20} strokeWidth={1.8} className="relative shrink-0 z-10" />
+                <Icon
+                  size={20}
+                  strokeWidth={1.8}
+                  className="relative shrink-0 z-10"
+                />
                 <span className="relative z-10">{item.label}</span>
               </button>
             );
@@ -273,7 +285,9 @@ export function PanelShell({
 
           {/* Business card */}
           <div className="mx-gap-sm mt-auto mb-gap-md p-gap-md bg-sand border border-ink/5 rounded-2xl flex flex-col gap-gap-xs">
-            <div className="font-lv-display text-small font-bold text-ink">{businessName}</div>
+            <div className="font-lv-display text-small font-bold text-ink">
+              {businessName}
+            </div>
             <div className="flex items-center gap-[6px] text-meta text-ink-soft/75">
               <span className="size-[6px] rounded-full bg-verde-400" />
               Activo en La Verde
@@ -291,7 +305,7 @@ export function PanelShell({
               también `padding-bottom`, y como las variantes responsive salen
               después en el CSS, el valor de móvil se comía el de `lg`. */}
           <div className="px-gap-sm pt-gap-sm pb-gap-md sm:px-gap-md sm:pt-gap-md lg:px-gap-xl lg:pt-gap-xl lg:pb-gap-xl flex flex-col min-h-full">
-            {above}
+            {above?.(activeView)}
             {/* Sin `AnimatePresence` y sin espera: React desmonta la vista
                 anterior de golpe y la nueva entra fundiéndose en 180 ms. La
                 animación va por CSS y no con `motion`: el `initial` de
@@ -299,7 +313,10 @@ export function PanelShell({
                 en una conexión lenta la sección se quedaba en blanco hasta
                 que llegaba el JavaScript. La clave sigue cambiando para que
                 la animación se repita en cada sección. */}
-            <div key={activeView} className="lv-view-in flex flex-col min-h-full">
+            <div
+              key={activeView}
+              className="lv-view-in flex flex-col min-h-full"
+            >
               {children(activeView, go)}
             </div>
           </div>

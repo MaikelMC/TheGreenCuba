@@ -31,6 +31,10 @@ interface StatCard {
    * sigue leyendo qué es, pero no compite con las cifras que sí importan.
    */
   dimmed?: boolean;
+  /** Icono de la esquina. Solo lo pasan las métricas del panel de negocio. */
+  icon?: LucideIcon;
+  /** 0–100. Pinta la barra de progreso bajo la cifra. */
+  progress?: number;
 }
 
 interface DashboardStatsProps {
@@ -60,7 +64,12 @@ export function DashboardStats({ stats, className }: DashboardStatsProps) {
     >
       {stats.map((s, i) => {
         const change = s.change;
-        const Icon = change ? (changeIcons[change.direction] ?? Minus) : Minus;
+        const ChangeIcon = change
+          ? (changeIcons[change.direction] ?? Minus)
+          : Minus;
+        const Icon = s.icon;
+        const pct =
+          s.progress == null ? null : Math.min(Math.max(s.progress, 0), 100);
         return (
           <motion.div
             key={s.label}
@@ -79,38 +88,59 @@ export function DashboardStats({ stats, className }: DashboardStatsProps) {
                motivo promete una interacción que no existe. */
             aria-disabled={s.dimmed || undefined}
             className={cn(
-              "bg-white border border-ink/5 rounded-2xl p-gap-md flex flex-col gap-gap-xs",
+              "relative min-h-[138px] overflow-hidden rounded-[19px] border border-ink/5 bg-white p-gap-md shadow-[0_5px_18px_rgba(14,42,30,0.025)]",
               s.dimmed && "opacity-50",
             )}
           >
-            {/* El interletrado era de 0,22em y la etiqueta se partía en dos
-                líneas en cuanto pasaba de doce letras —«Llamadas · 30 días» en
-                media pantalla de móvil—, así que las tarjetas de una misma fila
-                acababan con alturas distintas. A 0,06em entra entera. */}
-            <span className="font-lv-display text-[11px] font-semibold uppercase leading-tight tracking-[0.06em] text-verde-600">
-              {s.label}
-            </span>
+            {/* El halo de la esquina, como en el rediseño. Solo cuando hay
+                icono: sin él no hay nada que equilibrar. */}
+            {Icon && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -right-9 -top-10 size-[70px] rounded-full bg-verde-50/70"
+              />
+            )}
+            <div className="relative flex items-start justify-between gap-gap-xs">
+              {/* El interletrado era de 0,22em y la etiqueta se partía en dos
+                  líneas en cuanto pasaba de doce letras —«Llamadas · 30 días» en
+                  media pantalla de móvil—, así que las tarjetas de una misma
+                  fila acababan con alturas distintas. A 0,06em entra entera. */}
+              <span className="font-lv-display text-[11px] font-semibold uppercase leading-tight tracking-[0.06em] text-ink-soft/70">
+                {s.label}
+              </span>
+              {Icon && (
+                <span className="grid size-[30px] shrink-0 place-items-center rounded-[10px] bg-verde-50 text-verde-600">
+                  <Icon size={15} strokeWidth={1.8} />
+                </span>
+              )}
+            </div>
             {/* Escala fija, no `clamp`: la misma cifra medía distinto en la
                 rejilla de dos columnas del móvil y en la de cuatro de
-                escritorio, así que encogía con la ventana en vez de con la
-                jerarquía. `text-h3` es además la escala que ya usan las filas de
-                cifras del panel, y `tabular-nums` evita que el número baile. */}
-            <span className="font-lv-display text-h3 font-bold tabular-nums text-ink">
+                escritorio. `tabular-nums` evita que el número baile. */}
+            <span className="relative mt-[14px] block font-lv-display text-[30px] font-bold leading-none tracking-[-0.03em] tabular-nums text-ink">
               {s.value}
             </span>
             {s.hint && (
-              <span className="text-meta leading-snug text-ink-soft/70">
+              <span className="relative mt-[7px] block text-meta leading-snug text-ink-soft/70">
                 {s.hint}
               </span>
+            )}
+            {pct !== null && (
+              <div className="relative mt-gap-sm h-1 overflow-hidden rounded-full bg-sand-deep">
+                <span
+                  className="block h-full rounded-full bg-verde-500"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
             )}
             {change && (
               <span
                 className={cn(
-                  "inline-flex w-fit items-center gap-[4px] rounded-full px-[8px] py-[3px] font-lv-display text-meta font-medium",
+                  "relative mt-gap-xs inline-flex w-fit items-center gap-[4px] rounded-full px-[8px] py-[3px] font-lv-display text-meta font-medium",
                   changeStyles[change.direction],
                 )}
               >
-                <Icon size={12} strokeWidth={1.8} />
+                <ChangeIcon size={12} strokeWidth={1.8} />
                 {change.value}
               </span>
             )}

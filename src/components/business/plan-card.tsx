@@ -58,67 +58,93 @@ export function PlanCard({
   const ocultos = puntos.length - visibles.length;
 
   return (
-    <section
-      className={cn(
-        "rounded-2xl border p-gap-md lg:col-span-2",
-        dePago ? "border-verde-200 bg-verde-50/60" : "border-ink/5 bg-white",
-      )}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-gap-sm">
+    <section>
+      <div className="mb-gap-sm">
         <h2 className="font-lv-display text-body font-semibold text-ink">
           Tu plan
         </h2>
-        <span
-          className={cn(
-            "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em]",
-            dePago
-              ? "border border-verde-200 bg-white text-verde-700"
-              : "border border-ink/10 bg-sand text-ink-soft/75",
-          )}
-        >
-          {nombreDe(plan, cat)}
-        </span>
+        <p className="mt-[3px] text-small text-ink-soft/70">
+          Los servicios que tienes activos para tu negocio.
+        </p>
       </div>
 
-      <p className="mt-gap-sm font-lv-display text-h3 font-bold tracking-[-0.01em] text-ink">
-        {nombreDe(plan, cat)}
-      </p>
-      <p className="mt-gap-2xs max-w-[52ch] text-small text-ink-soft/75">
-        {lemaDe(plan, cat)}
-      </p>
+      {/* La tarjeta del rediseño: degradado verde muy claro, halo en la esquina
+          y la lista de beneficios en dos columnas. Sin pago se queda en blanco,
+          que es lo mismo que decía el tinte de antes. */}
+      <div
+        className={cn(
+          "relative overflow-hidden rounded-[26px] border p-gap-md sm:p-gap-lg",
+          dePago
+            ? "border-verde-200/60 bg-[linear-gradient(120deg,#edf7ef,#f7fbf7)]"
+            : "border-ink/5 bg-white",
+        )}
+      >
+        {dePago && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -right-[110px] -top-[160px] size-[250px] rounded-full bg-verde-400/10"
+          />
+        )}
 
-      <ul className="mt-gap-md grid grid-cols-1 gap-gap-xs lg:grid-cols-2">
-        {visibles.map((punto, i) => (
-          <li
-            key={`${i}-${punto}`}
-            className="flex items-start gap-gap-xs text-small text-ink"
+        <div className="relative flex flex-wrap items-center justify-between gap-gap-sm">
+          <h3 className="font-lv-display text-[17px] font-semibold tracking-[-0.01em] text-ink">
+            Tu plan actual
+          </h3>
+          <span
+            className={cn(
+              "inline-flex items-center rounded-full px-[11px] py-[6px] font-lv-display text-[10px] font-extrabold uppercase tracking-[0.09em]",
+              dePago
+                ? "border border-verde-300/70 bg-white/80 text-verde-700"
+                : "border border-ink/10 bg-sand text-ink-soft/75",
+            )}
           >
-            <Check
-              size={15}
-              strokeWidth={2}
-              className="mt-[3px] shrink-0 text-verde-600"
-            />
-            <span className="text-pretty">{punto}</span>
-          </li>
-        ))}
-      </ul>
+            {nombreDe(plan, cat)}
+            {dePago ? " · Activo" : ""}
+          </span>
+        </div>
 
-      <div className="mt-gap-md flex flex-wrap items-center gap-gap-sm">
-        <button
-          type="button"
-          onClick={onVerPlanes}
-          className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
-        >
-          Ver todos los planes
-          <ArrowRight size={16} strokeWidth={1.8} />
-        </button>
-        {ocultos > 0 ? (
-          <p className="text-meta text-ink-soft/75">Y {ocultos} más.</p>
-        ) : !dePago ? (
-          <p className="text-meta text-ink-soft/75">
-            Los planes y servicios suman más.
-          </p>
-        ) : null}
+        <div className="relative mt-gap-md grid gap-gap-md sm:grid-cols-[.8fr_1.2fr] sm:items-center">
+          <div>
+            <p className="font-lv-display text-[28px] font-bold leading-none tracking-[-0.03em] text-ink">
+              {nombreDe(plan, cat)}
+            </p>
+            <p className="mt-gap-2xs text-small text-ink-soft/70">
+              {lemaDe(plan, cat)}
+            </p>
+          </div>
+
+          <ul className="grid grid-cols-1 gap-gap-xs sm:grid-cols-2 sm:gap-x-gap-sm">
+            {visibles.map((punto, i) => (
+              <li
+                key={`${i}-${punto}`}
+                className="flex items-start gap-gap-xs text-small text-ink"
+              >
+                <span className="mt-[1px] grid size-[19px] shrink-0 place-items-center rounded-full bg-verde-100 text-verde-700">
+                  <Check size={12} strokeWidth={2.6} />
+                </span>
+                <span className="text-pretty">{punto}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="relative mt-gap-md flex flex-wrap items-center gap-gap-sm">
+          <button
+            type="button"
+            onClick={onVerPlanes}
+            className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+          >
+            Ver todos los planes
+            <ArrowRight size={16} strokeWidth={1.8} />
+          </button>
+          {ocultos > 0 ? (
+            <p className="text-meta text-ink-soft/75">Y {ocultos} más.</p>
+          ) : !dePago ? (
+            <p className="text-meta text-ink-soft/75">
+              Los planes y servicios suman más.
+            </p>
+          ) : null}
+        </div>
       </div>
     </section>
   );

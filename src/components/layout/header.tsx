@@ -6,10 +6,19 @@ import { Search, Loader2, MapPin, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchActions, useSearchState } from "@/providers/search-provider";
 import { searchAddress, type GeocodeSuggestion } from "@/lib/map/geocode";
-import { readRecentSearches, type RecentSearch } from "@/lib/recent-searches-store";
+import {
+  readRecentSearches,
+  type RecentSearch,
+} from "@/lib/recent-searches-store";
 import { getLastKnownPosition } from "@/lib/map/geolocation";
-import { locationCenter, readUserPreferences } from "@/lib/user-preferences-store";
-import { buildSearchSuggestions, type SearchSuggestion } from "@/lib/search-suggestions";
+import {
+  locationCenter,
+  readUserPreferences,
+} from "@/lib/user-preferences-store";
+import {
+  buildSearchSuggestions,
+  type SearchSuggestion,
+} from "@/lib/search-suggestions";
 import { categoryIcon } from "@/lib/places";
 import { fetchMe } from "@/lib/session-client";
 import { CategoryIcon } from "@/components/admin/category-icon";
@@ -118,7 +127,10 @@ interface HeaderProps {
   isSearching?: boolean;
 }
 
-export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }: HeaderProps) {
+export function Header({
+  onSearch: propOnSearch,
+  isSearching: propIsSearching,
+}: HeaderProps) {
   let actions: ReturnType<typeof useSearchActions> | null = null;
   try {
     actions = useSearchActions();
@@ -276,7 +288,12 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
           carga nueva, y ahí sí vuelve todo a pedirse: la sesión, `/api/me` y
           el catálogo. Es el gesto de «esto se ha quedado tonto, que se
           recargue». */}
-      <a href="/home" className="flex items-center gap-gap-xs shrink-0">
+      {/* Mismo truco que en la portada: 9 px de relleno y su margen negativo
+          dejan 44 px de objetivo sin cambiar el sitio del logo. */}
+      <a
+        href="/home"
+        className="-m-[9px] flex min-w-11 shrink-0 items-center gap-gap-xs p-[9px]"
+      >
         <Logo className="h-[26px] w-auto shrink-0" />
         <span className="font-lv-display text-[19px] font-bold tracking-[-0.02em] text-ink max-sm:hidden">
           <span translate="no">La Verde</span>
@@ -284,12 +301,16 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
       </a>
 
       {/* Search */}
-      <div ref={searchRef} className="flex-1 relative max-md:flex-1 md:max-w-[480px] md:mx-auto">
+      <div
+        ref={searchRef}
+        className="flex-1 relative max-md:flex-1 md:max-w-[480px] md:mx-auto"
+      >
         <form
           onSubmit={handleSubmit}
           className={cn(
             "home-search-form flex items-center gap-2 sm:gap-gap-xs bg-white border border-ink/10 rounded-full pl-3 pr-1 sm:pl-[14px] sm:pr-1 transition duration-500 ease-outquint cursor-text",
-            focused && "border-verde-400 shadow-[0_0_0_3px_rgba(53,175,109,0.15)]",
+            focused &&
+              "border-verde-400 shadow-[0_0_0_3px_rgba(53,175,109,0.15)]",
             effectiveIsSearching && "border-verde-400",
           )}
           onClick={() => inputRef.current?.focus()}
@@ -318,7 +339,9 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
               setRecent(readRecentSearches());
               setShowAllRecent(false);
               setShowAllAddr(false);
-              setSuggestions(buildSearchSuggestions({ places, ...suggestionOrigin(userId) }));
+              setSuggestions(
+                buildSearchSuggestions({ places, ...suggestionOrigin(userId) }),
+              );
               if (query.trim().length >= 3) handleQueryChange(query);
               else setAddrResults([]);
             }}
@@ -361,9 +384,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
             >
               {addrResults.length > 0 && (
                 <>
-                  <div className={cn(EYEBROW, "pt-[10px]")}>
-                    Direcciones
-                  </div>
+                  <div className={cn(EYEBROW, "pt-[10px]")}>Direcciones</div>
                   {(showAllAddr
                     ? addrResults
                     : addrResults.slice(0, ADDR_PREVIEW)
@@ -425,9 +446,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
                   nada. El separador de abajo lo pone el bloque siguiente. */}
               {suggestions.length > 0 && (
                 <>
-                  <div className={cn(EYEBROW, "pt-[10px]")}>
-                    Sugerencias
-                  </div>
+                  <div className={cn(EYEBROW, "pt-[10px]")}>Sugerencias</div>
                   {suggestions.map((s, i) => (
                     <motion.button
                       key={s.query}
@@ -467,9 +486,7 @@ export function Header({ onSearch: propOnSearch, isSearching: propIsSearching }:
               {recent.length > 0 && (
                 <>
                   <div className="h-px bg-ink/5 mx-gap-md my-[4px]" />
-                  <div className={EYEBROW}>
-                    Búsquedas recientes
-                  </div>
+                  <div className={EYEBROW}>Búsquedas recientes</div>
                   {(showAllRecent
                     ? recent
                     : recent.slice(0, RECENT_PREVIEW)
