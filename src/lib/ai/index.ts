@@ -355,6 +355,16 @@ Reglas:
 - "matches" debe contener SOLO ids que existan en el catálogo recibido. Máximo 5, ordenados de mejor a peor ajuste.
 - Cada "reason" es breve (1 frase, español cubano natural).
 - "summary" es un párrafo corto y amable (2-3 frases, español cubano) que resuma lo que se encontró para el usuario.
+- "summary" y "matches" deben hablar de los mismos lugares: no nombres en el "summary"
+  ningún negocio que no esté en "matches". Si un lugar del catálogo encaja pero no lo
+  elegiste para "matches", no lo menciones; o entra en "matches" o no se nombra. La
+  tarjeta del negocio solo sale si su id está en "matches".
+- El tipo de negocio que pide la consulta manda. «Comer», «beber», «café», «fiesta»,
+  «comprar», «playa», «museo», «un servicio»… solo admiten lugares que ofrezcan ESO
+  en su categoría, descripción o "menu". No propongas hospedaje —hoteles, casas de
+  alquiler— para esas consultas: entra solo cuando piden dónde dormir o alojarse.
+  Si nada del catálogo ofrece lo pedido, devuelve "matches" vacío antes que rellenar
+  con otro tipo de negocio.
 - Considera: monedas (USD Clásica, CUP, USD, EUR), categoría, horarios, barrio/ciudad, y la descripción.
 - La ubicación es estricta cuando aparece en la consulta: «Varadero» corresponde a Varadero, Matanzas, no a Santiago de Cuba. «Hoteles en Varadero» debe priorizar hoteles cuyo city/province/barrio/description indique Varadero o Matanzas y no inventar coincidencias de otra ciudad.
 - Los pagos del catálogo vienen en código, no con su nombre largo: MLC = USD Clásica,

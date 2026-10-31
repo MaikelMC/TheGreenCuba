@@ -1066,12 +1066,18 @@ function HomePageContent() {
         const mentionsOther = province
           ? queryMentionsOtherProvince(query, province)
           : false;
+        /* Las fichas de relleno también se quedan fuera del catálogo de la IA:
+           `listVisiblePlaces` ya no las recomienda, pero este catálogo se
+           armaba desde `places` y el modelo las seguía proponiendo. */
+        const recommendable = places.filter(
+          (p) => !FILLER_PLACE_IDS.has(p.id),
+        );
         const pool =
           province && !mentionsOther
-            ? places.filter((p) => !placeOutsideUserProvince(p, province))
-            : places;
+            ? recommendable.filter((p) => !placeOutsideUserProvince(p, province))
+            : recommendable;
 
-        const catalog = (pool.length > 0 ? pool : places)
+        const catalog = (pool.length > 0 ? pool : recommendable)
           .map((p) => ({
             id: p.id,
             name: p.name,

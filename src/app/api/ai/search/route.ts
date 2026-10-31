@@ -113,10 +113,20 @@ const LOCATION_RULES = [
   { terms: ["santiago", "santiago de cuba"], text: ["santiago", "santiago de cuba"], bounds: { minLat: 19.8, maxLat: 20.3, minLng: -76.2, maxLng: -75.5 } },
 ] as const;
 
+/* Las formas en que se pide dormir en Cuba, no solo «hotel»: sin esta lista,
+   «dónde quedarme» se leería como una consulta sin hospedaje. */
+const LODGING_QUERY =
+  /\bhotel(?:es)?\b|\bhosped\w*|\baloj\w*|\bhostal\w*|\bcasa particular\b|\bhabitaci[oó]n(?:es)?\b|\bdormir\b|\bpernoct\w*|\bpasar la noche\b|\bquedarse\b|\bquedarme\b|\bresort\w*/;
+
+/* La categoría «Hospedaje» la comparten la semilla y el selector del panel. */
+function isLodging(place: CatalogPlace): boolean {
+  return /\bhosped|hotel/.test(normalize(place.category));
+}
+
 function catalogForQuery(query: string, places: CatalogPlace[]): CatalogPlace[] {
   const normalizedQuery = normalize(query);
   const location = LOCATION_RULES.find((rule) => rule.terms.some((term) => normalizedQuery.includes(term)));
-  const asksForHotel = /\bhotel(?:es)?\b|hospedaje|alojamiento/.test(normalizedQuery);
+  const asksForLodging = LODGING_QUERY.test(normalizedQuery);
 
   return places.filter((place) => {
     if (location) {
@@ -125,9 +135,15 @@ function catalogForQuery(query: string, places: CatalogPlace[]): CatalogPlace[] 
       const coordinateMatch = place.lat >= location.bounds.minLat && place.lat <= location.bounds.maxLat && place.lng >= location.bounds.minLng && place.lng <= location.bounds.maxLng;
       if (!textMatch && !coordinateMatch) return false;
     }
-    if (asksForHotel) {
+    /* El hospedaje entra solo cuando la consulta lo pide. Antes el filtro era
+       solo positivo y el modelo, con un catálogo donde la mitad son hoteles,
+       los colaba en cualquier búsqueda; «cerca de mí» sin hablar de dormir
+       devolvía hoteles. */
+    if (asksForLodging) {
       const searchable = normalize([place.name, place.category, place.description].filter(Boolean).join(" "));
-      if (!/\bhotel(?:es)?\b|hospedaje|alojamiento/.test(searchable)) return false;
+      if (!isLodging(place) && !/\bhotel(?:es)?\b|\bhosped\w*|\baloj\w*|\bhostal\w*/.test(searchable)) return false;
+    } else if (isLodging(place)) {
+      return false;
     }
     return true;
   });
