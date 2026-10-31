@@ -1577,7 +1577,7 @@ function HomePageContent() {
         {/* Columna flotante de la esquina: la campana arriba y, debajo, el
             interruptor de claro/oscuro. Van juntos para que se apilen con la
             misma separación sin repetir la posición en dos sitios. */}
-        <div className="absolute right-gutter top-[110px] z-30 flex flex-col items-end gap-[10px]">
+        <div className="absolute right-gutter top-[64px] z-30 flex flex-col items-end gap-[10px]">
           <NovedadesMapa
             ubicacion={userLocation}
             provincia={userProvinceLabel(userPreferences)}

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ArrowUpRight, MapPin } from "lucide-react";
+import { CategoryIcon } from "@/components/admin/category-icon";
 import type { UserPlace } from "@/lib/places-store";
-import { categoryEmoji } from "@/lib/places";
+import { placeIcon } from "@/lib/places";
 
 /**
  * Listado de fichas para los hubs de categoría y ciudad.
@@ -28,9 +29,14 @@ export function PlaceLinkList({ places }: { places: UserPlace[] }) {
             >
               <span
                 aria-hidden
-                className="grid size-10 shrink-0 place-items-center rounded-full bg-verde-50 text-[20px]"
+                className="grid size-10 shrink-0 place-items-center rounded-full bg-verde-50"
               >
-                {categoryEmoji(place.category)}
+                <CategoryIcon
+                  icon={placeIcon(place.icon, place.category)}
+                  size={20}
+                  strokeWidth={1.6}
+                  className="text-verde-700/60"
+                />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-start justify-between gap-gap-xs">

@@ -15,7 +15,8 @@ import {
 import { PuntoNuevo } from "@/components/ui/punto-nuevo";
 import { formatDistanceM } from "@/lib/map/routing";
 import { etiquetaTipo, type NovedadHome } from "@/lib/novedades";
-import { categoryEmoji } from "@/lib/places";
+import { categoryIcon } from "@/lib/places";
+import { CategoryIcon } from "@/components/admin/category-icon";
 
 interface Props {
   ubicacion: { lat: number; lng: number } | null;
@@ -402,8 +403,13 @@ export function NovedadesMapa({ ubicacion, provincia, userId }: Props) {
                                 }`}
                               >
                                 <span className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-ink/5 bg-sand">
-                                  <span className="grid size-full place-items-center text-2xl">
-                                    {categoryEmoji(item.categoria ?? "")}
+                                  <span className="grid size-full place-items-center">
+                                    <CategoryIcon
+                                      icon={categoryIcon(item.categoria ?? "")}
+                                      size={26}
+                                      strokeWidth={1.6}
+                                      className="text-verde-700/55"
+                                    />
                                   </span>
                                   {item.imagenUrl && (
                                     <img

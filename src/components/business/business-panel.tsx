@@ -32,7 +32,7 @@ import { cn, sanitizePhone } from "@/lib/utils";
 import { normalizarWhatsappCubano } from "@/lib/contact-links";
 import { SUPPORT_EMAIL } from "@/lib/legal";
 import { logout } from "@/lib/logout";
-import { categoryEmoji, placeIcon } from "@/lib/places";
+import { placeIcon } from "@/lib/places";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -487,7 +487,7 @@ function DashboardView({
   esDueno: boolean;
   onVerPlanes: () => void;
 }) {
-  /* La marca del negocio: logo, portada o el emoji de su categoría, en ese
+  /* La marca del negocio: logo, portada o el icono de su categoría, en ese
      orden. Es lo primero que reconoce quien lo busca. */
   const marca = place.logoUrl || place.photos?.[0]?.url || null;
   const estadoLabel =
@@ -550,8 +550,12 @@ function DashboardView({
                     className="object-cover"
                   />
                 ) : (
-                  <span aria-hidden className="text-[30px]">
-                    {categoryEmoji(place.category)}
+                  <span aria-hidden className="text-verde-700/55">
+                    <CategoryIcon
+                      icon={placeIcon(place.icon, place.category)}
+                      size={30}
+                      strokeWidth={1.5}
+                    />
                   </span>
                 )}
               </span>

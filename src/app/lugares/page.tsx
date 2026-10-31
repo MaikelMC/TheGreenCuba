@@ -5,12 +5,17 @@ import { ArrowUpRight, MapPin, Search, Star } from "lucide-react";
 import { Footer } from "@/components/layout/footer";
 import { Logo } from "@/components/layout/logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { CategoryIcon } from "@/components/admin/category-icon";
 import { SelloVerificado } from "@/components/place/sello-verificado";
 import { TopDelMes } from "@/components/place/top-del-mes";
 import { siteConfig } from "@/config/site";
 import { listCategories, listPlaces } from "@/lib/db/queries";
 import type { UserPlace } from "@/lib/places-store";
-import { categoryEmoji, FILLER_PLACE_IDS } from "@/lib/places";
+import {
+  FILLER_PLACE_IDS,
+  placeIcon,
+  type BusinessCategory,
+} from "@/lib/places";
 import {
   absoluteUrl,
   breadcrumbJsonLd,
@@ -116,7 +121,13 @@ function matches(place: UserPlace, query: string): boolean {
     .every((term) => haystack.includes(term));
 }
 
-function PlaceDirectoryCard({ place }: { place: UserPlace }) {
+function PlaceDirectoryCard({
+  place,
+  icon,
+}: {
+  place: UserPlace;
+  icon: string;
+}) {
   const cover = place.photos?.[0]?.url ?? null;
   const logo = place.logoUrl ?? null;
   const image = cover ?? logo;
@@ -145,11 +156,12 @@ function PlaceDirectoryCard({ place }: { place: UserPlace }) {
             )}
           />
         ) : (
-          <span
-            aria-hidden
-            className="grid size-full place-items-center text-[32px] sm:text-[56px]"
-          >
-            {categoryEmoji(place.category)}
+          <span aria-hidden className="grid size-full place-items-center">
+            <CategoryIcon
+              icon={icon}
+              strokeWidth={1.5}
+              className="size-9 text-verde-700/45 sm:size-16"
+            />
           </span>
         )}
 
@@ -261,9 +273,11 @@ export default async function DirectorioPage({
   /* Las categorías del catálogo llevan su `slug` real: «Vida nocturna» es
      `discoteca` en la base y `slugify` daría una URL que no existe. */
   let categorySlugByName = new Map<string, string>();
+  let categoriesList: BusinessCategory[] = [];
   try {
+    categoriesList = await listCategories();
     categorySlugByName = new Map(
-      (await listCategories()).map((category) => [category.label, category.value]),
+      categoriesList.map((category) => [category.label, category.value]),
     );
   } catch {
     /* Sin slugs se enseña el directorio sin chips; el listado sigue. */
@@ -343,12 +357,15 @@ export default async function DirectorioPage({
 
           {/* GET nativo: sin JavaScript, el estado vive en la URL y cada
               combinación de filtros se puede compartir y rastrear. */}
+          {/* En móvil el buscador ocupa la fila entera y los dos selects se
+              emparejan: cuatro controles a todo el ancho eran una torre de
+              pastillas. Desde `sm` vuelve la fila única. */}
           <form
             action="/lugares"
             method="get"
-            className="mt-gap-xl grid gap-gap-sm rounded-3xl border border-ink/10 bg-white p-gap-md shadow-soft sm:grid-cols-[1fr_auto_auto_auto] sm:items-center"
+            className="mt-gap-xl grid grid-cols-2 gap-gap-sm rounded-3xl border border-ink/10 bg-white p-gap-md shadow-soft sm:grid-cols-[1fr_auto_auto_auto] sm:items-center"
           >
-            <div className="relative">
+            <div className="relative col-span-2 sm:col-span-1">
               <label htmlFor="q" className="sr-only">
                 Buscar negocios
               </label>
@@ -368,7 +385,7 @@ export default async function DirectorioPage({
               />
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label htmlFor="provincia" className="sr-only">
                 Provincia
               </label>
@@ -376,9 +393,9 @@ export default async function DirectorioPage({
                 id="provincia"
                 name="provincia"
                 defaultValue={provincia}
-                className="h-12 w-full rounded-full border border-ink/15 bg-white px-4 text-small font-medium text-ink focus-visible:border-verde-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-500/40 sm:w-auto"
+                className="h-12 w-full rounded-full border border-ink/15 bg-white px-3 text-small font-medium text-ink focus-visible:border-verde-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-500/40 sm:w-auto sm:px-4"
               >
-                <option value="">Todas las provincias</option>
+                <option value="">Provincia</option>
                 {provinces.map((province) => (
                   <option key={province} value={province}>
                     {province}
@@ -387,7 +404,7 @@ export default async function DirectorioPage({
               </select>
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label htmlFor="categoria" className="sr-only">
                 Categoría
               </label>
@@ -395,9 +412,9 @@ export default async function DirectorioPage({
                 id="categoria"
                 name="categoria"
                 defaultValue={categoria}
-                className="h-12 w-full rounded-full border border-ink/15 bg-white px-4 text-small font-medium text-ink focus-visible:border-verde-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-500/40 sm:w-auto"
+                className="h-12 w-full rounded-full border border-ink/15 bg-white px-3 text-small font-medium text-ink focus-visible:border-verde-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-500/40 sm:w-auto sm:px-4"
               >
-                <option value="">Todas las categorías</option>
+                <option value="">Categoría</option>
                 {categories.map((category) => (
                   <option key={category} value={category}>
                     {category}
@@ -408,7 +425,7 @@ export default async function DirectorioPage({
 
             <button
               type="submit"
-              className="h-12 rounded-full bg-ink px-6 font-lv-display text-small font-semibold text-white transition-colors duration-300 hover:bg-verde-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-500 focus-visible:ring-offset-2"
+              className="col-span-2 h-12 rounded-full bg-ink px-6 font-lv-display text-small font-semibold text-white transition-colors duration-300 hover:bg-verde-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-500 focus-visible:ring-offset-2 sm:col-span-1"
             >
               Buscar
             </button>
@@ -442,35 +459,39 @@ export default async function DirectorioPage({
               className="mt-gap-lg flex flex-col gap-gap-sm"
             >
               {categoryLinks.length > 0 && (
-                <div className="flex flex-wrap items-center gap-gap-xs">
+                <div className="flex flex-col gap-gap-xs">
                   <span className="font-lv-display text-meta font-semibold uppercase tracking-[0.12em] text-ink-soft/60">
                     Categorías
                   </span>
-                  {categoryLinks.map((category) => (
-                    <Link
-                      key={category.slug}
-                      href={categoryPath(category.slug)}
-                      className="inline-flex h-9 items-center rounded-full border border-ink/10 bg-white px-4 font-lv-display text-small font-semibold text-ink transition-colors hover:border-verde-300 hover:bg-verde-50"
-                    >
-                      {category.name}
-                    </Link>
-                  ))}
+                  <div className="scrollbar-hide flex flex-nowrap items-center gap-gap-xs overflow-x-auto sm:flex-wrap">
+                    {categoryLinks.map((category) => (
+                      <Link
+                        key={category.slug}
+                        href={categoryPath(category.slug)}
+                        className="inline-flex h-9 shrink-0 items-center rounded-full border border-ink/10 bg-white px-4 font-lv-display text-small font-semibold text-ink transition-colors hover:border-verde-300 hover:bg-verde-50"
+                      >
+                        {category.name}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               )}
               {cityLinks.length > 0 && (
-                <div className="flex flex-wrap items-center gap-gap-xs">
+                <div className="flex flex-col gap-gap-xs">
                   <span className="font-lv-display text-meta font-semibold uppercase tracking-[0.12em] text-ink-soft/60">
                     Ciudades
                   </span>
-                  {cityLinks.map((city) => (
-                    <Link
-                      key={city.slug}
-                      href={cityPath(city.slug)}
-                      className="inline-flex h-9 items-center rounded-full border border-ink/10 bg-white px-4 font-lv-display text-small font-semibold text-ink transition-colors hover:border-verde-300 hover:bg-verde-50"
-                    >
-                      {city.name}
-                    </Link>
-                  ))}
+                  <div className="scrollbar-hide flex flex-nowrap items-center gap-gap-xs overflow-x-auto sm:flex-wrap">
+                    {cityLinks.map((city) => (
+                      <Link
+                        key={city.slug}
+                        href={cityPath(city.slug)}
+                        className="inline-flex h-9 shrink-0 items-center rounded-full border border-ink/10 bg-white px-4 font-lv-display text-small font-semibold text-ink transition-colors hover:border-verde-300 hover:bg-verde-50"
+                      >
+                        {city.name}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               )}
             </nav>
@@ -479,7 +500,11 @@ export default async function DirectorioPage({
           {filtered.length > 0 ? (
             <div className="mt-gap-md grid gap-gap-sm sm:grid-cols-2 sm:gap-gap-md lg:grid-cols-3">
               {filtered.map((place) => (
-                <PlaceDirectoryCard key={place.id} place={place} />
+                <PlaceDirectoryCard
+                  key={place.id}
+                  place={place}
+                  icon={placeIcon(place.icon, place.category, categoriesList)}
+                />
               ))}
             </div>
           ) : (

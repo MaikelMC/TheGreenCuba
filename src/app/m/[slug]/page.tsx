@@ -27,7 +27,7 @@ import {
   menuUrl,
   placeJsonLd,
 } from "@/lib/structured-data";
-import { categoryEmoji } from "@/lib/places";
+import { placeIcon } from "@/lib/places";
 import { tieneFuncion } from "@/lib/plans-server";
 import {
   cn,
@@ -57,6 +57,7 @@ import { ReservaWhatsApp } from "@/components/place/reserva-whatsapp";
 import { SeguidorBoton } from "@/components/place/seguidor-boton";
 import { MarcaCarta } from "@/components/menu/marca-carta";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { CategoryIcon } from "@/components/admin/category-icon";
 
 /**
  * El menú público: la URL corta y estable que se reparte.
@@ -649,9 +650,13 @@ export default async function MenuPage({
           ) : (
             <span
               aria-hidden
-              className="grid size-[72px] shrink-0 place-items-center rounded-full bg-sand-deep text-[32px] sm:size-20 sm:text-[36px]"
+              className="grid size-[72px] shrink-0 place-items-center rounded-full bg-sand-deep sm:size-20"
             >
-              {categoryEmoji(place.category)}
+              <CategoryIcon
+                icon={placeIcon(place.icon, place.category)}
+                strokeWidth={1.5}
+                className="size-8 text-verde-700/55 sm:size-9"
+              />
             </span>
           )}
 
@@ -827,7 +832,7 @@ export default async function MenuPage({
                 name: place.name,
                 status: place.status,
                 brand,
-                emoji: categoryEmoji(place.category),
+                icon: placeIcon(place.icon, place.category),
               }}
               fichaHref={showFichaLink ? `/place/${place.id}` : null}
               laVerdeHref={`${siteConfig.url.replace(/\/+$/, "")}/place/${place.id}`}

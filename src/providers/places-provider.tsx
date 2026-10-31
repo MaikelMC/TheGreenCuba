@@ -32,7 +32,9 @@ import type { BusinessCategory } from "@/lib/places";
 
 interface CategoryInput {
   name: string;
-  emoji: string;
+  /* Ya no se pinta en ninguna vista: las categorías se representan con su
+     icono. El campo sigue existiendo en la base y en la API por compatibilidad. */
+  emoji?: string;
   value: string;
   icon?: string;
 }
