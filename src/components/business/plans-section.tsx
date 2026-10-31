@@ -108,9 +108,9 @@ export function PlansSection({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan: p }),
       });
-      const data = (await res.json().catch(() => null)) as
-        | { error?: string }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
       if (!res.ok) {
         toast.error(data?.error ?? "No se pudo cambiar el plan.");
         return;
@@ -137,9 +137,10 @@ export function PlansSection({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ placeId, tipo, clave }),
       });
-      const data = (await res.json().catch(() => null)) as
-        | { url?: string; error?: string }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        url?: string;
+        error?: string;
+      } | null;
       if (!res.ok || !data?.url) {
         toast.error(data?.error ?? "No se pudo abrir el pago.");
         return;
@@ -191,8 +192,8 @@ export function PlansSection({
                 ? `Elegiste ${cat.modulos[primerModulo].nombre}.`
                 : `Elegiste ${modulosElegidos.length} servicios.`}
           </span>{" "}
-          Paga el mes en su tarjeta y la suscripción se activa al confirmarse
-          el pago.
+          Paga el mes en su tarjeta y la suscripción se activa al confirmarse el
+          pago.
         </p>
       )}
 
@@ -200,7 +201,7 @@ export function PlansSection({
         titulo="Lo que ya tienes"
         detalle="Incluido en cualquier negocio de La Verde, con o sin plan."
       >
-        <article className="rounded-4xl border border-ink/5 bg-white p-gap-lg">
+        <article className={cn(TARJETA, TARJETA_NORMAL, "shadow-soft")}>
           <h3 className="font-lv-display text-h3 font-bold tracking-[-0.01em] text-ink">
             {cat.gratisNombre}
           </h3>
@@ -236,7 +237,10 @@ export function PlansSection({
         </div>
       </Bloque>
 
-      <Bloque titulo="Packs" detalle="Las funciones de siempre, juntas y con descuento.">
+      <Bloque
+        titulo="Packs"
+        detalle="Las funciones de siempre, juntas y con descuento."
+      >
         <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-3">
           {PACKS_ORDER.map((p) => (
             <PackTile
@@ -263,11 +267,16 @@ export function PlansSection({
           correo. */}
       <ul className="mt-gap-lg grid grid-cols-1 gap-gap-sm text-small text-ink-soft/75 lg:grid-cols-2">
         <li>
-          <span className="font-semibold text-ink">Bajar de plan no borra nada.</span>{" "}
-          Tus productos, fotos y carta se quedan; solo dejas de poder añadir más.
+          <span className="font-semibold text-ink">
+            Bajar de plan no borra nada.
+          </span>{" "}
+          Tus productos, fotos y carta se quedan; solo dejas de poder añadir
+          más.
         </li>
         <li>
-          <span className="font-semibold text-ink">Negocio nuevo, 30 días de Pro.</span>{" "}
+          <span className="font-semibold text-ink">
+            Negocio nuevo, 30 días de Pro.
+          </span>{" "}
           La prueba entra sola al registrarte y no hay que pagar nada por ella.
         </li>
       </ul>
@@ -331,6 +340,29 @@ export function PlansSection({
   );
 }
 
+/* Las tarjetas del rediseño: el mismo degradado verde claro, el halo de la
+   esquina y las píldoras suaves del plan del dashboard. Las que no están
+   destacadas se quedan en blanco para que el resalte signifique algo. */
+const TARJETA = "relative isolate flex flex-col rounded-[26px] border p-gap-lg";
+const TARJETA_DESTACADA =
+  "border-verde-200/60 bg-[linear-gradient(120deg,#edf7ef,#f7fbf7)]";
+const TARJETA_NORMAL = "border-ink/5 bg-white";
+const PILDORA =
+  "inline-flex items-center rounded-full px-[11px] py-[6px] font-lv-display text-[10px] font-extrabold uppercase tracking-[0.09em]";
+const PILDORA_VERDE = `${PILDORA} border border-verde-300/70 bg-white/80 text-verde-700`;
+
+/** El halo de la esquina. Recortado a la tarjeta, y por debajo del contenido. */
+function Halo() {
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[26px]"
+    >
+      <span className="absolute -right-[110px] -top-[160px] size-[250px] rounded-full bg-verde-400/10" />
+    </span>
+  );
+}
+
 /** Un bloque con su titular, para separar Gratis, módulos y packs. */
 function Bloque({
   titulo,
@@ -343,13 +375,13 @@ function Bloque({
 }) {
   return (
     <div className="mt-gap-lg">
-      <h2 className="font-lv-display text-h3 font-bold tracking-[-0.01em] text-ink">
+      <h2 className="font-lv-display text-body font-semibold text-ink">
         {titulo}
       </h2>
-      <p className="mt-gap-2xs max-w-[60ch] text-small text-ink-soft/75">
+      <p className="mt-[3px] max-w-[60ch] text-small text-ink-soft/70">
         {detalle}
       </p>
-      <div className="mt-gap-md">{children}</div>
+      <div className="mt-gap-sm">{children}</div>
     </div>
   );
 }
@@ -374,11 +406,7 @@ function ListaFunciones({
     <ul className={cn("flex flex-col gap-gap-xs", className)}>
       {lista.map((f) => (
         <li key={f} className="flex items-start gap-gap-xs text-small text-ink">
-          <Check
-            size={15}
-            strokeWidth={2}
-            className="mt-[3px] shrink-0 text-verde-600"
-          />
+          <CheckCircle />
           <span className="text-pretty">{cat.funciones[f].texto}</span>
           {!cat.funciones[f].disponible && <Proximamente />}
         </li>
@@ -403,16 +431,25 @@ function ListaLineas({ texto }: { texto: string }) {
         .map((linea) => linea.trim())
         .filter(Boolean)
         .map((linea) => (
-          <li key={linea} className="flex items-start gap-gap-xs text-small text-ink">
-            <Check
-              size={15}
-              strokeWidth={2}
-              className="mt-[3px] shrink-0 text-verde-600"
-            />
+          <li
+            key={linea}
+            className="flex items-start gap-gap-xs text-small text-ink"
+          >
+            <CheckCircle />
             <span className="text-pretty">{linea}</span>
           </li>
         ))}
     </ul>
+  );
+}
+
+/** La marca de la lista, en círculo: el mismo gesto que la tarjeta del plan en
+    el dashboard, también en verde cuando la tarjeta va sobre el degradado. */
+function CheckCircle() {
+  return (
+    <span className="mt-[1px] grid size-[19px] shrink-0 place-items-center rounded-full bg-verde-100 text-verde-700">
+      <Check size={12} strokeWidth={2.6} />
+    </span>
   );
 }
 
@@ -445,21 +482,17 @@ function ModuloTile({
   return (
     <article
       className={cn(
-        "flex flex-col rounded-4xl border bg-white p-gap-lg",
-        elegido
-          ? "border-verde-300 shadow-card ring-2 ring-verde-500"
-          : "border-ink/5",
+        TARJETA,
+        elegido ? TARJETA_DESTACADA : TARJETA_NORMAL,
+        elegido && "ring-2 ring-verde-500 ring-offset-2",
       )}
     >
+      {elegido && <Halo />}
       <div className="flex items-center gap-gap-xs">
         <h3 className="font-lv-display text-body font-bold tracking-[-0.01em] text-ink">
           {modulo.nombre}
         </h3>
-        {elegido && (
-          <span className="inline-flex items-center rounded-full bg-verde-400 px-[10px] py-[3px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em] text-verde-950">
-            Elegido
-          </span>
-        )}
+        {elegido && <span className={PILDORA_VERDE}>Elegido</span>}
       </div>
       <Precio usd={modulo.usd} />
       <p className="mt-gap-2xs text-small text-ink-soft/75">{modulo.lema}</p>
@@ -534,16 +567,15 @@ function PackTile({
   return (
     <article
       className={cn(
-        "relative flex flex-col rounded-4xl border bg-white p-gap-lg",
-        destacado || elegido
-          ? "border-verde-300 shadow-card"
-          : "border-ink/5",
+        TARJETA,
+        destacado || elegido || esActual ? TARJETA_DESTACADA : TARJETA_NORMAL,
         esActual && "ring-2 ring-verde-400/35",
         elegido && "ring-2 ring-verde-500",
       )}
     >
+      {(destacado || elegido || esActual) && <Halo />}
       {destacado && !esActual && !elegido && (
-        <span className="absolute -top-[11px] left-gap-lg inline-flex items-center gap-[4px] rounded-full bg-verde-400 px-gap-sm py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-verde-950">
+        <span className="absolute -top-[11px] left-gap-lg inline-flex items-center gap-[4px] rounded-full bg-verde-400 px-gap-sm py-[3px] font-lv-display text-[10px] font-extrabold uppercase tracking-[0.09em] text-verde-950">
           <Sparkles size={11} strokeWidth={2.2} />
           Recomendado
         </span>
@@ -554,13 +586,9 @@ function PackTile({
           {nombreDe(pack, cat)}
         </h3>
         {elegido ? (
-          <span className="inline-flex items-center rounded-full bg-verde-400 px-[10px] py-[3px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em] text-verde-950">
-            Elegido
-          </span>
+          <span className={PILDORA_VERDE}>Elegido</span>
         ) : esActual ? (
-          <span className="inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-[10px] py-[3px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em] text-verde-700">
-            Tu plan
-          </span>
+          <span className={PILDORA_VERDE}>Tu plan</span>
         ) : null}
       </div>
 

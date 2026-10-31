@@ -52,9 +52,10 @@ const FUENTE = `${FAMILIA}, 'Space Grotesk', system-ui, sans-serif`;
 /** El ancho del PNG, en píxeles. El alto sale de la proporción del sticker. */
 const ANCHO_PNG = 1024;
 
-/** Botón de la casa: los mismos 44 px y el mismo borde que el resto del panel. */
+/** Botón secundario del rediseño: alto de toque de 44 px, radio corto y borde
+    de tinta. El mismo en Compartir, Ver mi carta y las dos descargas. */
 const BTN =
-  "inline-flex h-11 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md " +
+  "inline-flex h-11 items-center gap-gap-xs rounded-[11px] border border-ink/10 bg-white px-[13px] " +
   "font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint " +
   "hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600";
 
@@ -216,7 +217,11 @@ async function traerRecursos(): Promise<Recursos> {
  * El ancho se **mide** (ver `anchoEm`) y el conjunto se centra con esa cuenta:
  * centrar a ojo es justo lo que deja una firma descuadrada.
  */
-function firmaDeMarca(ancho: number, alto: number, logo: string | null): string {
+function firmaDeMarca(
+  ancho: number,
+  alto: number,
+  logo: string | null,
+): string {
   const centroY = alto - BANDA_ABAJO / 2;
   const anchoLogo = logo ? ALTO_LOGO * RELACION_LOGO : 0;
   const hueco = logo ? HUECO : 0;
@@ -411,82 +416,118 @@ export function MenuLinkCard({
   }, [placeId, placeName, sinMarca]);
 
   return (
-    <section className="rounded-2xl border border-ink/5 bg-white p-gap-md lg:col-span-2">
-      <h2 className="font-lv-display text-body font-semibold text-ink">
-        Tu menú online
-      </h2>
-      <p className="mt-gap-xs max-w-[60ch] text-small text-ink-soft/75">
-        Tu catálogo se abre{" "}
-        <strong className="font-semibold text-ink">sin pedir cuenta</strong>.
-        Compártela o imprime el QR.
-      </p>
-
-      <div className="mt-gap-md grid gap-gap-md sm:grid-cols-[1fr_auto] sm:items-start">
-        <div className="flex flex-col gap-gap-sm">
-          <CopyLink url={url} />
-          <div className="flex flex-wrap gap-gap-xs">
-            <button
-              type="button"
-              onClick={() =>
-                void sharePlace(placeId, placeName, {
-                  path,
-                  campaign: "menu_share",
-                  text: `Mira la carta de ${placeName}`,
-                })
-              }
-              className={BTN}
-            >
-              <Share2 size={15} strokeWidth={1.8} />
-              Compartir
-            </button>
-            {/* La marca de La Verde dentro de la carta devuelve aquí a quien
-                vino de aquí; sin el aviso lleva a la portada pública, que es lo
-                que le toca a quien barre el QR. Va en el enlace y **no** en
-                `path`: `path` es también lo que comparte el botón de al lado, y
-                el enlace que se manda a un cliente no puede llevar la marca del
-                panel del dueño. Ver `MarcaCarta`. */}
-            <Link href={`${path}?volver=panel`} target="_blank" className={BTN}>
-              <ArrowUpRight size={15} strokeWidth={1.8} />
-              Ver mi carta
-            </Link>
-          </div>
+    <section>
+      {/* Cabecera de la sección, como en el rediseño: el título explica qué
+          hay debajo y la pastilla dice que el enlace ya está vivo. */}
+      <div className="mb-gap-sm flex flex-wrap items-end justify-between gap-gap-sm">
+        <div>
+          <h2 className="font-lv-display text-body font-semibold text-ink">
+            Tu menú online
+          </h2>
+          <p className="mt-[3px] text-small text-ink-soft/70">
+            Compártelo directamente o deja el QR a la vista de tus clientes.
+          </p>
         </div>
+        <span className="rounded-full border border-ink/10 bg-white px-[11px] py-[7px] font-lv-display text-meta font-semibold text-ink-soft/70">
+          Activo
+        </span>
+      </div>
 
-        <div className="flex flex-col items-center gap-gap-sm">
-          {/* El blanco alrededor no es adorno: es la zona de silencio del QR, y
-              en la pantalla hace el mismo papel que en el papel. */}
-          <div
-            ref={qrBoxRef}
-            className="flex flex-col items-center gap-gap-xs rounded-2xl border border-ink/5 bg-white p-gap-sm"
-          >
-            {/* Nivel M y no el L por defecto: esto se imprime, se pega en una
-                mesa y se mancha. M tolera ~15% de daño sin dejar de leerse. */}
-            <QRCode value={url} size={148} level="M" fgColor={INK} />
-            {/* Con Menú Pro el QR es del negocio y el rótulo de La Verde
-                desaparece; sin él, el rótulo es lo que dice de dónde sale. */}
-            {!sinMarca && (
-              <span className="font-lv-display text-[11px] font-semibold text-ink">
-                {BRAND_TEXT}
-              </span>
-            )}
+      <div className="rounded-[26px] border border-ink/5 bg-white p-gap-md shadow-soft sm:p-gap-lg">
+        <div className="grid gap-gap-md sm:grid-cols-[1.25fr_.75fr] sm:items-center">
+          <div>
+            <p className="flex items-center gap-gap-xs font-lv-display text-[11px] font-semibold uppercase tracking-[0.14em] text-verde-700">
+              <span
+                aria-hidden
+                className="size-[7px] shrink-0 rounded-full bg-verde-500 shadow-[0_0_0_4px_rgba(24,149,79,0.1)]"
+              />
+              Tu carta está lista
+            </p>
+            <h3 className="mt-gap-xs font-lv-display text-[19px] font-bold tracking-[-0.02em] text-ink">
+              Un enlace para compartir tu catálogo.
+            </h3>
+            <p className="mb-gap-sm mt-gap-2xs max-w-[52ch] text-small text-ink-soft/70">
+              Tu catálogo se abre{" "}
+              <strong className="font-semibold text-ink">
+                sin pedir cuenta
+              </strong>
+              . Comparte el enlace o imprime el QR.
+            </p>
+
+            <CopyLink url={url} />
+
+            <div className="mt-gap-sm flex flex-wrap gap-gap-xs">
+              <button
+                type="button"
+                onClick={() =>
+                  void sharePlace(placeId, placeName, {
+                    path,
+                    campaign: "menu_share",
+                    text: `Mira la carta de ${placeName}`,
+                  })
+                }
+                className={BTN}
+              >
+                <Share2 size={15} strokeWidth={1.8} />
+                Compartir
+              </button>
+              {/* La marca de La Verde dentro de la carta devuelve aquí a quien
+                  vino de aquí; sin el aviso lleva a la portada pública, que es lo
+                  que le toca a quien barre el QR. Va en el enlace y **no** en
+                  `path`: `path` es también lo que comparte el botón de al lado, y
+                  el enlace que se manda a un cliente no puede llevar la marca del
+                  panel del dueño. Ver `MarcaCarta`. */}
+              <Link
+                href={`${path}?volver=panel`}
+                target="_blank"
+                className={BTN}
+              >
+                <ArrowUpRight size={15} strokeWidth={1.8} />
+                Ver mi carta
+              </Link>
+            </div>
           </div>
-          <div className="flex flex-wrap justify-center gap-gap-xs">
-            <button
-              type="button"
-              onClick={() => void downloadPng()}
-              className={BTN}
+
+          <div className="flex flex-col items-center gap-gap-sm">
+            {/* El blanco alrededor no es adorno: es la zona de silencio del QR,
+                y en la pantalla hace el mismo papel que en el papel. */}
+            <div
+              ref={qrBoxRef}
+              className="flex w-full max-w-[218px] flex-col items-center gap-gap-xs rounded-[19px] border border-ink/5 bg-white p-[14px]"
             >
-              <Download size={15} strokeWidth={1.8} />
-              PNG
-            </button>
-            <button
-              type="button"
-              onClick={() => void downloadSvg()}
-              className={BTN}
-            >
-              <Download size={15} strokeWidth={1.8} />
-              SVG
-            </button>
+              {/* Nivel M y no el L por defecto: esto se imprime, se pega en una
+                  mesa y se mancha. M tolera ~15% de daño sin dejar de leerse. */}
+              <QRCode value={url} size={148} level="M" fgColor={INK} />
+              <span className="text-center font-lv-display text-[10px] font-bold uppercase tracking-[0.05em] text-ink-soft/70">
+                Código QR{" "}
+                <span className="text-verde-600">· listo para imprimir</span>
+              </span>
+              {/* Con Menú Pro el QR es del negocio y el rótulo de La Verde
+                  desaparece; sin él, el rótulo es lo que dice de dónde sale. */}
+              {!sinMarca && (
+                <span className="font-lv-display text-[11px] font-semibold text-ink">
+                  {BRAND_TEXT}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap justify-center gap-gap-xs">
+              <button
+                type="button"
+                onClick={() => void downloadPng()}
+                className={BTN}
+              >
+                <Download size={15} strokeWidth={1.8} />
+                PNG
+              </button>
+              <button
+                type="button"
+                onClick={() => void downloadSvg()}
+                className={BTN}
+              >
+                <Download size={15} strokeWidth={1.8} />
+                SVG
+              </button>
+            </div>
           </div>
         </div>
       </div>
