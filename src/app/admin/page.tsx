@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { Plus, AlertTriangle, Store } from "lucide-react";
@@ -12,6 +12,52 @@ import { TopPlaces } from "@/components/admin/top-places";
 
 export default function AdminDashboardPage() {
   const { places, categories } = usePlaces();
+  /* Las solicitudes de negocio ya viven en el provider; las de proyecto y la
+     cola de publicaciones no, así que se piden aparte. `null` = aún no
+     llegaron: la tarjeta enseña «—» en vez de un cero que no es verdad. */
+  const [proyectosPendientes, setProyectosPendientes] = useState<number | null>(
+    null,
+  );
+  const [publicacionesPendientes, setPublicacionesPendientes] = useState<
+    number | null
+  >(null);
+
+  useEffect(() => {
+    let vivo = true;
+
+    fetch("/api/project-requests?status=pending")
+      .then((res) => (res.ok ? (res.json() as Promise<unknown[]>) : []))
+      .then((rows) => {
+        if (vivo) setProyectosPendientes(rows.length);
+      })
+      .catch(() => {});
+
+    fetch("/api/admin/publicaciones")
+      .then((res) =>
+        res.ok
+          ? (res.json() as Promise<{
+              negocios: { publicaciones: { estado: string }[] }[];
+            }>)
+          : { negocios: [] },
+      )
+      .then(({ negocios }) => {
+        if (!vivo) return;
+        setPublicacionesPendientes(
+          negocios.reduce(
+            (total, negocio) =>
+              total +
+              negocio.publicaciones.filter((p) => p.estado !== "publicada")
+                .length,
+            0,
+          ),
+        );
+      })
+      .catch(() => {});
+
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   const stats = useMemo(() => {
     const approved = places.filter((p) => p.reviewStatus === "approved");
@@ -19,10 +65,17 @@ export default function AdminDashboardPage() {
     const active = approved.filter(
       (p) => p.isActive && p.status === "active",
     ).length;
-    const closed = total - active;
-    const boosted = approved.filter((p) => p.isBoosted).length;
-    return { total, active, closed, boosted };
+    return { total, active };
   }, [places]);
+
+  const negociosPendientes = useMemo(
+    () => places.filter((p) => p.reviewStatus === "pending").length,
+    [places],
+  );
+  const solicitudesPendientes =
+    proyectosPendientes === null
+      ? null
+      : negociosPendientes + proyectosPendientes;
 
   const byCategory = useMemo(
     () =>
@@ -80,19 +133,35 @@ export default function AdminDashboardPage() {
             },
           },
           {
-            label: "Destacados",
-            value: String(stats.boosted),
+            label: "Publicaciones pendientes",
+            value:
+              publicacionesPendientes === null
+                ? "—"
+                : String(publicacionesPendientes),
             change: {
-              value: stats.boosted > 0 ? "Plan activo" : "Sin destacados",
-              direction: stats.boosted > 0 ? "up" : "neutral",
+              value:
+                publicacionesPendientes && publicacionesPendientes > 0
+                  ? "Por publicar"
+                  : "Sin pendientes",
+              direction:
+                publicacionesPendientes && publicacionesPendientes > 0
+                  ? "down"
+                  : "neutral",
             },
           },
           {
-            label: "Cerrados / Temporales",
-            value: String(stats.closed),
+            label: "Solicitudes pendientes",
+            value:
+              solicitudesPendientes === null ? "—" : String(solicitudesPendientes),
             change: {
-              value: stats.closed > 0 ? "Requieren revisión" : "Todo en orden",
-              direction: stats.closed > 0 ? "down" : "neutral",
+              value:
+                solicitudesPendientes && solicitudesPendientes > 0
+                  ? "Requieren revisión"
+                  : "Todo al día",
+              direction:
+                solicitudesPendientes && solicitudesPendientes > 0
+                  ? "down"
+                  : "neutral",
             },
           },
         ]}
