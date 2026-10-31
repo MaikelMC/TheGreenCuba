@@ -98,7 +98,6 @@ export default function CategoriasPage() {
     const created = await addCategory({
       name,
       value,
-      emoji: "📍",
       icon: form.icon,
     });
     if (created) {

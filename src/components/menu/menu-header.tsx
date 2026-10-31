@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, Menu as MenuIcon, Search, X } from "lucide-react";
 import type { PlaceStatus } from "@/types";
+import { CategoryIcon } from "@/components/admin/category-icon";
 import { cn } from "@/lib/utils";
 
 /**
@@ -43,7 +44,7 @@ interface MenuHeaderProps {
     name: string;
     status: PlaceStatus;
     brand: string | null;
-    emoji: string;
+    icon: string;
   };
   /** `null` cuando la ficha no debe ofrecerse (el negocio de prueba). */
   fichaHref: string | null;
@@ -201,9 +202,14 @@ export function MenuHeader({
             ) : (
               <span
                 aria-hidden
-                className="grid size-12 shrink-0 place-items-center rounded-full bg-sand-deep text-[22px]"
+                className="grid size-12 shrink-0 place-items-center rounded-full bg-sand-deep"
               >
-                {negocio.emoji}
+                <CategoryIcon
+                  icon={negocio.icon}
+                  size={22}
+                  strokeWidth={1.6}
+                  className="text-verde-700/55"
+                />
               </span>
             )}
 
