@@ -209,17 +209,30 @@ export async function borrarDatosOffline(): Promise<void> {
 }
 
 /**
- * Purga las cachés privadas y pide al service worker que haga lo mismo.
+ * Purga las cachés de datos y pide al service worker que haga lo mismo.
  *
  * Va aunque `authClient.signOut()` falle por red: en un teléfono compartido, los
  * datos del usuario anterior no pueden sobrevivir al botón de salir.
+ *
+ * También caen `lv-pages-` y `lv-api-`: no llevan sesión, pero sí la última
+ * copia del catálogo y de las pantallas que vio quien se acaba de ir. Salen de
+ * la caché; los snapshots privados salen de `borrarDatosOffline`.
+ *
+ * `lv-static-` **no** se toca: es precaché de arranque —`offline.html`, iconos,
+ * fuentes— y es lo único que permite abrir algo sin red después de salir.
  */
 export async function purgarCachesPrivadas(): Promise<void> {
   try {
     const nombres = await caches.keys();
     await Promise.all(
       nombres
-        .filter((nombre) => nombre.startsWith("lv-private-") || nombre.startsWith("lv-images-"))
+        .filter(
+          (nombre) =>
+            nombre.startsWith("lv-private-") ||
+            nombre.startsWith("lv-pages-") ||
+            nombre.startsWith("lv-api-") ||
+            nombre.startsWith("lv-images-"),
+        )
         .map((nombre) => caches.delete(nombre)),
     );
   } catch {

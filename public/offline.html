@@ -544,7 +544,16 @@
                   return Promise.all(
                     names
                       .filter(function (nombre) {
-                        return nombre.indexOf("lv-private-") === 0 || nombre.indexOf("lv-images-") === 0;
+                        /* Páginas y catálogo también: el botón dice «borrar
+                           datos del dispositivo» y quien lo pulsa espera que no
+                           quede la última visita. Los `lv-static-` se quedan,
+                           que son los que permiten abrir esta pantalla. */
+                        return (
+                          nombre.indexOf("lv-private-") === 0 ||
+                          nombre.indexOf("lv-pages-") === 0 ||
+                          nombre.indexOf("lv-api-") === 0 ||
+                          nombre.indexOf("lv-images-") === 0
+                        );
                       })
                       .map(function (nombre) {
                         return caches.delete(nombre);

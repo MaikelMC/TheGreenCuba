@@ -21,8 +21,13 @@
 /* v2: las navegaciones ya no caen a la copia guardada solo porque la red tarde
    más de 4 s. Ese camino servía HTML de un despliegue anterior mientras había
    conexión, y la app arrancaba con la sesión y los chunks viejos. Subir la
-   versión purga las cachés que quedaron con la regla anterior. */
-const CACHE_VERSION = "lv-v2";
+   versión purga las cachés que quedaron con la regla anterior.
+
+   v3: las navegaciones privadas (`/business`, `/admin`, `/profile`) sin red
+   caen a `offline.html` en vez de a la página de error del navegador. No se
+   guarda su documento —siguen sin cachearse—, pero `offline.html` pinta los
+   snapshots de IndexedDB que antes quedaban inalcanzables. */
+const CACHE_VERSION = "lv-v3";
 
 const STATIC_CACHE = `lv-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `lv-pages-${CACHE_VERSION}`;
@@ -121,7 +126,14 @@ self.addEventListener("message", (event) => {
           names
             .filter(
               (name) =>
-                name.startsWith(PRIVATE_CACHE_PREFIX) || name.startsWith("lv-images-"),
+                /* Páginas y catálogo públicos no llevan sesión, pero en un
+                   teléfono compartido son la última visita de quien se fue.
+                   `lv-static-` se queda: es lo que permite abrir
+                   `offline.html` después de salir. */
+                name.startsWith(PRIVATE_CACHE_PREFIX) ||
+                name.startsWith("lv-pages-") ||
+                name.startsWith("lv-api-") ||
+                name.startsWith("lv-images-"),
             )
             .map((name) => caches.delete(name)),
         );
@@ -151,10 +163,11 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (esPeticionRsc(request, url)) return;
   if (esApiProhibida(url)) return;
-  if (esDocumentoPrivado(request, url) && request.mode === "navigate") return;
 
   if (request.mode === "navigate") {
-    event.respondWith(navegacion(request, url));
+    event.respondWith(
+      esDocumentoPrivado(request, url) ? navegacionPrivada(request) : navegacion(request, url),
+    );
     return;
   }
 
@@ -290,6 +303,43 @@ async function navegacion(request, url) {
   const offline = await caches.match("/offline.html");
   if (offline) return offline;
 
+  return respuestaSinConexion();
+}
+
+/**
+ * Navegación a una ruta privada.
+ *
+ * Nunca se guarda su documento: son pantallas con la sesión dentro y Cache
+ * Storage es compartida por todo el origen. Solo cambia el camino sin red —
+ * antes se cedía la petición al navegador, que contestaba con su página de
+ * error; ahora se sirve `offline.html`, que pinta los snapshots privados de
+ * IndexedDB (`la-verde-offline`) y bloquea los que tengan más de 7 días.
+ *
+ * Se espera la petición viva cuando hay conexión, igual que en `navegacion`:
+ * un timeout de 4 s no significa que no haya red, y mentir con «sin conexión»
+ * cuando la página solo tarda es peor que esperar.
+ */
+async function navegacionPrivada(request) {
+  const red = fetch(request);
+
+  let response = null;
+  try {
+    response = await conTimeout(red, NAV_TIMEOUT_MS);
+  } catch {
+    if (self.navigator?.onLine !== false) {
+      response = await red.catch(() => null);
+    }
+  }
+
+  if (response) return response;
+
+  const offline = await caches.match("/offline.html");
+  if (offline) return offline;
+
+  return respuestaSinConexion();
+}
+
+function respuestaSinConexion() {
   return new Response(
     "<!doctype html><html lang=\"es\"><meta charset=\"utf-8\"><title>Sin conexión</title><p>Sin conexión.</p></html>",
     { status: 503, headers: { "Content-Type": "text/html; charset=utf-8" } },
