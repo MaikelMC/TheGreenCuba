@@ -75,7 +75,7 @@ export function PlanCard({
         className={cn(
           "relative overflow-hidden rounded-[26px] border p-gap-md sm:p-gap-lg",
           dePago
-            ? "border-verde-200/60 bg-[linear-gradient(120deg,#edf7ef,#f7fbf7)]"
+            ? "plan-tint border-verde-200/60 bg-[linear-gradient(120deg,#edf7ef,#f7fbf7)]"
             : "border-ink/5 bg-white",
         )}
       >
@@ -94,7 +94,7 @@ export function PlanCard({
             className={cn(
               "inline-flex items-center rounded-full px-[11px] py-[6px] font-lv-display text-[10px] font-extrabold uppercase tracking-[0.09em]",
               dePago
-                ? "border border-verde-300/70 bg-white/80 text-verde-700"
+                ? "border border-verde-300/70 bg-white/90 text-verde-700"
                 : "border border-ink/10 bg-sand text-ink-soft/75",
             )}
           >
