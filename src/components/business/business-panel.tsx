@@ -524,7 +524,7 @@ function DashboardView({
       {/* Vista previa de la ficha. Usa el hero oscuro del rediseño y **no** la
           clase `ficha-preview`: su override de tema oscuro repintaría este
           degradado. El blanco y los verdes claros funcionan en los dos temas. */}
-      <section className="relative mb-gap-lg overflow-hidden rounded-[26px] bg-[linear-gradient(116deg,#0e2a1e_0%,#153e2c_72%,#1d5238_100%)] p-gap-md text-white shadow-card ring-1 ring-white/5 sm:p-gap-lg">
+      <section className="panel-hero relative mb-gap-lg overflow-hidden rounded-[26px] bg-[linear-gradient(116deg,#0e2a1e_0%,#153e2c_72%,#1d5238_100%)] p-gap-md text-white shadow-card ring-1 ring-white/5 sm:p-gap-lg">
         {/* Adornos fuera de la caja: profundidad sin imágenes, que en datos
             móviles se pagan. */}
         <span

@@ -685,6 +685,7 @@
      opacidad que le toca. El `/60` va aparte, arriba, porque llegó antes. */
   html[data-theme="dark"] .bg-verde-50\/40,
   html[data-theme="dark"] .bg-verde-50\/50,
+  html[data-theme="dark"] .bg-verde-50\/70,
   html[data-theme="dark"] .bg-verde-50\/80,
   html[data-theme="dark"] [class~="hover:bg-verde-50/40"]:hover {
     background-color: rgba(23, 53, 34, 0.6) !important;
@@ -731,6 +732,23 @@
 
   html[data-theme="dark"] .ficha-preview > span[aria-hidden] {
     background-color: rgba(103, 199, 146, 0.1) !important;
+  }
+
+  /* La tarjeta teñida de los planes —la del dashboard y las de «Planes»—. El
+     degradado va en `background-image`, así que la lista de `.bg-white` no lo
+     toca: en oscuro la tarjeta seguía verde clara con el texto ya en blanco.
+     Misma escala oscura que el resto de superficies. */
+  html[data-theme="dark"] .plan-tint {
+    background-image: linear-gradient(120deg, #173522, #16212b) !important;
+    border-color: #28533a !important;
+  }
+
+  /* El hero de «Así te ven en La Verde» es oscuro en los dos temas: su botón
+     «Ver mi ficha» y el recuadro de la marca son `bg-white` a propósito. El
+     override global de `.bg-white` los oscurecía, y el texto `text-verde-950`
+     no se aclara en oscuro —se queda tinta sobre tinta y no se lee—. */
+  html[data-theme="dark"] .panel-hero .bg-white {
+    background-color: #ffffff !important;
   }
 
   /* Ámbar y rojo vienen de la paleta por defecto de Tailwind, no de los tokens

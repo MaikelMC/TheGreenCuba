@@ -345,11 +345,11 @@ export function PlansSection({
    destacadas se quedan en blanco para que el resalte signifique algo. */
 const TARJETA = "relative isolate flex flex-col rounded-[26px] border p-gap-lg";
 const TARJETA_DESTACADA =
-  "border-verde-200/60 bg-[linear-gradient(120deg,#edf7ef,#f7fbf7)]";
+  "plan-tint border-verde-200/60 bg-[linear-gradient(120deg,#edf7ef,#f7fbf7)]";
 const TARJETA_NORMAL = "border-ink/5 bg-white";
 const PILDORA =
   "inline-flex items-center rounded-full px-[11px] py-[6px] font-lv-display text-[10px] font-extrabold uppercase tracking-[0.09em]";
-const PILDORA_VERDE = `${PILDORA} border border-verde-300/70 bg-white/80 text-verde-700`;
+const PILDORA_VERDE = `${PILDORA} border border-verde-300/70 bg-white/90 text-verde-700`;
 
 /** El halo de la esquina. Recortado a la tarjeta, y por debajo del contenido. */
 function Halo() {
@@ -484,7 +484,7 @@ function ModuloTile({
       className={cn(
         TARJETA,
         elegido ? TARJETA_DESTACADA : TARJETA_NORMAL,
-        elegido && "ring-2 ring-verde-500 ring-offset-2",
+        elegido && "ring-2 ring-verde-500 ring-offset-2 dark:ring-offset-[#08130d]",
       )}
     >
       {elegido && <Halo />}
