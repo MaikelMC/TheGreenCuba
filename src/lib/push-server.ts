@@ -3,6 +3,11 @@ import webpush from "web-push";
 
 import { db } from "@/lib/db";
 import { pushSubscriptions } from "@/lib/db/schema";
+import {
+  MAX_CUERPO_PUSH,
+  MAX_TITULO_PUSH,
+  recortarTexto,
+} from "@/lib/push-texto";
 
 /**
  * Envío de notificaciones push del servidor.
@@ -90,10 +95,6 @@ function statusDe(error: unknown): number | undefined {
   return typeof status === "number" ? status : undefined;
 }
 
-function recortar(texto: string, max: number): string {
-  return texto.length <= max ? texto : `${texto.slice(0, max - 1).trimEnd()}…`;
-}
-
 /**
  * Manda el mismo aviso a todos los dispositivos de los usuarios indicados.
  *
@@ -115,8 +116,8 @@ export async function enviarPushAUsuarios(
   }
 
   const cuerpo = JSON.stringify({
-    title: recortar(payload.title, 120),
-    body: recortar(payload.body, 240),
+    title: recortarTexto(payload.title, MAX_TITULO_PUSH),
+    body: recortarTexto(payload.body, MAX_CUERPO_PUSH),
     url: payload.url ?? "/notifications",
     tag: payload.tag ?? "la-verde",
   });

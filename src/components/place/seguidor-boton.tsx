@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Bell, Send } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, Loader2, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { trackEvento } from "@/lib/eventos-client";
 import {
@@ -79,10 +79,15 @@ export function SeguidorBoton({
         <DialogContent>
           <DialogTitle>Avisos de {seguidores.negocio}</DialogTitle>
           <DialogDescription>
-            Te avisamos por Telegram cuando este negocio publique una oferta o
-            algo nuevo en su carta. Son avisos cortos y pocos: como mucho tres
-            por semana.
+            Te avisamos cuando este negocio publique una oferta o algo nuevo en
+            su carta. Son avisos cortos y pocos: como mucho tres por semana.
           </DialogDescription>
+
+          <AvisosApp negocioId={negocioId} nombre={seguidores.negocio} />
+
+          <p className="mt-gap-md font-lv-display text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft/60">
+            O por Telegram
+          </p>
 
           <label className="mt-gap-md flex cursor-pointer items-start gap-gap-sm rounded-2xl border border-ink/10 bg-sand-warm px-4 py-3">
             <input
@@ -141,5 +146,153 @@ export function SeguidorBoton({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/**
+ * El interruptor de «Avísame en la app».
+ *
+ * Es la alternativa con sesión al bot de Telegram: la fila vive en
+ * `seguimientos` y el aviso llega a la bandeja y, si el usuario activó los
+ * avisos del dispositivo, como push. No sustituye al botón de Telegram —quien
+ * no tenga cuenta puede seguir usándolo—, lo complementa.
+ *
+ * El estado se pide al montar, que es al abrir el diálogo (Radix desmonta el
+ * contenido al cerrarlo). Sin sesión no se ofrece el interruptor: se explica qué
+ * hace y se enlaza al acceso, para no pedir un clic que va a devolver un 401.
+ */
+type EstadoApp =
+  "cargando" | "sin-sesion" | "error" | "inactivo" | "activo" | "guardando";
+
+function AvisosApp({
+  negocioId,
+  nombre,
+}: {
+  negocioId: string;
+  nombre: string;
+}) {
+  const [estado, setEstado] = useState<EstadoApp>("cargando");
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  useEffect(() => {
+    let vivo = true;
+    fetch(`/api/seguimientos?placeId=${encodeURIComponent(negocioId)}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { autenticado?: boolean; siguiendo?: boolean } | null) => {
+        if (!vivo) return;
+        if (!data?.autenticado) setEstado("sin-sesion");
+        else setEstado(data.siguiendo ? "activo" : "inactivo");
+      })
+      .catch(() => {
+        /* Un corte de red no es «no has iniciado sesión»: se dice aparte para
+           no mandar a nadie a la pantalla de acceso por un problema de datos. */
+        if (vivo) setEstado("error");
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [negocioId]);
+
+  async function alternar() {
+    const seguir = estado !== "activo";
+    setAviso(null);
+    setEstado("guardando");
+
+    try {
+      const response = await fetch("/api/seguimientos", {
+        method: seguir ? "POST" : "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId: negocioId }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setEstado(seguir ? "inactivo" : "activo");
+        setAviso(data?.error ?? "No se pudo guardar. Inténtalo otra vez.");
+        return;
+      }
+
+      setEstado(seguir ? "activo" : "inactivo");
+    } catch {
+      setEstado(seguir ? "inactivo" : "activo");
+      setAviso("Sin conexión. Inténtalo otra vez.");
+    }
+  }
+
+  if (estado === "error") {
+    return (
+      <div className="mt-gap-md rounded-2xl border border-ink/10 bg-sand-warm px-4 py-3">
+        <p className="text-small leading-relaxed text-ink-soft">
+          No se pudo comprobar si sigues a este negocio. Revisa tu conexión y
+          vuelve a abrir la ficha.
+        </p>
+      </div>
+    );
+  }
+
+  if (estado === "sin-sesion") {
+    return (
+      <div className="mt-gap-md rounded-2xl border border-ink/10 bg-sand-warm px-4 py-3">
+        <p className="text-small leading-relaxed text-ink-soft">
+          Para recibir estos avisos en la app, inicia sesión. Son los mismos
+          avisos que llegan por Telegram, pero sin salir de La Verde.
+        </p>
+        <a
+          href="/login"
+          className="mt-2 inline-flex text-small font-semibold text-verde-700 underline-offset-4 hover:underline"
+        >
+          Iniciar sesión
+        </a>
+      </div>
+    );
+  }
+
+  const activo = estado === "activo";
+  const cargando = estado === "cargando";
+
+  return (
+    <div className="mt-gap-md rounded-2xl border border-ink/10 bg-sand-warm px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-lv-display text-small font-semibold text-ink">
+            Avisarme en la app
+          </p>
+          <p className="mt-1 text-meta leading-relaxed text-ink-soft/75">
+            {activo
+              ? `Te avisaremos de las novedades de ${nombre} en tu bandeja y en el móvil, si tienes los avisos activados.`
+              : `Recibe en La Verde las novedades de ${nombre}, sin depender de Telegram.`}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void alternar()}
+          disabled={cargando || estado === "guardando"}
+          aria-pressed={activo}
+          aria-busy={cargando || estado === "guardando"}
+          className={cn(
+            "inline-flex h-9 shrink-0 items-center gap-[6px] rounded-full px-4 font-lv-display text-meta font-semibold transition-colors duration-500 ease-outquint disabled:cursor-wait disabled:opacity-60",
+            activo
+              ? "border border-ink/10 bg-white text-ink hover:border-verde-300 hover:text-verde-700"
+              : "bg-verde-950 text-white hover:bg-verde-800",
+          )}
+        >
+          {cargando || estado === "guardando" ? (
+            <Loader2 size={14} strokeWidth={1.8} className="animate-spin" />
+          ) : (
+            <Bell size={14} strokeWidth={1.8} />
+          )}
+          {activo ? "Desactivar" : "Activar"}
+        </button>
+      </div>
+
+      {aviso && (
+        <p role="alert" className="mt-2 text-meta font-medium text-destructive">
+          {aviso}
+        </p>
+      )}
+    </div>
   );
 }

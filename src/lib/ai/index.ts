@@ -333,6 +333,15 @@ export interface CatalogPlace {
    * no hay ubicación. El catálogo llega ordenado de menor a mayor.
    */
   distanceM?: number;
+  /**
+   * `true` cuando el negocio puede recibir pedidos por el catálogo ahora mismo
+   * (carta, WhatsApp y la función de pedidos del plan). Ausente = no se puede
+   * pedir.
+   *
+   * Lo usa el filtro duro de `catalogForQuery` y la regla del prompt: una
+   * consulta que pide pedir algo no admite lugares sin esta vía.
+   */
+  pedidos?: boolean;
 }
 
 export interface PlaceMatch {
@@ -365,6 +374,20 @@ Reglas:
   alquiler— para esas consultas: entra solo cuando piden dónde dormir o alojarse.
   Si nada del catálogo ofrece lo pedido, devuelve "matches" vacío antes que rellenar
   con otro tipo de negocio.
+- Antes de elegir, identifica qué NECESITA el usuario y comprueba que el lugar puede
+  dárselo: si pide comer, debe servir comida; si pide un servicio, debe ofrecer ese
+  servicio; si pide cortarse el pelo, un peluquero. Un parecido parcial —mismo
+  barrio, una palabra suelta, estar cerca— no basta. Si el lugar no puede cumplir la
+  necesidad, no entra.
+- Prefiere menos resultados y buenos: dos lugares que encajan valen más que cinco
+  dudosos.
+- Cada lugar puede traer "pedidos": true, que significa que acepta pedidos por el
+  catálogo (carrito de WhatsApp). Si la consulta pide pedir, encargar o delivery
+  («tengo hambre, quiero pedir algo», «que me lo lleven a casa», «algo a
+  domicilio»), SOLO entran lugares con "pedidos": true: los demás no tienen forma
+  de recibir el pedido y no se recomiendan, aunque sean de comida. Si ninguno
+  sirve, devuelve "matches" vacío y explícalo. No prometas tiempos ni cobertura de
+  entrega: el catálogo no trae ese dato.
 - Considera: monedas (USD Clásica, CUP, USD, EUR), categoría, horarios, barrio/ciudad, y la descripción.
 - La ubicación es estricta cuando aparece en la consulta: «Varadero» corresponde a Varadero, Matanzas, no a Santiago de Cuba. «Hoteles en Varadero» debe priorizar hoteles cuyo city/province/barrio/description indique Varadero o Matanzas y no inventar coincidencias de otra ciudad.
 - Los pagos del catálogo vienen en código, no con su nombre largo: MLC = USD Clásica,

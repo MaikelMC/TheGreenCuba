@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { isAdminRequest } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
@@ -9,8 +9,8 @@ import { rateLimit } from "@/lib/rate-limit";
 import { generateId } from "@/lib/utils";
 
 /**
- * Envío masivo de notificaciones a todos los usuarios, a nombre de
- * "Support La Verde".
+ * Envío de notificaciones a todos los usuarios o a una selección concreta, a
+ * nombre de "Support La Verde".
  *
  * Una fila de `notifications` por usuario y una de `admin_broadcasts` como
  * historial del envío. La inserción es en bloque (`values` con el array
@@ -40,18 +40,36 @@ const TAMANO_LOTE = 1000;
 const LIMITE_ENVIOS = 3;
 const VENTANA_ENVIOS_MS = 60_000;
 
+/* Destinatarios: todos los perfiles con cuenta de acceso viva detrás — el
+   mismo criterio de la lista de Usuarios del panel. Un perfil huérfano (sin
+   fila en `neon_auth.user`) no puede entrar a la app a leerla. Vive aquí
+   arriba porque lo usan el envío y el recuento que enseña el panel: si
+   divergieran, el aviso diría un número y llegaría a otro. */
+const DESTINATARIOS_VIVOS = sql`${users.authUserId} IN (SELECT id::text FROM neon_auth.user)`;
+
 export async function GET(request: NextRequest) {
   if (!(await isAdminRequest(request))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  const rows = await db
-    .select()
-    .from(adminBroadcasts)
-    .orderBy(desc(adminBroadcasts.createdAt))
-    .limit(50);
+  /* El recuento viaja con el historial: el panel lo enseña junto al botón de
+     envío y así no baja la lista entera de usuarios solo para contarlos. */
+  const [rows, conteo] = await Promise.all([
+    db
+      .select()
+      .from(adminBroadcasts)
+      .orderBy(desc(adminBroadcasts.createdAt))
+      .limit(50),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(users)
+      .where(DESTINATARIOS_VIVOS),
+  ]);
 
-  return NextResponse.json({ broadcasts: rows });
+  return NextResponse.json({
+    broadcasts: rows,
+    recipients: conteo[0]?.count ?? 0,
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -70,6 +88,7 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as {
     title?: unknown;
     message?: unknown;
+    recipientIds?: unknown;
   } | null;
 
   const title = typeof body?.title === "string" ? body.title.trim() : "";
@@ -87,18 +106,56 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  /* Sin `recipientIds` el aviso va a todo el mundo. Con la clave presente, la
+     lista tiene que ser válida y no vacía: una selección vacía no se interpreta
+     como «todos», porque el cliente que olvida mandarla no debe disparar un
+     envío masivo. El filtro de cuentas vivas se aplica igual, así que un id
+     inventado o huérfano no recibe nada. */
+  let targetIds: string[] | null = null;
+  if (body?.recipientIds !== undefined) {
+    const crudos: unknown[] = body.recipientIds as unknown[];
+    if (!Array.isArray(crudos)) {
+      return NextResponse.json(
+        { error: "La lista de destinatarios no es válida." },
+        { status: 400 },
+      );
+    }
+    targetIds = [
+      ...new Set(
+        crudos
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.trim())
+          .filter(Boolean),
+      ),
+    ];
+    if (targetIds.length === 0) {
+      return NextResponse.json(
+        { error: "Elige al menos un destinatario." },
+        { status: 400 },
+      );
+    }
+  }
+
   const sender = await getAppUser();
 
-  /* Destinatarios: todos los perfiles con cuenta de acceso viva detrás — el
-     mismo criterio de la lista de Usuarios del panel. Un perfil huérfano (sin
-     fila en `neon_auth.user`) no puede entrar a la app a leerla. */
   const recipients = await db
     .select({ id: users.id })
     .from(users)
-    .where(sql`${users.authUserId} IN (SELECT id::text FROM neon_auth.user)`);
+    .where(
+      targetIds
+        ? and(DESTINATARIOS_VIVOS, inArray(users.id, targetIds))
+        : DESTINATARIOS_VIVOS,
+    );
 
   if (recipients.length === 0) {
-    return NextResponse.json({ error: "No hay usuarios para notificar." }, { status: 409 });
+    return NextResponse.json(
+      {
+        error: targetIds
+          ? "Ninguno de los usuarios seleccionados puede recibir avisos."
+          : "No hay usuarios para notificar.",
+      },
+      { status: 409 },
+    );
   }
 
   const broadcastId = generateId();
@@ -123,6 +180,7 @@ export async function POST(request: NextRequest) {
     title,
     message,
     recipientCount: recipients.length,
+    meta: { destino: targetIds ? "seleccionados" : "todos" },
   });
 
   /* El push va **después** de responder. `after` del servidor de Next 16 deja

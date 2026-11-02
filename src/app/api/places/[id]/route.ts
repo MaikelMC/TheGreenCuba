@@ -5,6 +5,7 @@ import { cargarCatalogo } from "@/lib/catalogo-server";
 import { normalizarWhatsappCubano } from "@/lib/contact-links";
 import { esEnergia } from "@/lib/energia";
 import { esTipoReserva } from "@/lib/reserva";
+import { avisarNegocioNuevo, avisarNovedadesDeNegocio } from "@/lib/avisos-app-server";
 import { avisosPorCambios } from "@/lib/seguidores";
 import { avisarCambios } from "@/lib/seguidores-server";
 import { getAppUser } from "@/lib/auth/user";
@@ -659,6 +660,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       businessId: id,
       userId: owner?.userId ?? null,
     });
+
+    /* «Hay un negocio nuevo en tu provincia». Va con `after()` porque el push
+       puede tardar y el administrador está esperando la aprobación, no el
+       aviso. `avisarNegocioNuevo` comprueba que la ficha esté publicada y no
+       repite el aviso si ya salió. */
+    after(async () => {
+      await avisarNegocioNuevo(id);
+    });
   }
 
   /* ── Los avisos a seguidores ────────────────────────────────────────────
@@ -761,12 +770,41 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       });
     }
 
+    let novedadesGuardadas = false;
     if (filas.length > 0) {
       try {
         await db.insert(novedades).values(filas);
+        novedadesGuardadas = true;
       } catch {
         /* Sin novedad, pero el guardado sigue. */
       }
+    }
+
+    /* El aviso al móvil sale de aquí y no de `avisarCambios`: aquel habla en
+       nombre del negocio por Telegram y tiene su tope semanal; este es La Verde
+       contando lo que cambió a quien lo sigue o lo tiene cerca. `after()` para
+       que el envío no retrase la respuesta al dueño.
+
+       Las ofertas también cuentan: quien marcó «Avísame» espera enterarse de
+       una oferta flash igual que de un producto nuevo, y es lo primero que
+       enseña el feed. Van delante porque suelen ser el motivo del guardado. */
+    const titulares = [
+      ...ofertasNuevas.map((oferta) => oferta.titulo),
+      ...filas.map((fila) => fila.titulo),
+    ].filter((titulo): titulo is string => Boolean(titulo));
+
+    if ((novedadesGuardadas || ofertasNuevas.length > 0) && titulares.length > 0) {
+      const provincia = row.province?.trim() || row.city?.trim() || null;
+      const visible = row.isActive;
+      after(async () => {
+        await avisarNovedadesDeNegocio({
+          negocioId: id,
+          nombre: row.name,
+          provincia,
+          titulares,
+          visible,
+        });
+      });
     }
   }
 

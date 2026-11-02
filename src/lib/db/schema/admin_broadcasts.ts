@@ -2,7 +2,7 @@ import { pgTable, text, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 /**
- * Envíos masivos de administración a todos los usuarios.
+ * Envíos de administración: a todos los usuarios o a una selección de ellos.
  *
  * El mensaje se inserta una vez aquí y una fila por usuario en `notifications`
  * (tipo `broadcast`, remitente "Support La Verde"): las notificaciones del
@@ -27,6 +27,9 @@ export const adminBroadcasts = pgTable("admin_broadcasts", {
   /** A cuántos usuarios llegó de verdad, fijado al insertar las filas de
       `notifications`. */
   recipientCount: integer("recipient_count").notNull().default(0),
+  /** `{ destino: "todos" | "seleccionados" }`. El historial lo enseña: un
+      recuento de 3 no dice si fueron tres personas elegidas o tres cuentas
+      que quedaban en la base. */
   meta: jsonb("meta").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

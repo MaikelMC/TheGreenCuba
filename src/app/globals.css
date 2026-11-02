@@ -311,6 +311,16 @@
     background-color: #0e1720 !important;
   }
 
+  /* `.bg-surface` es el token semántico de tarjeta —blanco en claro—, pero no
+     estaba en esta tanda: dentro del panel caía en el blanco de serie y en
+     oscuro se quedaba blanco puro. Las tarjetas vuelven a tener su escalón:
+     `#0e1720` sigue siendo la página y `#16212b` (el tono que el sistema ya
+     usaba para realce) es la tarjeta. En oscuro la profundidad va por luz de
+     superficie, no por sombra. */
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-surface {
+    background-color: #16212b !important;
+  }
+
   /* El `bg-sand/50` de los estados vacíos salía de aquí, donde lo dejaba plano
      (#0e1720, el mismo tono de la tarjeta que lo contiene) y por eso la caja
      solo se veía por el borde discontinuo. Ahora lo cubre la tanda translúcida
@@ -703,6 +713,13 @@
   html[data-theme="dark"] [class~="hover:bg-sand-warm"]:hover,
   html[data-theme="dark"] [class~="hover:bg-sand-deep"]:hover {
     background-color: #16212b !important;
+  }
+
+  /* El `placeholder:text-*` no es `.text-*`, así que la tanda de tintas de
+     arriba no lo alcanza y el texto de ayuda se quedaba en tinta sobre la
+     superficie oscura (~1:1). */
+  html[data-theme="dark"] [class~="placeholder:text-ink-soft/75"]::placeholder {
+    color: rgba(237, 247, 240, 0.6) !important;
   }
 
   /* Hueco de foto sin imagen (`from-verde-50 to-verde-100`). Los tokens de un

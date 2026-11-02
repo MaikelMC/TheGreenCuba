@@ -1,6 +1,7 @@
 import {
   CUBA_PROVINCES,
   LOCATION_LEGACY_VALUES,
+  isKnownLocation,
   locationLabel,
   type UserPreferences,
 } from "@/lib/user-preferences-store";
@@ -44,6 +45,23 @@ export function userProvinceLabel(prefs: UserPreferences | null | undefined): st
      «otra»; aquí se comprueba que la etiqueta exista de verdad. */
   if (!label || label === prefs.location) return null;
   return label;
+}
+
+/**
+ * La provincia del usuario a partir de `users.location_city`, que guarda el
+ * **valor** del selector (`santiago-de-cuba`) y no la etiqueta.
+ *
+ * Devuelve la etiqueta («Santiago de Cuba») para comparar con `places.province`,
+ * o `null` cuando no hay dato fiable: «otra», vacío o un texto que no es del
+ * selector. Un `null` no filtra: quien pregunta por provincia no debe inventarse
+ * una para decidir a quién avisar.
+ */
+export function userProvinceFromLocationCity(
+  value: string | null | undefined,
+): string | null {
+  const limpio = value?.trim();
+  if (!limpio || limpio === "otra") return null;
+  return isKnownLocation(limpio) ? locationLabel(limpio) : limpio;
 }
 
 /** Lo mínimo para situar un negocio: sirve una fila de `places` recortada. */

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   placeInUserProvince,
   placeOutsideUserProvince,
+  userProvinceFromLocationCity,
 } from "@/lib/user-province";
 import type { UserPlace } from "@/lib/places-store";
 
@@ -38,4 +39,16 @@ test("no se oculta el negocio de otra provincia", () => {
 test("sin provincia no se oculta: un hueco no es una negación", () => {
   assert.equal(placeOutsideUserProvince(place(""), "Santiago de Cuba"), false);
   assert.equal(placeOutsideUserProvince(place("", ""), "Santiago de Cuba"), false);
+});
+
+test("la ubicación del perfil se traduce a la etiqueta de provincia", () => {
+  assert.equal(userProvinceFromLocationCity("santiago-de-cuba"), "Santiago de Cuba");
+  assert.equal(userProvinceFromLocationCity("santiago"), "Santiago de Cuba");
+  assert.equal(userProvinceFromLocationCity("  La Habana  "), "La Habana");
+});
+
+test("sin ubicación fiable no se inventa una provincia", () => {
+  assert.equal(userProvinceFromLocationCity(null), null);
+  assert.equal(userProvinceFromLocationCity(""), null);
+  assert.equal(userProvinceFromLocationCity("otra"), null);
 });

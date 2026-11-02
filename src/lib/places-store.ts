@@ -256,6 +256,16 @@ export interface UserPlace {
    */
   pedidosWhatsapp: boolean;
   /**
+   * Si el negocio puede recibir pedidos por el catálogo **ahora mismo**: el
+   * dueño no apagó `pedidosWhatsapp`, hay carta, hay número de WhatsApp y el
+   * plan incluye `whatsapp_pedido`.
+   *
+   * Se resuelve en el servidor al mapear la fila, igual que `reservaHabilitada`
+   * y por lo mismo: el navegador no conoce los planes. Lo usa la búsqueda con
+   * IA para no recomendar un lugar que el usuario no podría pedir.
+   */
+  pedidosHabilitado?: boolean;
+  /**
    * Si el negocio acepta reservas por WhatsApp.
    *
    * Mismo reparto que los pedidos: la función la enciende el plan

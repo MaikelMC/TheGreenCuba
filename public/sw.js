@@ -453,6 +453,9 @@ self.addEventListener("push", (event) => {
     icon: "/icons/icon-192.png",
     badge: "/icons/icon-192.png",
     tag: data.tag || "la-verde",
+    /* Toda la app está en español; sin esto el lector de pantalla del móvil
+       pronuncia el aviso con la voz del sistema. */
+    lang: "es",
     data: { url: data.url || "/home" },
   };
 

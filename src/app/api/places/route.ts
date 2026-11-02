@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { eq } from "drizzle-orm";
 import { NEON_AUTH_SESSION_COOKIE_NAME } from "@neondatabase/auth/server";
 import { isAdminRequest } from "@/lib/admin-server";
+import { avisarNegocioNuevo } from "@/lib/avisos-app-server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { places, projectRequests } from "@/lib/db/schema";
@@ -208,6 +209,13 @@ export async function POST(req: NextRequest) {
      Pro de prueba. Sin esto, una ficha creada desde el panel nacería gratis y
      sin prueba, y su dueño vería menos que quien se dio de alta solo. */
   await crearSuscripcion(row!.id);
+
+  /* Un alta desde el panel nace publicada, así que también es «negocio nuevo»
+     para quien vive en su provincia. La función comprueba por sí misma que la
+     ficha esté activa. */
+  after(async () => {
+    await avisarNegocioNuevo(row!.id);
+  });
 
   invalidarCatalogo();
 

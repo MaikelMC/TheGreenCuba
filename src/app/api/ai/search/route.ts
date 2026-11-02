@@ -97,6 +97,9 @@ function sanitizePlaces(value: unknown): CatalogPlace[] {
          corriente» del prompt era letra muerta. Va como texto libre y corto
          —«planta eléctrica»—, no como el código de la columna. */
       energia: cleanString(p.energia) || undefined,
+      /* Solo `true` viaja: ausente significa «no se puede pedir» y el filtro
+         duro de abajo lo lee así. */
+      pedidos: p.pedidos === true ? true : undefined,
       distanceM:
         Number.isFinite(distance) && distance >= 0
           ? Math.min(Math.round(distance), 20_000_000)
@@ -123,10 +126,39 @@ function isLodging(place: CatalogPlace): boolean {
   return /\bhosped|hotel/.test(normalize(place.category));
 }
 
+/* Las formas de pedir comida para que llegue, como se dice en Cuba. Sin esto,
+   «tengo hambre, quiero pedir algo» devolvía cualquier negocio de comida,
+   incluidos los que no tienen forma de recibir el pedido. */
+const ORDER_QUERY =
+  /\bdomicilio\b|\bdelivery\b|\bdeliver\b|\breparto\b|\bque me lo lleven\b|\bme lo lleven\b|\bme lo traigan\b|\ba mi casa\b|\bpedir (?:algo|comida|de comer|para comer)\b|\bencargar (?:algo|comida)\b|\bpara pedir\b/;
+
+/* Que la consulta pide comida. Se usa para exigir que el lugar sirva comida,
+   no solo que esté cerca. */
+const FOOD_QUERY =
+  /\bhambr\w*|\bcomer\b|\bcomida\b|\bcomidita\b|\balmuerz\w*|\bcen(?:a|ar|as|o)\b|\bdesayun\w*|\bmerienda\b|\bpicar\b|\bpicadera\b|\bantoj\w*|\brestaurant\w*|\bpaladar\w*|\bcafeter\w*|\bcafes?\b|\bpizz\w*|\bhamburgues\w*|\bdulcer\w*|\bdulces?\b|\bpostres?\b|\bpanader\w*|\bpasteler\w*|\bhelader\w*|\bmarisquer\w*|\bparrilla\b|\basado\b|\bsandwich\w*|\bsushi\b|\bbocadit\w*|\btapas?\b|\bsnack\w*/;
+
+/* El vocabulario con el que un lugar se declara de comida, en su categoría,
+   nombre, descripción o carta. */
+const FOOD_PLACE =
+  /\brestaurant\w*|\bpaladar\w*|\bcafeter\w*|\bcafes?\b|\bpizzer\w*|\bpizzas?\b|\bhamburgues\w*|\bcomida\b|\bcomidita\b|\bdulcer\w*|\bdulces?\b|\bpostres?\b|\bpanader\w*|\bpasteler\w*|\bhelader\w*|\bmarisquer\w*|\bparrilla\b|\basador\w*|\basado\w*|\bbar(?:es)?\b|\bcervez\w*|\btragos?\b|\bcoctel\w*|\bbebidas?\b|\bpara picar\b|\bpicar\b|\bantoj\w*|\bcocina\b|\balmuerz\w*|\bdesayun\w*|\bmerienda\b|\bsnack\w*|\bsandwich\w*|\bsushi\b|\btapas?\b|\bbocadit\w*|\bhorno\b/;
+
+function isFood(place: CatalogPlace): boolean {
+  const searchable = normalize(
+    [place.name, place.category, place.description, ...(place.menu ?? [])]
+      .filter(Boolean)
+      .join(" "),
+  );
+  return FOOD_PLACE.test(searchable);
+}
+
 function catalogForQuery(query: string, places: CatalogPlace[]): CatalogPlace[] {
   const normalizedQuery = normalize(query);
   const location = LOCATION_RULES.find((rule) => rule.terms.some((term) => normalizedQuery.includes(term)));
   const asksForLodging = LODGING_QUERY.test(normalizedQuery);
+  /* Si pide hospedaje, la consulta es de dónde dormir: ni la comida ni el
+     pedido recortan lo que pidió. */
+  const asksForFood = !asksForLodging && FOOD_QUERY.test(normalizedQuery);
+  const asksForOrder = !asksForLodging && ORDER_QUERY.test(normalizedQuery);
 
   return places.filter((place) => {
     if (location) {
@@ -145,6 +177,13 @@ function catalogForQuery(query: string, places: CatalogPlace[]): CatalogPlace[] 
     } else if (isLodging(place)) {
       return false;
     }
+    /* Sin este filtro el modelo colaba una palabra suelta de la descripción
+       («tiene parrillada») o el simple parecido. Si pide comer, el lugar tiene
+       que servir comida. */
+    if (asksForFood && !isFood(place)) return false;
+    /* Pedir algo exige una vía real de pedido. `pedidos` lo resuelve el
+       servidor al mapear la ficha; ausente = no se puede pedir. */
+    if (asksForOrder && place.pedidos !== true) return false;
     return true;
   });
 }
@@ -208,7 +247,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         ok: true,
         matches: [],
-        summary: "No encontré lugares que coincidan con esa ubicación y categoría en el catálogo de La Verde.",
+        summary: "No encontré lugares que cumplan lo que pides en el catálogo de La Verde.",
         provider: "catalog-filter",
       });
     }

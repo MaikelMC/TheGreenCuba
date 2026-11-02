@@ -328,13 +328,20 @@ export async function POST(request: NextRequest) {
          ahí lo habría borrado. Una cadena vacía sí lo borra —es lo que se manda
          al vaciar el campo en el perfil—; ausente significa «no lo toques». */
       phone: nextPhone ?? sessionUser.phone,
-      locationCity: nextLocation ?? nextLocationName ?? null,
+      /* La ubicación y el onboarding solo se escriben si el cuerpo los trae.
+         El consentimiento de marketing y el alta mandan un cuerpo parcial, y el
+         `?? null` / `?? false` de antes borraba la provincia y el onboarding de
+         quien solo estaba aceptando avisos: sin provincia, deja de recibir los
+         avisos de negocios nuevos de su zona. */
+      ...(nextLocation === null && nextLocationName === null
+        ? {}
+        : { locationCity: nextLocation || nextLocationName || null }),
       preferences: {
         interests: nextInterests.length > 0 ? nextInterests : undefined,
         moods: nextMoods.length > 0 ? nextMoods : undefined,
         currencies: nextCurrencies.length > 0 ? nextCurrencies : undefined,
       },
-      onboardingCompleted: nextOnboarding ?? false,
+      ...(nextOnboarding === null ? {} : { onboardingCompleted: nextOnboarding }),
       /* Solo se sella si la versión que llega es la vigente, y con la hora del
          **servidor**: la del navegador la elige quien acepta, así que una
          constancia con fecha que el cliente controla no prueba nada.

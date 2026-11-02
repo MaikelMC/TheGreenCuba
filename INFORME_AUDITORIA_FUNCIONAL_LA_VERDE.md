@@ -7,30 +7,45 @@
 hoja de recomendaciones, PWA y compatibilidad con Android (Chrome / WebView) e iOS
 (Safari / PWA instalada).
 
-**Estado de este documento:** auditoría con los **P0 ya aplicados y verificados**
-(actualización del 30 de octubre). Los hallazgos P1, P2 y P3 siguen pendientes y se
-describen con archivo, línea y solución propuesta.
+**Estado de este documento:** auditoría con los **P0 y los P1 aplicados y verificados en
+el árbol de trabajo** (actualización del 30 de octubre). Quedan fuera, a propósito, LV-12
+(no es un bug: es un estado que no se quiso añadir) y LV-14 (no se arregla en el código).
+De los P2 se corrigieron cuatro; de los P3, dos. El resto se mantiene como deuda
+documentada.
 
-**P0 implementados:** LV-01 (header de portada con sesión y redirección de `/login`),
-LV-02 (`/api/me` con `no-store` y `force-dynamic`), LV-03 (el menú limpia la sesión
-caducada y se revalida al volver), LV-04 (mapa desplazado bajo el header), LV-05 (botón
-de recoger, arrastre desde el encabezado y asa de 44 px), LV-06 (`invalidateSize` de
-Leaflet) y LV-07 (service worker `lv-v2` sin HTML viejo con red disponible).
+**Implementado y verificado:**
+
+- **P0:** LV-01 (header de portada con sesión y redirección de `/login`), LV-02 (`/api/me`
+  con `no-store` y `force-dynamic`), LV-03 (el menú limpia la sesión caducada y se revalida
+  al volver), LV-04 (mapa desplazado bajo el header), LV-05 (botón de recoger, arrastre
+  desde el encabezado y asa de 44 px), LV-06 (`invalidateSize` de Leaflet) y LV-07
+  (service worker `lv-v2` sin HTML viejo con red disponible).
+- **P1:** LV-08 (`--header-h` con `env(safe-area-inset-top)` y `safe-top` en todos los
+  encabezados), LV-09 (buscar 44 × 44, guardar del perfil 44, controles del mapa 44 y
+  logo con 44 px de objetivo), LV-10 (`pointerdown` en los cuatro menús), LV-11
+  (`autoPanPadding` a 16), LV-13 (alto del onboarding que descuenta el teclado) y LV-15
+  (el home revalida la sesión en `pageshow`).
+- **P2:** hoja con `dvh`, `!important` de escritorio eliminado y `AbortController` real en
+  la búsqueda de direcciones.
+- **P3:** `100vh` → `100dvh` en `global-error.tsx` y `aria-controls` en el asa de la hoja.
 
 > **Nota importante sobre el árbol de trabajo.** Mientras se hacía esta auditoría había
 > edición concurrente en el repositorio: `src/components/business/form-section.tsx`,
 > `src/components/menu/*`, `src/app/m/[slug]/page.tsx`, `src/app/(main)/profile/page.tsx`,
 > `src/components/profile/*`, `src/app/(main)/home/page.tsx` y el álbum de fotos en
-> `Negocios/`. No se tocaron ni se revirtieron esos cambios. Las líneas citadas
-> corresponden al estado auditado (base `92d5c87` más el working tree de ese momento) y
-> pueden desplazarse si el trabajo en curso sigue. Antes de aplicar los parches, confirmar
-> el estado real de cada archivo con `git diff`.
+> `Negocios/`. No se tocaron ni se revirtieron esos cambios. **Las líneas que se citan son
+> las del commit auditado y ya no cuadran**: el archivo, el componente o la clase sí. Buscar
+> por nombre, no por número de línea, y confirmar el estado real con `git diff`.
 
 ---
 
 ## 1. Resumen ejecutivo
 
-La app no tiene un solo bug: tiene **tres fallos de estado** que se refuerzan entre sí y
+> Este apartado describe el estado **auditado**. Los tres fallos de estado y los dos de
+> «tengo que recargar» ya están corregidos; el estado por hallazgo está en las tablas de
+> arriba y en cada sección.
+
+La app no tenía un solo bug: tiene **tres fallos de estado** que se refuerzan entre sí y
 explican la mayoría de los reportes.
 
 1. **La portada tiene el botón «Iniciar sesión» escrito a mano.** No consulta la sesión.
@@ -65,7 +80,29 @@ Y un fallo de datos visible en los logs: **varias imágenes del almacenamiento r
 | P2 | 7 | Molestia con solución alternativa |
 | P3 | 5 | Pulido, deuda o riesgo futuro |
 
+### Estado de los quince hallazgos
+
+| Hallazgo | Prioridad | Estado |
+|---|---|---|
+| LV-01 Header de portada sin sesión | P0 | Corregido |
+| LV-02 `/api/me` cacheable | P0 | Corregido |
+| LV-03 Menú con usuario caducado | P0 | Corregido |
+| LV-04 Chips bajo el header | P0 | Corregido |
+| LV-05 Hoja sin salida clara | P0 | Corregido |
+| LV-06 Leaflet sin `invalidateSize` | P0 | Corregido |
+| LV-07 SW sirve HTML viejo | P0 | Corregido |
+| LV-08 Área segura superior | P1 | Corregido |
+| LV-09 Objetivos táctiles | P1 | Corregido; el popup conserva 36 px documentados |
+| LV-10 Cierre con `mousedown` | P1 | Corregido en los cuatro menús |
+| LV-11 Margen del popup | P1 | Corregido |
+| LV-12 Hoja sin estado «cerrada» | P1 | **No aplicado (decisión de diseño)** |
+| LV-13 Onboarding y teclado | P1 | Corregido |
+| LV-14 Imágenes 403 | P1 | Fuera del código: red/bucket |
+| LV-15 Sesión no revalidada en el home | P1 | Corregido |
+
 ### Los cinco arreglos con más impacto
+
+Los cinco ya están aplicados; se mantienen aquí como resumen de qué movía la aguja.
 
 1. Header de portada consciente de la sesión y `/login` que redirige si ya hay sesión.
 2. Corregir el origen del mapa (`top`, no `padding-top`) para que categorías y filtros
@@ -98,8 +135,11 @@ Comprobaciones ejecutadas:
 | `GET /home` | 200 |
 | `GET /login` | 200 |
 | `GET /lugares` | 200 |
-| `GET /api/me` | 200, **sin cabecera `Cache-Control`** |
-| Medición DOM del home (390 px) | Chips tapados por el header; hoja sin botón de recoger |
+| `GET /api/me` | 200 con `cache-control: no-store, no-cache, must-revalidate` |
+| Medición DOM del home (390 px) | Header `0..60`, chip «Todo» en `68..110`, `elementFromPoint` devuelve «Todo»; botón de buscar 44 × 44 |
+| Hoja de recomendaciones (390 px) | Ciclo `peek → full → peek` con el botón de recoger |
+| Alto del onboarding con teclado simulado | `844 px → 544 px` con un inset de 300 y el pie «Continuar» dentro |
+| Carta `/m/[slug]` (390 px) | Carga sin error; cabecera pegajosa con `safe-top` |
 | Log del servidor | Varias respuestas 403 de imágenes del bucket |
 
 ---
@@ -359,6 +399,12 @@ entregado corresponde al despliegue actual, no a la caché.
 
 ### LV-08. El área segura superior no se respeta en las barras de la app
 
+**Estado: corregido.** `--header-h` es ahora `calc(56px + env(safe-area-inset-top, 0px))`
+(y `60px` en `sm`), y llevan `safe-top` el header del mapa, la portada, el perfil, las
+notificaciones (y su esqueleto), enlaces, la carga de negocio, admin, el panel de negocio,
+la ficha del lugar, el panel de proyectos y la cabecera de la carta. El alto del logo de
+la portada y del mapa se amplió a 44 px con relleno y margen negativo, sin mover el dibujo.
+
 **Ubicación:** `src/app/globals.css:41` y `:67` (`--header-h: 56px` / `60px`),
 `src/components/layout/header.tsx:257` (sin `safe-top`),
 `src/app/(main)/profile/page.tsx` barra superior sticky.
@@ -385,26 +431,30 @@ los botones no tocan la barra de estado.
 
 ### LV-09. Objetivos táctiles por debajo de 44 px (medidos)
 
-| Control | Ubicación | Medida real |
+**Estado: corregido en los controles principales**, medidos en el navegador a 390 px:
+
+| Control | Antes | Ahora |
 |---|---|---|
-| Botón de enviar del buscador | `header.tsx:330` | 32 × 32 |
-| «Iniciar sesión» del menú | `user-menu.tsx` (LoginButton) | 106 × 36 |
-| Botón Guardar del perfil | `profile/page.tsx:275` | alto 36 |
-| Zoom + y zoom − de Leaflet | `MapContent.tsx` | 42 × 42 |
-| «Ir a mi ubicación» | `LocateButton.tsx` | 42 × 42 |
-| Acciones del popup del mapa | `PlacePopup.tsx:33` (`min-h-9`) | alto 36 |
-| Logo de la portada | `landing/header.tsx` | 25 × 26 |
+| Enviar del buscador | 32 × 32 | **44 × 44** |
+| Guardar del perfil | alto 36 | **alto 44** (`h-11`) |
+| Zoom + / − de Leaflet | 42 × 42 | **44 × 44** (`--map-ctrl-size`) |
+| «Ir a mi ubicación» | 42 × 42 | **44 × 44** |
+| Logo de la portada y del mapa | 25 × 26 | **44 px de alto** (enlace con relleno) |
+| Acciones del popup | alto 36 | 36 **a propósito**, con el comentario en `PlacePopup.tsx`: el popup es un aviso compacto y supera el mínimo AA de 24 px |
 
-No incumplen un bloqueo funcional, pero en un móvil con dedos y conexión lenta cada toque
-fallido cuesta. WCAG 2.5.8 pide 24 px como mínimo y la guía del proyecto habla de 44.
-
-**Solución propuesta:** subir los controles principales a `min-h-11` / `size-11`, dejando
-las excepciones documentadas (las acciones del popup pueden quedarse en 36 si se amplía el
-área con padding transparente).
+Antes no incumplían un bloqueo funcional, pero en un móvil con dedos y conexión lenta cada
+toque fallido cuesta. WCAG 2.5.8 pide 24 px como mínimo y la guía del proyecto habla de 44.
+El botón «Iniciar sesión» del menú mide ahora 44 de alto (`py-3` con `leading-none`), así que
+tampoco queda en la lista.
 
 ---
 
 ### LV-10. Menús que se cierran con `mousedown`, que iOS no siempre emite
+
+**Estado: corregido en los cuatro menús** (`pointerdown` con su comentario en header,
+menú de usuario, notificaciones del mapa y cabecera de la carta). Los `onMouseDown` del
+desplegable del buscador se quedan: ahí `preventDefault()` conserva el foco, que es otra
+intención.
 
 **Ubicación:** `src/components/layout/header.tsx:195`,
 `src/components/layout/user-menu.tsx:249`,
@@ -426,6 +476,9 @@ Android.
 
 ### LV-11. El mapa se monta detrás del header y el popup calcula mal su margen
 
+**Estado: corregido.** `getPopupOptions()` usa `autoPanPadding: [16, 16]` y deja 150 px
+abajo para que la hoja no tape el popup.
+
 Relacionado con LV-04. Además de los chips, `getPopupOptions()` en
 `src/components/map/PlacePopup.tsx` usa `autoPanPadding: [16, 68]`. Si el mapa pasa a
 empezar debajo del header (arreglo de LV-04), ese margen superior de 68 px sobra y los
@@ -436,15 +489,37 @@ LV-04.
 
 ### LV-12. La hoja no puede ocultarse del todo
 
+**Estado: no aplicado, a propósito.** No es un bug: es un estado que no se quiso añadir. Se
+explica abajo qué implicaría.
+
 `RESTING_OFFSET.peek` y `PEEK_INSET` dejan siempre 120 px visibles. Para quien está
 mirando el mapa, la hoja tapa el tercio inferior y no hay un estado «cerrada». Es una
 decisión de diseño defendible (la sección no desaparece), pero conviene que el botón de
 recoger explique el estado y, si se quiere un cierre real, añadir un tercer estado
 `closed` con una pestaña flotante para recuperarla.
 
+Cómo sería el estado `closed`, si se decide añadirlo:
+
+1. `type SheetState = "peek" | "full" | "closed"` y un `RESTING_OFFSET.closed` que deje
+   solo la pestaña asomando (unos 8-12 px más el asa).
+2. Al pasar a `closed`, ocultar el titular y el contenido del panel (`opacity` y
+   `pointer-events`) para que no quede una franja de texto cortada.
+3. Una pestaña flotante —o el mismo asa— que lo vuelva a `peek`, con `aria-expanded` y
+   `aria-controls` igual que hoy.
+4. Recalcular los offsets que hoy asumen 120 px visibles: `--map-ctrl-bottom` y el
+   `autoPanPaddingBottomRight` del popup de Leaflet, o los controles del mapa se quedarán
+   flotando sobre el vacío.
+5. Decidir qué pasa al buscar: hoy una búsqueda abre la hoja; con `closed` hay que elegir
+   si la búsqueda la reabre o solo actualiza la lista.
+
 ---
 
 ### LV-13. Onboarding con `h-dvh` y `overflow-hidden` en iOS
+
+**Estado: corregido.** El `layout.tsx` mide `calc(100dvh - var(--kb-inset, 0px))` y
+`page.tsx` escribe `--kb-inset` desde `visualViewport` mientras hay un campo enfocado (así
+el pinch-zoom no encoge la pantalla). El pie «Continuar» queda dentro en la simulación con
+300 px de teclado. En Android se añadió `interactiveWidget: "resizes-content"` al viewport.
 
 **Ubicación:** `src/app/onboarding/layout.tsx:16`.
 
@@ -459,6 +534,10 @@ paso de ciudad y el de teléfono con el teclado abierto en iPhone.
 ---
 
 ### LV-14. Imágenes del bucket responden 403
+
+**Estado: no se arregla en el código.** En este entorno, Neon bloquea las peticiones desde
+esta red y devuelve 403 a cualquier objeto del bucket: no es configuración ni caducidad.
+Hay que verificarlo en producción o desde otra red antes de tocar políticas o URLs firmadas.
 
 **Evidencia en los logs del servidor:**
 
@@ -478,6 +557,9 @@ de configuración o de caducidad de las URLs firmadas. Hay que revisar:
 
 ### LV-15. `fetchMe` y la sesión del home no se revalidan tras bfcache
 
+**Estado: corregido.** El home escucha `pageshow` y vuelve a pedir `/api/me` sin recargar,
+además de `refreshSession()` al volver a la pestaña.
+
 `src/app/(main)/home/page.tsx` guarda `authState` en un efecto que corre una sola vez. Si
 Safari restaura la página desde el historial, el banner de «La IA necesita una cuenta»
 puede seguir visible para alguien que ya entró, o al revés. Conviene reutilizar el mismo
@@ -487,42 +569,43 @@ puede seguir visible para alguien que ya entró, o al revés. Conviene reutiliza
 
 ## 6. Hallazgos P2
 
-1. **Cabecera del buscador y desplazamiento de la hoja.** Cada foco en el campo de búsqueda
+1. **Cabecera del buscador y desplazamiento de la hoja.** *(Pendiente.)* Cada foco en el campo de búsqueda
    dispara `onSuggestionsOpen()` y baja la hoja a `peek`, aunque el usuario solo quería
    escribir. Funciona, pero se percibe como que la sección «se cierra sola». Considerar
    bajar la hoja solo si estaba en `full` y restaurarla al cerrar el desplegable.
-2. **`max-h-[70vh]` en la hoja.** En iOS conviene `70dvh` (con respaldo `vh`) para que la
-   barra de URL no recorte el contenido.
-3. **`preferCanvas: true` con catálogos grandes.** En Android de gama baja, cientos de
+2. **`max-h-[70vh]` en la hoja.** *(Corregido: `max-h-[70dvh]` con respaldo `70vh`.)* En iOS
+   conviene `dvh` para que la barra de URL no recorte el contenido.
+3. **`preferCanvas: true` con catálogos grandes.** *(Pendiente.)* En Android de gama baja, cientos de
    marcadores dibujados en canvas compiten con las animaciones de la hoja. Medir con el
    catálogo real y, si hace falta, agrupar pines o limitar los visibles por viewport.
-4. **El buscador pide direcciones a Photon en cada cambio, con debounce de 350 ms.** En
-   redes lentas se encadenan peticiones y la lista de resultados llega tarde. Ya hay
-   `AbortController` por secuencia, pero no cancela la petición anterior. Añadir
-   `AbortController` real.
+4. **El buscador pide direcciones a Photon en cada cambio, con debounce de 350 ms.**
+   *(Corregido: `searchAddress` acepta un `AbortSignal` y el header aborta la petición
+   anterior en cada cambio y al desmontar.)*
 5. **El script de recuperación de chunks recarga la página sin límite de intentos si el
-   error se repite en un bucle de chunks.** Ya hay una bandera `__laVerdeChunkReloaded`,
+   error se repite en un bucle de chunks.** *(Pendiente.)* Ya hay una bandera `__laVerdeChunkReloaded`,
    pero se resetea en cada documento nuevo. Con el service worker sirviendo HTML viejo
    (LV-07), el ciclo puede repetirse entre despliegues.
-6. **Caché de `/api/places` con timeout de 4 s.** El catálogo se sirve desde caché si la
+6. **Caché de `/api/places` con timeout de 4 s.** *(Pendiente.)* El catálogo se sirve desde caché si la
    red tarda, con `X-LV-Cached-At` para avisar. Es aceptable para lectura, pero conviene
    que la UI muestre la fecha de forma más visible cuando el dato viene de caché.
-7. **Alturas y radios con `!important` en `globals.css:1098-1112`.** Dificultan el
-   mantenimiento y ya causaron el fallo de arrastre de LV-05. Migrar las excepciones de
-   escritorio a clases del componente.
+7. **Alturas y radios con `!important` en `.bottom-sheet-desktop`.** *(Corregido: el
+   bloque ya no fuerza `transform`, `left`, `right`, `width`, `max-height` ni
+   `border-radius`; gana por orden de capas.)* Dificultaban el mantenimiento y ya causaron
+   el fallo de arrastre de LV-05.
 
 ---
 
 ## 7. Hallazgos P3
 
-1. **Mezcla de escalas de `z-index`** (`z-200`, `z-250`, `z-300`, `z-[400]`, `z-[5]`).
+1. *(Pendiente.)* **Mezcla de escalas de `z-index`** (`z-200`, `z-250`, `z-300`, `z-[400]`, `z-[5]`).
    Documentar una escala semántica única.
-2. **`100vh` en `src/app/global-error.tsx:63`.** Cambiar a `100dvh` con respaldo.
-3. **El asa de la hoja tiene `role="button"` pero no `aria-controls`.** Añadirlo apuntando
-   al id del panel.
-4. **El asa cambia de `aria-expanded` pero no anuncia el estado del panel al lector.**
-   Revisar con VoiceOver.
-5. **Textos con `text-ink-soft/60`** en metadatos pequeños. Revisar contraste en modo
+2. *(Corregido: `100dvh` con respaldo `100vh`.)* **`100vh` en
+   `src/app/global-error.tsx`.**
+3. *(Corregido: el asa apunta a `#bottom-sheet-content`, igual que el botón.)* **El asa de
+   la hoja tiene `role="button"` pero no `aria-controls`.**
+4. *(Pendiente de revisar con VoiceOver.)* **El asa cambia de `aria-expanded` pero no
+   anuncia el estado del panel al lector.**
+5. *(Pendiente.)* **Textos con `text-ink-soft/60`** en metadatos pequeños. Revisar contraste en modo
    claro sobre `sand-warm`; algunos usos quedan cerca del mínimo de 4.5:1.
 
 ---
@@ -551,25 +634,27 @@ Probar cada arreglo en los cuatro entornos reales, no solo en Chrome de escritor
 
 ## 9. Plan de corrección sugerido
 
-Orden pensado para que cada paso se pueda verificar solo y no dependa del siguiente:
+Los pasos 1 a 6 están aplicados y verificados con `npm run typecheck` y mediciones en
+Chrome a 390 px. El paso 3 se quedó en LV-05: LV-12 no se aplicó. El paso 7 sigue fuera del
+repositorio. El orden original fue:
 
-1. **Sesión y header** (LV-01, LV-02, LV-03, LV-15).
+1. **Sesión y header** (LV-01, LV-02, LV-03, LV-15). *(Hecho.)*
    Archivos: `landing/header.tsx`, `(auth)/login/page.tsx`, `api/me/route.ts`,
    `lib/session-client.ts`, `layout/user-menu.tsx`, `(main)/home/page.tsx`.
-2. **Layout del mapa y chips** (LV-04, LV-11).
+2. **Layout del mapa y chips** (LV-04, LV-11). *(Hecho.)*
    Archivos: `(main)/home/page.tsx`, `map/PlacePopup.tsx`.
-3. **Hoja de recomendaciones** (LV-05, LV-12).
+3. **Hoja de recomendaciones** (LV-05, LV-12). *(LV-05 hecho; LV-12 no aplicado.)*
    Archivos: `layout/bottom-sheet.tsx`, `globals.css`.
-4. **Mapa estable en móvil** (LV-06).
+4. **Mapa estable en móvil** (LV-06). *(Hecho.)*
    Archivo: `map/MapContent.tsx`.
-5. **Service worker** (LV-07).
+5. **Service worker** (LV-07). *(Hecho.)*
    Archivo: `public/sw.js`.
-6. **Área segura y táctiles** (LV-08, LV-09, LV-10, LV-13).
+6. **Área segura y táctiles** (LV-08, LV-09, LV-10, LV-13). *(Hecho.)*
    Archivos: `globals.css`, `layout/header.tsx`, `layout/user-menu.tsx`,
    `layout/bottom-sheet.tsx`, `map/map-notifications.tsx`, `menu/menu-header.tsx`,
    `profile/page.tsx`, `onboarding/layout.tsx`.
 7. **Imágenes 403** (LV-14): configuración de bucket y `next.config.ts`, fuera del código de
-   UI.
+   UI. *(Sin tocar: el 403 viene del bloqueo de red del entorno.)*
 
 Cada paso debe cerrarse con `npm run typecheck` y una vuelta manual en los cuatro entornos
 de la matriz. No hay suite de tests para estos componentes; sería recomendable añadir tests
@@ -599,8 +684,11 @@ de humo de DOM para la hoja y para el menú de usuario cuando se estabilicen.
   la barra de URL, el teclado y el área segura.
 - No se inició sesión con una cuenta real: los flujos de sesión se auditaron por código y
   por las respuestas de `/api/me`.
-- El árbol de trabajo tenía cambios en curso en `src/components/menu/*` y
-  `src/app/m/[slug]/page.tsx`; no se auditaron en profundidad para no mezclar estados.
+- El árbol de trabajo tenía cambios en curso en `src/components/menu/*`,
+  `src/app/m/[slug]/page.tsx` y `src/components/business/*` (incluido el borrado de
+  `estadisticas-panel.tsx`); no se auditaron en profundidad para no mezclar estados. Un
+  `typecheck` intermedio falló mientras ese borrado estaba a medias y volvió a pasar al
+  asentarse el árbol.
 - `npm run lint` no funciona en Next 16 (`next lint` fue eliminado). No hay ESLint
   configurado de forma independiente, así que la verificación estática quedó limitada a
   `tsc --noEmit`.
@@ -609,6 +697,7 @@ de humo de DOM para la hoja y para el menú de usuario cuando se estabilicen.
 
 ---
 
-**Fin del informe.** No se modificó ningún archivo de código. El siguiente paso es
-revisar el plan de la sección 9, decidir qué entra en esta iteración y aplicar los parches
-en ese orden.
+**Fin del informe.** Los cambios descritos están aplicados en el árbol de trabajo, sin
+commit. Lo que falta no es código: probar en iPhone y Android reales (el notch no se emula),
+repetir la sesión con una cuenta real, decidir si se quiere el estado «cerrada» de LV-12 y
+confirmar el 403 de imágenes desde una red sin bloqueo.

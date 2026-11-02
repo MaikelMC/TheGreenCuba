@@ -172,6 +172,15 @@ export function toUserPlace(
     ofertas: row.ofertas ?? [],
     status: row.status,
     pedidosWhatsapp: row.pedidosWhatsapp,
+    /* Misma conjunción que exige `puedePedir` en `/m/{slug}`: carta, interruptor
+       del dueño, número y plan. Se resuelve aquí para que el buscador con IA
+       —que arma su catálogo en el navegador— sepa a quién se puede pedir sin
+       consultar los planes desde el cliente. */
+    pedidosHabilitado:
+      row.pedidosWhatsapp &&
+      Boolean(row.whatsapp?.trim()) &&
+      (row.menu?.length ?? 0) > 0 &&
+      funciones.has("whatsapp_pedido"),
     /* Las reservas viajan crudas por lo mismo que los pedidos —el panel edita
        `aceptaReservas` y elige el tipo— y resueltas en `reservaHabilitada`, que
        es lo único que miran la ficha y la carta. */

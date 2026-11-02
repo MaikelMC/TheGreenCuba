@@ -5,6 +5,7 @@ import { siteConfig } from "@/config/site";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { PostHogAnalytics } from "@/providers/posthog-provider";
 import { PwaRegister } from "@/components/pwa/pwa-register";
+import { PushPrimer } from "@/components/pwa/push-primer";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { Toaster } from "sonner";
 /* Sin el CSS de `@neondatabase/auth-ui`: no hay ningún componente de ese
@@ -262,6 +263,7 @@ export default function RootLayout({
           {/* PWA. Los dos devuelven `null` si la bandera está apagada, así
               que en producción hasta que se apruebe no se pinta nada. */}
           <PwaRegister />
+          <PushPrimer />
           <InstallPrompt />
           {/* Avisos flotantes. La pastilla va en `ink` con texto blanco, como
               la del panel de negocio: es el mismo aviso y tiene que leerse

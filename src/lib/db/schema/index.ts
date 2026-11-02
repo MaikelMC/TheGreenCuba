@@ -23,6 +23,7 @@ export * from "./suscripciones";
 export * from "./ofertas";
 export * from "./publicaciones";
 export * from "./seguidores";
+export * from "./seguimientos";
 export * from "./asistente";
 export * from "./place_overrides";
 export * from "./ranking";

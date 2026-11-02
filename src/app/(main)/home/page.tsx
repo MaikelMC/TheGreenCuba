@@ -1102,6 +1102,10 @@ function HomePageContent() {
                con corriente solo sirve para que lo descarte dos veces. Ver
                `src/lib/energia.ts`. */
             energia: energiaParaIA(p.energiaRespaldo) ?? undefined,
+            /* Si se le puede pedir al negocio ahora mismo. Solo viaja en `true`:
+               ausente = no hay forma de pedir y el filtro del servidor no lo
+               recomienda para consultas de pedido. */
+            pedidos: p.pedidosHabilitado === true ? true : undefined,
             /* Sin ubicación el campo no viaja, y el modelo lo lee como
                «distancia desconocida», que es exactamente la verdad. */
             distanceM: origin

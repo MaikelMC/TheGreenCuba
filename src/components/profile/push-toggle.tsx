@@ -5,6 +5,13 @@ import { Bell, BellOff, BellRing, Loader2, Smartphone } from "lucide-react";
 
 import { mensajeDeRed } from "@/lib/errores-red";
 import { pwaActiva } from "@/lib/pwa/flag";
+import {
+  altaPushDispositivo,
+  clavePublicaVapid,
+  esIos,
+  estaInstalada,
+  soportaPush,
+} from "@/lib/pwa/push-client";
 
 /**
  * Alta y baja de los avisos push del navegador.
@@ -32,51 +39,9 @@ type Estado =
   | "denegado"
   | "guardando";
 
-function esIos(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return (
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    /* iPadOS 13+ se presenta como Mac; se distingue por la pantalla táctil. */
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-  );
-}
-
-function estaInstalada(): boolean {
-  if (typeof window === "undefined") return false;
-  const standalone = window.matchMedia("(display-mode: standalone)").matches;
-  const iosStandalone = (window.navigator as Navigator & { standalone?: boolean }).standalone;
-  return standalone || iosStandalone === true;
-}
-
-/** La clave VAPID viaja en base64url; `pushManager` la quiere en bytes. */
-function claveAVBytes(base64: string): Uint8Array<ArrayBuffer> {
-  const relleno = "=".repeat((4 - (base64.length % 4)) % 4);
-  const normalizado = (base64 + relleno).replace(/-/g, "+").replace(/_/g, "/");
-  const binario = atob(normalizado);
-  /* El buffer se crea explícito, no con `new Uint8Array(n)`: `applicationServerKey`
-     exige un `ArrayBuffer` y no admite `SharedArrayBuffer` en el tipo. */
-  const bytes = new Uint8Array(new ArrayBuffer(binario.length));
-  for (let i = 0; i < binario.length; i += 1) {
-    bytes[i] = binario.charCodeAt(i);
-  }
-  return bytes;
-}
-
-function soportaPush(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    "serviceWorker" in navigator &&
-    "PushManager" in window &&
-    "Notification" in window
-  );
-}
-
 export function PushToggle() {
   const [estado, setEstado] = useState<Estado>("cargando");
   const [aviso, setAviso] = useState<string | null>(null);
-  const [clavePublica] = useState(() =>
-    (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "").trim(),
-  );
 
   const refrescar = useCallback(async () => {
     if (!pwaActiva()) {
@@ -95,7 +60,7 @@ export function PushToggle() {
       setEstado("denegado");
       return;
     }
-    if (!clavePublica) {
+    if (!clavePublicaVapid()) {
       setEstado("sin-clave");
       return;
     }
@@ -110,7 +75,7 @@ export function PushToggle() {
 
     const suscripcion = await registro.pushManager.getSubscription();
     setEstado(suscripcion ? "activo" : "inactivo");
-  }, [clavePublica]);
+  }, []);
 
   useEffect(() => {
     let vivo = true;
@@ -169,49 +134,38 @@ export function PushToggle() {
     setEstado("guardando");
 
     try {
-      const permiso = await Notification.requestPermission();
-      if (permiso !== "granted") {
-        setEstado(permiso === "denied" ? "denegado" : "inactivo");
-        if (permiso === "default") {
-          setAviso("No se concedió el permiso. Puedes activarlo cuando quieras.");
-        }
+      const resultado = await altaPushDispositivo();
+
+      if (resultado.ok) {
+        setEstado("activo");
         return;
       }
 
-      const registro = await navigator.serviceWorker.getRegistration();
-      if (!registro) {
+      if (resultado.motivo === "denegado") {
+        setEstado("denegado");
+        return;
+      }
+      if (resultado.motivo === "cancelado") {
+        setEstado("inactivo");
+        setAviso("No se concedió el permiso. Puedes activarlo cuando quieras.");
+        return;
+      }
+      if (resultado.motivo === "sin-sw") {
         setEstado("sin-pwa");
         setAviso("El modo offline todavía no está listo. Recarga la página e inténtalo otra vez.");
         return;
       }
-
-      const existente = await registro.pushManager.getSubscription();
-      const suscripcion =
-        existente ??
-        (await registro.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: claveAVBytes(clavePublica),
-        }));
-
-      const datos = suscripcion.toJSON();
-      if (!datos.endpoint || !datos.keys?.p256dh || !datos.keys?.auth) {
-        throw new Error("El navegador devolvió una suscripción incompleta.");
+      if (resultado.motivo === "sin-clave") {
+        setEstado("sin-clave");
+        return;
       }
-
-      const response = await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...datos, userAgent: navigator.userAgent }),
-      });
-
-      if (!response.ok) {
-        const data = (await response.json().catch(() => null)) as { error?: string } | null;
-        setEstado("inactivo");
-        setAviso(data?.error ?? "No se pudieron activar los avisos. Inténtalo otra vez.");
+      if (resultado.motivo === "sin-soporte") {
+        setEstado(esIos() ? "sin-instalar" : "sin-soporte");
         return;
       }
 
-      setEstado("activo");
+      setEstado("inactivo");
+      setAviso(resultado.mensaje ?? "No se pudieron activar los avisos. Inténtalo otra vez.");
     } catch (error) {
       setEstado("inactivo");
       setAviso(mensajeDeRed(error, "No se pudieron activar los avisos. Inténtalo otra vez."));

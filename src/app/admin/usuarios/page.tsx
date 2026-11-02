@@ -255,31 +255,33 @@ export default function AdminUsersPage() {
                     ))}
                   </select>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void toggleAffiliate(user)}
-                  aria-pressed={Boolean(user.referralCode)}
-                  className={`grid size-9 place-items-center rounded-full border transition-colors ${user.referralCode ? "border-verde-200 bg-verde-50 text-verde-700 hover:bg-verde-100" : "border-ink/10 text-ink-soft hover:bg-sand"}`}
-                  aria-label={`${user.referralCode ? "Desactivar" : "Activar"} el programa de afiliados de ${user.email}`}
-                  title={user.referralCode ? "Quitar del programa de afiliados" : "Activar el programa de afiliados"}
-                >
-                  <Link2 size={16} strokeWidth={1.8} />
-                </button>
-                <button type="button" onClick={() => startEditing(user)} className="grid size-9 place-items-center rounded-full border border-ink/10 text-ink-soft transition-colors hover:bg-sand" aria-label={`Editar perfil de ${user.email}`} title="Editar perfil">
-                  <Pencil size={16} strokeWidth={1.8} />
-                </button>
-                <button type="button" onClick={() => { setResettingId(user.id); setDraftPassword(""); setDraftPasswordConfirmation(""); setError(null); }} className="grid size-9 place-items-center rounded-full border border-ink/10 text-ink-soft transition-colors hover:bg-sand" aria-label={`Cambiar contraseña de ${user.email}`} title="Cambiar contraseña">
-                  <KeyRound size={16} strokeWidth={1.8} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void removeUser(user)}
-                  className="grid size-9 place-items-center rounded-full border border-destructive/20 text-destructive transition-colors hover:bg-destructive/5"
-                  aria-label={`Eliminar perfil de ${user.email}`}
-                  title="Eliminar perfil"
-                >
-                  <Trash2 size={16} strokeWidth={1.8} />
-                </button>
+                <div className="flex items-center gap-gap-xs">
+                  <button
+                    type="button"
+                    onClick={() => void toggleAffiliate(user)}
+                    aria-pressed={Boolean(user.referralCode)}
+                    className={`grid size-9 place-items-center rounded-full border transition-colors ${user.referralCode ? "border-verde-200 bg-verde-50 text-verde-700 hover:bg-verde-100" : "border-ink/10 text-ink-soft hover:bg-sand"}`}
+                    aria-label={`${user.referralCode ? "Desactivar" : "Activar"} el programa de afiliados de ${user.email}`}
+                    title={user.referralCode ? "Quitar del programa de afiliados" : "Activar el programa de afiliados"}
+                  >
+                    <Link2 size={16} strokeWidth={1.8} />
+                  </button>
+                  <button type="button" onClick={() => startEditing(user)} className="grid size-9 place-items-center rounded-full border border-ink/10 text-ink-soft transition-colors hover:bg-sand" aria-label={`Editar perfil de ${user.email}`} title="Editar perfil">
+                    <Pencil size={16} strokeWidth={1.8} />
+                  </button>
+                  <button type="button" onClick={() => { setResettingId(user.id); setDraftPassword(""); setDraftPasswordConfirmation(""); setError(null); }} className="grid size-9 place-items-center rounded-full border border-ink/10 text-ink-soft transition-colors hover:bg-sand" aria-label={`Cambiar contraseña de ${user.email}`} title="Cambiar contraseña">
+                    <KeyRound size={16} strokeWidth={1.8} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void removeUser(user)}
+                    className="grid size-9 place-items-center rounded-full border border-destructive/20 text-destructive transition-colors hover:bg-destructive/5"
+                    aria-label={`Eliminar perfil de ${user.email}`}
+                    title="Eliminar perfil"
+                  >
+                    <Trash2 size={16} strokeWidth={1.8} />
+                  </button>
+                </div>
                 {resettingId === user.id && (
                   <div className="basis-full flex flex-wrap items-end gap-2 border-t border-ink/5 pt-3">
                     <label className="flex flex-col gap-1 text-meta text-ink-soft">
