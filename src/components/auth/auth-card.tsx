@@ -224,6 +224,10 @@ export function AuthCard({
         setError("La contraseña necesita al menos 8 caracteres.");
         return;
       }
+      if (mode === "register" && !phone.trim()) {
+        setError("Escribe tu número de teléfono para continuar.");
+        return;
+      }
 
       setLoading(true);
       setError(null);
@@ -390,14 +394,11 @@ export function AuthCard({
           </span>
         </label>
 
-        {/* Solo en el alta. Es opcional a propósito: el sitio funciona sin el
-            número, y un campo obligatorio de más en el registro cuesta altas.
-            Quien lo deja vacío se queda como estaba hasta ahora. */}
+        {/* Solo en el alta, y obligatorio: el negocio necesita un teléfono de
+            contacto para que La Verde pueda localizarlo. */}
         {mode === "register" && (
           <label className="flex flex-col gap-gap-xs">
-            <span className={LABEL}>
-              Teléfono <span className="font-normal">(opcional)</span>
-            </span>
+            <span className={LABEL}>Teléfono</span>
             <span className={FIELD}>
               <Phone
                 size={16}
@@ -409,6 +410,7 @@ export function AuthCard({
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 autoComplete="tel"
+                required
                 aria-label="Teléfono"
                 className="flex-1 min-w-0 bg-transparent text-small text-ink outline-none placeholder:text-ink-soft/75"
                 placeholder="+53 5 123 4567"

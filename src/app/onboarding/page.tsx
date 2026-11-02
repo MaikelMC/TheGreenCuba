@@ -13,6 +13,13 @@ import { TypeChoice } from "@/components/onboarding/type-choice";
 import { PreferenceChip } from "@/components/onboarding/preference-chip";
 import { CurrencyToggle } from "@/components/onboarding/currency-toggle";
 import { StepBar, StepDots } from "@/components/onboarding/step-indicator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PreferencesScreen } from "@/components/onboarding/preferences-screen";
 import { BusinessForm } from "@/components/profile/business-view";
 import { PlacesProvider } from "@/providers/places-provider";
@@ -386,6 +393,12 @@ export default function OnboardingPage() {
 
   const [location, setLocation] = useState("otra");
   const [userId, setUserId] = useState<string | null>(null);
+  /* Google no pregunta el teléfono. Si la cuenta llega sin él, esta ventana
+     bloquea el onboarding hasta que se escriba. */
+  const [phonePrompt, setPhonePrompt] = useState(false);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [phoneSaving, setPhoneSaving] = useState(false);
   const [gpsDetected, setGpsDetected] = useState(false);
   const [detectedName, setDetectedName] = useState<string | null>(null);
   /* Pre-marcados alineados al catálogo real: los viejos («cafes»,
@@ -420,6 +433,7 @@ export default function OnboardingPage() {
         id?: string;
         name: string;
         email: string;
+        phone?: string | null;
         locationCity?: string | null;
         onboardingCompleted?: boolean;
         preferences?: {
@@ -436,6 +450,12 @@ export default function OnboardingPage() {
           const nextUserId = data.user.id ?? null;
           setUserId(nextUserId);
           setIdentity({ name: data.user.name, email: data.user.email });
+          setPhonePrompt(
+            !data.user.phone?.trim() &&
+              new URLSearchParams(window.location.search).get(
+                "pedirTelefono",
+              ) === "1",
+          );
 
           const merged = mergeRemoteUserPreferences(
             readUserPreferences(nextUserId),
@@ -767,11 +787,104 @@ export default function OnboardingPage() {
     goToStep(0);
   }
 
+  /* Guarda el teléfono que pide la ventana de Google. Se escribe también en
+     `localStorage` porque `persistPreferences` lo lee de ahí al terminar el
+     onboarding. */
+  async function handleSavePhone() {
+    if (phoneSaving) return;
+    const value = phoneInput.trim();
+    if (value.length < 6) {
+      setPhoneError("Escribe un número de teléfono válido.");
+      return;
+    }
+
+    setPhoneSaving(true);
+    setPhoneError(null);
+    try {
+      const response = await fetch("/api/me", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: value }),
+      });
+      if (!response.ok) throw new Error();
+
+      refreshSession();
+      writeUserPreferences(
+        { ...readUserPreferences(userId), phone: value },
+        userId,
+      );
+      setPhonePrompt(false);
+    } catch {
+      setPhoneError("No pudimos guardar tu teléfono. Revisa tu conexión.");
+    } finally {
+      setPhoneSaving(false);
+    }
+  }
+
   if (!ready) return null;
 
   return (
     <OnboardingShell>
       {!splashDone && <WelcomeSplash onComplete={handleSplashDone} />}
+
+      {/* La ventana del teléfono. Bloquea el onboarding: se cierra al guardar,
+          que es lo único que la cierra. */}
+      <Dialog open={phonePrompt}>
+        <DialogContent
+          hideClose
+          onEscapeKeyDown={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle>¿Cuál es tu teléfono?</DialogTitle>
+            <DialogDescription>
+              Lo necesitamos para contactarte sobre tu negocio en La Verde.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleSavePhone();
+            }}
+            className="flex flex-col gap-gap-md"
+          >
+            <label className="flex flex-col gap-gap-xs">
+              <span className="font-lv-display text-meta font-semibold text-ink-soft/75">
+                Teléfono
+              </span>
+              <span className="flex items-center gap-gap-sm rounded-2xl border border-ink/10 bg-sand-warm px-gap-sm h-12 transition-colors duration-500 ease-outquint focus-within:border-verde-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-verde-400/20">
+                <input
+                  type="tel"
+                  value={phoneInput}
+                  onChange={(event) => setPhoneInput(event.target.value)}
+                  autoComplete="tel"
+                  inputMode="tel"
+                  required
+                  autoFocus
+                  aria-label="Teléfono"
+                  className="flex-1 min-w-0 bg-transparent text-small text-ink outline-none placeholder:text-ink-soft/75"
+                  placeholder="+53 5 123 4567"
+                />
+              </span>
+            </label>
+
+            {phoneError && (
+              <p role="alert" className="text-meta text-destructive">
+                {phoneError}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={phoneSaving}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full font-lv-display text-sm font-semibold bg-verde-400 text-verde-950 shadow-primary-halo transition duration-500 ease-outquint min-h-12 hover:bg-verde-300 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {phoneSaving ? "Guardando…" : "Continuar"}
+            </button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* La bifurcación, antes de todo lo demás. Aquí no hay «Saltar»: elegir
           es la única salida, y las dos tarjetas caben en una pantalla. */}

@@ -528,3 +528,145 @@ export async function notifyOwnerBusinessRejected(input: {
     html,
   });
 }
+
+export interface PaymentReminderEmailInput {
+  /** El titular grande del correo: lo que pasó, en una línea. */
+  titular: string;
+  /** La frase que resume plan y fecha, debajo del titular. */
+  saludo: string;
+  negocio: string;
+  plan: string;
+  /** La fecha ya formateada; el correo no formatea fechas. */
+  fechaPago: string;
+  parrafos: readonly string[];
+  /** Lo que puede estrenar este mes. Vacío = no se pinta el bloque. */
+  sugerencias: readonly string[];
+  cta: { texto: string; url: string };
+  /** Cambia el color de la cabecera: ámbar si venció, verde si aún hay tiempo. */
+  vencido: boolean;
+}
+
+/**
+ * El correo del pago mensual.
+ *
+ * Es el único correo que un dueño recibe todos los meses, así que tiene que
+ * servir para tres cosas a la vez: decir cuándo se paga, decir qué se apaga si
+ * no se paga, y recordar que el catálogo sigue creciendo. La lista de
+ * sugerencias es lo que lo separa de un cobro automático: el aviso del mes es
+ * también el escaparate de lo que puede contratar.
+ */
+export function paymentReminderEmailHtml(
+  input: PaymentReminderEmailInput,
+): string {
+  const cabecera = input.vencido
+    ? "linear-gradient(135deg,#D9822B 0%,#B86A1C 100%)"
+    : "linear-gradient(135deg,#35AF6D 0%,#2D9B5E 100%)";
+
+  const parrafos = input.parrafos
+    .map(
+      (texto) =>
+        `<p style="margin:0 0 16px;font-size:15px;color:#5B6B62;line-height:1.65;">${texto}</p>`,
+    )
+    .join("");
+
+  const sugerencias = input.sugerencias
+    .map(
+      (texto) =>
+        `<tr><td style="padding:10px 0;border-bottom:1px solid rgba(8,19,13,0.05);">
+          <span style="display:inline-block;margin-right:8px;color:#35AF6D;font-weight:700;">+</span>
+          <span style="font-size:14px;color:#08130D;line-height:1.5;">${texto}</span>
+        </td></tr>`,
+    )
+    .join("");
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${input.titular} - La Verde</title>
+</head>
+<body style="margin:0;padding:0;background:#F6F3EC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.5;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F6F3EC;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#FFFFFF;border-radius:20px;border:1px solid rgba(8,19,13,0.06);overflow:hidden;">
+          <tr>
+            <td style="padding:32px;background:${cabecera};">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="width:44px;height:44px;border-radius:12px;background:#FFFFFF;text-align:center;vertical-align:middle;">
+                    <span style="display:inline-block;line-height:44px;font-size:18px;font-weight:800;color:#35AF6D;letter-spacing:-0.5px;">LV</span>
+                  </td>
+                  <td style="padding-left:14px;color:#FFFFFF;">
+                    <div style="font-size:16px;font-weight:700;">La Verde</div>
+                    <div style="font-size:12px;opacity:0.9;margin-top:1px;">Tu negocio y su plan</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:32px 32px 8px;">
+              <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;color:#08130D;letter-spacing:-0.4px;">
+                ${input.titular}
+              </h1>
+              <p style="margin:0 0 22px;font-size:15px;color:#08130D;line-height:1.6;font-weight:600;">
+                ${input.saludo}
+              </p>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F8FDF9;border:1px solid rgba(53,175,109,0.12);border-radius:14px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <div style="font-size:12px;color:#94A39B;text-transform:uppercase;letter-spacing:0.8px;font-weight:600;">Negocio</div>
+                    <div style="margin-top:4px;font-size:15px;color:#08130D;font-weight:600;">${input.negocio}</div>
+                  </td>
+                  <td style="padding:16px 20px;">
+                    <div style="font-size:12px;color:#94A39B;text-transform:uppercase;letter-spacing:0.8px;font-weight:600;">Plan</div>
+                    <div style="margin-top:4px;font-size:15px;color:#08130D;font-weight:600;">${input.plan}</div>
+                  </td>
+                  <td style="padding:16px 20px;">
+                    <div style="font-size:12px;color:#94A39B;text-transform:uppercase;letter-spacing:0.8px;font-weight:600;">Fecha</div>
+                    <div style="margin-top:4px;font-size:15px;color:#08130D;font-weight:600;">${input.fechaPago}</div>
+                  </td>
+                </tr>
+              </table>
+
+              ${parrafos}
+
+              ${
+                sugerencias
+                  ? `<div style="margin:8px 0 24px;">
+              <div style="font-size:12px;color:#94A39B;text-transform:uppercase;letter-spacing:0.8px;font-weight:600;margin-bottom:8px;">Para estrenar este mes</div>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">${sugerencias}</table>
+            </div>`
+                  : ""
+              }
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:8px 0 28px;">
+                <tr>
+                  <td align="center">
+                    <a href="${input.cta.url}" style="display:inline-block;padding:15px 30px;background:#35AF6D;color:#FFFFFF;font-size:15px;font-weight:700;border-radius:12px;text-decoration:none;letter-spacing:-0.2px;">
+                      ${input.cta.texto}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:22px 32px 28px;background:#F8FDF9;border-top:1px solid rgba(8,19,13,0.04);">
+              <p style="margin:0;font-size:12px;color:#94A39B;text-align:center;">
+                Te avisamos de tu plan una vez al mes. Si ya pagaste, ignora este correo.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}

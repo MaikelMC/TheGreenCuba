@@ -27,6 +27,9 @@ export async function GET(request: NextRequest) {
     safeNext(new URL(request.url).searchParams.get("next")) ?? "/onboarding",
     request.url,
   );
+  /* Google no recoge teléfono. Si la cuenta acaba de nacer sin él, el
+     onboarding abre la ventana que lo pide antes de empezar. */
+  if (!user.phone?.trim()) target.searchParams.set("pedirTelefono", "1");
   target.searchParams.set("showSessionNotice", "1");
   return NextResponse.redirect(target);
 }

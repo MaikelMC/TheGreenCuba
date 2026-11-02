@@ -31,3 +31,4 @@ export * from "./catalogo_planes";
 export * from "./pagos";
 export * from "./novedades";
 export * from "./push-subscriptions";
+export * from "./recordatorios_pago";

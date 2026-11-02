@@ -227,7 +227,10 @@ export function PlaceDetail({
   footerSlot,
   className,
 }: PlaceDetailProps) {
-  const [descExpanded, setDescExpanded] = useState(false);
+  /* La descripción abre completa: la ficha existe para leerla, y el recorte a
+     dos líneas escondía justo lo que se viene a buscar. Sigue pudiendo
+     plegarse con el botón. */
+  const [descExpanded, setDescExpanded] = useState(true);
   const [projectOffersExpanded, setProjectOffersExpanded] = useState(false);
   const [projectPhotoIndex, setProjectPhotoIndex] = useState<number | null>(
     null,

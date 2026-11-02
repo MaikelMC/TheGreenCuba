@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   PACKS_ORDER,
-  PLAN_ORDER,
   nombreDe,
   textoCup,
   type ClaveModulo,
@@ -40,9 +39,10 @@ import { useCatalogo } from "@/providers/catalogo-provider";
  * «Próximamente»: se venden desde ya, pero el candado no se abre hasta que
  * existan de verdad. Se dice en la tarjeta, no en letra pequeña.
  *
- * Se destaca el **pack siguiente** al del negocio, no una fija. Un cartel de «el
- * más popular» clava el mismo plan para todo el mundo y, cuando alguien ya lo
- * tiene, le pone la insignia a lo que ya paga.
+ * Se destaca **Esencial** como el pack más popular, igual que la portada tiene
+ * su tarjeta destacada. La insignia no se mueve con el plan del negocio: dice
+ * qué contrata casi todo el mundo, no cuál es el siguiente escalón. Si ya lo
+ * tiene, la tarjeta muestra «Tu plan» y no repite la insignia.
  *
  * El botón abre una factura de QvaPay para un mes del pack o del módulo. El
  * importe y el derecho contratado los resuelve el servidor; la activación llega
@@ -90,8 +90,6 @@ export function PlansSection({
     usd: number;
   } | null>(null);
 
-  const indice = PLAN_ORDER.indexOf(plan);
-  const siguiente = PLAN_ORDER[indice + 1] ?? null;
   /* Para nombrar el servicio en singular; con varios solo se cuenta. */
   const primerModulo = modulosElegidos[0];
 
@@ -248,7 +246,7 @@ export function PlansSection({
               pack={p}
               actual={plan}
               elegido={p === planElegido}
-              destacado={p === siguiente}
+              destacado={p === "esencial"}
               puedeElegirPlan={puedeElegirPlan}
               cargando={pendiente === p}
               bloqueado={pendiente !== null && pendiente !== p}
@@ -577,7 +575,7 @@ function PackTile({
       {destacado && !esActual && !elegido && (
         <span className="absolute -top-[11px] left-gap-lg inline-flex items-center gap-[4px] rounded-full bg-verde-400 px-gap-sm py-[3px] font-lv-display text-[10px] font-extrabold uppercase tracking-[0.09em] text-verde-950">
           <Sparkles size={11} strokeWidth={2.2} />
-          Recomendado
+          Más popular
         </span>
       )}
 

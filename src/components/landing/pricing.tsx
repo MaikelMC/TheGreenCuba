@@ -36,7 +36,7 @@ const PLANES: Plan[] = [
     lema: PACKS[key].lema,
     usd: PACKS[key].usd,
     items: PACKS[key].texto.split("\n"),
-    destacado: key === "pro",
+    destacado: key === "esencial",
   })),
 ];
 
@@ -80,7 +80,7 @@ export function Pricing() {
             >
               {plan.destacado ? (
                 <span className="absolute right-5 top-5 rounded-full bg-verde-400 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-verde-950">
-                  Más completo
+                  Más popular
                 </span>
               ) : null}
 

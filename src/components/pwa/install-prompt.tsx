@@ -79,7 +79,8 @@ export function InstallPrompt() {
             </p>
           ) : (
             <p className="mt-1 text-meta leading-snug text-ink-soft">
-              Se abre como una app, sin barra del navegador, y funciona sin conexión.
+              Se abre como una app, sin barra del navegador, funciona sin conexión
+              y puede recibir notificaciones.
             </p>
           )}
 

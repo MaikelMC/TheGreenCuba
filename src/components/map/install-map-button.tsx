@@ -91,8 +91,8 @@ export function InstallMapButton() {
               Ten La Verde a mano
             </p>
             <p className="mt-1 text-meta leading-relaxed text-ink-soft/80">
-              Se abre como una app, sin barra del navegador, y funciona sin
-              conexión.
+              Se abre como una app, sin barra del navegador, funciona sin
+              conexión y puede recibir notificaciones.
             </p>
 
             {ios && (

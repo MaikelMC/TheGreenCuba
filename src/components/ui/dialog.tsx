@@ -27,8 +27,11 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    /** Sin aspa de cerrar: para ventanas que hay que responder para seguir. */
+    hideClose?: boolean;
+  }
+>(({ className, children, hideClose = false, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -46,10 +49,12 @@ const DialogContent = React.forwardRef<
       {children}
       {/* El rótulo accesible va en español: la app entera lo está y lo único
           que oía un lector de pantalla era "Close". */}
-      <DialogPrimitive.Close className="absolute right-gap-sm top-gap-sm grid place-items-center size-9 rounded-full text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-sand-deep hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/30">
-        <X size={18} strokeWidth={1.8} />
-        <span className="sr-only">Cerrar</span>
-      </DialogPrimitive.Close>
+      {!hideClose && (
+        <DialogPrimitive.Close className="absolute right-gap-sm top-gap-sm grid place-items-center size-9 rounded-full text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-sand-deep hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/30">
+          <X size={18} strokeWidth={1.8} />
+          <span className="sr-only">Cerrar</span>
+        </DialogPrimitive.Close>
+      )}
     </DialogPrimitive.Content>
   </DialogPortal>
 ));
