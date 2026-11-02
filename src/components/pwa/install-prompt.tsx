@@ -4,83 +4,39 @@ import { useEffect, useState } from "react";
 import { Download, Share, X } from "lucide-react";
 
 import { pwaActiva } from "@/lib/pwa/flag";
+import { instalarPwa, useInstalacionPwa } from "@/lib/pwa/install-client";
 
 const CLAVE_DESCARTADO = "la-verde:pwa-install-dismissed";
 
-/** Chrome no lo declara en `lib.dom`; solo existe en navegadores Chromium. */
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-/** iPhone/iPad, incluido el iPad moderno que se identifica como Mac. */
-function esIOS(): boolean {
-  return (
-    /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-  );
-}
-
-function estaInstalada(): boolean {
-  if (window.matchMedia("(display-mode: standalone)").matches) return true;
-  /* Safari en iOS no soporta `display-mode` en todas las versiones: expone la
-     bandera `standalone` en `navigator`. */
-  return (navigator as Navigator & { standalone?: boolean }).standalone === true;
-}
-
 /**
- * Aviso de instalación.
+ * Aviso de instalación, una vez.
  *
- * Android lanza `beforeinstallprompt` y aquí se guarda para disparar el diálogo
- * nativo desde un botón propio. Safari no lo implementa: en iPhone la única vía
- * es explicar «Compartir → Añadir a pantalla de inicio», que es lo que se
- * muestra en su lugar.
+ * Chromium ofrece el diálogo nativo a través de `beforeinstallprompt`; aquí se
+ * usa para abrirlo desde un botón propio. Safari no lo implementa: en iPhone la
+ * única vía es explicar «Compartir → Añadir a pantalla de inicio», que es lo que
+ * se muestra en su lugar.
  *
- * Cuando ya está instalada no se pinta nada. El descarte se recuerda en
- * `localStorage` para no repetir el aviso en cada visita.
+ * El evento nativo vive en `install-client`, compartido con el botón del mapa:
+ * solo se puede consumir una vez, así que no puede estar capturado en dos
+ * sitios. Aquí queda la parte de aviso —una tarjeta que se descarta para
+ * siempre—; el botón del mapa es la vía permanente.
  */
 export function InstallPrompt() {
-  const [evento, setEvento] = useState<BeforeInstallPromptEvent | null>(null);
-  const [visible, setVisible] = useState(false);
-  const [ios, setIos] = useState(false);
+  const { puede, ios, instalada } = useInstalacionPwa();
+  /* Arranca descartado para no parpadear antes de leer el almacenamiento. */
+  const [descartado, setDescartado] = useState(true);
 
   useEffect(() => {
-    if (!pwaActiva()) return;
-    if (estaInstalada()) return;
-
     try {
-      if (window.localStorage.getItem(CLAVE_DESCARTADO) === "1") return;
+      setDescartado(window.localStorage.getItem(CLAVE_DESCARTADO) === "1");
     } catch {
       // localStorage bloqueado: se muestra igual, sin memoria del descarte.
+      setDescartado(false);
     }
-
-    const enIOS = esIOS();
-    setIos(enIOS);
-    /* En iPhone el aviso no depende de ningún evento: se ofrece directamente. */
-    if (enIOS) setVisible(true);
-
-    const alPoderInstalar = (event: Event) => {
-      event.preventDefault();
-      setEvento(event as BeforeInstallPromptEvent);
-      setVisible(true);
-    };
-
-    const alInstalar = () => {
-      setVisible(false);
-      setEvento(null);
-    };
-
-    window.addEventListener("beforeinstallprompt", alPoderInstalar);
-    window.addEventListener("appinstalled", alInstalar);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", alPoderInstalar);
-      window.removeEventListener("appinstalled", alInstalar);
-    };
   }, []);
 
   const descartar = () => {
-    setVisible(false);
+    setDescartado(true);
     try {
       window.localStorage.setItem(CLAVE_DESCARTADO, "1");
     } catch {
@@ -89,15 +45,12 @@ export function InstallPrompt() {
   };
 
   const instalar = async () => {
-    if (!evento) return;
-    await evento.prompt();
-    const eleccion = await evento.userChoice.catch(() => null);
-    if (eleccion?.outcome === "dismissed") descartar();
-    setEvento(null);
-    setVisible(false);
+    await instalarPwa();
+    /* Concedida o descartada, la tarjeta ya cumplió: no se repite. */
+    descartar();
   };
 
-  if (!pwaActiva() || !visible) return null;
+  if (!pwaActiva() || instalada || descartado || (!ios && !puede)) return null;
 
   return (
     <div
@@ -130,7 +83,7 @@ export function InstallPrompt() {
             </p>
           )}
 
-          {!ios && evento && (
+          {!ios && puede && (
             <button
               type="button"
               onClick={() => void instalar()}

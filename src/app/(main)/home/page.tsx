@@ -34,6 +34,7 @@ import { BottomSheet } from "@/components/layout/bottom-sheet";
 import { PlaceCard } from "@/components/layout/place-card";
 import { SearchingAnimation } from "@/components/layout/searching-animation";
 import { MapView } from "@/components/map/MapView";
+import { InstallMapButton } from "@/components/map/install-map-button";
 import { MapNotifications } from "@/components/map/map-notifications";
 import { NovedadesMapa } from "@/components/map/novedades-mapa";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -1589,6 +1590,10 @@ function HomePageContent() {
           />
           <MapNotifications />
           <ThemeToggle />
+          {/* Al final de la columna: aparece cuando Chromium dispara el evento
+              y así no empuja los controles que ya estaban. Cerca del pulgar y
+              fuera del camino. */}
+          <InstallMapButton />
         </div>
       </MapView>
 
