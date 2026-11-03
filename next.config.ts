@@ -81,6 +81,7 @@ if (isProd) {
 }
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   images: {
     /* Next 16 exige declarar aquí cualquier `quality` que no sea la de defecto
        (75) o rechaza la petición. El menú público pide 70 —es la carta que se

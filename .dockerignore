@@ -1,0 +1,30 @@
+node_modules
+.next
+.git
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dev.log
+.next-*.log
+
+# Secretos y datos locales que no van a la imagen
+.env
+.env.local
+.env*.local
+data/
+Cloudflare/
+groq-for-claude-code/
+CREDENCIALES-DEMO.md
+
+# Artefactos de herramientas
+.vercel
+.opencode
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Ficheros de diseño
+la_verde_panel_redisenado.html
+skill_PWA.md
