@@ -223,7 +223,7 @@ export function FichaView({
   }
 
   return (
-    <div className={cn("min-h-dvh bg-sand font-lv text-ink", className)}>
+    <div className={cn("min-h-dvh bg-sand-warm font-lv text-ink", className)}>
       <h1 className="sr-only">{place.name}</h1>
 
       <header className="safe-top sticky top-0 z-50 flex h-header items-center gap-gap-sm border-b border-ink/5 bg-sand-warm/90 px-gutter backdrop-blur-[16px]">
