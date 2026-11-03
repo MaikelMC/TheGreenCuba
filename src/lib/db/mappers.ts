@@ -20,6 +20,7 @@ import { enlaceSeguidores } from "@/lib/seguidores";
 import { siteConfig } from "@/config/site";
 import { slugify } from "@/lib/utils";
 import { conIds } from "@/lib/catalogo";
+import { whatsappDePedido } from "@/lib/contact-links";
 
 /**
  * Traducción entre las filas de Neon y los tipos que usa la app.
@@ -192,7 +193,10 @@ export function toUserPlace(
        consultar los planes desde el cliente. */
     pedidosHabilitado:
       row.pedidosWhatsapp &&
-      Boolean(row.whatsapp?.trim()) &&
+      /* Vale el teléfono cuando no hay WhatsApp aparte: en Cuba el móvil que
+         atiende el local es el mismo. Mismo criterio que `whatsappDePedido`,
+         que es quien arma el enlace. */
+      whatsappDePedido(row.whatsapp, row.phone) !== null &&
       (row.menu?.length ?? 0) > 0 &&
       funciones.has("whatsapp_pedido"),
     /* Las reservas viajan crudas por lo mismo que los pedidos —el panel edita

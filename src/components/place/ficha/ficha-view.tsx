@@ -2,10 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Clock } from "lucide-react";
+import { ArrowLeft, Clock, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PlaceDetailProps } from "@/lib/ficha/place-data";
-import { resolverAcciones, type DatosAcciones } from "@/lib/ficha/acciones";
+import {
+  MAX_ACCIONES_BARRA,
+  resolverAcciones,
+  type AccionBarra,
+  type DatosAcciones,
+} from "@/lib/ficha/acciones";
 import { ACCIONES_SIN_TIPO, COPY, tituloCatalogo } from "@/config/ficha";
 import {
   isSaved as isPlaceSaved,
@@ -127,10 +132,14 @@ export function FichaView({
   const titulo = tituloCatalogo(place.catalogoTitulo, place.tipoNegocio);
   const ofertas = place.ofertas ?? [];
 
-  /* Carrito: solo activo si el módulo domicilio está encendido y el plan lo
-     permite. Sin ambas condiciones no hay botones + ni barra de carrito. */
+  /* Carrito: solo activo si el módulo domicilio está encendido, el plan lo
+     permite **y hay WhatsApp**, que es a donde va el pedido. Sin las tres no
+     hay botones + ni carrito: sumar productos sin poder mandarlos era dejar al
+     cliente tocando «+» para nada. */
   const carritoActivo =
-    place.modulosActivos.includes("domicilio") && place.pedidosHabilitado;
+    place.modulosActivos.includes("domicilio") &&
+    place.pedidosHabilitado &&
+    Boolean(place.pedidoWhatsapp);
 
   /* «Pedir cita» por ítem: solo cuando el módulo servicios está activo y el
      negocio tiene WhatsApp. El URL lo construye Catalogo por ítem. */
@@ -164,9 +173,9 @@ export function FichaView({
     });
 
   const carritoHref =
-    carritoActivo && carritoLineas.length > 0 && place.contact.whatsapp
+    carritoActivo && carritoLineas.length > 0 && place.pedidoWhatsapp
       ? hrefPedido(
-          place.contact.whatsapp,
+          place.pedidoWhatsapp,
           mensajePedido({ negocio: place.name, lineas: carritoLineas }),
         )
       : undefined;
@@ -180,6 +189,19 @@ export function FichaView({
       : "";
     return `${COPY.pedir} ${n}${totalStr}`;
   })();
+
+  /* El carrito no puede depender de que el dueño haya configurado «Pedir» en la
+     barra. Antes el enlace al pedido vivía solo dentro de `BarraFija`, y esa
+     barra se pinta con `acciones.barra` —vacía en la mayoría de las fichas—,
+     así que elegir productos no mostraba ninguna forma de confirmar. Con
+     carrito, «pedir» entra en la barra aunque no esté configurado. */
+  const accionesBarra: AccionBarra[] =
+    carritoHref && !acciones.barra.includes("pedir")
+      ? (["pedir", ...acciones.barra] as AccionBarra[]).slice(
+          0,
+          MAX_ACCIONES_BARRA,
+        )
+      : acciones.barra;
 
   function handleSave() {
     const next = toggleSaved(place.id, userId);
@@ -482,18 +504,33 @@ export function FichaView({
         {footerSlot}
 
         {/* Hueco para que la barra fija no tape el final de la ficha. */}
-        {acciones.barra.length > 0 && <div className="h-24" />}
+        {accionesBarra.length > 0 && <div className="h-24" />}
       </div>
 
       <div className="bg-sand pb-safe-bottom" />
 
       <BarraFija
-        acciones={acciones.barra}
+        acciones={accionesBarra}
         place={place}
         carritoHref={carritoHref}
         carritoLabel={carritoLabel}
         onNavigate={handleNavigate}
       />
+
+      {/* En escritorio la barra fija es de móvil (`lg:hidden`), así que el
+          pedido se confirmaba en ningún sitio. Este botón flotante es el mismo
+          enlace, con el mismo texto, solo cuando hay algo en el carrito. */}
+      {carritoHref && carritoLabel && (
+        <a
+          href={carritoHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-gap-lg right-gap-lg z-40 hidden items-center gap-gap-sm rounded-full bg-verde-400 px-gap-lg py-gap-sm font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 lg:inline-flex"
+        >
+          <ShoppingCart size={17} strokeWidth={1.8} className="shrink-0" />
+          {carritoLabel}
+        </a>
+      )}
 
       <ReviewDialog
         open={reviewOpen}

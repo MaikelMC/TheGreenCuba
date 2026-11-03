@@ -17,7 +17,7 @@ import {
   devPlaceIndexable,
 } from "@/lib/dev-place";
 import { getAppUser } from "@/lib/auth/user";
-import { whatsappHref } from "@/lib/contact-links";
+import { whatsappDePedido, whatsappHref } from "@/lib/contact-links";
 import { configReserva } from "@/lib/reserva";
 import { configSeguidores } from "@/lib/seguidores";
 import {
@@ -406,10 +406,13 @@ export default async function MenuPage({
      El orden importa: los dos que no cuestan nada van primero, así que una
      carta vacía o un negocio sin número —que son la mayoría— no pagan la
      consulta de los permisos. */
+  /* `whatsappDePedido` cae al teléfono cuando el dueño no puso un WhatsApp
+     aparte: el móvil que atiende el local recibe los dos. */
+  const whatsappPedidos = whatsappDePedido(place.whatsapp, place.phone) ?? "";
   const puedePedir =
     place.menu.length > 0 &&
     place.pedidosWhatsapp &&
-    Boolean(place.whatsapp?.trim()) &&
+    Boolean(whatsappPedidos) &&
     (await tieneFuncion(place.id, "whatsapp_pedido"));
 
   /* Las ofertas vivas, filtradas una vez con el «ahora» de esta petición. La
@@ -886,7 +889,7 @@ export default async function MenuPage({
       negocio={place.name}
       /* `puedePedir` ya garantiza que hay número; el `?? ""` es para que
          TypeScript lo sepa. */
-      whatsapp={place.whatsapp ?? ""}
+      whatsapp={whatsappPedidos}
       /* El catálogo de hoy, para contrastar lo que el navegador guardó. */
       productos={productos}
     >

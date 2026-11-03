@@ -26,7 +26,7 @@ import type {
   UserPlacePhoto,
   UserPlaceReview,
 } from "@/lib/places-store";
-import { contactLinks } from "@/lib/contact-links";
+import { contactLinks, whatsappDePedido } from "@/lib/contact-links";
 import { configReserva } from "@/lib/reserva";
 import { configSeguidores } from "@/lib/seguidores";
 import { formatDateRange, formatMenuPrice } from "@/lib/utils";
@@ -149,7 +149,12 @@ export interface PlaceData {
   reserva?: ReservaConfig;
   seguidores?: SeguidorConfig;
   ofertas?: PlaceOffer[];
-  /** Si se puede pedir ahora (plan + interruptor + WhatsApp + carta). */
+  /**
+   * A quién viaja el pedido, en dígitos (`5353151049`): el WhatsApp del negocio
+   * o, cuando no lo puso, su teléfono. `undefined` = no hay a dónde mandarlo.
+   */
+  pedidoWhatsapp?: string;
+  /** Si se puede pedir ahora (plan + interruptor + número + carta). */
   pedidosHabilitado: boolean;
   /** Si se puede reservar ahora (plan + interruptor + WhatsApp). */
   reservaHabilitada: boolean;
@@ -313,6 +318,10 @@ export function userPlaceToPlaceData(p: UserPlace): PlaceData {
     phone: p.phone,
     reserva: configReserva(p),
     seguidores: configSeguidores(p),
+    /* A quién va el pedido: el WhatsApp o, si el dueño solo puso teléfono, ese
+       móvil. Sin esto un negocio con el carrito encendido y sin WhatsApp
+       aparte se quedaba sin botón de confirmar. */
+    pedidoWhatsapp: whatsappDePedido(p.whatsapp, p.phone) ?? undefined,
     pedidosHabilitado: p.pedidosHabilitado === true,
     reservaHabilitada: p.reservaHabilitada === true,
     tipoNegocio: p.tipoNegocio ?? null,

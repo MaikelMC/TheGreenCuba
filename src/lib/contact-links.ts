@@ -71,6 +71,34 @@ export function normalizarWhatsappCubano(value: string): string | null {
 }
 
 /**
+ * El número al que viaja un pedido: el WhatsApp del negocio o, si no lo puso,
+ * su teléfono.
+ *
+ * En Cuba el móvil que atiende el teléfono es el mismo que recibe WhatsApp, y
+ * casi todos los negocios dejan relleno solo el teléfono: sin esta caída, el
+ * catálogo les negaba el carrito por un dato que sí tienen.
+ *
+ * Solo se aceptan formas reconocibles —móvil local de 8 dígitos que empieza por
+ * 5, o el número ya con el 53 del país— y se antepone el país cuando falta. Lo
+ * que no encaja devuelve `null`: inventar un número al que el pedido no llega
+ * es peor que no ofrecer el carrito.
+ *
+ * Devuelve **solo dígitos**, que es lo que comen `whatsappHref` y `hrefPedido`.
+ */
+export function whatsappDePedido(
+  whatsapp: string | null | undefined,
+  telefono: string | null | undefined,
+): string | null {
+  const wa = (whatsapp ?? "").replace(/\D/g, "").replace(/^00/, "");
+  if (wa) return wa;
+
+  const digits = (telefono ?? "").replace(/\D/g, "").replace(/^00/, "");
+  if (/^5\d{7}$/.test(digits)) return `53${digits}`;
+  if (/^53\d{8}$/.test(digits)) return digits;
+  return null;
+}
+
+/**
  * Un usuario o una URL de red social → la URL del perfil.
  *
  * Admite las dos formas en que la gente lo escribe: `@laverde` o `laverde` —que

@@ -1874,7 +1874,11 @@ function SettingsView({
      una sola forma de decir «esto se abre con un módulo o un pack». */
   const bloqueo = bloqueoDe(funciones, "whatsapp_pedido", cat);
   const bloqueoReservas = bloqueoDe(funciones, "reservas_whatsapp", cat);
-  const tieneNumero = Boolean(place.whatsapp?.trim());
+  /* Vale el WhatsApp y, si no está, el teléfono: es el mismo móvil y es el
+     criterio con el que se arma el enlace del pedido. */
+  const tieneNumero = Boolean(
+    place.whatsapp?.trim() || place.phone?.trim(),
+  );
 
   /**
    * El interruptor escribe al momento.
