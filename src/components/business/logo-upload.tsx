@@ -5,7 +5,6 @@ import Image from "next/image";
 import { Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prepareImage } from "@/lib/storage/compress";
-import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 
 interface LogoUploadProps {
   /**
@@ -40,8 +39,6 @@ export function LogoUpload({
 }: LogoUploadProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /* Archivo elegido y todavía sin subir: primero pasa por el recorte. */
-  const [pending, setPending] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   if (!placeId) {
@@ -110,7 +107,7 @@ export function LogoUpload({
           /* Se vacía el input para que elegir otra vez el mismo archivo vuelva a
              disparar el `change`; si no, el segundo intento no hace nada. */
           e.target.value = "";
-          if (file) setPending(file);
+          if (file) void upload(file);
         }}
       />
 
@@ -165,17 +162,6 @@ export function LogoUpload({
         )}
       </div>
       </div>
-      {pending && (
-        <ImageCropDialog
-          file={pending}
-          title="Recortar el logo"
-          onCancel={() => setPending(null)}
-          onConfirm={(cropped) => {
-            setPending(null);
-            void upload(cropped);
-          }}
-        />
-      )}
     </>
   );
 }
