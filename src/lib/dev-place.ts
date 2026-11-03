@@ -159,6 +159,62 @@ export function devPlace(): UserPlace {
       "Cafetería de barrio con tostado propio y una terraza en el patio. " +
       "Ficha de prueba: solo la ve quien corre el proyecto en su máquina.",
     schedule: "Todo el día",
+    /* Fixture de la ficha nueva: un tipo con dos módulos encendidos —uno
+       recomendado y otro no— para que la vista previa y las pruebas manuales
+       cubran el caso mixto (cafetería que también reparte). */
+    tipoNegocio: "cafeteria_restaurante",
+    modulosActivos: ["local", "domicilio"],
+    atributos: ["wifi", "terraza", "servicio_en_mesa", "para_llevar"],
+    colorMarca: "#0F7A41",
+    portadaEncuadre: "centro",
+    acciones: {
+      fila: ["como_llegar", "whatsapp", "llamar", "compartir"],
+      barra: ["pedir", "como_llegar"],
+    },
+    /* Lunes a sábado de 8 a 23; el domingo cierra a las 2 de la mañana, que es
+       la franja que cruza medianoche y la que hay que ver en la ficha. */
+    horario: {
+      semana: {
+        lun: [{ abre: "08:00", cierra: "23:00" }],
+        mar: [{ abre: "08:00", cierra: "23:00" }],
+        mie: [{ abre: "08:00", cierra: "23:00" }],
+        jue: [{ abre: "08:00", cierra: "23:00" }],
+        vie: [{ abre: "08:00", cierra: "23:00" }],
+        sab: [{ abre: "08:00", cierra: "02:00" }],
+        dom: [],
+      },
+      excepciones: [
+        { fecha: "2100-12-25", cerrado: true, mensaje: "Cerrado por Navidad" },
+      ],
+    },
+    cerradoMensaje: null,
+    entrega: {
+      costo: { modo: "gratis_desde", desde: 1500, monto: 200, moneda: "CUP" },
+      tiempo: { min: 25, max: 45 },
+      pedidoMinimo: { monto: 800, moneda: "CUP" },
+    },
+    comoComprar: { recoger: true, apartar: true },
+    comoAtiende: { conCita: false, sinCita: true, aDomicilio: true },
+    especialDia: {
+      titulo: "Combo de merienda",
+      descripcion: "Café con leche y tostada con mantequilla.",
+      precio: "350 CUP",
+      moneda: "CUP",
+      hasta: "2100-12-31",
+    },
+    catalogoTitulo: "Menú de la casa",
+    menuCategorias: [
+      { nombre: "Cafés", orden: 1 },
+      { nombre: "Para picar", orden: 2 },
+      { nombre: "Dulces", orden: 3 },
+      { nombre: "Bebidas frías", orden: 4 },
+      { nombre: "Servicios", orden: 5 },
+    ],
+    existenciasModo: "disponible",
+    catalogoActualizadoEn: ENERO_2026,
+    catalogoFuente: "manual",
+    resenaDestacadaId: null,
+    plantillaPedido: null,
     vibe: ["Tranquilo", "Con música"],
     payments: ["Efectivo (CUP)", "Efectivo (MLC)", "Transferencia"],
     /* Cuatro categorías y doce entradas a propósito: es lo que hace falta para
@@ -295,7 +351,8 @@ export function devPlace(): UserPlace {
         id: "oferta-caducada",
         productoId: "cafe-casa",
         titulo: "Colada rebajada (ya terminó)",
-        descripcion: "Se quedó aquí para poder reutilizarla cambiándole la fecha.",
+        descripcion:
+          "Se quedó aquí para poder reutilizarla cambiándole la fecha.",
         descuentoPct: 30,
         inicia: ENERO_2026,
         termina: JUNIO_2026,
@@ -324,6 +381,20 @@ export function devPlace(): UserPlace {
     isBoosted: false,
     boostExpiresAt: "",
     rating: 4.9,
+    /* Valoración viva del fixture: la ficha no lee `rating` —la columna puede
+       estar desactualizada—, así que sin esto el negocio de prueba perdería su
+       nota al estrenar la cabecera. El total pasa del mínimo de 3 para que se
+       pueda ver el promedio y la reseña destacada. */
+    reviewsStats: { promedio: 4.9, total: 12 },
+    resenaDestacada: {
+      id: "dev-resena-destacada",
+      rating: 5,
+      content:
+        "El café se tuesta aquí mismo y la terraza se agradece por las tardes. Ficha de prueba: solo la ve quien corre el proyecto.",
+      author: "Cliente de prueba",
+      createdAt: 1767225600000,
+      respuesta: null,
+    },
     priceLabel: "1–3 USD",
     aiTags: ["Café de especialidad", "Terraza", "Barrio"],
     photos: [],

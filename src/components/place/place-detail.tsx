@@ -23,8 +23,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { cn, currencyLabel, currencyStyles } from "@/lib/utils";
-import type { ContactLinks } from "@/lib/contact-links";
+import { cn } from "@/lib/utils";
 import {
   isSaved as isPlaceSaved,
   recordVisit,
@@ -36,7 +35,7 @@ import type { AnalyticsEventType } from "@/lib/analytics/events";
 import { trackPlaceMetric } from "@/lib/place-metrics";
 import { trackEvento } from "@/lib/eventos-client";
 import { fetchMe } from "@/lib/session-client";
-import { PhotoCarousel, type Slide } from "./photo-carousel";
+import { PhotoCarousel } from "./photo-carousel";
 import { PaymentsSection } from "./payments-section";
 import { ActionButtons } from "./action-buttons";
 import { MenuPages } from "./menu-pages";
@@ -48,142 +47,30 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
 import { placeIcon } from "@/lib/places";
 import { resolveCategoryIcon } from "@/lib/category-icons";
-import type { Disponibilidad } from "@/lib/disponibilidad";
-import type { EnergiaRespaldo } from "@/lib/energia";
 import { EnergiaBadge } from "./energia-badge";
 import { SelloVerificado } from "./sello-verificado";
 import { TopDelMes } from "./top-del-mes";
 import { ReservaWhatsApp } from "./reserva-whatsapp";
 import { SeguidorBoton } from "./seguidor-boton";
-import type { SeguidorConfig } from "@/lib/seguidores";
-import type { ReservaConfig } from "@/lib/reserva";
 
-export type PlaceState = "normal" | "closed" | "no-photos" | "oferta";
+/* Las formas de la ficha viven en `place-data.ts`, que es el único sitio que
+   traduce `UserPlace → PlaceData`. Aquí se reexportan para no romper a quien
+   importaba `PlaceData` desde este componente. */
+import type {
+  PlaceData,
+  PlaceDetailProps,
+  PlaceMenu,
+  PlaceOffer,
+  PlaceState,
+} from "@/lib/ficha/place-data";
+import { FichaView } from "./ficha/ficha-view";
 
-interface PlaceMenu {
-  /** El `id` de la entrada original. Es lo que enlaza la oferta con su fila. */
-  id?: string;
-  name: string;
-  description: string;
-  /** Texto libre. Ver `UserPlaceMenuItem`: no es un número. */
-  price: string;
-  currency: string;
-  tag?: string;
-  /** Familia del producto. Ver `UserPlaceMenuItem`. */
-  category?: string;
-  /** URL de la foto del producto en el bucket. Si no hay, el hueco queda con
-      el icono de siempre. */
-  image?: string;
-  /** «Hoy hay». Ver `UserPlaceMenuItem` y `disponibilidad.ts`. */
-  disponibilidad?: Disponibilidad;
-  agotadoHasta?: number | null;
-  /**
-   * El precio que se tacha y el rebajado, ya resueltos —con la moneda puesta—
-   * por `precioConOferta` al construir el `PlaceData`. La fila no calcula nada.
-   */
-  oferta?: { de: string; por: string };
-}
-
-/**
- * Una oferta flash ya resuelta para pintar: sin fechas crudas y sin carta a
- * mano. Ver `ofertas` en `PlaceData`.
- */
-export interface PlaceOffer {
-  id: string;
-  titulo: string;
-  descripcion?: string;
-  /** «Termina el 12 de octubre, 19:30», ya en texto. */
-  termina: string;
-  /** El precio de antes y el de ahora, con la moneda. Sin cifra que tachar, no
-      viene —y la tarjeta se sostiene con el título y la fecha—. */
-  precio?: { de: string; por: string };
-}
-
-export interface PlaceData {
-  id: string;
-  /** Identificador estable del menú: es lo que arma el enlace corto `/m/{slug}`. */
-  slug: string;
-  name: string;
-  category: string;
-  isProject?: boolean;
-  projectOffers?: string | null;
-  projectOfferPackages?: ProjectOfferPackage[];
-  rating: number;
-  distance: string;
-  /** Círculo de marca: el logo del negocio, y si no lo hay, la portada. */
-  logoUrl?: string;
-  barrio: string;
-  schedule: string;
-  address?: string;
-  payments: string[];
-  description: string;
-  longDescription: string;
-  isOpen: boolean;
-  closedMessage?: string;
-  /* Con esto se compone la tarjeta de recomendación. Son datos que la ficha no
-      enseña en ningún otro sitio: el ambiente, el precio y las etiquetas. */
-  vibe: string[];
-  aiTags: string[];
-  priceLabel?: string;
-  /** Energía de respaldo. `null`/ausente = el dueño no lo dijo. */
-  energiaRespaldo?: EnergiaRespaldo | null;
-  /** Nota corta sobre los apagones, para el `title` de la etiqueta. */
-  notaApagon?: string;
-  icon?: string;
-  isBoosted?: boolean;
-  /**
-   * Sello de negocio verificado, **ya resuelto**: la administración lo verificó
-   * y el plan lo incluye. La ficha solo lo pinta; la decisión está en el servidor
-   * (ver `SelloVerificado` y `selloVerificado` en el mapeo).
-   */
-  selloVerificado?: boolean;
-  /**
-   * Insignia «Top del mes», **ya resuelta** por el servidor contra
-   * `ranking_mensual`. La ficha solo la pinta (ver `TopDelMes`).
-   */
-  topDelMes?: boolean;
-  slides: Slide[];
-  menu: PlaceMenu[];
-  /**
-   * Los enlaces de la sección «Contacto», ya convertidos en href por
-   * `contactLinks` (la ficha no normaliza nada). Sin ninguno relleno la tarjeta
-   * no se pinta, así que un negocio de los que no lo rellenaron no gana un
-   * bloque vacío en su ficha.
-   */
-  contact: ContactLinks;
-  /**
-   * Lo que hace falta para pintar el botón de reserva, **ya resuelto**: solo
-   * viene cuando el plan incluye la función, el dueño la acepta y hay número
-   * (ver `reservaHabilitada` en el mapeo). Sin esto no hay botón, y la ficha no
-   * comprueba ningún permiso.
-   */
-  reserva?: ReservaConfig;
-  /**
-   * Lo que hace falta para el botón «Avísame de ofertas», **ya resuelto**: solo
-   * viene cuando el plan incluye los avisos (Pro) y hay bot configurado (ver
-   * `enlaceSeguidores` en el mapeo). Sin esto no hay botón, y la ficha no
-   * comprueba ningún permiso.
-   */
-  seguidores?: SeguidorConfig;
-  /**
-   * Las ofertas flash vivas del negocio, ya resueltas.
-   *
-   * Llegan solo las vigentes y en orden de caducidad —lo hace `ofertasVigentes`
-   * al construir el `PlaceData`—, así que aquí no hay nada que filtrar ni que
-   * ordenar: si hay alguna, se pintan todas.
-   */
-  ofertas?: PlaceOffer[];
-}
-
-interface PlaceDetailProps {
-  place: PlaceData;
-  state?: PlaceState;
-  onBack?: () => void;
-  onShare?: () => void;
-  onNavigate?: () => void;
-  footerSlot?: React.ReactNode;
-  className?: string;
-}
+export type {
+  PlaceData,
+  PlaceMenu,
+  PlaceOffer,
+  PlaceState,
+} from "@/lib/ficha/place-data";
 
 const CARD = "bg-white rounded-2xl border border-ink/5 shadow-soft p-gap-xl";
 const H2 = "font-lv-display text-h3 font-bold text-ink";
@@ -218,7 +105,20 @@ const BTN_OUTLINE =
    los iconos de la ficha. */
 const CHEVRON = "transition-transform duration-500 ease-outquint";
 
-export function PlaceDetail({
+/**
+ * El punto de entrada de la ficha.
+ *
+ * Los negocios van a la ficha nueva —secciones compartidas, sin rellenos
+ * inventados—. Los proyectos se quedan con la maqueta de siempre, que tiene sus
+ * propias piezas (paquetes de la oferta, afiches, fechas) y no gana nada con el
+ * esqueleto de negocio: aquí solo se enruta, no se reescribe.
+ */
+export function PlaceDetail(props: PlaceDetailProps) {
+  if (props.place.isProject) return <LegacyPlaceDetail {...props} />;
+  return <FichaView {...props} />;
+}
+
+function LegacyPlaceDetail({
   place,
   state = "normal",
   onBack,
@@ -1325,7 +1225,10 @@ function ContactCard({
                      le llegan los pedidos—, así que además de la analítica interna
                      alimenta sus estadísticas. El resto de enlaces no. */
                   if (row.event === "business_whatsapp_clicked") {
-                    trackEvento({ tipo: "click_whatsapp", negocioId: place.id });
+                    trackEvento({
+                      tipo: "click_whatsapp",
+                      negocioId: place.id,
+                    });
                   }
                 }}
                 className="inline-flex h-9 items-center gap-1.5 rounded-full border border-ink/10 bg-white px-3 font-lv-display text-[12px] font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"

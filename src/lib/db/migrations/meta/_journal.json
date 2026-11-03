@@ -330,6 +330,13 @@
       "when": 1793589636626,
       "tag": "0046_recordatorios_pago",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1793661598245,
+      "tag": "0047_chubby_tarantula",
+      "breakpoints": true
     }
   ]
 }

@@ -12,6 +12,21 @@ import {
 import { relations, sql } from "drizzle-orm";
 import { categories } from "./categories";
 import { users } from "./users";
+import type { Acciones } from "@/lib/ficha/acciones";
+import type { EntregaConfig } from "@/lib/ficha/entrega";
+import type { Horario } from "@/lib/ficha/horario";
+import {
+  CATALOGO_FUENTES,
+  EXISTENCIAS_MODOS,
+  PORTADA_ENCUADRES,
+  TIPOS_NEGOCIO,
+  type ComoAtiende,
+  type ComoComprar,
+  type EspecialDelDia,
+  type MenuCategoria,
+  type ModuloFicha,
+} from "@/lib/ficha/tipos";
+import type { Disponibilidad } from "@/lib/disponibilidad";
 
 export const places = pgTable(
   "places",
@@ -125,8 +140,25 @@ export const places = pgTable(
         currency: string;
         /** «Hoy hay». Los dos campos viven en el jsonb, no en columnas: los
             productos son entradas de la carta, no filas de una tabla. */
-        disponibilidad?: "disponible" | "agotado";
+        disponibilidad?: Disponibilidad;
         agotadoHasta?: number | null;
+        /**
+         * Fuera de la carta pública sin borrarlo. Es un booleano y no un tercer
+         * valor de `disponibilidad` porque ese tipo lo comparten el asistente
+         * y el panel, que solo conocen disponible/agotado: ampliarlo obligaría
+         * a tocar media app para un estado que se resuelve antes de pintar.
+         */
+        oculto?: boolean;
+        /** Producto resaltado en la ficha (va primero dentro de su categoría). */
+        destacado?: boolean;
+        /** Duración del servicio, en minutos. Solo lo usa el módulo servicios. */
+        duracionMin?: number;
+        /** Cómo se lee el precio: cifra fija, «desde» o «a consultar». */
+        tipoPrecio?: "fijo" | "desde" | "consultar";
+        /** Existencias exactas. Solo se pinta con `existencias_modo = exacta`. */
+        stock?: number;
+        /** Identificador en el ERP del negocio, para la futura sincronización. */
+        externalId?: string;
         /** Chapita del producto («Popular», «Nuevo», «2x1»). El panel ya la
             guardaba y el tipo no la declaraba, así que quien lo leyera con
             TypeScript no podía saber que estaba ahí. `$type` no genera
@@ -213,6 +245,61 @@ export const places = pgTable(
     aforoMaxPersonas: integer("aforo_max_personas"),
     aforoDiarioPersonas: integer("aforo_diario_personas"),
     plantillaReserva: text("plantilla_reserva"),
+
+    /* ── Ficha por tipo ─────────────────────────────────────────────────
+       El tipo principal y los módulos son cosas distintas: el tipo dice de
+       qué va el negocio y solo siembra valores por defecto; los módulos son
+       los bloques que la ficha enciende uno a uno. Todo nace `null` o vacío y
+       sin `default` engañoso: una ficha anterior a esta columna no empieza a
+       enseñar bloques que su dueño no eligió.
+
+       Las claves están en `src/lib/ficha/tipos.ts` y la validación en el
+       `PATCH`; aquí solo se declara la forma. */
+    tipoNegocio: text("tipo_negocio", { enum: TIPOS_NEGOCIO }),
+    modulosActivos: text("modulos_activos")
+      .array()
+      .$type<ModuloFicha[]>()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    /** Claves del catálogo de `src/lib/ficha/atributos.ts`, no texto libre. */
+    atributos: text("atributos")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    /** Color de marca de la paleta cerrada; `null` = sin color elegido. */
+    colorMarca: text("color_marca"),
+    portadaEncuadre: text("portada_encuadre", { enum: PORTADA_ENCUADRES }),
+    /** Orden y composición de las acciones (fila y barra fija). */
+    acciones: jsonb("acciones").$type<Acciones>(),
+    /** Horario estructurado. `null` = ficha antigua, se usa `schedule`. */
+    horario: jsonb("horario").$type<Horario>(),
+    /** Mensaje del cierre temporal. `null` = el texto por defecto del sistema. */
+    cerradoMensaje: text("cerrado_mensaje"),
+    /** Tarjeta de domicilio: costo, tiempo y pedido mínimo. */
+    entrega: jsonb("entrega").$type<EntregaConfig>(),
+    /** Cómo se compra en una tienda: recoger y/o apartar. */
+    comoComprar: jsonb("como_comprar").$type<ComoComprar>(),
+    /** Cómo atiende un servicio: con cita, sin cita, a domicilio. */
+    comoAtiende: jsonb("como_atiende").$type<ComoAtiende>(),
+    /** El especial del día, con fecha de fin. */
+    especialDia: jsonb("especial_dia").$type<EspecialDelDia>(),
+    /** Título de la sección de catálogo; `null` = el del tipo. */
+    catalogoTitulo: text("catalogo_titulo"),
+    /** Orden de las categorías de la carta. */
+    menuCategorias: jsonb("menu_categorias").$type<MenuCategoria[]>(),
+    existenciasModo: text("existencias_modo", { enum: EXISTENCIAS_MODOS })
+      .default("disponible")
+      .notNull(),
+    /** Cuándo cambió el catálogo. Se escribe solo cuando cambia `menu`. */
+    catalogoActualizadoEn: timestamp("catalogo_actualizado_en"),
+    /** `manual` = lo edita el dueño; `erp` lo reserva el sincronizador futuro. */
+    catalogoFuente: text("catalogo_fuente", { enum: CATALOGO_FUENTES })
+      .default("manual")
+      .notNull(),
+    /** Reseña que el negocio elige para destacar. Validada en la ruta. */
+    resenaDestacadaId: text("resena_destacada_id"),
+    /** Plantilla del mensaje de pedido, con los mismos huecos que el actual. */
+    plantillaPedido: text("plantilla_pedido"),
 
     /* ── Sello de negocio verificado ────────────────────────────────────
        Lo enciende **solo la administración**: la lista blanca del `PATCH`

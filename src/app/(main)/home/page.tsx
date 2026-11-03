@@ -67,6 +67,7 @@ import {
   type BusinessCategory,
 } from "@/lib/places";
 import { matchesPlaceFilters } from "@/lib/place-filters";
+import { estadoAhora } from "@/lib/ficha/horario";
 import { hayOferta } from "@/lib/ofertas";
 import { energiaParaIA } from "@/lib/energia";
 import type { UserPlace, UserPlaceMenuItem } from "@/lib/places-store";
@@ -207,12 +208,25 @@ function userPlaceToHomePlace(
       único dato que hay. */
   distanceM: number | null,
 ): HomePlace {
-  const tags: HomePlace["tags"] = [
-    {
-      label: p.status === "active" ? "Abierto" : "Cerrado",
-      variant: p.status === "active" ? "open" : "default",
-    },
-  ];
+  /* El estado sale del horario, no de si la ficha está publicada. `status` es
+     «¿el negocio existe?»: con él solo, cualquier negocio activo salía en verde
+     a medianoche. Si el horario no da una hora comprobable, la tarjeta no dice
+     nada —`PlaceCard` ya sabe vivir sin chip de estado—. */
+  const estado = estadoAhora({
+    horario: p.horario,
+    schedule: p.schedule,
+    status: p.status,
+    now: new Date(),
+  });
+  const tags: HomePlace["tags"] =
+    estado === "desconocido"
+      ? []
+      : [
+          {
+            label: estado === "abierto" ? "Abierto" : "Cerrado",
+            variant: estado === "abierto" ? "open" : "default",
+          },
+        ];
   if (p.selloVerificado) tags.push({ label: "Verificado", variant: "open" });
   /* Va antes que «Destacado» y «USD Clásica» a propósito: de una tarjeta se
      leen dos o tres chapitas, y una oferta que caduca hoy importa más que el

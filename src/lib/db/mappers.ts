@@ -6,6 +6,7 @@ import type {
   UserPlaceMenuItem,
   UserPlaceOferta,
   UserPlacePhoto,
+  UserPlaceReview,
 } from "@/lib/places-store";
 import {
   CATALOGO,
@@ -47,7 +48,7 @@ import { conIds } from "@/lib/catalogo";
  * devuelve un `INSERT ... RETURNING` y lo que se le pasa a `toUserPlace`.
  */
 export type PlaceRow = Omit<typeof places.$inferSelect, "embedding"> & {
-  embedding?: typeof places.$inferSelect["embedding"];
+  embedding?: (typeof places.$inferSelect)["embedding"];
 };
 type CategoryRow = typeof categories.$inferSelect;
 
@@ -91,6 +92,18 @@ export type PlaceRowWithCategory = PlaceRow & {
    * recién creada no ha ganado ningún mes todavía.
    */
   topDelMes?: boolean;
+  /**
+   * La media y el total de reseñas, traídos de `reviews` en una segunda
+   * consulta.
+   *
+   * No sale de `places.rating` a propósito: la columna es una copia para ordenar
+   * el directorio y puede ir por detrás de las reseñas reales. La ficha enseña
+   * el número que sale de las filas que existen. Ausente en las rutas que
+   * responden con la fila recién escrita y en `listPlaces`, que no lo necesita.
+   */
+  reviewsStats?: { promedio: number; total: number } | null;
+  /** La reseña destacada, si el negocio eligió una. */
+  resenaDestacada?: UserPlaceReview | null;
 };
 
 /**
@@ -143,7 +156,8 @@ export function toUserPlace(
     whatsapp: row.whatsapp ?? undefined,
     instagram: row.instagram ?? undefined,
     facebook: row.facebook ?? undefined,
-    description: row.description ?? row.shortDescription ?? "",
+    description: row.description ?? "",
+    shortDescription: row.shortDescription ?? undefined,
     schedule: row.schedule ?? "",
     /* Sin respaldo y sin dato viajan igual —`null`/`undefined`— y la ficha los
        trata igual: no pinta nada. La distinción entre «no lo dijo» y «dijo que
@@ -224,6 +238,34 @@ export function toUserPlace(
     isBoosted: row.isBoosted,
     boostExpiresAt: row.boostExpiresAt ?? "",
     rating: row.rating ?? undefined,
+    reviewsStats: row.reviewsStats ?? null,
+    resenaDestacada: row.resenaDestacada ?? null,
+    /* ── Ficha por tipo ──────────────────────────────────────────────────
+       Se copian tal cual; la ficha decide qué pintar con cada uno. Los
+       ausentes viajan `null` —o `[]` en los arrays, que son `notNull`— y la
+       ficha no pinta el bloque. `catalogoActualizadoEn` es la única fecha,
+       y sale en epoch ms como el resto de fechas que llegan al navegador. */
+    tipoNegocio: row.tipoNegocio ?? null,
+    modulosActivos: row.modulosActivos ?? [],
+    atributos: row.atributos ?? [],
+    colorMarca: row.colorMarca ?? null,
+    portadaEncuadre: row.portadaEncuadre ?? null,
+    acciones: row.acciones ?? null,
+    horario: row.horario ?? null,
+    cerradoMensaje: row.cerradoMensaje ?? null,
+    entrega: row.entrega ?? null,
+    comoComprar: row.comoComprar ?? null,
+    comoAtiende: row.comoAtiende ?? null,
+    especialDia: row.especialDia ?? null,
+    catalogoTitulo: row.catalogoTitulo ?? null,
+    menuCategorias: row.menuCategorias ?? null,
+    existenciasModo: row.existenciasModo,
+    catalogoActualizadoEn: row.catalogoActualizadoEn
+      ? row.catalogoActualizadoEn.getTime()
+      : null,
+    catalogoFuente: row.catalogoFuente,
+    resenaDestacadaId: row.resenaDestacadaId ?? null,
+    plantillaPedido: row.plantillaPedido ?? null,
     aiTags: row.aiTags ?? undefined,
     priceLabel: row.priceLabel ?? undefined,
     /* Las fotos viven en su propia tabla y llegan ya agrupadas por quien
@@ -326,6 +368,11 @@ export function toPlaceValues(
   if (patch.instagram !== undefined) values.instagram = patch.instagram || null;
   if (patch.facebook !== undefined) values.facebook = patch.facebook || null;
   if (patch.description !== undefined) values.description = patch.description;
+  /* Vaciar el subtítulo lo borra a propósito: la cabecera vuelve a enseñar solo
+     el nombre, no un hueco. */
+  if (patch.shortDescription !== undefined) {
+    values.shortDescription = patch.shortDescription || null;
+  }
   if (patch.schedule !== undefined) values.schedule = patch.schedule;
   /* `?? null` y no `|| null`: los cuatro valores son cadenas no vacías, así que
      el `||` daría lo mismo, pero aquí un `""` no es un valor válido y
@@ -334,7 +381,8 @@ export function toPlaceValues(
   if (patch.energiaRespaldo !== undefined) {
     values.energiaRespaldo = patch.energiaRespaldo || null;
   }
-  if (patch.notaApagon !== undefined) values.notaApagon = patch.notaApagon || null;
+  if (patch.notaApagon !== undefined)
+    values.notaApagon = patch.notaApagon || null;
   if (patch.payments !== undefined) values.paymentMethods = patch.payments;
   if (patch.menu !== undefined) values.menu = patch.menu;
   if (patch.offer !== undefined) {
@@ -364,7 +412,8 @@ export function toPlaceValues(
   }
   if (patch.plan !== undefined) values.plan = patch.plan ?? null;
   if (patch.isActive !== undefined) values.isActive = patch.isActive;
-  if (patch.reviewStatus !== undefined) values.reviewStatus = patch.reviewStatus;
+  if (patch.reviewStatus !== undefined)
+    values.reviewStatus = patch.reviewStatus;
   /* El sello es cosa de administración —la ruta le tira el campo a todo el que
      no lo sea— y la fecha se sella sola: nadie la escribe a mano, y encender el
      sello dejando la fecha vieja —o apagarlo dejándola puesta— sería mentir. */
@@ -373,10 +422,67 @@ export function toPlaceValues(
     values.verificadoEn = patch.verificado ? new Date() : null;
   }
   if (patch.isBoosted !== undefined) values.isBoosted = patch.isBoosted;
-  if (patch.boostExpiresAt !== undefined) values.boostExpiresAt = patch.boostExpiresAt;
+  if (patch.boostExpiresAt !== undefined)
+    values.boostExpiresAt = patch.boostExpiresAt;
   if (patch.rating !== undefined) values.rating = patch.rating ?? null;
   if (patch.priceLabel !== undefined) values.priceLabel = patch.priceLabel;
   if (patch.aiTags !== undefined) values.aiTags = patch.aiTags;
+
+  /* ── Ficha por tipo ──────────────────────────────────────────────────
+     Misma regla que el resto: lo que no llega no se toca, así un `PATCH`
+     parcial del panel de pedidos no borra el horario. Las claves de los
+     módulos, atributos y acciones se validan en la ruta antes de llegar
+     aquí; esta función solo traduce. Vaciar un texto deja `null` —es lo que
+     hace quien borra el mensaje de cierre a propósito—. */
+  if (patch.tipoNegocio !== undefined) {
+    values.tipoNegocio = patch.tipoNegocio ?? null;
+  }
+  if (patch.modulosActivos !== undefined) {
+    values.modulosActivos = patch.modulosActivos;
+  }
+  if (patch.atributos !== undefined) values.atributos = patch.atributos;
+  if (patch.colorMarca !== undefined) {
+    values.colorMarca = patch.colorMarca || null;
+  }
+  if (patch.portadaEncuadre !== undefined) {
+    values.portadaEncuadre = patch.portadaEncuadre ?? null;
+  }
+  if (patch.acciones !== undefined) values.acciones = patch.acciones;
+  if (patch.horario !== undefined) values.horario = patch.horario;
+  if (patch.cerradoMensaje !== undefined) {
+    values.cerradoMensaje = patch.cerradoMensaje || null;
+  }
+  if (patch.entrega !== undefined) values.entrega = patch.entrega;
+  if (patch.comoComprar !== undefined) values.comoComprar = patch.comoComprar;
+  if (patch.comoAtiende !== undefined) values.comoAtiende = patch.comoAtiende;
+  if (patch.especialDia !== undefined) values.especialDia = patch.especialDia;
+  if (patch.catalogoTitulo !== undefined) {
+    values.catalogoTitulo = patch.catalogoTitulo || null;
+  }
+  if (patch.menuCategorias !== undefined) {
+    values.menuCategorias = patch.menuCategorias;
+  }
+  if (patch.existenciasModo !== undefined) {
+    values.existenciasModo = patch.existenciasModo;
+  }
+  /* El cliente habla epoch ms y la columna es `timestamp`: la traducción va
+     aquí, como en `createdAt` al revés. `null` explícito significa «nunca se
+     guardó», no «no lo toques». */
+  if (patch.catalogoActualizadoEn !== undefined) {
+    values.catalogoActualizadoEn =
+      patch.catalogoActualizadoEn === null
+        ? null
+        : new Date(patch.catalogoActualizadoEn);
+  }
+  if (patch.catalogoFuente !== undefined) {
+    values.catalogoFuente = patch.catalogoFuente;
+  }
+  if (patch.resenaDestacadaId !== undefined) {
+    values.resenaDestacadaId = patch.resenaDestacadaId || null;
+  }
+  if (patch.plantillaPedido !== undefined) {
+    values.plantillaPedido = patch.plantillaPedido || null;
+  }
 
   /* `photos` y `distanceLabel` no tienen columna: las fotos van a su propia
      tabla y la distancia la calcula el render, que es quien tiene la ubicación

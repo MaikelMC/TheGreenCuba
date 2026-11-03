@@ -15,6 +15,11 @@ export const reviews = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     rating: integer("rating").notNull(),
     content: text("content"),
+    /* La respuesta del negocio. `null` = todavía no respondió; no hay fila
+       aparte porque es una sola por reseña y una tabla nueva obligaría a un
+       join que la ficha no necesita. */
+    respuesta: text("respuesta"),
+    respondidaEn: timestamp("respondida_en"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({

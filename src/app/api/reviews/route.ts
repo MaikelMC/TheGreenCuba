@@ -3,6 +3,7 @@ import { desc, eq, sql } from "drizzle-orm";
 import { trackEvent } from "@/lib/analytics/events";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
+import { invalidarCatalogo } from "@/lib/db/queries";
 import { places, reviews, users } from "@/lib/db/schema";
 import { rateLimit } from "@/lib/rate-limit";
 import { generateId } from "@/lib/utils";
@@ -166,6 +167,24 @@ export async function POST(req: NextRequest) {
       set: values,
     })
     .returning();
+
+  /* Hasta ahora `places.rating` no lo actualizaba nadie al escribir: la media
+     solo vivía en la respuesta de esta ruta. Se recalcula con la tabla entera
+     —no sumando al valor anterior— para que corregir una reseña vieja no
+     descuadre el promedio ni la puntuación se quede pegada tras un borrado. */
+  const [stats] = await db
+    .select({ promedio: sql<number>`avg(${reviews.rating})::float` })
+    .from(reviews)
+    .where(eq(reviews.placeId, placeId));
+
+  await db
+    .update(places)
+    .set({ rating: stats?.promedio ?? null })
+    .where(eq(places.id, placeId));
+
+  /* La ficha cacheada cinco minutos y el directorio leen la columna: sin esto
+     la reseña nueva tarda en verse. */
+  invalidarCatalogo();
 
   trackEvent({ type: "review_created", userId: user.id, businessId: placeId });
 

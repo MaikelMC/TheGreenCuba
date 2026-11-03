@@ -561,6 +561,8 @@
   html[data-theme="dark"] .text-ink-soft\/70,
   html[data-theme="dark"] .text-ink-soft\/65,
   html[data-theme="dark"] .text-ink-soft\/60,
+  html[data-theme="dark"] .text-ink-soft\/90,
+  html[data-theme="dark"] .text-ink-soft\/85,
   html[data-theme="dark"] .text-ink-soft\/80 {
     color: rgba(237, 247, 240, 0.85) !important;
   }
@@ -660,6 +662,49 @@
     background-color: #173522 !important;
   }
 
+  /* ─── La ficha de lugar: colores fijos del catálogo ───
+     Las filas y tarjetas de producto (`catalogo.tsx`) se pintaron con hex
+     sueltos en vez de tokens, así que ninguna de las listas de arriba las
+     alcanza: en oscuro el nombre del producto y su descripción quedaban tinta
+     sobre tinta, y los bordes de las filas y el contador del carrito seguían
+     claros. Se empatan aquí a la misma escala oscura del resto —sin tocar el
+     tema claro— y por el selector de atributo, que es el único que llega a una
+     clase arbitraria. */
+  html[data-theme="dark"] [class~="text-[#1C2620]"] {
+    color: #edf7f0 !important;
+  }
+
+  html[data-theme="dark"] [class~="text-[#5B6660]"] {
+    color: rgba(237, 247, 240, 0.78) !important;
+  }
+
+  /* Los tres estados de existencia: agotado, pocas y disponible. */
+  html[data-theme="dark"] [class~="text-[#8A2F1F]"] {
+    color: #fca5a5 !important;
+  }
+
+  html[data-theme="dark"] [class~="text-[#8A4B00]"] {
+    color: #fcd34d !important;
+  }
+
+  html[data-theme="dark"] [class~="text-[#1F5C2C]"] {
+    color: #9be3b4 !important;
+  }
+
+  /* Bordes de fila y de tarjeta del catálogo. */
+  html[data-theme="dark"] [class~="border-[#E4E1D8]"] {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  html[data-theme="dark"] [class~="border-[#EEEBE3]"] {
+    border-color: rgba(255, 255, 255, 0.07) !important;
+  }
+
+  /* Contador «− n +» del carrito: su fondo es el verde-50 de la escala clara. */
+  html[data-theme="dark"] [class~="bg-[#E3F1E5]"] {
+    background-color: #173522 !important;
+  }
+
   html[data-theme="dark"] .border-verde-200 {
     border-color: #28533a !important;
   }
@@ -687,7 +732,9 @@
   html[data-theme="dark"] .bg-sand\/30,
   html[data-theme="dark"] .bg-sand\/40,
   html[data-theme="dark"] .bg-sand\/50,
-  html[data-theme="dark"] .bg-sand\/60 {
+  html[data-theme="dark"] .bg-sand\/60,
+  html[data-theme="dark"] .bg-sand-warm\/60,
+  html[data-theme="dark"] .bg-sand-warm\/95 {
     background-color: #16212b !important;
   }
 

@@ -1,5 +1,6 @@
 import { haversineM } from "@/lib/map/routing";
 import { tieneRespaldo } from "@/lib/energia";
+import { estadoAhora, estadoDesdeTexto } from "@/lib/ficha/horario";
 import type { UserPlace } from "@/lib/places-store";
 
 /**
@@ -33,32 +34,35 @@ export type PlaceFilter = (typeof PLACE_FILTERS)[number];
  */
 export const NEARBY_RADIUS_M = 3000;
 
-/*
- * «Abiertos ahora» a partir de `schedule`.
+/**
+ * «Abiertos ahora» a partir del horario en texto libre.
  *
- * `ponytail:` esto es una aproximación por franjas, no un horario. El campo es
- * texto libre y en la base solo tiene tres valores reales —«De día», «De noche»
- * y «Todo el día»—; el horario estructurado (`hours_json`, tabla
- * `place_hours`) está vacío y sin usar. Con esos tres valores un cubo por
- * franja horaria es lo único honesto que se puede hacer. Subir a horarios de
- * verdad cuando el panel de negocio los recoja.
+ * Lo que no se puede leer cuenta como abierto: el filtro sirve para **quitar**
+ * negocios del mapa y no se quita uno por no saber interpretar su horario. La
+ * ficha es la que no afirma nada cuando el texto no da una hora comprobable.
  */
-const DAY_START_HOUR = 8;
-const DAY_END_HOUR = 19;
-
-/** Sin dato o con texto irreconocible devuelve `true`: no se descarta nada por
-    no entenderlo, que sería esconder negocios sin motivo. */
 export function isOpenNow(schedule: string, now: Date): boolean {
-  const text = schedule.trim().toLowerCase();
-  if (!text) return true;
-  if (text.includes("todo el día") || text.includes("todo el dia")) return true;
+  return estadoDesdeTexto(schedule, now).estado !== "cerrado";
+}
 
-  const hour = now.getHours();
-  const isDaytime = hour >= DAY_START_HOUR && hour < DAY_END_HOUR;
-
-  if (text.includes("de día") || text.includes("de dia")) return isDaytime;
-  if (text.includes("de noche")) return !isDaytime;
-  return true;
+/**
+ * El estado real del negocio para los filtros: manda el horario estructurado y,
+ * solo cuando no lo hay, el texto libre. Antes se miraba únicamente `schedule`,
+ * así que un negocio con horario por día se colaba en «Abiertos ahora» a las
+ * tres de la mañana.
+ */
+function estaAbiertoAhora(place: UserPlace, now: Date): boolean {
+  if (place.horario) {
+    return (
+      estadoAhora({
+        horario: place.horario,
+        schedule: place.schedule,
+        status: place.status,
+        now,
+      }) === "abierto"
+    );
+  }
+  return isOpenNow(place.schedule, now);
 }
 
 export interface FilterContext {
@@ -83,7 +87,9 @@ export function matchesPlaceFilters(place: UserPlace, ctx: FilterContext): boole
   const vibe = place.vibe ?? [];
   if (ctx.filters.has("tranquilo") && !vibe.includes("Tranquilo")) return false;
   if (ctx.filters.has("musica") && !vibe.includes("Musical")) return false;
-  if (ctx.filters.has("abierto") && !isOpenNow(place.schedule, ctx.now)) return false;
+  if (ctx.filters.has("abierto") && !estaAbiertoAhora(place, ctx.now)) {
+    return false;
+  }
 
   if (ctx.filters.has("distancia")) {
     /* Sin ubicación del usuario no hay desde dónde medir. Devolver `false` aquí

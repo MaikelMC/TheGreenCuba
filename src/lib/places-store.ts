@@ -17,6 +17,20 @@ import type { ProjectOfferPackage } from "@/lib/db/schema/project_requests";
 import type { Disponibilidad } from "@/lib/disponibilidad";
 import type { EnergiaRespaldo } from "@/lib/energia";
 import type { TipoReserva } from "@/lib/reserva";
+import type { Acciones } from "@/lib/ficha/acciones";
+import type { EntregaConfig } from "@/lib/ficha/entrega";
+import type { Horario } from "@/lib/ficha/horario";
+import type {
+  CatalogoFuente,
+  ComoAtiende,
+  ComoComprar,
+  EspecialDelDia,
+  ExistenciasModo,
+  MenuCategoria,
+  ModuloFicha,
+  PortadaEncuadre,
+  TipoNegocio,
+} from "@/lib/ficha/tipos";
 
 export type PlaceStatus = "active" | "closed" | "temporary_closed";
 export type PlaceReviewStatus = "pending" | "approved" | "rejected";
@@ -82,6 +96,18 @@ export interface UserPlaceMenuItem {
   disponibilidad?: Disponibilidad;
   /** Cuándo vuelve solo a estar disponible, en epoch ms. `null` = sin fecha. */
   agotadoHasta?: number | null;
+  /** Fuera de la carta pública sin borrarlo. Ausente = se ve. */
+  oculto?: boolean;
+  /** Resaltado en la ficha: va primero dentro de su categoría. */
+  destacado?: boolean;
+  /** Duración del servicio, en minutos. Solo la usa el módulo servicios. */
+  duracionMin?: number;
+  /** Cómo se lee el precio: cifra fija, «desde» o «a consultar». */
+  tipoPrecio?: "fijo" | "desde" | "consultar";
+  /** Existencias exactas. Solo se pinta con `existenciasModo = "exacta"`. */
+  stock?: number;
+  /** Identificador en el ERP del negocio, para la futura sincronización. */
+  externalId?: string;
   /**
    * Una sola foto por producto, la que se elige tocando el icono de imagen en
    * «Lo que ofrece».
@@ -156,6 +182,25 @@ export interface UserPlacePhoto {
   width: number | null;
   height: number | null;
   isCover: boolean;
+  /**
+   * Galería del local o portafolio de trabajos.
+   *
+   * Opcional porque el fixture y las fotos anteriores a la columna no la
+   * traen; quien la lee la interpreta como `local`, que es lo que la ficha
+   * enseñaba antes de que existiera el portafolio.
+   */
+  seccion?: "local" | "trabajos";
+}
+
+/** Una reseña ya resuelta para la ficha, con el nombre de quien la escribió. */
+export interface UserPlaceReview {
+  id: string;
+  rating: number;
+  content: string | null;
+  author: string | null;
+  /** Epoch ms, como el resto de fechas que llegan al navegador. */
+  createdAt: number;
+  respuesta?: string | null;
 }
 
 export interface UserPlace {
@@ -214,6 +259,14 @@ export interface UserPlace {
   instagram?: string;
   facebook?: string;
   description: string;
+  /**
+   * El subtítulo corto que se enseña bajo el nombre.
+   *
+   * `places.short_description` existía desde el principio pero solo la usaba el
+   * embedding y un respaldo del mapeo. Ahora la cabecera la pinta como
+   * subtítulo, así que viaja aparte de `description` en vez de fundirse con ella.
+   */
+  shortDescription?: string;
   schedule: string;
   /**
    * Energía de respaldo: qué tiene el negocio para seguir con luz durante un
@@ -387,6 +440,54 @@ export interface UserPlace {
   isBoosted: boolean;
   boostExpiresAt: string;
   rating?: number;
+  /**
+   * La valoración viva: media y número de reseñas que la forman.
+   *
+   * No se usa `rating` para la ficha porque la columna puede estar vieja —la
+   * escribe el backfill y cada reseña nueva, pero no hay garantía de que exista—
+   * y una media sin saber sobre cuántas opiniones se calculó es un dato que no
+   * se puede enseñar con honestidad. Se oculta por debajo de
+   * `MIN_RESENAS_PARA_NOTA` (ver `src/config/ficha.ts`).
+   */
+  reviewsStats?: { promedio: number; total: number } | null;
+  /** La reseña que el negocio eligió destacar, ya con el autor resuelto. */
+  resenaDestacada?: UserPlaceReview | null;
+
+  /* ── Ficha por tipo ────────────────────────────────────────────────────
+     Todos opcionales a propósito: `NewUserPlace` se deriva de este tipo y
+     media tabla se dio de alta antes de que existieran. `undefined` y `null`
+     significan «no configurado» y la ficha no pinta el bloque. */
+  /** Tipo principal. `null`/ausente = sin clasificar; la ficha usa el esqueleto común. */
+  tipoNegocio?: TipoNegocio | null;
+  /** Bloques encendidos. Nace vacío también en negocios nuevos. */
+  modulosActivos?: ModuloFicha[];
+  /** Claves del catálogo de atributos (nunca texto libre). */
+  atributos?: string[];
+  /** Color de la paleta cerrada; `null` = sin marca elegida. */
+  colorMarca?: string | null;
+  portadaEncuadre?: PortadaEncuadre | null;
+  /** Orden de la fila de acciones y de la barra fija. */
+  acciones?: Acciones | null;
+  /** Horario estructurado. `null` = ficha antigua, se lee `schedule`. */
+  horario?: Horario | null;
+  /** Mensaje del cierre temporal. `null` = el texto por defecto. */
+  cerradoMensaje?: string | null;
+  /** Tarjeta de domicilio. */
+  entrega?: EntregaConfig | null;
+  comoComprar?: ComoComprar | null;
+  comoAtiende?: ComoAtiende | null;
+  especialDia?: EspecialDelDia | null;
+  /** Título de la sección de catálogo; `null` = el del tipo. */
+  catalogoTitulo?: string | null;
+  /** Orden de las categorías de la carta. */
+  menuCategorias?: MenuCategoria[] | null;
+  existenciasModo?: ExistenciasModo;
+  /** Epoch ms del último cambio de catálogo, o `null` si nunca se guardó. */
+  catalogoActualizadoEn?: number | null;
+  catalogoFuente?: CatalogoFuente;
+  resenaDestacadaId?: string | null;
+  /** Plantilla propia del mensaje de pedido. `null` = la de por defecto. */
+  plantillaPedido?: string | null;
   /** Vacío o ausente = el negocio todavía no tiene fotos subidas. */
   photos?: UserPlacePhoto[];
   /** Foto elegida para el pin del mapa; en negocios cae a la portada. */
@@ -413,9 +514,20 @@ export interface UserPlace {
    le exige. Lo pone el `default` de la columna. */
 export type NewUserPlace = Omit<
   UserPlace,
-  "id" | "slug" | "createdAt" | "updatedAt" | "status" | "isActive" | "reviewStatus" | "isBoosted" | "boostExpiresAt" | "pedidosWhatsapp"
+  | "id"
+  | "slug"
+  | "createdAt"
+  | "updatedAt"
+  | "status"
+  | "isActive"
+  | "reviewStatus"
+  | "isBoosted"
+  | "boostExpiresAt"
+  | "pedidosWhatsapp"
 > &
-  Partial<Pick<UserPlace, "status" | "isActive" | "isBoosted" | "boostExpiresAt">>;
+  Partial<
+    Pick<UserPlace, "status" | "isActive" | "isBoosted" | "boostExpiresAt">
+  >;
 
 export type UserPlacePatch = Partial<
   Omit<UserPlace, "id" | "createdAt" | "updatedAt">

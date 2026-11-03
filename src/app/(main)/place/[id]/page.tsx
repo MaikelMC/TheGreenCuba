@@ -3,7 +3,11 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import { getPlaceById, listCategories } from "@/lib/db/queries";
 import { getAppUser } from "@/lib/auth/user";
-import { DEV_PLACE_ID, canViewDevPlace, devPlaceIndexable } from "@/lib/dev-place";
+import {
+  DEV_PLACE_ID,
+  canViewDevPlace,
+  devPlaceIndexable,
+} from "@/lib/dev-place";
 import {
   absoluteUrl,
   breadcrumbJsonLd,
@@ -65,7 +69,9 @@ const getPlace = cache(async (id: string) => {
 const getCategorySlug = cache(async (name: string) => {
   try {
     const categories = await listCategories();
-    return categories.find((category) => category.label === name)?.value ?? null;
+    return (
+      categories.find((category) => category.label === name)?.value ?? null
+    );
   } catch {
     return null;
   }
@@ -78,6 +84,7 @@ function describe(place: {
   province?: string;
   barrio: string;
   description: string;
+  shortDescription?: string;
 }): { title: string; description: string } {
   /* Ciudad y provincia cuando las dos aportan: «Restaurante en Vedado, La
      Habana» cubre la búsqueda por municipio y por provincia. Se deduplica
@@ -89,12 +96,17 @@ function describe(place: {
       .join(", ") ||
     place.barrio ||
     "Cuba";
+  /* El subtítulo manda si existe: es lo que el dueño escribió para presentarse
+     en una línea. Si no, se recorta la descripción larga —Google corta alrededor
+     de los 160 caracteres— y, si tampoco hay, se compone con los datos que sí
+     están. */
+  const resumen =
+    place.shortDescription?.trim() || place.description?.trim() || "";
+
   return {
     title: `${place.name} — ${place.category} en ${where}`,
-    /* La descripción larga se recorta: Google corta alrededor de los 160
-       caracteres y lo que sobre no se lee, solo resta espacio a lo que sí. */
-    description: place.description
-      ? place.description.slice(0, 160)
+    description: resumen
+      ? resumen.slice(0, 160)
       : `${place.name}, ${place.category} en ${where}. Dirección, horario, precios y métodos de pago en La Verde.`,
   };
 }
@@ -145,9 +157,7 @@ export async function generateMetadata({
        índice. `status` es lo que dice el dueño sobre si está abierto; esto es
        lo que decide si la ficha existe para el público. */
     robots:
-      place.isActive &&
-      place.status === "active" &&
-      devPlaceIndexable(place.id)
+      place.isActive && place.status === "active" && devPlaceIndexable(place.id)
         ? undefined
         : { index: false, follow: true },
   };
@@ -196,7 +206,14 @@ export default async function PlacePage({
           __html: JSON.stringify(breadcrumbs).replace(/</g, "\\u003c"),
         }}
       />
-      <PlaceView id={id} initialPlace={place} />
+      <PlaceView
+        id={id}
+        initialPlace={place}
+        /* El HTML inicial tiene que traer el «Abierto»/«Cerrado» correcto. Si lo
+           calculara el navegador al hidratar, la ficha saldría primero sin
+           estado (o con el del servidor, que puede ir en otra zona horaria). */
+        nowIso={new Date().toISOString()}
+      />
     </>
   );
 }

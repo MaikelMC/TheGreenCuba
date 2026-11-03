@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Image as ImageIcon, Loader2, Plus, X } from "lucide-react";
+import { Image as ImageIcon, Loader2, Plus, Star, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prepareImage } from "@/lib/storage/compress";
 import { usePlaces } from "@/providers/places-provider";
@@ -14,6 +14,7 @@ export interface PlaceImage {
   width: number | null;
   height: number | null;
   isCover: boolean;
+  seccion?: "local" | "trabajos";
 }
 
 interface PhotoGridProps {
@@ -146,6 +147,32 @@ export function PhotoGrid({ placeId, placeName, className }: PhotoGridProps) {
     [placeId, placeName, refreshPlaces, load],
   );
 
+  const patch = useCallback(
+    async (imageId: string, updates: { isCover?: boolean; seccion?: "local" | "trabajos" }) => {
+      if (!placeId) return;
+      setBusy(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/places/${placeId}/images`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageId, ...updates }),
+        });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(data?.error ?? "No se pudo actualizar la foto.");
+        }
+        await load();
+        void refreshPlaces();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "No se pudo actualizar.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [placeId, load, refreshPlaces],
+  );
+
   const remove = useCallback(
     async (imageId: string) => {
       if (!placeId) return;
@@ -229,6 +256,7 @@ export function PhotoGrid({ placeId, placeName, className }: PhotoGridProps) {
               sizes={image.isCover ? "(min-width: 1024px) 640px, 100vw" : "(min-width: 1024px) 200px, 33vw"}
               className="object-cover"
             />
+            {/* Borrar */}
             <button
               type="button"
               onClick={() => void remove(image.id)}
@@ -238,10 +266,47 @@ export function PhotoGrid({ placeId, placeName, className }: PhotoGridProps) {
             >
               <X size={14} strokeWidth={1.8} />
             </button>
-            {image.isCover && (
-              <span className="absolute bottom-[8px] left-[8px] bg-ink/70 text-white px-[10px] py-[3px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em]">
-                Portada
-              </span>
+            {/* Hacer portada (solo fotos que no lo son) */}
+            {!image.isCover && (
+              <button
+                type="button"
+                onClick={() => void patch(image.id, { isCover: true })}
+                disabled={busy}
+                className="absolute top-[6px] left-[6px] size-7 rounded-full bg-ink/70 text-white grid place-items-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-500 ease-outquint z-10 cursor-pointer disabled:opacity-40"
+                aria-label="Usar como portada"
+                title="Usar como portada"
+              >
+                <Star size={13} strokeWidth={1.8} />
+              </button>
+            )}
+            {/* Badges de portada y sección */}
+            <div className="absolute bottom-[8px] left-[8px] flex gap-[4px]">
+              {image.isCover && (
+                <span className="bg-ink/70 text-white px-[8px] py-[2px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em]">
+                  Portada
+                </span>
+              )}
+              {!image.isCover && image.seccion === "trabajos" && (
+                <span className="bg-ink/70 text-white px-[8px] py-[2px] rounded-full font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em]">
+                  Trabajos
+                </span>
+              )}
+            </div>
+            {/* Toggle de sección (solo para fotos que no son portada) */}
+            {!image.isCover && (
+              <button
+                type="button"
+                onClick={() =>
+                  void patch(image.id, {
+                    seccion: image.seccion === "trabajos" ? "local" : "trabajos",
+                  })
+                }
+                disabled={busy}
+                className="absolute bottom-[8px] right-[8px] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-500 ease-outquint z-10 bg-ink/70 text-white rounded-full px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] cursor-pointer disabled:opacity-40"
+                title={image.seccion === "trabajos" ? "Mover al local" : "Mover a trabajos"}
+              >
+                {image.seccion === "trabajos" ? "→ Local" : "→ Trabajos"}
+              </button>
             )}
           </div>
         ))}

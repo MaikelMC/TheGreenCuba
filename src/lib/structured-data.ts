@@ -1,6 +1,8 @@
 import { siteConfig } from "@/config/site";
+import { MIN_RESENAS_PARA_NOTA } from "@/config/ficha";
 import { contactLinks } from "@/lib/contact-links";
-import { currencyLabel } from "@/lib/utils";
+import { DIAS_SEMANA, type DiaSemana, type Horario } from "@/lib/ficha/horario";
+import { etiquetaPago } from "@/lib/ficha/pagos";
 import type { UserPlace } from "@/lib/places-store";
 
 /**
@@ -49,7 +51,10 @@ export function cityPath(citySlug: string): string {
   return `/lugares/ciudad/${citySlug}`;
 }
 
-export function categoryCityPath(categorySlug: string, citySlug: string): string {
+export function categoryCityPath(
+  categorySlug: string,
+  citySlug: string,
+): string {
   return `/lugares/${categorySlug}/${citySlug}`;
 }
 
@@ -130,6 +135,65 @@ function openingHours(schedule?: string | null): string[] | undefined {
   return [`Mo-Su ${clock(open)}-${clock(close)}`];
 }
 
+/** El nombre del día que espera schema.org. */
+const SCHEMA_DAY: Record<DiaSemana, string> = {
+  dom: "Sunday",
+  lun: "Monday",
+  mar: "Tuesday",
+  mie: "Wednesday",
+  jue: "Thursday",
+  vie: "Friday",
+  sab: "Saturday",
+};
+
+/**
+ * El horario estructurado, convertido a `openingHoursSpecification`.
+ *
+ * Las excepciones se quedan fuera a propósito: son fechas concretas, no la
+ * semana habitual, y el campo de schema.org describe el horario recurrente. Una
+ * franja que cruza medianoche se parte en dos, porque un `closes` menor que
+ * `opens` no es una hora válida para un mismo día: se declara hasta las 23:59 y
+ * la madrugada siguiente desde las 00:00.
+ */
+function openingHoursSpecification(
+  horario: Horario | null | undefined,
+): Record<string, unknown>[] | undefined {
+  if (!horario) return undefined;
+
+  const specs: Record<string, unknown>[] = [];
+  DIAS_SEMANA.forEach((dia, index) => {
+    const franjas = horario.semana[dia] ?? [];
+    const siguiente = DIAS_SEMANA[(index + 1) % DIAS_SEMANA.length];
+    if (!siguiente) return;
+
+    for (const franja of franjas) {
+      if (franja.cierra > franja.abre) {
+        specs.push({
+          "@type": "OpeningHoursSpecification",
+          dayOfWeek: SCHEMA_DAY[dia],
+          opens: franja.abre,
+          closes: franja.cierra,
+        });
+      } else {
+        specs.push({
+          "@type": "OpeningHoursSpecification",
+          dayOfWeek: SCHEMA_DAY[dia],
+          opens: franja.abre,
+          closes: "23:59",
+        });
+        specs.push({
+          "@type": "OpeningHoursSpecification",
+          dayOfWeek: SCHEMA_DAY[siguiente],
+          opens: "00:00",
+          closes: franja.cierra,
+        });
+      }
+    }
+  });
+
+  return specs.length > 0 ? specs : undefined;
+}
+
 /**
  * La carta pública del negocio: la ruta que se comparte y la que va dentro del
  * QR de la mesa.
@@ -167,20 +231,37 @@ export function placeJsonLd(place: UserPlace): Record<string, unknown> {
       latitude: place.lat,
       longitude: place.lng,
     },
-    image: place.photos?.length ? place.photos.map((photo) => photo.url) : undefined,
+    image: place.photos?.length
+      ? place.photos.map((photo) => photo.url)
+      : undefined,
     telephone: place.phone || undefined,
     priceRange: place.priceLabel || undefined,
-    /* Solo cuando `schedule` se puede leer como una franja. «De noche» no se
-       convierte en una hora inventada. */
-    openingHours: openingHours(place.schedule),
+    /* La media solo se emite cuando hay suficientes reseñas que la sostengan.
+       Un `aggregateRating` de una sola opinión es una nota sin respaldo, y el
+       marcado que no coincide con la página se penaliza. */
+    aggregateRating:
+      place.reviewsStats &&
+      place.reviewsStats.total >= MIN_RESENAS_PARA_NOTA &&
+      place.reviewsStats.promedio > 0
+        ? {
+            "@type": "AggregateRating",
+            ratingValue: place.reviewsStats.promedio,
+            reviewCount: place.reviewsStats.total,
+          }
+        : undefined,
+    /* El horario estructurado manda cuando existe. Si no, se intenta leer el
+       texto libre de `schedule`; «De noche» se queda fuera, no se convierte en
+       una hora inventada. */
+    openingHoursSpecification: openingHoursSpecification(place.horario),
+    openingHours: place.horario ? undefined : openingHours(place.schedule),
     /* La carta pública, si el negocio publicó alguna. Es la misma URL que abre
        el QR y la que se indexa aparte. */
     hasMenu: place.menu.length > 0 ? menuUrl(place.slug) : undefined,
     /* Los métodos de pago son el diferencial del producto en Cuba, así que van
-       con su nombre largo: en la base están como código («MLC») y así no
-       significan nada fuera de aquí. */
+       con su nombre largo. `etiquetaPago` conoce el catálogo nuevo (Zelle, otro)
+       y deja pasar tal cual las claves antiguas que ya eran legibles. */
     paymentAccepted: place.payments.length
-      ? place.payments.map(currencyLabel).join(", ")
+      ? place.payments.map(etiquetaPago).join(", ")
       : undefined,
     /* La web y las redes que el dueño dio en la sección «Contacto». `sameAs`
        espera una lista y aquí iba la web sola: son las URLs que Google asocia

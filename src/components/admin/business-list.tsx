@@ -23,6 +23,11 @@ import {
   type PlaceStatus,
   type UserPlace,
 } from "@/lib/places-store";
+import {
+  TIPOS_NEGOCIO,
+  TIPO_NEGOCIO_LABEL,
+  type TipoNegocio,
+} from "@/lib/ficha/tipos";
 import { StateView } from "@/components/ui/state-view";
 import { LoadingState } from "@/components/ui/loading";
 
@@ -91,19 +96,25 @@ export function BusinessList() {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [tipoFilter, setTipoFilter] = useState("all");
+  const [asignandoTipo, setAsignandoTipo] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return places.filter((p) => {
       if (categoryFilter !== "all" && p.category !== categoryFilter)
         return false;
-      /* Publicado **y** abierto. Antes bastaba con `status`, así que un negocio
-         sin aprobar —que también tiene `status = "active"`— salía al filtrar
-         por «Activos», con la píldora verde al lado. */
       if (statusFilter === "active" && !(p.status === "active" && p.isActive))
         return false;
       if (statusFilter === "inactive" && p.status === "active") return false;
       if (statusFilter === "boosted" && !p.isBoosted) return false;
+      if (tipoFilter === "sin_tipo" && p.tipoNegocio) return false;
+      if (
+        tipoFilter !== "all" &&
+        tipoFilter !== "sin_tipo" &&
+        p.tipoNegocio !== tipoFilter
+      )
+        return false;
       if (
         q &&
         !`${p.name} ${p.barrio} ${p.category} ${p.address}`
@@ -114,7 +125,17 @@ export function BusinessList() {
       }
       return true;
     });
-  }, [places, query, categoryFilter, statusFilter]);
+  }, [places, query, categoryFilter, statusFilter, tipoFilter]);
+
+  const asignarTipo = useCallback(
+    async (p: UserPlace, tipo: TipoNegocio) => {
+      setAsignandoTipo(p.id);
+      const ok = await updatePlace(p.id, { tipoNegocio: tipo });
+      setAsignandoTipo(null);
+      if (!ok) toast.error(`No se pudo asignar el tipo a "${p.name}".`);
+    },
+    [updatePlace],
+  );
 
   /* Los dos esperan la respuesta de la base antes de avisar. El `toast` salía
      antes de que la escritura llegara, así que un fallo de red se celebraba
@@ -219,6 +240,32 @@ export function BusinessList() {
             className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft/75 pointer-events-none z-10"
           />
         </div>
+        <div className="relative">
+          <select
+            value={tipoFilter}
+            onChange={(e) => setTipoFilter(e.target.value)}
+            className={cn(
+              "w-full h-[42px] pl-4 pr-10 rounded-xl border bg-white font-lv-display text-small text-ink outline-none transition duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer appearance-none",
+              tipoFilter === "sin_tipo"
+                ? "border-amber-300 text-amber-700"
+                : "border-ink/10",
+            )}
+            aria-label="Filtrar por tipo de negocio"
+          >
+            <option value="all">Todos los tipos</option>
+            <option value="sin_tipo">⚠ Sin tipo asignado</option>
+            {TIPOS_NEGOCIO.map((t) => (
+              <option key={t} value={t}>
+                {TIPO_NEGOCIO_LABEL[t]}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            size={16}
+            strokeWidth={1.8}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft/75 pointer-events-none z-10"
+          />
+        </div>
       </div>
 
       {/* List */}
@@ -268,6 +315,32 @@ export function BusinessList() {
                       <span className="font-lv-display text-small font-semibold text-ink truncate">
                         {p.name}
                       </span>
+                      {/* Badge de tipo — o selector rápido si no tiene */}
+                      {p.tipoNegocio ? (
+                        <span className="shrink-0 inline-flex rounded-full bg-sand-deep px-[7px] py-[2px] font-lv-display text-[10px] font-semibold text-ink-soft/70 uppercase tracking-[0.1em]">
+                          {TIPO_NEGOCIO_LABEL[p.tipoNegocio]}
+                        </span>
+                      ) : (
+                        <select
+                          aria-label={`Asignar tipo a ${p.name}`}
+                          disabled={asignandoTipo === p.id}
+                          onChange={(e) => {
+                            if (e.target.value)
+                              void asignarTipo(p, e.target.value as TipoNegocio);
+                          }}
+                          className="h-6 rounded-full border border-amber-200 bg-amber-50 px-[8px] font-lv-display text-[10px] font-semibold text-amber-700 outline-none cursor-pointer hover:border-amber-400 transition-colors disabled:opacity-50"
+                          defaultValue=""
+                        >
+                          <option value="" disabled>
+                            Sin tipo
+                          </option>
+                          {TIPOS_NEGOCIO.map((t) => (
+                            <option key={t} value={t}>
+                              {TIPO_NEGOCIO_LABEL[t]}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                       {/* Todo negocio nuevo arranca con 30 días de prueba de
                           Pro, eligiera lo que eligiera en el alta. Mientras la
                           prueba vive, eso es lo que hay contratado de verdad y

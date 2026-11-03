@@ -2,7 +2,7 @@
 
 import { motion } from "motion/react";
 import Image from "next/image";
-import { Image as ImageIcon } from "lucide-react";
+import { Image as ImageIcon, Minus, Plus } from "lucide-react";
 import { cn, formatMenuPrice, menuTagFallback, menuTagStyles } from "@/lib/utils";
 import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
 
@@ -40,6 +40,31 @@ interface MenuItemProps {
    * sobre un precio que no es una cifra («3–5 USD») no puede con él.
    */
   oferta?: { de: string; por: string };
+  /**
+   * Texto de stock calculado por el catálogo según `existenciasModo`: «Quedan
+   * pocas», «Quedan 3», etc. `undefined` = no mostrar nada extra.
+   */
+  stockBadge?: string;
+  /**
+   * Duración estimada del servicio, en minutos. Solo para el módulo servicios.
+   */
+  duracionMin?: number;
+  /**
+   * Tipo de precio. Afecta cómo se muestra el precio:
+   * - `consultar` → «A consultar» en lugar del precio
+   * - `desde` → «Desde X» como prefijo
+   * - `fijo` (o sin definir) → precio tal cual
+   */
+  tipoPrecio?: "fijo" | "desde" | "consultar";
+  /**
+   * Cantidad actual en el carrito. Solo se muestra el control cuando
+   * `onAgregar` está definido y el ítem no está agotado.
+   */
+  qty?: number;
+  onAgregar?: () => void;
+  onQuitar?: () => void;
+  /** URL de WhatsApp por ítem (módulo servicios). */
+  hrefCita?: string;
   className?: string;
   index?: number;
 }
@@ -47,10 +72,8 @@ interface MenuItemProps {
 /**
  * La tarjeta de producto de «Lo que ofrece», en la ficha del negocio.
  *
- * Es la misma tarjeta que la de la carta —foto cuadrada arriba, nombre, precio y
- * chapita debajo, sobre fondo blanco con contorno—, para que el producto se
- * reconozca al saltar de la ficha a la carta. Aquí no hay botón de añadir: el
- * carrito es de la carta, que es donde vive el `PedidoProvider`.
+ * Cuando `onAgregar` está presente (módulo domicilio activo y pedidos
+ * habilitados) muestra un control `+/-` integrado; sin él, es solo lectura.
  */
 export function MenuItem({
   name,
@@ -62,14 +85,31 @@ export function MenuItem({
   disponibilidad,
   agotadoHasta,
   oferta,
+  stockBadge,
+  duracionMin,
+  tipoPrecio,
+  qty,
+  onAgregar,
+  onQuitar,
+  hrefCita,
   className,
   index = 0,
 }: MenuItemProps) {
-  const priceText = formatMenuPrice(price, currency);
-  /* El estado efectivo, no el guardado: uno marcado como agotado con la fecha
-     de vuelta ya pasada se lee como disponible. */
+  const rawPriceText = formatMenuPrice(price, currency);
+  /* `tipoPrecio` cambia cómo se presenta el precio:
+     - consultar → texto fijo, independientemente del campo precio
+     - desde     → prefijo «Desde» delante del precio formateado
+     - fijo/undef → el precio tal cual */
+  const priceText =
+    tipoPrecio === "consultar"
+      ? "A consultar"
+      : tipoPrecio === "desde" && rawPriceText
+        ? `Desde ${rawPriceText}`
+        : rawPriceText;
   const agotado = estaAgotado({ disponibilidad, agotadoHasta });
-  const enOferta = Boolean(oferta && priceText);
+  const enOferta = Boolean(oferta && rawPriceText && tipoPrecio !== "consultar");
+  const conCarrito = Boolean(onAgregar && !agotado);
+  const enCarrito = (qty ?? 0) > 0;
 
   return (
     <motion.div
@@ -79,18 +119,10 @@ export function MenuItem({
       transition={{ delay: index * 0.04, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
         "flex flex-col rounded-2xl border border-ink/10 bg-white p-gap-xs shadow-soft sm:p-gap-sm",
-        /* Agotado no desaparece: se apaga. El producto sigue en la carta —quien
-           ya lo conocía lo busca— pero se lee que hoy no hay. */
         agotado && "opacity-60",
         className,
       )}
     >
-      {/* La foto va arriba y el texto debajo, dentro de la misma caja: el
-          contorno es lo que separa un producto del siguiente.
-          Cuadrada y con `object-cover`, igual que la tarjeta de la carta
-          pública (`/m/[slug]`): el mismo producto se tiene que ver igual al
-          saltar de la ficha a la carta, y la foto vertical de una botella se
-          recorta igual en las dos. */}
       <div className="relative aspect-square w-full overflow-hidden rounded-lv-lg border border-ink/5 bg-sand-deep text-verde-600">
         {image ? (
           <Image
@@ -111,11 +143,7 @@ export function MenuItem({
             <ImageIcon size={28} strokeWidth={1.8} className="opacity-50" />
           </span>
         )}
-        {/* Las chapitas van sobre la foto y no en la fila del nombre: ahí
-            empujaban al nombre a una línea más cuando no cabían a su lado, y la
-            tarjeta crecía solo por eso. Encima de la foto no ocupan alto de
-            texto y todas las tarjetas miden lo mismo. */}
-        {(enOferta || agotado) && (
+        {(enOferta || agotado || stockBadge) && (
           <span className="absolute left-[6px] top-[6px] flex flex-wrap gap-[4px]">
             {enOferta && (
               <span className="rounded-full bg-verde-400 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-verde-950">
@@ -127,40 +155,36 @@ export function MenuItem({
                 Agotado
               </span>
             )}
+            {stockBadge && !agotado && (
+              <span className="rounded-full bg-white/95 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-soft/80">
+                {stockBadge}
+              </span>
+            )}
           </span>
+        )}
+        {/* Botón + flotante en la esquina inferior derecha cuando hay carrito y
+            el ítem todavía no se añadió. Cuando ya hay unidades, el control
+            completo va debajo. */}
+        {conCarrito && !enCarrito && (
+          <button
+            type="button"
+            onClick={onAgregar}
+            aria-label={`Añadir ${name} al pedido`}
+            className="absolute bottom-[6px] right-[6px] grid size-9 place-items-center rounded-full bg-verde-400 text-verde-950 shadow-primary-halo transition-colors duration-300 hover:bg-verde-300 active:scale-95"
+          >
+            <Plus size={18} strokeWidth={2} />
+          </button>
         )}
       </div>
 
-      {/* `flex-1` + `flex-col`: la tarjeta estirada por la rejilla reparte el
-          alto sobrante en el cuerpo del texto, y el precio cae al fondo. */}
       <div className="mt-gap-sm flex min-w-0 flex-1 flex-col">
-        {/* Cada bloque reserva su alto: nombre a dos líneas, descripción a dos.
-            Sin reserva, una tarjeta con el nombre en una línea o sin descripción
-            medía menos que su vecina —y como cada página es su propia rejilla,
-            `auto-rows-fr` iguala dentro de una página pero **no entre páginas**,
-            así que el tamaño cambiaba al pasar de página—. La reserva va en `em`
-            y no en `px` para no repetir la cifra por breakpoint: el nombre sube
-            a 22 px desde `sm` y reserva lo suyo solo.
-            El nombre va con `line-clamp-2` porque uno de tres líneas estira la
-            fila entera y descuadra la tarjeta de al lado. */}
         <span className="line-clamp-2 min-h-[2.75em] font-lv-display text-body font-bold leading-snug text-ink sm:text-h3">
           {name}
         </span>
-        {/* Siempre pintada, aunque no haya descripción: el hueco es justamente
-            lo que reserva sus dos líneas. */}
         <div className="line-clamp-2 min-h-[2.75em] text-small leading-snug text-ink-soft/75 sm:text-body">
           {description}
         </div>
-        {/* La fila se pinta siempre, aunque acabe vacía —un servicio como
-            «Wi-Fi gratis» no tiene precio—: es la que reserva su alto, y sin ella
-            esa tarjeta mediría menos que las demás. Dos líneas en el teléfono
-            —`flex-wrap`: ahí el precio con la categoría y la chapita no cabe en
-            una— y el alto natural desde `sm`, donde sí caben.
-            El `min-h` lleva el `pt` sumado porque el `box-sizing` es
-            `border-box` y el relleno cuenta dentro. */}
         <div className="mt-auto flex min-h-[calc(2.75em+6px)] flex-wrap items-center gap-gap-xs pt-[6px] sm:min-h-0">
-          {/* Con oferta se enseña el de antes tachado y el de ahora en verde:
-              el precio de siempre no se pinta, o serían tres precios. */}
           {enOferta && oferta ? (
             <span className="flex items-baseline gap-gap-xs">
               <span className="font-lv-display text-meta text-ink-soft/60 line-through">
@@ -190,6 +214,52 @@ export function MenuItem({
             )}
           </span>
         </div>
+
+        {/* Control +/- cuando el ítem ya está en el carrito. Va dentro del
+            cuerpo de texto para no cambiar el alto de la tarjeta vacía. */}
+        {/* Duración del servicio */}
+        {duracionMin && (
+          <span className="mt-[2px] font-lv-display text-meta text-ink-soft/60">
+            {duracionMin} min
+          </span>
+        )}
+
+        {/* Botón de pedir cita por WhatsApp (módulo servicios) */}
+        {hrefCita && !agotado && (
+          <a
+            href={hrefCita}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-gap-xs inline-flex h-8 items-center justify-center rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-300 hover:bg-verde-300 active:scale-95"
+          >
+            Pedir cita
+          </a>
+        )}
+
+        {/* Control +/- del carrito */}
+        {conCarrito && enCarrito && (
+          <div className="mt-gap-xs flex items-center justify-between gap-gap-xs rounded-xl border border-verde-200 bg-verde-50 px-gap-sm py-[5px]">
+            <button
+              type="button"
+              onClick={onQuitar}
+              aria-label={`Quitar una unidad de ${name}`}
+              className="grid size-7 place-items-center rounded-full text-verde-700 transition-colors hover:bg-verde-100 active:scale-95"
+            >
+              <Minus size={15} strokeWidth={2} />
+            </button>
+            <span className="font-lv-display text-small font-bold text-verde-800">
+              {qty}
+            </span>
+            <button
+              type="button"
+              onClick={onAgregar}
+              aria-label={`Añadir otra unidad de ${name}`}
+              className="grid size-7 place-items-center rounded-full text-verde-700 transition-colors hover:bg-verde-100 active:scale-95"
+            >
+              <Plus size={15} strokeWidth={2} />
+            </button>
+          </div>
+        )}
       </div>
     </motion.div>
   );

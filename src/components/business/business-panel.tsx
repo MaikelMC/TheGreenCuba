@@ -92,6 +92,12 @@ import {
 } from "@/components/map/MapLocationPicker";
 import { registrarGuarda } from "@/lib/unsaved-guard";
 import { usePlaces } from "@/providers/places-provider";
+import type { TipoNegocio, ModuloFicha, ComoComprar, ComoAtiende, EspecialDelDia } from "@/lib/ficha/tipos";
+import type { EntregaConfig } from "@/lib/ficha/entrega";
+import type { Horario } from "@/lib/ficha/horario";
+import { AtributosChips } from "@/components/business/atributos-chips";
+import { HorarioEditor } from "@/components/business/horario-editor";
+import { ModulosEditor } from "@/components/business/modulos-editor";
 import type { VisitasPanel } from "@/lib/eventos";
 import type {
   PlaceStatus,
@@ -809,6 +815,17 @@ interface BorradorFicha {
   energia: EnergiaRespaldo | "sin";
   notaApagon: string;
   location: LocationPoint | null;
+  /* ── Ficha por tipo ──────────────────────────────────────────────── */
+  tipoNegocio: import("@/lib/ficha/tipos").TipoNegocio | null;
+  modulosActivos: import("@/lib/ficha/tipos").ModuloFicha[];
+  atributos: string[];
+  colorMarca: string;
+  horario: import("@/lib/ficha/horario").Horario | null;
+  cerradoMensaje: string;
+  entrega: import("@/lib/ficha/entrega").EntregaConfig | null;
+  comoComprar: import("@/lib/ficha/tipos").ComoComprar | null;
+  comoAtiende: import("@/lib/ficha/tipos").ComoAtiende | null;
+  especialDia: import("@/lib/ficha/tipos").EspecialDelDia | null;
 }
 
 /** Clave del borrador de la ficha en curso, por negocio. */
@@ -867,6 +884,31 @@ function EditorView({
     lat: place.lat,
     lng: place.lng,
   });
+  /* ── Ficha por tipo ──────────────────────────────────────────────── */
+  const [tipoNegocio, setTipoNegocio] = useState<TipoNegocio | null>(
+    place.tipoNegocio ?? null,
+  );
+  const [modulosActivos, setModulosActivos] = useState<ModuloFicha[]>(
+    place.modulosActivos ?? [],
+  );
+  const [atributos, setAtributos] = useState<string[]>(place.atributos ?? []);
+  const [colorMarca, setColorMarca] = useState(place.colorMarca ?? "");
+  const [horario, setHorario] = useState<Horario | null>(place.horario ?? null);
+  const [cerradoMensaje, setCerradoMensaje] = useState(
+    place.cerradoMensaje ?? "",
+  );
+  const [entrega, setEntrega] = useState<EntregaConfig | null>(
+    place.entrega ?? null,
+  );
+  const [comoComprar, setComoComprar] = useState<ComoComprar | null>(
+    place.comoComprar ?? null,
+  );
+  const [comoAtiende, setComoAtiende] = useState<ComoAtiende | null>(
+    place.comoAtiende ?? null,
+  );
+  const [especialDia, setEspecialDia] = useState<EspecialDelDia | null>(
+    place.especialDia ?? null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -893,6 +935,16 @@ function EditorView({
       energia,
       notaApagon,
       location,
+      tipoNegocio,
+      modulosActivos,
+      atributos,
+      colorMarca,
+      horario,
+      cerradoMensaje,
+      entrega,
+      comoComprar,
+      comoAtiende,
+      especialDia,
     }),
     [
       name,
@@ -913,6 +965,16 @@ function EditorView({
       energia,
       notaApagon,
       location,
+      tipoNegocio,
+      modulosActivos,
+      atributos,
+      colorMarca,
+      horario,
+      cerradoMensaje,
+      entrega,
+      comoComprar,
+      comoAtiende,
+      especialDia,
     ],
   );
   const huella = JSON.stringify(estadoFicha);
@@ -988,6 +1050,17 @@ function EditorView({
          blanca y lo que no se nombre se pierde en cada guardado. */
       energiaRespaldo: energia === "sin" ? null : energia,
       notaApagon: notaApagon.trim(),
+      /* Ficha por tipo */
+      tipoNegocio: tipoNegocio ?? null,
+      modulosActivos,
+      atributos,
+      colorMarca: colorMarca.trim() || null,
+      horario: horario ?? null,
+      cerradoMensaje: cerradoMensaje.trim() || null,
+      entrega: entrega ?? null,
+      comoComprar: comoComprar ?? null,
+      comoAtiende: comoAtiende ?? null,
+      especialDia: especialDia ?? null,
     };
 
     const saved = await updatePlace(place.id, values);
@@ -1113,6 +1186,16 @@ function EditorView({
     setEnergia(borrador.energia);
     setNotaApagon(borrador.notaApagon);
     setLocation(borrador.location);
+    if (borrador.tipoNegocio !== undefined) setTipoNegocio(borrador.tipoNegocio);
+    if (borrador.modulosActivos !== undefined) setModulosActivos(borrador.modulosActivos);
+    if (borrador.atributos !== undefined) setAtributos(borrador.atributos);
+    if (borrador.colorMarca !== undefined) setColorMarca(borrador.colorMarca);
+    if (borrador.horario !== undefined) setHorario(borrador.horario);
+    if (borrador.cerradoMensaje !== undefined) setCerradoMensaje(borrador.cerradoMensaje);
+    if (borrador.entrega !== undefined) setEntrega(borrador.entrega);
+    if (borrador.comoComprar !== undefined) setComoComprar(borrador.comoComprar);
+    if (borrador.comoAtiende !== undefined) setComoAtiende(borrador.comoAtiende);
+    if (borrador.especialDia !== undefined) setEspecialDia(borrador.especialDia);
     setBorrador(null);
     setError(null);
     toast.success("Recuperada la ficha sin guardar");
@@ -1402,63 +1485,184 @@ function EditorView({
           )}
         </FormSection>
 
-        <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-          <FormSection
-            title="Horario"
-            icon={<Clock size={18} strokeWidth={1.8} />}
-          >
-            {/* Aquí había un `HoursEditor` con un horario por día que **no se
-                guardaba en ninguna parte**: la tabla `place_hours` existe, pero
-                no hay ruta que la escriba, así que el dueño lo editaba y se
-                perdía al recargar. Se usa el horario en texto, que sí tiene
-                columna (`places.schedule`) y sí se guarda. El editor por día
-                vuelve el día que exista dónde guardarlo. */}
-            <div className="flex flex-col gap-gap-sm">
-              <div className="flex flex-col gap-gap-xs">
-                <Label htmlFor="bizSchedule">Horario de atención</Label>
-                <Input
-                  id="bizSchedule"
-                  className={INPUT}
-                  value={schedule}
-                  onChange={(e) => setSchedule(e.target.value)}
-                  placeholder="Ej: 10:00 – 22:00"
-                />
-              </div>
-              <div className="flex flex-wrap gap-[6px]">
-                {SCHEDULE_PRESETS.map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => setSchedule(preset)}
-                    aria-pressed={schedule === preset}
-                    className={cn(
-                      "cursor-pointer select-none rounded-full border px-[14px] py-2 font-lv-display text-meta font-medium transition-colors duration-500 ease-outquint active:scale-[0.98]",
-                      schedule === preset
-                        ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
-                        : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
-                    )}
-                  >
-                    {preset}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </FormSection>
-
-          <FormSection
-            title="Métodos de pago"
-            icon={<CreditCard size={18} strokeWidth={1.8} />}
-          >
-            <p className="mb-gap-sm text-meta text-ink-soft/75">
-              Las monedas y métodos que aceptas. Aparecen en tu ficha y en los
-              filtros.
+        <FormSection
+          title="Horario"
+          icon={<Clock size={18} strokeWidth={1.8} />}
+        >
+          {/* Texto libre: etiqueta de respaldo y referencia rápida en el
+              directorio («10:00 – 22:00», «24 horas»). Lo usa `EstadoApertura`
+              cuando no hay horario estructurado. */}
+          <div className="flex flex-col gap-gap-xs">
+            <Label htmlFor="bizSchedule">Resumen de horario (texto libre)</Label>
+            <p className="text-meta text-ink-soft/70">
+              Aparece en el directorio y como referencia cuando no hay horario
+              estructurado configurado.
             </p>
-            <PaymentChips
-              defaultSelected={place.payments}
-              onChange={setPayments}
+            <Input
+              id="bizSchedule"
+              className={INPUT}
+              value={schedule}
+              onChange={(e) => setSchedule(e.target.value)}
+              placeholder="Ej: 10:00 – 22:00"
             />
-          </FormSection>
-        </div>
+            <div className="flex flex-wrap gap-[6px]">
+              {SCHEDULE_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setSchedule(preset)}
+                  aria-pressed={schedule === preset}
+                  className={cn(
+                    "cursor-pointer select-none rounded-full border px-[14px] py-2 font-lv-display text-meta font-medium transition-colors duration-500 ease-outquint active:scale-[0.98]",
+                    schedule === preset
+                      ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
+                      : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
+                  )}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Separador */}
+          <div className="my-gap-md border-t border-ink/5" />
+
+          {/* Horario estructurado: la ficha lo usa para mostrar «Abierto» /
+              «Cerrado» con la hora exacta y recalcularlo cada minuto. */}
+          <div className="flex flex-col gap-gap-xs">
+            <p className="font-lv-display text-small font-semibold text-ink">
+              Horario por día
+            </p>
+            <p className="text-meta text-ink-soft/70">
+              La ficha muestra «Abierto» o «Cerrado» con la hora exacta y lo
+              recalcula cada minuto. Tiene prioridad sobre el texto libre.
+            </p>
+            <HorarioEditor value={horario} onChange={setHorario} />
+            {horario && (
+              <button
+                type="button"
+                onClick={() => setHorario(null)}
+                className="mt-gap-xs cursor-pointer self-start font-lv-display text-meta text-ink-soft/60 hover:text-ink"
+              >
+                Borrar horario por día
+              </button>
+            )}
+          </div>
+        </FormSection>
+
+        <FormSection
+          title="Métodos de pago"
+          icon={<CreditCard size={18} strokeWidth={1.8} />}
+        >
+          <p className="mb-gap-sm text-meta text-ink-soft/75">
+            Las monedas y métodos que aceptas. Aparecen en tu ficha y en los
+            filtros.
+          </p>
+          <PaymentChips
+            defaultSelected={place.payments}
+            onChange={setPayments}
+          />
+        </FormSection>
+
+        {/* ── Tipo de negocio y módulos ──────────────────────────────── */}
+        <FormSection
+          title="Tipo de negocio y bloques"
+          icon={<Store size={18} strokeWidth={1.8} />}
+        >
+          <p className="mb-gap-sm text-meta text-ink-soft/75">
+            El tipo define los valores por defecto de la ficha. Los bloques
+            añaden secciones específicas —domicilio, tienda, servicios— que
+            el visitante verá con sus precios y condiciones.
+          </p>
+          <ModulosEditor
+            tipoNegocio={tipoNegocio}
+            onTipoChange={setTipoNegocio}
+            modulosActivos={modulosActivos}
+            onModulosChange={setModulosActivos}
+            entrega={entrega}
+            onEntregaChange={setEntrega}
+            comoComprar={comoComprar}
+            onComoComprarChange={setComoComprar}
+            comoAtiende={comoAtiende}
+            onComoAtiendeChange={setComoAtiende}
+            especialDia={especialDia}
+            onEspecialDiaChange={setEspecialDia}
+          />
+        </FormSection>
+
+        {/* ── Atributos ─────────────────────────────────────────────── */}
+        <FormSection
+          title="Qué tiene el negocio"
+          icon={<Package size={18} strokeWidth={1.8} />}
+        >
+          <p className="mb-gap-sm text-meta text-ink-soft/75">
+            Lo que tienes aparece como distintivos en tu ficha. Solo marca lo
+            que de verdad ofreces — un atributo que no tienes desanima a quien
+            llega esperándolo.
+          </p>
+          <AtributosChips
+            value={atributos}
+            onChange={setAtributos}
+            tipoNegocio={tipoNegocio}
+          />
+        </FormSection>
+
+        {/* ── Marca ─────────────────────────────────────────────────── */}
+        <FormSection
+          title="Color de marca"
+          icon={<Eye size={18} strokeWidth={1.8} />}
+        >
+          <p className="mb-gap-sm text-meta text-ink-soft/75">
+            Se usa como fondo de la portada cuando no tienes fotos, y como
+            color del monograma. Escribe un color en formato hex (#RRGGBB).
+          </p>
+          <div className="flex items-center gap-gap-md">
+            <input
+              type="color"
+              value={colorMarca || "#0F7A41"}
+              onChange={(e) => setColorMarca(e.target.value)}
+              className="h-10 w-16 cursor-pointer rounded-lg border border-ink/10 p-1"
+            />
+            <Input
+              className="w-32 rounded-xl border-ink/10 bg-white font-mono text-small"
+              value={colorMarca}
+              onChange={(e) => setColorMarca(e.target.value)}
+              placeholder="#0F7A41"
+              maxLength={7}
+            />
+            {colorMarca && (
+              <button
+                type="button"
+                onClick={() => setColorMarca("")}
+                className="cursor-pointer font-lv-display text-meta text-ink-soft/60 hover:text-ink"
+              >
+                Quitar
+              </button>
+            )}
+          </div>
+        </FormSection>
+
+        {/* ── Mensaje de cierre ─────────────────────────────────────── */}
+        <FormSection
+          title="Mensaje de cierre"
+          icon={<Clock size={18} strokeWidth={1.8} />}
+        >
+          <p className="mb-gap-sm text-meta text-ink-soft/75">
+            Aparece en la ficha cuando el estado es «Cerrado temporalmente».
+            Si lo dejas en blanco, se muestra el texto por defecto.
+          </p>
+          <Input
+            className="rounded-xl border-ink/10 bg-white text-ink placeholder:text-ink-soft/75 focus-visible:border-verde-400"
+            value={cerradoMensaje}
+            onChange={(e) => setCerradoMensaje(e.target.value)}
+            placeholder="Ej: Cerrado por vacaciones, volvemos el lunes"
+            maxLength={140}
+          />
+          <p className="mt-[4px] text-right font-lv-display text-meta text-ink-soft/50">
+            {cerradoMensaje.length}/140
+          </p>
+        </FormSection>
 
         <FormSection
           title="Energía de respaldo"
@@ -1566,7 +1770,16 @@ function EditorView({
           cambios se habían escrito: el `SaveBar` que había publicaba contra
           nada. Este llama al `PATCH` de verdad y avisa cuando el servidor
           confirma. */}
-      <div className="sticky bottom-4 z-40 mt-gap-lg flex justify-end">
+      <div className="sticky bottom-4 z-40 mt-gap-lg flex items-center justify-end gap-gap-sm">
+        <a
+          href={`/place/${place.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-12 cursor-pointer items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-lg font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
+        >
+          <Eye size={16} strokeWidth={1.8} />
+          Ver ficha
+        </a>
         <button
           type="button"
           onClick={save}

@@ -15,6 +15,13 @@ export const placeImages = pgTable(
     height: integer("height"),
     isCover: boolean("is_cover").default(false).notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
+    /* Galería del local o portafolio de trabajos. Las fotos anteriores a esta
+       columna son del local, que es lo que la ficha enseñaba: `default 'local'`
+       evita que una migración deje imágenes sin sección y desaparezcan de la
+       galería. */
+    seccion: text("seccion", { enum: ["local", "trabajos"] })
+      .default("local")
+      .notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({

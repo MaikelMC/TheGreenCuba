@@ -1,8 +1,29 @@
-import { and, asc, desc, eq, getTableColumns, inArray, ne, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  getTableColumns,
+  inArray,
+  ne,
+  sql,
+} from "drizzle-orm";
 import { revalidateTag, unstable_cache } from "next/cache";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
-import { businessOwners, categories, ofertas, placeImages, placeMetrics, places, rankingMensual, reviews, savedPlaces, suscripciones } from "@/lib/db/schema";
+import {
+  businessOwners,
+  categories,
+  ofertas,
+  placeImages,
+  placeMetrics,
+  places,
+  rankingMensual,
+  reviews,
+  savedPlaces,
+  suscripciones,
+  users,
+} from "@/lib/db/schema";
 import type { ModuloGuardado } from "@/lib/db/schema/suscripciones";
 import { DEV_PLACE_ID, devPlace, devPlaceEnabled } from "@/lib/dev-place";
 import { conSelloVerificado, getDevPlaceFor } from "@/lib/dev-place-server";
@@ -82,7 +103,10 @@ function cached<A extends unknown[], R>(
   key: string,
 ): (...args: A) => Promise<R> {
   if (process.env.NODE_ENV !== "production") return fn;
-  return unstable_cache(fn, [key], { tags: [CATALOG_TAG], revalidate: CACHE_TTL_S });
+  return unstable_cache(fn, [key], {
+    tags: [CATALOG_TAG],
+    revalidate: CACHE_TTL_S,
+  });
 }
 
 /**
@@ -184,7 +208,9 @@ function unwrap(row: {
  * `ORDER BY` descendente sobre un booleano pone `true` delante de `false`, que
  * es justo lo que hace falta.
  */
-async function photosByPlace(ids: string[]): Promise<Map<string, UserPlacePhoto[]>> {
+async function photosByPlace(
+  ids: string[],
+): Promise<Map<string, UserPlacePhoto[]>> {
   const grouped = new Map<string, UserPlacePhoto[]>();
   if (ids.length === 0) return grouped;
 
@@ -192,7 +218,11 @@ async function photosByPlace(ids: string[]): Promise<Map<string, UserPlacePhoto[
     .select()
     .from(placeImages)
     .where(inArray(placeImages.placeId, ids))
-    .orderBy(desc(placeImages.isCover), asc(placeImages.sortOrder), asc(placeImages.createdAt));
+    .orderBy(
+      desc(placeImages.isCover),
+      asc(placeImages.sortOrder),
+      asc(placeImages.createdAt),
+    );
 
   for (const row of rows) {
     const photo: UserPlacePhoto = {
@@ -201,6 +231,7 @@ async function photosByPlace(ids: string[]): Promise<Map<string, UserPlacePhoto[
       width: row.width,
       height: row.height,
       isCover: row.isCover,
+      seccion: row.seccion,
     };
     const list = grouped.get(row.placeId);
     if (list) list.push(photo);
@@ -227,7 +258,9 @@ async function photosByPlace(ids: string[]): Promise<Map<string, UserPlacePhoto[
  * El orden es el de `termina`: la que antes caduca delante, que es el mismo que
  * quiere el cartel de la ficha.
  */
-async function ofertasByPlace(ids: string[]): Promise<Map<string, UserPlaceOferta[]>> {
+async function ofertasByPlace(
+  ids: string[],
+): Promise<Map<string, UserPlaceOferta[]>> {
   const grouped = new Map<string, UserPlaceOferta[]>();
   if (ids.length === 0) return grouped;
 
@@ -254,6 +287,65 @@ async function ofertasByPlace(ids: string[]): Promise<Map<string, UserPlaceOfert
   }
 
   return grouped;
+}
+
+/**
+ * La valoración viva de una ficha: media, total y la reseña destacada.
+ *
+ * Va en un segundo viaje, como las fotos, y solo lo pide la ficha. La media no
+ * se lee de `places.rating`: esa columna se denormaliza para ordenar el
+ * directorio y puede quedarse atrás. Aquí se cuenta lo que hay en `reviews`, que
+ * es lo que la ficha puede afirmar sin inventar.
+ *
+ * La destacada se busca solo cuando el negocio eligió una (`resenaDestacadaId`).
+ * Si el id apunta a una reseña borrada, la consulta no devuelve nada y la ficha
+ * no pinta el bloque: no se sustituye por otra en silencio.
+ */
+async function reviewsStatsByPlace(
+  placeId: string,
+  resenaDestacadaId: string | null,
+) {
+  const [stats] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      promedio: sql<number>`coalesce(avg(${reviews.rating}), 0)::float`,
+    })
+    .from(reviews)
+    .where(eq(reviews.placeId, placeId));
+
+  let resenaDestacada = null;
+  if (resenaDestacadaId) {
+    const [row] = await db
+      .select({
+        id: reviews.id,
+        rating: reviews.rating,
+        content: reviews.content,
+        createdAt: reviews.createdAt,
+        respuesta: reviews.respuesta,
+        author: users.name,
+      })
+      .from(reviews)
+      .innerJoin(users, eq(reviews.userId, users.id))
+      .where(
+        and(eq(reviews.id, resenaDestacadaId), eq(reviews.placeId, placeId)),
+      )
+      .limit(1);
+
+    if (row) {
+      resenaDestacada = {
+        ...row,
+        createdAt: row.createdAt.getTime(),
+      };
+    }
+  }
+
+  return {
+    reviewsStats: {
+      promedio: stats?.promedio ?? 0,
+      total: stats?.total ?? 0,
+    },
+    resenaDestacada,
+  };
 }
 
 export interface ListPlacesOptions {
@@ -288,7 +380,8 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
      consulta del panel, que es la que pedía todo. */
   filters.push(ne(places.reviewStatus, "rejected"));
   if (options.city) filters.push(eq(places.city, options.city));
-  if (options.categorySlug) filters.push(eq(categories.slug, options.categorySlug));
+  if (options.categorySlug)
+    filters.push(eq(categories.slug, options.categorySlug));
   if (options.onlyActive) filters.push(eq(places.isActive, true));
 
   const limit = Math.min(options.limit ?? 200, 500);
@@ -365,8 +458,11 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
  * etiqueta, que es por lo que no lleva una propia.
  */
 export const getPlaceById = cached(
-  async (id: string, options: { includeDev?: boolean; overrideFor?: string } = {}) => {
-  /* Antes de tocar la base: así la URL directa `/place/dev-cafe-la-ceiba`
+  async (
+    id: string,
+    options: { includeDev?: boolean; overrideFor?: string } = {},
+  ) => {
+    /* Antes de tocar la base: así la URL directa `/place/dev-cafe-la-ceiba`
      funciona igual que si la fila existiera, que es lo que hace falta para
      recargar la página sin volver al mapa. Aquí no lleva la guarda de
      `onlyActive` que sí tiene la lista: quien pide una ficha concreta ya sabe
@@ -381,41 +477,43 @@ export const getPlaceById = cached(
      El parámetro entra en la clave de la caché, así que la respuesta con el
      negocio de prueba y la respuesta sin él son dos entradas distintas y no se
      pisan. */
-  if (id === DEV_PLACE_ID) {
-    if (!(options.includeDev ?? devPlaceEnabled())) return null;
-    const cat = await cargarCatalogo();
-    /* `overrideFor` aplica la copia personal del fixture (ver
+    if (id === DEV_PLACE_ID) {
+      if (!(options.includeDev ?? devPlaceEnabled())) return null;
+      const cat = await cargarCatalogo();
+      /* `overrideFor` aplica la copia personal del fixture (ver
        `dev-place-server.ts`). Va de parámetro y entra en la clave de la caché,
        así que la copia de un usuario nunca se sirve a otro. En producción solo
        el dueño autorizado llega aquí, y en desarrollo no hay caché. */
-    return options.overrideFor
-      ? getDevPlaceFor(options.overrideFor, cat)
-      : conSelloVerificado(devPlace(), cat);
-  }
+      return options.overrideFor
+        ? getDevPlaceFor(options.overrideFor, cat)
+        : conSelloVerificado(devPlace(), cat);
+    }
 
-  const [row] = await db
-    .select(SELECT_WITH_CATEGORY)
-    .from(places)
-    .leftJoin(categories, eq(categories.id, places.categoryId))
-    .leftJoin(suscripciones, eq(suscripciones.negocioId, places.id))
-    .where(eq(places.id, id))
-    .limit(1);
+    const [row] = await db
+      .select(SELECT_WITH_CATEGORY)
+      .from(places)
+      .leftJoin(categories, eq(categories.id, places.categoryId))
+      .leftJoin(suscripciones, eq(suscripciones.negocioId, places.id))
+      .where(eq(places.id, id))
+      .limit(1);
 
-  if (!row) return null;
+    if (!row) return null;
 
-  const [photos, ofertasPorNegocio, cat] = await Promise.all([
-    photosByPlace([row.place.id]),
-    ofertasByPlace([row.place.id]),
-    cargarCatalogo(),
-  ]);
-  return toUserPlace(
-    {
-      ...unwrap(row),
-      photos: photos.get(row.place.id) ?? [],
-      ofertas: ofertasPorNegocio.get(row.place.id) ?? [],
-    },
-    cat,
-  );
+    const [photos, ofertasPorNegocio, valoracion, cat] = await Promise.all([
+      photosByPlace([row.place.id]),
+      ofertasByPlace([row.place.id]),
+      reviewsStatsByPlace(row.place.id, row.place.resenaDestacadaId),
+      cargarCatalogo(),
+    ]);
+    return toUserPlace(
+      {
+        ...unwrap(row),
+        photos: photos.get(row.place.id) ?? [],
+        ofertas: ofertasPorNegocio.get(row.place.id) ?? [],
+        ...valoracion,
+      },
+      cat,
+    );
   },
   "places:get",
 );
@@ -430,7 +528,10 @@ export const getPlaceById = cached(
  * una fila real detrás.
  */
 export const getPlaceBySlug = cached(
-  async (slug: string, options: { includeDev?: boolean; overrideFor?: string } = {}) => {
+  async (
+    slug: string,
+    options: { includeDev?: boolean; overrideFor?: string } = {},
+  ) => {
     if (slug === DEV_PLACE_ID) {
       if (!(options.includeDev ?? devPlaceEnabled())) return null;
       return options.overrideFor
@@ -448,6 +549,9 @@ export const getPlaceBySlug = cached(
 
     if (!row) return null;
 
+    /* La carta pública (`/m/[slug]`) y la tarjeta de `/api/og` no pintan la
+       valoración ni la reseña destacada, así que aquí no se paga el segundo
+       viaje de `reviewsStatsByPlace`. La ficha sí lo hace, en `getPlaceById`. */
     const [photos, ofertasPorNegocio, cat] = await Promise.all([
       photosByPlace([row.place.id]),
       ofertasByPlace([row.place.id]),
@@ -466,7 +570,9 @@ export const getPlaceBySlug = cached(
 );
 
 /** Clave foránea a partir de la etiqueta («Restaurante»). `null` si no existe. */
-export async function resolveCategoryId(label: string | null | undefined): Promise<string | null> {
+export async function resolveCategoryId(
+  label: string | null | undefined,
+): Promise<string | null> {
   const name = label?.trim();
   if (!name) return null;
   const [row] = await db
@@ -577,7 +683,9 @@ export async function placeStats(placeId: string): Promise<PlaceStats> {
 /** Cuántos negocios cuelgan de una categoría. `places.category_id` es
     `onDelete: restrict`, así que borrarla con negocios dentro falla — mejor
     contarlos antes y decirlo con un número. */
-export async function countPlacesInCategory(categoryId: string): Promise<number> {
+export async function countPlacesInCategory(
+  categoryId: string,
+): Promise<number> {
   const rows = await db
     .select({ id: places.id })
     .from(places)

@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import {
+  Layers,
   MapPin,
+  Package,
+  Palette,
   Store,
   Send,
   Clock,
@@ -37,6 +40,19 @@ import {
   ENERGIA_ORDER,
   type EnergiaRespaldo,
 } from "@/lib/energia";
+import type {
+  TipoNegocio,
+  ModuloFicha,
+  ComoComprar,
+  ComoAtiende,
+  EspecialDelDia,
+} from "@/lib/ficha/tipos";
+import type { EntregaConfig } from "@/lib/ficha/entrega";
+import type { Horario } from "@/lib/ficha/horario";
+import { AtributosChips } from "@/components/business/atributos-chips";
+import { HorarioEditor } from "@/components/business/horario-editor";
+import { ModulosEditor } from "@/components/business/modulos-editor";
+import { Input } from "@/components/ui/input";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { MenuItemEditor } from "@/components/business/menu-item-editor";
 import { OfertasEditor } from "@/components/business/ofertas-editor";
@@ -100,7 +116,7 @@ interface BusinessFormProps {
 
 export function BusinessForm({ initial, onDone }: BusinessFormProps) {
   const router = useRouter();
-  const { categories, addPlace, updatePlace } = usePlaces();
+  const { categories, addPlace, updatePlace, error: storeError } = usePlaces();
 
   const initialCategoryValue =
     categories.find((c) => c.label === initial?.category)?.value ??
@@ -154,6 +170,35 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
   const [location, setLocation] = useState<LocationPoint | null>(
     initial ? { lat: initial.lat, lng: initial.lng } : null,
   );
+  /* ── Ficha por tipo ──────────────────────────────────────────────── */
+  const [tipoNegocio, setTipoNegocio] = useState<TipoNegocio | null>(
+    initial?.tipoNegocio ?? null,
+  );
+  const [modulosActivos, setModulosActivos] = useState<ModuloFicha[]>(
+    initial?.modulosActivos ?? [],
+  );
+  const [atributos, setAtributos] = useState<string[]>(
+    initial?.atributos ?? [],
+  );
+  const [colorMarca, setColorMarca] = useState(initial?.colorMarca ?? "");
+  const [horario, setHorario] = useState<Horario | null>(
+    initial?.horario ?? null,
+  );
+  const [cerradoMensaje, setCerradoMensaje] = useState(
+    initial?.cerradoMensaje ?? "",
+  );
+  const [entrega, setEntrega] = useState<EntregaConfig | null>(
+    initial?.entrega ?? null,
+  );
+  const [comoComprar, setComoComprar] = useState<ComoComprar | null>(
+    initial?.comoComprar ?? null,
+  );
+  const [comoAtiende, setComoAtiende] = useState<ComoAtiende | null>(
+    initial?.comoAtiende ?? null,
+  );
+  const [especialDia, setEspecialDia] = useState<EspecialDelDia | null>(
+    initial?.especialDia ?? null,
+  );
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -202,7 +247,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
     categories.find((c) => c.value === categoryValue)?.label ?? "Otro";
   const resolvedIcon = placeIcon(icon ?? undefined, categoryLabel, categories);
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = async () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
       setFormError(
@@ -267,6 +312,11 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
           tag: item.tag,
           category: item.category?.trim() || undefined,
           image: item.image || undefined,
+          /* `disponibilidad` y `agotadoHasta` tienen que viajar igual que el
+             `id`: si el admin guarda sin ellos, todos los productos del negocio
+             pierden su estado «Hoy hay» y vuelven a aparecer como disponibles. */
+          disponibilidad: item.disponibilidad,
+          agotadoHasta: item.agotadoHasta ?? null,
         })),
       ofertas,
       /* Ya no se edita aquí —lo sustituyen las ofertas flash—, pero el tipo lo
@@ -281,6 +331,17 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
          blanca y lo que no se nombre aquí se pierde en cada guardado. */
       energiaRespaldo: energia === "sin" ? null : energia,
       notaApagon: notaApagon.trim(),
+      /* Ficha por tipo */
+      tipoNegocio: tipoNegocio ?? null,
+      modulosActivos,
+      atributos,
+      colorMarca: colorMarca.trim() || null,
+      horario: horario ?? null,
+      cerradoMensaje: cerradoMensaje.trim() || null,
+      entrega: entrega ?? null,
+      comoComprar: comoComprar ?? null,
+      comoAtiende: comoAtiende ?? null,
+      especialDia: especialDia ?? null,
     };
 
     /* Se espera a la base antes de decir nada. El `toast` de éxito y el cierre
@@ -294,7 +355,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
 
     if (!saved) {
       setFormError(
-        "No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada.",
+        storeError ?? "No se pudo guardar. Revisa la conexión e inténtalo otra vez.",
       );
       return;
     }
@@ -310,35 +371,7 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
         : `"${trimmedName}" se agregó a La Verde`,
     );
     onDone();
-  }, [
-    name,
-    categoryValue,
-    categories,
-    icon,
-    logoUrl,
-    address,
-    barrio,
-    province,
-    phone,
-    website,
-    whatsapp,
-    instagram,
-    facebook,
-    description,
-    schedule,
-    payments,
-    menu,
-    ofertas,
-    status,
-    verificado,
-    energia,
-    notaApagon,
-    location,
-    initial,
-    addPlace,
-    updatePlace,
-    onDone,
-  ]);
+  };
 
   return (
     <>
@@ -636,60 +669,84 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
           )}
         </FormSection>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-gap-md">
-          <FormSection
-            title="Horario"
-            icon={<Clock size={18} strokeWidth={1.8} />}
-          >
-            <div className="flex flex-col gap-gap-sm">
-              <div className="flex flex-col gap-gap-xs">
-                <label htmlFor="bfSchedule" className={LABEL}>
-                  Horario de atención
-                </label>
-                <input
-                  id="bfSchedule"
-                  value={schedule}
-                  onChange={(e) => setSchedule(e.target.value)}
-                  placeholder="Ej: 10:00 – 22:00"
-                  className={INPUT}
-                />
-              </div>
-              <div className="flex flex-wrap gap-[6px]">
-                {SCHEDULE_PRESETS.map((preset) => (
-                  <motion.button
-                    key={preset}
-                    type="button"
-                    whileTap={{ scale: 0.94 }}
-                    onClick={() => setSchedule(preset)}
-                    aria-pressed={schedule === preset}
-                    className={cn(
-                      "px-[14px] py-2 rounded-full border font-lv-display text-meta font-medium cursor-pointer select-none transition-colors duration-500 ease-outquint active:scale-[0.98]",
-                      schedule === preset
-                        ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
-                        : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
-                    )}
-                  >
-                    {preset}
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-          </FormSection>
-
-          <FormSection
-            title="Métodos de pago"
-            icon={<CreditCard size={18} strokeWidth={1.8} />}
-          >
-            <p className="text-meta text-ink-soft/75 mb-gap-sm">
-              Selecciona las monedas y métodos que acepta el negocio. Aparecen
-              en la ficha del lugar.
+        <FormSection
+          title="Horario"
+          icon={<Clock size={18} strokeWidth={1.8} />}
+        >
+          {/* Texto libre: etiqueta rápida que aparece en el directorio y como
+              referencia cuando no hay horario estructurado. */}
+          <div className="flex flex-col gap-gap-xs">
+            <label htmlFor="bfSchedule" className={LABEL}>
+              Resumen de horario (texto libre)
+            </label>
+            <p className="text-meta text-ink-soft/70">
+              Aparece en el directorio y como referencia cuando no hay horario
+              estructurado configurado.
             </p>
-            <PaymentChips
-              defaultSelected={initial?.payments ?? []}
-              onChange={setPayments}
+            <input
+              id="bfSchedule"
+              value={schedule}
+              onChange={(e) => setSchedule(e.target.value)}
+              placeholder="Ej: 10:00 – 22:00"
+              className={INPUT}
             />
-          </FormSection>
-        </div>
+            <div className="flex flex-wrap gap-[6px]">
+              {SCHEDULE_PRESETS.map((preset) => (
+                <motion.button
+                  key={preset}
+                  type="button"
+                  whileTap={{ scale: 0.94 }}
+                  onClick={() => setSchedule(preset)}
+                  aria-pressed={schedule === preset}
+                  className={cn(
+                    "px-[14px] py-2 rounded-full border font-lv-display text-meta font-medium cursor-pointer select-none transition-colors duration-500 ease-outquint active:scale-[0.98]",
+                    schedule === preset
+                      ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
+                      : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
+                  )}
+                >
+                  {preset}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          <div className="my-gap-md border-t border-ink/5" />
+
+          {/* Horario estructurado: la ficha muestra «Abierto» / «Cerrado» con
+              la hora exacta. Tiene prioridad sobre el texto libre. */}
+          <div className="flex flex-col gap-gap-xs">
+            <p className={LABEL}>Horario por día</p>
+            <p className="text-meta text-ink-soft/70">
+              La ficha muestra «Abierto» o «Cerrado» con la hora exacta y lo
+              recalcula cada minuto. Tiene prioridad sobre el texto libre.
+            </p>
+            <HorarioEditor value={horario} onChange={setHorario} />
+            {horario && (
+              <button
+                type="button"
+                onClick={() => setHorario(null)}
+                className="mt-gap-xs cursor-pointer self-start font-lv-display text-meta text-ink-soft/60 hover:text-ink"
+              >
+                Borrar horario por día
+              </button>
+            )}
+          </div>
+        </FormSection>
+
+        <FormSection
+          title="Métodos de pago"
+          icon={<CreditCard size={18} strokeWidth={1.8} />}
+        >
+          <p className="text-meta text-ink-soft/75 mb-gap-sm">
+            Selecciona las monedas y métodos que acepta el negocio. Aparecen
+            en la ficha del lugar.
+          </p>
+          <PaymentChips
+            defaultSelected={initial?.payments ?? []}
+            onChange={setPayments}
+          />
+        </FormSection>
 
         {/* Las mismas ofertas flash que edita el dueño en su panel. Antes había
             aquí un cartel de texto libre que la ficha pública de un negocio
@@ -773,6 +830,96 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
                 maxLength={140}
                 placeholder="Ej: la planta cubre el salón y la cocina"
                 className={INPUT}
+              />
+            </div>
+          </div>
+        </FormSection>
+
+        {/* ── Tipo de negocio y bloques ────────────────────────── */}
+        <FormSection
+          title="Tipo de negocio y bloques"
+          icon={<Layers size={18} strokeWidth={1.8} />}
+        >
+          <p className="mb-gap-sm text-meta text-ink-soft/75">
+            El tipo define los valores por defecto de la ficha. Los bloques
+            activan secciones específicas visibles al público.
+          </p>
+          <ModulosEditor
+            tipoNegocio={tipoNegocio}
+            onTipoChange={setTipoNegocio}
+            modulosActivos={modulosActivos}
+            onModulosChange={setModulosActivos}
+            entrega={entrega}
+            onEntregaChange={setEntrega}
+            comoComprar={comoComprar}
+            onComoComprarChange={setComoComprar}
+            comoAtiende={comoAtiende}
+            onComoAtiendeChange={setComoAtiende}
+            especialDia={especialDia}
+            onEspecialDiaChange={setEspecialDia}
+          />
+        </FormSection>
+
+        {/* ── Atributos ─────────────────────────────────────── */}
+        <FormSection
+          title="Qué tiene el negocio"
+          icon={<Package size={18} strokeWidth={1.8} />}
+        >
+          <p className="mb-gap-sm text-meta text-ink-soft/75">
+            Solo marca lo que de verdad ofrece el negocio.
+          </p>
+          <AtributosChips
+            value={atributos}
+            onChange={setAtributos}
+            tipoNegocio={tipoNegocio}
+          />
+        </FormSection>
+
+        {/* ── Color de marca y mensaje de cierre ─────────────── */}
+        <FormSection
+          title="Marca y cierre"
+          icon={<Palette size={18} strokeWidth={1.8} />}
+        >
+          <div className="flex flex-col gap-gap-md">
+            <div>
+              <p className="mb-gap-xs font-lv-display text-meta font-semibold text-ink-soft/75">
+                Color de marca (hex, opcional)
+              </p>
+              <div className="flex items-center gap-gap-md">
+                <input
+                  type="color"
+                  value={colorMarca || "#0F7A41"}
+                  onChange={(e) => setColorMarca(e.target.value)}
+                  className="h-10 w-16 cursor-pointer rounded-lg border border-ink/10 p-1"
+                />
+                <Input
+                  className="w-36 rounded-xl border-ink/10 bg-white font-mono text-small"
+                  value={colorMarca}
+                  onChange={(e) => setColorMarca(e.target.value)}
+                  placeholder="#0F7A41"
+                  maxLength={7}
+                />
+                {colorMarca && (
+                  <button
+                    type="button"
+                    onClick={() => setColorMarca("")}
+                    className="cursor-pointer font-lv-display text-meta text-ink-soft/60 hover:text-ink"
+                  >
+                    Quitar
+                  </button>
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="mb-gap-xs font-lv-display text-meta font-semibold text-ink-soft/75">
+                Mensaje de cierre temporal (máx. 140 car.)
+              </p>
+              <Input
+                className="rounded-xl border-ink/10 bg-white text-ink placeholder:text-ink-soft/75"
+                value={cerradoMensaje}
+                onChange={(e) => setCerradoMensaje(e.target.value)}
+                placeholder="Ej: Cerrado por vacaciones, volvemos el lunes"
+                maxLength={140}
               />
             </div>
           </div>

@@ -31,6 +31,13 @@ interface ReviewsSectionProps {
   /** Cambia al publicar una reseña. Obliga a releer: sin esto, quien acaba de
    *  opinar vería su reseña en ningún sitio y creería que no se guardó. */
   reloadKey?: number;
+  /**
+   * Sin cabecera: solo la lista.
+   *
+   * Lo usa `ResenasResumen`, que ya pinta la media, el total y la destacada. Sin
+   * esto la nota saldría dos veces seguidas en la misma tarjeta.
+   */
+  sinCabecera?: boolean;
   className?: string;
 }
 
@@ -42,6 +49,7 @@ const BTN_OUTLINE =
 export function ReviewsSection({
   placeId,
   reloadKey = 0,
+  sinCabecera = false,
   className,
 }: ReviewsSectionProps) {
   const [state, setState] = useState<State>({ status: "loading" });
@@ -49,8 +57,9 @@ export function ReviewsSection({
      lugar al que preguntar. */
   const [retry, setRetry] = useState(0);
   /* Cerrada de entrada: son varias tarjetas y empujaban hacia abajo todo lo que
-     hay detrás. La lectura se pide tocando el título. */
-  const [open, setOpen] = useState(false);
+     hay detrás. La lectura se pide tocando el título. Sin cabecera no hay título
+     que tocar, así que la lista nace abierta. */
+  const [open, setOpen] = useState(sinCabecera);
 
   const load = useCallback(
     async (signal: AbortSignal) => {
@@ -99,39 +108,41 @@ export function ReviewsSection({
     <div className={className}>
       {/* El título abre y cierra. Se queda con la nota y el número de opiniones
           a la vista: eso es lo que se quiere saber sin desplegar nada. */}
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        aria-expanded={open}
-        className="flex w-full cursor-pointer items-center justify-between gap-gap-sm mb-gap-md text-left"
-      >
-        <h2 className={H2}>Reseñas</h2>
-        <span className="flex shrink-0 items-center gap-gap-sm">
-          {state.status === "ready" && count > 0 && (
-            <span className="inline-flex items-center gap-[6px] font-lv-display text-small font-semibold text-ink">
-              <Star
-                size={14}
-                strokeWidth={1.8}
-                className="fill-verde-400 text-verde-400"
-              />
-              {state.average.toFixed(1)}
-              {/* La media sola no dice sobre cuánta gente: con una sola opinión un
-                  5,0 y un 4,9 no significan lo mismo. */}
-              <span className="font-normal text-ink-soft/75">
-                ({count === 1 ? "1 opinión" : `${count} opiniones`})
+      {!sinCabecera && (
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          aria-expanded={open}
+          className="flex w-full cursor-pointer items-center justify-between gap-gap-sm mb-gap-md text-left"
+        >
+          <h2 className={H2}>Reseñas</h2>
+          <span className="flex shrink-0 items-center gap-gap-sm">
+            {state.status === "ready" && count > 0 && (
+              <span className="inline-flex items-center gap-[6px] font-lv-display text-small font-semibold text-ink">
+                <Star
+                  size={14}
+                  strokeWidth={1.8}
+                  className="fill-verde-400 text-verde-400"
+                />
+                {state.average.toFixed(1)}
+                {/* La media sola no dice sobre cuánta gente: con una sola opinión un
+                    5,0 y un 4,9 no significan lo mismo. */}
+                <span className="font-normal text-ink-soft/75">
+                  ({count === 1 ? "1 opinión" : `${count} opiniones`})
+                </span>
               </span>
-            </span>
-          )}
-          <ChevronDown
-            size={18}
-            strokeWidth={1.8}
-            className={cn(
-              "text-verde-600 transition-transform duration-500 ease-outquint",
-              open && "rotate-180",
             )}
-          />
-        </span>
-      </button>
+            <ChevronDown
+              size={18}
+              strokeWidth={1.8}
+              className={cn(
+                "text-verde-600 transition-transform duration-500 ease-outquint",
+                open && "rotate-180",
+              )}
+            />
+          </span>
+        </button>
+      )}
 
       {/* `height: 0` y no la lista desmontada: así se anima el despliegue y, al
           plegar, las reseñas siguen cargadas y volver a abrir no vuelve a pedir

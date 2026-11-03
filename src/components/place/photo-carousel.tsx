@@ -31,12 +31,22 @@ interface PhotoCarouselProps {
   slides: Slide[];
   hasPhotos?: boolean;
   className?: string;
+  /**
+   * Punto de la foto que se enseña al recortarla (`center top`, `center
+   * bottom`…). Lo elige el dueño con `portada_encuadre`; sin él, centrado.
+   */
+  objectPosition?: string;
 }
 
 /** Cada cuánto pasa sola la diapositiva, en milisegundos. */
 const AUTOPLAY_MS = 3000;
 
-export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCarouselProps) {
+export function PhotoCarousel({
+  slides,
+  hasPhotos = true,
+  className,
+  objectPosition,
+}: PhotoCarouselProps) {
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -102,11 +112,17 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
   }, []);
   /* Y `:focus-visible` y no el foco a secas, por lo mismo: pulsar una flecha con
      el ratón también enfoca el botón, y el foco se queda ahí después de irte. */
-  const pauseForKeyboard = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
-    if (e.target instanceof HTMLElement && e.target.matches(":focus-visible")) {
-      setPaused(true);
-    }
-  }, []);
+  const pauseForKeyboard = useCallback(
+    (e: React.FocusEvent<HTMLDivElement>) => {
+      if (
+        e.target instanceof HTMLElement &&
+        e.target.matches(":focus-visible")
+      ) {
+        setPaused(true);
+      }
+    },
+    [],
+  );
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
@@ -124,15 +140,18 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
     [total],
   );
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging.current) return;
-    const touch = e.touches[0];
-    if (!touch) return;
-    touchDeltaX.current = touch.clientX - touchStartX.current;
-    if (trackRef.current) {
-      trackRef.current.style.transform = `translateX(calc(-${current * 100}% + ${touchDeltaX.current}px))`;
-    }
-  }, [current]);
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isDragging.current) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+      touchDeltaX.current = touch.clientX - touchStartX.current;
+      if (trackRef.current) {
+        trackRef.current.style.transform = `translateX(calc(-${current * 100}% + ${touchDeltaX.current}px))`;
+      }
+    },
+    [current],
+  );
 
   const handleTouchEnd = useCallback(() => {
     isDragging.current = false;
@@ -145,7 +164,12 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
 
   if (!hasPhotos) {
     return (
-      <div className={cn("relative w-full aspect-[4/3] lg:aspect-[16/9] overflow-hidden bg-sand-deep", className)}>
+      <div
+        className={cn(
+          "relative w-full aspect-[4/3] lg:aspect-[16/9] overflow-hidden bg-sand-deep",
+          className,
+        )}
+      >
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-gap-xs text-ink-soft/75">
           <Image size={40} strokeWidth={1.5} className="opacity-40" />
           <span className="text-small font-lv-display">Fotos próximamente</span>
@@ -156,7 +180,10 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
 
   return (
     <div
-      className={cn("group relative w-full aspect-[4/3] lg:aspect-[16/9] overflow-hidden bg-sand-deep lg:rounded-4xl", className)}
+      className={cn(
+        "group relative w-full aspect-[4/3] lg:aspect-[16/9] overflow-hidden bg-sand-deep lg:rounded-4xl",
+        className,
+      )}
       /* Va en estilo y no en clase porque la proporción es un número, no una
          escala: gana a `aspect-[…]` y deja las clases de arriba como el marco de
          siempre para cuando no hay medidas. */
@@ -172,7 +199,10 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
     >
       {/* `duration-slow` no existe en la escala de Tailwind: compilaba a cero y
           el carril saltaba de golpe en vez de deslizar. */}
-      <div ref={trackRef} className="flex h-full transition-transform duration-500 ease-outquint will-change-transform">
+      <div
+        ref={trackRef}
+        className="flex h-full transition-transform duration-500 ease-outquint will-change-transform"
+      >
         {slides.map((slide, i) => (
           <div key={i} className="flex-[0_0_100%] h-full relative">
             {slide.url ? (
@@ -186,6 +216,7 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
                 sizes="(min-width: 1024px) 1200px, 100vw"
                 priority={i === 0}
                 className="object-cover"
+                style={objectPosition ? { objectPosition } : undefined}
               />
             ) : (
               <div
@@ -196,7 +227,9 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
                 style={{ background: slide.gradient }}
               >
                 <Image size={40} strokeWidth={1.5} className="opacity-40" />
-                <span className="text-small font-lv-display">{slide.label}</span>
+                <span className="text-small font-lv-display">
+                  {slide.label}
+                </span>
               </div>
             )}
           </div>
@@ -236,9 +269,7 @@ export function PhotoCarousel({ slides, hasPhotos = true, className }: PhotoCaro
               <span
                 className={cn(
                   "block h-[7px] rounded-full transition-[width,background-color] duration-500 ease-outquint",
-                  i === current
-                    ? "w-[20px] bg-verde-600"
-                    : "w-[7px] bg-ink/20",
+                  i === current ? "w-[20px] bg-verde-600" : "w-[7px] bg-ink/20",
                 )}
               />
             </button>

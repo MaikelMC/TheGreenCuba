@@ -131,6 +131,82 @@ export async function POST(req: NextRequest, { params }: Params) {
   return NextResponse.json(toClientImage(row!), { status: 201 });
 }
 
+/**
+ * Actualiza metadatos de una foto: portada, sección o texto alternativo.
+ *
+ * Body: `{ imageId, isCover?, seccion?, alt? }`
+ *
+ * Una sola foto a la vez porque las escrituras son atómicas y baratas; el
+ * frontend puede encadenar varias si necesita mover varias. `isCover: true`
+ * quita la portada anterior antes de poner la nueva: sin eso el negocio
+ * acabaría con dos portadas y la ficha elegiría la primera por `sortOrder`.
+ */
+export async function PATCH(req: NextRequest, { params }: Params) {
+  const { id } = await params;
+
+  if (!(await canManagePlace(req, id, "ficha"))) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  let body: { imageId?: unknown; isCover?: unknown; seccion?: unknown; alt?: unknown };
+  try {
+    body = (await req.json()) as typeof body;
+  } catch {
+    return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
+  }
+
+  const imageId = typeof body.imageId === "string" ? body.imageId : null;
+  if (!imageId) {
+    return NextResponse.json({ error: "Falta imageId" }, { status: 400 });
+  }
+
+  /* Verifica que la foto pertenece al negocio. */
+  const [existing] = await db
+    .select({ id: placeImages.id })
+    .from(placeImages)
+    .where(and(eq(placeImages.id, imageId), eq(placeImages.placeId, id)))
+    .limit(1);
+
+  if (!existing) {
+    return NextResponse.json({ error: "Foto no encontrada" }, { status: 404 });
+  }
+
+  const patch: Partial<typeof placeImages.$inferInsert> = {};
+
+  if (body.isCover === true) {
+    /* Quita la portada anterior antes de poner la nueva. */
+    await db
+      .update(placeImages)
+      .set({ isCover: false })
+      .where(eq(placeImages.placeId, id));
+    patch.isCover = true;
+  } else if (body.isCover === false) {
+    patch.isCover = false;
+  }
+
+  if (body.seccion === "local" || body.seccion === "trabajos") {
+    patch.seccion = body.seccion;
+  }
+
+  if (typeof body.alt === "string") {
+    patch.alt = body.alt.trim() || null;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return NextResponse.json({ error: "Sin campos para actualizar" }, { status: 400 });
+  }
+
+  const [updated] = await db
+    .update(placeImages)
+    .set(patch)
+    .where(eq(placeImages.id, imageId))
+    .returning();
+
+  invalidarCatalogo();
+
+  return NextResponse.json(toClientImage(updated!));
+}
+
 export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
 

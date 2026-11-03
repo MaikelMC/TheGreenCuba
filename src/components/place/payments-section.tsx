@@ -1,6 +1,7 @@
 "use client";
 
 import { CreditCard } from "lucide-react";
+import { COPY } from "@/config/ficha";
 import { cn, currencyLabel, currencyStyles } from "@/lib/utils";
 
 interface PaymentsSectionProps {
@@ -22,7 +23,9 @@ export function PaymentsSection({ payments, className }: PaymentsSectionProps) {
     <div className={cn("mb-gap-lg px-gap-md", className)}>
       <div className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
         <CreditCard size={14} strokeWidth={1.8} className="text-verde-600" />
-        <span className="font-lv-display font-medium text-ink">Pagos</span>
+        <span className="font-lv-display font-medium text-ink">
+          {COPY.pagos}
+        </span>
       </div>
       {/* La chapita lleva relleno tonal, anillo hacia dentro y un punto del color
           del texto: sin nada de eso eran cuatro rectángulos planos de 10 px que
@@ -37,7 +40,10 @@ export function PaymentsSection({ payments, className }: PaymentsSectionProps) {
               currencyStyles[c] ?? "bg-sand-deep text-ink-soft ring-ink/10",
             )}
           >
-            <span aria-hidden className="size-1.5 rounded-full bg-current opacity-60" />
+            <span
+              aria-hidden
+              className="size-1.5 rounded-full bg-current opacity-60"
+            />
             {currencyLabel(c)}
           </span>
         ))}

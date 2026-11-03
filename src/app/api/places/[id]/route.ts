@@ -19,8 +19,25 @@ import {
   novedades,
   ofertas,
   places,
+  reviews,
   users,
 } from "@/lib/db/schema";
+import { esAtributo } from "@/lib/ficha/atributos";
+import {
+  esAccionBarra,
+  esAccionFicha,
+  MAX_ACCIONES_BARRA,
+  MAX_ACCIONES_FILA,
+} from "@/lib/ficha/acciones";
+import { esEntregaConfig } from "@/lib/ficha/entrega";
+import { esHorario } from "@/lib/ficha/horario";
+import {
+  esCatalogoFuente,
+  esExistenciasModo,
+  esModuloFicha,
+  esPortadaEncuadre,
+  esTipoNegocio,
+} from "@/lib/ficha/tipos";
 import { generateId } from "@/lib/utils";
 import { validarOferta } from "@/lib/ofertas";
 import { cambiosDeCarta } from "@/lib/novedades";
@@ -172,10 +189,23 @@ export async function PATCH(req: NextRequest, { params }: Params) {
      y separadas —la carta va sola, la ficha va sola—, así que un trabajador al
      que solo le dejaron el catálogo no puede colar un cambio de horario en el
      mismo `PATCH`. Si el cuerpo trae las dos cosas, hacen falta las dos. */
-  const tocaCatalogo = body.menu !== undefined || body.ofertas !== undefined;
-  const tocaFicha = Object.keys(body).some(
-    (clave) => clave !== "menu" && clave !== "ofertas",
+  /* Las claves que pertenecen al catálogo y no a la ficha. La línea de
+     categorías, el título de la sección y el modo de existencias los edita
+     quien edita la carta, no quien edita la portada; `catalogoFuente` y
+     `catalogoActualizadoEn` los escribe el servidor. */
+  const CLAVES_CATALOGO = new Set([
+    "menu",
+    "ofertas",
+    "menuCategorias",
+    "catalogoTitulo",
+    "existenciasModo",
+    "catalogoFuente",
+    "catalogoActualizadoEn",
+  ]);
+  const tocaCatalogo = Object.keys(body).some((clave) =>
+    CLAVES_CATALOGO.has(clave),
   );
+  const tocaFicha = Object.keys(body).some((clave) => !CLAVES_CATALOGO.has(clave));
 
   if (tocaCatalogo && !(await canManagePlace(req, id, "catalogo"))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -313,6 +343,291 @@ export async function PATCH(req: NextRequest, { params }: Params) {
           "Las reservas por WhatsApp están disponibles en el plan Pro.",
       },
       { status: 403 },
+    );
+  }
+
+  /* ── Ficha por tipo ────────────────────────────────────────────────────
+     `toPlaceValues` ya deja pasar estos campos, así que esta es la puerta que
+     impide guardar un jsonb inventado que la ficha intentará pintar mañana.
+     Se rechaza con 400 en vez de corregir, como con la energía: un valor que
+     se cae en silencio deja al dueño creyendo que guardó lo que escribió.
+     Todo va antes de la rama del negocio de prueba para que el fixture reciba
+     la misma comprobación. */
+  if (
+    body.tipoNegocio !== undefined &&
+    body.tipoNegocio !== null &&
+    !esTipoNegocio(body.tipoNegocio)
+  ) {
+    return NextResponse.json(
+      { error: "Ese tipo de negocio no existe." },
+      { status: 400 },
+    );
+  }
+
+  if (
+    body.modulosActivos !== undefined &&
+    (!Array.isArray(body.modulosActivos) ||
+      !body.modulosActivos.every(esModuloFicha))
+  ) {
+    return NextResponse.json(
+      { error: "Hay un módulo de ficha que no existe." },
+      { status: 400 },
+    );
+  }
+
+  if (
+    body.atributos !== undefined &&
+    (!Array.isArray(body.atributos) || !body.atributos.every(esAtributo))
+  ) {
+    return NextResponse.json(
+      { error: "Hay un atributo que no está en el catálogo." },
+      { status: 400 },
+    );
+  }
+
+  const colorMarca: unknown = body.colorMarca;
+  if (
+    colorMarca !== undefined &&
+    colorMarca !== null &&
+    colorMarca !== "" &&
+    (typeof colorMarca !== "string" || !/^#[0-9a-fA-F]{6}$/.test(colorMarca))
+  ) {
+    return NextResponse.json(
+      { error: "El color de marca tiene que ser un hex de seis cifras." },
+      { status: 400 },
+    );
+  }
+
+  if (
+    body.portadaEncuadre !== undefined &&
+    body.portadaEncuadre !== null &&
+    !esPortadaEncuadre(body.portadaEncuadre)
+  ) {
+    return NextResponse.json(
+      { error: "El encuadre tiene que ser centro, arriba o abajo." },
+      { status: 400 },
+    );
+  }
+
+  const acciones: unknown = body.acciones;
+  if (acciones !== undefined && acciones !== null) {
+    const { fila, barra } = acciones as { fila?: unknown; barra?: unknown };
+    if (
+      !Array.isArray(fila) ||
+      !fila.every(esAccionFicha) ||
+      fila.length > MAX_ACCIONES_FILA ||
+      !Array.isArray(barra) ||
+      !barra.every(esAccionBarra) ||
+      barra.length > MAX_ACCIONES_BARRA
+    ) {
+      return NextResponse.json(
+        {
+          error: `Las acciones tienen que ser las del catálogo, con ${MAX_ACCIONES_FILA} como máximo en la fila y ${MAX_ACCIONES_BARRA} en la barra.`,
+        },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (
+    body.horario !== undefined &&
+    body.horario !== null &&
+    !esHorario(body.horario)
+  ) {
+    return NextResponse.json(
+      { error: "El horario tiene horas o excepciones mal formadas." },
+      { status: 400 },
+    );
+  }
+
+  if (
+    body.cerradoMensaje !== undefined &&
+    body.cerradoMensaje !== null &&
+    (typeof body.cerradoMensaje !== "string" ||
+      body.cerradoMensaje.length > 140)
+  ) {
+    return NextResponse.json(
+      { error: "El mensaje de cierre tiene que ser texto de 140 caracteres como máximo." },
+      { status: 400 },
+    );
+  }
+
+  if (
+    body.entrega !== undefined &&
+    body.entrega !== null &&
+    !esEntregaConfig(body.entrega)
+  ) {
+    return NextResponse.json(
+      { error: "La configuración del envío no es válida." },
+      { status: 400 },
+    );
+  }
+
+  const comoComprar: unknown = body.comoComprar;
+  if (comoComprar !== undefined && comoComprar !== null) {
+    const c = comoComprar as { recoger?: unknown; apartar?: unknown };
+    if (typeof c.recoger !== "boolean" || typeof c.apartar !== "boolean") {
+      return NextResponse.json(
+        { error: "«Cómo comprar» solo admite recoger y apartar, en verdadero o falso." },
+        { status: 400 },
+      );
+    }
+  }
+
+  const comoAtiende: unknown = body.comoAtiende;
+  if (comoAtiende !== undefined && comoAtiende !== null) {
+    const c = comoAtiende as {
+      conCita?: unknown;
+      sinCita?: unknown;
+      aDomicilio?: unknown;
+    };
+    if (
+      typeof c.conCita !== "boolean" ||
+      typeof c.sinCita !== "boolean" ||
+      typeof c.aDomicilio !== "boolean"
+    ) {
+      return NextResponse.json(
+        { error: "«Cómo atiende» solo admite con cita, sin cita y a domicilio." },
+        { status: 400 },
+      );
+    }
+  }
+
+  const especialDia: unknown = body.especialDia;
+  if (especialDia !== undefined && especialDia !== null) {
+    const e = especialDia as {
+      titulo?: unknown;
+      descripcion?: unknown;
+      precio?: unknown;
+      moneda?: unknown;
+      hasta?: unknown;
+    };
+    if (
+      typeof e.titulo !== "string" ||
+      !e.titulo.trim() ||
+      (e.descripcion !== undefined && typeof e.descripcion !== "string") ||
+      typeof e.precio !== "string" ||
+      e.precio.length > 40 ||
+      typeof e.moneda !== "string" ||
+      !e.moneda.trim() ||
+      typeof e.hasta !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(e.hasta)
+    ) {
+      return NextResponse.json(
+        { error: "El especial del día necesita título, precio, moneda y una fecha de fin." },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (
+    body.catalogoTitulo !== undefined &&
+    body.catalogoTitulo !== null &&
+    (typeof body.catalogoTitulo !== "string" || body.catalogoTitulo.length > 40)
+  ) {
+    return NextResponse.json(
+      { error: "El título del catálogo tiene que ser texto de 40 caracteres como máximo." },
+      { status: 400 },
+    );
+  }
+
+  const menuCategorias: unknown = body.menuCategorias;
+  if (menuCategorias !== undefined && menuCategorias !== null) {
+    if (
+      !Array.isArray(menuCategorias) ||
+      !menuCategorias.every(
+        (c: { nombre?: unknown; orden?: unknown }) =>
+          typeof c?.nombre === "string" &&
+          c.nombre.trim().length > 0 &&
+          c.nombre.length <= 40 &&
+          typeof c.orden === "number" &&
+          Number.isInteger(c.orden),
+      ) ||
+      new Set(
+        menuCategorias.map((c: { nombre: string }) => c.nombre.trim().toLowerCase()),
+      ).size !== menuCategorias.length
+    ) {
+      return NextResponse.json(
+        { error: "Las categorías del catálogo necesitan un nombre único y un orden entero." },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (
+    body.existenciasModo !== undefined &&
+    !esExistenciasModo(body.existenciasModo)
+  ) {
+    return NextResponse.json(
+      { error: "El modo de existencias no es uno de los válidos." },
+      { status: 400 },
+    );
+  }
+
+  /* El «actualizado hace X» significa lo que dice: solo se mueve cuando cambia
+     la carta. Se ignora lo que mande el cliente —un número inventado haría que
+     la ficha presumiera de frescura— y se sella aquí. */
+  if (body.menu !== undefined) body.catalogoActualizadoEn = Date.now();
+  else delete body.catalogoActualizadoEn;
+
+  if (
+    body.catalogoFuente !== undefined &&
+    !esCatalogoFuente(body.catalogoFuente)
+  ) {
+    return NextResponse.json(
+      { error: "La fuente del catálogo tiene que ser manual o erp." },
+      { status: 400 },
+    );
+  }
+  /* `erp` queda reservado al sincronizador, que entra como administración: si
+     lo escribiera el dueño, un guardado manual se haría pasar por una
+     sincronización y el siguiente sync se lo creería. */
+  if (body.catalogoFuente === "erp" && !(await isAdminRequest(req))) {
+    return NextResponse.json(
+      { error: "Solo la administración puede marcar el catálogo como sincronizado." },
+      { status: 403 },
+    );
+  }
+
+  if (
+    body.resenaDestacadaId !== undefined &&
+    body.resenaDestacadaId !== null
+  ) {
+    if (typeof body.resenaDestacadaId !== "string") {
+      return NextResponse.json(
+        { error: "La reseña destacada no es válida." },
+        { status: 400 },
+      );
+    }
+    /* Tiene que ser una reseña **de este negocio**: el id solo no basta, y
+       guardarlo sin comprobar dejaría destacar la reseña de otro lugar. */
+    const [resena] = await db
+      .select({ id: reviews.id })
+      .from(reviews)
+      .where(
+        and(
+          eq(reviews.id, body.resenaDestacadaId),
+          eq(reviews.placeId, id),
+        ),
+      )
+      .limit(1);
+    if (!resena) {
+      return NextResponse.json(
+        { error: "Esa reseña no pertenece a este negocio." },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (
+    body.plantillaPedido !== undefined &&
+    body.plantillaPedido !== null &&
+    (typeof body.plantillaPedido !== "string" ||
+      body.plantillaPedido.length > 500)
+  ) {
+    return NextResponse.json(
+      { error: "La plantilla del pedido tiene que ser texto de 500 caracteres como máximo." },
+      { status: 400 },
     );
   }
 

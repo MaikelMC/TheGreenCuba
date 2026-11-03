@@ -13,6 +13,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { mensajeDeRed } from "@/lib/errores-red";
 import {
+  Eye,
+  EyeOff,
   FileUp,
   Image as ImageIcon,
   Loader2,
@@ -1280,6 +1282,22 @@ function FilaProducto({
         >
           {/* Papelera y no una X: la X en esta app significa «cerrar». */}
           <Trash2 size={16} strokeWidth={1.8} />
+        </button>
+        {/* Ocultar/mostrar el ítem en la ficha pública sin borrarlo. */}
+        <button
+          type="button"
+          onClick={() => onPatch(id, { oculto: !item.oculto })}
+          aria-pressed={item.oculto}
+          aria-label={item.oculto ? `Mostrar ${nombre}` : `Ocultar ${nombre}`}
+          title={item.oculto ? "Mostrar en la ficha" : "Ocultar de la ficha"}
+          className={cn(
+            "grid size-11 shrink-0 cursor-pointer place-items-center rounded-full border transition duration-500 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40",
+            item.oculto
+              ? "border-amber-300 bg-amber-50 text-amber-600 hover:bg-amber-100"
+              : "border-ink/10 text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
+          )}
+        >
+          {item.oculto ? <EyeOff size={16} strokeWidth={1.8} /> : <Eye size={16} strokeWidth={1.8} />}
         </button>
         {canHoyHay && persistido && (
           <AvailabilityControl
