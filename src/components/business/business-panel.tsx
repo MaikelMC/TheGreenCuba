@@ -606,7 +606,7 @@ function DashboardView({
                   {place.isActive ? "Publicada" : "Sin publicar"}
                 </span>
               </div>
-              <p className="mt-[4px] flex flex-wrap items-center gap-x-gap-xs gap-y-[4px] text-small text-verde-100/75">
+              <div className="mt-[4px] flex flex-wrap items-center gap-x-gap-xs gap-y-[4px] text-small text-verde-100/75">
                 <span>{place.category}</span>
                 <span aria-hidden className="text-white/25">
                   ·
@@ -654,7 +654,7 @@ function DashboardView({
                     );
                   })}
                 </div>
-              </p>
+              </div>
             </div>
           </div>
 
