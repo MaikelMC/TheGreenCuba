@@ -60,7 +60,17 @@ export function PwaRegister() {
           });
         });
 
+        /* Sin throttle, `update()` corre en cada cambio de pestaña y al
+           recuperar red. Vercel puede servir sw.js desde distintos edge nodes
+           con contenido ligeramente distinto, lo que el navegador interpreta
+           como SW nuevo. 30 min es suficiente para pillar un deploy real sin
+           disparar el aviso en cada gesto del usuario. */
+        let ultimaComprobacion = 0;
+        const INTERVALO_MS = 30 * 60 * 1000;
         const comprobar = () => {
+          const ahora = Date.now();
+          if (ahora - ultimaComprobacion < INTERVALO_MS) return;
+          ultimaComprobacion = ahora;
           void registro.update().catch(() => {});
         };
 

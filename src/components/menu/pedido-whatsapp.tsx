@@ -465,7 +465,10 @@ export function PedidoProvider({
                saltar a un botón fuera de la pantalla. */
             inert={!barraVisible}
             className={cn(
-              "fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-white/95 backdrop-blur transition-transform duration-300 ease-outquint motion-reduce:transition-none",
+              /* `transform-gpu` fuerza una capa 3D (translate3d en vez de translateY):
+                 en iOS Safari PWA, position:fixed sin GPU layer puede "pegarse" al
+                 documento y seguir el scroll en vez de quedar fija en el viewport. */
+              "fixed inset-x-0 bottom-0 z-40 transform-gpu border-t border-ink/10 bg-white/95 backdrop-blur transition-transform duration-300 ease-outquint motion-reduce:transition-none",
               barraVisible ? "translate-y-0" : "translate-y-full",
             )}
           >
@@ -473,7 +476,12 @@ export function PedidoProvider({
                 borde de la pantalla y cada píxel que se le quita al margen es
                 ancho que se le da a los dos botones, que tienen que caber en la
                 misma fila. De `sm` en adelante vuelve a alinearse con la carta. */}
-            <div className="mx-auto w-full max-w-[680px] px-gap-xs pb-gap-sm pt-gap-xs sm:px-gutter">
+            <div
+              className="mx-auto w-full max-w-[680px] px-gap-xs pt-gap-xs sm:px-gutter"
+              /* gap-sm (12px) + indicador de inicio iOS: sin safe-area el home
+                 indicator tapa los botones en la app instalada. */
+              style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}
+            >
               {abierto && (
                 <div className="mb-gap-xs border-b border-ink/5 pb-gap-xs">
                   {/* Vaciar sin preguntar: el aviso con «Deshacer» sale al
