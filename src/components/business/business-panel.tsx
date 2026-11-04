@@ -503,6 +503,28 @@ function DashboardView({
         ? "Cerrado"
         : "Abierto";
 
+  /* Toggle rápido de estado desde el dashboard: 1 clic desde el hero,
+     sin entrar al editor. Optimista: se pinta el nuevo estado al momento
+     y se revierte si el servidor falla. */
+  const [status, setStatus] = useState<PlaceStatus>(place.status);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const { updatePlace } = usePlaces();
+
+  const changeStatus = useCallback(
+    async (next: PlaceStatus) => {
+      if (next === status || statusSaving) return;
+      setStatus(next);
+      setStatusSaving(true);
+      const ok = await updatePlace(place.id, { status: next });
+      setStatusSaving(false);
+      if (!ok) {
+        setStatus(place.status); // revertir
+        toast.error("No se pudo cambiar el estado.");
+      }
+    },
+    [status, statusSaving, place.id, place.status, updatePlace],
+  );
+
   return (
     <>
       {/* Cabecera de página. Es la única vista que se titula: la barra lateral
@@ -590,18 +612,48 @@ function DashboardView({
                   ·
                 </span>
                 <span>{place.barrio || place.city || "Sin zona"}</span>
-                <span className="inline-flex items-center gap-[5px] font-medium text-white/90">
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "size-[6px] shrink-0 rounded-full",
-                      place.status === "active"
-                        ? "bg-verde-400"
-                        : "bg-white/30",
-                    )}
-                  />
-                  {estadoLabel}
-                </span>
+                <div
+                  role="group"
+                  aria-label={`Estado: ${estadoLabel}`}
+                  className={cn(
+                    "flex flex-wrap gap-[5px]",
+                    statusSaving && "opacity-60 pointer-events-none",
+                  )}
+                >
+                  {STATUS_OPTIONS.map((opt) => {
+                    const isActive = status === opt.value;
+                    /* "Cerrado temporalmente" no cabe en una píldora pequeña. */
+                    const shortLabel =
+                      opt.value === "temporary_closed"
+                        ? "Cerrado temp."
+                        : opt.label;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => changeStatus(opt.value)}
+                        aria-pressed={isActive}
+                        className={cn(
+                          "inline-flex cursor-pointer items-center gap-[5px] rounded-full border px-[9px] py-[4px] font-lv-display text-[10px] font-semibold transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-300/50",
+                          isActive
+                            ? "border-verde-300/50 bg-verde-400/20 text-verde-100"
+                            : "border-white/15 bg-white/5 text-white/55 hover:bg-white/10 hover:text-white/80",
+                        )}
+                      >
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "size-[5px] shrink-0 rounded-full",
+                            isActive && opt.value === "active"
+                              ? "bg-verde-400"
+                              : "bg-white/35",
+                          )}
+                        />
+                        {shortLabel}
+                      </button>
+                    );
+                  })}
+                </div>
               </p>
             </div>
           </div>
