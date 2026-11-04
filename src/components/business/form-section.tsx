@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useId, useState } from "react";
+import { createContext, useContext, useEffect, useId, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,14 @@ interface FormSectionProps {
    * lo único que dice cuál hay que abrir.
    */
   invalid?: boolean;
+  /**
+   * Abre esta sección al montar, si ninguna otra la ha reclamado antes.
+   *
+   * Útil para señalar el punto de entrada en un formulario nuevo: el dueño
+   * que llega al editor por primera vez ve los campos más importantes sin
+   * tener que adivinar qué abrir.
+   */
+  autoOpen?: boolean;
 }
 
 /* Acordeón de una sola hoja abierta.
@@ -88,6 +96,7 @@ export function FormSection({
   children,
   className,
   invalid = false,
+  autoOpen = false,
 }: FormSectionProps) {
   const group = useContext(SectionsContext);
   /* Fuera de un `FormSections` la sección sigue funcionando sola. */
@@ -97,6 +106,16 @@ export function FormSection({
      renderizado de StrictMode y con las secciones que se montan según el caso. */
   const id = useId();
   const open = group ? group.openId === id : selfOpen;
+
+  /* Si nadie ha abierto nada todavía, esta sección se abre sola al montar.
+     Sirve para dar un punto de entrada visible al dueño nuevo sin que tenga
+     que adivinar qué acordeón abrir. Se lee el estado del grupo al momento
+     del montaje; si otra sección con `autoOpen` llegó antes, ya no es null
+     y no se sobreescribe. */
+  useEffect(() => {
+    if (!autoOpen || !group || group.openId !== null) return;
+    group.setOpenId(id);
+  }, []); // intencional: solo comprueba el estado inicial del grupo
 
   function toggle() {
     if (!group) {

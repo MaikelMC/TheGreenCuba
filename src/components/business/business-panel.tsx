@@ -518,11 +518,8 @@ function DashboardView({
             Panel del negocio
           </p>
           <h1 className="mt-gap-xs font-lv-display text-[26px] font-bold leading-[1.12] tracking-[-0.03em] text-ink sm:text-[32px]">
-            Tu negocio, de un vistazo.
+            {place.name}
           </h1>
-          <p className="mt-[4px] text-small text-ink-soft/70">
-            Lo importante de {place.name}, en un solo lugar.
-          </p>
         </div>
         <BusinessSwitcher negocios={negocios} seleccionado={place.id} compact />
       </header>
@@ -655,14 +652,9 @@ function DashboardView({
       {/* Cabecera de la sección, como en el rediseño: un título que dice qué
           se está mirando y el periodo, en vez de la palabra «Estadísticas». */}
       <div className="mb-gap-sm flex flex-wrap items-end justify-between gap-gap-sm">
-        <div>
-          <h2 className="font-lv-display text-body font-semibold text-ink">
-            Actividad de tu negocio
-          </h2>
-          <p className="mt-[3px] text-small text-ink-soft/70">
-            Un resumen de lo que está pasando con tu ficha.
-          </p>
-        </div>
+        <h2 className="font-lv-display text-body font-semibold text-ink">
+          Actividad este mes
+        </h2>
         <span className="rounded-full border border-ink/10 bg-white px-[11px] py-[7px] font-lv-display text-meta font-semibold text-ink-soft/70">
           Este mes
         </span>
@@ -1285,6 +1277,7 @@ function EditorView({
         <FormSection
           title="Información del negocio"
           icon={<Store size={18} strokeWidth={1.8} />}
+          autoOpen
         >
           <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
             <div className="flex flex-col gap-gap-xs">
@@ -1493,10 +1486,10 @@ function EditorView({
               directorio («10:00 – 22:00», «24 horas»). Lo usa `EstadoApertura`
               cuando no hay horario estructurado. */}
           <div className="flex flex-col gap-gap-xs">
-            <Label htmlFor="bizSchedule">Resumen de horario (texto libre)</Label>
+            <Label htmlFor="bizSchedule">Horario (texto)</Label>
             <p className="text-meta text-ink-soft/70">
-              Aparece en el directorio y como referencia cuando no hay horario
-              estructurado configurado.
+              Aparece en el directorio. Si rellenas el horario por día de abajo,
+              ese es el que usa la ficha y este texto pasa a ser solo referencia.
             </p>
             <Input
               id="bizSchedule"
@@ -1535,8 +1528,8 @@ function EditorView({
               Horario por día
             </p>
             <p className="text-meta text-ink-soft/70">
-              La ficha muestra «Abierto» o «Cerrado» con la hora exacta y lo
-              recalcula cada minuto. Tiene prioridad sobre el texto libre.
+              La ficha muestra «Abierto» o «Cerrado» con la hora exacta, actualizado
+              cada minuto. Si lo rellenas, no hace falta tocar el texto de arriba.
             </p>
             <HorarioEditor value={horario} onChange={setHorario} />
             {horario && (

@@ -63,9 +63,6 @@ export function PlanCard({
         <h2 className="font-lv-display text-body font-semibold text-ink">
           Tu plan
         </h2>
-        <p className="mt-[3px] text-small text-ink-soft/70">
-          Los servicios que tienes activos para tu negocio.
-        </p>
       </div>
 
       {/* La tarjeta del rediseño: degradado verde muy claro, halo en la esquina
