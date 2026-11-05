@@ -50,6 +50,15 @@ import { AUTH_USER_HEADER, isProtected, needsAppUser } from "@/lib/session";
  * camino deja de valer. Está contado en `src/lib/referral.ts`.
  */
 export async function proxy(request: NextRequest) {
+  // OAuth verifier exchange: after Google auth, Neon redirects to callbackURL with
+  // ?neon_auth_session_verifier=xxx. That param must be exchanged for a session
+  // cookie before the page renders — auth.getSession() below can't do it.
+  // auth.middleware() runs processAuthMiddleware which handles the exchange and
+  // redirects back to the same URL without the verifier, with the session cookie set.
+  if (request.nextUrl.searchParams.has("neon_auth_session_verifier")) {
+    return auth.middleware({ loginUrl: "/login" })(request);
+  }
+
   const response = await handle(request);
   dropDevAccess(response, request);
   return carryReferralCode(response, request);
