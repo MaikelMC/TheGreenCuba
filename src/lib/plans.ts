@@ -91,6 +91,10 @@ export const FUNCIONES = {
     texto: "Reservas conectadas al catálogo online",
     disponible: true,
   },
+  zonas_domicilio: {
+    texto: "Zonas y costo de domicilio",
+    disponible: true,
+  },
 
   /* Visibilidad. */
   verificado: { texto: "Sello de negocio verificado", disponible: true },
@@ -210,6 +214,7 @@ export const MODULOS = {
       "tasa_del_dia",
       "whatsapp_pedido",
       "reservas_whatsapp",
+      "zonas_domicilio",
     ],
   },
   facebook: {
@@ -291,6 +296,7 @@ const ESENCIAL: readonly Funcion[] = [
   "tasa_del_dia",
   "whatsapp_pedido",
   "reservas_whatsapp",
+  "zonas_domicilio",
   "publicaciones_fb",
   "seguidores",
 ];
@@ -421,6 +427,12 @@ export interface Catalogo {
   funciones: Record<Funcion, FuncionCatalogo>;
   modulos: Record<ClaveModulo, ModuloCatalogo>;
   packs: Record<Pack, PackCatalogo>;
+  /**
+   * Si los negocios nuevos reciben el trial de 30 días de Pro.
+   * `true` por defecto (comportamiento de siempre).
+   * Se apaga desde `/admin/planes` sin tocar código.
+   */
+  trialNegociosNuevos: boolean;
 }
 
 /** El catálogo de fábrica. Es el que se lee cuando no hay nada guardado. */
@@ -432,6 +444,7 @@ export const CATALOGO: Catalogo = {
   funciones: FUNCIONES,
   modulos: MODULOS,
   packs: PACKS,
+  trialNegociosNuevos: true,
 };
 
 /* ── Lectura del catálogo ─────────────────────────────────────────────────── */

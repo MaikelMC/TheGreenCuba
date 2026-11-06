@@ -1,8 +1,9 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
 import {
   businessOwners,
+  packsMedida,
   places,
   recordatoriosPago,
   suscripciones,
@@ -135,10 +136,13 @@ async function reclamarAviso(input: {
   negocioId: string;
   fechaPago: Date;
   etapa: EtapaPago;
+  concepto?: "plan" | "pack_medida";
 }): Promise<{
   pushEnviadoEn: Date | null;
   emailEnviadoEn: Date | null;
 } | null> {
+  const concepto = input.concepto ?? "plan";
+
   const [creada] = await db
     .insert(recordatoriosPago)
     .values({
@@ -146,12 +150,14 @@ async function reclamarAviso(input: {
       negocioId: input.negocioId,
       fechaPago: input.fechaPago,
       tipo: input.etapa,
+      concepto,
     })
     .onConflictDoNothing({
       target: [
         recordatoriosPago.negocioId,
         recordatoriosPago.fechaPago,
         recordatoriosPago.tipo,
+        recordatoriosPago.concepto,
       ],
     })
     .returning({
@@ -172,6 +178,7 @@ async function reclamarAviso(input: {
         eq(recordatoriosPago.negocioId, input.negocioId),
         eq(recordatoriosPago.fechaPago, input.fechaPago),
         eq(recordatoriosPago.tipo, input.etapa),
+        eq(recordatoriosPago.concepto, concepto),
       ),
     )
     .limit(1);
@@ -184,6 +191,7 @@ async function marcarCanal(
     negocioId: string;
     fechaPago: Date;
     etapa: EtapaPago;
+    concepto?: "plan" | "pack_medida";
   },
   canal: "push" | "email",
 ): Promise<void> {
@@ -199,6 +207,7 @@ async function marcarCanal(
         eq(recordatoriosPago.negocioId, input.negocioId),
         eq(recordatoriosPago.fechaPago, input.fechaPago),
         eq(recordatoriosPago.tipo, input.etapa),
+        eq(recordatoriosPago.concepto, input.concepto ?? "plan"),
       ),
     );
 }
@@ -451,6 +460,144 @@ export async function enviarRecordatoriosDePago(
     } catch (error) {
       console.error(
         `[recordatorios-pago] falló el aviso de ${fila.negocioId}:`,
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
+
+  return resumen;
+}
+
+/**
+ * Avisos de vencimiento de packs a medida.
+ *
+ * Mismo esquema que `enviarRecordatoriosDePago` pero para `packs_medida.vence_en`.
+ * Los recordatorios llevan `concepto = 'pack_medida'` para no colisionar con los
+ * del plan estándar aunque caigan el mismo día.
+ *
+ * Solo avisos push: el mensaje de pack es más personalizado y por ahora no hay
+ * plantilla de correo específica. El correo se puede añadir sin cambiar la tabla.
+ */
+export async function enviarRecordatoriosDePackMedida(
+  ahora: Date = new Date(),
+): Promise<ResumenRecordatorios> {
+  const resumen: ResumenRecordatorios = {
+    revisados: 0,
+    avisados: 0,
+    push: 0,
+    emails: 0,
+    pendientes: 0,
+  };
+
+  /* Packs pagados cuyo vencimiento cae en alguna de las tres ventanas. */
+  const filas = await db
+    .select({
+      id: packsMedida.id,
+      negocioId: packsMedida.negocioId,
+      nombre: places.name,
+      venceEn: packsMedida.venceEn,
+    })
+    .from(packsMedida)
+    .innerJoin(places, eq(places.id, packsMedida.negocioId))
+    .where(
+      and(
+        eq(packsMedida.estado, "pagado"),
+        eq(places.isActive, true),
+        /* Solo los que aún no vencieron hace más de 24 h (ventana de gracia). */
+        gt(packsMedida.venceEn, sql`now() - interval '1 day'`),
+      ),
+    );
+
+  resumen.revisados = filas.length;
+
+  const pendientes: { negocioId: string; nombre: string; venceEn: Date; etapa: EtapaPago }[] = [];
+
+  for (const fila of filas) {
+    if (!fila.venceEn || fila.negocioId === DEV_PLACE_ID) continue;
+    const dias = diasHastaPago(fila.venceEn, ahora);
+    const etapa = etapaDePago(dias);
+    if (!etapa) continue;
+    pendientes.push({ negocioId: fila.negocioId, nombre: fila.nombre, venceEn: fila.venceEn, etapa });
+  }
+
+  if (pendientes.length === 0) return resumen;
+
+  const ids = [...new Set(pendientes.map((p) => p.negocioId))];
+
+  let yaEnviados: { negocioId: string; fechaPago: Date; tipo: EtapaPago; pushEnviadoEn: Date | null; emailEnviadoEn: Date | null }[] = [];
+  try {
+    yaEnviados = await db
+      .select({
+        negocioId: recordatoriosPago.negocioId,
+        fechaPago: recordatoriosPago.fechaPago,
+        tipo: recordatoriosPago.tipo,
+        pushEnviadoEn: recordatoriosPago.pushEnviadoEn,
+        emailEnviadoEn: recordatoriosPago.emailEnviadoEn,
+      })
+      .from(recordatoriosPago)
+      .where(
+        and(
+          inArray(recordatoriosPago.negocioId, ids),
+          eq(recordatoriosPago.concepto, "pack_medida"),
+        ),
+      );
+  } catch {
+    return resumen;
+  }
+
+  const indice = new Map(
+    yaEnviados.map((r) => [`${r.negocioId}|${r.fechaPago.getTime()}|${r.tipo}`, r]),
+  );
+
+  for (const { negocioId, nombre, venceEn, etapa } of pendientes) {
+    const clave = `${negocioId}|${venceEn.getTime()}|${etapa}`;
+    const previo = indice.get(clave);
+
+    if (previo?.pushEnviadoEn) continue;
+
+    try {
+      const registro = previo
+        ? { pushEnviadoEn: previo.pushEnviadoEn, emailEnviadoEn: previo.emailEnviadoEn }
+        : await reclamarAviso({ negocioId, fechaPago: venceEn, etapa, concepto: "pack_medida" });
+
+      if (!registro) continue;
+      if (registro.pushEnviadoEn) continue;
+
+      const dueños = await dueñosDe(negocioId);
+      const userIds = dueños.map((d) => d.userId);
+
+      if (userIds.length === 0) {
+        await marcarCanal({ negocioId, fechaPago: venceEn, etapa, concepto: "pack_medida" }, "push");
+        continue;
+      }
+
+      const dias = diasHastaPago(venceEn, ahora);
+      const titulo = etapa === "vencido"
+        ? `Tu pack a medida de «${nombre}» venció`
+        : `Tu pack a medida vence en ${dias} día${dias === 1 ? "" : "s"}`;
+      const cuerpo = etapa === "vencido"
+        ? "Renueva tu pack para seguir con tus funciones extra."
+        : `El pack de «${nombre}» vence pronto. Renuévalo para no perder el acceso.`;
+
+      const envio = await enviarPushAUsuarios(userIds, {
+        title: titulo,
+        body: cuerpo,
+        url: "/business?seccion=planes",
+        tag: `pack-${negocioId}-${etapa}`,
+      });
+
+      resumen.push += envio.enviados;
+
+      if (!envio.omitido) {
+        await marcarCanal({ negocioId, fechaPago: venceEn, etapa, concepto: "pack_medida" }, "push");
+      } else {
+        resumen.pendientes += 1;
+      }
+
+      resumen.avisados += 1;
+    } catch (error) {
+      console.error(
+        `[recordatorios-pack] falló el aviso de ${negocioId}:`,
         error instanceof Error ? error.message : error,
       );
     }

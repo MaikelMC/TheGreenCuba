@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, MessageCircle, Sparkles, Wallet } from "lucide-react";
+import { Check, Loader2, MessageCircle, Package, Sparkles, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { whatsappHref } from "@/lib/contact-links";
@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  MODULOS,
   PACKS_ORDER,
   nombreDe,
   textoCup,
@@ -23,7 +24,9 @@ import {
   type Pack,
   type Plan,
 } from "@/lib/plans";
+import type { PackMedidaResumen } from "@/lib/pack-medida";
 import { useCatalogo } from "@/providers/catalogo-provider";
+import { PackMedidaCard } from "@/components/business/pack-medida-card";
 
 /**
  * Los planes, los módulos y los packs, explicados.
@@ -59,6 +62,8 @@ export function PlansSection({
   puedeElegirPlan = false,
   planElegido = null,
   modulosElegidos = [],
+  packMedida = null,
+  esDueno = false,
 }: {
   /** El pack efectivo del negocio, resuelto en el servidor. */
   plan: Plan;
@@ -76,10 +81,18 @@ export function PlansSection({
    * señalan para pagarlos sin volver a buscarlos.
    */
   modulosElegidos?: readonly ClaveModulo[];
+  /** El pack a medida activo o en tramitación del negocio, si lo hay. */
+  packMedida?: PackMedidaResumen | null;
+  /** Si quien mira es el dueño: solo él puede solicitar y cancelar packs. */
+  esDueno?: boolean;
 }) {
   const router = useRouter();
   const cat = useCatalogo();
   const [pendiente, setPendiente] = useState<Plan | null>(null);
+  const [packActual, setPackActual] = useState<PackMedidaResumen | null>(packMedida ?? null);
+  const [solicitandoPack, setSolicitandoPack] = useState(false);
+  const [serviciosPack, setServiciosPack] = useState<string[]>([]);
+  const [dialogPack, setDialogPack] = useState(false);
   /** «plan:pro» o «modulo:menu_pro» mientras se abre la factura. */
   const [pagando, setPagando] = useState<string | null>(null);
   /** Lo que se va a cobrar, mientras se elige QvaPay o transferencia. */
@@ -92,6 +105,33 @@ export function PlansSection({
 
   /* Para nombrar el servicio en singular; con varios solo se cuenta. */
   const primerModulo = modulosElegidos[0];
+
+  async function solicitarPack() {
+    if (solicitandoPack || serviciosPack.length === 0) return;
+    setSolicitandoPack(true);
+    try {
+      const res = await fetch("/api/business/packs-medida", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId, serviciosSolicitados: serviciosPack }),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        pack?: PackMedidaResumen;
+        error?: string;
+      } | null;
+      if (!res.ok) {
+        toast.error(data?.error ?? "No se pudo enviar la solicitud.");
+        return;
+      }
+      if (data?.pack) setPackActual(data.pack);
+      setDialogPack(false);
+      toast.success("Solicitud enviada. Te avisaremos en menos de 24 horas.");
+    } catch {
+      toast.error("No se pudo enviar la solicitud.");
+    } finally {
+      setSolicitandoPack(false);
+    }
+  }
 
   /* El cambio de plan es un POST a la ruta del fixture y luego un `refresh`:
      el plan llega resuelto del servidor a todo el panel —el candado de «Hoy
@@ -260,6 +300,110 @@ export function PlansSection({
           ))}
         </div>
       </Bloque>
+
+      <Bloque
+        titulo="Pack a medida"
+        detalle="Servicios combinados al precio que cuadre con tu negocio."
+      >
+        {packActual ? (
+          <PackMedidaCard
+            pack={packActual}
+            placeId={placeId}
+            esDueno={esDueno}
+            onCancelado={() => setPackActual(null)}
+          />
+        ) : esDueno ? (
+          <article className="flex flex-col items-start gap-gap-sm rounded-[26px] border border-ink/5 bg-white p-gap-lg shadow-soft">
+            <div className="flex items-center gap-gap-xs">
+              <Package size={18} className="text-verde-600" strokeWidth={1.8} />
+              <h3 className="font-lv-display text-body font-bold tracking-[-0.01em] text-ink">
+                ¿Ningún pack te encaja?
+              </h3>
+            </div>
+            <p className="text-small text-ink-soft/75">
+              Dinos qué necesitas y el equipo de La Verde te arma un precio justo
+              con solo lo que uses.
+            </p>
+            <button
+              type="button"
+              onClick={() => setDialogPack(true)}
+              className="inline-flex h-11 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-lg font-lv-display text-small font-semibold text-ink transition duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700"
+            >
+              <Package size={15} strokeWidth={1.8} />
+              Solicitar pack a medida
+            </button>
+          </article>
+        ) : (
+          <p className="text-small text-ink-soft/60">
+            El dueño del negocio puede solicitar un pack a medida desde aquí.
+          </p>
+        )}
+      </Bloque>
+
+      {/* Diálogo de solicitud de pack a medida. */}
+      <Dialog open={dialogPack} onOpenChange={(o) => { if (!solicitandoPack) setDialogPack(o); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Qué servicios necesitas?</DialogTitle>
+            <DialogDescription>
+              Marca los que te interesan y el equipo te manda un precio en menos de 24 horas.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-gap-sm">
+            <p className="font-lv-display text-meta font-semibold text-ink-soft/75">Módulos</p>
+            <div className="grid grid-cols-1 gap-gap-xs sm:grid-cols-2">
+              {(Object.keys(MODULOS) as (keyof typeof MODULOS)[]).map((clave) => (
+                <label key={clave} className="flex cursor-pointer items-center gap-gap-xs text-small text-ink">
+                  <input
+                    type="checkbox"
+                    checked={serviciosPack.includes(clave)}
+                    onChange={(e) =>
+                      setServiciosPack((prev) =>
+                        e.target.checked ? [...prev, clave] : prev.filter((s) => s !== clave),
+                      )
+                    }
+                    className="size-4 shrink-0 accent-verde-500"
+                  />
+                  {cat.modulos[clave].nombre}
+                </label>
+              ))}
+            </div>
+
+            <p className="font-lv-display text-meta font-semibold text-ink-soft/75">Packs</p>
+            <div className="grid grid-cols-1 gap-gap-xs sm:grid-cols-2">
+              {PACKS_ORDER.map((clave) => (
+                <label key={clave} className="flex cursor-pointer items-center gap-gap-xs text-small text-ink">
+                  <input
+                    type="checkbox"
+                    checked={serviciosPack.includes(clave)}
+                    onChange={(e) =>
+                      setServiciosPack((prev) =>
+                        e.target.checked ? [...prev, clave] : prev.filter((s) => s !== clave),
+                      )
+                    }
+                    className="size-4 shrink-0 accent-verde-500"
+                  />
+                  {nombreDe(clave, cat)}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={solicitarPack}
+            disabled={solicitandoPack || serviciosPack.length === 0}
+            className="flex h-11 w-full items-center justify-center gap-gap-xs rounded-full bg-verde-400 font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {solicitandoPack ? (
+              <><Loader2 size={16} className="animate-spin" /> Enviando…</>
+            ) : (
+              "Enviar solicitud"
+            )}
+          </button>
+        </DialogContent>
+      </Dialog>
 
       {/* Las dudas que salen siempre, contestadas antes de que las pregunten por
           correo. */}

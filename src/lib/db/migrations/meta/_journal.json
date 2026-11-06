@@ -344,6 +344,27 @@
       "when": 1793918081278,
       "tag": "0048_normal_zeigeist",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1793956521913,
+      "tag": "0049_safe_paladin",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1793960675874,
+      "tag": "0050_watery_ultimates",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1793962230728,
+      "tag": "0051_tiresome_wild_pack",
+      "breakpoints": true
     }
   ]
 }

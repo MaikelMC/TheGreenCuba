@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Megaphone, Store } from "lucide-react";
+import { Megaphone, Package, Store } from "lucide-react";
 import { ProjectRequestsList } from "@/components/admin/project-requests-list";
 import { RequestsList } from "@/components/admin/requests-list";
+import { PackMedidaSolicitudes } from "@/components/admin/pack-medida-solicitudes";
 
-type RequestKind = "businesses" | "projects";
+type RequestKind = "businesses" | "projects" | "packs";
 
 export function CombinedRequests() {
   const [kind, setKind] = useState<RequestKind>("businesses");
@@ -37,9 +38,20 @@ export function CombinedRequests() {
         >
           <Megaphone size={16} /> Proyectos
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={kind === "packs"}
+          onClick={() => setKind("packs")}
+          className={`inline-flex h-10 items-center gap-gap-xs rounded-full px-gap-md font-lv-display text-small font-semibold transition-colors ${kind === "packs" ? "bg-verde-50 text-verde-700" : "text-ink-soft/75 hover:bg-sand"}`}
+        >
+          <Package size={16} /> Packs
+        </button>
       </div>
 
-      {kind === "businesses" ? <RequestsList /> : <ProjectRequestsList />}
+      {kind === "businesses" && <RequestsList />}
+      {kind === "projects" && <ProjectRequestsList />}
+      {kind === "packs" && <PackMedidaSolicitudes />}
     </section>
   );
 }

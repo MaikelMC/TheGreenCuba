@@ -61,6 +61,7 @@ import { AsistenteCard } from "@/components/business/asistente-card";
 import { EquipoView } from "@/components/business/equipo-view";
 import { SeguidoresCard } from "@/components/business/seguidores-card";
 import { AvisoTasaVieja, TasaDelDiaCard } from "@/components/business/tasa-del-dia-card";
+import { ZonasDomicilioCard } from "@/components/business/zonas-domicilio-card";
 import { KynariCard } from "@/components/business/kynari-card";
 import {
   BusinessSwitcher,
@@ -109,6 +110,7 @@ import type {
 import type { PermisoNegocio } from "@/lib/permisos-negocio";
 import { claveNegocio, guardarSnapshot } from "@/lib/offline/store";
 import { construirNegocioSnapshot } from "@/lib/offline/snapshots";
+import type { PackMedidaResumen } from "@/lib/pack-medida";
 
 /** Los números reales que el panel puede contar. Se declaran aquí y no se
     importan de `queries.ts`: ese módulo arrastra la base de datos y la caché de
@@ -183,6 +185,7 @@ export function BusinessPanel({
   permisos,
   userId,
   configTasa = null,
+  packMedida = null,
 }: {
   /** Id del usuario de la sesión. Solo se usa para nombrar el snapshot offline. */
   userId: string;
@@ -238,6 +241,8 @@ export function BusinessPanel({
   permisos: PermisoNegocio[];
   /** Config de la tasa del día para el preview en el catálogo. */
   configTasa?: import("@/lib/precios").ConfigTasa | null;
+  /** El pack a medida activo o en tramitación, resuelto en el servidor. */
+  packMedida?: PackMedidaResumen | null;
 }) {
   /* Copia de lectura para el modo offline. Se reescribe cuando cambia algo de
      la ficha, de las métricas o del plan; el panel se resuelve en el servidor,
@@ -436,6 +441,8 @@ export function BusinessPanel({
                 puedeElegirPlan={puedeElegirPlan}
                 planElegido={planElegido}
                 modulosElegidos={modulosElegidos}
+                packMedida={packMedida}
+                esDueno={esDueno}
               />
             );
           case "settings":
@@ -2546,6 +2553,12 @@ function SettingsView({
           redondeoInicial={place.tasaRedondeo}
           activaInicial={place.tasaActiva}
           actualizadaEnInicial={place.tasaActualizadaEn}
+        />
+
+        <ZonasDomicilioCard
+          placeId={place.id}
+          funciones={funciones}
+          entregaInicial={place.entrega}
         />
 
         {/* ── Lo que solo se consulta ─────────────────────────────────────

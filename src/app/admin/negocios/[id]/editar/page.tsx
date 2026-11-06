@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { MapPin, ArrowLeft, Upload } from "lucide-react";
 import { BusinessForm } from "@/components/admin/business-form";
+import { PackMedidaEditor } from "@/components/admin/pack-medida-editor";
 import { SuscripcionEditor } from "@/components/admin/suscripcion-editor";
 import { VinculoEditor } from "@/components/admin/vinculo-editor";
 import { StateView } from "@/components/ui/state-view";
@@ -57,6 +58,9 @@ export default function EditarNegocioPage() {
           ficha habría atado dos escrituras que no tienen nada que ver. */}
       <div className="mt-gap-lg">
         <SuscripcionEditor placeId={place.id} />
+      </div>
+      <div className="mt-gap-lg">
+        <PackMedidaEditor placeId={place.id} />
       </div>
       {/* El dueño va aparte por el mismo motivo que el plan: escribe otra tabla
           —`business_owners`— y por otra ruta. */}

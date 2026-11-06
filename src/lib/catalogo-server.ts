@@ -171,6 +171,10 @@ export function normalizarCatalogo(datos: unknown): Catalogo {
     funciones,
     modulos,
     packs,
+    trialNegociosNuevos:
+      typeof src.trialNegociosNuevos === "boolean"
+        ? src.trialNegociosNuevos
+        : CATALOGO.trialNegociosNuevos,
   };
 }
 

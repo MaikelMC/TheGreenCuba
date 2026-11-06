@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { pagos, suscripciones } from "@/lib/db/schema";
+import { packsMedida, pagos, suscripciones } from "@/lib/db/schema";
 import { crearSuscripcion } from "@/lib/plans-server";
+import { calcularVencimiento } from "@/lib/pack-medida";
 import type { Pack } from "@/lib/plans";
 import {
   CABECERA_FIRMA,
@@ -75,6 +76,46 @@ async function aplicarDerecho(pago: FilaPago): Promise<void> {
     .update(pagos)
     .set({ estado: "pagado", pagadoEn: sql`now()` })
     .where(and(eq(pagos.id, pago.id), sql`${pagos.estado} <> 'pagado'`));
+
+  if (pago.tipo === "pack_medida") {
+    /* Leer el pack antes del lote: necesitamos oferta2x1 y venceEn actual para
+       calcular el nuevo vencimiento. El guard `estado <> 'pagado'` del lote
+       garantiza que un reintento no extiende dos veces. */
+    const packId = pago.packMedidaId ?? pago.clave;
+
+    const [pack] = await db
+      .select({ oferta2x1: packsMedida.oferta2x1, venceEn: packsMedida.venceEn })
+      .from(packsMedida)
+      .where(eq(packsMedida.id, packId))
+      .limit(1);
+
+    const ahora = new Date();
+    const venceEn = calcularVencimiento({
+      desde: ahora,
+      oferta2x1: pack?.oferta2x1 ?? false,
+      venceEnActual: pack?.venceEn ?? null,
+    });
+
+    await db.batch([
+      /* Activa el pack: estado, fechas, funciones ya están guardadas. */
+      db
+        .update(packsMedida)
+        .set({ estado: "pagado", pagadoEn: ahora, venceEn })
+        .where(and(eq(packsMedida.id, packId), sql`${packsMedida.estado} <> 'pagado'`)),
+      /* Termina la prueba si aún corre: el pack de pago la reemplaza. */
+      db
+        .update(suscripciones)
+        .set({ trialHasta: null })
+        .where(
+          and(
+            eq(suscripciones.negocioId, pago.negocioId),
+            sql`${suscripciones.trialHasta} > now()`,
+          ),
+        ),
+      marcaPagado,
+    ]);
+    return;
+  }
 
   if (pago.tipo === "plan") {
     /* Mismo plan y todavía vigente = se suma un mes al final. Cambio de plan o

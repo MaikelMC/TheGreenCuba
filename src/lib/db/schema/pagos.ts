@@ -8,6 +8,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { places } from "./places";
+import { packsMedida } from "./packs_medida";
 
 /**
  * Un intento de pago de un plan o de un módulo.
@@ -35,9 +36,17 @@ export const pagos = pgTable(
     /* Deja sitio al segundo método sin tocar la tabla: la fila cuenta qué se
        pagó y con qué, no cómo. */
     metodo: text("metodo", { enum: ["qvapay"] }).default("qvapay").notNull(),
-    tipo: text("tipo", { enum: ["plan", "modulo"] }).notNull(),
-    /** La clave del pack o del módulo en el catálogo. */
+    tipo: text("tipo", { enum: ["plan", "modulo", "pack_medida"] }).notNull(),
+    /**
+     * La clave del pack o del módulo en el catálogo, o el id del pack a medida.
+     * Para `tipo = 'pack_medida'` es el `packs_medida.id`; también viaja en
+     * `pack_medida_id` (FK tipada), pero `clave` permite consultas uniformes.
+     */
     clave: text("clave").notNull(),
+    /** El pack a medida que se está pagando. Solo para `tipo = 'pack_medida'`. */
+    packMedidaId: text("pack_medida_id").references(() => packsMedida.id, {
+      onDelete: "set null",
+    }),
 
     /* Centavos de dólar. `integer` y no `numeric` porque el precio del catálogo
        es una cifra corta y aquí se suma y se compara, no se calcula interés. */
@@ -74,5 +83,9 @@ export const pagoRelations = relations(pagos, ({ one }) => ({
   negocio: one(places, {
     fields: [pagos.negocioId],
     references: [places.id],
+  }),
+  packMedida: one(packsMedida, {
+    fields: [pagos.packMedidaId],
+    references: [packsMedida.id],
   }),
 }));

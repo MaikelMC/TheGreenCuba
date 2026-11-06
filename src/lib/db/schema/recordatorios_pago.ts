@@ -10,9 +10,11 @@ import { places } from "./places";
  * por negocio y por fecha de vencimiento. Sin esta tabla, un cron que se ejecuta
  * treinta veces al mes manda treinta correos.
  *
- * La clave es (negocio, fecha de pago, momento) y no (negocio, momento): cuando
- * el pago se renueva, `vence_en` cambia, y con la clave corta el aviso del mes
- * siguiente quedaría bloqueado por el del anterior.
+ * La clave es (negocio, fecha de pago, momento, concepto): cuando el pago se
+ * renueva, `vence_en` cambia, y con la clave corta el aviso del mes siguiente
+ * quedaría bloqueado por el del anterior. El `concepto` separa el aviso del plan
+ * estándar del del pack a medida: ambos pueden caer el mismo día para el mismo
+ * negocio y deben salir como avisos independientes.
  *
  * `push_enviado_en` y `email_enviado_en` se guardan por separado a propósito. Un
  * push sin VAPID configurado o un Resend sin clave no son «enviado»: dejarlos en
@@ -26,10 +28,17 @@ export const recordatoriosPago = pgTable(
     negocioId: text("negocio_id")
       .notNull()
       .references(() => places.id, { onDelete: "cascade" }),
-    /** La fecha de vencimiento que se recordó: `trial_hasta` o `vence_en`. */
+    /** La fecha de vencimiento que se recordó: `trial_hasta`, `vence_en` o `packs_medida.vence_en`. */
     fechaPago: timestamp("fecha_pago").notNull(),
     /** `proximo` (cinco días antes), `vispera` o `vencido`. */
     tipo: text("tipo", { enum: ["proximo", "vispera", "vencido"] }).notNull(),
+    /**
+     * De qué se está avisando. `plan` = plan estándar o trial; `pack_medida` = pack a medida.
+     * El default `'plan'` cubre todas las filas que existían antes de esta columna.
+     */
+    concepto: text("concepto", { enum: ["plan", "pack_medida"] })
+      .default("plan")
+      .notNull(),
 
     pushEnviadoEn: timestamp("push_enviado_en"),
     emailEnviadoEn: timestamp("email_enviado_en"),
@@ -41,6 +50,7 @@ export const recordatoriosPago = pgTable(
       table.negocioId,
       table.fechaPago,
       table.tipo,
+      table.concepto,
     ),
     /* El trabajo diario pregunta por muchas fichas a la vez; sin este índice
        eso sería un recorrido completo de la tabla en cada pasada. */

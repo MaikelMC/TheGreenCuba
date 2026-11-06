@@ -474,6 +474,23 @@ export function PlanesEditor() {
             })}
           </div>
         </FormSection>
+        <FormSection title="Negocios nuevos" icon={<ListChecks size={18} strokeWidth={1.8} />}>
+          <p className="text-meta text-ink-soft/75">
+            Si está activo, cada negocio que se da de alta entra con 30 días de Pro de prueba.
+            Desactívalo para que los nuevos entren directamente en Gratis.
+          </p>
+          <label className="flex cursor-pointer items-center gap-gap-sm text-small text-ink">
+            <input
+              type="checkbox"
+              checked={borrador.trialNegociosNuevos ?? true}
+              onChange={(e) =>
+                setBorrador((d) => ({ ...d, trialNegociosNuevos: e.target.checked }))
+              }
+              className="size-4 accent-verde-500"
+            />
+            Prueba gratuita de 30 días de Pro para negocios nuevos
+          </label>
+        </FormSection>
       </FormSections>
 
       <div className="mt-gap-lg flex justify-end">
