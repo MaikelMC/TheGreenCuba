@@ -127,8 +127,8 @@ export function FichaView({
     accion === "reservar" || accion === "apartar" || accion === "cita";
   const mostrarReservaEnContacto =
     Boolean(place.reserva) && !acciones.barra.some(esReserva);
-  const mostrarSeguidoresEnContacto =
-    Boolean(place.seguidores) && !acciones.fila.includes("ofertas");
+  /* Seguidores ya viven en FilaAcciones, no en DireccionContacto. */
+  const mostrarSeguidoresEnContacto = false;
 
   const titulo = tituloCatalogo(place.catalogoTitulo, place.tipoNegocio);
   const ofertas = place.ofertas ?? [];
@@ -276,6 +276,8 @@ export function FichaView({
             phone={place.phone}
             whatsapp={place.contact.whatsapp}
             enlaceOfertas={place.seguidores?.enlace}
+            seguidores={place.seguidores ?? undefined}
+            negocioId={place.id}
             isSaved={saved}
             onSave={handleSave}
             onShare={onShare}
@@ -405,6 +407,8 @@ export function FichaView({
             phone={place.phone}
             whatsapp={place.contact.whatsapp}
             enlaceOfertas={place.seguidores?.enlace}
+            seguidores={place.seguidores ?? undefined}
+            negocioId={place.id}
             isSaved={saved}
             onSave={handleSave}
             onShare={onShare}

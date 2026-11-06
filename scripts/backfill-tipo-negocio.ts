@@ -20,12 +20,12 @@ import type { TipoNegocio } from "@/lib/ficha/tipos";
  */
 
 const TIPO_POR_CATEGORIA: Record<string, TipoNegocio> = {
-  restaurante: "cafeteria_restaurante",
-  cafeteria: "cafeteria_restaurante",
-  bar: "cafeteria_restaurante",
-  mercado: "tienda_mipyme",
-  tienda: "tienda_mipyme",
-  servicio: "servicios",
+  restaurante: "restaurante",
+  cafeteria: "cafeteria",
+  bar: "bar",
+  mercado: "mipyme",
+  tienda: "mipyme",
+  servicio: "otro",
   "comida-a-domicilio": "comida_domicilio",
 };
 

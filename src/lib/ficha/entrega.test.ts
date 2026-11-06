@@ -55,7 +55,7 @@ test("el costo del envío se deriva del modo", () => {
   );
   /* Las zonas las elige el carrito: aquí no se adivina. */
   assert.equal(
-    costoEnvio({ modo: "zonas", zonas: [{ nombre: "Centro", monto: 100 }], moneda: "CUP" }, 0),
+    costoEnvio({ modo: "zonas", zonas: [{ id: "1", nombre: "Centro", monto: 100, moneda: "CUP", activa: true }], moneda: "CUP" }, 0),
     null,
   );
 });

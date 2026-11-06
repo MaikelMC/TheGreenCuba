@@ -35,6 +35,10 @@ interface Pedido {
   direccion: string | null;
   estado: EstadoPedido;
   tasaUsada?: number | null;
+  modoEntrega?: "recogida" | "domicilio" | null;
+  zonaNombre?: string | null;
+  costoEnvio?: number | null;
+  costoEnvioMoneda?: string | null;
   createdAt: string;
 }
 
@@ -269,12 +273,28 @@ export function PedidosView({
                     ))}
                   </ul>
 
-                  {pedido.direccion && (
-                    <p className="mt-gap-sm flex items-start gap-gap-xs text-small text-ink-soft">
+                  {pedido.modoEntrega && (
+                    <p className="mt-gap-sm flex items-center gap-gap-xs text-small text-ink-soft">
                       <MapPin
                         size={15}
                         strokeWidth={1.8}
-                        className="mt-[2px] shrink-0 text-verde-600"
+                        className="shrink-0 text-verde-600"
+                      />
+                      {pedido.modoEntrega === "recogida"
+                        ? "Paso a recoger"
+                        : pedido.zonaNombre
+                          ? `Domicilio — ${pedido.zonaNombre}`
+                          : "A domicilio"}
+                    </p>
+                  )}
+
+                  {pedido.direccion && (
+                    <p className="mt-[4px] flex items-start gap-gap-xs text-small text-ink-soft">
+                      <MapPin
+                        size={15}
+                        strokeWidth={1.8}
+                        className="mt-[2px] shrink-0 opacity-0"
+                        aria-hidden
                       />
                       {pedido.direccion}
                     </p>
@@ -287,6 +307,11 @@ export function PedidosView({
                           ? `${total.total.toFixed(2)} ${currencyLabel(total.currency)}`
                           : "Total a convenir"}
                       </span>
+                      {pedido.costoEnvio != null && pedido.modoEntrega === "domicilio" && (
+                        <span className="text-meta tabular-nums text-ink-soft/75">
+                          Envío: {pedido.costoEnvio === 0 ? "gratis" : `${pedido.costoEnvio.toFixed(2)} ${pedido.costoEnvioMoneda ?? ""}`}
+                        </span>
+                      )}
                       {pedido.tasaUsada && (
                         <span className="text-meta tabular-nums text-muted-foreground">
                           Tasa: {new Intl.NumberFormat("en-US").format(pedido.tasaUsada)} CUP/USD

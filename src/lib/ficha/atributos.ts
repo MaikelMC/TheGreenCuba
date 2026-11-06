@@ -12,18 +12,18 @@
  * Módulo puro: lo leen el panel, la ficha y las pruebas.
  */
 
-import { TIPOS_NEGOCIO, type TipoNegocio } from "./tipos";
+import { FAMILIAS_NEGOCIO, familiaDe, type FamiliaNegocio, type TipoNegocio } from "./tipos";
 
 export interface Atributo {
   clave: string;
   label: string;
   /** Nombre del icono de Lucide que se pinta en el distintivo. */
   icono: string;
-  /** Tipos en los que se sugiere. Nunca es una restricción. */
-  tipos: readonly TipoNegocio[];
+  /** Familias en las que se sugiere. Nunca es una restricción. */
+  tipos: readonly FamiliaNegocio[];
 }
 
-const TODOS = TIPOS_NEGOCIO;
+const TODOS = FAMILIAS_NEGOCIO;
 
 /**
  * El catálogo. El orden es el que se enseña en el panel, de lo más común a lo
@@ -93,5 +93,7 @@ export function iconoAtributo(clave: string): string | null {
 
 /** Los atributos sugeridos para un tipo, en el orden del catálogo. */
 export function atributosParaTipo(tipo: TipoNegocio | null | undefined): Atributo[] {
-  return ATRIBUTOS.filter((a) => !tipo || a.tipos.some((t) => t === tipo));
+  if (!tipo) return ATRIBUTOS.filter(() => true);
+  const familia = familiaDe(tipo);
+  return ATRIBUTOS.filter((a) => a.tipos.some((t) => t === familia));
 }

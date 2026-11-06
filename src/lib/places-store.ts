@@ -459,6 +459,8 @@ export interface UserPlace {
      significan «no configurado» y la ficha no pinta el bloque. */
   /** Tipo principal. `null`/ausente = sin clasificar; la ficha usa el esqueleto común. */
   tipoNegocio?: TipoNegocio | null;
+  /** `true` si el dueño eligió o confirmó el tipo explícitamente. */
+  tipoConfirmado?: boolean;
   /** Bloques encendidos. Nace vacío también en negocios nuevos. */
   modulosActivos?: ModuloFicha[];
   /** Claves del catálogo de atributos (nunca texto libre). */

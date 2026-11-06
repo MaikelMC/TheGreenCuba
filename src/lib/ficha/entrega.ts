@@ -17,13 +17,25 @@ export interface Monto {
   moneda: string;
 }
 
+/** Una zona de entrega con su costo. */
+export interface ZonaEntrega {
+  id: string;
+  nombre: string;
+  monto: number;
+  /** Moneda de esta zona. Sobrescribe la de la lista si existe. */
+  moneda: string;
+  /** Tiempo aproximado de entrega en minutos. */
+  tiempoMin?: number;
+  activa: boolean;
+}
+
 /** Cómo se cobra (o no) el envío. */
 export type CostoEntrega =
   | { modo: "gratis" }
   | { modo: "consultar" }
   | ({ modo: "fijo" } & Monto)
   | ({ modo: "gratis_desde"; desde: number } & Monto)
-  | { modo: "zonas"; zonas: { nombre: string; monto: number }[]; moneda: string };
+  | { modo: "zonas"; zonas: ZonaEntrega[]; moneda: string };
 
 /** Lo que configura el negocio para el reparto. */
 export interface EntregaConfig {
@@ -34,6 +46,12 @@ export interface EntregaConfig {
   pedidoMinimo?: Monto;
   /** Horario propio del reparto. Ausente = el del local. */
   horario?: Horario;
+  /** El cliente puede pasar a recoger en el local. */
+  recogida?: boolean;
+  /** El negocio hace entregas a domicilio. */
+  domicilio?: boolean;
+  /** Nota libre sobre el reparto ("Entregamos de 10 a. m. a 6 p. m."). */
+  notaEntrega?: string;
 }
 
 function esMonto(value: unknown): value is Monto {
@@ -77,18 +95,32 @@ export function esEntregaConfig(value: unknown): value is EntregaConfig {
     case "zonas":
       if (typeof costo.moneda !== "string" || !costo.moneda.trim()) return false;
       if (!Array.isArray(costo.zonas)) return false;
+      if (costo.zonas.length > 40) return false;
       if (
         !costo.zonas.every(
           (z) =>
             z &&
+            typeof z.id === "string" &&
+            z.id.trim().length > 0 &&
             typeof z.nombre === "string" &&
             z.nombre.trim().length > 0 &&
+            z.nombre.trim().length <= 60 &&
             typeof z.monto === "number" &&
             Number.isFinite(z.monto) &&
-            z.monto >= 0,
+            z.monto >= 0 &&
+            typeof z.moneda === "string" &&
+            z.moneda.trim().length > 0 &&
+            typeof z.activa === "boolean" &&
+            (z.tiempoMin === undefined ||
+              (typeof z.tiempoMin === "number" && z.tiempoMin >= 0)),
         )
       ) {
         return false;
+      }
+      /* Ids únicos. */
+      {
+        const ids = (costo.zonas as ZonaEntrega[]).map((z) => z.id);
+        if (new Set(ids).size !== ids.length) return false;
       }
       break;
     default:
@@ -115,6 +147,9 @@ export function esEntregaConfig(value: unknown): value is EntregaConfig {
   if (e.horario !== undefined && (typeof e.horario !== "object" || e.horario === null)) {
     return false;
   }
+  if (e.recogida !== undefined && typeof e.recogida !== "boolean") return false;
+  if (e.domicilio !== undefined && typeof e.domicilio !== "boolean") return false;
+  if (e.notaEntrega !== undefined && typeof e.notaEntrega !== "string") return false;
   return true;
 }
 

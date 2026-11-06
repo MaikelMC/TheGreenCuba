@@ -12,6 +12,8 @@ import {
 import { cn } from "@/lib/utils";
 import { ACCION_LABEL, type AccionFicha } from "@/lib/ficha/acciones";
 import { COPY } from "@/config/ficha";
+import type { SeguidorConfig } from "@/lib/seguidores";
+import { SeguidorBoton } from "../seguidor-boton";
 
 const ICONO: Record<AccionFicha, LucideIcon> = {
   como_llegar: Navigation,
@@ -35,6 +37,8 @@ export function FilaAcciones({
   phone,
   whatsapp,
   enlaceOfertas,
+  seguidores,
+  negocioId,
   isSaved,
   onSave,
   onShare,
@@ -45,13 +49,16 @@ export function FilaAcciones({
   phone?: string;
   whatsapp?: string;
   enlaceOfertas?: string;
+  seguidores?: SeguidorConfig;
+  negocioId?: string;
   isSaved?: boolean;
   onSave?: () => void;
   onShare?: () => void;
   onNavigate?: () => void;
   className?: string;
 }) {
-  if (acciones.length === 0) return null;
+  const haySeguidores = Boolean(seguidores && negocioId);
+  if (acciones.length === 0 && !haySeguidores) return null;
 
   return (
     <div
@@ -187,6 +194,14 @@ export function FilaAcciones({
            la quitó; esto es la red por si alguien la cuela desde otro sitio. */
         return null;
       })}
+      {seguidores && negocioId && (
+        <SeguidorBoton
+          seguidores={seguidores}
+          negocioId={negocioId}
+          variant="outline"
+          className="h-12 rounded-2xl px-gap-sm"
+        />
+      )}
     </div>
   );
 }

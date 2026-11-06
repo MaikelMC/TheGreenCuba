@@ -256,6 +256,10 @@ export const places = pgTable(
        Las claves están en `src/lib/ficha/tipos.ts` y la validación en el
        `PATCH`; aquí solo se declara la forma. */
     tipoNegocio: text("tipo_negocio", { enum: TIPOS_NEGOCIO }),
+    /** `true` cuando el dueño eligió o confirmó explícitamente su tipo.
+        Los negocios migrados que conservaron su tipo viejo arrancan en `false`
+        y el Dashboard les muestra la tarjeta de confirmación una sola vez. */
+    tipoConfirmado: boolean("tipo_confirmado").notNull().default(false),
     modulosActivos: text("modulos_activos")
       .array()
       .$type<ModuloFicha[]>()

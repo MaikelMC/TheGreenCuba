@@ -357,6 +357,96 @@
     color: #9be3b4 !important;
   }
 
+  /* `next-themes` activa el modo oscuro con `data-theme="dark"`, no con la
+     clase `.dark`. El bloque `.dark {}` de arriba —que redefine las variables
+     CSS del sistema de diseño (`--foreground`, `--surface`, `--muted-foreground`,
+     `--input`, etc.)— nunca se dispara. Las variables se quedan en sus valores
+     claros: tinta oscura, fondo blanco. Los componentes shadcn que las usan
+     (Input, Label, Select, etc.) leen variables que no se actualizan.
+
+     Como la mayoría de los fondos dentro del panel SÍ se oscurecen (via la
+     lista de `.bg-white`, `.bg-sand`, `.bg-surface` de arriba), el texto
+     heredado queda oscuro sobre fondo oscuro. Se corrige token a token para
+     las clases que realmente usan el panel. */
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .text-foreground {
+    color: #edf7f0 !important;
+  }
+
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .text-muted-foreground {
+    color: rgba(237, 247, 240, 0.6) !important;
+  }
+
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) [class~="placeholder:text-muted-foreground"]::placeholder {
+    color: rgba(237, 247, 240, 0.35) !important;
+  }
+
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .border-input {
+    border-color: rgba(237, 247, 240, 0.14) !important;
+  }
+
+  /* ── Sheet «Nueva zona / Editar zona» ──────────────────────────────────
+     El Sheet renderiza en un Portal fuera de .business-panel, así que los
+     overrides del panel no llegan. bg-surface y text-foreground usan variables
+     CSS que el bloque .dark{} nunca actualiza (next-themes usa data-theme, no
+     la clase .dark): el input queda blanco con texto oscuro sobre el fondo
+     oscuro de la sheet. Se corrige aquí, scoped a .zonas-sheet. */
+
+  html[data-theme="dark"] .zonas-sheet .bg-surface {
+    background-color: #1b2922 !important;
+  }
+
+  html[data-theme="dark"] .zonas-sheet .text-foreground {
+    color: #edf7f0 !important;
+  }
+
+  html[data-theme="dark"] .zonas-sheet .border-input {
+    border-color: rgba(237, 247, 240, 0.14) !important;
+  }
+
+  html[data-theme="dark"] .zonas-sheet [class~="placeholder:text-muted-foreground"]::placeholder {
+    color: rgba(237, 247, 240, 0.35) !important;
+  }
+
+  /* ── Sección «Domicilio y zonas» del panel de ajustes ─────────────────── */
+
+  /* El pulgar del switch siempre es claro — el track cambia de color, no el
+     pulgar, igual que iOS. Sin esto el override global de bg-white lo
+     oscurecía y desaparecía sobre el track. */
+  html[data-theme="dark"] .zonas-switch-thumb {
+    background-color: #f0f7f2 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  /* Selects de moneda: fondo elevado + borde sutil + flecha legible. */
+  html[data-theme="dark"] .zonas-select {
+    background-color: #1b2922 !important;
+    border-color: rgba(237, 247, 240, 0.12) !important;
+    color: #edf7f0 !important;
+    color-scheme: dark;
+  }
+
+  html[data-theme="dark"] .zonas-select:focus {
+    border-color: #67c792 !important;
+  }
+
+  /* «Añadir zona»: borde dashed verde más suave en dark, igual que el resto
+     de bordes verdes del sistema. */
+  html[data-theme="dark"] .zonas-add-btn {
+    border-color: rgba(103, 199, 146, 0.4) !important;
+    color: #9be3b4 !important;
+  }
+
+  html[data-theme="dark"] .zonas-add-btn:hover {
+    border-color: rgba(103, 199, 146, 0.65) !important;
+    background-color: #173522 !important;
+  }
+
+  /* `border-verde-300` sin clase propia dentro del panel (el track del Switch
+     apagado y otros bordes sueltos). Mismo suavizado que verde-200. */
+  html[data-theme="dark"] :is(.admin-panel, .business-panel) .border-verde-300 {
+    border-color: rgba(103, 199, 146, 0.35) !important;
+  }
+
   html[data-theme="dark"] .places-activity .activity-surface {
     background-color: transparent !important;
     box-shadow: none !important;
@@ -889,6 +979,61 @@
 
   html[data-theme="dark"] .slide-fallback svg {
     color: #9be3b4 !important;
+  }
+
+  /* ── Tarjeta «Pedidos a domicilio» en la ficha pública ──────────────────── */
+
+  /* El gradiente verde-claro a blanco queda muy luminoso sobre fondo oscuro.
+     Se reemplaza por una superficie elevada sin imagen de fondo. */
+  html[data-theme="dark"] .tarjeta-domicilio {
+    background-image: none !important;
+    background-color: #16212b !important;
+    border-color: rgba(103, 199, 146, 0.2) !important;
+  }
+
+  /* Separador de la cabecera */
+  html[data-theme="dark"] .tarjeta-domicilio-header {
+    border-color: rgba(237, 247, 240, 0.08) !important;
+  }
+
+  /* Círculo de icono: de verde-100 claro a verde profundo */
+  html[data-theme="dark"] .domicilio-icon-circle {
+    background-color: #21442e !important;
+    color: #9be3b4 !important;
+  }
+
+  /* Badge «Y recogida» */
+  html[data-theme="dark"] .domicilio-recogida-badge {
+    background-color: #1b2922 !important;
+    border-color: rgba(237, 247, 240, 0.12) !important;
+    color: rgba(237, 247, 240, 0.5) !important;
+  }
+
+  /* Píldoras de zona */
+  html[data-theme="dark"] .domicilio-zona-pill {
+    background-color: #1b2922 !important;
+    border-color: rgba(103, 199, 146, 0.2) !important;
+    color: #edf7f0 !important;
+  }
+
+  /* Chips de tiempo y mínimo */
+  html[data-theme="dark"] .domicilio-chip {
+    background-color: #1b2922 !important;
+    border-color: rgba(237, 247, 240, 0.08) !important;
+    color: #edf7f0 !important;
+  }
+
+  /* Badge «Gratis» */
+  html[data-theme="dark"] .domicilio-badge-gratis {
+    background-color: #173522 !important;
+    border-color: rgba(103, 199, 146, 0.3) !important;
+    color: #9be3b4 !important;
+  }
+
+  /* Divisor y nota al pie */
+  html[data-theme="dark"] .domicilio-nota {
+    border-color: rgba(237, 247, 240, 0.08) !important;
+    color: rgba(237, 247, 240, 0.4) !important;
   }
 
   /* `manipulation` desactiva el doble-tap-zoom y con él el retardo de ~300ms

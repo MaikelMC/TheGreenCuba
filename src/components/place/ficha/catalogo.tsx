@@ -9,7 +9,7 @@ import { cn, formatMenuPrice, menuTagFallback, menuTagStyles } from "@/lib/utils
 import { estaAgotado } from "@/lib/disponibilidad";
 import { preciosDeItem, type ConfigTasa } from "@/lib/precios";
 import type { PlaceMenu, PlacePhoto } from "@/lib/ficha/place-data";
-import type { EspecialDelDia, ExistenciasModo, MenuCategoria, ModuloFicha, TipoNegocio } from "@/lib/ficha/tipos";
+import { familiaDe, type EspecialDelDia, type ExistenciasModo, type MenuCategoria, type ModuloFicha, type TipoNegocio } from "@/lib/ficha/tipos";
 import { ordenarCategorias, COPY } from "@/config/ficha";
 
 /* ── Tokens de estilo compartidos ─────────────────────────────────────── */
@@ -39,13 +39,14 @@ function determinarVista(
   tipoNegocio: TipoNegocio | null | undefined,
   modulosActivos: ModuloFicha[],
 ): Vista {
-  if (modulosActivos.includes("servicios") || tipoNegocio === "servicios")
+  const familia = tipoNegocio ? familiaDe(tipoNegocio) : null;
+  if (modulosActivos.includes("servicios") || familia === "servicios")
     return "servicios";
-  if (modulosActivos.includes("tienda") || tipoNegocio === "tienda_mipyme")
+  if (modulosActivos.includes("tienda") || familia === "tienda_mipyme")
     return "cuadricula";
-  if (modulosActivos.includes("local") || tipoNegocio === "cafeteria_restaurante")
+  if (modulosActivos.includes("local") || familia === "cafeteria_restaurante")
     return "lista_texto";
-  if (modulosActivos.includes("domicilio") || tipoNegocio === "comida_domicilio")
+  if (modulosActivos.includes("domicilio") || familia === "comida_domicilio")
     return "lista_foto";
   return "lista_texto"; // fallback limpio sin placeholders
 }

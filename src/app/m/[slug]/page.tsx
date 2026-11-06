@@ -30,6 +30,8 @@ import {
 import { placeIcon } from "@/lib/places";
 import { tieneFuncion } from "@/lib/plans-server";
 import { configTasaDe } from "@/lib/tasa-server";
+import { configEntregaPublica } from "@/lib/entrega-server";
+import type { ResumenEntrega } from "@/components/menu/menu-header";
 import { preciosDeItem, type ConfigTasa } from "@/lib/precios";
 import { PieTasa } from "@/components/business/tasa-del-dia-card";
 import {
@@ -468,6 +470,25 @@ export default async function MenuPage({
      devuelve `null` si está desactivada o sin plan. */
   const configTasa = await configTasaDe(place.id);
 
+  /* Zonas de domicilio: solo si el negocio tiene el plan y zonas configuradas. */
+  const configEntrega = await configEntregaPublica(place.id);
+  const zonasActivas =
+    configEntrega?.costo.modo === "zonas"
+      ? configEntrega.costo.zonas.filter((z) => z.activa)
+      : [];
+  const resumenEntrega: ResumenEntrega | null =
+    zonasActivas.length > 0
+      ? (() => {
+          const minimo = Math.min(...zonasActivas.map((z) => z.monto));
+          const partes: string[] = [];
+          if (configEntrega?.domicilio) {
+            partes.push(minimo === 0 ? "Domicilio gratis" : `Domicilio desde ${minimo} ${zonasActivas[0]!.moneda}`);
+          }
+          if (configEntrega?.recogida) partes.push("Recogida en local");
+          return partes.length > 0 ? { texto: partes.join(" · ") } : null;
+        })()
+      : null;
+
   /* Agrupación estable por categoría, en el orden en que el dueño la escribió.
      `Map` conserva la inserción, así que «Entrantes» sale antes que «Postres»
      sin ordenar alfabéticamente. Las entradas sin categoría caen en un grupo
@@ -862,6 +883,7 @@ export default async function MenuPage({
               fichaHref={showFichaLink ? `/place/${place.id}` : null}
               laVerdeHref={`${siteConfig.url.replace(/\/+$/, "")}/place/${place.id}`}
               groups={chipsMenu}
+              resumenEntrega={resumenEntrega}
             />
             <CartaMenu groups={groupsUi} />
           </>
@@ -912,12 +934,10 @@ export default async function MenuPage({
     <PedidoProvider
       placeId={place.id}
       negocio={place.name}
-      /* `puedePedir` ya garantiza que hay número; el `?? ""` es para que
-         TypeScript lo sepa. */
       whatsapp={whatsappPedidos}
-      /* El catálogo de hoy, para contrastar lo que el navegador guardó. */
       productos={productos}
       configTasa={configTasa ?? undefined}
+      configEntrega={configEntrega}
     >
       {carta}
     </PedidoProvider>

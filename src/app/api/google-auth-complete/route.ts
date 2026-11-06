@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth/server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -7,6 +8,14 @@ import { TERMS_VERSION } from "@/lib/legal";
 import { safeNext } from "@/lib/session";
 
 export async function GET(request: NextRequest) {
+  /* Esta ruta es una API route: bypasea el proxy, que es quien normalmente
+     intercambia el neon_auth_session_verifier por la cookie de sesión.
+     Sin este intercambio, auth.getSession() devuelve null y nunca se crea
+     la fila en users. Se aplica aquí el mismo guard que en src/proxy.ts. */
+  if (request.nextUrl.searchParams.has("neon_auth_session_verifier")) {
+    return auth.middleware({ loginUrl: "/login" })(request);
+  }
+
   const user = await getAppUser();
   if (!user) {
     return NextResponse.redirect(new URL("/register", request.url));

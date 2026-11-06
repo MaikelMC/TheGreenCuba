@@ -162,7 +162,7 @@ export function devPlace(): UserPlace {
     /* Fixture de la ficha nueva: un tipo con dos módulos encendidos —uno
        recomendado y otro no— para que la vista previa y las pruebas manuales
        cubran el caso mixto (cafetería que también reparte). */
-    tipoNegocio: "cafeteria_restaurante",
+    tipoNegocio: "cafeteria",
     modulosActivos: ["local", "domicilio"],
     atributos: ["wifi", "terraza", "servicio_en_mesa", "para_llevar"],
     colorMarca: "#0F7A41",

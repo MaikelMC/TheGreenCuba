@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/admin-server";
 import { getPlaceById } from "@/lib/db/queries";
 import { generarVariantesPublicacion } from "@/lib/ai/publicaciones";
-import { perfilDesdePlace } from "@/lib/publicaciones";
+import {
+  MAX_PROMPT,
+  perfilDesdePlace,
+  type ProductoParaPost,
+} from "@/lib/publicaciones";
 import { ganchosRecientesDe } from "@/lib/publicaciones-server";
 import { puede } from "@/lib/plans-server";
 import { siteConfig } from "@/config/site";
@@ -76,12 +80,40 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const perfil = perfilDesdePlace(place, siteConfig.url);
+  /* Producto destacado: igual que en el panel del dueño, se busca en la carta
+     del negocio para que un id ajeno no pueda colarse en el prompt. */
+  const productoId =
+    typeof body.productoId === "string" ? body.productoId.trim() : "";
+  let producto: ProductoParaPost | undefined;
+  if (productoId) {
+    const item = place.menu.find((p) => p.id === productoId);
+    if (!item) {
+      return NextResponse.json(
+        { error: "El producto no está en la carta del negocio." },
+        { status: 400 },
+      );
+    }
+    producto = { nombre: item.name, precio: item.price?.trim() || undefined };
+  }
+
+  const prompt =
+    typeof body.prompt === "string"
+      ? body.prompt.trim().slice(0, MAX_PROMPT)
+      : "";
+
+  const perfil = perfilDesdePlace(
+    place,
+    siteConfig.url,
+    Date.now(),
+    productoId || undefined,
+  );
   const ganchosRecientes = await ganchosRecientesDe(negocioId).catch(() => []);
 
   try {
     const { variantes, provider, fallback, datosEscasos } =
       await generarVariantesPublicacion(perfil, {
+        prompt: prompt || undefined,
+        producto,
         ganchosRecientes,
         direccion: place.address || undefined,
       });

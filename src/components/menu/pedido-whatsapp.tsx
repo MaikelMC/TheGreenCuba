@@ -31,9 +31,12 @@ import {
   hrefPedido,
   mensajePedido,
   totalDePedido,
+  type EntregaPedido,
   type LineaPedido,
 } from "@/lib/pedido";
 import { aplicarTasa, formatCup, type ConfigTasa } from "@/lib/precios";
+import { calcularEntrega } from "@/lib/entrega-calculo";
+import type { EntregaConfig, ZonaEntrega } from "@/lib/ficha/entrega";
 
 /**
  * El carrito del menú público, y el enlace que lo convierte en un pedido.
@@ -189,6 +192,7 @@ export function PedidoProvider({
   whatsapp,
   productos,
   configTasa,
+  configEntrega,
   children,
 }: {
   placeId: string;
@@ -198,12 +202,29 @@ export function PedidoProvider({
   /** La carta de hoy, para refrescar lo que el navegador guardó. Ver `alDia`. */
   productos: readonly ProductoPedible[];
   configTasa?: ConfigTasa;
+  /** Config de entrega resuelta en el servidor. `null` = sin zonas. */
+  configEntrega?: EntregaConfig | null;
   children: React.ReactNode;
 }) {
   const clave = `la-verde:pedido:${placeId}`;
   const claveDir = `la-verde:pedido-direccion:${placeId}`;
   const [lineas, setLineas] = useState<LineaPedido[]>([]);
   const [direccion, setDireccion] = useState("");
+
+  /* ── Entrega ─────────────────────────────────────────────────────────── */
+  const tieneZonas =
+    configEntrega?.costo.modo === "zonas" &&
+    (configEntrega.recogida || configEntrega.domicilio);
+  const zonasActivas: ZonaEntrega[] =
+    configEntrega?.costo.modo === "zonas"
+      ? configEntrega.costo.zonas.filter((z) => z.activa)
+      : [];
+  const soloRecogida = configEntrega?.recogida && !configEntrega.domicilio;
+  const soloDomicilio = !configEntrega?.recogida && configEntrega?.domicilio;
+  const modoInicial: "recogida" | "domicilio" =
+    soloRecogida ? "recogida" : soloDomicilio ? "domicilio" : "recogida";
+  const [modoEntrega, setModoEntrega] = useState<"recogida" | "domicilio">(modoInicial);
+  const [zonaId, setZonaId] = useState<string>("");
   const [hidratado, setHidratado] = useState(false);
   const [abierto, setAbierto] = useState(false);
   const [pidiendo, setPidiendo] = useState(false);
@@ -433,6 +454,7 @@ export function PedidoProvider({
           lineas,
           direccion: direccion.trim(),
           tasaUsada: configTasa?.tasaUsdCup ?? null,
+          ...(tieneZonas ? { modoEntrega, zonaId: zonaId || undefined } : {}),
         }),
         keepalive: true,
       }).catch(() => {
@@ -448,16 +470,35 @@ export function PedidoProvider({
   const barraVisible = visible || abierto;
   const unidades = lineas.reduce((total, linea) => total + linea.qty, 0);
   const total = totalDePedido(lineas);
-  /* Total en CUP: si la tasa está activa y el total es en USD, se convierte.
-     Si hay líneas mixtas (USD+CUP), `totalDePedido` ya devuelve null; en ese
-     caso solo se muestra el CUP si todas las líneas son CUP o se pueden unir. */
+  /* Total en CUP: si la tasa está activa y el total es en USD, se convierte. */
   const totalCup =
     configTasa && total && (total.currency === "USD" || total.currency === "MLC")
       ? formatCup(aplicarTasa(total.total, configTasa.tasaUsdCup, configTasa.tasaRedondeo))
       : null;
+
+  /* Entrega calculada para el mensaje y el guardado. */
+  const entregaCalc: EntregaPedido | null = tieneZonas && configEntrega
+    ? (() => {
+        const r = calcularEntrega({
+          subtotal: total?.total ?? 0,
+          subtotalMoneda: total?.currency ?? "CUP",
+          modo: modoEntrega,
+          zonaId: zonaId || undefined,
+          entrega: configEntrega,
+          configTasa,
+        });
+        return {
+          modo: modoEntrega,
+          zonaNombre: r.zonaNombre ?? undefined,
+          costoEnvio: r.costoEnvio,
+          costoEnvioMoneda: r.costoEnvioMoneda,
+        };
+      })()
+    : null;
+
   const href = hrefPedido(
     whatsapp,
-    mensajePedido({ negocio, lineas, direccion, configTasa }),
+    mensajePedido({ negocio, lineas, direccion, configTasa, entrega: entregaCalc }),
   );
 
   return (
@@ -660,29 +701,95 @@ export function PedidoProvider({
               <DialogHeader>
                 <DialogTitle>¿Dónde te lo llevamos?</DialogTitle>
                 <DialogDescription>
-                  La dirección va dentro del mensaje. Si vas a recogerlo, déjala
-                  en blanco. El pedido también queda en el historial del negocio.
+                  La dirección va dentro del mensaje. El pedido también queda en
+                  el historial del negocio.
                 </DialogDescription>
               </DialogHeader>
 
-              {/* El color del texto y del marcador van con los tokens que el
-                  modo oscuro reescribe —`text-ink`, `bg-white`,
-                  `border-ink/10`— y no con los del sistema viejo
-                  (`bg-surface`, `text-foreground`), que solo cambian con la
-                  clase `.dark` y esta app usa el atributo `data-theme`. */}
-              <label className="block">
-                <span className="mb-[6px] block text-meta font-semibold text-ink">
-                  Dirección de entrega
-                </span>
-                <input
-                  type="text"
-                  value={direccion}
-                  onChange={(evento) => setDireccion(evento.target.value)}
-                  placeholder="Calle, número, entre calles…"
-                  maxLength={200}
-                  className="h-12 w-full rounded-2xl border border-ink/10 bg-white px-gap-sm text-body text-ink outline-none placeholder:text-ink-soft focus:border-verde-400 focus:ring-2 focus:ring-verde-400/30"
-                />
-              </label>
+              {/* ── Selector Recoger / A domicilio ──────────────────────── */}
+              {tieneZonas && configEntrega && (configEntrega.recogida || configEntrega.domicilio) && (
+                <div className="flex flex-col gap-gap-sm">
+                  {/* Chips segmentados */}
+                  {configEntrega.recogida && configEntrega.domicilio && (
+                    <div className="flex gap-gap-xs">
+                      {(["recogida", "domicilio"] as const).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setModoEntrega(m)}
+                          className={cn(
+                            "h-10 flex-1 rounded-full border font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint",
+                            modoEntrega === m
+                              ? "border-verde-400 bg-verde-400 text-verde-950"
+                              : "border-ink/10 bg-white text-ink hover:border-verde-300 hover:bg-verde-50",
+                          )}
+                        >
+                          {m === "recogida" ? "Recoger" : "A domicilio"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Selector de zona */}
+                  {modoEntrega === "domicilio" && zonasActivas.length > 0 && (
+                    <label className="block">
+                      <span className="mb-[6px] block text-meta font-semibold text-ink">
+                        ¿En qué zona estás?
+                      </span>
+                      <select
+                        value={zonaId}
+                        onChange={(e) => setZonaId(e.target.value)}
+                        className="h-12 w-full rounded-2xl border border-ink/10 bg-white px-gap-sm text-body text-ink outline-none focus:border-verde-400 focus:ring-2 focus:ring-verde-400/30"
+                      >
+                        <option value="">Elige tu zona…</option>
+                        {zonasActivas.map((z) => (
+                          <option key={z.id} value={z.id}>
+                            {z.nombre} — {z.monto === 0 ? "Gratis" : `${z.monto} ${z.moneda}`}
+                          </option>
+                        ))}
+                      </select>
+                      {/* Zona no listada */}
+                      <a
+                        href={`https://wa.me/${whatsapp}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-[6px] block text-meta text-verde-700 hover:underline"
+                      >
+                        ¿Tu zona no está? Pregunta por WhatsApp
+                      </a>
+                    </label>
+                  )}
+
+                  {/* Resumen del envío */}
+                  {entregaCalc && modoEntrega === "domicilio" && entregaCalc.costoEnvio !== null && (
+                    <div className="flex items-center justify-between rounded-xl bg-sand px-gap-sm py-[10px] font-lv-display text-small">
+                      <span className="text-ink-soft">Envío</span>
+                      <span className="font-semibold tabular-nums text-ink">
+                        {entregaCalc.costoEnvio === 0
+                          ? "Gratis"
+                          : `${entregaCalc.costoEnvio.toFixed(2)} ${entregaCalc.costoEnvioMoneda ?? ""}`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Dirección ────────────────────────────────────────────── */}
+              {(!tieneZonas || modoEntrega === "domicilio") && (
+                <label className="block">
+                  <span className="mb-[6px] block text-meta font-semibold text-ink">
+                    Dirección de entrega
+                  </span>
+                  <input
+                    type="text"
+                    value={direccion}
+                    onChange={(evento) => setDireccion(evento.target.value)}
+                    placeholder="Calle, número, entre calles…"
+                    maxLength={200}
+                    className="h-12 w-full rounded-2xl border border-ink/10 bg-white px-gap-sm text-body text-ink outline-none placeholder:text-ink-soft focus:border-verde-400 focus:ring-2 focus:ring-verde-400/30"
+                  />
+                </label>
+              )}
 
               {/* Los dos botones en una fila también en el teléfono, y a la
                   misma altura.

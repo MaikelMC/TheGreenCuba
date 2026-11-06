@@ -39,6 +39,10 @@ export interface MenuHeaderGrupo {
   id: string;
 }
 
+export interface ResumenEntrega {
+  texto: string; // «Domicilio desde 100 CUP · Gratis desde 3.000 CUP»
+}
+
 interface MenuHeaderProps {
   negocio: {
     name: string;
@@ -51,6 +55,7 @@ interface MenuHeaderProps {
   /** Página pública del negocio, absoluta, para abrir en otra pestaña. */
   laVerdeHref: string;
   groups: MenuHeaderGrupo[];
+  resumenEntrega?: ResumenEntrega | null;
 }
 
 export function MenuHeader({
@@ -58,6 +63,7 @@ export function MenuHeader({
   fichaHref,
   laVerdeHref,
   groups,
+  resumenEntrega,
 }: MenuHeaderProps) {
   const [buscando, setBuscando] = useState(false);
   const [busqueda, setBusqueda] = useState("");
@@ -360,6 +366,18 @@ export function MenuHeader({
             )}
           </div>
         </div>
+
+        {/* Chip de resumen de domicilio. Solo cuando hay zonas activas. */}
+        {resumenEntrega && !buscando && (
+          <div className="mt-[6px] flex">
+            <span className="inline-flex items-center gap-[5px] rounded-full border border-ink/10 bg-white px-gap-sm py-[5px] font-lv-display text-meta text-ink-soft/75">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0 text-verde-600">
+                <circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>
+              </svg>
+              {resumenEntrega.texto}
+            </span>
+          </div>
+        )}
 
         {/* La navegación de categorías de siempre. Solo hay chip para lo que
             tiene nombre y hay al menos dos. */}

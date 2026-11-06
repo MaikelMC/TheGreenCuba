@@ -161,6 +161,7 @@ export interface PlaceData {
 
   /* ── Ficha por tipo ────────────────────────────────────────────────── */
   tipoNegocio?: TipoNegocio | null;
+  tipoConfirmado: boolean;
   modulosActivos: ModuloFicha[];
   atributos: string[];
   colorMarca: string | null;
@@ -326,6 +327,7 @@ export function userPlaceToPlaceData(p: UserPlace): PlaceData {
     pedidosHabilitado: p.pedidosHabilitado === true,
     reservaHabilitada: p.reservaHabilitada === true,
     tipoNegocio: p.tipoNegocio ?? null,
+    tipoConfirmado: p.tipoConfirmado ?? false,
     modulosActivos: p.modulosActivos ?? [],
     atributos: p.atributos ?? [],
     colorMarca: p.colorMarca ?? null,

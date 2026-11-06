@@ -250,6 +250,7 @@ export function toUserPlace(
        ficha no pinta el bloque. `catalogoActualizadoEn` es la única fecha,
        y sale en epoch ms como el resto de fechas que llegan al navegador. */
     tipoNegocio: row.tipoNegocio ?? null,
+    tipoConfirmado: row.tipoConfirmado ?? false,
     modulosActivos: row.modulosActivos ?? [],
     atributos: row.atributos ?? [],
     colorMarca: row.colorMarca ?? null,

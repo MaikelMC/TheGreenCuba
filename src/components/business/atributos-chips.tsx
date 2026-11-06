@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { ATRIBUTOS, type AtributoClave } from "@/lib/ficha/atributos";
-import type { TipoNegocio } from "@/lib/ficha/tipos";
+import { familiaDe, type TipoNegocio } from "@/lib/ficha/tipos";
 import { resolveCategoryIcon } from "@/lib/category-icons";
 
 /**
@@ -34,7 +34,7 @@ export function AtributosChips({
 
   /* Orden: atributos sugeridos para este tipo primero, el resto después. */
   const sugeridos = tipoNegocio
-    ? ATRIBUTOS.filter((a) => (a.tipos as readonly string[]).includes(tipoNegocio)).map((a) => a.clave)
+    ? ATRIBUTOS.filter((a) => (a.tipos as readonly string[]).includes(familiaDe(tipoNegocio))).map((a) => a.clave)
     : [];
   const ordenados = [
     ...ATRIBUTOS.filter((a) => sugeridos.includes(a.clave)),

@@ -32,6 +32,14 @@ export const pedidos = pgTable(
     lineas: jsonb("lineas").$type<LineaPedido[]>().notNull(),
     /** Dónde se entrega. Vacío o `null` = el cliente lo recoge. */
     direccion: text("direccion"),
+    /** «recogida» o «domicilio». `null` si el negocio no tenía zonas configuradas. */
+    modoEntrega: text("modo_entrega", { enum: ["recogida", "domicilio"] }),
+    /** Copia del nombre de la zona en el momento del pedido. */
+    zonaNombre: text("zona_nombre"),
+    /** Costo del envío aplicado. `null` si era recogida o sin zonas. */
+    costoEnvio: doublePrecision("costo_envio"),
+    /** Moneda del costo de envío. */
+    costoEnvioMoneda: text("costo_envio_moneda"),
     /** Tasa CUP/USD con la que se calcularon los precios al hacer el pedido.
         `null` si el negocio no tenía la tasa activa en ese momento. */
     tasaUsada: doublePrecision("tasa_usada"),

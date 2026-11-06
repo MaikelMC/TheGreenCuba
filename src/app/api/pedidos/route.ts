@@ -8,6 +8,8 @@ import { rateLimit } from "@/lib/rate-limit";
 import { tieneFuncion } from "@/lib/plans-server";
 import { generateId } from "@/lib/utils";
 import type { LineaPedido } from "@/lib/pedido";
+import { calcularEntrega } from "@/lib/entrega-calculo";
+import type { EntregaConfig } from "@/lib/ficha/entrega";
 
 /**
  * El historial de pedidos del catálogo.
@@ -139,6 +141,10 @@ export async function POST(req: NextRequest) {
       menu: places.menu,
       pedidosWhatsapp: places.pedidosWhatsapp,
       whatsapp: places.whatsapp,
+      entrega: places.entrega,
+      tasaUsdCup: places.tasaUsdCup,
+      tasaRedondeo: places.tasaRedondeo,
+      tasaActiva: places.tasaActiva,
     })
     .from(places)
     .where(eq(places.id, negocioId))
@@ -189,6 +195,46 @@ export async function POST(req: NextRequest) {
       ? body.tasaUsada
       : null;
 
+  /* ── Entrega: recalcular en el servidor, no confiar en el cliente ────── */
+  let modoEntrega: "recogida" | "domicilio" | null = null;
+  let zonaNombre: string | null = null;
+  let costoEnvio: number | null = null;
+  let costoEnvioMoneda: string | null = null;
+
+  const entregaConfig = place.entrega as EntregaConfig | null;
+  const modoCliente = body.modoEntrega;
+  const zonaIdCliente = typeof body.zonaId === "string" ? body.zonaId.trim().slice(0, 64) : undefined;
+
+  if (
+    entregaConfig &&
+    entregaConfig.costo.modo === "zonas" &&
+    await tieneFuncion(negocioId, "zonas_domicilio") &&
+    (modoCliente === "recogida" || modoCliente === "domicilio")
+  ) {
+    modoEntrega = modoCliente;
+    // La moneda dominante del carrito (primera línea, como en totalDePedido)
+    const subtotalMoneda = lineas[0]?.currency ?? "CUP";
+    const subtotal = lineas.reduce((acc, l) => {
+      const p = Number(/(\d+(?:[.,]\d+)?)/.exec(l.price)?.[1]?.replace(",", "."));
+      return acc + (Number.isFinite(p) ? p * l.qty : 0);
+    }, 0);
+    const configTasa =
+      place.tasaActiva && place.tasaUsdCup
+        ? { tasaUsdCup: place.tasaUsdCup, tasaRedondeo: place.tasaRedondeo ?? 5, tasaActualizadaEn: null }
+        : null;
+    const resultado = calcularEntrega({
+      subtotal,
+      subtotalMoneda,
+      modo: modoEntrega,
+      zonaId: zonaIdCliente,
+      entrega: entregaConfig,
+      configTasa,
+    });
+    zonaNombre = resultado.zonaNombre;
+    costoEnvio = resultado.costoEnvio;
+    costoEnvioMoneda = resultado.costoEnvioMoneda;
+  }
+
   await db
     .insert(pedidos)
     .values({
@@ -196,6 +242,10 @@ export async function POST(req: NextRequest) {
       placeId: negocioId,
       lineas,
       direccion: texto(body.direccion, MAX_DIRECCION),
+      modoEntrega,
+      zonaNombre,
+      costoEnvio,
+      costoEnvioMoneda,
       tasaUsada,
     })
     /* Reintento del mismo clic: la fila ya está y no se duplica. */
@@ -225,6 +275,10 @@ export async function GET(req: NextRequest) {
       id: pedidos.id,
       lineas: pedidos.lineas,
       direccion: pedidos.direccion,
+      modoEntrega: pedidos.modoEntrega,
+      zonaNombre: pedidos.zonaNombre,
+      costoEnvio: pedidos.costoEnvio,
+      costoEnvioMoneda: pedidos.costoEnvioMoneda,
       estado: pedidos.estado,
       tasaUsada: pedidos.tasaUsada,
       createdAt: pedidos.createdAt,

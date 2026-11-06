@@ -10,24 +10,129 @@
  * negocio y solo siembra valores por defecto; los módulos son los bloques que
  * la ficha enciende uno a uno. Así una cafetería con reparto (`local` +
  * `domicilio`) no necesita un tipo compuesto que no existe en la vida real.
+ *
+ * **Tipos y familias.** Hay 16 tipos específicos. Cada uno pertenece a una de
+ * las 4 familias (`FamiliaNegocio`), que son los valores que gobiernan el
+ * comportamiento heredado: vista del catálogo, módulos sugeridos, acciones por
+ * defecto y atributos. Usa `familiaDe(tipo)` para obtener la familia.
  */
 
-/** Los cuatro tipos del alta. El orden es el del selector. */
-export const TIPOS_NEGOCIO = [
+/* ── Familias (los 4 valores viejos, ahora como agrupación de comportamiento) */
+
+export const FAMILIAS_NEGOCIO = [
   "comida_domicilio",
   "cafeteria_restaurante",
   "tienda_mipyme",
   "servicios",
 ] as const;
 
+export type FamiliaNegocio = (typeof FAMILIAS_NEGOCIO)[number];
+
+/* ── Los 15 tipos específicos más «otro» = 16 en total ────────────────────── */
+
+export const TIPOS_NEGOCIO = [
+  "mipyme",
+  "cafeteria",
+  "restaurante",
+  "comida_domicilio",
+  "dulceria",
+  "bar",
+  "belleza",
+  "hospedaje",
+  "servicio_tecnico",
+  "taller",
+  "ropa",
+  "ferreteria",
+  "clases",
+  "transporte",
+  "eventos",
+  "otro",
+] as const;
+
 export type TipoNegocio = (typeof TIPOS_NEGOCIO)[number];
 
-/** Cómo se llama el tipo en el panel. */
+/** Mapeo de tipo a familia. Governa vista del catálogo, módulos y acciones. */
+const FAMILIA_DE: Record<TipoNegocio, FamiliaNegocio> = {
+  mipyme:           "tienda_mipyme",
+  cafeteria:        "cafeteria_restaurante",
+  restaurante:      "cafeteria_restaurante",
+  comida_domicilio: "comida_domicilio",
+  dulceria:         "comida_domicilio",
+  bar:              "cafeteria_restaurante",
+  belleza:          "servicios",
+  hospedaje:        "servicios",
+  servicio_tecnico: "servicios",
+  taller:           "servicios",
+  ropa:             "tienda_mipyme",
+  ferreteria:       "tienda_mipyme",
+  clases:           "servicios",
+  transporte:       "servicios",
+  eventos:          "servicios",
+  otro:             "servicios",
+};
+
+export function familiaDe(tipo: TipoNegocio): FamiliaNegocio {
+  return FAMILIA_DE[tipo];
+}
+
+/** Nombre completo del tipo, para el panel y la administración. */
 export const TIPO_NEGOCIO_LABEL: Record<TipoNegocio, string> = {
+  mipyme:           "Mipyme de alimentos y productos varios",
+  cafeteria:        "Cafetería",
+  restaurante:      "Restaurante o paladar",
   comida_domicilio: "Comida a domicilio",
-  cafeteria_restaurante: "Cafetería / restaurante",
-  tienda_mipyme: "Tienda / mipyme",
-  servicios: "Servicios",
+  dulceria:         "Dulcería, panadería o repostería",
+  bar:              "Bar o club",
+  belleza:          "Barbería, peluquería o salón de belleza",
+  hospedaje:        "Renta de habitaciones u hostal",
+  servicio_tecnico: "Servicios técnicos",
+  taller:           "Taller mecánico o ponchera",
+  ropa:             "Tienda de ropa, calzado o accesorios",
+  ferreteria:       "Ferretería o materiales",
+  clases:           "Gimnasio, academia o clases",
+  transporte:       "Transporte, mensajería o taxis",
+  eventos:          "Fotografía, eventos y decoración",
+  otro:             "Otro negocio o servicio",
+};
+
+/** Nombre corto para las celdas de la cuadrícula de elección de tipo. */
+export const TIPO_NEGOCIO_CORTO: Record<TipoNegocio, string> = {
+  mipyme:           "Mipyme",
+  cafeteria:        "Cafetería",
+  restaurante:      "Restaurante",
+  comida_domicilio: "Comida a domicilio",
+  dulceria:         "Dulcería",
+  bar:              "Bar o club",
+  belleza:          "Barbería o salón",
+  hospedaje:        "Hostal",
+  servicio_tecnico: "Servicios técnicos",
+  taller:           "Taller",
+  ropa:             "Tienda de ropa",
+  ferreteria:       "Ferretería",
+  clases:           "Clases o gimnasio",
+  transporte:       "Transporte",
+  eventos:          "Fotografía o eventos",
+  otro:             "Otro",
+};
+
+/** Nombre del icono de Lucide para cada tipo. */
+export const TIPO_NEGOCIO_ICONO: Record<TipoNegocio, string> = {
+  mipyme:           "Store",
+  cafeteria:        "Coffee",
+  restaurante:      "UtensilsCrossed",
+  comida_domicilio: "Bike",
+  dulceria:         "CakeSlice",
+  bar:              "Wine",
+  belleza:          "Scissors",
+  hospedaje:        "BedDouble",
+  servicio_tecnico: "Wrench",
+  taller:           "Car",
+  ropa:             "Shirt",
+  ferreteria:       "Hammer",
+  clases:           "Dumbbell",
+  transporte:       "Truck",
+  eventos:          "Camera",
+  otro:             "Briefcase",
 };
 
 /** Valida en la frontera lo que llega por HTTP. */
@@ -66,28 +171,6 @@ export function normalizarModulos(value: unknown): ModuloFicha[] {
   }
   return [...vistos];
 }
-
-/**
- * Módulos que el tipo sugiere al darse de alta.
- *
- * Es solo el punto de partida: el dueño puede encender cualquiera de los
- * cuatro, y apagar el recomendado. Ninguno de estos valores se escribe solo en
- * fichas existentes (ver el backfill del tipo).
- */
-export const MODULOS_RECOMENDADOS_POR_TIPO: Record<TipoNegocio, readonly ModuloFicha[]> = {
-  comida_domicilio: ["domicilio"],
-  cafeteria_restaurante: ["local"],
-  tienda_mipyme: ["tienda"],
-  servicios: ["servicios"],
-};
-
-/** El título de la sección de catálogo cuando el dueño no escribe uno. */
-export const TITULO_CATALOGO_POR_TIPO: Record<TipoNegocio, string> = {
-  comida_domicilio: "Lo que ofrece",
-  cafeteria_restaurante: "Menú",
-  tienda_mipyme: "Productos",
-  servicios: "Servicios y precios",
-};
 
 /** Encuadre de la portada: qué parte de la foto se ve al recortarla. */
 export const PORTADA_ENCUADRES = ["centro", "arriba", "abajo"] as const;

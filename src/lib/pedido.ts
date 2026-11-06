@@ -70,11 +70,21 @@ export function totalDePedido(
  * «Pedido desde La Verde», que es lo que le dice al dueño por dónde le entró el
  * pedido y de dónde salió el número.
  */
+export interface EntregaPedido {
+  modo: "recogida" | "domicilio";
+  /** Nombre de la zona elegida. Ausente si es recogida. */
+  zonaNombre?: string;
+  /** Costo del envío, ya calculado. `null` = a consultar. */
+  costoEnvio: number | null;
+  costoEnvioMoneda: string | null;
+}
+
 export function mensajePedido({
   negocio,
   lineas,
   direccion,
   configTasa,
+  entrega,
 }: {
   negocio: string;
   lineas: readonly LineaPedido[];
@@ -82,6 +92,8 @@ export function mensajePedido({
   direccion?: string;
   /** Si hay tasa activa, se añade el equivalente en CUP en cada línea y en el total. */
   configTasa?: ConfigTasa | null;
+  /** Datos de entrega calculados. Ausente = sin selector de zona (comportamiento anterior). */
+  entrega?: EntregaPedido | null;
 }): string {
   const cuerpo = lineas.map((linea) => {
     const precio = formatMenuPrice(linea.price, linea.currency);
@@ -101,22 +113,48 @@ export function mensajePedido({
   });
 
   const partes = [`*Pedido — ${negocio}*`, "", ...cuerpo];
-  const entrega = direccion?.trim();
-  if (entrega) partes.push("", `*Dirección:* ${entrega}`);
-  const total = totalDePedido(lineas);
-  if (total) {
-    if (configTasa && (total.currency === "USD" || total.currency === "MLC")) {
-      const totalCup = formatCup(aplicarTasa(total.total, configTasa.tasaUsdCup, configTasa.tasaRedondeo));
-      partes.push(
-        "",
-        `*Total: ${total.total.toFixed(2)} ${currencyLabel(total.currency)} · ${totalCup}*`,
-        `_Tasa usada: ${new Intl.NumberFormat("en-US").format(configTasa.tasaUsdCup)} CUP por USD_`,
-      );
+
+  /* ── Entrega ─────────────────────────────────────────────────────────── */
+  if (entrega) {
+    if (entrega.modo === "recogida") {
+      partes.push("", "*Entrega:* Paso a recoger");
     } else {
-      partes.push(
-        "",
-        `*Total: ${total.total.toFixed(2)} ${currencyLabel(total.currency)}*`,
-      );
+      const zonaTxt = entrega.zonaNombre ? ` — ${entrega.zonaNombre}` : "";
+      partes.push("", `*Entrega:* A domicilio${zonaTxt}`);
+    }
+  }
+  const dir = direccion?.trim();
+  if (dir) partes.push(`*Dirección:* ${dir}`);
+
+  const total = totalDePedido(lineas);
+  if (total || (entrega && entrega.costoEnvio !== null)) {
+    partes.push("");
+    if (total) {
+      partes.push(`Subtotal: ${total.total.toFixed(2)} ${currencyLabel(total.currency)}`);
+    }
+    if (entrega && entrega.modo === "domicilio") {
+      if (entrega.costoEnvio === null) {
+        partes.push("Envío: a consultar");
+      } else if (entrega.costoEnvio === 0) {
+        partes.push("Envío: gratis");
+      } else {
+        partes.push(`Envío: ${entrega.costoEnvio.toFixed(2)} ${entrega.costoEnvioMoneda ?? ""}`);
+      }
+    }
+    if (total) {
+      const totalConEnvio =
+        entrega?.modo === "domicilio" && entrega.costoEnvio != null && entrega.costoEnvioMoneda === total.currency
+          ? total.total + entrega.costoEnvio
+          : total.total;
+      if (configTasa && (total.currency === "USD" || total.currency === "MLC")) {
+        const totalCup = formatCup(aplicarTasa(totalConEnvio, configTasa.tasaUsdCup, configTasa.tasaRedondeo));
+        partes.push(
+          `*Total: ${totalConEnvio.toFixed(2)} ${currencyLabel(total.currency)} · ${totalCup}*`,
+          `_Tasa usada: ${new Intl.NumberFormat("en-US").format(configTasa.tasaUsdCup)} CUP por USD_`,
+        );
+      } else {
+        partes.push(`*Total: ${totalConEnvio.toFixed(2)} ${currencyLabel(total.currency)}*`);
+      }
     }
   }
   partes.push("", "Pedido desde La Verde");

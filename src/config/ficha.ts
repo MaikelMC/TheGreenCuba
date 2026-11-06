@@ -11,6 +11,8 @@
 
 import {
   TIPOS_NEGOCIO,
+  familiaDe,
+  type FamiliaNegocio,
   type MenuCategoria,
   type ModuloFicha,
   type TipoNegocio,
@@ -110,32 +112,35 @@ export const COPY = {
   quedan: (n: number) => `Quedan ${n}`,
 } as const;
 
-/** El título del catálogo cuando el dueño no escribe uno. */
-export const TITULO_CATALOGO_POR_TIPO: Record<TipoNegocio, string> = {
-  comida_domicilio: "Lo que ofrece",
+/**
+ * El título del catálogo cuando el dueño no escribe uno.
+ * Keyed por familia para que todos los tipos de una misma familia compartan texto.
+ */
+export const TITULO_CATALOGO_POR_FAMILIA: Record<FamiliaNegocio, string> = {
+  comida_domicilio:    "Lo que ofrece",
   cafeteria_restaurante: "Menú",
-  tienda_mipyme: "Productos",
-  servicios: "Servicios y precios",
+  tienda_mipyme:       "Productos",
+  servicios:           "Servicios y precios",
 };
 
 /** Los módulos que se proponen al dar de alta, no los que se imponen. */
-export const MODULOS_RECOMENDADOS_POR_TIPO: Record<
-  TipoNegocio,
+export const MODULOS_RECOMENDADOS_POR_FAMILIA: Record<
+  FamiliaNegocio,
   readonly ModuloFicha[]
 > = {
-  comida_domicilio: ["domicilio"],
+  comida_domicilio:    ["domicilio"],
   cafeteria_restaurante: ["local"],
-  tienda_mipyme: ["tienda"],
-  servicios: ["servicios"],
+  tienda_mipyme:       ["tienda"],
+  servicios:           ["servicios"],
 };
 
 /**
- * La fila de acciones de cada tipo al empezar.
+ * La fila de acciones de cada familia al empezar.
  *
  * Se filtra después por los datos: un negocio sin teléfono no pinta «Llamar»
  * aunque esté aquí. Y siempre es solo el punto de partida: el dueño reordena.
  */
-export const ACCIONES_POR_DEFECTO: Record<TipoNegocio, Acciones> = {
+export const ACCIONES_POR_DEFECTO: Record<FamiliaNegocio, Acciones> = {
   comida_domicilio: {
     fila: ["como_llegar", "whatsapp", "llamar", "compartir"],
     barra: ["pedir", "como_llegar"],
@@ -181,7 +186,7 @@ export function tituloCatalogo(
 ): string {
   const escrito = propio?.trim();
   if (escrito) return escrito;
-  return tipo ? TITULO_CATALOGO_POR_TIPO[tipo] : TITULO_CATALOGO_SIN_TIPO;
+  return tipo ? TITULO_CATALOGO_POR_FAMILIA[familiaDe(tipo)] : TITULO_CATALOGO_SIN_TIPO;
 }
 
 /** Las categorías de la carta, ordenadas por su campo `orden`. */

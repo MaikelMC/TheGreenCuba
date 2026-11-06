@@ -33,7 +33,7 @@ test("los campos nuevos sobreviven a UserPlace → PlaceData", () => {
   const place = userPlaceToPlaceData(
     basePlace({
       shortDescription: "Tostado propio",
-      tipoNegocio: "cafeteria_restaurante",
+      tipoNegocio: "cafeteria",
       modulosActivos: ["local", "domicilio"],
       atributos: ["wifi", "terraza"],
       colorMarca: "#0F7A41",
@@ -71,7 +71,7 @@ test("los campos nuevos sobreviven a UserPlace → PlaceData", () => {
   );
 
   assert.equal(place.shortDescription, "Tostado propio");
-  assert.equal(place.tipoNegocio, "cafeteria_restaurante");
+  assert.equal(place.tipoNegocio, "cafeteria");
   assert.deepEqual(place.modulosActivos, ["local", "domicilio"]);
   assert.deepEqual(place.atributos, ["wifi", "terraza"]);
   assert.equal(place.colorMarca, "#0F7A41");
