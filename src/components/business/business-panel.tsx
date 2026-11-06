@@ -61,6 +61,7 @@ import { AsistenteCard } from "@/components/business/asistente-card";
 import { EquipoView } from "@/components/business/equipo-view";
 import { SeguidoresCard } from "@/components/business/seguidores-card";
 import { AvisoTasaVieja, TasaDelDiaCard } from "@/components/business/tasa-del-dia-card";
+import { KynariCard } from "@/components/business/kynari-card";
 import {
   BusinessSwitcher,
   type NegocioPanel,
@@ -558,7 +559,7 @@ function DashboardView({
       {/* Vista previa de la ficha. Usa el hero oscuro del rediseño y **no** la
           clase `ficha-preview`: su override de tema oscuro repintaría este
           degradado. El blanco y los verdes claros funcionan en los dos temas. */}
-      <section className="panel-hero relative mb-gap-lg overflow-hidden rounded-[26px] bg-[linear-gradient(116deg,#0e2a1e_0%,#153e2c_72%,#1d5238_100%)] p-gap-md text-white shadow-card ring-1 ring-white/5 sm:p-gap-lg">
+      <section className="panel-hero relative mb-gap-lg overflow-hidden rounded-[26px] bg-[linear-gradient(116deg,#0e2a1e_0%,#153e2c_72%,#1d5238_100%)] p-gap-md text-white shadow-card ring-1 ring-white/[0.03] sm:p-gap-lg">
         {/* Adornos fuera de la caja: profundidad sin imágenes, que en datos
             móviles se pagan. */}
         <span
@@ -847,6 +848,8 @@ function DashboardView({
           url={menuUrl}
           sinMarca={funciones.includes("qr_sin_marca")}
         />
+
+        <KynariCard />
 
         {/* Un trabajador no paga ni elige plan: la tarjeta sería un botón que no
             lleva a ningún sitio. La sección «Planes» tampoco está en su barra. */}
