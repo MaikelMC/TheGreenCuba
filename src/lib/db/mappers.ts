@@ -270,6 +270,10 @@ export function toUserPlace(
     catalogoFuente: row.catalogoFuente,
     resenaDestacadaId: row.resenaDestacadaId ?? null,
     plantillaPedido: row.plantillaPedido ?? null,
+    tasaUsdCup: row.tasaUsdCup ?? null,
+    tasaActualizadaEn: row.tasaActualizadaEn ? row.tasaActualizadaEn.getTime() : null,
+    tasaRedondeo: row.tasaRedondeo,
+    tasaActiva: row.tasaActiva,
     aiTags: row.aiTags ?? undefined,
     priceLabel: row.priceLabel ?? undefined,
     /* Las fotos viven en su propia tabla y llegan ya agrupadas por quien

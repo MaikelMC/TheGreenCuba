@@ -41,6 +41,11 @@ export interface NegocioSnapshotData {
       agotadoHasta?: number | null;
       image?: string;
     }[];
+    tasaUsdCup?: number | null;
+    tasaRedondeo?: number;
+    tasaActiva?: boolean;
+    /** Epoch ms. */
+    tasaActualizadaEn?: number | null;
   };
   stats: { saved: number; reviews: number; photos: number; aiMatches: number };
   visitas: VisitasPanel;
@@ -122,6 +127,10 @@ export function construirNegocioSnapshot({
         agotadoHasta: item.agotadoHasta ?? null,
         image: item.image,
       })),
+      tasaUsdCup: place.tasaUsdCup ?? null,
+      tasaRedondeo: place.tasaRedondeo,
+      tasaActiva: place.tasaActiva,
+      tasaActualizadaEn: place.tasaActualizadaEn ?? null,
     },
     stats,
     visitas,

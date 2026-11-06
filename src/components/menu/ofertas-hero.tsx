@@ -4,6 +4,8 @@ import type { UserPlaceMenuItem, UserPlaceOferta } from "@/lib/places-store";
 import { BotonAgregar } from "@/components/menu/pedido-whatsapp";
 import { OfertasCarrusel } from "@/components/menu/ofertas-carrusel";
 import { formatMenuPrice, slugify } from "@/lib/utils";
+import { aplicarTasa, formatCup, type ConfigTasa } from "@/lib/precios";
+import { precioDeLinea } from "@/lib/pedido";
 
 /**
  * Las ofertas vivas del negocio, como bloque destacado de la carta.
@@ -43,7 +45,13 @@ const fechaCorta = new Intl.DateTimeFormat("es-CU", {
   timeZone: "America/Havana",
 });
 
-export function OfertasHero({ ofertas }: { ofertas: OfertaDestacada[] }) {
+export function OfertasHero({
+  ofertas,
+  configTasa = null,
+}: {
+  ofertas: OfertaDestacada[];
+  configTasa?: ConfigTasa | null;
+}) {
   if (ofertas.length === 0) return null;
 
   /* La foto mide ~40 % de la tarjeta, que no pasa de 680 px de ancho. */
@@ -151,18 +159,41 @@ export function OfertasHero({ ofertas }: { ofertas: OfertaDestacada[] }) {
 
                 <div className="mt-auto flex flex-wrap items-center gap-gap-xs pt-[6px]">
                   {precios ? (
-                    <span className="flex items-baseline gap-gap-xs">
-                      <span className="font-lv-display text-meta text-ink-soft/75 line-through">
-                        {formatMenuPrice(precios.de, currency)}
+                    <span className="flex flex-col">
+                      <span className="flex items-baseline gap-gap-xs">
+                        <span className="font-lv-display text-meta text-ink-soft/75 line-through">
+                          {formatMenuPrice(precios.de, currency)}
+                        </span>
+                        <span className="font-lv-display text-small font-semibold text-verde-600">
+                          {formatMenuPrice(precios.por, currency)}
+                        </span>
                       </span>
-                      <span className="font-lv-display text-small font-semibold text-verde-600">
-                        {formatMenuPrice(precios.por, currency)}
-                      </span>
+                      {/* CUP del precio de oferta */}
+                      {configTasa && currency === "USD" && (() => {
+                        const val = precioDeLinea(precios.por);
+                        if (val === null) return null;
+                        return (
+                          <span className="tabular-nums text-[11px] leading-none text-muted-foreground">
+                            {formatCup(aplicarTasa(val, configTasa.tasaUsdCup, configTasa.tasaRedondeo))}
+                          </span>
+                        );
+                      })()}
                     </span>
                   ) : (
                     item.price && (
-                      <span className="font-lv-display text-body font-bold leading-snug text-ink sm:text-h3">
-                        {formatMenuPrice(item.price, currency)}
+                      <span className="flex flex-col">
+                        <span className="font-lv-display text-body font-bold leading-snug text-ink sm:text-h3">
+                          {formatMenuPrice(item.price, currency)}
+                        </span>
+                        {configTasa && currency === "USD" && (() => {
+                          const val = precioDeLinea(item.price);
+                          if (val === null) return null;
+                          return (
+                            <span className="tabular-nums text-[11px] leading-none text-muted-foreground">
+                              {formatCup(aplicarTasa(val, configTasa.tasaUsdCup, configTasa.tasaRedondeo))}
+                            </span>
+                          );
+                        })()}
                       </span>
                     )
                   )}

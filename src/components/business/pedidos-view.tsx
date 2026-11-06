@@ -34,6 +34,7 @@ interface Pedido {
   lineas: LineaPedido[];
   direccion: string | null;
   estado: EstadoPedido;
+  tasaUsada?: number | null;
   createdAt: string;
 }
 
@@ -280,10 +281,17 @@ export function PedidosView({
                   )}
 
                   <div className="mt-gap-sm flex flex-wrap items-center justify-between gap-gap-xs border-t border-ink/5 pt-gap-sm">
-                    <span className="font-lv-display text-small font-semibold text-ink">
-                      {total
-                        ? `${total.total.toFixed(2)} ${currencyLabel(total.currency)}`
-                        : "Total a convenir"}
+                    <span className="flex flex-col">
+                      <span className="font-lv-display text-small font-semibold text-ink">
+                        {total
+                          ? `${total.total.toFixed(2)} ${currencyLabel(total.currency)}`
+                          : "Total a convenir"}
+                      </span>
+                      {pedido.tasaUsada && (
+                        <span className="text-meta tabular-nums text-muted-foreground">
+                          Tasa: {new Intl.NumberFormat("en-US").format(pedido.tasaUsada)} CUP/USD
+                        </span>
+                      )}
                     </span>
 
                     {pedido.estado === "nuevo" && (

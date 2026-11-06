@@ -9,6 +9,7 @@
 
 import { whatsappHref } from "./contact-links";
 import { currencyLabel, formatMenuPrice } from "./utils";
+import { aplicarTasa, formatCup, type ConfigTasa } from "./precios";
 
 /** Una línea del carrito: un producto y cuántos van. */
 export interface LineaPedido {
@@ -73,14 +74,24 @@ export function mensajePedido({
   negocio,
   lineas,
   direccion,
+  configTasa,
 }: {
   negocio: string;
   lineas: readonly LineaPedido[];
   /** Dónde se entrega. Vacía o en blanco = sin línea en el mensaje. */
   direccion?: string;
+  /** Si hay tasa activa, se añade el equivalente en CUP en cada línea y en el total. */
+  configTasa?: ConfigTasa | null;
 }): string {
   const cuerpo = lineas.map((linea) => {
     const precio = formatMenuPrice(linea.price, linea.currency);
+    if (configTasa && linea.currency === "USD") {
+      const val = precioDeLinea(linea.price);
+      const cup = val !== null
+        ? ` (${formatCup(aplicarTasa(val, configTasa.tasaUsdCup, configTasa.tasaRedondeo))})`
+        : "";
+      return `• ${linea.name} x${linea.qty}${precio ? ` — ${precio}${cup}` : ""}`;
+    }
     return `• ${linea.name} x${linea.qty}${precio ? ` — ${precio}` : ""}`;
   });
 
@@ -89,10 +100,19 @@ export function mensajePedido({
   if (entrega) partes.push("", `*Dirección:* ${entrega}`);
   const total = totalDePedido(lineas);
   if (total) {
-    partes.push(
-      "",
-      `*Total: ${total.total.toFixed(2)} ${currencyLabel(total.currency)}*`,
-    );
+    if (configTasa && total.currency === "USD") {
+      const totalCup = formatCup(aplicarTasa(total.total, configTasa.tasaUsdCup, configTasa.tasaRedondeo));
+      partes.push(
+        "",
+        `*Total: ${total.total.toFixed(2)} ${currencyLabel(total.currency)} · ${totalCup}*`,
+        `_Tasa usada: ${new Intl.NumberFormat("en-US").format(configTasa.tasaUsdCup)} CUP por USD_`,
+      );
+    } else {
+      partes.push(
+        "",
+        `*Total: ${total.total.toFixed(2)} ${currencyLabel(total.currency)}*`,
+      );
+    }
   }
   partes.push("", "Pedido desde La Verde");
   return partes.join("\n");

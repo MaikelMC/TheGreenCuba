@@ -45,6 +45,8 @@ import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
 import { limiteDe, type Funcion } from "@/lib/plans";
 import { registrarGuarda } from "@/lib/unsaved-guard";
 import type { UserPlace, UserPlaceMenuItem } from "@/lib/places-store";
+import { aplicarTasa, formatCup, type ConfigTasa } from "@/lib/precios";
+import { precioDeLinea } from "@/lib/pedido";
 
 /* La clave con la que se agrupa lo que no tiene categoría. Un centinela y no
    «Sin categoría» a secas: ese texto es una categoría que el dueño puede
@@ -117,10 +119,12 @@ function contarCambios(
 export function CatalogoView({
   place,
   funciones,
+  configTasa = null,
   onVerPlanes,
 }: {
   place: UserPlace;
   funciones: Funcion[];
+  configTasa?: ConfigTasa | null;
   onVerPlanes: () => void;
 }) {
   const router = useRouter();
@@ -934,6 +938,7 @@ export function CatalogoView({
                       onEliminar={eliminar}
                       onElegirFoto={elegirFoto}
                       onSetEstado={setEstado}
+                      configTasa={configTasa}
                     />
                   ))}
                 </div>
@@ -1036,6 +1041,7 @@ function FilaProducto({
   listaCategorias,
   categoriasUsadas,
   sinNombre,
+  configTasa = null,
   onPatch,
   onEliminar,
   onElegirFoto,
@@ -1053,6 +1059,7 @@ function FilaProducto({
   categoriasUsadas: string[];
   /** Sin nombre: se marca en rojo para que el aviso de guardar diga cuál es. */
   sinNombre: boolean;
+  configTasa?: ConfigTasa | null;
   onPatch: (id: string, campos: Partial<UserPlaceMenuItem>) => void;
   onEliminar: (id: string) => void;
   onElegirFoto: (id: string) => void;
@@ -1196,7 +1203,8 @@ function FilaProducto({
               distintos. La moneda no lleva `INPUT` a propósito: ese trae
               `w-full`, y un ancho de campo completo en esta fila (`flex-wrap`)
               le daba un renglón propio con solo la etiqueta más larga. */}
-          <div className="flex shrink-0 items-center gap-gap-xs">
+          <div className="flex shrink-0 flex-col gap-[2px]">
+            <div className="flex items-center gap-gap-xs">
             <Input
               type="text"
               value={item.price}
@@ -1233,6 +1241,26 @@ function FilaProducto({
                 <SelectItem value="EUR">EUR</SelectItem>
               </SelectContent>
             </Select>
+            </div>
+            {/* Preview CUP en vivo */}
+            {configTasa && item.currency === "USD" && (() => {
+              const val = precioDeLinea(item.price);
+              if (val !== null) {
+                return (
+                  <span className="text-[11px] tabular-nums text-muted-foreground leading-none">
+                    = {formatCup(aplicarTasa(val, configTasa.tasaUsdCup, configTasa.tasaRedondeo))}
+                  </span>
+                );
+              }
+              if (item.price.trim()) {
+                return (
+                  <span className="text-[11px] text-muted-foreground leading-none">
+                    Escribe solo el número para ver en CUP
+                  </span>
+                );
+              }
+              return null;
+            })()}
           </div>
           {item.tag && (
             <span

@@ -337,6 +337,13 @@
       "when": 1793661598245,
       "tag": "0047_chubby_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1793918081278,
+      "tag": "0048_normal_zeigeist",
+      "breakpoints": true
     }
   ]
 }

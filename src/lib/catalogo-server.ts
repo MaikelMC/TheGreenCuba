@@ -74,6 +74,35 @@ function claves<T extends string>(valor: unknown, validas: readonly T[]): T[] | 
   ];
 }
 
+/**
+ * Lista de funciones guardada, unida con los defaults de fábrica.
+ *
+ * `claves()` devuelve `null` si el valor no es un array → cae al factory.
+ * Si es un array, puede que le falten funciones añadidas al factory después
+ * del último guardado del admin: se añaden automáticamente. Las que el admin
+ * quitó explícitamente (están en factory pero no en stored) **no** vuelven.
+ *
+ * Para eso se guarda la diferencia: `factory - stored` = las que el admin
+ * quitó. Solo se añaden las que están en factory Y en stored, más las nuevas
+ * del factory que no existían cuando se guardó (no estaban en ninguno de los
+ * dos lados en ese momento — no hay forma de saberlo, así que se añaden todas
+ * las del factory que falten). Esto es lo que resuelve el bug: una función nueva
+ * en factory aparece en todos los planes guardados sin que el admin tenga que
+ * re-guardar.
+ */
+function funcionesMerge<T extends string>(
+  valor: unknown,
+  validas: readonly T[],
+  factory: readonly T[],
+): T[] {
+  const stored = claves(valor, validas);
+  if (stored === null) return [...factory];
+  /* Unión: lo que el admin guardó + lo que sea nuevo en factory. */
+  const storedSet = new Set(stored);
+  const extras = factory.filter((f) => !storedSet.has(f));
+  return [...stored, ...extras];
+}
+
 /** Un objeto de la columna, o uno vacío. Nunca `null`. */
 function objeto(valor: unknown): Record<string, unknown> {
   return valor && typeof valor === "object" && !Array.isArray(valor)
@@ -116,7 +145,7 @@ export function normalizarCatalogo(datos: unknown): Catalogo {
       lema: texto(dado.lema, def.lema),
       texto: texto(dado.texto, def.texto),
       usd: precio(dado.usd, def.usd),
-      funciones: claves(dado.funciones, CLAVES_FUNCION) ?? [...def.funciones],
+      funciones: funcionesMerge(dado.funciones, CLAVES_FUNCION, def.funciones),
     };
   }
 
@@ -130,7 +159,7 @@ export function normalizarCatalogo(datos: unknown): Catalogo {
       lema: texto(dado.lema, def.lema),
       texto: texto(dado.texto, def.texto),
       usd: precio(dado.usd, def.usd),
-      funciones: claves(dado.funciones, CLAVES_FUNCION) ?? [...def.funciones],
+      funciones: funcionesMerge(dado.funciones, CLAVES_FUNCION, def.funciones),
     };
   }
 
@@ -138,7 +167,7 @@ export function normalizarCatalogo(datos: unknown): Catalogo {
     tasaCup,
     gratisNombre: texto(src.gratisNombre, CATALOGO.gratisNombre),
     gratisLema: texto(src.gratisLema, CATALOGO.gratisLema),
-    gratis: claves(src.gratis, CLAVES_FUNCION) ?? [...CATALOGO.gratis],
+    gratis: funcionesMerge(src.gratis, CLAVES_FUNCION, CATALOGO.gratis),
     funciones,
     modulos,
     packs,

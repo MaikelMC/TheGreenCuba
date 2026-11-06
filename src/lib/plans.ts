@@ -77,6 +77,10 @@ export const FUNCIONES = {
     disponible: true,
   },
   hoy_hay: { texto: "«Hoy hay»: marca lo agotado o lo disponible", disponible: true },
+  tasa_del_dia: {
+    texto: "Precios con tasa del día en CUP",
+    disponible: true,
+  },
 
   /* Pedidos y reservas. */
   whatsapp_pedido: {
@@ -187,7 +191,7 @@ export const MODULOS = {
        Pro» y `disponibilidad-server` lo dice al comprobar el plan. Faltaba en la
        lista, y eso dejaba la función sin concederla nadie: el candado no se
        abría ni contratando el módulo. */
-    funciones: ["qr_sin_marca", "fotos_ilimitadas", "ofertas_flash", "hoy_hay"],
+    funciones: ["qr_sin_marca", "fotos_ilimitadas", "ofertas_flash", "hoy_hay", "tasa_del_dia"],
   },
   pedidos_reservas: {
     nombre: "Reservas y pedidos",
@@ -203,6 +207,7 @@ export const MODULOS = {
       "fotos_ilimitadas",
       "ofertas_flash",
       "hoy_hay",
+      "tasa_del_dia",
       "whatsapp_pedido",
       "reservas_whatsapp",
     ],
@@ -283,6 +288,7 @@ const ESENCIAL: readonly Funcion[] = [
      que trae el Menú Pro hay que repetirlo aquí: sin esto, contratar el módulo
      suelto daría más que el pack que lo incluye. */
   "hoy_hay",
+  "tasa_del_dia",
   "whatsapp_pedido",
   "reservas_whatsapp",
   "publicaciones_fb",

@@ -12,6 +12,8 @@ import {
   X,
 } from "lucide-react";
 import { cn, menuTagFallback, menuTagStyles } from "@/lib/utils";
+import { aplicarTasa, formatCup, type ConfigTasa } from "@/lib/precios";
+import { precioDeLinea } from "@/lib/pedido";
 import { prepareImage } from "@/lib/storage/compress";
 import { mensajeDeRed } from "@/lib/errores-red";
 import {
@@ -50,6 +52,8 @@ interface MenuItemEditorProps {
   placeId?: string | null;
   /** «Hoy hay» entra con Menú Pro. Sin esto no se pintan los controles. */
   canHoyHay?: boolean;
+  /** Config de la tasa del día para mostrar el preview en CUP. */
+  configTasa?: ConfigTasa | null;
   className?: string;
 }
 
@@ -154,6 +158,7 @@ export function MenuItemEditor({
   onChange,
   placeId = null,
   canHoyHay = false,
+  configTasa = null,
   className,
 }: MenuItemEditorProps) {
   const [menuItems, setMenuItems] = useState(items);
@@ -453,13 +458,36 @@ export function MenuItemEditor({
                   "w-[124px] sm:w-[148px] min-w-0 h-10 border-ink/10 text-meta text-ink-soft/75",
                 )}
               />
-              <input
-                type="text"
-                value={item.price}
-                onChange={(e) => update(item.id, "price", e.target.value)}
-                placeholder="0"
-                className={cn(INPUT, "w-[64px] sm:w-[80px] min-w-0 h-10 border-ink/10 font-lv-display")}
-              />
+              <div className="flex flex-col gap-[2px]">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={item.price}
+                  onChange={(e) => update(item.id, "price", e.target.value)}
+                  placeholder="0"
+                  className={cn(INPUT, "w-[64px] sm:w-[80px] min-w-0 h-10 border-ink/10 font-lv-display")}
+                />
+                {/* Preview de CUP en vivo: solo si la tasa está activa, el
+                    producto es USD y el precio es una cifra pura. */}
+                {configTasa && item.currency === "USD" && (() => {
+                  const val = precioDeLinea(item.price);
+                  if (val !== null) {
+                    return (
+                      <span className="text-[11px] tabular-nums text-muted-foreground leading-none">
+                        = {formatCup(aplicarTasa(val, configTasa.tasaUsdCup, configTasa.tasaRedondeo))}
+                      </span>
+                    );
+                  }
+                  if (item.price.trim()) {
+                    return (
+                      <span className="text-[11px] text-muted-foreground leading-none">
+                        Escribe solo el número para ver en CUP
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
               <select
                 value={item.currency}
                 onChange={(e) => update(item.id, "currency", e.target.value)}

@@ -247,6 +247,7 @@ export const COMANDOS: Record<string, string> = {
   abrir: "Marca el negocio como abierto hoy.",
   cerrar: "Marca el negocio como cerrado hoy.",
   stats: "Te cuenta las visitas de tu ficha.",
+  tasa: "Consulta o cambia la tasa del día. Ej: /tasa 350",
   ayuda: "Te dice lo que puede hacer este asistente.",
 };
 
@@ -333,7 +334,17 @@ export type Intencion =
   | { tipo: "disponibilidad"; estado: EstadoProducto; producto: string }
   | { tipo: "precio"; producto: string; precio: string }
   | { tipo: "nuevo_producto" }
-  | { tipo: "eliminar_producto"; producto: string };
+  | { tipo: "eliminar_producto"; producto: string }
+  | { tipo: "tasa"; valor: number };
+
+/** «el dólar está a 350», «la tasa está a 350», «tasa 350», «usd 350». */
+const PATRONES_TASA: readonly RegExp[] = [
+  /^(?:el\s+)?d[oó]lar(?:es)?\s+(?:est[aá]|a|=)\s+(\d+(?:[.,]\d+)?)(?:\s*cup)?$/i,
+  /^(?:la\s+)?tasa\s+(?:est[aá]|es|a|=)\s+(\d+(?:[.,]\d+)?)(?:\s*cup)?$/i,
+  /^tasa\s+(\d+(?:[.,]\d+)?)(?:\s*cup)?$/i,
+  /^(?:el\s+)?usd\s+(?:est[aá]|a|=)\s+(\d+(?:[.,]\d+)?)(?:\s*cup)?$/i,
+  /^(\d+(?:[.,]\d+)?)\s*cup(?:\s+(?:el\s+)?d[oó]lar(?:es?)?)?$/i,
+];
 
 /** Cómo se dice «se acabó» sin decir «se acabó».
  *
@@ -469,6 +480,14 @@ export function intencionDeTexto(texto: string): Intencion | null {
     const producto = m?.[1]?.trim();
     const precio = m?.[2]?.trim();
     if (producto && precio) return { tipo: "precio", producto, precio };
+  }
+
+  /* La tasa va al final: «el dólar a 350» es más específico que el regex de
+     precio, así que si llegó aquí es porque los de precio no coincidieron. */
+  for (const rx of PATRONES_TASA) {
+    const capturado = rx.exec(t)?.[1]?.trim().replace(",", ".");
+    const valor = capturado ? Number(capturado) : NaN;
+    if (Number.isFinite(valor) && valor > 0) return { tipo: "tasa", valor };
   }
 
   return null;

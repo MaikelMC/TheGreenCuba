@@ -33,6 +33,7 @@ import {
   totalDePedido,
   type LineaPedido,
 } from "@/lib/pedido";
+import { aplicarTasa, formatCup, type ConfigTasa } from "@/lib/precios";
 
 /**
  * El carrito del menú público, y el enlace que lo convierte en un pedido.
@@ -187,6 +188,7 @@ export function PedidoProvider({
   negocio,
   whatsapp,
   productos,
+  configTasa,
   children,
 }: {
   placeId: string;
@@ -195,6 +197,7 @@ export function PedidoProvider({
   whatsapp: string;
   /** La carta de hoy, para refrescar lo que el navegador guardó. Ver `alDia`. */
   productos: readonly ProductoPedible[];
+  configTasa?: ConfigTasa;
   children: React.ReactNode;
 }) {
   const clave = `la-verde:pedido:${placeId}`;
@@ -429,6 +432,7 @@ export function PedidoProvider({
           negocioId: placeId,
           lineas,
           direccion: direccion.trim(),
+          tasaUsada: configTasa?.tasaUsdCup ?? null,
         }),
         keepalive: true,
       }).catch(() => {
@@ -444,9 +448,16 @@ export function PedidoProvider({
   const barraVisible = visible || abierto;
   const unidades = lineas.reduce((total, linea) => total + linea.qty, 0);
   const total = totalDePedido(lineas);
+  /* Total en CUP: si la tasa está activa y el total es en USD, se convierte.
+     Si hay líneas mixtas (USD+CUP), `totalDePedido` ya devuelve null; en ese
+     caso solo se muestra el CUP si todas las líneas son CUP o se pueden unir. */
+  const totalCup =
+    configTasa && total && total.currency === "USD"
+      ? formatCup(aplicarTasa(total.total, configTasa.tasaUsdCup, configTasa.tasaRedondeo))
+      : null;
   const href = hrefPedido(
     whatsapp,
-    mensajePedido({ negocio, lineas, direccion }),
+    mensajePedido({ negocio, lineas, direccion, configTasa }),
   );
 
   return (
@@ -598,8 +609,15 @@ export function PedidoProvider({
                   />
                   {unidades} {unidades === 1 ? "producto" : "productos"}
                   {total && (
-                    <span className="text-ink-soft/75">
-                      {total.total.toFixed(2)} {total.currency}
+                    <span className="flex flex-col items-end leading-none">
+                      <span className="text-ink-soft/75">
+                        {total.total.toFixed(2)} {total.currency}
+                      </span>
+                      {totalCup && (
+                        <span className="tabular-nums text-[10px] text-muted-foreground">
+                          {totalCup}
+                        </span>
+                      )}
                     </span>
                   )}
                   <ChevronDown

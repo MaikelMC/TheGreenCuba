@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, jsonb, index, doublePrecision } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { places } from "./places";
 import type { LineaPedido } from "../../pedido";
@@ -32,6 +32,9 @@ export const pedidos = pgTable(
     lineas: jsonb("lineas").$type<LineaPedido[]>().notNull(),
     /** Dónde se entrega. Vacío o `null` = el cliente lo recoge. */
     direccion: text("direccion"),
+    /** Tasa CUP/USD con la que se calcularon los precios al hacer el pedido.
+        `null` si el negocio no tenía la tasa activa en ese momento. */
+    tasaUsada: doublePrecision("tasa_usada"),
     estado: text("estado", { enum: ["nuevo", "completado", "cancelado"] })
       .default("nuevo")
       .notNull(),

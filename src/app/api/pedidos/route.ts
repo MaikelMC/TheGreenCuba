@@ -182,6 +182,13 @@ export async function POST(req: NextRequest) {
       ? body.id
       : generateId();
 
+  const tasaUsada =
+    typeof body.tasaUsada === "number" &&
+    Number.isFinite(body.tasaUsada) &&
+    body.tasaUsada > 0
+      ? body.tasaUsada
+      : null;
+
   await db
     .insert(pedidos)
     .values({
@@ -189,6 +196,7 @@ export async function POST(req: NextRequest) {
       placeId: negocioId,
       lineas,
       direccion: texto(body.direccion, MAX_DIRECCION),
+      tasaUsada,
     })
     /* Reintento del mismo clic: la fila ya está y no se duplica. */
     .onConflictDoNothing({ target: pedidos.id });
@@ -218,6 +226,7 @@ export async function GET(req: NextRequest) {
       lineas: pedidos.lineas,
       direccion: pedidos.direccion,
       estado: pedidos.estado,
+      tasaUsada: pedidos.tasaUsada,
       createdAt: pedidos.createdAt,
     })
     .from(pedidos)

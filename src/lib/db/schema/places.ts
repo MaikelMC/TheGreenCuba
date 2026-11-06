@@ -301,6 +301,17 @@ export const places = pgTable(
     /** Plantilla del mensaje de pedido, con los mismos huecos que el actual. */
     plantillaPedido: text("plantilla_pedido"),
 
+    /* ── Tasa del día ───────────────────────────────────────────────────
+       El dueño fija el precio de sus productos en USD y la carta los
+       convierte a CUP con esta tasa. `tasa_activa` es el interruptor:
+       falso = la carta se ve igual que siempre. `tasa_redondeo` redondea
+       el resultado hacia arriba al múltiplo elegido (1, 5, 10, 50, 100).
+       `tasa_actualizada_en` es para el aviso «tu tasa es de ayer». */
+    tasaUsdCup: doublePrecision("tasa_usd_cup"),
+    tasaActualizadaEn: timestamp("tasa_actualizada_en"),
+    tasaRedondeo: integer("tasa_redondeo").default(5).notNull(),
+    tasaActiva: boolean("tasa_activa").default(false).notNull(),
+
     /* ── Sello de negocio verificado ────────────────────────────────────
        Lo enciende **solo la administración**: la lista blanca del `PATCH`
        (`toPlaceValues`) lo mapea y la ruta lo tira si quien escribe no es

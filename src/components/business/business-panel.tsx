@@ -60,6 +60,7 @@ import { PublicacionesView } from "@/components/business/publicaciones-view";
 import { AsistenteCard } from "@/components/business/asistente-card";
 import { EquipoView } from "@/components/business/equipo-view";
 import { SeguidoresCard } from "@/components/business/seguidores-card";
+import { AvisoTasaVieja, TasaDelDiaCard } from "@/components/business/tasa-del-dia-card";
 import {
   BusinessSwitcher,
   type NegocioPanel,
@@ -180,6 +181,7 @@ export function BusinessPanel({
   esDueno,
   permisos,
   userId,
+  configTasa = null,
 }: {
   /** Id del usuario de la sesión. Solo se usa para nombrar el snapshot offline. */
   userId: string;
@@ -233,6 +235,8 @@ export function BusinessPanel({
   esDueno: boolean;
   /** Los permisos del trabajador. Vacío para el dueño: no los necesita. */
   permisos: PermisoNegocio[];
+  /** Config de la tasa del día para el preview en el catálogo. */
+  configTasa?: import("@/lib/precios").ConfigTasa | null;
 }) {
   /* Copia de lectura para el modo offline. Se reescribe cuando cambia algo de
      la ficha, de las métricas o del plan; el panel se resuelve en el servidor,
@@ -332,6 +336,7 @@ export function BusinessPanel({
                 /* El botón de la tarjeta de plan navega dentro del panel, no
                    fuera: la sección de planes es una vista más del armazón. */
                 onVerPlanes={onVerPlanes}
+                onVerAjustes={() => setView("settings")}
               />
             );
           case "catalogo":
@@ -344,6 +349,7 @@ export function BusinessPanel({
                 key={place.id}
                 place={place}
                 funciones={funciones}
+                configTasa={configTasa ?? undefined}
                 onVerPlanes={onVerPlanes}
               />
             );
@@ -478,6 +484,7 @@ function DashboardView({
   negocios,
   esDueno,
   onVerPlanes,
+  onVerAjustes,
 }: {
   place: UserPlace;
   stats: PlaceStats;
@@ -492,6 +499,7 @@ function DashboardView({
   /** La tarjeta del plan solo se enseña a quien puede cambiarlo. */
   esDueno: boolean;
   onVerPlanes: () => void;
+  onVerAjustes: () => void;
 }) {
   /* La marca del negocio: logo, portada o el icono de su categoría, en ese
      orden. Es lo primero que reconoce quien lo busca. */
@@ -743,6 +751,11 @@ function DashboardView({
           Verde. Las búsquedas son las veces que un resultado con IA lo eligió;
           los productos, los activos del catálogo. La tarjeta de publicaciones se
           apaga entera cuando el plan no incluye ninguna. */}
+      <AvisoTasaVieja
+        activa={place.tasaActiva}
+        actualizadaEn={place.tasaActualizadaEn ?? undefined}
+        onIrAjustes={onVerAjustes}
+      />
       <DashboardStats
         stats={[
           {
@@ -2518,6 +2531,18 @@ function SettingsView({
           place={place}
           funciones={funciones}
           onVerPlanes={onVerPlanes}
+        />
+
+        {/* ── Tasa del día ────────────────────────────────────────────────
+            La tarjeta vive en su propio archivo: tiene estado propio
+            (campo, redondeo, toggle) y llama directamente a su ruta. */}
+        <TasaDelDiaCard
+          placeId={place.id}
+          funciones={funciones}
+          tasaInicial={place.tasaUsdCup}
+          redondeoInicial={place.tasaRedondeo}
+          activaInicial={place.tasaActiva}
+          actualizadaEnInicial={place.tasaActualizadaEn}
         />
 
         {/* ── Lo que solo se consulta ─────────────────────────────────────

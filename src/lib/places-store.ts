@@ -488,6 +488,14 @@ export interface UserPlace {
   resenaDestacadaId?: string | null;
   /** Plantilla propia del mensaje de pedido. `null` = la de por defecto. */
   plantillaPedido?: string | null;
+  /** Tasa CUP/USD que el dueño fija para su carta. `null` = sin configurar. */
+  tasaUsdCup?: number | null;
+  /** Cuándo se actualizó la tasa por última vez. Epoch ms. */
+  tasaActualizadaEn?: number | null;
+  /** Múltiplo al que se redondea el precio en CUP (1, 5, 10, 50, 100). */
+  tasaRedondeo?: number;
+  /** Si la conversión a CUP está activa en la carta pública. */
+  tasaActiva?: boolean;
   /** Vacío o ausente = el negocio todavía no tiene fotos subidas. */
   photos?: UserPlacePhoto[];
   /** Foto elegida para el pin del mapa; en negocios cae a la portada. */

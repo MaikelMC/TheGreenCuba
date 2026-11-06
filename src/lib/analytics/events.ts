@@ -52,7 +52,8 @@ export type AnalyticsEventType =
   | "business_rejected"
   /* Otras funciones que ya existen */
   | "place_saved"
-  | "review_created";
+  | "review_created"
+  | "tasa_actualizada";
 /* Fuera de catálogo: eventos que vienen del cliente y aún no tienen tipo
      propio se descartan, no se guardan como «otros». */
 
@@ -77,6 +78,7 @@ export const ANALYTICS_EVENT_TYPES: readonly AnalyticsEventType[] = [
   "business_rejected",
   "place_saved",
   "review_created",
+  "tasa_actualizada",
 ];
 
 export interface TrackedEvent {

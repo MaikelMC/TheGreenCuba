@@ -1,4 +1,5 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { actualizarTasa, configTasaDe } from "@/lib/tasa-server";
 import { chatJSON } from "@/lib/ai";
 import { resolveBotProviders } from "@/lib/ai/providers-store";
 import { db } from "@/lib/db";
@@ -1157,6 +1158,11 @@ function permisoDeComando(comando: string): PermisoNegocio | null {
     case "abrir":
     case "cerrar":
       return "ficha";
+    case "tasa":
+      /* La tasa es una decisión comercial: solo el dueño. No está en
+         `PERMISOS_NEGOCIO` —no se delega a trabajadores—, así que se
+         comprueba directamente en el handler. */
+      return null;
     default:
       return null;
   }
@@ -1228,6 +1234,16 @@ async function manejarComando(
       const estado: Disponibilidad =
         comando === "agotado" ? "agotado" : "disponible";
       await enviarPaginaProductos(negocio, chatId, estado, 0);
+      return;
+    }
+
+    case "tasa": {
+      /* Solo el dueño cambia la tasa: es una decisión comercial. */
+      if (!negocio.esDueno) {
+        await enviarTexto(chatId, "Solo el dueño puede cambiar la tasa del día.");
+        return;
+      }
+      await manejarTasa(negocio.negocioId, chatId, resto.trim());
       return;
     }
 
@@ -1962,6 +1978,61 @@ async function manejarCampoPendiente(
   return true;
 }
 
+/* ── tasa del día ───────────────────────────────────────────────────────── */
+
+/**
+ * `/tasa 350` → actualiza la tasa y la activa si estaba apagada.
+ * `/tasa`     → dice la tasa actual y cuándo se actualizó.
+ */
+async function manejarTasa(
+  negocioId: string,
+  chatId: string,
+  resto: string,
+): Promise<void> {
+  const valor = parseFloat(resto.replace(",", "."));
+
+  if (!resto || !Number.isFinite(valor) || valor <= 0) {
+    /* Sin número: informa la tasa actual. */
+    const config = await configTasaDe(negocioId);
+    if (!config) {
+      await enviarTexto(
+        chatId,
+        "No tienes la tasa del día activa. Escribe /tasa 350 para activarla (con el número que quieras).",
+      );
+      return;
+    }
+    const actualizada = config.tasaActualizadaEn
+      ? ` Actualizada el ${new Intl.DateTimeFormat("es-CU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "America/Havana" }).format(config.tasaActualizadaEn)}.`
+      : "";
+    await enviarTexto(
+      chatId,
+      `Tu tasa está en ${new Intl.NumberFormat("en-US").format(config.tasaUsdCup)} CUP por USD.${actualizada}`,
+    );
+    return;
+  }
+
+  const resultado = await actualizarTasa(
+    negocioId,
+    { tasa: valor, activa: true },
+    "telegram",
+  );
+
+  if (!resultado.success) {
+    await enviarTexto(
+      chatId,
+      resultado.code === "plan"
+        ? `La tasa del día entra con el módulo Menú Pro. ${resultado.error}`
+        : `No pude guardar la tasa. ${resultado.error}`,
+    );
+    return;
+  }
+
+  await enviarTexto(
+    chatId,
+    `Listo, tu tasa ahora es ${new Intl.NumberFormat("en-US").format(valor)} CUP por USD. Tu carta ya está actualizada.`,
+  );
+}
+
 /* ── capa 2: texto libre sin modelo ─────────────────────────────────────── */
 
 async function manejarTextoLibre(
@@ -2020,6 +2091,16 @@ async function manejarTextoLibre(
   if (intencion) {
     if (intencion.tipo === "nuevo_producto") {
       await enviarMenuAlta(chatId);
+      return;
+    }
+
+    /* «el dólar está a 350», «tasa 350»: mismo camino que /tasa 350. */
+    if (intencion.tipo === "tasa") {
+      if (!negocio.esDueno) {
+        await enviarTexto(chatId, "Solo el dueño puede cambiar la tasa del día.");
+        return;
+      }
+      await manejarTasa(negocio.negocioId, chatId, String(intencion.valor));
       return;
     }
 

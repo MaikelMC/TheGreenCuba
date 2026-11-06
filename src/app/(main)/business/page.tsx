@@ -13,6 +13,7 @@ import {
   type Pack,
 } from "@/lib/plans";
 import { publicacionesDeLaSemana } from "@/lib/publicaciones-server";
+import { configTasaDe } from "@/lib/tasa-server";
 import { funcionesDeNegocio, modulosDe, planEfectivoDe } from "@/lib/plans-server";
 import { menuUrl } from "@/lib/structured-data";
 import { CatalogoProvider } from "@/providers/catalogo-provider";
@@ -97,7 +98,7 @@ export default async function BusinessPage({
 
   const placeId = elegido.id;
   const isDev = placeId === DEV_PLACE_ID;
-  const [place, stats, plan, funciones, modulos, cat, publicacionesUsadas] =
+  const [place, stats, plan, funciones, modulos, cat, publicacionesUsadas, configTasa] =
     await Promise.all([
       getPlaceById(placeId, {
         includeDev: isDev,
@@ -114,6 +115,7 @@ export default async function BusinessPage({
          candados enseñen los precios y los textos de hoy, no los del despliegue. */
       cargarCatalogo(),
       publicacionesDeLaSemana(placeId),
+      configTasaDe(placeId),
     ]);
 
   if (!place) redirect("/profile?seccion=negocio");
@@ -201,6 +203,7 @@ export default async function BusinessPage({
         negocios={negocios}
         esDueno={acceso.esDueno}
         permisos={acceso.permisos}
+        configTasa={configTasa}
       />
     </CatalogoProvider>
   );

@@ -29,6 +29,9 @@ import {
 } from "@/lib/structured-data";
 import { placeIcon } from "@/lib/places";
 import { tieneFuncion } from "@/lib/plans-server";
+import { configTasaDe } from "@/lib/tasa-server";
+import { preciosDeItem, type ConfigTasa } from "@/lib/precios";
+import { PieTasa } from "@/components/business/tasa-del-dia-card";
 import {
   cn,
   currencyLabel,
@@ -193,6 +196,7 @@ function MenuRow({
   productoId,
   pedible,
   oferta,
+  configTasa = null,
 }: {
   item: {
     name: string;
@@ -214,8 +218,10 @@ function MenuRow({
    * ninguna viva sobre este producto o cuando no hay cifra que tachar.
    */
   oferta?: { de: string; por: string };
+  configTasa?: ConfigTasa | null;
 }) {
   const priceText = formatMenuPrice(item.price, item.currency);
+  const { cup } = preciosDeItem(item, configTasa ?? null);
   const enOferta = Boolean(oferta && priceText);
   /* Agotado no es «no está»: el producto sigue en la carta, apagado y con la
      etiqueta, para que quien lo buscaba sepa que hoy no hay sin creer que
@@ -323,8 +329,15 @@ function MenuRow({
               </span>
             ) : (
               priceText && (
-                <span className="font-lv-display text-body font-bold leading-snug text-ink sm:text-h3">
-                  {priceText}
+                <span className="flex flex-col">
+                  <span className="font-lv-display text-body font-bold leading-snug text-ink sm:text-h3">
+                    {priceText}
+                  </span>
+                  {cup && (
+                    <span className="tabular-nums text-[11px] leading-none text-muted-foreground">
+                      {cup}
+                    </span>
+                  )}
                 </span>
               )
             )}
@@ -450,6 +463,11 @@ export default async function MenuPage({
      que aquí el botón vale el doble. */
   const seguidores = configSeguidores(place);
 
+  /* La tasa del día: si está activa y el negocio tiene el plan, viaja a la carta
+     para pintar el equivalente en CUP en cada producto. `configTasaDe` ya
+     devuelve `null` si está desactivada o sin plan. */
+  const configTasa = await configTasaDe(place.id);
+
   /* Agrupación estable por categoría, en el orden en que el dueño la escribió.
      `Map` conserva la inserción, así que «Entrantes» sale antes que «Postres»
      sin ordenar alfabéticamente. Las entradas sin categoría caen en un grupo
@@ -530,6 +548,7 @@ export default async function MenuPage({
                   productoId={productoId}
                   pedible={puedePedir && item.disponibilidad !== "agotado"}
                   oferta={precioOferta}
+                  configTasa={configTasa}
                 />
               );
             })}
@@ -809,7 +828,7 @@ export default async function MenuPage({
 
       {/* Las ofertas vivas, antes que la carta: es lo que el negocio quiere que
           se vea sin bajar. El componente no pinta nada si no hay ninguna. */}
-      <OfertasHero ofertas={ofertasDestacadas} />
+      <OfertasHero ofertas={ofertasDestacadas} configTasa={configTasa} />
 
       <section
         id="menu"
@@ -848,6 +867,12 @@ export default async function MenuPage({
           </>
         )}
       </section>
+
+      {configTasa && (
+        <div className="mx-auto mt-gap-sm w-full max-w-[680px] px-gutter">
+          <PieTasa config={configTasa} />
+        </div>
+      )}
 
       <footer className="mt-gap-lg border-t border-ink/5 pt-gap-md">
         {/* La invitación a unirse, en una línea y sin tarjeta: quien llega por
@@ -892,6 +917,7 @@ export default async function MenuPage({
       whatsapp={whatsappPedidos}
       /* El catálogo de hoy, para contrastar lo que el navegador guardó. */
       productos={productos}
+      configTasa={configTasa ?? undefined}
     >
       {carta}
     </PedidoProvider>
