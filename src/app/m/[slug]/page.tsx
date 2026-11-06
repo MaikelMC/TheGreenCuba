@@ -221,7 +221,7 @@ function MenuRow({
   configTasa?: ConfigTasa | null;
 }) {
   const priceText = formatMenuPrice(item.price, item.currency);
-  const { cup } = preciosDeItem(item, configTasa ?? null);
+  const { secundario } = preciosDeItem(item, configTasa ?? null);
   const enOferta = Boolean(oferta && priceText);
   /* Agotado no es «no está»: el producto sigue en la carta, apagado y con la
      etiqueta, para que quien lo buscaba sepa que hoy no hay sin creer que
@@ -333,9 +333,9 @@ function MenuRow({
                   <span className="font-lv-display text-body font-bold leading-snug text-ink sm:text-h3">
                     {priceText}
                   </span>
-                  {cup && (
-                    <span className="tabular-nums text-[11px] leading-none text-muted-foreground">
-                      {cup}
+                  {secundario && (
+                    <span className="tabular-nums text-[13px] leading-none text-muted-foreground">
+                      {secundario}
                     </span>
                   )}
                 </span>

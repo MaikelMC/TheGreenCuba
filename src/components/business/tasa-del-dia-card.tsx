@@ -133,9 +133,9 @@ export function TasaDelDiaCard({
           </p>
 
           {/* Toggle activo/inactivo */}
-          <div className="flex items-center justify-between gap-gap-md rounded-lv border border-border bg-card px-gap-md py-gap-sm">
+          <div className="flex items-center justify-between gap-gap-md rounded-lv border border-verde-300/30 bg-transparent px-gap-md py-gap-sm dark:border-verde-700/40">
             <div>
-              <p className="text-small font-medium text-foreground">
+              <p className="text-small font-medium text-muted-foreground">
                 Mostrar precios en CUP en tu carta
               </p>
               {activa && etiqueta && (
@@ -174,7 +174,7 @@ export function TasaDelDiaCard({
 
           {/* Campo de tasa */}
           <div className="space-y-gap-xs">
-            <Label htmlFor={`tasa-${placeId}`} className="text-small font-medium">
+            <Label htmlFor={`tasa-${placeId}`} className="text-small font-medium text-muted-foreground">
               ¿A cómo está el USD hoy?
             </Label>
             <div className="flex items-center gap-gap-sm">
@@ -186,7 +186,7 @@ export function TasaDelDiaCard({
                   placeholder="Ej: 350"
                   value={tasa}
                   onChange={(e) => setTasa(e.target.value)}
-                  className="pr-12 tabular-nums"
+                  className="pr-12 tabular-nums bg-transparent border-verde-300/40 text-muted-foreground focus-visible:ring-verde-400/30 dark:bg-transparent dark:border-verde-700/50 dark:focus-visible:ring-verde-600/30"
                 />
                 <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-small text-muted-foreground">
                   CUP
@@ -208,7 +208,7 @@ export function TasaDelDiaCard({
 
           {/* Redondeo */}
           <div className="space-y-gap-xs">
-            <Label className="text-small font-medium">
+            <Label className="text-small font-medium text-muted-foreground">
               Redondear el precio en CUP a
             </Label>
             <div className="flex flex-wrap gap-gap-xs">
@@ -218,10 +218,10 @@ export function TasaDelDiaCard({
                   type="button"
                   onClick={() => setRedondeo(r)}
                   className={cn(
-                    "rounded-lv px-gap-sm py-gap-2xs text-small font-medium tabular-nums transition-colors",
+                    "rounded-lv border px-gap-sm py-gap-2xs text-small font-medium tabular-nums transition-colors",
                     redondeo === r
-                      ? "bg-verde-500 text-white"
-                      : "bg-muted text-muted-foreground hover:bg-verde-100 hover:text-verde-800",
+                      ? "border-verde-500/60 bg-verde-500/10 text-muted-foreground dark:border-verde-400/50 dark:bg-verde-400/10"
+                      : "border-verde-300/30 bg-transparent text-muted-foreground hover:border-verde-400/60 dark:border-verde-700/40 dark:hover:border-verde-500/60",
                   )}
                 >
                   {r === 1 ? "Sin redondear" : `× ${r}`}

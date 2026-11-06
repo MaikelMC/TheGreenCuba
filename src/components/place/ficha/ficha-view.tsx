@@ -62,6 +62,7 @@ export function FichaView({
   footerSlot,
   className,
   nowIso,
+  configTasa = null,
 }: PlaceDetailProps) {
   const router = useRouter();
   const [saved, setSaved] = useState(false);
@@ -346,6 +347,7 @@ export function FichaView({
                 onAgregar={carritoActivo ? agregarAlCarrito : undefined}
                 onQuitar={carritoActivo ? quitarDelCarrito : undefined}
                 whatsappCita={whatsappCita}
+                configTasa={configTasa}
               />
             )}
 
@@ -483,6 +485,7 @@ export function FichaView({
             onAgregar={carritoActivo ? agregarAlCarrito : undefined}
             onQuitar={carritoActivo ? quitarDelCarrito : undefined}
             whatsappCita={whatsappCita}
+            configTasa={configTasa}
           />
         )}
 

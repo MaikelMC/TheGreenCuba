@@ -12,8 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { cn, menuTagFallback, menuTagStyles } from "@/lib/utils";
-import { aplicarTasa, formatCup, type ConfigTasa } from "@/lib/precios";
-import { precioDeLinea } from "@/lib/pedido";
+import { preciosDeItem, type ConfigTasa } from "@/lib/precios";
 import { prepareImage } from "@/lib/storage/compress";
 import { mensajeDeRed } from "@/lib/errores-red";
 import {
@@ -467,21 +466,19 @@ export function MenuItemEditor({
                   placeholder="0"
                   className={cn(INPUT, "w-[64px] sm:w-[80px] min-w-0 h-10 border-ink/10 font-lv-display")}
                 />
-                {/* Preview de CUP en vivo: solo si la tasa está activa, el
-                    producto es USD y el precio es una cifra pura. */}
-                {configTasa && item.currency === "USD" && (() => {
-                  const val = precioDeLinea(item.price);
-                  if (val !== null) {
+                {configTasa && (() => {
+                  const { secundario } = preciosDeItem(item, configTasa);
+                  if (secundario) {
                     return (
-                      <span className="text-[11px] tabular-nums text-muted-foreground leading-none">
-                        = {formatCup(aplicarTasa(val, configTasa.tasaUsdCup, configTasa.tasaRedondeo))}
+                      <span className="text-[13px] tabular-nums text-muted-foreground leading-none">
+                        = {secundario}
                       </span>
                     );
                   }
-                  if (item.price.trim()) {
+                  if (item.price.trim() && (item.currency === "USD" || item.currency === "MLC" || item.currency === "CUP")) {
                     return (
                       <span className="text-[11px] text-muted-foreground leading-none">
-                        Escribe solo el número para ver en CUP
+                        Escribe solo el número para ver el cambio
                       </span>
                     );
                   }

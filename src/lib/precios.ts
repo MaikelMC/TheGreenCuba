@@ -61,7 +61,7 @@ export function formatCup(valor: number): string {
 export function preciosDeItem(
   item: ItemConvertible,
   config: ConfigTasa | null,
-): { principal: string; cup?: string } {
+): { principal: string; secundario?: string } {
   const { price, currency } = item;
   const principal = price.trim()
     ? currency === "CUP"
@@ -69,13 +69,25 @@ export function preciosDeItem(
       : `${price} ${currencyLabel(currency)}`
     : "";
 
-  if (!config || currency !== "USD") return { principal };
+  if (!config) return { principal };
 
   const valor = precioDeLinea(price);
   if (valor === null) return { principal };
 
-  const cup = formatCup(aplicarTasa(valor, config.tasaUsdCup, config.tasaRedondeo));
-  return { principal, cup };
+  if (currency === "CUP") {
+    /* CUP → USD: el cliente ve cuánto es en dólares. */
+    const usd = valor / config.tasaUsdCup;
+    const secundario = `${usd.toFixed(2)} USD`;
+    return { principal, secundario };
+  }
+
+  if (currency === "USD" || currency === "MLC") {
+    /* USD/MLC → CUP: el cliente ve cuánto es en pesos. */
+    const secundario = formatCup(aplicarTasa(valor, config.tasaUsdCup, config.tasaRedondeo));
+    return { principal, secundario };
+  }
+
+  return { principal };
 }
 
 /** Los valores permitidos para `tasa_redondeo`. */

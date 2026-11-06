@@ -11,6 +11,7 @@ import { LoadingState } from "@/components/ui/loading";
 import { StateView } from "@/components/ui/state-view";
 import { PlaceDetail } from "@/components/place/place-detail";
 import { sharePlace } from "@/lib/share";
+import type { ConfigTasa } from "@/lib/precios";
 
 /**
  * El estado que decide cartel y portada. La oferta va primero y el orden
@@ -38,11 +39,13 @@ export function PlaceView({
   id,
   initialPlace = null,
   nowIso,
+  configTasa = null,
 }: {
   id: string;
   initialPlace?: UserPlace | null;
   /** El «ahora» del servidor, para que el estado de apertura no se hidrate mal. */
   nowIso?: string;
+  configTasa?: ConfigTasa | null;
 }) {
   const router = useRouter();
   const { places, hydrated } = usePlaces();
@@ -85,6 +88,7 @@ export function PlaceView({
       onShare={() => sharePlace(place.id, place.name)}
       onNavigate={() => router.push(`/home?lugar=${place.id}`)}
       nowIso={nowIso}
+      configTasa={configTasa}
     />
   );
 }

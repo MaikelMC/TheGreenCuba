@@ -452,7 +452,7 @@ export function PedidoProvider({
      Si hay líneas mixtas (USD+CUP), `totalDePedido` ya devuelve null; en ese
      caso solo se muestra el CUP si todas las líneas son CUP o se pueden unir. */
   const totalCup =
-    configTasa && total && total.currency === "USD"
+    configTasa && total && (total.currency === "USD" || total.currency === "MLC")
       ? formatCup(aplicarTasa(total.total, configTasa.tasaUsdCup, configTasa.tasaRedondeo))
       : null;
   const href = hrefPedido(

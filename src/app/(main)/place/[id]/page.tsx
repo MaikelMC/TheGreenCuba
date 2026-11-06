@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { getPlaceById, listCategories } from "@/lib/db/queries";
+import { configTasaDe } from "@/lib/tasa-server";
+import type { ConfigTasa } from "@/lib/precios";
 import { getAppUser } from "@/lib/auth/user";
 import {
   DEV_PLACE_ID,
@@ -178,7 +180,10 @@ export default async function PlacePage({
      a ser 200. El esqueleto lo pone ahora el `loading.tsx` de `(main)`. */
   if (!place) notFound();
 
-  const categorySlug = await getCategorySlug(place.category);
+  const [categorySlug, configTasa] = await Promise.all([
+    getCategorySlug(place.category),
+    configTasaDe(place.id),
+  ]);
   const breadcrumbs = breadcrumbJsonLd([
     { name: "Inicio", url: absoluteUrl("/") },
     { name: "Directorio", url: absoluteUrl("/lugares") },
@@ -213,6 +218,7 @@ export default async function PlacePage({
            calculara el navegador al hidratar, la ficha saldría primero sin
            estado (o con el del servidor, que puede ir en otra zona horaria). */
         nowIso={new Date().toISOString()}
+        configTasa={configTasa}
       />
     </>
   );

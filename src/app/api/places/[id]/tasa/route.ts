@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { esDuenoDePlace } from "@/lib/admin-server";
+import { canManagePlace } from "@/lib/admin-server";
 import { actualizarTasa } from "@/lib/tasa-server";
 
 /**
@@ -14,7 +14,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
 
-  if (!(await esDuenoDePlace(req, id))) {
+  if (!(await canManagePlace(req, id))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 

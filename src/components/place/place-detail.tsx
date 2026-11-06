@@ -126,6 +126,7 @@ function LegacyPlaceDetail({
   onNavigate,
   footerSlot,
   className,
+  configTasa = null,
 }: PlaceDetailProps) {
   /* La descripción abre completa: la ficha existe para leerla, y el recorte a
      dos líneas escondía justo lo que se viene a buscar. Sigue pudiendo
@@ -561,7 +562,7 @@ function LegacyPlaceDetail({
                     )}
                   </div>
                   <div id="full-menu-list-desktop">
-                    <MenuPages items={place.menu} />
+                    <MenuPages items={place.menu} configTasa={configTasa} />
                   </div>
                 </section>
               )}
@@ -962,7 +963,7 @@ function LegacyPlaceDetail({
                     )}
                   </div>
                   <div id="full-menu-list">
-                    <MenuPages items={place.menu} />
+                    <MenuPages items={place.menu} configTasa={configTasa} />
                   </div>
                 </>
               )}

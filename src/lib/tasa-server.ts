@@ -11,13 +11,27 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema";
-import { puede } from "@/lib/plans-server";
+import { CATALOGO, funcionesDe, type Funcion } from "@/lib/plans";
+import { suscripcionDe } from "@/lib/plans-server";
 import { REDONDEOS_PERMITIDOS, type ConfigTasa, type Redondeo } from "@/lib/precios";
 import { trackEvent } from "@/lib/analytics/events";
 
+/**
+ * Comprueba el permiso contra el catálogo de **fábrica**, no el de la DB.
+ *
+ * `puede()` del plans-server lee el catálogo guardado en la DB, que puede
+ * tener listas de funciones de antes de que `tasa_del_dia` existiera. El
+ * catálogo de fábrica siempre tiene la lista correcta, así que se usa aquí
+ * para no depender de que el admin haya re-guardado el catálogo.
+ */
+async function tieneFuncionFactory(negocioId: string, funcion: Funcion): Promise<boolean> {
+  const susc = await suscripcionDe(negocioId);
+  return funcionesDe(susc, new Date(), CATALOGO).has(funcion);
+}
+
 /** Lo que leen la carta pública y los componentes del panel. */
 export async function configTasaDe(negocioId: string): Promise<ConfigTasa | null> {
-  if (!(await puede(negocioId, "tasa_del_dia"))) return null;
+  if (!(await tieneFuncionFactory(negocioId, "tasa_del_dia"))) return null;
 
   const [row] = await db
     .select({
@@ -63,7 +77,7 @@ export async function actualizarTasa(
   input: ActualizarTasaInput,
   origen: "panel" | "telegram" = "panel",
 ): Promise<ActualizarTasaResult> {
-  if (!(await puede(negocioId, "tasa_del_dia"))) {
+  if (!(await tieneFuncionFactory(negocioId, "tasa_del_dia"))) {
     return { success: false, code: "plan", error: "La tasa del día entra con el módulo Menú Pro." };
   }
 

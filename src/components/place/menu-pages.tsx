@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MenuItem } from "./menu-item";
+import type { ConfigTasa } from "@/lib/precios";
 
 /**
  * Cuántas entradas de «Lo que ofrece» caben en una página. Cuatro: dos filas de
@@ -43,9 +44,10 @@ const CHIP_OFF =
 
 interface MenuPagesProps {
   items: MenuEntry[];
+  configTasa?: ConfigTasa | null;
 }
 
-export function MenuPages({ items }: MenuPagesProps) {
+export function MenuPages({ items, configTasa = null }: MenuPagesProps) {
   const [page, setPage] = useState(0);
   const [direction, setDirection] = useState(1);
   const [categoria, setCategoria] = useState<string | null>(null);
@@ -144,7 +146,7 @@ export function MenuPages({ items }: MenuPagesProps) {
             className="grid grid-cols-2 auto-rows-fr gap-gap-sm"
           >
             {visible.map((item, i) => (
-              <MenuItem key={i} index={i} {...item} />
+              <MenuItem key={i} index={i} {...item} configTasa={configTasa} />
             ))}
           </motion.div>
         </AnimatePresence>

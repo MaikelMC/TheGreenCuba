@@ -45,8 +45,7 @@ import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
 import { limiteDe, type Funcion } from "@/lib/plans";
 import { registrarGuarda } from "@/lib/unsaved-guard";
 import type { UserPlace, UserPlaceMenuItem } from "@/lib/places-store";
-import { aplicarTasa, formatCup, type ConfigTasa } from "@/lib/precios";
-import { precioDeLinea } from "@/lib/pedido";
+import { preciosDeItem, type ConfigTasa } from "@/lib/precios";
 
 /* La clave con la que se agrupa lo que no tiene categoría. Un centinela y no
    «Sin categoría» a secas: ese texto es una categoría que el dueño puede
@@ -1242,20 +1241,20 @@ function FilaProducto({
               </SelectContent>
             </Select>
             </div>
-            {/* Preview CUP en vivo */}
-            {configTasa && item.currency === "USD" && (() => {
-              const val = precioDeLinea(item.price);
-              if (val !== null) {
+            {/* Preview conversión en vivo */}
+            {configTasa && (() => {
+              const { secundario } = preciosDeItem(item, configTasa);
+              if (secundario) {
                 return (
-                  <span className="text-[11px] tabular-nums text-muted-foreground leading-none">
-                    = {formatCup(aplicarTasa(val, configTasa.tasaUsdCup, configTasa.tasaRedondeo))}
+                  <span className="text-[13px] tabular-nums text-muted-foreground leading-none">
+                    = {secundario}
                   </span>
                 );
               }
-              if (item.price.trim()) {
+              if (item.price.trim() && (item.currency === "USD" || item.currency === "MLC" || item.currency === "CUP")) {
                 return (
                   <span className="text-[11px] text-muted-foreground leading-none">
-                    Escribe solo el número para ver en CUP
+                    Escribe solo el número para ver el cambio
                   </span>
                 );
               }

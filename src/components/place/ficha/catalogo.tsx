@@ -7,6 +7,7 @@ import Link from "next/link";
 import { ArrowUpRight, ChevronLeft, ChevronRight, MessageCircle, Minus, Plus, Search } from "lucide-react";
 import { cn, formatMenuPrice, menuTagFallback, menuTagStyles } from "@/lib/utils";
 import { estaAgotado } from "@/lib/disponibilidad";
+import { preciosDeItem, type ConfigTasa } from "@/lib/precios";
 import type { PlaceMenu, PlacePhoto } from "@/lib/ficha/place-data";
 import type { EspecialDelDia, ExistenciasModo, MenuCategoria, ModuloFicha, TipoNegocio } from "@/lib/ficha/tipos";
 import { ordenarCategorias, COPY } from "@/config/ficha";
@@ -152,12 +153,14 @@ function FilaConFoto({
   onAgregar,
   onQuitar,
   agotado,
+  configTasa = null,
 }: {
   item: PlaceMenu;
   carrito?: Record<string, number>;
   onAgregar?: (id: string) => void;
   onQuitar?: (id: string) => void;
   agotado: boolean;
+  configTasa?: ConfigTasa | null;
 }) {
   const precio = formatPrecioItem(item);
   const fechaVuelta = agotado ? agotadoFecha(item) : null;
@@ -212,20 +215,31 @@ function FilaConFoto({
           </p>
         )}
         {precio && !agotado && (
-          <p className="mt-[4px] font-lv-display text-[15px] font-[800] text-ink">
-            {item.oferta ? (
-              <span className="flex items-baseline gap-gap-xs">
-                <span className="text-[13px] font-normal text-ink-soft/60 line-through">
-                  {formatMenuPrice(item.oferta.de, item.currency)}
+          <>
+            <p className="mt-[4px] font-lv-display text-[15px] font-[800] text-ink">
+              {item.oferta ? (
+                <span className="flex items-baseline gap-gap-xs">
+                  <span className="text-[13px] font-normal text-ink-soft/60 line-through">
+                    {formatMenuPrice(item.oferta.de, item.currency)}
+                  </span>
+                  <span className="text-verde-700">
+                    {formatMenuPrice(item.oferta.por, item.currency)}
+                  </span>
                 </span>
-                <span className="text-verde-700">
-                  {formatMenuPrice(item.oferta.por, item.currency)}
+              ) : (
+                precio
+              )}
+            </p>
+            {(() => {
+              const src = item.oferta ? { price: item.oferta.por, currency: item.currency } : item;
+              const { secundario } = preciosDeItem(src, configTasa);
+              return secundario ? (
+                <span className="mt-[2px] block tabular-nums text-[13px] leading-none text-ink-soft/60">
+                  {secundario}
                 </span>
-              </span>
-            ) : (
-              precio
-            )}
-          </p>
+              ) : null;
+            })()}
+          </>
         )}
       </div>
 
@@ -254,12 +268,14 @@ function FilaTexto({
   onAgregar,
   onQuitar,
   agotado,
+  configTasa = null,
 }: {
   item: PlaceMenu;
   carrito?: Record<string, number>;
   onAgregar?: (id: string) => void;
   onQuitar?: (id: string) => void;
   agotado: boolean;
+  configTasa?: ConfigTasa | null;
 }) {
   const precio = formatPrecioItem(item);
 
@@ -314,8 +330,18 @@ function FilaTexto({
         ) : (
           <>
             {precio && (
-              <span className="font-lv-display text-[15px] font-[800] whitespace-nowrap text-ink">
-                {precio}
+              <span className="flex flex-col items-end">
+                <span className="font-lv-display text-[15px] font-[800] whitespace-nowrap text-ink">
+                  {precio}
+                </span>
+                {(() => {
+                  const { secundario } = preciosDeItem(item, configTasa);
+                  return secundario ? (
+                    <span className="tabular-nums text-[12px] leading-none text-ink-soft/60">
+                      {secundario}
+                    </span>
+                  ) : null;
+                })()}
               </span>
             )}
             {carrito && onAgregar && onQuitar && (
@@ -392,12 +418,14 @@ function GrupoTexto({
   carrito,
   onAgregar,
   onQuitar,
+  configTasa = null,
 }: {
   cat: string | null;
   items: PlaceMenu[];
   carrito?: Record<string, number>;
   onAgregar?: (id: string) => void;
   onQuitar?: (id: string) => void;
+  configTasa?: ConfigTasa | null;
 }) {
   const [pagina, setPagina] = useState(0);
   const total = Math.max(1, Math.ceil(items.length / PAGE_TEXTO));
@@ -440,6 +468,7 @@ function GrupoTexto({
                 onAgregar={onAgregar}
                 onQuitar={onQuitar}
                 agotado={false}
+                configTasa={configTasa}
               />
             ))}
           </motion.div>
@@ -502,10 +531,12 @@ function TarjetaCuadricula({
   item,
   existenciasModo,
   agotado,
+  configTasa = null,
 }: {
   item: PlaceMenu;
   existenciasModo: ExistenciasModo;
   agotado: boolean;
+  configTasa?: ConfigTasa | null;
 }) {
   const precio = formatPrecioItem(item);
   const stock = stockTexto(item, existenciasModo);
@@ -541,8 +572,18 @@ function TarjetaCuadricula({
       </p>
       <div className="mt-[4px] flex items-center justify-between gap-[4px]">
         {precio && (
-          <span className="font-lv-display text-[13px] font-[800] text-ink">
-            {precio}
+          <span className="flex flex-col">
+            <span className="font-lv-display text-[13px] font-[800] text-ink">
+              {precio}
+            </span>
+            {(() => {
+              const { secundario } = preciosDeItem(item, configTasa);
+              return secundario ? (
+                <span className="tabular-nums text-[11px] leading-none text-ink-soft/60">
+                  {secundario}
+                </span>
+              ) : null;
+            })()}
           </span>
         )}
         {existenciasModo !== "ninguna" && (
@@ -561,10 +602,12 @@ function FilaServicio({
   item,
   whatsappCita,
   agotado,
+  configTasa = null,
 }: {
   item: PlaceMenu;
   whatsappCita?: string;
   agotado: boolean;
+  configTasa?: ConfigTasa | null;
 }) {
   const precio = formatPrecioItem(item);
   const detalle = [
@@ -590,6 +633,14 @@ function FilaServicio({
         {detalle && (
           <p className="text-[13px] text-[#5B6660]">{detalle}</p>
         )}
+        {(() => {
+          const { secundario } = preciosDeItem(item, configTasa);
+          return secundario ? (
+            <span className="tabular-nums text-[12px] leading-none text-ink-soft/60">
+              {secundario}
+            </span>
+          ) : null;
+        })()}
       </div>
       {agotado ? (
         <span className={cn(AGOTADO_LABEL, "shrink-0")}>Agotado</span>
@@ -640,11 +691,13 @@ function GrupoAgotados({
   vista,
   existenciasModo,
   whatsappCita,
+  configTasa = null,
 }: {
   items: PlaceMenu[];
   vista: Vista;
   existenciasModo: ExistenciasModo;
   whatsappCita?: string;
+  configTasa?: ConfigTasa | null;
 }) {
   const [pagina, setPagina] = useState(0);
   if (items.length === 0) return null;
@@ -671,6 +724,7 @@ function GrupoAgotados({
               item={item}
               existenciasModo={existenciasModo}
               agotado
+              configTasa={configTasa}
             />
           ))}
         </div>
@@ -679,11 +733,11 @@ function GrupoAgotados({
 
     const contenido = visibles.map((item) =>
       vista === "servicios" ? (
-        <FilaServicio key={item.id ?? item.name} item={item} whatsappCita={whatsappCita} agotado />
+        <FilaServicio key={item.id ?? item.name} item={item} whatsappCita={whatsappCita} agotado configTasa={configTasa} />
       ) : vista === "lista_foto" ? (
-        <FilaConFoto key={item.id ?? item.name} item={item} agotado />
+        <FilaConFoto key={item.id ?? item.name} item={item} agotado configTasa={configTasa} />
       ) : (
-        <FilaTexto key={item.id ?? item.name} item={item} agotado />
+        <FilaTexto key={item.id ?? item.name} item={item} agotado configTasa={configTasa} />
       ),
     );
 
@@ -789,6 +843,7 @@ export function Catalogo({
   onAgregar,
   onQuitar,
   whatsappCita,
+  configTasa = null,
   className,
 }: {
   items: PlaceMenu[];
@@ -804,6 +859,7 @@ export function Catalogo({
   onAgregar?: (id: string) => void;
   onQuitar?: (id: string) => void;
   whatsappCita?: string;
+  configTasa?: ConfigTasa | null;
   className?: string;
 }) {
   const [filtro, setFiltro] = useState<string | null>(null);
@@ -984,6 +1040,7 @@ export function Catalogo({
                       onAgregar={conCarrito ? onAgregar : undefined}
                       onQuitar={conCarrito ? onQuitar : undefined}
                       agotado={false}
+                      configTasa={configTasa}
                     />
                   ))}
                 </motion.div>
@@ -1031,6 +1088,7 @@ export function Catalogo({
                 carrito={conCarrito ? carrito : undefined}
                 onAgregar={conCarrito ? onAgregar : undefined}
                 onQuitar={conCarrito ? onQuitar : undefined}
+                configTasa={configTasa}
               />
             ))}
           </div>
@@ -1045,6 +1103,7 @@ export function Catalogo({
               item={item}
               existenciasModo={existenciasModo}
               agotado={false}
+              configTasa={configTasa}
             />
           ))}
           {filtradosDisp.length === 0 && !todoAgotado && (
@@ -1063,6 +1122,7 @@ export function Catalogo({
               item={item}
               whatsappCita={whatsappCita}
               agotado={false}
+              configTasa={configTasa}
             />
           ))}
         </div>
@@ -1074,6 +1134,7 @@ export function Catalogo({
         vista={vista}
         existenciasModo={existenciasModo}
         whatsappCita={whatsappCita}
+        configTasa={configTasa}
       />
 
       {/* "Actualizado hace X" — no tienda (tienda lo muestra arriba) */}

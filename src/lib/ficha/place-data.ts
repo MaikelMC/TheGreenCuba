@@ -194,6 +194,7 @@ export interface PlaceDetailProps {
    * en la hidratación.
    */
   nowIso?: string;
+  configTasa?: import("@/lib/precios").ConfigTasa | null;
 }
 
 function fechaLarga(ms: number): string {

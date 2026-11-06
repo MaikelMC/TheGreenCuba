@@ -85,12 +85,17 @@ export function mensajePedido({
 }): string {
   const cuerpo = lineas.map((linea) => {
     const precio = formatMenuPrice(linea.price, linea.currency);
-    if (configTasa && linea.currency === "USD") {
+    if (configTasa) {
       const val = precioDeLinea(linea.price);
-      const cup = val !== null
-        ? ` (${formatCup(aplicarTasa(val, configTasa.tasaUsdCup, configTasa.tasaRedondeo))})`
-        : "";
-      return `• ${linea.name} x${linea.qty}${precio ? ` — ${precio}${cup}` : ""}`;
+      let extra = "";
+      if (val !== null) {
+        if (linea.currency === "USD" || linea.currency === "MLC") {
+          extra = ` (${formatCup(aplicarTasa(val, configTasa.tasaUsdCup, configTasa.tasaRedondeo))})`;
+        } else if (linea.currency === "CUP") {
+          extra = ` (${(val / configTasa.tasaUsdCup).toFixed(2)} USD)`;
+        }
+      }
+      return `• ${linea.name} x${linea.qty}${precio ? ` — ${precio}${extra}` : ""}`;
     }
     return `• ${linea.name} x${linea.qty}${precio ? ` — ${precio}` : ""}`;
   });
@@ -100,7 +105,7 @@ export function mensajePedido({
   if (entrega) partes.push("", `*Dirección:* ${entrega}`);
   const total = totalDePedido(lineas);
   if (total) {
-    if (configTasa && total.currency === "USD") {
+    if (configTasa && (total.currency === "USD" || total.currency === "MLC")) {
       const totalCup = formatCup(aplicarTasa(total.total, configTasa.tasaUsdCup, configTasa.tasaRedondeo));
       partes.push(
         "",

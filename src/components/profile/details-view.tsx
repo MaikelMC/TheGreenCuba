@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { CUBA_PROVINCES, type UserPreferences } from "@/lib/user-preferences-store";
 import { focusProfileControl } from "@/components/profile/focus-profile-control";
 import { FormSection, FormSections } from "@/components/business/form-section";
+import { KynariEmpleosCard } from "@/components/business/kynari-card";
 
 const INTERESTS = [
   { value: "cafes", label: "Cafeterías" },
@@ -143,6 +144,8 @@ export function DetailsView({
             />
           </div>
         </Section>
+
+        <KynariEmpleosCard />
       </motion.div>
     </div>
   );

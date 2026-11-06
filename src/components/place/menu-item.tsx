@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Image as ImageIcon, Minus, Plus } from "lucide-react";
 import { cn, formatMenuPrice, menuTagFallback, menuTagStyles } from "@/lib/utils";
 import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
+import { preciosDeItem, type ConfigTasa } from "@/lib/precios";
 
 interface MenuItemProps {
   name: string;
@@ -67,6 +68,7 @@ interface MenuItemProps {
   hrefCita?: string;
   className?: string;
   index?: number;
+  configTasa?: ConfigTasa | null;
 }
 
 /**
@@ -94,8 +96,10 @@ export function MenuItem({
   hrefCita,
   className,
   index = 0,
+  configTasa = null,
 }: MenuItemProps) {
   const rawPriceText = formatMenuPrice(price, currency);
+  const { secundario } = preciosDeItem({ price, currency }, configTasa);
   /* `tipoPrecio` cambia cómo se presenta el precio:
      - consultar → texto fijo, independientemente del campo precio
      - desde     → prefijo «Desde» delante del precio formateado
@@ -196,8 +200,15 @@ export function MenuItem({
             </span>
           ) : (
             priceText && (
-              <span className="font-lv-display text-body font-bold leading-snug text-ink sm:text-h3">
-                {priceText}
+              <span className="flex flex-col">
+                <span className="font-lv-display text-body font-bold leading-snug text-ink sm:text-h3">
+                  {priceText}
+                </span>
+                {secundario && (
+                  <span className="tabular-nums text-[13px] leading-none text-ink-soft/60">
+                    {secundario}
+                  </span>
+                )}
               </span>
             )
           )}

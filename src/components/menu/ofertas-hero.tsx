@@ -4,8 +4,7 @@ import type { UserPlaceMenuItem, UserPlaceOferta } from "@/lib/places-store";
 import { BotonAgregar } from "@/components/menu/pedido-whatsapp";
 import { OfertasCarrusel } from "@/components/menu/ofertas-carrusel";
 import { formatMenuPrice, slugify } from "@/lib/utils";
-import { aplicarTasa, formatCup, type ConfigTasa } from "@/lib/precios";
-import { precioDeLinea } from "@/lib/pedido";
+import { preciosDeItem, type ConfigTasa } from "@/lib/precios";
 
 /**
  * Las ofertas vivas del negocio, como bloque destacado de la carta.
@@ -168,15 +167,13 @@ export function OfertasHero({
                           {formatMenuPrice(precios.por, currency)}
                         </span>
                       </span>
-                      {/* CUP del precio de oferta */}
-                      {configTasa && currency === "USD" && (() => {
-                        const val = precioDeLinea(precios.por);
-                        if (val === null) return null;
-                        return (
-                          <span className="tabular-nums text-[11px] leading-none text-muted-foreground">
-                            {formatCup(aplicarTasa(val, configTasa.tasaUsdCup, configTasa.tasaRedondeo))}
+                      {configTasa && (() => {
+                        const { secundario } = preciosDeItem({ price: precios.por, currency }, configTasa);
+                        return secundario ? (
+                          <span className="tabular-nums text-[13px] leading-none text-muted-foreground">
+                            {secundario}
                           </span>
-                        );
+                        ) : null;
                       })()}
                     </span>
                   ) : (
@@ -185,14 +182,13 @@ export function OfertasHero({
                         <span className="font-lv-display text-body font-bold leading-snug text-ink sm:text-h3">
                           {formatMenuPrice(item.price, currency)}
                         </span>
-                        {configTasa && currency === "USD" && (() => {
-                          const val = precioDeLinea(item.price);
-                          if (val === null) return null;
-                          return (
-                            <span className="tabular-nums text-[11px] leading-none text-muted-foreground">
-                              {formatCup(aplicarTasa(val, configTasa.tasaUsdCup, configTasa.tasaRedondeo))}
+                        {configTasa && (() => {
+                          const { secundario } = preciosDeItem({ price: item.price, currency }, configTasa);
+                          return secundario ? (
+                            <span className="tabular-nums text-[13px] leading-none text-muted-foreground">
+                              {secundario}
                             </span>
-                          );
+                          ) : null;
                         })()}
                       </span>
                     )
