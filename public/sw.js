@@ -35,8 +35,17 @@
    de cuota exagerado. Tesela transparente de respaldo cuando no hay red ni
    caché. Se elimina `/fonts/space-grotesk.woff2` del precache: Space Grotesk
    se sirve desde `/_next/static/media/` (next/font/local) y ya cae en la
-   caché estática inmutable. */
-const CACHE_VERSION = "lv-v4";
+   caché estática inmutable.
+
+   v5: teselas e imágenes ya no bloquean su respuesta al guardar en caché.
+   El guardado y el recorte van dentro de `event.waitUntil`, así el SW
+   devuelve la tesela en cuanto llega de la red. Recorte escalonado: solo
+   cada 50 guardados o cada 5 minutos, en vez de en cada tesela.
+   Subdominios limitados a dos (a/b) en todos los proveedores; preconexión
+   TLS a esos dos desde el componente del mapa. Fondo del MapContainer al
+   color de tierra real de OSM/dark. TileLayer con keepBuffer=4,
+   updateWhenZooming=false, updateWhenIdle=true. */
+const CACHE_VERSION = "lv-v5";
 
 const STATIC_CACHE = `lv-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `lv-pages-${CACHE_VERSION}`;
@@ -92,6 +101,17 @@ const TILE_HOSTS = [
 ];
 const TILE_MAX_ENTRIES = 1500;
 const TILE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+/* Recorte escalonado de cachés grandes (teselas e imágenes).
+   Se recorta al llegar a RECORTE_CADA_N guardados, o si han pasado
+   RECORTE_CADA_MS sin recortar (por si el SW se durmió y los contadores se
+   reiniciaron). Los objetos se pasan por referencia para compartir la función. */
+const RECORTE_CADA_N = 50;
+const RECORTE_CADA_MS = 5 * 60 * 1000;
+const _recorte = {
+  teselas:  { n: 0, t: 0 },
+  imagenes: { n: 0, t: 0 },
+};
 
 /* Tesela transparente de respaldo: un PNG 1×1 de fondo neutro. Se devuelve
    sin red y sin la tesela en caché para que el mapa no muestre el error de
@@ -206,9 +226,10 @@ self.addEventListener("fetch", (event) => {
   }
 
   /* Teselas del mapa: cross-origin pero manejadas explícitamente. Van antes
-     del bloqueo de origen para que no se salten. */
+     del bloqueo de origen para que no se salten. Se pasa el evento para que
+     la función pueda usar event.waitUntil sin bloquear la respuesta. */
   if (esTesela(url)) {
-    event.respondWith(tesela(request, url));
+    event.respondWith(tesela(event, request));
     return;
   }
 
@@ -234,7 +255,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (esImagen(request, url)) {
-    event.respondWith(imagen(request));
+    event.respondWith(imagen(event, request));
   }
 });
 
@@ -448,7 +469,7 @@ async function cacheFirst(request, cacheName) {
   return response;
 }
 
-async function imagen(request) {
+async function imagen(event, request) {
   const cache = await caches.open(IMAGES_CACHE);
   const cached = await cache.match(request);
   if (cached) {
@@ -456,27 +477,48 @@ async function imagen(request) {
     if (!guardadaEl || Date.now() - Date.parse(guardadaEl) <= IMAGE_MAX_AGE_MS) {
       return cached;
     }
-    await cache.delete(request);
+    cache.delete(request); // fire-and-forget: imagen caducada, se recarga
   }
 
   const response = await fetch(request);
   if (sePuedeCachear(response)) {
-    const headers = new Headers(response.headers);
-    headers.set("X-LV-Cached-At", new Date().toISOString());
-    headers.delete("Content-Length");
-    headers.delete("Content-Encoding");
-    const body = await response.clone().blob();
-    const copy = new Response(body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers,
-    });
-    cache
-      .put(request, copy)
-      .then(() => trimCache(IMAGES_CACHE, IMAGE_MAX_ENTRIES))
-      .catch(() => {});
+    /* El guardado va en waitUntil para no bloquear la respuesta. El clon se
+       consume en guardarYRecortar; la respuesta original llega al navegador
+       en cuanto `fetch` la devuelve. */
+    event.waitUntil(
+      guardarYRecortar(cache, request, response.clone(), IMAGES_CACHE, IMAGE_MAX_ENTRIES, _recorte.imagenes),
+    );
   }
   return response;
+}
+
+/**
+ * Guarda una copia en caché y, si toca, recorta las entradas sobrantes.
+ *
+ * El recorte no ocurre en cada guardado: solo cada RECORTE_CADA_N guardados
+ * o cuando el SW lleva más de RECORTE_CADA_MS sin recortar (por si se durmió
+ * y los contadores se reiniciaron). Así `cache.keys()` no se llama en cada
+ * tesela sino en lotes, sin bloquear el flujo de respuestas.
+ */
+async function guardarYRecortar(cache, request, responseClone, cacheName, maxEntries, contador) {
+  const headers = new Headers(responseClone.headers);
+  headers.set("X-LV-Cached-At", new Date().toISOString());
+  headers.delete("Content-Length");
+  headers.delete("Content-Encoding");
+  const body = await responseClone.blob();
+  await cache.put(request, new Response(body, {
+    status: responseClone.status,
+    statusText: responseClone.statusText,
+    headers,
+  }));
+
+  contador.n++;
+  const ahora = Date.now();
+  if (contador.n >= RECORTE_CADA_N || ahora - contador.t >= RECORTE_CADA_MS) {
+    contador.n = 0;
+    contador.t = ahora;
+    await trimCache(cacheName, maxEntries);
+  }
 }
 
 /** Deja como máximo `maxEntries` entradas: borra las más antiguas primero. */
@@ -500,7 +542,15 @@ async function trimCache(cacheName, maxEntries) {
  * opacas (`no-cors`) no se inspeccionan ni se cachean: llegarían solo si
  * `crossOrigin="anonymous"` no estuviera puesto en el <TileLayer>.
  */
-async function tesela(request, url) {
+/**
+ * Caché de teselas del mapa. Cache-first sobre lo que el usuario ya vio.
+ *
+ * La tesela de red se devuelve en cuanto llega; el guardado y el posible
+ * recorte de la caché van en event.waitUntil para no hacer esperar al mapa.
+ * Solo se guardan respuestas cors o basic (no opacas): con crossOrigin="anonymous"
+ * en el <TileLayer> todas las teselas llegan como cors.
+ */
+async function tesela(event, request) {
   const cache = await caches.open(TILES_CACHE);
   const cached = await cache.match(request);
 
@@ -509,39 +559,24 @@ async function tesela(request, url) {
     if (!guardadaEl || Date.now() - Date.parse(guardadaEl) <= TILE_MAX_AGE_MS) {
       return cached;
     }
-    await cache.delete(request);
+    cache.delete(request); // fire-and-forget: tesela caducada, se recarga
   }
 
+  let response;
   try {
-    const response = await fetch(request);
-
-    /* Solo cacheamos respuestas inspeccionables: cors o basic. Una opaca
-       ocuparía ~7 MB de cuota sin poder leer su contenido. */
-    if (
-      response.ok &&
-      (response.type === "cors" || response.type === "basic")
-    ) {
-      const headers = new Headers(response.headers);
-      headers.set("X-LV-Cached-At", new Date().toISOString());
-      headers.delete("Content-Length");
-      headers.delete("Content-Encoding");
-      const body = await response.clone().blob();
-      const copia = new Response(body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers,
-      });
-      cache
-        .put(request, copia)
-        .then(() => trimCache(TILES_CACHE, TILE_MAX_ENTRIES))
-        .catch(() => {});
-    }
-
-    return response;
+    response = await fetch(request);
   } catch {
     /* Sin red y sin caché: PNG transparente en vez del icono de imagen rota. */
     return fetch(TILE_FALLBACK_PNG);
   }
+
+  if (response.ok && (response.type === "cors" || response.type === "basic")) {
+    event.waitUntil(
+      guardarYRecortar(cache, request, response.clone(), TILES_CACHE, TILE_MAX_ENTRIES, _recorte.teselas),
+    );
+  }
+
+  return response;
 }
 
 /* ------------------------------------------------------------------------- */

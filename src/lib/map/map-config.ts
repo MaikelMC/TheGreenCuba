@@ -13,7 +13,10 @@ export const TILE_CONFIGS: Record<string, TileConfig> = {
       '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>, &copy; <a href="https://carto.com/">CARTO</a>',
     maxZoom: 19,
     label: "CartoDB Voyager",
-    subdomains: "abcd",
+    /* Limitado a dos subdominios para preconectar exactamente esos dos en el
+       <head>. CartoDB admite abcd; usar todos multiplica las conexiones TLS
+       sin reducir la latencia de las primeras teselas. */
+    subdomains: "ab",
   },
   positron: {
     url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
@@ -21,14 +24,15 @@ export const TILE_CONFIGS: Record<string, TileConfig> = {
       '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>, &copy; <a href="https://carto.com/">CARTO</a>',
     maxZoom: 19,
     label: "CartoDB Positron",
-    subdomains: "abcd",
+    subdomains: "ab",
   },
   osm: {
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom: 19,
     label: "OpenStreetMap",
-    subdomains: "abc",
+    /* Dos subdominios, como CartoDB. OSM admite abc. */
+    subdomains: "ab",
   },
 };
 

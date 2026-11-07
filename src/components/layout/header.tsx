@@ -290,7 +290,7 @@ export function Header({
   return (
     // En móvil el aire se recorta a 12/8 px: con los 16/12 de escritorio el
     // campo de búsqueda se quedaba en ~88 px y el marcador no cabía.
-    <header className="map-navigation safe-top fixed top-0 left-0 right-0 z-200 h-header border-b border-ink/5 bg-sand-warm/90 backdrop-blur-[16px] flex items-center px-3 gap-2 sm:px-gap-md sm:gap-gap-sm md:px-gap-lg min-h-[56px] md:min-h-[60px] font-lv text-ink">
+    <header className="map-navigation safe-top fixed top-0 left-0 z-200 h-header border-b border-ink/5 bg-sand-warm/90 backdrop-blur-[16px] flex items-center px-3 gap-2 sm:px-gap-md sm:gap-gap-sm md:px-gap-lg min-h-[56px] md:min-h-[60px] font-lv text-ink">
       {/* Logo. El PNG ya trae su propio degradado verde, así que va suelto: el
           círculo `verde-400 → verde-600` que lo envolvía era del mismo tono y
           se lo comía.

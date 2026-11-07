@@ -251,12 +251,20 @@ function MapChildren({
         url={tile.url}
         attribution={tile.attribution}
         maxZoom={tile.maxZoom}
+        subdomains={tile.subdomains ?? "ab"}
         detectRetina={DETECT_RETINA}
         /* crossOrigin evita respuestas opacas: sin él, Chrome guarda cada
            tesela como opaca y cada una ocupa 7 MB de cuota aunque solo pese
            10 KB. Con CORS normal el SW puede inspeccionar y cachear sin coste
            de cuota exagerado. Los servidores de OSM y CartoDB admiten CORS. */
         crossOrigin="anonymous"
+        /* keepBuffer: Leaflet guarda más teselas alrededor de la vista para
+           que al moverse ya estén. updateWhenZooming/Idle: no pedir teselas
+           a mitad de la animación del zoom, sino cuando el mapa se queda
+           quieto; elimina el vaciado de pantalla al hacer zoom en móvil. */
+        keepBuffer={4}
+        updateWhenZooming={false}
+        updateWhenIdle={true}
       />
       <MapMarkers
         places={places}
@@ -319,17 +327,43 @@ export function MapContent({
     setMounted(true);
   }, []);
 
+  /* Preconexión a los servidores de teselas. React 19 iza estas etiquetas al
+     <head> automáticamente. Se limitan a los dos subdominios configurados en
+     map-config.ts; los demás proveedores reciben solo dns-prefetch. */
+  const preconnect = (
+    <>
+      <link rel="preconnect" href="https://a.tile.openstreetmap.org" />
+      <link rel="preconnect" href="https://b.tile.openstreetmap.org" />
+      <link rel="dns-prefetch" href="https://c.tile.openstreetmap.org" />
+      <link rel="preconnect" href="https://a.basemaps.cartocdn.com" />
+      <link rel="preconnect" href="https://b.basemaps.cartocdn.com" />
+      <link rel="dns-prefetch" href="https://c.basemaps.cartocdn.com" />
+      <link rel="dns-prefetch" href="https://d.basemaps.cartocdn.com" />
+    </>
+  );
+
+  /* Color de fondo mientras carga la primera tanda de teselas.
+     - Claro: #f2efe9 (tono tierra de la capa OSM estándar sobre zonas de Cuba).
+     - Oscuro: #0e1720 (el mismo que .map-loading en globals.css, resultado de
+       invertir el tile claro con el filtro CSS del modo oscuro). */
+  const mapBg = resolvedTheme === "dark" ? "#0e1720" : "#f2efe9";
+
   if (!mounted) {
     return (
-      <div
-        className="h-full w-full bg-sand-deep"
-        style={{ minHeight: "inherit" }}
-      />
+      <>
+        {preconnect}
+        <div
+          className="h-full w-full"
+          style={{ minHeight: "inherit", backgroundColor: mapBg }}
+        />
+      </>
     );
   }
 
   return (
-    <MapContainer
+    <>
+      {preconnect}
+      <MapContainer
       center={effectiveInitialCenter}
       zoom={initialZoom}
       minZoom={MIN_ZOOM}
@@ -337,7 +371,7 @@ export function MapContent({
       zoomControl={false}
       preferCanvas={PREFER_CANVAS}
       className={resolvedTheme === "dark" ? "z-0 dark-map-tiles" : "z-0"}
-      style={{ height: "100%", width: "100%" }}
+      style={{ height: "100%", width: "100%", backgroundColor: mapBg }}
     >
       <ZoomControl position="bottomleft" />
       <MapViewportSync />
@@ -369,5 +403,6 @@ export function MapContent({
         <RouteLayer route={route} origin={routeOrigin} />
       )}
     </MapContainer>
+    </>
   );
 }

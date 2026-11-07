@@ -104,7 +104,7 @@ export function PlaceCard({
       <div className="relative size-16 shrink-0">
         <div className="recommendation-place-thumb relative grid size-16 place-items-center overflow-hidden rounded-lv-lg bg-gradient-to-br from-verde-50 to-verde-100">
           {logoUrl ? (
-            <Image src={logoUrl} alt="" fill sizes="64px" className="object-cover" />
+            <Image src={logoUrl} alt="" fill sizes="64px" loading="lazy" fetchPriority="low" className="object-cover" />
           ) : (
             <CategoryIcon icon={icon} size={30} strokeWidth={1.6} className="text-verde-600" />
           )}

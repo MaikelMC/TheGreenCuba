@@ -188,6 +188,16 @@
     background-color: #08130d !important;
   }
 
+  /* Android Chrome: `position: fixed` + `right: 0` referencia el ICB (layout
+     viewport), que puede ser más ancho que la ventana visual cuando hay
+     contenido que desborda (p.ej. Leaflet). Safari usa siempre la ventana
+     visual. `dvw` = dynamic viewport width = ventana visual, no el ICB.
+     Sin `right-0` en el JSX, la anchura manda y el elemento no se desborda. */
+  header.map-navigation {
+    width: 100vw;  /* fallback Chrome < 108, Safari < 15.4 */
+    width: 100dvw; /* visual viewport en todos los navegadores modernos */
+  }
+
   html[data-theme="dark"] header.sticky,
   html[data-theme="dark"] header.map-navigation {
     background: rgba(10, 18, 24, 0.82) !important;
