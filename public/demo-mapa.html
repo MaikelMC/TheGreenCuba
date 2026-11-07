@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Demo del mapa nuevo · La Verde</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --verde: #18954F;
+    --verde-oscuro: #1F5A33;
+    --verde-claro: #DFF1DA;
+    --tinta: #1B2A21;
+    --tinta-suave: #4A5A50;
+    --superficie: #FFFFFF;
+    --fondo: #F5FAF2;
+    --borde: rgba(27, 42, 33, 0.12);
+    --sombra: 0 12px 32px rgba(31, 90, 51, 0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --tinta: #E8F2EA;
+      --tinta-suave: #A9BCAF;
+      --superficie: #16241C;
+      --fondo: #0F1A14;
+      --borde: rgba(232, 242, 234, 0.14);
+      --verde-claro: #23402E;
+      --sombra: 0 12px 32px rgba(0, 0, 0, 0.45);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: "Source Sans 3", system-ui, sans-serif;
+    color: var(--tinta);
+    background: var(--fondo);
+  }
+  #mapa { position: fixed; inset: 0; }
+
+  .panel {
+    position: fixed;
+    z-index: 2;
+    left: 16px;
+    top: calc(16px + env(safe-area-inset-top, 0px));
+    width: min(360px, calc(100vw - 32px));
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: 20px;
+    box-shadow: var(--sombra);
+    padding: 18px 18px 16px;
+  }
+  .panel h1 {
+    font-family: "DM Sans", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    line-height: 1.2;
+    margin: 0 0 4px;
+    color: var(--verde-oscuro);
+  }
+  @media (prefers-color-scheme: dark) { .panel h1 { color: #8EE6A8; } }
+  .panel p { margin: 0; font-size: 15px; line-height: 1.45; color: var(--tinta-suave); }
+
+  .estilos {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin: 14px 0 12px;
+  }
+  .estilos button {
+    font: 600 14px/1.2 "Source Sans 3", system-ui, sans-serif;
+    min-height: 44px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--borde);
+    background: var(--fondo);
+    color: var(--tinta);
+    cursor: pointer;
+    text-align: left;
+  }
+  .estilos button[aria-pressed="true"] {
+    border-color: var(--verde);
+    background: var(--verde-claro);
+    color: var(--tinta);
+    box-shadow: inset 0 0 0 1px var(--verde);
+  }
+  .estilos button:focus-visible, .acciones button:focus-visible, .plegar:focus-visible {
+    outline: 3px solid var(--verde);
+    outline-offset: 2px;
+  }
+  .estilos small { display: block; font-weight: 400; color: var(--tinta-suave); margin-top: 2px; }
+
+  .nota {
+    font-size: 14px;
+    line-height: 1.45;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--fondo);
+    border: 1px solid var(--borde);
+    color: var(--tinta);
+    min-height: 3.2em;
+  }
+
+  .acciones { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .acciones button {
+    font: 600 14px/1 "Source Sans 3", system-ui, sans-serif;
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    background: var(--verde-oscuro);
+    color: #FFFFFF;
+  }
+  .acciones button.secundario {
+    background: transparent;
+    color: var(--tinta);
+    border: 1px solid var(--borde);
+  }
+  .plegar {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--borde);
+    background: var(--superficie);
+    color: var(--tinta);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+  }
+  .panel.plegado .cuerpo { display: none; }
+  .panel.plegado { width: auto; padding-right: 56px; }
+
+  .pin {
+    width: 34px;
+    height: 34px;
+    border-radius: 50% 50% 50% 4px;
+    transform: rotate(-45deg);
+    background: var(--verde);
+    border: 3px solid #FFFFFF;
+    box-shadow: 0 4px 10px rgba(31, 90, 51, 0.35);
+    cursor: pointer;
+  }
+  .pin span {
+    display: block;
+    width: 10px;
+    height: 10px;
+    margin: 9px;
+    border-radius: 50%;
+    background: #FFFFFF;
+  }
+  .maplibregl-popup-content {
+    font-family: "Source Sans 3", system-ui, sans-serif;
+    border-radius: 14px;
+    padding: 10px 14px;
+    color: #1B2A21;
+  }
+  .maplibregl-popup-content strong { font-family: "DM Sans", system-ui, sans-serif; display: block; }
+
+  @media (max-width: 600px) {
+    .panel {
+      top: auto;
+      bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+      left: 12px;
+      width: calc(100vw - 24px);
+      max-height: 58vh;
+      overflow: auto;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+<div id="mapa" role="region" aria-label="Mapa de demostración de Santiago de Cuba"></div>
+
+<section class="panel" id="panel" aria-label="Controles del demo">
+  <button class="plegar" id="plegar" aria-expanded="true" aria-controls="cuerpo" title="Ocultar panel">–</button>
+  <h1>Así se vería el mapa nuevo</h1>
+  <div class="cuerpo" id="cuerpo">
+    <p>Haz zoom con dos dedos o con la rueda y muévete por Santiago. Fíjate en que el mapa nunca se queda en blanco.</p>
+
+    <div class="estilos" role="group" aria-label="Estilo del mapa">
+      <button type="button" data-estilo="actual" aria-pressed="false">Como es hoy<small>Teselas de imagen</small></button>
+      <button type="button" data-estilo="laverde" aria-pressed="true">La Verde<small>Vectorial con tus colores</small></button>
+      <button type="button" data-estilo="liberty" aria-pressed="false">Detallado<small>Vectorial original</small></button>
+      <button type="button" data-estilo="claro" aria-pressed="false">Claro<small>Vectorial sobrio</small></button>
+    </div>
+
+    <div class="nota" id="nota" aria-live="polite"></div>
+
+    <div class="acciones">
+      <button type="button" id="probarZoom">Probar zoom desde Cuba</button>
+      <button type="button" class="secundario" id="girar">Inclinar mapa</button>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+(function () {
+  var SANTIAGO = [-75.8219, 20.0247];
+
+  var NOTAS = {
+    actual: "El mismo dibujo que usa la app hoy, de OpenStreetMap. Ojo: aquí se ve más fluido que en la app, porque este demo usa MapLibre. Con el Leaflet de ahora, al hacer zoom aparecen los cuadros vacíos.",
+    laverde: "Mapa vectorial con los colores de La Verde: parques en verde suave, agua turquesa y nombres en verde oscuro. Es la propuesta para la fase 3.",
+    liberty: "El mismo mapa vectorial sin personalizar. Más colores y más detalle, parecido al mapa de hoy pero nítido en cualquier zoom.",
+    claro: "Versión sobria en grises. Deja que los pins de los negocios sean lo que más destaca."
+  };
+
+  var ESTILO_ACTUAL = {
+    version: 8,
+    sources: {
+      osm: {
+        type: "raster",
+        tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: "© OpenStreetMap"
+      }
+    },
+    layers: [{ id: "osm", type: "raster", source: "osm" }]
+  };
+
+  var ESTILOS = {
+    actual: ESTILO_ACTUAL,
+    laverde: "https://tiles.openfreemap.org/styles/liberty",
+    liberty: "https://tiles.openfreemap.org/styles/liberty",
+    claro: "https://tiles.openfreemap.org/styles/positron"
+  };
+
+  var NEGOCIOS = [
+    { nombre: "Cafetería de ejemplo", tipo: "Cafetería", coord: [-75.8297, 20.0213] },
+    { nombre: "Mipyme de ejemplo", tipo: "Alimentos y productos varios", coord: [-75.8226, 20.0225] },
+    { nombre: "Paladar de ejemplo", tipo: "Restaurante", coord: [-75.8005, 20.0300] },
+    { nombre: "Barbería de ejemplo", tipo: "Barbería", coord: [-75.8270, 20.0204] },
+    { nombre: "Dulcería de ejemplo", tipo: "Dulcería", coord: [-75.8180, 20.0350] },
+    { nombre: "Taller de ejemplo", tipo: "Servicio técnico", coord: [-75.8370, 20.0185] }
+  ];
+
+  var mapa = new maplibregl.Map({
+    container: "mapa",
+    style: ESTILOS.laverde,
+    center: SANTIAGO,
+    zoom: 14.2,
+    maxZoom: 19,
+    attributionControl: { compact: true }
+  });
+
+  mapa.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+
+  var estiloActivo = "laverde";
+
+  function aplicarColoresLaVerde() {
+    var capas = (mapa.getStyle() && mapa.getStyle().layers) || [];
+    capas.forEach(function (capa) {
+      var id = capa.id;
+      function pintar(prop, valor) {
+        try { mapa.setPaintProperty(id, prop, valor); } catch (e) {}
+      }
+      if (capa.type === "background") pintar("background-color", "#F1F5EE");
+      if (capa.type === "fill") {
+        if (/water/.test(id)) pintar("fill-color", "#BFE3E6");
+        else if (/park|grass|wood|forest|landcover|garden|pitch/.test(id)) pintar("fill-color", "#D3ECCB");
+        else if (/residential|landuse/.test(id)) pintar("fill-color", "#ECF1E8");
+        else if (/building/.test(id)) pintar("fill-color", "#E2E8DE");
+      }
+      if (capa.type === "fill-extrusion" && /building/.test(id)) {
+        pintar("fill-extrusion-color", "#E2E8DE");
+      }
+      if (capa.type === "line") {
+        if (/water|river|stream/.test(id)) pintar("line-color", "#A9D6DB");
+        else if (/casing/.test(id)) { /* se mantiene el borde */ }
+        else if (/motorway|trunk/.test(id)) pintar("line-color", "#F6E3A1");
+        else if (/primary|secondary/.test(id)) pintar("line-color", "#FFFFFF");
+      }
+      if (capa.type === "symbol") {
+        if (/place|city|town|village|suburb|neighbourhood/.test(id)) {
+          pintar("text-color", "#1F5A33");
+          pintar("text-halo-color", "#FFFFFF");
+        }
+        if (/water/.test(id)) pintar("text-color", "#3C8A92");
+      }
+    });
+  }
+
+  mapa.on("style.load", function () {
+    if (estiloActivo === "laverde") aplicarColoresLaVerde();
+  });
+
+  NEGOCIOS.forEach(function (n) {
+    var el = document.createElement("div");
+    el.className = "pin";
+    el.setAttribute("role", "button");
+    el.setAttribute("tabindex", "0");
+    el.setAttribute("aria-label", n.nombre + ", " + n.tipo);
+    el.appendChild(document.createElement("span"));
+    var popup = new maplibregl.Popup({ offset: 22, closeButton: false })
+      .setHTML("<strong>" + n.nombre + "</strong>" + n.tipo);
+    new maplibregl.Marker({ element: el, anchor: "bottom" })
+      .setLngLat(n.coord)
+      .setPopup(popup)
+      .addTo(mapa);
+    el.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); el.click(); }
+    });
+  });
+
+  var nota = document.getElementById("nota");
+  var botones = document.querySelectorAll(".estilos button");
+
+  function elegir(estilo) {
+    estiloActivo = estilo;
+    botones.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.estilo === estilo ? "true" : "false");
+    });
+    nota.textContent = NOTAS[estilo];
+    mapa.setStyle(ESTILOS[estilo]);
+  }
+
+  botones.forEach(function (b) {
+    b.addEventListener("click", function () { elegir(b.dataset.estilo); });
+  });
+  nota.textContent = NOTAS.laverde;
+
+  var sinMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  document.getElementById("probarZoom").addEventListener("click", function () {
+    mapa.jumpTo({ center: [-79.5, 21.6], zoom: 5.6, pitch: 0, bearing: 0 });
+    var destino = { center: SANTIAGO, zoom: 16.5 };
+    if (sinMovimiento) { mapa.jumpTo(destino); return; }
+    setTimeout(function () { mapa.flyTo(Object.assign({ speed: 0.8, curve: 1.4 }, destino)); }, 600);
+  });
+
+  var inclinado = false;
+  var botonGirar = document.getElementById("girar");
+  botonGirar.addEventListener("click", function () {
+    inclinado = !inclinado;
+    var vista = { pitch: inclinado ? 55 : 0, bearing: inclinado ? -20 : 0 };
+    if (sinMovimiento) mapa.jumpTo(vista); else mapa.easeTo(Object.assign({ duration: 900 }, vista));
+    botonGirar.textContent = inclinado ? "Volver a plano" : "Inclinar mapa";
+  });
+
+  var panel = document.getElementById("panel");
+  var plegar = document.getElementById("plegar");
+  plegar.addEventListener("click", function () {
+    var plegado = panel.classList.toggle("plegado");
+    plegar.setAttribute("aria-expanded", plegado ? "false" : "true");
+    plegar.textContent = plegado ? "+" : "–";
+    plegar.title = plegado ? "Mostrar panel" : "Ocultar panel";
+  });
+})();
+</script>
+</body>
+</html>
