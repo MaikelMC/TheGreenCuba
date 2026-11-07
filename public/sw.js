@@ -44,16 +44,19 @@
    Subdominios limitados a dos (a/b) en todos los proveedores; preconexión
    TLS a esos dos desde el componente del mapa. Fondo del MapContainer al
    color de tierra real de OSM/dark. TileLayer con keepBuffer=4,
-   updateWhenZooming=false, updateWhenIdle=true. */
-const CACHE_VERSION = "lv-v5";
+   updateWhenZooming=false, updateWhenIdle=true.
+
+   v6: las teselas del mapa ya no pasan por el SW. La caché lv-tiles-v5
+   se elimina al activar esta versión. Mientras las teselas vengan de
+   dominios externos se sirven directamente desde la red. */
+const CACHE_VERSION = "lv-v6";
 
 const STATIC_CACHE = `lv-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `lv-pages-${CACHE_VERSION}`;
 const API_CACHE = `lv-api-${CACHE_VERSION}`;
 const IMAGES_CACHE = `lv-images-${CACHE_VERSION}`;
-const TILES_CACHE = `lv-tiles-${CACHE_VERSION}`;
 
-const CURRENT_CACHES = new Set([STATIC_CACHE, PAGES_CACHE, API_CACHE, IMAGES_CACHE, TILES_CACHE]);
+const CURRENT_CACHES = new Set([STATIC_CACHE, PAGES_CACHE, API_CACHE, IMAGES_CACHE]);
 
 /* `lv-private-` se reserva para cachés de datos privados. Hoy no existe
    ninguna, pero la purga ya las contempla para que el día que se añada una no
@@ -91,32 +94,15 @@ const API_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const IMAGE_MAX_ENTRIES = 80;
 const IMAGE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
-/* Dominios de teselas del mapa. Se interceptan aunque sean cross-origin porque
-   `crossOrigin="anonymous"` en el <TileLayer> hace que lleguen como CORS normal
-   y no como respuestas opacas. Nunca se descargan por adelantado (prohíbido por
-   las normas de uso de OSM); solo se guardan las que el usuario ya vio. */
-const TILE_HOSTS = [
-  "tile.openstreetmap.org",
-  "basemaps.cartocdn.com",
-];
-const TILE_MAX_ENTRIES = 1500;
-const TILE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-
-/* Recorte escalonado de cachés grandes (teselas e imágenes).
+/* Recorte escalonado de cachés grandes (imágenes).
    Se recorta al llegar a RECORTE_CADA_N guardados, o si han pasado
    RECORTE_CADA_MS sin recortar (por si el SW se durmió y los contadores se
    reiniciaron). Los objetos se pasan por referencia para compartir la función. */
 const RECORTE_CADA_N = 50;
 const RECORTE_CADA_MS = 5 * 60 * 1000;
 const _recorte = {
-  teselas:  { n: 0, t: 0 },
   imagenes: { n: 0, t: 0 },
 };
-
-/* Tesela transparente de respaldo: un PNG 1×1 de fondo neutro. Se devuelve
-   sin red y sin la tesela en caché para que el mapa no muestre el error de
-   imagen roto del navegador. */
-const TILE_FALLBACK_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
 /* Documentos que nunca se guardan: son privados. Se comparan por segmento para
    que `/business` no atrape a `/business-algo` y `/m/x` siga siendo público. */
@@ -197,8 +183,7 @@ self.addEventListener("message", (event) => {
                 name.startsWith(PRIVATE_CACHE_PREFIX) ||
                 name.startsWith("lv-pages-") ||
                 name.startsWith("lv-api-") ||
-                name.startsWith("lv-images-") ||
-                name.startsWith("lv-tiles-"),
+                name.startsWith("lv-images-"),
             )
             .map((name) => caches.delete(name)),
         );
@@ -222,14 +207,6 @@ self.addEventListener("fetch", (event) => {
   try {
     url = new URL(request.url);
   } catch {
-    return;
-  }
-
-  /* Teselas del mapa: cross-origin pero manejadas explícitamente. Van antes
-     del bloqueo de origen para que no se salten. Se pasa el evento para que
-     la función pueda usar event.waitUntil sin bloquear la respuesta. */
-  if (esTesela(url)) {
-    event.respondWith(tesela(event, request));
     return;
   }
 
@@ -307,10 +284,6 @@ function esImagen(request, url) {
     url.pathname.startsWith("/_next/image") ||
     /\.(png|jpe?g|webp|avif|gif|svg)$/i.test(url.pathname)
   );
-}
-
-function esTesela(url) {
-  return TILE_HOSTS.some((host) => url.hostname.endsWith(host));
 }
 
 /** Una respuesta puede guardarse si es correcta y no es privada. */
@@ -531,52 +504,6 @@ async function trimCache(cacheName, maxEntries) {
   for (let i = 0; i < sobran; i += 1) {
     await cache.delete(keys[i]);
   }
-}
-
-/**
- * Caché de teselas del mapa.
- *
- * Cache-first sobre lo que el usuario ya vio. Si la red falla y la tesela no
- * está en caché, devuelve un PNG transparente 1×1 —no el error roto del
- * navegador—. Solo se guardan respuestas `ok` de tipo `cors` o `basic`; las
- * opacas (`no-cors`) no se inspeccionan ni se cachean: llegarían solo si
- * `crossOrigin="anonymous"` no estuviera puesto en el <TileLayer>.
- */
-/**
- * Caché de teselas del mapa. Cache-first sobre lo que el usuario ya vio.
- *
- * La tesela de red se devuelve en cuanto llega; el guardado y el posible
- * recorte de la caché van en event.waitUntil para no hacer esperar al mapa.
- * Solo se guardan respuestas cors o basic (no opacas): con crossOrigin="anonymous"
- * en el <TileLayer> todas las teselas llegan como cors.
- */
-async function tesela(event, request) {
-  const cache = await caches.open(TILES_CACHE);
-  const cached = await cache.match(request);
-
-  if (cached) {
-    const guardadaEl = cached.headers.get("X-LV-Cached-At");
-    if (!guardadaEl || Date.now() - Date.parse(guardadaEl) <= TILE_MAX_AGE_MS) {
-      return cached;
-    }
-    cache.delete(request); // fire-and-forget: tesela caducada, se recarga
-  }
-
-  let response;
-  try {
-    response = await fetch(request);
-  } catch {
-    /* Sin red y sin caché: PNG transparente en vez del icono de imagen rota. */
-    return fetch(TILE_FALLBACK_PNG);
-  }
-
-  if (response.ok && (response.type === "cors" || response.type === "basic")) {
-    event.waitUntil(
-      guardarYRecortar(cache, request, response.clone(), TILES_CACHE, TILE_MAX_ENTRIES, _recorte.teselas),
-    );
-  }
-
-  return response;
 }
 
 /* ------------------------------------------------------------------------- */
