@@ -10,7 +10,7 @@
  * con chunks que el HMR ya borró y produce errores imposibles de reproducir en
  * producción.
  */
-export const PWA_ENABLED = process.env.NEXT_PUBLIC_PWA_ENABLED === "true";
+export const PWA_ENABLED = process.env.NEXT_PUBLIC_PWA_ENABLED !== "false";
 
 /** Si el navegador debe registrar el service worker en este build. */
 export function pwaActiva(): boolean {
