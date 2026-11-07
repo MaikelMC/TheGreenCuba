@@ -186,6 +186,7 @@ export function BusinessPanel({
   userId,
   configTasa = null,
   packMedida = null,
+  descuentoPct = null,
 }: {
   /** Id del usuario de la sesión. Solo se usa para nombrar el snapshot offline. */
   userId: string;
@@ -243,6 +244,8 @@ export function BusinessPanel({
   configTasa?: import("@/lib/precios").ConfigTasa | null;
   /** El pack a medida activo o en tramitación, resuelto en el servidor. */
   packMedida?: PackMedidaResumen | null;
+  /** Descuento acordado para este negocio, 0–100. `null` = sin descuento. */
+  descuentoPct?: number | null;
 }) {
   /* Copia de lectura para el modo offline. Se reescribe cuando cambia algo de
      la ficha, de las métricas o del plan; el panel se resuelve en el servidor,
@@ -443,6 +446,7 @@ export function BusinessPanel({
                 modulosElegidos={modulosElegidos}
                 packMedida={packMedida}
                 esDueno={esDueno}
+                descuentoPct={descuentoPct}
               />
             );
           case "settings":

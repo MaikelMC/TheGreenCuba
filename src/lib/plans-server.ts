@@ -267,6 +267,22 @@ export async function limite(
 }
 
 /**
+ * El descuento acordado para este negocio, o `null` si no hay.
+ *
+ * Lo lee la ruta de cobro para aplicarlo al precio, y la página del panel
+ * para mostrarlo en las tarjetas de planes.
+ */
+export async function descuentoPctDe(negocioId: string): Promise<number | null> {
+  if (negocioId === DEV_PLACE_ID) return null;
+  const [row] = await db
+    .select({ descuentoPct: suscripciones.descuentoPct })
+    .from(suscripciones)
+    .where(eq(suscripciones.negocioId, negocioId))
+    .limit(1);
+  return row?.descuentoPct ?? null;
+}
+
+/**
  * La suscripción con la que nace un negocio: gratis, con la prueba de Pro
  * arrancando hoy.
  *

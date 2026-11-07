@@ -164,6 +164,27 @@
         color: var(--ink-soft);
         line-height: 1.5;
       }
+      .enlace-pagina {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 0;
+        border-top: 1px solid var(--linea);
+        text-decoration: none;
+        color: var(--ink);
+        font-size: 14px;
+      }
+      .enlace-pagina:first-of-type {
+        border-top: 0;
+      }
+      .enlace-pagina:hover {
+        color: var(--verde-700);
+      }
+      .enlace-ruta {
+        font-size: 11px;
+        color: var(--ink-soft);
+        word-break: break-all;
+      }
     </style>
   </head>
   <body>
@@ -181,9 +202,18 @@
 
       <div class="acciones">
         <button type="button" class="primario" id="reintentar">Reintentar</button>
+        <a href="/home" class="secundario" style="display:inline-flex;align-items:center;text-decoration:none;">Volver al mapa</a>
         <button type="button" class="secundario" id="alternar" aria-expanded="true">
           Ocultar datos guardados
         </button>
+      </div>
+
+      <div id="paginas-guardadas" class="oculto">
+        <section aria-labelledby="titulo-paginas">
+          <h2 id="titulo-paginas">Páginas guardadas</h2>
+          <p class="meta">Fichas y cartas que visitaste con conexión</p>
+          <div id="lista-paginas"></div>
+        </section>
       </div>
 
       <div id="datos">
@@ -603,6 +633,63 @@
           .catch(function () {
             vaciar();
           });
+
+        /* Páginas guardadas en lv-pages-*. Busca la caché por prefijo para no
+           depender del número de versión. */
+        if ("caches" in window) {
+          caches.keys().then(function (nombres) {
+            var nombrePages = nombres.find(function (n) {
+              return n.indexOf("lv-pages-") === 0;
+            });
+            if (!nombrePages) return;
+            return caches.open(nombrePages).then(function (cache) {
+              return cache.keys();
+            });
+          }).then(function (claves) {
+            if (!claves || claves.length === 0) return;
+
+            /* Filtra: quita /offline.html y páginas privadas. */
+            var PRIVADAS = ["/admin", "/business", "/profile"];
+            var paginas = claves
+              .map(function (req) { return new URL(req.url); })
+              .filter(function (url) {
+                var p = url.pathname;
+                if (p === "/offline.html") return false;
+                return !PRIVADAS.some(function (base) {
+                  return p === base || p.indexOf(base + "/") === 0;
+                });
+              });
+
+            if (paginas.length === 0) return;
+
+            var contenedor = $("lista-paginas");
+            var etiquetas = {
+              "/home": "Inicio",
+              "/place": "Negocio",
+              "/m": "Carta",
+            };
+
+            paginas.slice(0, 20).forEach(function (url) {
+              var prefijo = Object.keys(etiquetas).find(function (k) {
+                return url.pathname === k || url.pathname.indexOf(k + "/") === 0;
+              });
+              var label = prefijo ? etiquetas[prefijo] : "Página";
+              var a = document.createElement("a");
+              a.href = url.pathname + url.search;
+              a.className = "enlace-pagina";
+              var nombre = document.createElement("span");
+              nombre.textContent = label;
+              var ruta = document.createElement("span");
+              ruta.className = "enlace-ruta";
+              ruta.textContent = url.pathname;
+              a.appendChild(nombre);
+              a.appendChild(ruta);
+              contenedor.appendChild(a);
+            });
+
+            $("paginas-guardadas").classList.remove("oculto");
+          }).catch(function () {});
+        }
       })();
     </script>
   </body>

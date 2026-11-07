@@ -24,6 +24,15 @@ import {
   type Pack,
   type Plan,
 } from "@/lib/plans";
+
+/** Aplica descuento: misma lógica que `precioConDescuento` en plans.ts. */
+function aplicarDescuento(usd: number, pct: number | null | undefined) {
+  const p =
+    typeof pct === "number" && Number.isFinite(pct) && pct > 0 && pct <= 100
+      ? pct
+      : 0;
+  return { original: usd, final: p === 0 ? usd : Math.round(usd * (1 - p / 100) * 100) / 100 };
+}
 import type { PackMedidaResumen } from "@/lib/pack-medida";
 import { useCatalogo } from "@/providers/catalogo-provider";
 import { PackMedidaCard } from "@/components/business/pack-medida-card";
@@ -64,6 +73,7 @@ export function PlansSection({
   modulosElegidos = [],
   packMedida = null,
   esDueno = false,
+  descuentoPct = null,
 }: {
   /** El pack efectivo del negocio, resuelto en el servidor. */
   plan: Plan;
@@ -85,6 +95,8 @@ export function PlansSection({
   packMedida?: PackMedidaResumen | null;
   /** Si quien mira es el dueño: solo él puede solicitar y cancelar packs. */
   esDueno?: boolean;
+  /** Descuento acordado para este negocio, 0–100. `null` = sin descuento. */
+  descuentoPct?: number | null;
 }) {
   const router = useRouter();
   const cat = useCatalogo();
@@ -177,8 +189,14 @@ export function PlansSection({
       });
       const data = (await res.json().catch(() => null)) as {
         url?: string;
+        activado?: boolean;
         error?: string;
       } | null;
+      if (data?.activado) {
+        toast.success("¡Plan activado!");
+        router.refresh();
+        return;
+      }
       if (!res.ok || !data?.url) {
         toast.error(data?.error ?? "No se pudo abrir el pago.");
         return;
@@ -198,10 +216,16 @@ export function PlansSection({
     tipo: "plan" | "modulo",
     clave: string,
     nombre: string,
-    usd: number,
+    usdOriginal: number,
   ) {
     if (pagando) return;
-    setCobro({ tipo, clave, nombre, usd });
+    const { final } = aplicarDescuento(usdOriginal, descuentoPct);
+    /* 100 % de descuento: sin factura, se activa directo. */
+    if (final === 0) {
+      void pagar(tipo, clave);
+      return;
+    }
+    setCobro({ tipo, clave, nombre, usd: final });
   }
 
   const mensajeCup = cobro
@@ -262,6 +286,7 @@ export function PlansSection({
               elegido={modulosElegidos.includes(clave)}
               pagando={pagando === `modulo:${clave}`}
               bloqueado={pagando !== null}
+              descuentoPct={descuentoPct}
               onPagar={() =>
                 pedirMetodo(
                   "modulo",
@@ -292,6 +317,7 @@ export function PlansSection({
               bloqueado={pendiente !== null && pendiente !== p}
               pagando={pagando === `plan:${p}`}
               pagandoAlgo={pagando !== null}
+              descuentoPct={descuentoPct}
               onElegir={() => elegir(p)}
               onPagar={() =>
                 pedirMetodo("plan", p, nombreDe(p, cat), cat.packs[p].usd)
@@ -609,6 +635,7 @@ function ModuloTile({
   elegido,
   pagando,
   bloqueado,
+  descuentoPct,
   onPagar,
 }: {
   clave: ClaveModulo;
@@ -616,10 +643,12 @@ function ModuloTile({
   elegido: boolean;
   pagando: boolean;
   bloqueado: boolean;
+  descuentoPct?: number | null;
   onPagar: () => void;
 }) {
   const cat = useCatalogo();
   const modulo = cat.modulos[clave];
+  const { original, final } = aplicarDescuento(modulo.usd, descuentoPct);
 
   return (
     <article
@@ -636,7 +665,7 @@ function ModuloTile({
         </h3>
         {elegido && <span className={PILDORA_VERDE}>Elegido</span>}
       </div>
-      <Precio usd={modulo.usd} />
+      <Precio usd={final} original={final < original ? original : undefined} />
       <p className="mt-gap-2xs text-small text-ink-soft/75">{modulo.lema}</p>
 
       <div className="my-gap-md h-px bg-ink/5" />
@@ -684,6 +713,7 @@ function PackTile({
   bloqueado,
   pagando,
   pagandoAlgo,
+  descuentoPct,
   onElegir,
   onPagar,
 }: {
@@ -697,11 +727,13 @@ function PackTile({
   bloqueado: boolean;
   pagando: boolean;
   pagandoAlgo: boolean;
+  descuentoPct?: number | null;
   onElegir: () => void;
   onPagar: () => void;
 }) {
   const cat = useCatalogo();
   const datos = cat.packs[pack];
+  const { original, final } = aplicarDescuento(datos.usd, descuentoPct);
   /* Con un pack elegido, «Tu plan» se aparta: lo útil ahora es señalar el que
      se va a pagar, no el que corre durante la prueba. */
   const esActual = pack === actual && !elegido;
@@ -734,7 +766,7 @@ function PackTile({
         ) : null}
       </div>
 
-      <Precio usd={datos.usd} />
+      <Precio usd={final} original={final < original ? original : undefined} />
       <p className="mt-gap-2xs text-small text-ink-soft/75">{datos.lema}</p>
 
       <div className="my-gap-md h-px bg-ink/5" />
@@ -800,17 +832,28 @@ function PackTile({
   );
 }
 
-/** El precio en dólares y, debajo, lo mismo en CUP al cambio de hoy. */
-function Precio({ usd }: { usd: number }) {
+/** El precio en dólares y, debajo, lo mismo en CUP al cambio de hoy.
+ *  Si hay descuento, muestra el original tachado y el final destacado. */
+function Precio({ usd, original }: { usd: number; original?: number }) {
   const cat = useCatalogo();
   return (
-    <p className="mt-gap-sm flex flex-wrap items-baseline gap-gap-2xs">
+    <div className="mt-gap-sm flex flex-wrap items-baseline gap-gap-2xs">
+      {original !== undefined && (
+        <span className="font-lv-display text-body text-ink-soft/50 line-through">
+          {original} USD
+        </span>
+      )}
       <span className="font-lv-display text-h3 font-bold text-ink">
         {usd} USD
       </span>
       <span className="text-meta text-ink-soft/75">
         al mes · {textoCup(usd, cat)}
       </span>
-    </p>
+      {original !== undefined && (
+        <span className="ml-gap-2xs inline-flex items-center rounded-full bg-verde-100 px-[9px] py-[3px] font-lv-display text-[10px] font-extrabold uppercase tracking-[0.09em] text-verde-700">
+          Tu descuento
+        </span>
+      )}
+    </div>
   );
 }

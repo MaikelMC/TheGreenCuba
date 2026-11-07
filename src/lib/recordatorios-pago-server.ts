@@ -15,7 +15,7 @@ import {
   paymentReminderEmailHtml,
   sendEmail,
 } from "@/lib/email";
-import { aSuscripcion, funcionesDe, nombreDe, usdDe } from "@/lib/plans";
+import { aSuscripcion, funcionesDe, nombreDe, precioConDescuento, usdDe } from "@/lib/plans";
 import { enviarPushAUsuarios } from "@/lib/push-server";
 import {
   avisoDePago,
@@ -67,6 +67,7 @@ interface FilaSuscripcion {
   trialHasta: Date | null;
   venceEn: Date | null;
   modulos: { clave: string; desde: string; hasta: string | null }[];
+  descuentoPct: number | null;
 }
 
 /** La URL base del correo: sin barra final y sin `undefined` si falta la variable. */
@@ -224,7 +225,8 @@ function planDelAviso(
   if (esPrueba) return { plan: "Pro (en prueba)", precioUsd: null };
   if (fila.plan === "gratis") return { plan: "Gratis", precioUsd: null };
 
-  return { plan: nombreDe(fila.plan), precioUsd: usdDe(fila.plan) };
+  const { final } = precioConDescuento(usdDe(fila.plan), fila.descuentoPct);
+  return { plan: nombreDe(fila.plan), precioUsd: final };
 }
 
 /**
@@ -254,6 +256,7 @@ export async function enviarRecordatoriosDePago(
       trialHasta: suscripciones.trialHasta,
       venceEn: suscripciones.venceEn,
       modulos: suscripciones.modulos,
+      descuentoPct: suscripciones.descuentoPct,
     })
     .from(suscripciones)
     .innerJoin(places, eq(places.id, suscripciones.negocioId))

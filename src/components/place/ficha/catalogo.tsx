@@ -39,15 +39,20 @@ function determinarVista(
   tipoNegocio: TipoNegocio | null | undefined,
   modulosActivos: ModuloFicha[],
 ): Vista {
-  const familia = tipoNegocio ? familiaDe(tipoNegocio) : null;
-  if (modulosActivos.includes("servicios") || familia === "servicios")
-    return "servicios";
-  if (modulosActivos.includes("tienda") || familia === "tienda_mipyme")
-    return "cuadricula";
-  if (modulosActivos.includes("local") || familia === "cafeteria_restaurante")
-    return "lista_texto";
-  if (modulosActivos.includes("domicilio") || familia === "comida_domicilio")
-    return "lista_foto";
+  /* El tipo del negocio manda: si está puesto, determina la vista. Los módulos
+     solo entran como fallback cuando no hay tipo declarado, para no machacar
+     un cambio que el admin acaba de hacer. */
+  if (tipoNegocio) {
+    const familia = familiaDe(tipoNegocio);
+    if (familia === "servicios") return "servicios";
+    if (familia === "tienda_mipyme") return "cuadricula";
+    if (familia === "cafeteria_restaurante") return "lista_texto";
+    if (familia === "comida_domicilio") return "lista_foto";
+  }
+  if (modulosActivos.includes("servicios")) return "servicios";
+  if (modulosActivos.includes("tienda")) return "cuadricula";
+  if (modulosActivos.includes("local")) return "lista_texto";
+  if (modulosActivos.includes("domicilio")) return "lista_foto";
   return "lista_texto"; // fallback limpio sin placeholders
 }
 

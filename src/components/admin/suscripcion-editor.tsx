@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { BadgeCheck, Loader2, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FormSection } from "@/components/business/form-section";
-import { PLAN_ORDER, nombreDe, type ClaveModulo, type Plan } from "@/lib/plans";
+import { PLAN_ORDER, nombreDe, usdDe, type ClaveModulo, type Plan } from "@/lib/plans";
 import { useCatalogo } from "@/providers/catalogo-provider";
 
 /**
@@ -42,6 +42,20 @@ const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
 /** `2026-09-14T00:00:00.000Z` → `2026-09-14`, que es lo que come un `<input type="date">`. */
 function paraInput(iso: string | null): string {
   return iso ? iso.slice(0, 10) : "";
+}
+
+function DescuentoPreview({ plan, descuento }: { plan: Plan; descuento: string }) {
+  const cat = useCatalogo();
+  if (descuento === "" || plan === "gratis") return null;
+  const pct = Number(descuento);
+  if (!Number.isFinite(pct) || pct <= 0 || pct > 100) return null;
+  const base = usdDe(plan, cat);
+  const final = Math.round(base * (1 - pct / 100) * 100) / 100;
+  return (
+    <p className="text-meta text-ink-soft/75">
+      {base} USD → <span className="font-semibold text-ink">{final} USD</span> con el descuento
+    </p>
+  );
 }
 
 export function SuscripcionEditor({ placeId }: { placeId: string }) {
@@ -223,6 +237,7 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
             placeholder="Sin descuento"
             className={cn(INPUT, "cursor-text")}
           />
+          <DescuentoPreview plan={plan} descuento={descuento} />
         </div>
       </div>
 

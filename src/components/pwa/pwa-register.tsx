@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { RefreshCw, WifiOff } from "lucide-react";
 
 import { pwaActiva } from "@/lib/pwa/flag";
+import { asegurarPersistencia } from "@/lib/offline/storage-status";
 
 /**
  * Registro del service worker, aviso de versión nueva y banner de sin conexión.
@@ -38,6 +39,13 @@ export function PwaRegister() {
     }
 
     setOffline(!window.navigator.onLine);
+
+    /* Persistencia cuando la app abre instalada. Los otros momentos (primer
+       pedido, panel del dueño) llaman a asegurarPersistencia() directamente
+       desde sus componentes. */
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      void asegurarPersistencia();
+    }
 
     let cancelado = false;
 

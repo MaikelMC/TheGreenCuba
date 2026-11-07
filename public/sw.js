@@ -26,15 +26,25 @@
    v3: las navegaciones privadas (`/business`, `/admin`, `/profile`) sin red
    caen a `offline.html` en vez de a la página de error del navegador. No se
    guarda su documento —siguen sin cachearse—, pero `offline.html` pinta los
-   snapshots de IndexedDB que antes quedaban inalcanzables. */
-const CACHE_VERSION = "lv-v3";
+   snapshots de IndexedDB que antes quedaban inalcanzables.
+
+   v4: caché de teselas del mapa (`lv-tiles-v4`). Las teselas de OSM y CartoDB
+   se interceptan cross-origin y se guardan con cache-first (máx 1 500,
+   30 días). `crossOrigin="anonymous"` en el `<TileLayer>` hace que lleguen
+   como CORS normal —no opacas— y se puedan inspeccionar y cachear sin coste
+   de cuota exagerado. Tesela transparente de respaldo cuando no hay red ni
+   caché. Se elimina `/fonts/space-grotesk.woff2` del precache: Space Grotesk
+   se sirve desde `/_next/static/media/` (next/font/local) y ya cae en la
+   caché estática inmutable. */
+const CACHE_VERSION = "lv-v4";
 
 const STATIC_CACHE = `lv-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `lv-pages-${CACHE_VERSION}`;
 const API_CACHE = `lv-api-${CACHE_VERSION}`;
 const IMAGES_CACHE = `lv-images-${CACHE_VERSION}`;
+const TILES_CACHE = `lv-tiles-${CACHE_VERSION}`;
 
-const CURRENT_CACHES = new Set([STATIC_CACHE, PAGES_CACHE, API_CACHE, IMAGES_CACHE]);
+const CURRENT_CACHES = new Set([STATIC_CACHE, PAGES_CACHE, API_CACHE, IMAGES_CACHE, TILES_CACHE]);
 
 /* `lv-private-` se reserva para cachés de datos privados. Hoy no existe
    ninguna, pero la purga ya las contempla para que el día que se añada una no
@@ -48,7 +58,10 @@ const PRECACHE_URLS = [
   "/icons/icon-512.png",
   "/icons/icon-512-maskable.png",
   "/logo.png",
-  "/fonts/space-grotesk.woff2",
+  /* Las fuentes de la app (DM Sans, Source Sans 3, Space Grotesk) se sirven
+     desde `/_next/static/media/` con hash —next/font/local— y ya caen en la
+     caché estática inmutable al primer uso. No se pueden precachear aquí porque
+     sus rutas cambian en cada build. */
 ];
 
 /* Rutas de API que jamás entran en una caché compartida. */
@@ -69,6 +82,22 @@ const API_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const IMAGE_MAX_ENTRIES = 80;
 const IMAGE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
+/* Dominios de teselas del mapa. Se interceptan aunque sean cross-origin porque
+   `crossOrigin="anonymous"` en el <TileLayer> hace que lleguen como CORS normal
+   y no como respuestas opacas. Nunca se descargan por adelantado (prohíbido por
+   las normas de uso de OSM); solo se guardan las que el usuario ya vio. */
+const TILE_HOSTS = [
+  "tile.openstreetmap.org",
+  "basemaps.cartocdn.com",
+];
+const TILE_MAX_ENTRIES = 1500;
+const TILE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+/* Tesela transparente de respaldo: un PNG 1×1 de fondo neutro. Se devuelve
+   sin red y sin la tesela en caché para que el mapa no muestre el error de
+   imagen roto del navegador. */
+const TILE_FALLBACK_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
 /* Documentos que nunca se guardan: son privados. Se comparan por segmento para
    que `/business` no atrape a `/business-algo` y `/m/x` siga siendo público. */
 const DOCUMENTOS_PRIVADOS = ["/admin", "/business", "/profile"];
@@ -78,13 +107,27 @@ const NAV_TIMEOUT_MS = 4000;
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
-      const cache = await caches.open(STATIC_CACHE);
-      /* `allSettled` y no `all`: si un icono o una fuente falla, el service
-         worker tiene que instalarse igual. Sin precaché parcial no hay offline,
-         pero un 404 puntual no puede dejar la app sin SW. */
+      /* Precaché estático: `allSettled` para que un 404 puntual no impida
+         instalar el SW. */
+      const staticCache = await caches.open(STATIC_CACHE);
       await Promise.allSettled(
-        PRECACHE_URLS.map((url) => cache.add(new Request(url, { cache: "reload" }))),
+        PRECACHE_URLS.map((url) => staticCache.add(new Request(url, { cache: "reload" }))),
       );
+
+      /* `/home` va en la caché de páginas (network-first), no en la estática
+         (cache-first): después de un despliegue los assets del static ya no
+         existen, y una navegación hacia chunks viejos rompe la app. Se guarda
+         solo si la respuesta es pública —sin `Set-Cookie` ni `private`. */
+      try {
+        const pagesCache = await caches.open(PAGES_CACHE);
+        const response = await fetch("/home", { cache: "reload" });
+        if (sePuedeCachear(response)) {
+          await pagesCache.put("/home", response);
+        }
+      } catch {
+        /* Sin red en el momento de instalar: sin `/home` en caché. Se guardará
+           en la primera visita con conexión, como cualquier otra ruta pública. */
+      }
     })(),
   );
 });
@@ -126,14 +169,16 @@ self.addEventListener("message", (event) => {
           names
             .filter(
               (name) =>
-                /* Páginas y catálogo públicos no llevan sesión, pero en un
-                   teléfono compartido son la última visita de quien se fue.
+                /* Páginas, catálogo e imágenes públicos no llevan sesión,
+                   pero en un teléfono compartido son la última visita de
+                   quien se fue. Las teselas también se purgan.
                    `lv-static-` se queda: es lo que permite abrir
                    `offline.html` después de salir. */
                 name.startsWith(PRIVATE_CACHE_PREFIX) ||
                 name.startsWith("lv-pages-") ||
                 name.startsWith("lv-api-") ||
-                name.startsWith("lv-images-"),
+                name.startsWith("lv-images-") ||
+                name.startsWith("lv-tiles-"),
             )
             .map((name) => caches.delete(name)),
         );
@@ -157,6 +202,13 @@ self.addEventListener("fetch", (event) => {
   try {
     url = new URL(request.url);
   } catch {
+    return;
+  }
+
+  /* Teselas del mapa: cross-origin pero manejadas explícitamente. Van antes
+     del bloqueo de origen para que no se salten. */
+  if (esTesela(url)) {
+    event.respondWith(tesela(request, url));
     return;
   }
 
@@ -234,6 +286,10 @@ function esImagen(request, url) {
     url.pathname.startsWith("/_next/image") ||
     /\.(png|jpe?g|webp|avif|gif|svg)$/i.test(url.pathname)
   );
+}
+
+function esTesela(url) {
+  return TILE_HOSTS.some((host) => url.hostname.endsWith(host));
 }
 
 /** Una respuesta puede guardarse si es correcta y no es privada. */
@@ -432,6 +488,59 @@ async function trimCache(cacheName, maxEntries) {
   const sobran = keys.length - maxEntries;
   for (let i = 0; i < sobran; i += 1) {
     await cache.delete(keys[i]);
+  }
+}
+
+/**
+ * Caché de teselas del mapa.
+ *
+ * Cache-first sobre lo que el usuario ya vio. Si la red falla y la tesela no
+ * está en caché, devuelve un PNG transparente 1×1 —no el error roto del
+ * navegador—. Solo se guardan respuestas `ok` de tipo `cors` o `basic`; las
+ * opacas (`no-cors`) no se inspeccionan ni se cachean: llegarían solo si
+ * `crossOrigin="anonymous"` no estuviera puesto en el <TileLayer>.
+ */
+async function tesela(request, url) {
+  const cache = await caches.open(TILES_CACHE);
+  const cached = await cache.match(request);
+
+  if (cached) {
+    const guardadaEl = cached.headers.get("X-LV-Cached-At");
+    if (!guardadaEl || Date.now() - Date.parse(guardadaEl) <= TILE_MAX_AGE_MS) {
+      return cached;
+    }
+    await cache.delete(request);
+  }
+
+  try {
+    const response = await fetch(request);
+
+    /* Solo cacheamos respuestas inspeccionables: cors o basic. Una opaca
+       ocuparía ~7 MB de cuota sin poder leer su contenido. */
+    if (
+      response.ok &&
+      (response.type === "cors" || response.type === "basic")
+    ) {
+      const headers = new Headers(response.headers);
+      headers.set("X-LV-Cached-At", new Date().toISOString());
+      headers.delete("Content-Length");
+      headers.delete("Content-Encoding");
+      const body = await response.clone().blob();
+      const copia = new Response(body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+      cache
+        .put(request, copia)
+        .then(() => trimCache(TILES_CACHE, TILE_MAX_ENTRIES))
+        .catch(() => {});
+    }
+
+    return response;
+  } catch {
+    /* Sin red y sin caché: PNG transparente en vez del icono de imagen rota. */
+    return fetch(TILE_FALLBACK_PNG);
   }
 }
 

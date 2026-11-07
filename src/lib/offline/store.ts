@@ -19,7 +19,9 @@
  */
 
 const DB_NAME = "la-verde-offline";
-const DB_VERSION = 1;
+/* v2: se añadió el store `cola` para las acciones pendientes sin red.
+   El handler de onupgradeneeded crea los tres stores si no existen. */
+const DB_VERSION = 2;
 const STORE_SNAPSHOTS = "snapshots";
 const STORE_META = "meta";
 
@@ -57,6 +59,11 @@ function abrirDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_META)) {
         db.createObjectStore(STORE_META, { keyPath: "key" });
+      }
+      /* v2: store de cola; se crea aquí y en cola.ts para que whichever abre
+         primero deje la base lista para el otro. */
+      if (!db.objectStoreNames.contains("cola")) {
+        db.createObjectStore("cola", { keyPath: "id" });
       }
     };
 
@@ -231,7 +238,8 @@ export async function purgarCachesPrivadas(): Promise<void> {
             nombre.startsWith("lv-private-") ||
             nombre.startsWith("lv-pages-") ||
             nombre.startsWith("lv-api-") ||
-            nombre.startsWith("lv-images-"),
+            nombre.startsWith("lv-images-") ||
+            nombre.startsWith("lv-tiles-"),
         )
         .map((nombre) => caches.delete(nombre)),
     );

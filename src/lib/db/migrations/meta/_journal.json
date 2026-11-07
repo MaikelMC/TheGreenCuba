@@ -365,6 +365,13 @@
       "when": 1793962230728,
       "tag": "0051_tiresome_wild_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1794027813261,
+      "tag": "0052_daily_talkback",
+      "breakpoints": true
     }
   ]
 }

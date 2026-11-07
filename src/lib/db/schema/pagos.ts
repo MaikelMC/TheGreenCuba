@@ -34,8 +34,8 @@ export const pagos = pgTable(
       .references(() => places.id, { onDelete: "cascade" }),
 
     /* Deja sitio al segundo método sin tocar la tabla: la fila cuenta qué se
-       pagó y con qué, no cómo. */
-    metodo: text("metodo", { enum: ["qvapay"] }).default("qvapay").notNull(),
+       pagó y con qué, no cómo. `cortesia` = descuento del 100 %, sin QvaPay. */
+    metodo: text("metodo", { enum: ["qvapay", "cortesia"] }).default("qvapay").notNull(),
     tipo: text("tipo", { enum: ["plan", "modulo", "pack_medida"] }).notNull(),
     /**
      * La clave del pack o del módulo en el catálogo, o el id del pack a medida.
@@ -51,6 +51,10 @@ export const pagos = pgTable(
     /* Centavos de dólar. `integer` y no `numeric` porque el precio del catálogo
        es una cifra corta y aquí se suma y se compara, no se calcula interés. */
     montoCentavos: integer("monto_centavos").notNull(),
+    /** El precio antes del descuento, en centavos. `null` = sin descuento aplicado. */
+    montoOriginalCentavos: integer("monto_original_centavos"),
+    /** El porcentaje de descuento que se aplicó. `null` = sin descuento. */
+    descuentoPct: integer("descuento_pct"),
     moneda: text("moneda").default("USD").notNull(),
 
     estado: text("estado", { enum: ["pendiente", "pagado", "fallido"] })

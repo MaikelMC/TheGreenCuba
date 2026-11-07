@@ -785,3 +785,26 @@ export const PRECIO_MENSUAL: Record<Plan, number> = {
   publicidad_max: PACKS.publicidad_max.usd,
   pro: PACKS.pro.usd,
 };
+
+/**
+ * Aplica el descuento manual de administración sobre un precio en USD.
+ *
+ * `null`, `0` o fuera del rango 0–100 = precio completo sin tocar.
+ * Redondea a centavos hacia el entero más cercano.
+ * Los packs a medida nunca pasan por aquí: su precio ya es el final.
+ */
+export function precioConDescuento(
+  usd: number,
+  descuentoPct: number | null | undefined,
+): { original: number; final: number; descuentoPct: number } {
+  const pct =
+    typeof descuentoPct === "number" &&
+    Number.isFinite(descuentoPct) &&
+    descuentoPct > 0 &&
+    descuentoPct <= 100
+      ? descuentoPct
+      : 0;
+  const final =
+    pct === 0 ? usd : Math.round(usd * (1 - pct / 100) * 100) / 100;
+  return { original: usd, final, descuentoPct: pct };
+}

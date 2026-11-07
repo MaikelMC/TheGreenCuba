@@ -4,15 +4,17 @@ import { esDuenoDePlace } from "@/lib/admin-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { siteConfig } from "@/config/site";
 import { db } from "@/lib/db";
-import { pagos, places } from "@/lib/db/schema";
+import { pagos, places, suscripciones } from "@/lib/db/schema";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
 import {
   MODULOS,
   PACKS_ORDER,
   nombreDe,
+  precioConDescuento,
   type ClaveModulo,
   type Pack,
 } from "@/lib/plans";
+import { aplicarDerecho } from "@/lib/pagos-server";
 import { crearFactura, qvapayConfigurado } from "@/lib/qvapay";
 import { rateLimit } from "@/lib/rate-limit";
 import { generateId } from "@/lib/utils";
@@ -100,28 +102,72 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "El negocio no existe." }, { status: 404 });
   }
 
-  const cat = await cargarCatalogo();
-  const usd = esPlan
+  const [cat, suscRow] = await Promise.all([
+    cargarCatalogo(),
+    db
+      .select({ descuentoPct: suscripciones.descuentoPct })
+      .from(suscripciones)
+      .where(eq(suscripciones.negocioId, placeId))
+      .limit(1),
+  ]);
+
+  const usdOriginal = esPlan
     ? cat.packs[clave as Pack].usd
     : cat.modulos[clave as ClaveModulo].usd;
-  const montoCentavos = Math.round(usd * 100);
 
-  if (!Number.isFinite(usd) || montoCentavos < 1) {
+  if (!Number.isFinite(usdOriginal)) {
     return NextResponse.json(
       { error: "Ese plan no tiene un precio válido." },
       { status: 409 },
     );
   }
 
+  const { final: usd, descuentoPct } = precioConDescuento(
+    usdOriginal,
+    suscRow[0]?.descuentoPct,
+  );
+  const montoCentavos = Math.round(usd * 100);
+  const montoOriginalCentavos = Math.round(usdOriginal * 100);
+
   const nombre = esPlan
     ? nombreDe(clave as Pack, cat)
     : cat.modulos[clave as ClaveModulo].nombre;
-  const descripcion = `${esPlan ? "Plan" : "Módulo"} ${nombre} — ${place.name}`.slice(
-    0,
-    300,
-  );
 
   const id = generateId();
+  const ahora = new Date();
+
+  /* Cortesía: descuento del 100 %. No se abre factura en QvaPay. */
+  if (montoCentavos === 0) {
+    const pagoFila = {
+      id,
+      negocioId: placeId,
+      metodo: "cortesia" as const,
+      tipo: tipo as Tipo,
+      clave,
+      packMedidaId: null,
+      montoCentavos: 0,
+      montoOriginalCentavos,
+      descuentoPct,
+      moneda: "USD",
+      estado: "pendiente" as const,
+      qvapayId: null,
+      pagadoEn: null,
+      createdAt: ahora,
+      updatedAt: ahora,
+    };
+    await db.insert(pagos).values(pagoFila);
+    await aplicarDerecho(pagoFila);
+    return NextResponse.json({ activado: true });
+  }
+
+  if (!qvapayConfigurado()) {
+    return NextResponse.json(
+      { error: "QvaPay no está configurado todavía." },
+      { status: 503 },
+    );
+  }
+
+  const descripcion = `${esPlan ? "Plan" : "Módulo"} ${nombre} — ${place.name}`.slice(0, 300);
 
   /* La fila nace pendiente. Si QvaPay rechaza la factura, queda en `fallido` y
      no hay derecho que aplicar: el webhook solo mira las pendientes. */
@@ -131,6 +177,8 @@ export async function POST(req: NextRequest) {
     tipo: tipo as Tipo,
     clave,
     montoCentavos,
+    montoOriginalCentavos: descuentoPct > 0 ? montoOriginalCentavos : null,
+    descuentoPct: descuentoPct > 0 ? descuentoPct : null,
   });
 
   try {

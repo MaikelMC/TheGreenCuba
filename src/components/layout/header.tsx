@@ -146,6 +146,7 @@ export function Header({
 
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
+  const [hayRed, setHayRed] = useState(true);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addrResults, setAddrResults] = useState<GeocodeSuggestion[]>([]);
   /* Arranca vacío y se llena al enfocar: leer `localStorage` durante el render
@@ -196,6 +197,19 @@ export function Header({
     return () => {
       alive = false;
       if (timer) clearTimeout(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setHayRed(navigator.onLine);
+    const on = () => setHayRed(true);
+    const off = () => setHayRed(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
     };
   }, []);
 
@@ -358,8 +372,9 @@ export function Header({
               oculta o no tiene la tecla de envío. */}
           <button
             type="submit"
-            aria-label="Buscar"
-            disabled={!query.trim() || effectiveIsSearching}
+            aria-label={hayRed ? "Buscar" : "Búsqueda con IA · Necesita conexión"}
+            title={hayRed ? undefined : "Necesita conexión"}
+            disabled={!query.trim() || effectiveIsSearching || !hayRed}
             className="grid size-11 shrink-0 place-items-center rounded-full bg-verde-600 text-white transition hover:bg-verde-700 active:scale-95 disabled:bg-ink/10 disabled:text-ink-soft/50 disabled:hover:bg-ink/10"
           >
             <Search size={15} strokeWidth={2.4} aria-hidden />

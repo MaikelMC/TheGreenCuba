@@ -116,6 +116,12 @@
        100 % apaga ese engorde; el zoom de pinza sigue funcionando. */
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    /* En Android Chrome, si cualquier elemento extiende el ancho del layout
+       viewport (Leaflet, el CategoryBar con overflow-x-auto, etc.), los
+       elementos fixed se posicionan respecto a ese viewport ampliado y el lado
+       derecho queda cortado. `clip` en html propaga el recorte al viewport sin
+       crear un scroll container, así que position: sticky sigue funcionando. */
+    overflow-x: clip;
   }
 
   /* El desplazamiento suave también es movimiento: con la preferencia activa

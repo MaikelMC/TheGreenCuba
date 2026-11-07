@@ -252,6 +252,11 @@ function MapChildren({
         attribution={tile.attribution}
         maxZoom={tile.maxZoom}
         detectRetina={DETECT_RETINA}
+        /* crossOrigin evita respuestas opacas: sin él, Chrome guarda cada
+           tesela como opaca y cada una ocupa 7 MB de cuota aunque solo pese
+           10 KB. Con CORS normal el SW puede inspeccionar y cachear sin coste
+           de cuota exagerado. Los servidores de OSM y CartoDB admiten CORS. */
+        crossOrigin="anonymous"
       />
       <MapMarkers
         places={places}

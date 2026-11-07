@@ -1175,7 +1175,16 @@ function HomePageContent() {
         );
       } catch {
         trackAiSearchCompleted(query, 0, "error");
-        setSheetState("error");
+        if (!navigator.onLine) {
+          /* Sin red: volver al estado por defecto con los resultados del catálogo
+             local en vez de mostrar el error. El toast avisa del motivo. */
+          import("sonner").then(({ toast }) => {
+            toast("Sin conexión: mostrando resultados guardados.", { duration: 4000 });
+          });
+          setSheetState("default");
+        } else {
+          setSheetState("error");
+        }
       } finally {
         clearTimeout(timeout);
         searchCtx.setIsSearching(false);

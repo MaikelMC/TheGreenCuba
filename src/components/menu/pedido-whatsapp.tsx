@@ -17,7 +17,9 @@ import {
   ShoppingBag,
   Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { encolar } from "@/lib/offline/cola";
 import {
   Dialog,
   DialogClose,
@@ -444,26 +446,38 @@ export function PedidoProvider({
     const id = idPedido.current ?? nuevoIdPedido();
     idPedido.current = id;
 
+    const cuerpo = JSON.stringify({
+      id,
+      negocioId: placeId,
+      lineas,
+      direccion: direccion.trim(),
+      tasaUsada: configTasa?.tasaUsdCup ?? null,
+      ...(tieneZonas ? { modoEntrega, zonaId: zonaId || undefined } : {}),
+    });
+
+    if (!navigator.onLine) {
+      /* Sin red: encolar y avisar. WhatsApp ya se abrió en el mismo gesto. */
+      void encolar({ id, tipo: "pedido", ruta: "/api/pedidos", metodo: "POST", cuerpo });
+      toast("Guardaremos tu pedido en La Verde cuando vuelva la conexión.", {
+        duration: 5000,
+      });
+      return;
+    }
+
     try {
       void fetch("/api/pedidos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id,
-          negocioId: placeId,
-          lineas,
-          direccion: direccion.trim(),
-          tasaUsada: configTasa?.tasaUsdCup ?? null,
-          ...(tieneZonas ? { modoEntrega, zonaId: zonaId || undefined } : {}),
-        }),
+        body: cuerpo,
         keepalive: true,
       }).catch(() => {
-        /* Sin red no hay copia; el mensaje de WhatsApp ya salió. */
+        /* Fallo de red después de salir: encolar silenciosamente. */
+        void encolar({ id, tipo: "pedido", ruta: "/api/pedidos", metodo: "POST", cuerpo });
       });
     } catch {
-      /* `fetch` puede fallar de forma síncrona en entornos muy viejos. */
+      void encolar({ id, tipo: "pedido", ruta: "/api/pedidos", metodo: "POST", cuerpo });
     }
-  }, [lineas, direccion, placeId]);
+  }, [lineas, direccion, placeId, configTasa, tieneZonas, modoEntrega, zonaId]);
 
   /* Desplegada manda ella: el desplazamiento no decide mientras se mira el
      pedido. */

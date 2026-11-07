@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, MessageCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { cn, generateId } from "@/lib/utils";
+import { encolar } from "@/lib/offline/cola";
 import { trackEvento } from "@/lib/eventos-client";
 import {
   Dialog,
@@ -246,6 +248,22 @@ export function ReservaWhatsApp({
       const resultado = await tomarCupoRemoto();
       setEnviando(false);
       if (resultado === "lleno") return;
+      if (resultado === "sin-red") {
+        /* Sin red, se encola para cuando vuelva la conexión. El WhatsApp sale
+           igualmente. Si al reenviar no hay cupo (409), el dueño lo gestiona
+           por WhatsApp, como hace siempre. */
+        const idReserva = generateId();
+        void encolar({
+          id: idReserva,
+          tipo: "reserva",
+          ruta: "/api/reservas",
+          metodo: "POST",
+          cuerpo: JSON.stringify({ negocioId, fecha, personas: Number(personas) }),
+        });
+        toast("Guardaremos tu reserva en La Verde cuando vuelva la conexión.", {
+          duration: 5000,
+        });
+      }
     }
 
     /* El gesto que al dueño le importa contar: la reserva que llegó a salir. */
