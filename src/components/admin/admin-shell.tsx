@@ -21,6 +21,7 @@ import {
   X,
   ChevronRight,
   BadgeDollarSign,
+  HandCoins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/layout/user-menu";
@@ -101,6 +102,12 @@ const NAV_ITEMS: AdminNavItem[] = [
     label: "Usuarios",
     short: "Usuarios",
     icon: Users,
+  },
+  {
+    href: "/admin/afiliados",
+    label: "Afiliados",
+    short: "Afiliados",
+    icon: HandCoins,
   },
   {
     href: "/admin/categorias",

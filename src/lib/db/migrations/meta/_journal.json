@@ -372,6 +372,13 @@
       "when": 1794027813261,
       "tag": "0052_daily_talkback",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1794090978767,
+      "tag": "0053_afiliados_cobros",
+      "breakpoints": true
     }
   ]
 }
