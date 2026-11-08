@@ -5,7 +5,13 @@ import Link from "next/link";
 import { AlertCircle, DollarSign, ExternalLink } from "lucide-react";
 import { QuitarAfiliacion } from "@/components/afiliados/acciones-admin";
 import { fecha as formatFecha } from "@/components/afiliados/piezas";
-import { aCup, formatoCup } from "@/lib/afiliados";
+
+function aCup(usdCentavos: number, tasa: number): number {
+  return Math.round((usdCentavos / 100) * tasa);
+}
+function formatoCup(cup: number): string {
+  return `${new Intl.NumberFormat("es-CU", { maximumFractionDigits: 0 }).format(cup)} CUP`;
+}
 
 export interface AfiliadoResumido {
   id: string;
