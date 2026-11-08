@@ -61,10 +61,11 @@ export default async function LinksPage() {
 
         <section className={`${tarjeta} flex flex-col gap-gap-sm`}>
           <h2 className="font-lv-display text-[18px] font-bold">Tu dinero</h2>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <Dinero etiqueta="Total generado" usd={dinero.generado} tasa={tasa} nota={dinero.generado > 0 ? `≈ $${(dinero.generado / 100).toFixed(2)} USD` : undefined} />
             <Dinero etiqueta="Pendiente" usd={dinero.pendiente} tasa={tasa} nota={`Se libera a los ${R.diasRetencion} días`} />
-            <Dinero etiqueta="Disponible" usd={dinero.disponible} tasa={tasa} destacado nota="Para cobrar" />
-            <Dinero etiqueta="Ya cobrado" usd={dinero.cobrado} tasa={tasa} nota="Desde que empezaste" />
+            <Dinero etiqueta="Disponible" usd={dinero.disponible} tasa={tasa} destacado nota={dinero.disponible > 0 ? `≈ $${(dinero.disponible / 100).toFixed(2)} USD` : "Para cobrar"} />
+            <Dinero etiqueta="Ya cobrado" usd={dinero.cobrado} tasa={tasa} nota={dinero.cobrado > 0 ? `≈ $${(dinero.cobrado / 100).toFixed(2)} USD` : "Desde que empezaste"} />
           </div>
           <PedirCobro disponibleCup={aCup(dinero.disponible, tasa)} minimoCup={R.cobroMinimoCup} hayPedido={dinero.pedido > 0} />
         </section>
@@ -102,8 +103,50 @@ export default async function LinksPage() {
                 : `💬 ${n.nombre} se registró pero no ha pagado. Todavía no suma comisión.`}
             </p>
           ))}
-          <TablaNegocios negocios={resumen.negocios} tasa={tasa} />
+          <TablaNegocios negocios={resumen.negocios} tasa={tasa} conPagos />
         </section>
+
+        {resumen.historialMeses.length > 0 && (
+          <section className={`${tarjeta} flex flex-col gap-gap-sm`}>
+            <h2 className="font-lv-display text-[18px] font-bold">Historial por mes</h2>
+            <div className="-mx-1 overflow-x-auto">
+              <table className="w-full text-small">
+                <thead>
+                  <tr className="text-left text-[10px] uppercase tracking-[0.12em] text-ink-soft/70 border-b border-ink/5">
+                    <th className="px-2 py-2.5">Mes</th>
+                    <th className="px-2 py-2.5 text-right">Negocios nuevos</th>
+                    <th className="px-2 py-2.5 text-right">Comisión (CUP)</th>
+                    <th className="px-2 py-2.5 text-right">≈ USD</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {resumen.historialMeses.map((h) => {
+                    const [anio, m] = h.mes.split("-");
+                    const etiqueta = new Date(Number(anio), Number(m) - 1).toLocaleDateString("es-CU", { month: "short", year: "numeric" });
+                    return (
+                      <tr key={h.mes} className="border-t border-ink/5">
+                        <td className="px-2 py-2.5 capitalize font-medium">{etiqueta}</td>
+                        <td className="px-2 py-2.5 text-right tabular-nums">
+                          {h.nuevosNegocios > 0 ? (
+                            <span className="font-semibold text-verde-700">{h.nuevosNegocios}</span>
+                          ) : (
+                            <span className="text-ink-soft/50">—</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-2.5 text-right tabular-nums font-semibold">
+                          {h.comisionUsdCentavos > 0 ? formatoCup(aCup(h.comisionUsdCentavos, tasa)) : <span className="font-normal text-ink-soft/50">—</span>}
+                        </td>
+                        <td className="px-2 py-2.5 text-right tabular-nums text-ink-soft/70">
+                          {h.comisionUsdCentavos > 0 ? `$${(h.comisionUsdCentavos / 100).toFixed(2)}` : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         <section className={`${tarjeta} flex flex-col gap-gap-sm`}>
           <h2 className="font-lv-display text-[18px] font-bold">Tu enlace</h2>

@@ -81,6 +81,8 @@ export interface ResumenAfiliado {
   dinero: { generado: number; pendiente: number; disponible: number; pedido: number; cobrado: number };
   cobros: (typeof afiliadoCobros.$inferSelect)[];
   premiosGanados: { tipo: "bono" | "recarga_internacional"; mes: string; entregado: boolean }[];
+  /** Historial mes a mes, ordenado del más reciente al más antiguo. */
+  historialMeses: { mes: string; comisionUsdCentavos: number; nuevosNegocios: number }[];
 }
 
 const DIA = 86_400_000;
@@ -159,6 +161,7 @@ export async function resumenAfiliado(afiliadoId: string): Promise<ResumenAfilia
   const mes = mesActual();
   let nuevosEsteMes = 0;
   let ultimo: Date | null = null;
+  const mesesMap = new Map<string, { comision: number; nuevos: number }>();
 
   const negocios: NegocioAfiliado[] = base.map(({ f, lista, estado }) => {
     const primero = lista[0]?.fecha ?? null;
@@ -169,6 +172,10 @@ export async function resumenAfiliado(afiliadoId: string): Promise<ResumenAfilia
       comision += c;
       if (ahora - p.fecha.getTime() < R.diasRetencion * DIA) pendiente += c;
       if (!ultimo || p.fecha > ultimo) ultimo = p.fecha;
+      const mr = mesesMap.get(p.fecha.toISOString().slice(0, 7)) ?? { comision: 0, nuevos: 0 };
+      mr.comision += c;
+      if (i === 0) mr.nuevos += 1;
+      mesesMap.set(p.fecha.toISOString().slice(0, 7), mr);
     });
     generado += comision;
     if (primero && mesActual(primero) === mes) nuevosEsteMes++;
@@ -200,6 +207,10 @@ export async function resumenAfiliado(afiliadoId: string): Promise<ResumenAfilia
   const orden: Record<EstadoNegocio, number> = { vence: 0, registrado: 1, activo: 2, baja: 3 };
   negocios.sort((a, b) => orden[a.estado] - orden[b.estado] || a.nombre.localeCompare(b.nombre));
 
+  const historialMeses = Array.from(mesesMap.entries())
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([m, v]) => ({ mes: m, comisionUsdCentavos: v.comision, nuevosNegocios: v.nuevos }));
+
   return {
     negocios,
     personasRegistradas: personas.length,
@@ -211,6 +222,7 @@ export async function resumenAfiliado(afiliadoId: string): Promise<ResumenAfilia
     dinero: { generado, pendiente, disponible, pedido, cobrado },
     cobros,
     premiosGanados,
+    historialMeses,
   };
 }
 
