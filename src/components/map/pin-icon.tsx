@@ -1,5 +1,5 @@
-import { renderToStaticMarkup } from "react-dom/server";
 import { Percent } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import {
   DEFAULT_CATEGORY_ICON,
   isKnownIcon,
@@ -42,10 +42,29 @@ export const PIN_STYLES: Record<PlacePinVariant, PinStyle> = {
 const TEARDROP_PATH =
   "M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24C24 5.37 18.63 0 12 0z";
 
+/** Serializa un componente Lucide a SVG string sin react-dom/server.
+ *  Lucide expone `.iconNode`: Array<[tag, Record<string,string>]>.
+ *  React 19 hizo async a renderToStaticMarkup, así que ya no sirve aquí. */
+function lucideToSvg(Icon: LucideIcon, size: number, strokeWidth: number, color: string): string {
+  type Node = [string, Record<string, string>];
+  const nodes = (Icon as unknown as { iconNode?: Node[] }).iconNode ?? [];
+  const inner = nodes
+    .map(([tag, attrs]) => {
+      const a = Object.entries(attrs).map(([k, v]) => `${k}="${v}"`).join(" ");
+      return `<${tag} ${a}/>`;
+    })
+    .join("");
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"` +
+    ` viewBox="0 0 24 24" fill="none" stroke="${color}"` +
+    ` stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`
+  );
+}
+
 function iconMarkup(iconKey: string, style: PinStyle): string {
   const key = isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON;
   const Icon = resolveCategoryIcon(key);
-  const glyph = renderToStaticMarkup(<Icon size={24} strokeWidth={2.5} color="#08130D" />);
+  const glyph = lucideToSvg(Icon, 24, 2.5, "#08130D");
   const scale = style.icon / 24;
   return `<g transform="translate(12 12) scale(${scale.toFixed(4)}) translate(-12 -12)">${glyph}</g>`;
 }
@@ -57,9 +76,7 @@ const ENERGIA_BADGE_MARKUP = `
   </g>`;
 
 function ofertaBadgeMarkup(): string {
-  const glyph = renderToStaticMarkup(
-    <Percent size={24} strokeWidth={3} color="#08130D" />,
-  );
+  const glyph = lucideToSvg(Percent, 24, 3, "#08130D");
   const scale = 5 / 24;
   return `
   <g>

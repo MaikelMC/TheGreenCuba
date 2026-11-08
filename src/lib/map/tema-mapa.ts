@@ -107,28 +107,18 @@ let capturado = false;
 export function aplicarTemaMapa(map: maplibregl.Map, tema: Tema): void {
   if (tema === "oscuro") {
     for (const o of OVERRIDES) {
+      if (!map.getLayer(o.layerId)) continue;
       if (!capturado) {
-        try {
-          o._claro = map.getPaintProperty(o.layerId, o.prop);
-        } catch {
-          o._claro = undefined;
-        }
+        o._claro = map.getPaintProperty(o.layerId, o.prop);
       }
-      try {
-        map.setPaintProperty(o.layerId, o.prop, o.oscuro);
-      } catch {
-        /* La capa no existe en este estilo: sin error. */
-      }
+      map.setPaintProperty(o.layerId, o.prop, o.oscuro);
     }
     capturado = true;
   } else {
     for (const o of OVERRIDES) {
+      if (!map.getLayer(o.layerId)) continue;
       if (o._claro !== undefined) {
-        try {
-          map.setPaintProperty(o.layerId, o.prop, o._claro);
-        } catch {
-          /* ídem */
-        }
+        map.setPaintProperty(o.layerId, o.prop, o._claro);
       }
     }
   }

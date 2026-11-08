@@ -1,0 +1,11 @@
+# Binarios del mapa: nunca convertir saltos de línea.
+# Sin esto, git en Windows convierte LF→CRLF al hacer checkout y corrompe los PBF.
+*.pbf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
