@@ -33,7 +33,7 @@ export function fecha(d: Date | null): string {
 
 export function Dinero({ etiqueta, usd, tasa, destacado, nota }: { etiqueta: string; usd: number; tasa: number; destacado?: boolean; nota?: string }) {
   return (
-    <div className={`flex min-w-0 flex-col gap-0.5 rounded-xl p-3 ${destacado ? "bg-verde-700 text-white" : "bg-sand"}`}>
+    <div className={`flex min-w-0 flex-col gap-0.5 rounded-xl border p-3 ${destacado ? "border-verde-600 bg-verde-700 text-white" : "border-ink/8 bg-sand"}`}>
       <span className={`text-[10px] font-bold uppercase tracking-[0.14em] ${destacado ? "text-verde-100" : "text-ink-soft/70"}`}>{etiqueta}</span>
       <b className="font-lv-display text-[20px] leading-tight tabular-nums">{formatoCup(aCup(usd, tasa))}</b>
       {nota && <span className={`text-meta ${destacado ? "text-verde-100" : "text-ink-soft/70"}`}>{nota}</span>}
