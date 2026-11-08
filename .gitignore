@@ -62,6 +62,9 @@ Cloudflare/
 # credenciales de las cuentas demo: van en claro, no al repositorio
 CREDENCIALES-DEMO.md
 
+# generado en cada build, nunca al repositorio
+public/sw-version.js
+
 # mockup de diseño del panel y nota local de PWA: no son del proyecto
 la_verde_panel_redisenado.html
 skill_PWA.md

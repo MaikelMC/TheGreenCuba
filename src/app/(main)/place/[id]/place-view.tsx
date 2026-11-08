@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { navegar } from "@/lib/navegar";
 import { MapPin, ArrowLeft } from "lucide-react";
 import type { UserPlace } from "@/lib/places-store";
 import { userPlaceToPlaceData, type PlaceState } from "@/lib/ficha/place-data";
@@ -86,7 +87,7 @@ export function PlaceView({
       state={placeState(place)}
       onBack={() => router.back()}
       onShare={() => sharePlace(place.id, place.name)}
-      onNavigate={() => router.push(`/home?lugar=${place.id}`)}
+      onNavigate={() => navegar(`/home?lugar=${place.id}`, router.push)}
       nowIso={nowIso}
       configTasa={configTasa}
     />

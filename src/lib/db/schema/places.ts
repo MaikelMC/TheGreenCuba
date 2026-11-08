@@ -374,6 +374,9 @@ export const places = pgTable(
       "hnsw",
       sql`${table.embedding} vector_cosine_ops`,
     ),
+    /* Endpoint de sincronización por provincia: filtra por province y ordena
+       por updated_at para devolver solo los cambiados desde una fecha. */
+    provinciaUpdatedIdx: index("places_provincia_updated_idx").on(table.province, table.updatedAt),
   }),
 );
 

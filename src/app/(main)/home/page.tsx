@@ -601,6 +601,15 @@ function HomePageContent() {
      toque y lo que el visitante quiere ver es su zona, no la última vista del
      mapa ni la provincia del perfil. */
   const locateOnArrival = searchParams.get("ubicacion") === "1";
+  /* El SW redirige aquí cuando una ruta pública no está en caché y no hay red.
+     Se muestra el banner y se borra el parámetro para que una recarga no lo repita. */
+  const desdeOffline = searchParams.get("desde") === "pagina";
+  useEffect(() => {
+    if (!desdeOffline) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("desde");
+    window.history.replaceState(null, "", url.pathname + (url.search || "") + (url.hash || ""));
+  }, [desdeOffline]);
   const [sheetState, setSheetState] = useState<SheetState>("default");
   const [selectedId, setSelectedId] = useState<string>("6");
   /* Contador, no booleano: cada gesto pide otra vez bajar la hoja a su vista
@@ -1573,6 +1582,16 @@ function HomePageContent() {
      del header fijo: invisibles y sin poder tocarse. */
   return (
     <div className="fixed inset-x-0 bottom-0 top-[var(--header-h)] font-lv text-ink">
+      {desdeOffline && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute inset-x-0 top-0 z-[300] flex items-center justify-center gap-2 bg-ink/85 px-4 py-2 text-[13px] font-medium text-white backdrop-blur-sm"
+        >
+          <WifiOff size={13} strokeWidth={2} aria-hidden />
+          <span>Esta página no está guardada. Aquí tienes el mapa con lo que sí tienes guardado.</span>
+        </div>
+      )}
       <MapView
         ref={mapRef}
         places={mapPlaces}

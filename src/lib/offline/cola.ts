@@ -11,8 +11,9 @@
  * cree el nuevo store sin borrar los existentes.
  */
 
-const DB_NAME = "la-verde-offline";
-const DB_VERSION = 2;
+import { abrirDb } from "./db";
+import { setSinRed } from "./estado-red";
+
 const STORE_COLA = "cola";
 
 export type TipoAccion = "pedido" | "reserva";
@@ -35,42 +36,6 @@ function esperaMs(intentos: number): number {
   return Math.min(ESPERA_BASE_MS * 2 ** intentos, ESPERA_MAX_MS);
 }
 
-let dbPromise: Promise<IDBDatabase> | null = null;
-
-function abrirDb(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise;
-
-  dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
-    if (typeof indexedDB === "undefined") {
-      reject(new Error("IndexedDB no disponible"));
-      return;
-    }
-
-    const peticion = indexedDB.open(DB_NAME, DB_VERSION);
-
-    peticion.onupgradeneeded = () => {
-      const db = peticion.result;
-      /* Los stores de v1 (snapshots, meta) se conservan. Solo se añade `cola`. */
-      if (!db.objectStoreNames.contains("snapshots")) {
-        db.createObjectStore("snapshots", { keyPath: "key" });
-      }
-      if (!db.objectStoreNames.contains("meta")) {
-        db.createObjectStore("meta", { keyPath: "key" });
-      }
-      if (!db.objectStoreNames.contains(STORE_COLA)) {
-        db.createObjectStore(STORE_COLA, { keyPath: "id" });
-      }
-    };
-
-    peticion.onsuccess = () => resolve(peticion.result);
-    peticion.onerror = () => {
-      dbPromise = null;
-      reject(peticion.error ?? new Error("No se pudo abrir IndexedDB"));
-    };
-  });
-
-  return dbPromise;
-}
 
 /** Añade una acción a la cola. Devuelve si se pudo escribir. */
 export async function encolar(accion: Omit<AccionPendiente, "creadoEn" | "intentos">): Promise<boolean> {
@@ -165,6 +130,7 @@ export async function procesarCola(): Promise<number> {
       });
 
       if (res.ok) {
+        setSinRed(false);
         await borrarAccion(db, accion.id);
         enviados++;
       } else if (res.status >= 400 && res.status < 500) {
@@ -173,12 +139,14 @@ export async function procesarCola(): Promise<number> {
         console.warn(
           `[cola] descartada acción ${accion.id} (${accion.tipo}): servidor respondió ${res.status}`,
         );
+        setSinRed(false);
         await borrarAccion(db, accion.id);
       } else {
         await actualizarIntentos(db, accion);
       }
     } catch {
       /* Error de red: dejar para después. */
+      setSinRed(true);
       await actualizarIntentos(db, accion);
     }
   }

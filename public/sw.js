@@ -9,14 +9,18 @@
  *  - Solo se interceptan `GET` del propio origen.
  *  - Nunca se cachean respuestas de autenticación, de datos privados ni nada
  *    que venga marcado como `private` o `no-store`.
- *  - Las peticiones RSC del App Router no se tocan: devolver HTML donde el
- *    router espera un payload rompe la navegación.
+ *  - Las peticiones RSC del App Router: si la red falla, se devuelve text/plain
+ *    vacío para que Next haga MPA navigation y el SW intercepte la navegación.
  *  - `skipWaiting()` solo cuando la página lo pide (botón «Actualizar»). Si se
  *    fuerza, una pestaña vieja puede pedir chunks que ya no existen.
  *
- * Al cambiar cualquier estrategia hay que subir `CACHE_VERSION`; `activate`
- * borra las cachés de versiones anteriores.
+ * `CACHE_VERSION` lo gestiona `public/sw-version.js`, generado en prebuild.
  */
+
+/* La versión la escribe `scripts/sw-version.js` en prebuild y vive en
+   `public/sw-version.js` (ignorado por git). El navegador rastrea los scripts
+   importados: si cambia, instala una versión nueva del SW sin tocar sw.js. */
+importScripts("/sw-version.js");
 
 /* v2: las navegaciones ya no caen a la copia guardada solo porque la red tarde
    más de 4 s. Ese camino servía HTML de un despliegue anterior mientras había
@@ -54,8 +58,14 @@
    Patrón del anexo: clone ANTES de devolver, waitUntil para el put, 204 en
    fallo de red (no tesela falsa). TileJSON en red-first en la misma caché.
    Precaché del estilo, sprite y fuentes del mapa. `/mapa/` entra en la caché
-   estática. Límite 3 000 teselas; recorte cada 100 guardados o 5 minutos. */
-const CACHE_VERSION = "lv-v7";
+   estática. Límite 3 000 teselas; recorte cada 100 guardados o 5 minutos.
+
+   v8: RSC fallback: fallo de red → text/plain → Next hace MPA navigation →
+   SW intercepta la navegación completa. Rutas /profile y /notifications sin
+   red → /sin-conexion/perfil. Rutas públicas sin caché → redirect a
+   /home?desde=pagina. IMAGE_MAX_ENTRIES 80 → 400. CACHE_VERSION deja de ser
+   constante hardcoded: la gestiona sw-version.js generado en prebuild. */
+const CACHE_VERSION = (typeof self.SW_VERSION === "string" && self.SW_VERSION) || "lv-v8-fallback";
 
 const STATIC_CACHE = `lv-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `lv-pages-${CACHE_VERSION}`;
@@ -72,6 +82,8 @@ const PRIVATE_CACHE_PREFIX = "lv-private-";
 
 const PRECACHE_URLS = [
   "/offline.html",
+  "/sin-conexion/perfil",
+  "/sin-conexion/negocio",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
@@ -108,15 +120,17 @@ const API_PROHIBIDAS = [
   "/api/notifications",
   "/api/business/",
   "/api/negocio/",
+  "/api/negocios/",
   "/api/pedidos/",
   "/api/reservas",
+  "/sw-version.js",
 ];
 
 /* Una ruta de API pública que sí se cachea, con su caducidad. */
 const API_PUBLICAS = ["/api/places", "/api/categories"];
 const API_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-const IMAGE_MAX_ENTRIES = 80;
+const IMAGE_MAX_ENTRIES = 400;
 const IMAGE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 const TILES_MAX_ENTRIES = 3000;
@@ -137,7 +151,10 @@ const _recorte = {
 
 /* Documentos que nunca se guardan: son privados. Se comparan por segmento para
    que `/business` no atrape a `/business-algo` y `/m/x` siga siendo público. */
-const DOCUMENTOS_PRIVADOS = ["/admin", "/business", "/profile"];
+const DOCUMENTOS_PRIVADOS = ["/admin", "/business", "/profile", "/notifications"];
+
+/* Rutas privadas que sin red sirven /sin-conexion/perfil (snapshot en IndexedDB). */
+const DOCUMENTOS_PERFIL_OFFLINE = ["/profile", "/notifications"];
 
 const NAV_TIMEOUT_MS = 4000;
 
@@ -255,12 +272,20 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (url.origin !== self.location.origin) return;
-  if (esPeticionRsc(request, url)) return;
+
+  /* Peticiones RSC: se dejan pasar a la red. Si la red falla, se devuelve
+     text/plain vacío: Next lo interpreta como contenido no-RSC y hace MPA
+     navigation, con lo que el SW intercepta la navegación completa. */
+  if (esPeticionRsc(request, url)) {
+    event.respondWith(rscFallback(request));
+    return;
+  }
+
   if (esApiProhibida(url)) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
-      esDocumentoPrivado(request, url) ? navegacionPrivada(request) : navegacion(request, url),
+      esDocumentoPrivado(request, url) ? navegacionPrivada(request, url) : navegacion(request, url),
     );
     return;
   }
@@ -281,12 +306,28 @@ self.addEventListener("fetch", (event) => {
 });
 
 /**
+ * RSC fallback: intenta la red; si falla (sin conexión), devuelve text/plain.
+ * Next interpreta una respuesta no-RSC como señal de hacer MPA navigation,
+ * con lo que el SW intercepta esa navegación completa y puede servir caché.
+ * Solo devuelve text/plain en fallo de red — las respuestas 4xx/5xx del
+ * servidor se devuelven tal cual para que Next las gestione.
+ */
+async function rscFallback(request) {
+  try {
+    return await fetch(request);
+  } catch {
+    return new Response("", {
+      status: 200,
+      headers: { "Content-Type": "text/plain" },
+    });
+  }
+}
+
+/**
  * Peticiones del React Server Components router.
  *
  * El `fetch` normal del navegador a una URL de navegación no lleva estas
- * cabeceras; las lleva el router de Next. Si el service worker contestara HTML a
- * una de ellas, el router intentaría parsearlo como payload y la navegación se
- * quedaría a medias.
+ * cabeceras; las lleva el router de Next.
  */
 function esPeticionRsc(request, url) {
   if (url.searchParams.has("_rsc")) return true;
@@ -366,7 +407,9 @@ function esRutaPublica(url) {
     url.pathname === "/home" ||
     url.pathname.startsWith("/place/") ||
     url.pathname.startsWith("/m/") ||
-    url.pathname === "/offline.html"
+    url.pathname === "/offline.html" ||
+    url.pathname === "/sin-conexion/perfil" ||
+    url.pathname === "/sin-conexion/negocio"
   );
 }
 
@@ -394,13 +437,17 @@ async function navegacion(request, url) {
     return response;
   }
 
-  const cached = await cache.match(request, { ignoreSearch: true });
+  /* Sin red: buscar en caché. Solo /home tolera ignoreSearch (para /home?desde=pagina). */
+  const cached =
+    url.pathname === "/home"
+      ? await cache.match("/home", { ignoreSearch: true })
+      : await cache.match(request);
   if (cached) return cached;
 
-  const offline = await caches.match("/offline.html");
-  if (offline) return offline;
-
-  return respuestaSinConexion();
+  /* Sin caché: redirigir a /home con aviso en vez de mostrar offline.html.
+     /home ya está en caché (precaché + primera visita), así que el redirect
+     siempre aterriza en algo útil. */
+  return Response.redirect("/home?desde=pagina", 302);
 }
 
 /**
@@ -415,8 +462,11 @@ async function navegacion(request, url) {
  * Se espera la petición viva cuando hay conexión, igual que en `navegacion`:
  * un timeout de 4 s no significa que no haya red, y mentir con «sin conexión»
  * cuando la página solo tarda es peor que esperar.
+ *
+ * /profile y /notifications sin red → /sin-conexion/perfil (snapshot IndexedDB).
+ * /admin y /business sin red → offline.html.
  */
-async function navegacionPrivada(request) {
+async function navegacionPrivada(request, url) {
   const red = fetch(request);
 
   let response = null;
@@ -429,6 +479,15 @@ async function navegacionPrivada(request) {
   }
 
   if (response) return response;
+
+  /* Sin red: elegir la pantalla offline según la ruta. */
+  const esPerfilONotif = DOCUMENTOS_PERFIL_OFFLINE.some(
+    (base) => url.pathname === base || url.pathname.startsWith(`${base}/`),
+  );
+  if (esPerfilONotif) {
+    const perfilOffline = await caches.match("/sin-conexion/perfil");
+    if (perfilOffline) return perfilOffline;
+  }
 
   const offline = await caches.match("/offline.html");
   if (offline) return offline;

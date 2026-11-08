@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { navegar } from "@/lib/navegar";
 import { AnimatePresence, motion } from "motion/react";
 import { PuntoNuevo } from "@/components/ui/punto-nuevo";
 import {
@@ -172,7 +173,7 @@ export function MapNotifications() {
       }
 
       setOpen(false);
-      router.push(destinoAviso(item));
+      navegar(destinoAviso(item), router.push);
     },
     [router],
   );
@@ -311,7 +312,7 @@ export function MapNotifications() {
               type="button"
               onClick={() => {
                 setOpen(false);
-                router.push("/notifications");
+                navegar("/notifications", router.push);
               }}
               className="w-full border-t border-ink/5 bg-white px-gap-md py-gap-sm text-center font-lv-display text-small font-semibold text-verde-600 transition-colors duration-500 ease-outquint hover:bg-verde-50"
             >

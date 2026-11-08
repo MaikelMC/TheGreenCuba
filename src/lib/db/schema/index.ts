@@ -33,3 +33,4 @@ export * from "./novedades";
 export * from "./push-subscriptions";
 export * from "./recordatorios_pago";
 export * from "./packs_medida";
+export * from "./negocios_eliminados";

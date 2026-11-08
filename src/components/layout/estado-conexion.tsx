@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { procesarCola, pendientes } from "@/lib/offline/cola";
+import { setSinRed } from "@/lib/offline/estado-red";
 
 /**
  * Indicador de estado de conexión.
@@ -26,10 +27,13 @@ export function EstadoConexion() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    setOffline(!navigator.onLine);
+    const inicial = !navigator.onLine;
+    setOffline(inicial);
+    setSinRed(inicial);
 
     async function alOnline() {
       setOffline(false);
+      setSinRed(false);
 
       /* Cuántos pedidos hay antes de enviar, para el aviso. */
       const cola = await pendientes();
@@ -50,6 +54,7 @@ export function EstadoConexion() {
 
     function alOffline() {
       setOffline(true);
+      setSinRed(true);
     }
 
     window.addEventListener("online", alOnline);

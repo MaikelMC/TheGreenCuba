@@ -17,6 +17,7 @@ import type { Role } from "@/lib/session";
 import { logout } from "@/lib/logout";
 import { fetchMe, refreshSession } from "@/lib/session-client";
 import { LoginButton } from "@/components/landing/login-button";
+import { navegar } from "@/lib/navegar";
 
 /* Hairline entre filas en vez de `<div>` separadores sueltos: es el mismo
    idioma que las filas de la pantalla de preferencias. */
@@ -322,7 +323,7 @@ export function UserMenu({ initial }: { initial?: string }) {
         window.location.assign(path);
         return;
       }
-      router.push(path);
+      navegar(path, router.push);
     },
     [router],
   );

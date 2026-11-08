@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { navegar } from "@/lib/navegar";
 import { AlertCircle, Bell, CheckCheck, Clock3, Inbox, MailOpen, Megaphone, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui";
@@ -104,7 +105,7 @@ export function NotificationsView() {
       ),
     );
 
-    router.push(destinoAviso(item));
+    navegar(destinoAviso(item), router.push);
   };
 
   return (

@@ -18,10 +18,8 @@
  * lanza por un fallo del almacén.
  */
 
-const DB_NAME = "la-verde-offline";
-/* v2: se añadió el store `cola` para las acciones pendientes sin red.
-   El handler de onupgradeneeded crea los tres stores si no existen. */
-const DB_VERSION = 2;
+import { abrirDb, DB_NAME, cerrarDb } from "./db";
+
 const STORE_SNAPSHOTS = "snapshots";
 const STORE_META = "meta";
 
@@ -39,43 +37,6 @@ export interface AuthOffline {
   lastAuthAt: number;
 }
 
-let dbPromise: Promise<IDBDatabase> | null = null;
-
-function abrirDb(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise;
-
-  dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
-    if (typeof indexedDB === "undefined") {
-      reject(new Error("IndexedDB no disponible"));
-      return;
-    }
-
-    const peticion = indexedDB.open(DB_NAME, DB_VERSION);
-
-    peticion.onupgradeneeded = () => {
-      const db = peticion.result;
-      if (!db.objectStoreNames.contains(STORE_SNAPSHOTS)) {
-        db.createObjectStore(STORE_SNAPSHOTS, { keyPath: "key" });
-      }
-      if (!db.objectStoreNames.contains(STORE_META)) {
-        db.createObjectStore(STORE_META, { keyPath: "key" });
-      }
-      /* v2: store de cola; se crea aquí y en cola.ts para que whichever abre
-         primero deje la base lista para el otro. */
-      if (!db.objectStoreNames.contains("cola")) {
-        db.createObjectStore("cola", { keyPath: "id" });
-      }
-    };
-
-    peticion.onsuccess = () => resolve(peticion.result);
-    peticion.onerror = () => {
-      dbPromise = null;
-      reject(peticion.error ?? new Error("No se pudo abrir IndexedDB"));
-    };
-  });
-
-  return dbPromise;
-}
 
 async function conStore<T>(
   store: string,
@@ -183,13 +144,9 @@ export async function leerAuth(): Promise<AuthOffline | null> {
  */
 export async function borrarDatosOffline(): Promise<void> {
   try {
-    if (dbPromise) {
-      const db = await dbPromise.catch(() => null);
-      db?.close();
-      dbPromise = null;
-    }
+    cerrarDb();
   } catch {
-    dbPromise = null;
+    // best-effort
   }
 
   if (typeof indexedDB === "undefined") return;

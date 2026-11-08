@@ -4,6 +4,7 @@
   "private": true,
   "description": "La Verde — Plataforma de descubrimiento de lugares en Cuba con IA",
   "scripts": {
+    "prebuild": "node scripts/sw-version.js",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

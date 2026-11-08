@@ -8,6 +8,7 @@ import { PwaRegister } from "@/components/pwa/pwa-register";
 import { PushPrimer } from "@/components/pwa/push-primer";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { EstadoConexion } from "@/components/layout/estado-conexion";
+import { NavOffline } from "@/components/layout/nav-offline";
 import { Toaster } from "sonner";
 /* Sin el CSS de `@neondatabase/auth-ui`: no hay ningún componente de ese
    paquete montado. Las pantallas de acceso usan las clases propias de
@@ -270,6 +271,7 @@ export default function RootLayout({
               cola de pedidos pendientes. Va en el layout raíz para cubrir
               todas las rutas, incluida /m/[slug]. */}
           <EstadoConexion />
+          <NavOffline />
           {/* Avisos flotantes. La pastilla va en `ink` con texto blanco, como
               la del panel de negocio: es el mismo aviso y tiene que leerse
               igual. Los tokens `--foreground` / `--background` eran el
