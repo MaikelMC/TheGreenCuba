@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { and, desc, eq, gte } from "drizzle-orm";
-import { Users, TrendingUp, Wallet, AlertCircle, Store, ExternalLink } from "lucide-react";
+import { Users, TrendingUp, Wallet, Store } from "lucide-react";
 import { db } from "@/lib/db";
 import { pagos, places } from "@/lib/db/schema";
 import {
@@ -11,8 +11,9 @@ import {
   REGLAS_AFILIADOS as R,
   tasaUsdCup,
 } from "@/lib/afiliados";
-import { EntregarPremio, QuitarAfiliacion, ResolverCobro } from "@/components/afiliados/acciones-admin";
+import { EntregarPremio, ResolverCobro } from "@/components/afiliados/acciones-admin";
 import { fecha, rotulo, tarjeta } from "@/components/afiliados/piezas";
+import { TablaAfiliados, type AfiliadoResumido } from "@/components/afiliados/tabla-afiliados";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +57,12 @@ export default async function AdminAfiliadosPage() {
   const suma = (f: (a: (typeof afiliados)[number]) => number) =>
     afiliados.reduce((s, a) => s + f(a), 0);
 
-  /* ---- KPIs globales ---- */
+  /* ---- KPIs (los no-monetarios; los de comisiones van en TablaAfiliados) ---- */
+  const totalGeneradoCentavos = suma((a) => a.resumen.dinero.generado);
+  const totalPorPagarCentavos = suma(
+    (a) => a.resumen.dinero.disponible + a.resumen.dinero.pedido,
+  );
+
   const kpis = [
     {
       icono: Users,
@@ -75,8 +81,8 @@ export default async function AdminAfiliadosPage() {
     {
       icono: TrendingUp,
       etiqueta: "Comisiones generadas",
-      valor: formatoCup(aCup(suma((a) => a.resumen.dinero.generado), tasa)),
-      sub: `${formatoCup(aCup(suma((a) => a.resumen.dinero.disponible + a.resumen.dinero.pedido), tasa))} por pagar`,
+      valor: formatoCup(aCup(totalGeneradoCentavos, tasa)),
+      sub: `${formatoCup(aCup(totalPorPagarCentavos, tasa))} por pagar`,
       alerta: false,
     },
     {
@@ -87,6 +93,25 @@ export default async function AdminAfiliadosPage() {
       alerta: cobrosPedidos.length > 0 || premios.length > 0,
     },
   ];
+
+  /* ---- Datos serializables para el componente cliente ---- */
+  const afiliadosParaCliente: AfiliadoResumido[] = afiliados.map((a) => ({
+    id: a.id,
+    nombre: a.nombre,
+    email: a.email,
+    ciudad: a.ciudad,
+    creadoTs: a.creado.getTime(),
+    dinero: {
+      generado: a.resumen.dinero.generado,
+      disponible: a.resumen.dinero.disponible,
+      pedido: a.resumen.dinero.pedido,
+    },
+    negocios: a.resumen.negocios.length,
+    pagando: a.resumen.pagando,
+    nuevosEsteMes: a.resumen.nuevosEsteMes,
+    cobrosPedidos: a.resumen.cobros.filter((c) => c.estado === "pedido").length,
+    ultimoNegocioTs: a.resumen.ultimoNegocio?.getTime() ?? null,
+  }));
 
   return (
     <div className="flex flex-col gap-gap-lg">
@@ -130,140 +155,14 @@ export default async function AdminAfiliadosPage() {
         ))}
       </div>
 
-      {/* Tabla de afiliados */}
-      <section className={`${tarjeta} flex flex-col gap-gap-sm`}>
-        <h2 className="font-lv-display text-body font-bold text-ink">
-          Afiliados registrados{" "}
-          <span className="ml-1 inline-flex items-center rounded-full bg-verde-50 px-2 py-0.5 font-lv-display text-meta font-semibold text-verde-700 border border-verde-200">
-            {afiliados.length}
-          </span>
-        </h2>
-
-        {afiliados.length === 0 ? (
-          <p className="text-small text-ink-soft/75">
-            Todavía no hay afiliados. Actívalos desde{" "}
-            <Link href="/admin/usuarios" className="font-semibold text-verde-700 underline">
-              Usuarios
-            </Link>
-            .
-          </p>
-        ) : (
-          <div className="-mx-1 overflow-x-auto">
-            <table className="w-full text-small">
-              <thead>
-                <tr className="text-left text-[10px] uppercase tracking-[0.12em] text-ink-soft/70 border-b border-ink/5">
-                  <th className="px-2 py-2.5">Afiliado</th>
-                  <th className="px-2 py-2.5 text-right">Traídos</th>
-                  <th className="px-2 py-2.5 text-right">Pagando</th>
-                  <th className="px-2 py-2.5 text-right">Nuevos/mes</th>
-                  <th className="px-2 py-2.5 text-right">Comisiones</th>
-                  <th className="px-2 py-2.5 text-right">Por cobrar</th>
-                  <th className="px-2 py-2.5 text-right">Retiros</th>
-                  <th className="px-2 py-2.5">Último neg.</th>
-                  <th className="px-2 py-2.5">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {afiliados.map((a) => {
-                  const viejo =
-                    (a.resumen.ultimoNegocio?.getTime() ?? a.creado.getTime()) < sesenta;
-                  const retirosPendientes = a.resumen.cobros.filter(
-                    (c) => c.estado === "pedido",
-                  ).length;
-                  return (
-                    <tr key={a.id} className="border-t border-ink/5 align-middle">
-                      <td className="px-2 py-3">
-                        <div className="flex flex-col gap-0.5">
-                          <Link
-                            href={`/admin/afiliados/${a.id}`}
-                            className="font-semibold text-verde-700 hover:underline"
-                          >
-                            {a.nombre ?? a.email}
-                          </Link>
-                          {a.ciudad && (
-                            <span className="text-meta text-ink-soft/70">{a.ciudad}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-2 py-3 text-right tabular-nums">
-                        {a.resumen.negocios.length}
-                      </td>
-                      <td className="px-2 py-3 text-right tabular-nums">
-                        <span
-                          className={
-                            a.resumen.pagando > 0
-                              ? "font-semibold text-verde-700"
-                              : "text-ink-soft/60"
-                          }
-                        >
-                          {a.resumen.pagando}
-                        </span>
-                      </td>
-                      <td className="px-2 py-3 text-right tabular-nums">
-                        {a.resumen.nuevosEsteMes > 0 ? (
-                          <span className="font-semibold text-verde-700">
-                            {a.resumen.nuevosEsteMes}
-                          </span>
-                        ) : (
-                          <span className="text-ink-soft/60">0</span>
-                        )}
-                      </td>
-                      <td className="px-2 py-3 text-right tabular-nums">
-                        {a.resumen.dinero.generado > 0
-                          ? formatoCup(aCup(a.resumen.dinero.generado, tasa))
-                          : <span className="text-ink-soft/60">—</span>}
-                      </td>
-                      <td className="px-2 py-3 text-right tabular-nums">
-                        {a.resumen.dinero.disponible + a.resumen.dinero.pedido > 0 ? (
-                          <span className="font-semibold text-amber-700">
-                            {formatoCup(
-                              aCup(
-                                a.resumen.dinero.disponible + a.resumen.dinero.pedido,
-                                tasa,
-                              ),
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-ink-soft/60">—</span>
-                        )}
-                      </td>
-                      <td className="px-2 py-3 text-right">
-                        {retirosPendientes > 0 ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-                            <AlertCircle size={11} strokeWidth={2} aria-hidden="true" />
-                            {retirosPendientes}
-                          </span>
-                        ) : (
-                          <span className="text-ink-soft/60">—</span>
-                        )}
-                      </td>
-                      <td
-                        className={`px-2 py-3 tabular-nums ${viejo ? "font-bold text-red-700" : "text-ink-soft/70"}`}
-                      >
-                        {fecha(a.resumen.ultimoNegocio)}
-                      </td>
-                      <td className="px-2 py-3">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <Link
-                            href={`/admin/afiliados/${a.id}`}
-                            className="inline-flex h-8 items-center gap-1 rounded-full border border-ink/10 bg-sand px-3 font-lv-display text-meta font-semibold text-ink hover:bg-sand-deep transition-colors duration-300"
-                          >
-                            <ExternalLink size={12} strokeWidth={2} aria-hidden="true" />
-                            Ver
-                          </Link>
-                          <QuitarAfiliacion
-                            afiliadoId={a.id}
-                            nombre={a.nombre ?? a.email}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+      {/* Tabla interactiva de afiliados (cliente: toggle CUP/USD + tasa configurable) */}
+      <section className={tarjeta}>
+        <TablaAfiliados
+          afiliados={afiliadosParaCliente}
+          tasaInicial={tasa}
+          totalGeneradoCentavos={totalGeneradoCentavos}
+          totalPorPagarCentavos={totalPorPagarCentavos}
+        />
       </section>
 
       {/* Cobros y premios pendientes */}
