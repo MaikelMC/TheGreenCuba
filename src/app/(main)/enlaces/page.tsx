@@ -189,7 +189,7 @@ export default async function LinksPage() {
             <li>Después, el {R.recurrente * 100}% de cada pago mensual durante {R.mesesRecurrente} meses ({R.recurrenteAlto * 100}% si tienes {R.negociosParaSubir} o más negocios pagando a la vez).</li>
             <li>Solo cuentan los negocios que pagaron. Registrarse sin pagar no suma.</li>
             <li>La comisión queda disponible a los {R.diasRetencion} días del pago. Si devolvemos el dinero a un negocio, se descuenta.</li>
-            <li>Cobro mínimo {R.cobroMinimoCup} CUP, por saldo, transferencia en CUP o CubaPay, del día 1 al 5 de cada mes.</li>
+            <li>Cobro mínimo {R.cobroMinimoCup} CUP, por saldo, transferencia en CUP o QvaPay, del día 1 al 5 de cada mes.</li>
             <li>No está permitido pagar el plan por el negocio, prometer cosas que La Verde no hace ni registrar negocios falsos.</li>
           </ul>
         </details>

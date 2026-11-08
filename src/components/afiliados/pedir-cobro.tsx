@@ -47,7 +47,7 @@ export function PedirCobro({ disponibleCup, minimoCup, hayPedido }: { disponible
           >
             <option value="saldo">Saldo móvil</option>
             <option value="transferencia_cup">Transferencia en CUP</option>
-            <option value="cubapay">CubaPay</option>
+            <option value="cubapay">QvaPay</option>
           </select>
         </label>
         <label className="flex flex-col gap-1 text-meta font-semibold text-ink">
