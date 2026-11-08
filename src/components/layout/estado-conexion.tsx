@@ -1,41 +1,37 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { WifiOff } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { procesarCola, pendientes } from "@/lib/offline/cola";
 import { setSinRed } from "@/lib/offline/estado-red";
 
 /**
- * Indicador de estado de conexión.
+ * Gestión del estado de conexión. No renderiza nada visible.
  *
- * - Sin conexión: franja fina debajo de la barra de estado con «Sin conexión
- *   · Viendo datos guardados».
- * - Al volver: toast «De nuevo en línea» (desaparece a los 2 s). Si había
- *   pedidos en cola, «Enviando N pedido/s pendiente/s…».
- * - Accesibilidad: `role="status"` para que los lectores de pantalla lo anuncien.
- *   El aviso no depende solo del color (texto + icono).
+ * - Sin conexión: toast «Sin conexión · Viendo datos guardados» (5 s).
+ * - Al volver: toast «De nuevo en línea» + procesa la cola de pedidos pendientes.
+ * - Mantiene `sinRed()` sincronizado para NavOffline y navegar.ts.
+ * - Procesa la cola al abrir la app si ya hay red.
  *
- * También procesa la cola de acciones pendientes:
- * - Al montar (abre la app).
- * - Cada vez que vuelve la red.
+ * El indicador visual persistente de «sin red» lo gestiona cada página por
+ * su cuenta (StateView variant="offline", desdeOffline en /home, etc.) para
+ * que aparezca en contexto en vez de cubrir la barra del sistema.
  */
 export function EstadoConexion() {
-  const [offline, setOffline] = useState(false);
   const montado = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const inicial = !navigator.onLine;
-    setOffline(inicial);
-    setSinRed(inicial);
+    const estaOffline = !navigator.onLine;
+    setSinRed(estaOffline);
+    if (estaOffline) {
+      toast("Sin conexión · Viendo datos guardados", { duration: 5000 });
+    }
 
     async function alOnline() {
-      setOffline(false);
       setSinRed(false);
 
-      /* Cuántos pedidos hay antes de enviar, para el aviso. */
       const cola = await pendientes();
       const nPendientes = cola.length;
 
@@ -53,14 +49,13 @@ export function EstadoConexion() {
     }
 
     function alOffline() {
-      setOffline(true);
       setSinRed(true);
+      toast("Sin conexión · Viendo datos guardados", { duration: 5000 });
     }
 
     window.addEventListener("online", alOnline);
     window.addEventListener("offline", alOffline);
 
-    /* Procesar la cola al abrir la app, si hay red. */
     if (!montado.current) {
       montado.current = true;
       if (navigator.onLine) {
@@ -74,22 +69,5 @@ export function EstadoConexion() {
     };
   }, []);
 
-  if (!offline) return null;
-
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      /* Debajo de la barra de estado del SO (safe-area-inset-top), por encima
-         del resto del contenido. z-200 coincide con el header; aquí no hay
-         header visible cuando aparece este aviso. */
-      className="pointer-events-none fixed inset-x-0 top-0 z-[200] flex justify-center px-gutter"
-      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
-    >
-      <div className="pointer-events-none flex w-full items-center justify-center gap-2 bg-ink/90 px-4 py-2 text-[13px] font-medium text-white backdrop-blur-sm">
-        <WifiOff size={13} strokeWidth={2} aria-hidden="true" />
-        <span>Sin conexión · Viendo datos guardados</span>
-      </div>
-    </div>
-  );
+  return null;
 }

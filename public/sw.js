@@ -273,10 +273,14 @@ self.addEventListener("fetch", (event) => {
 
   if (url.origin !== self.location.origin) return;
 
-  /* Peticiones RSC: se dejan pasar a la red. Si la red falla, se devuelve
-     text/plain vacío: Next lo interpreta como contenido no-RSC y hace MPA
-     navigation, con lo que el SW intercepta la navegación completa. */
+  /* Peticiones RSC del router de Next.js.
+     - Prefetch (Next-Router-Prefetch): se deja pasar sin interceptar. Si falla,
+       Next lo descarta silenciosamente. Responder con text/plain aquí dispararía
+       doMpaNavigation y recargaría la página sin que el usuario haya navegado.
+     - Navegación real (RSC o _rsc): si la red falla devolvemos text/plain para
+       que Next haga MPA navigation y el SW pueda servir la ruta desde caché. */
   if (esPeticionRsc(request, url)) {
+    if (request.headers.get("Next-Router-Prefetch")) return;
     event.respondWith(rscFallback(request));
     return;
   }

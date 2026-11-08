@@ -62,8 +62,8 @@ Cloudflare/
 # credenciales de las cuentas demo: van en claro, no al repositorio
 CREDENCIALES-DEMO.md
 
-# generado en cada build, nunca al repositorio
-public/sw-version.js
+# sw-version.js: se regenera en cada build pero necesita existir en git como
+# fallback para dev y para clones sin prebuild. El prebuild lo sobreescribe.
 
 # mockup de diseño del panel y nota local de PWA: no son del proyecto
 la_verde_panel_redisenado.html
