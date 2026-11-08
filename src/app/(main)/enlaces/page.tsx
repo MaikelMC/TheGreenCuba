@@ -43,7 +43,7 @@ export default async function LinksPage() {
         >
           <ArrowLeft size={18} strokeWidth={1.8} />
         </Link>
-        <h1 className="truncate font-lv-display text-[18px] font-bold tracking-[-0.02em] text-ink">Afiliados</h1>
+        <h1 className="truncate font-lv-display text-[18px] font-bold tracking-[-0.02em] text-ink">Panel de afiliado</h1>
         <div className="min-w-0 flex-1" />
         <UserMenu initial={user.name.charAt(0)} />
       </header>

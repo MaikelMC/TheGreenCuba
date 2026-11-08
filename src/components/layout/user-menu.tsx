@@ -114,7 +114,7 @@ const ITEMS: {
   },
   {
     path: "/enlaces",
-    label: "Enlaces",
+    label: "Panel de afiliado",
     icon: Link2,
     roles: ["user", "owner", "admin"],
   },
