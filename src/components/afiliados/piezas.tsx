@@ -63,7 +63,7 @@ export function TablaNegocios({
         return (
           <div
             key={n.id}
-            className={`rounded-xl border border-ink/8 border-l-4 bg-white p-3 ${bordeClase}`}
+            className={`rounded-xl border-t border-r border-b border-t-ink/8 border-r-ink/8 border-b-ink/8 border-l-4 bg-white p-3 ${bordeClase}`}
           >
             {/* Cabecera: nombre + estado */}
             <div className="flex flex-wrap items-start justify-between gap-2">
