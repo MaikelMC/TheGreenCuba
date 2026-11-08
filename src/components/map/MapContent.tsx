@@ -610,7 +610,7 @@ const LocateButtonML = memo(function LocateButtonML({
 
   return (
     <div
-      className="absolute left-2.5 z-[1000] bottom-[var(--map-locate-bottom)]"
+      className="absolute left-2.5 z-10 bottom-[var(--map-locate-bottom)]"
     >
       <button
         type="button"
