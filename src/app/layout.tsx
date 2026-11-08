@@ -5,6 +5,7 @@ import { siteConfig } from "@/config/site";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { PostHogAnalytics } from "@/providers/posthog-provider";
 import { PwaRegister } from "@/components/pwa/pwa-register";
+import { DiagnosticoPwa } from "@/components/pwa/diagnostico-pwa";
 import { PushPrimer } from "@/components/pwa/push-primer";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { EstadoConexion } from "@/components/layout/estado-conexion";
@@ -40,6 +41,35 @@ const fontMono = localFont({
   // El mono no es crítico para el LCP; evita precargarlo en cada ruta.
   preload: false,
 });
+
+/*
+ * Script de diagnóstico temprano, en ES5 puro (sin const/let/flechas/?.):
+ * captura errores JS antes de que arranque React y los envía a /api/diagnostico.
+ * Pone window.__lvDiagActivo = true para que DiagnosticoPwa no duplique errores.
+ * sendBeacon si existe, XMLHttpRequest si no. Máximo 5 errores por página.
+ */
+const diagScript = `(function(){
+  var MAX=5;var enviados=0;var url="/api/diagnostico";
+  var esPwa=!!(typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches);
+  window.__lvDiagActivo=true;
+  function enviar(tipo,datos){
+    if(enviados>=MAX)return;
+    enviados++;
+    var payload=JSON.stringify({id:"e"+Date.now()+"_"+Math.random().toString(36).slice(2,8),tipo:tipo,datos:datos});
+    if(typeof navigator!=="undefined"&&navigator.sendBeacon){navigator.sendBeacon(url,payload);return;}
+    try{var x=new XMLHttpRequest();x.open("POST",url,true);x.setRequestHeader("Content-Type","application/json");x.send(payload);}catch(e){}
+  }
+  window.onerror=function(msg,src,line,col,err){
+    enviar("error",{mensaje:String(msg),archivo:String(src||""),linea:line||0,columna:col||0,ua:navigator.userAgent,pwa:esPwa});
+    return false;
+  };
+  if(typeof window.addEventListener==="function"){
+    window.addEventListener("unhandledrejection",function(e){
+      var msg="";try{msg=e.reason&&e.reason.message?e.reason.message:String(e.reason);}catch(x){msg="unknown";}
+      enviar("error",{mensaje:"UnhandledRejection: "+msg,ua:navigator.userAgent,pwa:esPwa});
+    });
+  }
+})();`;
 
 const devChunkScript = `(function(){window.webpackChunkLoadTimeout=300000;if(window.__laVerdeChunkReloaded)return;window.addEventListener("error",function(e){if(window.__laVerdeChunkReloaded)return;var m=(e&&e.message)||"";if(m.indexOf("ChunkLoadError")!==-1||m.indexOf("Loading chunk")!==-1||m.indexOf("webpack")!==-1){window.__laVerdeChunkReloaded=true;window.location.reload();}},true);})();`;
 
@@ -240,6 +270,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning data-scroll-behavior="smooth">
+      <head>
+        {/* Script de diagnóstico temprano en ES5: captura errores antes de que
+            arranque React, incluidos los de sintaxis en Chrome viejo y los de
+            carga de chunks. No bloquea el renderizado; si falla, no pasa nada. */}
+        <script dangerouslySetInnerHTML={{ __html: diagScript }} />
+      </head>
       {/* `lvFontVars` solo declara las variables del design system: las
           consume `font-lv` / `font-lv-display`, no son las de la app. `body`
           sigue fijando Source Sans 3. */}
@@ -265,6 +301,10 @@ export default function RootLayout({
           {/* PWA. Los dos devuelven `null` si la bandera está apagada, así
               que en producción hasta que se apruebe no se pinta nada. */}
           <PwaRegister />
+          {/* Diagnóstico de cliente: una vez por sesión, sin datos personales.
+              El script temprano del <head> ya captura errores JS; este componente
+              añade WebGL, memoria, conexión y versión del SW. */}
+          <DiagnosticoPwa />
           <PushPrimer />
           <InstallPrompt />
           {/* Estado de conexión: franja sin-conexión + toast al volver +

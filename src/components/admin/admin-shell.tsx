@@ -21,6 +21,7 @@ import {
   X,
   ChevronRight,
   BadgeDollarSign,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/layout/user-menu";
@@ -119,6 +120,12 @@ const NAV_ITEMS: AdminNavItem[] = [
     label: "Planes",
     short: "Planes",
     icon: BadgeDollarSign,
+  },
+  {
+    href: "/admin/diagnostico",
+    label: "Diagnóstico",
+    short: "Diag.",
+    icon: Activity,
   },
 ];
 
