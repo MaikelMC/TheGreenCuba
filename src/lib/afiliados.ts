@@ -49,7 +49,7 @@ export function tasaUsdCup(): number {
 export const METODOS_COBRO = {
   saldo: "Saldo móvil",
   transferencia_cup: "Transferencia en CUP",
-  cubapay: "CubaPay",
+  cubapay: "QvaPay",
 } as const;
 export type MetodoCobro = keyof typeof METODOS_COBRO;
 
