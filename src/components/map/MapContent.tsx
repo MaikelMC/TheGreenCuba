@@ -6,8 +6,9 @@ import { createPortal } from "react-dom";
 import { useTheme } from "next-themes";
 import maplibregl from "maplibre-gl";
 import { PlacePopup } from "./PlacePopup";
-import { aplicarTemaMapa } from "@/lib/map/tema-mapa";
+import { aplicarColoresLaVerde, aplicarTemaMapa } from "@/lib/map/tema-mapa";
 import { buildPinSvg, parsePinImageId, pinImageId, PIN_STYLES } from "./pin-icon";
+import type { PlacePinVariant } from "./pin-icon";
 import { filterValidPlaces } from "@/lib/map/coordinates";
 import {
   CUBA_BOUNDS,
@@ -16,7 +17,7 @@ import {
   MIN_ZOOM,
   MAX_ZOOM,
   GEO_ZOOM,
-  TILEJSON_URL,
+  LIBERTY_STYLE_URL,
   MAP_ATTRIBUTION,
 } from "@/lib/map/map-config";
 import { placeIcon } from "@/lib/places";
@@ -82,28 +83,34 @@ function userToGeoJSON(loc: { lat: number; lng: number; accuracy?: number } | nu
   };
 }
 
-/* ── Registro de imágenes de pin ─────────────────────────────────────────
-   Cuando el estilo pide una imagen que aún no existe, styleimagemissing la
-   genera y la registra al vuelo. pixelRatio:2 → imagen a doble tamaño →
-   nítida en HiDPI sin un segundo set de assets. */
-function registrarPin(map: maplibregl.Map, id: string): void {
-  if (map.hasImage(id)) return;
+/* ── Caché de imágenes de pin ────────────────────────────────────────────
+   MapLibre no reintenta un símbolo después de que `styleimagemissing` ha
+   disparado y el handler volvió sin añadir la imagen sincrónamente.
+   Solución: pre-cargamos los HTMLImageElement antes de llamar a setData.
+   Cuando styleimagemissing dispara, la imagen ya está lista → addImage
+   síncrono → sin warning → pin visible. */
+const pinCache = new Map<string, HTMLImageElement>();
+
+/** Carga un SVG de pin y guarda el HTMLImageElement en caché. */
+function precargarPin(id: string): Promise<void> {
+  if (pinCache.has(id)) return Promise.resolve();
   const parsed = parsePinImageId(id);
-  if (!parsed) return;
-  const { svg, width, height } = buildPinSvg(
-    parsed.variant,
-    parsed.iconKey,
-    parsed.conEnergia,
-    parsed.conOferta,
-  );
-  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-  const img = new Image(width, height);
-  img.onload = () => {
-    if (!map.hasImage(id)) {
-      map.addImage(id, img, { pixelRatio: 2 });
-    }
-  };
-  img.src = url;
+  if (!parsed) return Promise.resolve();
+  const { svg } = buildPinSvg(parsed.variant, parsed.iconKey, parsed.conEnergia, parsed.conOferta);
+  return new Promise<void>((resolve) => {
+    const img = new Image();
+    img.onload = () => { pinCache.set(id, img); resolve(); };
+    img.onerror = () => resolve();          // nunca rechaza; se omite
+    img.src = `data:image/svg+xml;base64,${btoa(svg)}`;
+  });
+}
+
+/** Añade al mapa la imagen que ya debe estar en caché. Síncrono. */
+function registrarDesdeCache(map: maplibregl.Map, id: string): void {
+  if (map.hasImage(id)) return;
+  const img = pinCache.get(id);
+  if (!img) return;
+  map.addImage(id, img, { pixelRatio: 2 });
 }
 
 /* ── Expresión de icon-image según propiedades del feature ─────────────── */
@@ -165,6 +172,14 @@ export function MapContent({
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const popupNodeRef = useRef<HTMLDivElement | null>(null);
 
+  /* Ref siempre actualizado con validPlaces (lugares llegan async). */
+  const validPlacesRef = useRef<MapPlace[]>([]);
+  useEffect(() => { validPlacesRef.current = validPlaces; }, [validPlaces]);
+
+  /* GeoJSON actual del source de negocios — necesario para forzar re-layout
+     cuando styleimagemissing llega tarde (pin seleccionado, boosted, etc.). */
+  const geoJSONRef = useRef<GeoJSON.FeatureCollection>({ type: "FeatureCollection", features: [] });
+
   /* Guards de un solo vuelo */
   const hasFit = useRef(false);
   const lastFlownUser = useRef<string>("");
@@ -179,15 +194,6 @@ export function MapContent({
     let cancelled = false;
 
     async function init() {
-      const response = await fetch("/mapa/estilo-la-verde.json");
-      const style = await response.json() as maplibregl.StyleSpecification;
-
-      // Sustituir la URL del TileJSON (placeholder en el JSON estático)
-      (style.sources as Record<string, maplibregl.SourceSpecification>).openmaptiles = {
-        type: "vector",
-        url: TILEJSON_URL,
-      };
-
       if (cancelled || !containerRef.current) return;
 
       const center: [number, number] = userLocation
@@ -196,7 +202,7 @@ export function MapContent({
 
       const map = new maplibregl.Map({
         container: containerRef.current,
-        style,
+        style: LIBERTY_STYLE_URL,
         center,
         zoom: initialZoom,
         minZoom: MIN_ZOOM,
@@ -213,15 +219,30 @@ export function MapContent({
       );
 
       /* Control de zoom y brújula */
-      map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-left");
+      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-left");
 
-      /* Registrar pins al vuelo cuando el estilo los pide */
-      map.on("styleimagemissing", (e) => registrarPin(map, e.id));
+      /* styleimagemissing: síncrono desde caché.
+         Si la imagen ya está precargada → addImage inmediato → pin visible.
+         Si no (pin seleccionado que llegó tarde, etc.) → carga async y fuerza
+         re-layout repasando setData con el GeoJSON actual. */
+      map.on("styleimagemissing", (e) => {
+        if (!parsePinImageId(e.id)) return;
+        if (pinCache.has(e.id)) {
+          registrarDesdeCache(map, e.id);
+        } else {
+          void precargarPin(e.id).then(() => {
+            registrarDesdeCache(map, e.id);
+            const src = map.getSource(SOURCE_NEGOCIOS) as maplibregl.GeoJSONSource | undefined;
+            src?.setData(geoJSONRef.current);
+          });
+        }
+      });
 
       map.on("load", () => {
         if (cancelled) { map.remove(); return; }
 
-        /* Aplicar tema antes de mostrar el mapa */
+        /* Paleta La Verde sobre Liberty, luego dark mode encima si aplica */
+        aplicarColoresLaVerde(map);
         if (resolvedTheme === "dark") {
           aplicarTemaMapa(map, "oscuro");
         }
@@ -305,7 +326,7 @@ export function MapContent({
           const feature = e.features?.[0];
           if (!feature) return;
           const id = feature.properties.id as string;
-          const place = validPlaces.find((p) => p.id === id);
+          const place = validPlacesRef.current.find((p) => p.id === id);
           if (!place) return;
 
           onPlaceSelect?.(place);
@@ -388,11 +409,36 @@ export function MapContent({
   useEffect(() => {
     if (!mapa) return;
     const src = mapa.getSource(SOURCE_NEGOCIOS) as maplibregl.GeoJSONSource | undefined;
-    src?.setData(placesToGeoJSON(validPlaces, selectedPlaceId));
+    if (!src) return;
 
-    // Si el popup abierto es de un place que ya no existe, cerrarlo
     if (popupPlace && !validPlaces.find((p) => p.id === popupPlace.id)) {
       popupRef.current?.remove();
+    }
+
+    const geojson = placesToGeoJSON(validPlaces, selectedPlaceId);
+    geoJSONRef.current = geojson;
+
+    /* Ids de imagen que necesita este set de places. */
+    const neededIds = [...new Set(geojson.features.map((f) => {
+      const p = f.properties!;
+      const v: PlacePinVariant =
+        p.isSelected ? "selected" : p.isProject ? "project" : p.isBoosted ? "boosted" : "default";
+      return pinImageId(v, p.iconKey as string, p.conEnergia as boolean, p.conOferta as boolean);
+    }))];
+
+    /* Pre-cargar imágenes que faltan, luego registrar y setData.
+       setData se llama solo después de que las imágenes estén listas para que
+       styleimagemissing pueda añadirlas síncronamente cuando MapLibre las pida. */
+    const faltantes = neededIds.filter((id) => !pinCache.has(id));
+    const actualizarMapa = () => {
+      for (const id of neededIds) registrarDesdeCache(mapa, id);
+      src.setData(geojson);
+    };
+
+    if (faltantes.length === 0) {
+      actualizarMapa();
+    } else {
+      void Promise.all(faltantes.map(precargarPin)).then(actualizarMapa);
     }
   }, [mapa, validPlaces, selectedPlaceId, popupPlace]);
 
@@ -565,8 +611,6 @@ const LocateButtonML = memo(function LocateButtonML({
   return (
     <div
       className="absolute left-2.5 z-[1000] bottom-[var(--map-locate-bottom)]"
-      /* Bloquear que el click llegue al handler del mapa */
-      onClickCapture={(e) => e.stopPropagation()}
     >
       <button
         type="button"

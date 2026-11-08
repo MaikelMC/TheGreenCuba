@@ -1,6 +1,43 @@
 import type maplibregl from "maplibre-gl";
 
 /**
+ * Aplica la paleta de La Verde sobre cualquier estilo base (Liberty u otro).
+ *
+ * Mismo enfoque que el demo: itera todas las capas y pinta por patrón de id.
+ * Se llama en el evento "load" antes de aplicarTemaMapa.
+ */
+export function aplicarColoresLaVerde(map: maplibregl.Map): void {
+  const capas = map.getStyle()?.layers ?? [];
+  for (const capa of capas) {
+    const id = capa.id;
+    const pintar = (prop: string, valor: unknown) => {
+      try { map.setPaintProperty(id, prop, valor); } catch { /* capa no existe */ }
+    };
+    if (capa.type === "background") {
+      pintar("background-color", "#F1F5EE");
+    } else if (capa.type === "fill") {
+      if (/water/.test(id))                                           pintar("fill-color", "#BFE3E6");
+      else if (/park|grass|wood|forest|landcover|garden|pitch/.test(id)) pintar("fill-color", "#D3ECCB");
+      else if (/residential|landuse/.test(id))                        pintar("fill-color", "#ECF1E8");
+      else if (/building/.test(id))                                   pintar("fill-color", "#E2E8DE");
+    } else if (capa.type === "fill-extrusion" && /building/.test(id)) {
+      pintar("fill-extrusion-color", "#E2E8DE");
+    } else if (capa.type === "line") {
+      if (/water|river|stream/.test(id))        pintar("line-color", "#A9D6DB");
+      else if (/motorway|trunk/.test(id))       pintar("line-color", "#F6E3A1");
+      else if (/primary|secondary/.test(id))    pintar("line-color", "#FFFFFF");
+      // casings: se mantienen sin tocar
+    } else if (capa.type === "symbol") {
+      if (/place|city|town|village|suburb|neighbourhood/.test(id)) {
+        pintar("text-color", "#1F5A33");
+        pintar("text-halo-color", "#FFFFFF");
+      }
+      if (/water/.test(id)) pintar("text-color", "#3C8A92");
+    }
+  }
+}
+
+/**
  * Paletas de color para el mapa.
  *
  * El estilo base (estilo-la-verde.json) contiene los colores claros. Esta

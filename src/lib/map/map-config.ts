@@ -21,14 +21,13 @@ export const CUBA_BOUNDS: [[number, number], [number, number]] = [
 ];
 
 /**
- * URL del TileJSON de las teselas vectoriales.
+ * URL del estilo MapLibre completo (teselas + fuentes + sprite).
  *
- * Ahora: OpenFreeMap (mundo entero, mismo formato OpenMapTiles).
- * Futuro: cambiar la variable a `/tiles/cuba.json` cuando el VPS esté listo,
- * quitar `tiles.openfreemap.org` del CSP y actualizar el service worker (v8).
+ * Liberty de OpenFreeMap = esquema OpenMapTiles + todo incluido.
+ * Futuro: apuntar al estilo propio cuando el VPS esté listo.
  */
-export const TILEJSON_URL =
-  process.env.NEXT_PUBLIC_MAPA_TILEJSON ?? "https://tiles.openfreemap.org/planet";
+export const LIBERTY_STYLE_URL =
+  process.env.NEXT_PUBLIC_MAPA_ESTILO ?? "https://tiles.openfreemap.org/styles/liberty";
 
 /**
  * Atribución que muestra el control compacto.

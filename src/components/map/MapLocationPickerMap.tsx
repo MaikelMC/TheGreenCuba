@@ -8,17 +8,16 @@ import {
   DEFAULT_ZOOM,
   MIN_ZOOM,
   MAX_ZOOM,
-  TILEJSON_URL,
+  LIBERTY_STYLE_URL,
   MAP_ATTRIBUTION,
 } from "@/lib/map/map-config";
-import { aplicarTemaMapa } from "@/lib/map/tema-mapa";
+import { aplicarColoresLaVerde, aplicarTemaMapa } from "@/lib/map/tema-mapa";
 import { buildPinSvg, parsePinImageId, PIN_STYLES } from "./pin-icon";
 import { validatePlaceCoordinates } from "@/lib/map/coordinates";
 import { readUserPreferences, locationCenter } from "@/lib/user-preferences-store";
 import { fetchMe } from "@/lib/session-client";
 import { useTheme } from "next-themes";
 import type { LocationPoint } from "./MapLocationPicker";
-import type { StyleSpecification } from "maplibre-gl";
 
 const SEA_ERROR =
   "Ese punto está en el mar o fuera de Cuba. Mueve el pin a un punto en tierra.";
@@ -65,13 +64,6 @@ export function MapLocationPickerMap({
     let cancelled = false;
 
     async function init() {
-      const response = await fetch("/mapa/estilo-la-verde.json");
-      const style = await response.json() as StyleSpecification;
-      (style.sources as Record<string, maplibregl.SourceSpecification>).openmaptiles = {
-        type: "vector",
-        url: TILEJSON_URL,
-      };
-
       if (cancelled || !containerRef.current) return;
 
       /* Centro inicial: valor actual, ubicación del usuario, o La Habana */
@@ -93,7 +85,7 @@ export function MapLocationPickerMap({
 
       const map = new maplibregl.Map({
         container: containerRef.current,
-        style,
+        style: LIBERTY_STYLE_URL,
         center,
         zoom: value ? 16 : DEFAULT_ZOOM,
         minZoom: MIN_ZOOM,
@@ -123,6 +115,7 @@ export function MapLocationPickerMap({
       map.on("load", () => {
         if (cancelled) { map.remove(); return; }
 
+        aplicarColoresLaVerde(map);
         if (resolvedTheme === "dark") aplicarTemaMapa(map, "oscuro");
 
         /* Click para colocar pin */

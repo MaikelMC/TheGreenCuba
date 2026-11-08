@@ -42,31 +42,46 @@ export const PIN_STYLES: Record<PlacePinVariant, PinStyle> = {
 const TEARDROP_PATH =
   "M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24C24 5.37 18.63 0 12 0z";
 
-/** Serializa un componente Lucide a SVG string sin react-dom/server.
- *  Lucide expone `.iconNode`: Array<[tag, Record<string,string>]>.
- *  React 19 hizo async a renderToStaticMarkup, así que ya no sirve aquí. */
-function lucideToSvg(Icon: LucideIcon, size: number, strokeWidth: number, color: string): string {
+/** Extrae los elementos de trazado de un icono Lucide sin el wrapper <svg>.
+ *
+ * lucide-react v0.400+ crea los iconos con `forwardRef`. El array de nodos
+ * vive en el closure del render, no como propiedad pública del componente.
+ * Lo recuperamos llamando a `Component.render({}, null)` — eso produce un
+ * React element cuyo prop `iconNode` contiene el array — y lo serializamos
+ * directamente a SVG sin pasar por react-dom (que en React 19 es async).
+ */
+function lucideInner(Icon: LucideIcon): string {
   type Node = [string, Record<string, string>];
-  const nodes = (Icon as unknown as { iconNode?: Node[] }).iconNode ?? [];
-  const inner = nodes
+
+  // lucide < 0.400 expone iconNode como propiedad directa.
+  let nodes: Node[] = (Icon as unknown as { iconNode?: Node[] }).iconNode ?? [];
+
+  // lucide >= 0.400 usa forwardRef; extraemos del closure llamando a render.
+  if (nodes.length === 0) {
+    try {
+      type RenderFn = (props: object, ref: null) => { props?: { iconNode?: Node[] } } | null;
+      const renderFn = (Icon as unknown as { render?: RenderFn }).render;
+      if (renderFn) nodes = renderFn({}, null)?.props?.iconNode ?? [];
+    } catch { /* silencioso */ }
+  }
+
+  return nodes
     .map(([tag, attrs]) => {
       const a = Object.entries(attrs).map(([k, v]) => `${k}="${v}"`).join(" ");
       return `<${tag} ${a}/>`;
     })
     .join("");
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"` +
-    ` viewBox="0 0 24 24" fill="none" stroke="${color}"` +
-    ` stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`
-  );
 }
 
 function iconMarkup(iconKey: string, style: PinStyle): string {
   const key = isKnownIcon(iconKey) ? iconKey : DEFAULT_CATEGORY_ICON;
   const Icon = resolveCategoryIcon(key);
-  const glyph = lucideToSvg(Icon, 24, 2.5, "#08130D");
+  const inner = lucideInner(Icon);
   const scale = style.icon / 24;
-  return `<g transform="translate(12 12) scale(${scale.toFixed(4)}) translate(-12 -12)">${glyph}</g>`;
+  return (
+    `<g transform="translate(12 12) scale(${scale.toFixed(4)}) translate(-12 -12)"` +
+    ` fill="none" stroke="#08130D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${inner}</g>`
+  );
 }
 
 const ENERGIA_BADGE_MARKUP = `
@@ -76,12 +91,13 @@ const ENERGIA_BADGE_MARKUP = `
   </g>`;
 
 function ofertaBadgeMarkup(): string {
-  const glyph = lucideToSvg(Percent, 24, 3, "#08130D");
+  const inner = lucideInner(Percent);
   const scale = 5 / 24;
   return `
   <g>
     <circle cx="4.8" cy="5.4" r="4.4" fill="white" stroke="#08130D" stroke-width="0.9"/>
-    <g transform="translate(4.8 5.4) scale(${scale.toFixed(4)}) translate(-12 -12)">${glyph}</g>
+    <g transform="translate(4.8 5.4) scale(${scale.toFixed(4)}) translate(-12 -12)"
+       fill="none" stroke="#08130D" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${inner}</g>
   </g>`;
 }
 

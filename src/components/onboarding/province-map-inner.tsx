@@ -3,10 +3,10 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
-import { MIN_ZOOM, MAX_ZOOM, TILEJSON_URL, MAP_ATTRIBUTION } from "@/lib/map/map-config";
+import { MIN_ZOOM, MAX_ZOOM, LIBERTY_STYLE_URL, MAP_ATTRIBUTION } from "@/lib/map/map-config";
+import { aplicarColoresLaVerde } from "@/lib/map/tema-mapa";
 import { locationCenter } from "@/lib/user-preferences-store";
 import { buildPinSvg, PIN_STYLES } from "@/components/map/pin-icon";
-import type { StyleSpecification } from "maplibre-gl";
 
 export function ProvinceMapInner({ location }: { location: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -19,13 +19,6 @@ export function ProvinceMapInner({ location }: { location: string }) {
     let cancelled = false;
 
     async function init() {
-      const response = await fetch("/mapa/estilo-la-verde.json");
-      const style = await response.json() as StyleSpecification;
-      (style.sources as Record<string, maplibregl.SourceSpecification>).openmaptiles = {
-        type: "vector",
-        url: TILEJSON_URL,
-      };
-
       if (cancelled || !containerRef.current) return;
 
       /* locationCenter devuelve [lat, lng]; MapLibre usa [lng, lat]. */
@@ -33,12 +26,12 @@ export function ProvinceMapInner({ location }: { location: string }) {
 
       const map = new maplibregl.Map({
         container: containerRef.current,
-        style,
+        style: LIBERTY_STYLE_URL,
         center: [lng, lat],
         zoom: 11,
         minZoom: MIN_ZOOM,
         maxZoom: MAX_ZOOM,
-          fadeDuration: 100,
+        fadeDuration: 100,
         attributionControl: false,
         interactive: false,
       });
@@ -50,6 +43,7 @@ export function ProvinceMapInner({ location }: { location: string }) {
 
       map.on("load", () => {
         if (cancelled) { map.remove(); return; }
+        aplicarColoresLaVerde(map);
         mapaRef.current = map;
 
         const el = document.createElement("div");

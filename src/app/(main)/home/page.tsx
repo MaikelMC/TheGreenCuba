@@ -680,17 +680,18 @@ function HomePageContent() {
   );
   const [initialCenter, setInitialCenter] = useState<[number, number] | null>(
     () => {
-      if (restoredMapView) return [restoredMapView.lat, restoredMapView.lng];
+      if (restoredMapView) return [restoredMapView.lng, restoredMapView.lat];
       if (typeof window === "undefined") return null;
       /* La posición pedida al tocar «Ver el mapa» ya está en caché. Arranca
          ahí, sin pasar por La Habana. Sin posición, manda la provincia. */
       const cached = getLastKnownPosition();
       if (locateOnArrival) {
-        return cached ? [cached.lat, cached.lng] : null;
+        return cached ? [cached.lng, cached.lat] : null;
       }
+      const c = preferredLocationCenter(readUserPreferences().location);
       return (
-        preferredLocationCenter(readUserPreferences().location) ??
-        (cached ? [cached.lat, cached.lng] : null)
+        (c ? ([c[1], c[0]] as [number, number]) : null) ??
+        (cached ? [cached.lng, cached.lat] : null)
       );
     },
   );
@@ -756,10 +757,10 @@ function HomePageContent() {
       prefs: UserPreferences | null,
     ): [number, number] | null => {
       const profileCenter = preferredLocationCenter(prefs?.location);
-      if (profileCenter) return profileCenter;
+      if (profileCenter) return [profileCenter[1], profileCenter[0]];
 
       const cached = getLastKnownPosition();
-      return cached ? [cached.lat, cached.lng] : null;
+      return cached ? [cached.lng, cached.lat] : null;
     };
 
     fetchMe<{
@@ -1431,12 +1432,15 @@ function HomePageContent() {
     if (!userPreferences) return;
 
     const cached = getLastKnownPosition();
-    const preferredCenter =
+    const lc =
       userPreferences.onboardingCompleted && userPreferences.location !== "otra"
         ? locationCenter(userPreferences.location)
-        : cached
-          ? ([cached.lat, cached.lng] as [number, number])
-          : null;
+        : null;
+    const preferredCenter: [number, number] | null = lc
+      ? [lc[1], lc[0]]
+      : cached
+        ? [cached.lng, cached.lat]
+        : null;
 
     if (preferredCenter && !restoredMapView && !locateOnArrival) {
       setInitialCenter(preferredCenter);
