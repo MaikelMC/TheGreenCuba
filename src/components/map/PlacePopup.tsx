@@ -244,11 +244,7 @@ export function PlacePopup({
         )}
         {/* `Link` y no `<a>`: con un enlace normal la navegación recargaba la
             app entera, el PlacesProvider se volvía a montar y la ficha del
-            lugar parpadeaba en "Lugar no encontrado" hasta hidratar.
-
-            El `!` es aparte: Leaflet colorea todo `<a>` del mapa con
-            `.leaflet-container a` (0,1,1), que gana a la utilidad suelta
-            (0,1,0). Sin el `!` el texto salía en el azul #0078A8 de Leaflet. */}
+            lugar parpadeaba en "Lugar no encontrado" hasta hidratar. */}
         <Link
           href={`/place/${place.id}`}
           data-place-id={place.id}
@@ -265,19 +261,3 @@ export function PlacePopup({
   );
 }
 
-export function getPlacePopupOptions() {
-  return {
-    className: "custom-leaflet-popup",
-    closeButton: true,
-    maxWidth: 300,
-    minWidth: 260,
-    // 16 px arriba: el mapa ya empieza debajo del header, así que sumar los
-    // 68 de antes dejaba el popup innecesariamente abajo.
-    autoPanPadding: [16, 16] as [number, number],
-    // La hoja de recomendaciones recogida sigue tapando los últimos 120 px del
-    // mapa. Sin este margen Leaflet daba por bueno un popup pegado al borde
-    // inferior y el pin —que cuelga justo debajo de él— quedaba detrás de la
-    // hoja, que es justo lo que se acaba de pedir que no pase.
-    autoPanPaddingBottomRight: [16, 150] as [number, number],
-  };
-}

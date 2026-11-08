@@ -472,9 +472,8 @@
     box-shadow: none !important;
   }
 
-  html[data-theme="dark"] .dark-map-tiles .leaflet-tile {
-    filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(0.9);
-  }
+  /* dark-map-tiles ya no existe: MapLibre oscurece el mapa con
+     aplicarTemaMapa(), no con un filtro CSS sobre las teselas. */
 
   html[data-theme="dark"] .map-loading {
     background-color: #0e1720 !important;
@@ -1474,21 +1473,21 @@ html[data-theme="dark"] .lv-map-blocks {
   animation: viewIn 0.18s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* ─── Leaflet overrides ─── */
-/* Geometría compartida de los controles flotantes del mapa. El zoom los
-   consume aquí abajo (CSS de Leaflet) y el botón "Mi ubicación" desde el TSX
-   (`bottom-[var(--map-locate-bottom)]`), así no se desalinean al cambiar un
-   tamaño: la posición del botón se deriva del alto real del control de zoom. */
-.leaflet-container {
+/* ─── MapLibre GL overrides ─── */
+/* Geometría compartida de los controles flotantes del mapa. El zoom lo
+   consume `.maplibregl-ctrl-bottom-left` y el botón "Mi ubicación" desde el
+   TSX (`bottom-[var(--map-locate-bottom)]`), así no se desalinean al cambiar
+   un tamaño: la posición del botón se deriva del alto real del control de zoom. */
+.maplibregl-map {
   --map-ctrl-size: 44px;
   --map-ctrl-gap: 10px;
   /* Encima de la bottom sheet en su estado colapsado. */
   --map-ctrl-bottom: 144px;
-  /* Alto del control de zoom: +, − y su separador. */
+  /* Alto del control de zoom: + y −. */
   --map-zoom-height: calc(var(--map-ctrl-size) * 2 + 1px);
   /* "Mi ubicación" se apila justo encima del zoom. Los dos `gap` son los
-     márgenes que Leaflet aplica al control (margin-bottom) y el aire entre
-     ambos botones. */
+     márgenes que MapLibre aplica al ctrl-group (margin-bottom) y el aire
+     entre ambos botones. */
   --map-locate-bottom: calc(
     var(--map-ctrl-bottom) + var(--map-ctrl-gap) + var(--map-zoom-height) +
       var(--map-ctrl-gap)
@@ -1496,23 +1495,24 @@ html[data-theme="dark"] .lv-map-blocks {
   width: 100%;
   height: 100%;
   font-family: inherit;
-  /* Fondo visible mientras cargan los tiles: `sand-deep`, el neutro del
+  /* Fondo visible mientras carga el estilo: mismo verde-grisáceo del
      design system. */
-  background: #eae4d6;
+  background: #F1F5EE;
   /* Sin esto, arrastrar el mapa hacia abajo con el dedo encadena el scroll a la
      página y dispara el pull-to-refresh del navegador. */
   overscroll-behavior: contain;
 }
 
-.leaflet-container .leaflet-bottom {
+/* NavigationControl se añade a bottom-left en MapContent. */
+.maplibregl-map .maplibregl-ctrl-bottom-left {
   bottom: var(--map-ctrl-bottom);
 }
 
 /* Zoom: misma familia visual que el resto del sistema (panel blanco, hairline
    `ink/5`, radio de tarjeta, sombra teñida de tinta) con hover en el verde de
-   acción. `!important` porque leaflet.css ya trae reglas para estos nodos y el
-   orden de inyección entre hojas no está garantizado. */
-.leaflet-container .leaflet-bar.leaflet-control-zoom {
+   acción. `!important` porque maplibre-gl.css ya trae reglas y el orden de
+   inyección entre hojas no está garantizado. */
+.maplibregl-map .maplibregl-ctrl-group {
   border: 1px solid rgba(8, 19, 13, 0.05) !important;
   border-radius: 1rem !important;
   background: #ffffff !important;
@@ -1522,16 +1522,13 @@ html[data-theme="dark"] .lv-map-blocks {
   overflow: hidden !important;
 }
 
-.leaflet-container .leaflet-control-zoom a {
+.maplibregl-map .maplibregl-ctrl-group button {
   width: var(--map-ctrl-size) !important;
   height: var(--map-ctrl-size) !important;
-  line-height: var(--map-ctrl-size) !important;
   display: block !important;
-  text-align: center !important;
   font-family: inherit !important;
   font-size: 20px !important;
   font-weight: 500 !important;
-  text-indent: 0 !important;
   color: #08130d !important;
   background: transparent !important;
   border: none !important;
@@ -1541,46 +1538,40 @@ html[data-theme="dark"] .lv-map-blocks {
     color 500ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Separador entre + y − (el último botón no lo lleva). */
-.leaflet-container .leaflet-control-zoom a.leaflet-control-zoom-in {
-  border-bottom: 1px solid rgba(8, 19, 13, 0.05) !important;
+/* Separador entre + y −. */
+.maplibregl-map .maplibregl-ctrl-group button + button {
+  border-top: 1px solid rgba(8, 19, 13, 0.05) !important;
 }
 
-/* Sin contorno: el foco y el hover se señalan solo con el tinte de fondo.
-   El `outline: none` es explícito porque el navegador dibuja su propio anillo
-   por defecto sobre los <a> de Leaflet. */
-.leaflet-container .leaflet-control-zoom a:hover,
-.leaflet-container .leaflet-control-zoom a:focus,
-.leaflet-container .leaflet-control-zoom a:focus-visible {
+.maplibregl-map .maplibregl-ctrl-group button:hover,
+.maplibregl-map .maplibregl-ctrl-group button:focus,
+.maplibregl-map .maplibregl-ctrl-group button:focus-visible {
   background: #eaf7ef !important; /* verde-50 */
   color: #0f7a41 !important; /* verde-600 */
   outline: none !important;
   box-shadow: none !important;
 }
 
-.leaflet-container .leaflet-control-zoom a:active {
+.maplibregl-map .maplibregl-ctrl-group button:active {
   background: #ceeedb !important; /* verde-100 */
 }
 
-.leaflet-container .leaflet-control-zoom a.leaflet-disabled,
-.leaflet-container .leaflet-control-zoom a.leaflet-disabled:hover {
+.maplibregl-map .maplibregl-ctrl-group button:disabled,
+.maplibregl-map .maplibregl-ctrl-group button[disabled] {
   background: #f6f3ec !important; /* sand */
-  color: rgba(27, 42, 33, 0.5) !important; /* ink-soft al 50 % */
+  color: rgba(27, 42, 33, 0.5) !important;
   cursor: default !important;
   box-shadow: none !important;
 }
 
-/* Modo oscuro. Los valores claros de arriba son hex fijos —el override global
-   de `.bg-white` no alcanza aquí—, así que cada regla tiene su pareja bajo
-   `data-theme="dark"`, con la misma paleta que el resto del mapa oscuro
-   (#0e1720 de superficie, acento #9be3b4, hairline claro al 8 %). */
-html[data-theme="dark"] .leaflet-container {
-  /* El sand del modo claro delata un flash claro mientras cargan los tiles;
-     en oscuro el fondo arranca oscuro, como `.map-loading`. */
+/* Modo oscuro. Los valores claros de arriba son hex fijos, así que cada regla
+   tiene su pareja bajo `data-theme="dark"` (#0e1720 de superficie, acento
+   #9be3b4, hairline claro al 8 %). */
+html[data-theme="dark"] .maplibregl-map {
   background: #0e1720;
 }
 
-html[data-theme="dark"] .leaflet-container .leaflet-bar.leaflet-control-zoom {
+html[data-theme="dark"] .maplibregl-map .maplibregl-ctrl-group {
   border-color: rgba(237, 247, 240, 0.08) !important;
   background: #0e1720 !important;
   box-shadow:
@@ -1588,98 +1579,54 @@ html[data-theme="dark"] .leaflet-container .leaflet-bar.leaflet-control-zoom {
     0 8px 24px -12px rgba(0, 0, 0, 0.55) !important;
 }
 
-html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a {
+html[data-theme="dark"] .maplibregl-map .maplibregl-ctrl-group button {
   color: #edf7f0 !important;
 }
 
-html[data-theme="dark"]
-  .leaflet-container
-  .leaflet-control-zoom
-  a.leaflet-control-zoom-in {
-  border-bottom-color: rgba(237, 247, 240, 0.08) !important;
+html[data-theme="dark"] .maplibregl-map .maplibregl-ctrl-group button + button {
+  border-top-color: rgba(237, 247, 240, 0.08) !important;
 }
 
-html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a:hover,
-html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a:focus,
+html[data-theme="dark"] .maplibregl-map .maplibregl-ctrl-group button:hover,
+html[data-theme="dark"] .maplibregl-map .maplibregl-ctrl-group button:focus,
 html[data-theme="dark"]
-  .leaflet-container
-  .leaflet-control-zoom
-  a:focus-visible {
+  .maplibregl-map
+  .maplibregl-ctrl-group
+  button:focus-visible {
   background: #173522 !important;
   color: #9be3b4 !important;
 }
 
-html[data-theme="dark"] .leaflet-container .leaflet-control-zoom a:active {
+html[data-theme="dark"] .maplibregl-map .maplibregl-ctrl-group button:active {
   background: #21442e !important;
 }
 
+html[data-theme="dark"] .maplibregl-map .maplibregl-ctrl-group button:disabled,
 html[data-theme="dark"]
-  .leaflet-container
-  .leaflet-control-zoom
-  a.leaflet-disabled,
-html[data-theme="dark"]
-  .leaflet-container
-  .leaflet-control-zoom
-  a.leaflet-disabled:hover {
+  .maplibregl-map
+  .maplibregl-ctrl-group
+  button[disabled] {
   background: transparent !important;
   color: rgba(237, 247, 240, 0.35) !important;
 }
 
 /* El botón «Mi ubicación» comparte cluster con el zoom: su caja cae en el
    override global de `.bg-white`, pero el borde `ink/5` y el icono del estado
-   en reposo (`text-ink`) quedaban tinta sobre tinta. El único `svg.text-ink`
-   dentro del mapa es ese icono, por eso el selector apunta tan fino y no toca
-   al popup ni al spinner verde del estado de carga. */
-html[data-theme="dark"] .leaflet-container [class~="border-ink/5"] {
+   en reposo (`text-ink`) quedaban tinta sobre tinta. */
+html[data-theme="dark"] .maplibregl-map [class~="border-ink/5"] {
   border-color: rgba(237, 247, 240, 0.08) !important;
 }
 
-html[data-theme="dark"] .leaflet-container button.text-ink {
+html[data-theme="dark"] .maplibregl-map button.text-ink {
   color: #edf7f0 !important;
-}
-
-/* La tarjeta del popup: wrapper y punta son `#ffffff` hex fijo en el CSS claro
-   de arriba, así que necesitan su pareja explícita. El contenido interior ya
-   cae en los overrides globales de token (`text-ink`, `bg-white`, y los verdes
-   de esta misma tanda). */
-html[data-theme="dark"] .custom-leaflet-popup .leaflet-popup-content-wrapper {
-  background: #0e1720 !important;
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.5),
-    0 16px 40px -16px rgba(0, 0, 0, 0.6) !important;
-}
-
-html[data-theme="dark"] .custom-leaflet-popup .leaflet-popup-tip {
-  background: #0e1720 !important;
-}
-
-html[data-theme="dark"]
-  .leaflet-container
-  .custom-leaflet-popup
-  .leaflet-popup-close-button {
-  color: rgba(237, 247, 240, 0.72) !important;
-}
-
-html[data-theme="dark"]
-  .leaflet-container
-  .custom-leaflet-popup
-  .leaflet-popup-close-button:hover,
-html[data-theme="dark"]
-  .leaflet-container
-  .custom-leaflet-popup
-  .leaflet-popup-close-button:focus-visible {
-  color: #edf7f0 !important;
-  background: #173522 !important;
 }
 
 /* ─── Popup del mapa ───
-   Aquí solo vive el cromo que dibuja Leaflet: el contenido de la tarjeta son
-   clases de Tailwind dentro de PlacePopup.tsx. Antes estaba todo en CSS con
-   valores oklch crudos, así que el popup no seguía los tokens del sistema ni
-   cambiaba con el tema. */
-.custom-leaflet-popup .leaflet-popup-content-wrapper {
-  /* Radio de tarjeta del sistema (16 px, el mismo de las filas de lugar) y
-     sombra `card`: hairline teñida de tinta + halo. */
+   MapLibre envuelve el contenido en `.maplibregl-popup-content`.
+   El cierre (closeButton: true) lo gestiona MapLibre como
+   `.maplibregl-popup-close-button` dentro de ese mismo nodo.
+   El DOM que se pasa con setDOMContent va después del botón. */
+.lv-popup .maplibregl-popup-content {
   border-radius: 1rem;
   padding: 0;
   background: #ffffff;
@@ -1701,77 +1648,101 @@ html[data-theme="dark"]
   }
 }
 
-/* La tarjeta fija su propio ancho (288px), así que el nodo de contenido solo
-   tiene que quitarse de en medio. */
-.custom-leaflet-popup .leaflet-popup-content {
-  margin: 0;
-  width: auto !important;
-  min-width: 0 !important;
+/* El triángulo. MapLibre lo dibuja con border-trick, no background, así que
+   en modo claro no hace falta tocar el color —usa el que heredaría—; solo
+   borramos la sombra del wrapper que se filtraría por debajo. */
+.lv-popup .maplibregl-popup-tip {
+  box-shadow: none !important;
 }
 
-.custom-leaflet-popup .leaflet-popup-tip {
-  background: #ffffff;
-  box-shadow: none;
-}
-
-/* Cerrar. Dos cosas: el botón por defecto de Leaflet mide 24x24 con Tahoma y un
-   gris fijo, y su selector `.leaflet-container a.leaflet-popup-close-button`
-   (0,2,1) gana al nuestro (0,2,0). Por eso el prefijo `.leaflet-container`
-   extra: sube a (0,3,1) y los tokens vuelven a mandar. */
-.leaflet-container .custom-leaflet-popup .leaflet-popup-close-button {
-  top: 4px;
-  right: 4px;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  font: inherit;
-  font-size: 19px;
-  line-height: 1;
-  color: rgba(27, 42, 33, 0.75); /* ink-soft/75 */
-  border-radius: 9999px;
+/* Botón de cierre de MapLibre. `!important` porque maplibre-gl.css ya lo
+   posiciona con reglas de alta especificidad. PlacePopup tiene su propio X,
+   pero closeButton: true permite cerrar con Escape —no se oculta. */
+.lv-popup .maplibregl-popup-close-button {
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
+  width: 30px !important;
+  height: 30px !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  font: inherit !important;
+  font-size: 19px !important;
+  line-height: 1 !important;
+  color: rgba(27, 42, 33, 0.75) !important;
+  background: transparent !important;
+  border-radius: 9999px !important;
   transition:
     color 500ms cubic-bezier(0.22, 1, 0.36, 1),
     background-color 500ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.leaflet-container .custom-leaflet-popup .leaflet-popup-close-button:hover,
-.leaflet-container
-  .custom-leaflet-popup
-  .leaflet-popup-close-button:focus-visible {
-  color: #08130d; /* ink */
-  background: #eaf7ef; /* verde-50 */
+.lv-popup .maplibregl-popup-close-button:hover,
+.lv-popup .maplibregl-popup-close-button:focus-visible {
+  color: #08130d !important;
+  background: #eaf7ef !important;
 }
 
-/* Con portada, la X cae encima de la foto y no de la tarjeta blanca: necesita
-   su propio fondo o desaparece sobre una imagen oscura. Disco oscuro y
-   traslúcido con desenfoque —el color del glifo ya lo fija el tema oscuro con
-   `!important`, y ahí también es el correcto—, así sirve en los dos temas y
-   sobre fotos claras u oscuras. El `:has` ata el cambio a que la portada
-   exista de verdad: si la imagen falla, el hueco no se pinta y la X vuelve a
-   su fondo de verde-50. */
-.leaflet-container
-  .custom-leaflet-popup:has(.lv-popup-cover)
-  .leaflet-popup-close-button {
-  color: #ffffff;
-  background: rgba(8, 19, 13, 0.55);
+/* Con portada, la X cae encima de la foto: disco oscuro traslúcido. */
+.lv-popup:has(.lv-popup-cover) .maplibregl-popup-close-button {
+  color: #ffffff !important;
+  background: rgba(8, 19, 13, 0.55) !important;
   backdrop-filter: blur(6px);
-  box-shadow: 0 1px 4px rgba(8, 19, 13, 0.3);
+  box-shadow: 0 1px 4px rgba(8, 19, 13, 0.3) !important;
 }
 
-.leaflet-container
-  .custom-leaflet-popup:has(.lv-popup-cover)
-  .leaflet-popup-close-button:hover,
-.leaflet-container
-  .custom-leaflet-popup:has(.lv-popup-cover)
-  .leaflet-popup-close-button:focus-visible {
-  color: #ffffff;
-  background: rgba(8, 19, 13, 0.78);
+.lv-popup:has(.lv-popup-cover) .maplibregl-popup-close-button:hover,
+.lv-popup:has(.lv-popup-cover)
+  .maplibregl-popup-close-button:focus-visible {
+  color: #ffffff !important;
+  background: rgba(8, 19, 13, 0.78) !important;
+}
+
+/* Modo oscuro del popup. */
+html[data-theme="dark"] .lv-popup .maplibregl-popup-content {
+  background: #0e1720 !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 16px 40px -16px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Triángulo en oscuro: MapLibre usa border-color para el truco CSS. */
+html[data-theme="dark"]
+  .lv-popup.maplibregl-popup-anchor-bottom
+  .maplibregl-popup-tip {
+  border-top-color: #0e1720 !important;
+}
+html[data-theme="dark"]
+  .lv-popup.maplibregl-popup-anchor-top
+  .maplibregl-popup-tip {
+  border-bottom-color: #0e1720 !important;
+}
+html[data-theme="dark"]
+  .lv-popup.maplibregl-popup-anchor-left
+  .maplibregl-popup-tip {
+  border-right-color: #0e1720 !important;
+}
+html[data-theme="dark"]
+  .lv-popup.maplibregl-popup-anchor-right
+  .maplibregl-popup-tip {
+  border-left-color: #0e1720 !important;
+}
+
+html[data-theme="dark"] .lv-popup .maplibregl-popup-close-button {
+  color: rgba(237, 247, 240, 0.72) !important;
+}
+
+html[data-theme="dark"] .lv-popup .maplibregl-popup-close-button:hover,
+html[data-theme="dark"]
+  .lv-popup
+  .maplibregl-popup-close-button:focus-visible {
+  color: #edf7f0 !important;
+  background: #173522 !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .custom-leaflet-popup .leaflet-popup-content-wrapper {
+  .lv-popup .maplibregl-popup-content {
     animation: none;
   }
 }

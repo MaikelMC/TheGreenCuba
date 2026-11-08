@@ -89,7 +89,6 @@ export interface MapViewProps {
   initialCenter?: [number, number];
   initialZoom?: number;
   maxZoom?: number;
-  tileKey?: string;
   /** Evita el auto-fit de bounds al montar (útil cuando se centra en una zona elegida). */
   disableAutoFit?: boolean;
   children?: ReactNode;

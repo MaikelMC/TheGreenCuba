@@ -51,7 +51,12 @@ const CSP = [
      regionales — el SDK resuelve us/eu por sí solo según el host configurado.
      Sin esta línea la producción bloquearía cada evento con CSP y nadie
      relacionaría una ficha vacía en el panel con esta directiva. */
-  "connect-src 'self' https://photon.komoot.io https://nominatim.openstreetmap.org https://us.i.posthog.com https://eu.i.posthog.com https://us-assets.i.posthog.com https://eu-assets.i.posthog.com",
+  /* MapLibre carga el TileJSON y las teselas de OpenFreeMap con fetch() desde
+     sus workers. `tiles.openfreemap.org` se quita cuando el VPS esté listo y
+     las teselas salgan de nuestro propio dominio. */
+  "connect-src 'self' https://photon.komoot.io https://nominatim.openstreetmap.org https://us.i.posthog.com https://eu.i.posthog.com https://us-assets.i.posthog.com https://eu-assets.i.posthog.com https://tiles.openfreemap.org",
+  /* MapLibre compila sus shaders en un Web Worker instanciado con un blob URL. */
+  "worker-src blob:",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

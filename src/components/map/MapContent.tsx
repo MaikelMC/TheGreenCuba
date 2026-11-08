@@ -1,298 +1,139 @@
 "use client";
 
-import "leaflet/dist/leaflet.css";
-import { useEffect, useMemo, useRef, useState } from "react";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useTheme } from "next-themes";
+import maplibregl from "maplibre-gl";
+import { PlacePopup } from "./PlacePopup";
+import { aplicarTemaMapa } from "@/lib/map/tema-mapa";
+import { buildPinSvg, parsePinImageId, pinImageId, PIN_STYLES } from "./pin-icon";
+import { filterValidPlaces } from "@/lib/map/coordinates";
 import {
-  MapContainer,
-  TileLayer,
-  ZoomControl,
-  useMap,
-  useMapEvents,
-} from "react-leaflet";
-import L from "leaflet";
-import { MapMarkers } from "./MapMarkers";
-import { UserLocationMarker } from "./UserLocationMarker";
-import { LocateButton } from "./LocateButton";
-import { RouteLayer } from "./RouteLayer";
-import {
-  TILE_CONFIGS,
-  DEFAULT_TILE,
+  CUBA_BOUNDS,
   HAVANA_CENTER,
   DEFAULT_ZOOM,
   MIN_ZOOM,
   MAX_ZOOM,
   GEO_ZOOM,
-  PREFER_CANVAS,
-  DETECT_RETINA,
+  TILEJSON_URL,
+  MAP_ATTRIBUTION,
 } from "@/lib/map/map-config";
-import { filterValidPlaces } from "@/lib/map/coordinates";
+import { placeIcon } from "@/lib/places";
+import { tieneRespaldo } from "@/lib/energia";
+import { hayOferta } from "@/lib/ofertas";
 import type { MapPlace, MapViewProps } from "./types";
 
-/**
- * Mantiene el lienzo de Leaflet del tamaño real de su caja.
- *
- * Leaflet mide el contenedor una sola vez, al montar. En un móvil esa caja
- * cambia sola: la barra de URL de Safari se esconde, el teclado empuja el
- * layout al enfocar el buscador, el giro del teléfono lo reordena. Con la
- * medida vieja los mosaicos se pintan en el sitio equivocado, aparecen franjas
- * grises y el mapa deja de responder hasta recargar la página.
- *
- * Las señales se agrupan en un frame para no invalidar diez veces seguidas.
- * `pan: false` conserva el centro elegido por el usuario.
- */
-function MapViewportSync() {
-  const map = useMap();
+/* ── Constantes de capas y fuentes ─────────────────────────────────────── */
+const SOURCE_NEGOCIOS = "negocios";
+const SOURCE_RUTA = "ruta";
+const SOURCE_USUARIO = "usuario";
+const LAYER_PINS = "pins";
+const LAYER_RUTA_CASE = "ruta-case";
+const LAYER_RUTA_CORE = "ruta-core";
+const LAYER_USUARIO_PRECISION = "usuario-precision";
+const LAYER_USUARIO_DOT = "usuario-dot";
 
-  useEffect(() => {
-    let frame = 0;
-    const sync = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        map.invalidateSize({ pan: false, animate: false });
-      });
-    };
-
-    const container = map.getContainer();
-    const observer =
-      typeof ResizeObserver !== "undefined" ? new ResizeObserver(sync) : null;
-    observer?.observe(container);
-
-    window.addEventListener("resize", sync);
-    window.addEventListener("orientationchange", sync);
-    const viewport = window.visualViewport;
-    viewport?.addEventListener("resize", sync);
-
-    function alVolver() {
-      if (document.visibilityState === "visible") sync();
-    }
-    document.addEventListener("visibilitychange", alVolver);
-
-    sync();
-
-    return () => {
-      cancelAnimationFrame(frame);
-      observer?.disconnect();
-      window.removeEventListener("resize", sync);
-      window.removeEventListener("orientationchange", sync);
-      viewport?.removeEventListener("resize", sync);
-      document.removeEventListener("visibilitychange", alVolver);
-    };
-  }, [map]);
-
-  return null;
-}
-
-function MapEventsHandler({
-  onMapMove,
-  onMapClick,
-}: {
-  onMapMove?: MapViewProps["onMapMove"];
-  onMapClick?: MapViewProps["onMapClick"];
-}) {
-  /* `useMapEvents` desengancha y reengancha los eventos cada vez que cambia la
-     identidad del objeto que recibe. Se creaba en cada render, así que
-     cualquier cambio de estado del home volvía a suscribir el mapa entero. */
-  const handlers = useMemo<L.LeafletEventHandlerFnMap>(
-    () => ({
-      // Los pines no burbujean al mapa (`bubblingMouseEvents: false` en
-      // `L.Marker`), así que este click es siempre el del fondo del mapa.
-      click: () => onMapClick?.(),
-      moveend: (e) => {
-        if (!onMapMove) return;
-        const map = e.target;
-        const bounds = map.getBounds();
-        const center = map.getCenter();
-        onMapMove(
-          {
-            north: bounds.getNorth(),
-            south: bounds.getSouth(),
-            east: bounds.getEast(),
-            west: bounds.getWest(),
-          },
-          [center.lat, center.lng],
-          map.getZoom(),
-        );
+/* ── Helpers GeoJSON ────────────────────────────────────────────────────── */
+function placesToGeoJSON(places: MapPlace[], selectedId: string | null | undefined): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: places.map((p) => ({
+      type: "Feature",
+      id: p.id,
+      geometry: { type: "Point", coordinates: [p.lng, p.lat] },
+      properties: {
+        id: p.id,
+        iconKey: placeIcon(p.icon, p.category),
+        conEnergia: tieneRespaldo(p.energiaRespaldo),
+        conOferta: hayOferta(p.ofertas),
+        isProject: p.isProject ?? false,
+        isBoosted: p.tags?.some((t) => t.label === "Destacado") ?? false,
+        isSelected: p.id === selectedId,
       },
-    }),
-    [onMapMove, onMapClick],
+    })),
+  };
+}
+
+function routeToGeoJSON(coords: [number, number][]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: coords.length === 0 ? [] : [
+      {
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: coords.map(([lat, lng]) => [lng, lat]) },
+        properties: {},
+      },
+    ],
+  };
+}
+
+function userToGeoJSON(loc: { lat: number; lng: number; accuracy?: number } | null): GeoJSON.FeatureCollection {
+  if (!loc) return { type: "FeatureCollection", features: [] };
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [loc.lng, loc.lat] },
+        properties: { accuracy: loc.accuracy ?? 0 },
+      },
+    ],
+  };
+}
+
+/* ── Registro de imágenes de pin ─────────────────────────────────────────
+   Cuando el estilo pide una imagen que aún no existe, styleimagemissing la
+   genera y la registra al vuelo. pixelRatio:2 → imagen a doble tamaño →
+   nítida en HiDPI sin un segundo set de assets. */
+function registrarPin(map: maplibregl.Map, id: string): void {
+  if (map.hasImage(id)) return;
+  const parsed = parsePinImageId(id);
+  if (!parsed) return;
+  const { svg, width, height } = buildPinSvg(
+    parsed.variant,
+    parsed.iconKey,
+    parsed.conEnergia,
+    parsed.conOferta,
   );
-
-  useMapEvents(handlers);
-  return null;
-}
-
-function FitBoundsOnMount({
-  places,
-  hasUserLocation,
-  disabled,
-}: {
-  places: MapPlace[];
-  hasUserLocation: boolean;
-  disabled?: boolean;
-}) {
-  const map = useMap();
-  const hasFit = useRef(false);
-
-  useEffect(() => {
-    if (hasFit.current || places.length === 0 || hasUserLocation || disabled)
-      return;
-    hasFit.current = true;
-
-    const p = places;
-    if (p.length === 1) {
-      map.setView([p[0]!.lat, p[0]!.lng], 15);
-    } else {
-      const bounds = L.latLngBounds(p.map((x) => [x.lat, x.lng]));
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  const img = new Image(width, height);
+  img.onload = () => {
+    if (!map.hasImage(id)) {
+      map.addImage(id, img, { pixelRatio: 2 });
     }
-  }, [places, map, hasUserLocation, disabled]);
-
-  return null;
+  };
+  img.src = url;
 }
 
-function MapChildren({
-  tile,
-  places,
-  selectedPlaceId,
-  onPlaceSelect,
-  onPlaceRoute,
-  routePlaceId,
-  onRouteClear,
-  userLocation,
-  onUserLocated,
-  onLocateStateChange,
-  focusTarget,
-  viewTarget,
-  initialCenter,
-  initialZoom,
-}: {
-  tile: ReturnType<typeof getTile>;
-  places: MapPlace[];
-  selectedPlaceId?: string | null;
-  onPlaceSelect?: MapViewProps["onPlaceSelect"];
-  onPlaceRoute?: MapViewProps["onPlaceRoute"];
-  routePlaceId: MapViewProps["routePlaceId"];
-  onRouteClear: MapViewProps["onRouteClear"];
-  userLocation?: MapViewProps["userLocation"];
-  onUserLocated?: MapViewProps["onUserLocated"];
-  onLocateStateChange?: MapViewProps["onLocateStateChange"];
-  focusTarget?: MapViewProps["focusTarget"];
-  viewTarget?: MapViewProps["viewTarget"];
-  initialCenter?: [number, number] | null;
-  initialZoom: number;
-}) {
-  const [ready, setReady] = useState(false);
-  const map = useMap();
-  const lastFlownTo = useRef<{ lat: number; lng: number } | null>(null);
-  const lastInitialCenter = useRef<[number, number] | null>(null);
+/* ── Expresión de icon-image según propiedades del feature ─────────────── */
+const ICON_IMAGE_EXPR: maplibregl.ExpressionSpecification = [
+  "case",
+  ["get", "isSelected"],
+  ["concat", "pin-selected-", ["get", "iconKey"],
+    ["case", ["get", "conEnergia"], "-e", ""],
+    ["case", ["get", "conOferta"],  "-o", ""]],
+  ["get", "isProject"],
+  ["concat", "pin-project-",  ["get", "iconKey"], ""],
+  ["get", "isBoosted"],
+  ["concat", "pin-boosted-",  ["get", "iconKey"],
+    ["case", ["get", "conEnergia"], "-e", ""],
+    ["case", ["get", "conOferta"],  "-o", ""]],
+  ["concat", "pin-default-",  ["get", "iconKey"],
+    ["case", ["get", "conEnergia"], "-e", ""],
+    ["case", ["get", "conOferta"],  "-o", ""]],
+];
 
-  useEffect(() => {
-    const timer = requestAnimationFrame(() => setReady(true));
-    return () => cancelAnimationFrame(timer);
-  }, [map]);
+/* Tamaño de icono según estado: 1 = tamaño nativo (mitad del SVG, ya x2). */
+const ICON_SIZE_EXPR: maplibregl.ExpressionSpecification = [
+  "case",
+  ["get", "isSelected"], 1,
+  ["get", "isProject"],  1,
+  ["get", "isBoosted"],  1,
+  1,
+];
 
-  // Fly to the user location when it arrives (or changes to new coordinates).
-  // `ready` is a dep so a location that resolved before the map was ready still
-  // lands at the right spot once the map is available.
-  useEffect(() => {
-    if (!userLocation) return;
-    if (
-      lastFlownTo.current &&
-      lastFlownTo.current.lat === userLocation.lat &&
-      lastFlownTo.current.lng === userLocation.lng
-    ) {
-      return;
-    }
-    lastFlownTo.current = userLocation;
-    map.flyTo([userLocation.lat, userLocation.lng], GEO_ZOOM, {
-      duration: 0.8,
-    });
-  }, [userLocation, map, ready]);
-
-  useEffect(() => {
-    if (!initialCenter || userLocation) return;
-    if (
-      lastInitialCenter.current?.[0] === initialCenter[0] &&
-      lastInitialCenter.current?.[1] === initialCenter[1]
-    ) {
-      return;
-    }
-    lastInitialCenter.current = initialCenter;
-    map.flyTo(initialCenter, initialZoom, { duration: 0.8 });
-  }, [initialCenter, initialZoom, map, userLocation, ready]);
-
-  // Fly to a specific place when a card's location button is tapped.
-  const lastFocusKey = useRef<number | null>(null);
-  useEffect(() => {
-    if (!focusTarget) return;
-    if (lastFocusKey.current === focusTarget.key) return;
-    lastFocusKey.current = focusTarget.key;
-    map.flyTo([focusTarget.lat, focusTarget.lng], 16, { duration: 0.8 });
-  }, [focusTarget, map]);
-
-  // Volar a coordenadas genéricas (ej: dirección elegida en el geocodificador).
-  const lastViewKey = useRef<number | null>(null);
-  useEffect(() => {
-    if (!viewTarget) return;
-    if (lastViewKey.current === viewTarget.key) return;
-    lastViewKey.current = viewTarget.key;
-    map.flyTo([viewTarget.lat, viewTarget.lng], viewTarget.zoom ?? 17, {
-      duration: 0.8,
-    });
-  }, [viewTarget, map]);
-
-  // Don't render markers/layers until the map is actually ready.
-  if (!ready) return null;
-
-  return (
-    <>
-      <TileLayer
-        url={tile.url}
-        attribution={tile.attribution}
-        maxZoom={tile.maxZoom}
-        subdomains={tile.subdomains ?? "ab"}
-        detectRetina={DETECT_RETINA}
-        /* crossOrigin evita respuestas opacas: sin él, Chrome guarda cada
-           tesela como opaca y cada una ocupa 7 MB de cuota aunque solo pese
-           10 KB. Con CORS normal el SW puede inspeccionar y cachear sin coste
-           de cuota exagerado. Los servidores de OSM y CartoDB admiten CORS. */
-        crossOrigin="anonymous"
-        /* keepBuffer: Leaflet guarda más teselas alrededor de la vista para
-           que al moverse ya estén. updateWhenZooming/Idle: no pedir teselas
-           a mitad de la animación del zoom, sino cuando el mapa se queda
-           quieto; elimina el vaciado de pantalla al hacer zoom en móvil. */
-        keepBuffer={4}
-        updateWhenZooming={false}
-        updateWhenIdle={true}
-      />
-      <MapMarkers
-        places={places}
-        selectedId={selectedPlaceId}
-        onSelect={onPlaceSelect}
-        onRoute={onPlaceRoute}
-        routePlaceId={routePlaceId}
-        onRouteClear={onRouteClear}
-      />
-      {userLocation && (
-        <UserLocationMarker
-          lat={userLocation.lat}
-          lng={userLocation.lng}
-          accuracy={userLocation.accuracy}
-        />
-      )}
-      <LocateButton
-        onUserLocated={onUserLocated}
-        onLocateStateChange={onLocateStateChange}
-      />
-    </>
-  );
-}
-
-function getTile(tileKey: string) {
-  return TILE_CONFIGS[tileKey] ?? TILE_CONFIGS[DEFAULT_TILE]!;
-}
-
+/* ── MapContent ──────────────────────────────────────────────────────────── */
 export function MapContent({
   places,
   selectedPlaceId,
@@ -312,97 +153,454 @@ export function MapContent({
   initialCenter = HAVANA_CENTER,
   initialZoom = DEFAULT_ZOOM,
   maxZoom = MAX_ZOOM,
-  tileKey = DEFAULT_TILE,
   disableAutoFit,
 }: MapViewProps) {
-  const [mounted, setMounted] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [mapa, setMapa] = useState<maplibregl.Map | null>(null);
   const { resolvedTheme } = useTheme();
   const validPlaces = useMemo(() => filterValidPlaces(places), [places]);
-  const hasUserLocation = Boolean(userLocation);
-  const effectiveInitialCenter: [number, number] = userLocation
-    ? [userLocation.lat, userLocation.lng]
-    : (initialCenter ?? HAVANA_CENTER);
 
+  // Estado del popup: qué negocio está abierto y el nodo DOM del popup.
+  const [popupPlace, setPopupPlace] = useState<MapPlace | null>(null);
+  const popupRef = useRef<maplibregl.Popup | null>(null);
+  const popupNodeRef = useRef<HTMLDivElement | null>(null);
+
+  /* Guards de un solo vuelo */
+  const hasFit = useRef(false);
+  const lastFlownUser = useRef<string>("");
+  const lastFocusKey = useRef<number | null>(null);
+  const lastViewKey = useRef<number | null>(null);
+  const lastInitialCenter = useRef<string>("");
+
+  /* ── Inicializar mapa ──────────────────────────────────────────────────── */
   useEffect(() => {
-    setMounted(true);
+    if (!containerRef.current) return;
+
+    let cancelled = false;
+
+    async function init() {
+      const response = await fetch("/mapa/estilo-la-verde.json");
+      const style = await response.json() as maplibregl.StyleSpecification;
+
+      // Sustituir la URL del TileJSON (placeholder en el JSON estático)
+      (style.sources as Record<string, maplibregl.SourceSpecification>).openmaptiles = {
+        type: "vector",
+        url: TILEJSON_URL,
+      };
+
+      if (cancelled || !containerRef.current) return;
+
+      const center: [number, number] = userLocation
+        ? [userLocation.lng, userLocation.lat]
+        : [initialCenter[0], initialCenter[1]];
+
+      const map = new maplibregl.Map({
+        container: containerRef.current,
+        style,
+        center,
+        zoom: initialZoom,
+        minZoom: MIN_ZOOM,
+        maxZoom,
+        maxBounds: CUBA_BOUNDS,
+        fadeDuration: 100,
+        attributionControl: false,
+      });
+
+      /* Atribución compacta personalizada */
+      map.addControl(
+        new maplibregl.AttributionControl({ compact: true, customAttribution: MAP_ATTRIBUTION }),
+        "bottom-right",
+      );
+
+      /* Control de zoom y brújula */
+      map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-left");
+
+      /* Registrar pins al vuelo cuando el estilo los pide */
+      map.on("styleimagemissing", (e) => registrarPin(map, e.id));
+
+      map.on("load", () => {
+        if (cancelled) { map.remove(); return; }
+
+        /* Aplicar tema antes de mostrar el mapa */
+        if (resolvedTheme === "dark") {
+          aplicarTemaMapa(map, "oscuro");
+        }
+
+        /* Fuentes GeoJSON */
+        map.addSource(SOURCE_NEGOCIOS, {
+          type: "geojson",
+          data: placesToGeoJSON(validPlaces, selectedPlaceId),
+          generateId: false,
+        });
+
+        map.addSource(SOURCE_RUTA, {
+          type: "geojson",
+          data: routeToGeoJSON(route?.coordinates ?? []),
+        });
+
+        map.addSource(SOURCE_USUARIO, {
+          type: "geojson",
+          data: userToGeoJSON(userLocation ?? null),
+        });
+
+        /* Capas de ruta */
+        map.addLayer({
+          id: LAYER_RUTA_CASE,
+          type: "line",
+          source: SOURCE_RUTA,
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#FFFFFF", "line-width": 11, "line-opacity": 0.9 },
+        });
+        map.addLayer({
+          id: LAYER_RUTA_CORE,
+          type: "line",
+          source: SOURCE_RUTA,
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#35AF6D", "line-width": 6 },
+        });
+
+        /* Capas de ubicación del usuario */
+        map.addLayer({
+          id: LAYER_USUARIO_PRECISION,
+          type: "circle",
+          source: SOURCE_USUARIO,
+          paint: {
+            "circle-radius": ["get", "accuracy"],
+            "circle-color": "rgba(8,19,13,0.06)",
+            "circle-stroke-color": "rgba(8,19,13,0.30)",
+            "circle-stroke-width": 1.5,
+            "circle-pitch-alignment": "map",
+          },
+        });
+        map.addLayer({
+          id: LAYER_USUARIO_DOT,
+          type: "circle",
+          source: SOURCE_USUARIO,
+          paint: {
+            "circle-radius": 7,
+            "circle-color": "#08130D",
+            "circle-stroke-color": "#FFFFFF",
+            "circle-stroke-width": 2.5,
+            "circle-pitch-alignment": "viewport",
+          },
+        });
+
+        /* Capa de pines de negocios */
+        map.addLayer({
+          id: LAYER_PINS,
+          type: "symbol",
+          source: SOURCE_NEGOCIOS,
+          layout: {
+            "icon-image": ICON_IMAGE_EXPR,
+            "icon-size": ICON_SIZE_EXPR,
+            "icon-anchor": "bottom",
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true,
+            "symbol-sort-key": ["case", ["get", "isSelected"], 3, ["get", "isBoosted"], 2, 1],
+          },
+        });
+
+        /* Eventos del mapa */
+        map.on("click", LAYER_PINS, (e) => {
+          const feature = e.features?.[0];
+          if (!feature) return;
+          const id = feature.properties.id as string;
+          const place = validPlaces.find((p) => p.id === id);
+          if (!place) return;
+
+          onPlaceSelect?.(place);
+
+          // Cerrar popup anterior
+          popupRef.current?.remove();
+
+          const node = document.createElement("div");
+          const popup = new maplibregl.Popup({
+            closeButton: true,
+            maxWidth: "300px",
+            offset: [0, -(PIN_STYLES.default.height)],
+            className: "lv-popup",
+          })
+            .setLngLat([place.lng, place.lat])
+            .setDOMContent(node)
+            .addTo(map);
+
+          popup.on("close", () => {
+            setPopupPlace(null);
+            popupNodeRef.current = null;
+            popupRef.current = null;
+          });
+
+          popupRef.current = popup;
+          popupNodeRef.current = node;
+          setPopupPlace(place);
+        });
+
+        /* Click en fondo del mapa */
+        map.on("click", (e) => {
+          if (e.defaultPrevented) return;
+          const features = map.queryRenderedFeatures(e.point, { layers: [LAYER_PINS] });
+          if (features.length === 0) {
+            onMapClick?.();
+            popupRef.current?.remove();
+          }
+        });
+
+        /* Bloquear propagación del click en la ruta */
+        map.on("click", LAYER_RUTA_CASE, (e) => { e.preventDefault(); });
+        map.on("click", LAYER_RUTA_CORE, (e) => { e.preventDefault(); });
+
+        /* Cursor */
+        map.on("mouseenter", LAYER_PINS, () => { map.getCanvas().style.cursor = "pointer"; });
+        map.on("mouseleave", LAYER_PINS, () => { map.getCanvas().style.cursor = ""; });
+
+        /* Evento moveend */
+        map.on("moveend", () => {
+          if (!onMapMove) return;
+          const b = map.getBounds();
+          const c = map.getCenter();
+          onMapMove(
+            { north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() },
+            [c.lat, c.lng],
+            map.getZoom(),
+          );
+        });
+
+        setMapa(map);
+      });
+    }
+
+    void init().catch(() => { /* sin red al montar: el contenedor queda en color de fondo */ });
+
+    return () => {
+      cancelled = true;
+      mapa?.remove();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* Preconexión a los servidores de teselas. React 19 iza estas etiquetas al
-     <head> automáticamente. Se limitan a los dos subdominios configurados en
-     map-config.ts; los demás proveedores reciben solo dns-prefetch. */
-  const preconnect = (
-    <>
-      <link rel="preconnect" href="https://a.tile.openstreetmap.org" />
-      <link rel="preconnect" href="https://b.tile.openstreetmap.org" />
-      <link rel="dns-prefetch" href="https://c.tile.openstreetmap.org" />
-      <link rel="preconnect" href="https://a.basemaps.cartocdn.com" />
-      <link rel="preconnect" href="https://b.basemaps.cartocdn.com" />
-      <link rel="dns-prefetch" href="https://c.basemaps.cartocdn.com" />
-      <link rel="dns-prefetch" href="https://d.basemaps.cartocdn.com" />
-    </>
-  );
+  /* ── Tema ─────────────────────────────────────────────────────────────── */
+  useEffect(() => {
+    if (!mapa) return;
+    aplicarTemaMapa(mapa, resolvedTheme === "dark" ? "oscuro" : "claro");
+  }, [mapa, resolvedTheme]);
 
-  /* Color de fondo mientras carga la primera tanda de teselas.
-     - Claro: #f2efe9 (tono tierra de la capa OSM estándar sobre zonas de Cuba).
-     - Oscuro: #0e1720 (el mismo que .map-loading en globals.css, resultado de
-       invertir el tile claro con el filtro CSS del modo oscuro). */
-  const mapBg = resolvedTheme === "dark" ? "#0e1720" : "#f2efe9";
+  /* ── Actualizar pines cuando cambian places o selected ─────────────────── */
+  useEffect(() => {
+    if (!mapa) return;
+    const src = mapa.getSource(SOURCE_NEGOCIOS) as maplibregl.GeoJSONSource | undefined;
+    src?.setData(placesToGeoJSON(validPlaces, selectedPlaceId));
 
-  if (!mounted) {
-    return (
-      <>
-        {preconnect}
-        <div
-          className="h-full w-full"
-          style={{ minHeight: "inherit", backgroundColor: mapBg }}
-        />
-      </>
-    );
-  }
+    // Si el popup abierto es de un place que ya no existe, cerrarlo
+    if (popupPlace && !validPlaces.find((p) => p.id === popupPlace.id)) {
+      popupRef.current?.remove();
+    }
+  }, [mapa, validPlaces, selectedPlaceId, popupPlace]);
+
+  /* ── Actualizar ruta ──────────────────────────────────────────────────── */
+  useEffect(() => {
+    if (!mapa) return;
+    const src = mapa.getSource(SOURCE_RUTA) as maplibregl.GeoJSONSource | undefined;
+    src?.setData(routeToGeoJSON(route?.coordinates ?? []));
+
+    if (route && routeOrigin && route.coordinates.length > 0) {
+      const coords: [number, number][] = route.coordinates.map(([lat, lng]) => [lng, lat]);
+      const bounds = coords.reduce(
+        (b, c) => b.extend(c as [number, number]),
+        new maplibregl.LngLatBounds(coords[0]!, coords[0]!),
+      );
+      mapa.fitBounds(bounds, { padding: 60, maxZoom: 16 });
+    }
+  }, [mapa, route, routeOrigin]);
+
+  /* ── Actualizar ubicación del usuario ───────────────────────────────────── */
+  useEffect(() => {
+    if (!mapa) return;
+    const src = mapa.getSource(SOURCE_USUARIO) as maplibregl.GeoJSONSource | undefined;
+    src?.setData(userToGeoJSON(userLocation ?? null));
+
+    if (!userLocation) return;
+    const key = `${userLocation.lat.toFixed(5)},${userLocation.lng.toFixed(5)}`;
+    if (key === lastFlownUser.current) return;
+    lastFlownUser.current = key;
+    mapa.flyTo({ center: [userLocation.lng, userLocation.lat], zoom: Math.max(mapa.getZoom(), GEO_ZOOM), duration: 800 });
+    onUserLocated?.(userLocation.lat, userLocation.lng, userLocation.accuracy);
+  }, [mapa, userLocation, onUserLocated]);
+
+  /* ── Auto-fit en el primer render con places ───────────────────────────── */
+  useEffect(() => {
+    if (!mapa || hasFit.current || validPlaces.length === 0 || userLocation || route || disableAutoFit) return;
+    hasFit.current = true;
+    if (validPlaces.length === 1) {
+      mapa.flyTo({ center: [validPlaces[0]!.lng, validPlaces[0]!.lat], zoom: 15, duration: 800 });
+    } else {
+      const coords = validPlaces.map((p): [number, number] => [p.lng, p.lat]);
+      const bounds = coords.reduce(
+        (b, c) => b.extend(c),
+        new maplibregl.LngLatBounds(coords[0]!, coords[0]!),
+      );
+      mapa.fitBounds(bounds, { padding: 50, maxZoom: 15 });
+    }
+  }, [mapa, validPlaces, userLocation, route, disableAutoFit]);
+
+  /* ── Centro inicial (desde zona elegida en el buscador) ─────────────────── */
+  useEffect(() => {
+    if (!mapa || !initialCenter || userLocation) return;
+    const key = `${initialCenter[0]},${initialCenter[1]}`;
+    if (key === lastInitialCenter.current) return;
+    lastInitialCenter.current = key;
+    mapa.flyTo({ center: [initialCenter[0], initialCenter[1]], zoom: initialZoom, duration: 800 });
+  }, [mapa, initialCenter, initialZoom, userLocation]);
+
+  /* ── focusTarget (botón de ubicación de una card) ───────────────────────── */
+  useEffect(() => {
+    if (!mapa || !focusTarget) return;
+    if (lastFocusKey.current === focusTarget.key) return;
+    lastFocusKey.current = focusTarget.key;
+    mapa.flyTo({ center: [focusTarget.lng, focusTarget.lat], zoom: 16, duration: 800 });
+  }, [mapa, focusTarget]);
+
+  /* ── viewTarget (geocodificador) ────────────────────────────────────────── */
+  useEffect(() => {
+    if (!mapa || !viewTarget) return;
+    if (lastViewKey.current === viewTarget.key) return;
+    lastViewKey.current = viewTarget.key;
+    mapa.flyTo({ center: [viewTarget.lng, viewTarget.lat], zoom: viewTarget.zoom ?? 17, duration: 800 });
+  }, [mapa, viewTarget]);
+
+  /* ── Color de fondo antes de que cargue el mapa ─────────────────────────── */
+  const mapBg = resolvedTheme === "dark" ? "#141B17" : "#F1F5EE";
 
   return (
     <>
-      {preconnect}
-      <MapContainer
-      center={effectiveInitialCenter}
-      zoom={initialZoom}
-      minZoom={MIN_ZOOM}
-      maxZoom={maxZoom}
-      zoomControl={false}
-      preferCanvas={PREFER_CANVAS}
-      className={resolvedTheme === "dark" ? "z-0 dark-map-tiles" : "z-0"}
-      style={{ height: "100%", width: "100%", backgroundColor: mapBg }}
-    >
-      <ZoomControl position="bottomleft" />
-      <MapViewportSync />
-      <MapEventsHandler onMapMove={onMapMove} onMapClick={onMapClick} />
-      <FitBoundsOnMount
-        places={validPlaces}
-        hasUserLocation={hasUserLocation || Boolean(route)}
-        disabled={disableAutoFit}
+      {/* Preconexión a OpenFreeMap — sin dominio externo cuando vengan del VPS */}
+      <link rel="preconnect" href="https://tiles.openfreemap.org" />
+
+      <div
+        ref={containerRef}
+        className="h-full w-full"
+        style={{ backgroundColor: mapBg }}
       />
 
-      <MapChildren
-        tile={getTile(tileKey)}
-        places={validPlaces}
-        selectedPlaceId={selectedPlaceId}
-        onPlaceSelect={onPlaceSelect}
-        onPlaceRoute={onPlaceRoute}
-        routePlaceId={routePlaceId}
-        onRouteClear={onRouteClear}
-        userLocation={userLocation}
-        onUserLocated={onUserLocated}
-        onLocateStateChange={onLocateStateChange}
-        focusTarget={focusTarget}
-        viewTarget={viewTarget}
-        initialCenter={initialCenter}
-        initialZoom={initialZoom}
-      />
-
-      {route && routeOrigin && route.coordinates.length > 0 && (
-        <RouteLayer route={route} origin={routeOrigin} />
+      {/* Botón de ubicación: recibe el mapa por estado, no por ref */}
+      {mapa && (
+        <LocateButtonML
+          mapa={mapa}
+          onUserLocated={onUserLocated}
+          onLocateStateChange={onLocateStateChange}
+        />
       )}
-    </MapContainer>
+
+      {/* Popup: portal desde este árbol React al nodo DOM del popup de MapLibre */}
+      {popupPlace && popupNodeRef.current && createPortal(
+        <PlacePopup
+          place={popupPlace}
+          onRoute={onPlaceRoute}
+          routeFixed={popupPlace.id === routePlaceId}
+          onRouteClear={onRouteClear}
+        />,
+        popupNodeRef.current,
+      )}
     </>
   );
 }
+
+/* ── LocateButton integrado ──────────────────────────────────────────────
+   Se mueve aquí para recibir el mapa como prop de estado (no como ref) y
+   así React sabe que el mapa ya está listo. */
+import { memo, useCallback } from "react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { getCurrentPosition, GEO_ERROR_MESSAGES } from "@/lib/map/geolocation";
+import type { LocateState } from "./types";
+
+const LocateButtonML = memo(function LocateButtonML({
+  mapa,
+  onUserLocated,
+  onLocateStateChange,
+}: {
+  mapa: maplibregl.Map;
+  onUserLocated?: (lat: number, lng: number, accuracy?: number) => void;
+  onLocateStateChange?: (state: LocateState) => void;
+}) {
+  const [locating, setLocating] = useState(false);
+  const [done, setDone] = useState(false);
+  const doneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const alive = useRef(true);
+
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      if (doneTimer.current) clearTimeout(doneTimer.current);
+    };
+  }, []);
+
+  const handleClick = useCallback(async () => {
+    if (locating) return;
+    setLocating(true);
+    setDone(false);
+    onLocateStateChange?.("loading");
+    try {
+      const pos = await getCurrentPosition({ useCache: false });
+      if (!alive.current) return;
+      setLocating(false);
+      setDone(true);
+      if (doneTimer.current) clearTimeout(doneTimer.current);
+      doneTimer.current = setTimeout(() => setDone(false), 1200);
+      onLocateStateChange?.("success");
+      mapa.flyTo({ center: [pos.lng, pos.lat], zoom: Math.max(mapa.getZoom(), GEO_ZOOM), duration: 800 });
+      onUserLocated?.(pos.lat, pos.lng, pos.accuracy);
+    } catch (err) {
+      if (!alive.current) return;
+      setLocating(false);
+      const code = (err as { code?: string }).code as keyof typeof GEO_ERROR_MESSAGES | undefined;
+      onLocateStateChange?.(code === "denied" ? "denied" : "error");
+      toast.error(GEO_ERROR_MESSAGES[code ?? "unknown"] ?? GEO_ERROR_MESSAGES.unknown);
+    }
+  }, [locating, mapa, onLocateStateChange, onUserLocated]);
+
+  const box =
+    "flex size-[var(--map-ctrl-size)] items-center justify-center rounded-2xl border border-ink/5 bg-white shadow-soft";
+
+  return (
+    <div
+      className="absolute left-2.5 z-[1000] bottom-[var(--map-locate-bottom)]"
+      /* Bloquear que el click llegue al handler del mapa */
+      onClickCapture={(e) => e.stopPropagation()}
+    >
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={locating}
+        aria-label="Ir a mi ubicación"
+        aria-busy={locating}
+        className={cn(
+          box,
+          "relative cursor-pointer transition duration-500 ease-outquint hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 active:scale-95 disabled:cursor-wait",
+          done
+            ? "border-verde-400 bg-verde-50 text-verde-600 ring-4 ring-verde-400/20"
+            : "text-ink",
+        )}
+      >
+        {locating && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-2xl border border-verde-400 motion-safe:animate-ping"
+          />
+        )}
+        {locating ? (
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="animate-spin text-verde-600">
+            <line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/>
+            <line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        ) : (
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 2v4m0 12v4m10-10h-4M6 12H2m15.07-7.07-2.83 2.83M9.76 14.24l-2.83 2.83m0-10.14l2.83 2.83m4.48 4.48l2.83 2.83"/>
+          </svg>
+        )}
+      </button>
+    </div>
+  );
+});

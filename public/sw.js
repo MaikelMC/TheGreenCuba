@@ -48,15 +48,22 @@
 
    v6: las teselas del mapa ya no pasan por el SW. La caché lv-tiles-v5
    se elimina al activar esta versión. Mientras las teselas vengan de
-   dominios externos se sirven directamente desde la red. */
-const CACHE_VERSION = "lv-v6";
+   dominios externos se sirven directamente desde la red.
+
+   v7: vuelve la caché de teselas, pero ahora solo para MapLibre + OpenFreeMap.
+   Patrón del anexo: clone ANTES de devolver, waitUntil para el put, 204 en
+   fallo de red (no tesela falsa). TileJSON en red-first en la misma caché.
+   Precaché del estilo, sprite y fuentes del mapa. `/mapa/` entra en la caché
+   estática. Límite 3 000 teselas; recorte cada 100 guardados o 5 minutos. */
+const CACHE_VERSION = "lv-v7";
 
 const STATIC_CACHE = `lv-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `lv-pages-${CACHE_VERSION}`;
 const API_CACHE = `lv-api-${CACHE_VERSION}`;
 const IMAGES_CACHE = `lv-images-${CACHE_VERSION}`;
+const TILES_CACHE = `lv-tiles-${CACHE_VERSION}`;
 
-const CURRENT_CACHES = new Set([STATIC_CACHE, PAGES_CACHE, API_CACHE, IMAGES_CACHE]);
+const CURRENT_CACHES = new Set([STATIC_CACHE, PAGES_CACHE, API_CACHE, IMAGES_CACHE, TILES_CACHE]);
 
 /* `lv-private-` se reserva para cachés de datos privados. Hoy no existe
    ninguna, pero la purga ya las contempla para que el día que se añada una no
@@ -74,6 +81,24 @@ const PRECACHE_URLS = [
      desde `/_next/static/media/` con hash —next/font/local— y ya caen en la
      caché estática inmutable al primer uso. No se pueden precachear aquí porque
      sus rutas cambian en cada build. */
+  /* Mapa: estilo y sprite. Las fuentes del mapa (Noto Sans) se cachean en la
+     primera carga por la misma ruta que el estilo —/mapa/ cae en STATIC_CACHE—;
+     solo los rangos básicos se precachean aquí para que el texto de los mapas
+     funcione en modo avión desde la primera visita al mapa.
+     Los rangos 0-255 y 256-511 cubren el alfabeto latino completo —todo lo que
+     aparece en los mapas de Cuba—. Los caracteres árabes, cirílicos y CJK solo
+     se cargan si alguien los ve, que es el comportamiento correcto. */
+  "/mapa/estilo-la-verde.json",
+  "/mapa/sprite/sprite.json",
+  "/mapa/sprite/sprite.png",
+  "/mapa/sprite/sprite@2x.json",
+  "/mapa/sprite/sprite@2x.png",
+  "/mapa/fuentes/Noto%20Sans%20Regular/0-255.pbf",
+  "/mapa/fuentes/Noto%20Sans%20Regular/256-511.pbf",
+  "/mapa/fuentes/Noto%20Sans%20Bold/0-255.pbf",
+  "/mapa/fuentes/Noto%20Sans%20Bold/256-511.pbf",
+  "/mapa/fuentes/Noto%20Sans%20Italic/0-255.pbf",
+  "/mapa/fuentes/Noto%20Sans%20Italic/256-511.pbf",
 ];
 
 /* Rutas de API que jamás entran en una caché compartida. */
@@ -94,7 +119,12 @@ const API_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const IMAGE_MAX_ENTRIES = 80;
 const IMAGE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
-/* Recorte escalonado de cachés grandes (imágenes).
+const TILES_MAX_ENTRIES = 3000;
+/* Las teselas se recortan cada 100 guardados (más infrecuente que las imágenes
+   porque son más ligeras y el límite es mayor). */
+const TILES_RECORTE_CADA_N = 100;
+
+/* Recorte escalonado de cachés grandes (imágenes y teselas).
    Se recorta al llegar a RECORTE_CADA_N guardados, o si han pasado
    RECORTE_CADA_MS sin recortar (por si el SW se durmió y los contadores se
    reiniciaron). Los objetos se pasan por referencia para compartir la función. */
@@ -102,6 +132,7 @@ const RECORTE_CADA_N = 50;
 const RECORTE_CADA_MS = 5 * 60 * 1000;
 const _recorte = {
   imagenes: { n: 0, t: 0 },
+  teselas: { n: 0, t: 0 },
 };
 
 /* Documentos que nunca se guardan: son privados. Se comparan por segmento para
@@ -175,15 +206,15 @@ self.addEventListener("message", (event) => {
           names
             .filter(
               (name) =>
-                /* Páginas, catálogo e imágenes públicos no llevan sesión,
-                   pero en un teléfono compartido son la última visita de
-                   quien se fue. Las teselas también se purgan.
+                /* Páginas, catálogo, imágenes y teselas son públicos pero en
+                   un teléfono compartido revelan el historial de quien se fue.
                    `lv-static-` se queda: es lo que permite abrir
                    `offline.html` después de salir. */
                 name.startsWith(PRIVATE_CACHE_PREFIX) ||
                 name.startsWith("lv-pages-") ||
                 name.startsWith("lv-api-") ||
-                name.startsWith("lv-images-"),
+                name.startsWith("lv-images-") ||
+                name.startsWith("lv-tiles-"),
             )
             .map((name) => caches.delete(name)),
         );
@@ -207,6 +238,19 @@ self.addEventListener("fetch", (event) => {
   try {
     url = new URL(request.url);
   } catch {
+    return;
+  }
+
+  /* Teselas y TileJSON de OpenFreeMap — cross-origin, se gestionan antes del
+     guard de origen. Las teselas son `/planet/{z}/{x}/{y}.*`; el TileJSON es
+     `/planet` a secas (devuelve JSON con las URLs de las teselas). */
+  if (url.hostname === "tiles.openfreemap.org") {
+    if (url.pathname.startsWith("/planet/")) {
+      event.respondWith(tesela(event, request));
+    } else if (url.pathname === "/planet") {
+      event.respondWith(tilejson(event, request));
+    }
+    /* Cualquier otra ruta de ese host (improbable) se deja pasar sin interceptar. */
     return;
   }
 
@@ -274,6 +318,9 @@ function esEstaticoInmutable(url) {
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/fonts/") ||
     url.pathname.startsWith("/icons/") ||
+    /* Estilo, sprite y fuentes del mapa. No llevan hash —viven en rutas fijas—,
+       pero la caché se purga con CACHE_VERSION en cada despliegue. */
+    url.pathname.startsWith("/mapa/") ||
     url.pathname === "/logo.png"
   );
 }
@@ -503,6 +550,74 @@ async function trimCache(cacheName, maxEntries) {
   const sobran = keys.length - maxEntries;
   for (let i = 0; i < sobran; i += 1) {
     await cache.delete(keys[i]);
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Teselas (OpenFreeMap, cross-origin)                                       */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Cache-first para teselas individuales. Patrón del anexo:
+ *  1. Si está en caché → devuelve sin red.
+ *  2. fetch() → si es cors/basic: clone ANTES de devolver, waitUntil(put).
+ *  3. Sin red → 204 (MapLibre lo ignora limpiamente; no hay tesela falsa).
+ *
+ * El clone se toma ANTES de devolver la respuesta original —no después—
+ * porque la spec dice que el body solo se puede consumir una vez, y el
+ * navegador ya empieza a leerlo en cuanto `respondWith` lo recibe.
+ */
+async function tesela(event, request) {
+  const cache = await caches.open(TILES_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  let response;
+  try {
+    response = await fetch(request);
+  } catch {
+    return new Response(null, { status: 204 });
+  }
+
+  if (response.ok && (response.type === "cors" || response.type === "basic")) {
+    const copia = response.clone();
+    event.waitUntil(
+      cache.put(request, copia).then(recortarSiToca),
+    );
+  }
+  return response;
+}
+
+/**
+ * Network-first para el TileJSON de OpenFreeMap (`/planet`).
+ * Se guarda en TILES_CACHE; sin red se sirve la copia guardada.
+ * El TileJSON pesa unos pocos KB —no recorta— y es necesario antes de
+ * que MapLibre pueda pedir cualquier tesela.
+ */
+async function tilejson(event, request) {
+  const cache = await caches.open(TILES_CACHE);
+  try {
+    const response = await fetch(request);
+    if (response.ok && (response.type === "cors" || response.type === "basic")) {
+      cache.put(request, response.clone()).catch(() => {});
+    }
+    return response;
+  } catch {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    return new Response(null, { status: 204 });
+  }
+}
+
+/** Recorte escalonado de la caché de teselas. */
+async function recortarSiToca() {
+  const contador = _recorte.teselas;
+  contador.n++;
+  const ahora = Date.now();
+  if (contador.n >= TILES_RECORTE_CADA_N || ahora - contador.t >= RECORTE_CADA_MS) {
+    contador.n = 0;
+    contador.t = ahora;
+    await trimCache(TILES_CACHE, TILES_MAX_ENTRIES);
   }
 }
 

@@ -1,57 +1,40 @@
-export interface TileConfig {
-  url: string;
-  attribution: string;
-  maxZoom: number;
-  label: string;
-  subdomains?: string;
-}
-
-export const TILE_CONFIGS: Record<string, TileConfig> = {
-  voyager: {
-    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>, &copy; <a href="https://carto.com/">CARTO</a>',
-    maxZoom: 19,
-    label: "CartoDB Voyager",
-    /* Limitado a dos subdominios para preconectar exactamente esos dos en el
-       <head>. CartoDB admite abcd; usar todos multiplica las conexiones TLS
-       sin reducir la latencia de las primeras teselas. */
-    subdomains: "ab",
-  },
-  positron: {
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>, &copy; <a href="https://carto.com/">CARTO</a>',
-    maxZoom: 19,
-    label: "CartoDB Positron",
-    subdomains: "ab",
-  },
-  osm: {
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    maxZoom: 19,
-    label: "OpenStreetMap",
-    /* Dos subdominios, como CartoDB. OSM admite abc. */
-    subdomains: "ab",
-  },
-};
-
-/** Base de mapa por defecto. OpenStreetMap clásico — mismo estilo que el mapa de DemaDeploy. */
-export const DEFAULT_TILE = "osm";
-
-export const HAVANA_CENTER: [number, number] = [23.1374, -82.359];
+/** Centro por defecto: La Habana. MapLibre usa [lng, lat]. */
+export const HAVANA_CENTER: [number, number] = [-82.359, 23.1374];
 
 export const DEFAULT_ZOOM = 13;
-/* Con 10 no se salía de la provincia: el país entero —unos 1.100 km de punta a
-   punta— no cabía en pantalla, ni siquiera en un monitor. Con 5 entra Cuba
-   completa hasta en un móvil de 390 px, que es la pantalla más estrecha que
-   tenemos que cubrir. */
 export const MIN_ZOOM = 5;
-/** Lower max zoom = faster loading on slow connections. */
-export const MAX_ZOOM = 17;
-/** Zoom level used when centering on the user's location. */
+/** Zoom máximo visible. MapLibre amplía digitalmente por encima del máximo de teselas. */
+export const MAX_ZOOM = 19;
+/** Zoom al centrar en la ubicación del usuario. */
 export const GEO_ZOOM = 15;
 
-export const PREFER_CANVAS = true;
-/** Disabled to save data on slow connections (no @2x tiles). */
-export const DETECT_RETINA = false;
+/**
+ * Límites de Cuba con margen, para maxBounds.
+ *
+ * Evita que el usuario navegue fuera de Cuba y gaste datos en teselas que
+ * no sirven para esta app. El margen (~1°) permite que el mapa siga dando
+ * perspectiva en las esquinas del país.
+ */
+export const CUBA_BOUNDS: [[number, number], [number, number]] = [
+  [-85.5, 19.5],  // suroeste: longitud mín, latitud mín
+  [-73.5, 23.5],  // noreste:  longitud máx, latitud máx
+];
+
+/**
+ * URL del TileJSON de las teselas vectoriales.
+ *
+ * Ahora: OpenFreeMap (mundo entero, mismo formato OpenMapTiles).
+ * Futuro: cambiar la variable a `/tiles/cuba.json` cuando el VPS esté listo,
+ * quitar `tiles.openfreemap.org` del CSP y actualizar el service worker (v8).
+ */
+export const TILEJSON_URL =
+  process.env.NEXT_PUBLIC_MAPA_TILEJSON ?? "https://tiles.openfreemap.org/planet";
+
+/**
+ * Atribución que muestra el control compacto.
+ *
+ * Mientras las teselas vengan de OpenFreeMap: las tres fuentes.
+ * Cuando vengan del VPS: solo las dos últimas.
+ */
+export const MAP_ATTRIBUTION =
+  "OpenFreeMap &copy; <a href='https://www.openstreetmap.org/copyright' target='_blank'>OpenStreetMap</a> contributors &copy; <a href='https://openmaptiles.org/' target='_blank'>OpenMapTiles</a>";
