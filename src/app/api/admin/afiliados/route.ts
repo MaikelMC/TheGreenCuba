@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
-import { afiliadoCobros, afiliadoNotas, afiliadoPremios } from "@/lib/db/schema";
+import { afiliadoCobros, afiliadoNotas, afiliadoPremios, users } from "@/lib/db/schema";
 import { mesActual } from "@/lib/afiliados";
 import { generateId } from "@/lib/utils";
 
@@ -51,6 +51,15 @@ export async function POST(request: NextRequest) {
     const nota = texto(body?.texto, 1000);
     if (!afiliadoId || !nota) return NextResponse.json({ error: "Escribe la nota." }, { status: 400 });
     await db.insert(afiliadoNotas).values({ id: generateId(), afiliadoId, autorId: admin?.id ?? null, texto: nota });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (accion === "quitar_afiliacion") {
+    const afiliadoId = texto(body?.afiliadoId, 40);
+    if (!afiliadoId) return NextResponse.json({ error: "Falta el ID del afiliado." }, { status: 400 });
+    /* Solo se borra el código de referido (ya no puede traer nuevos negocios).
+       Los negocios que ya trajo conservan su `referred_by`: no se pierde el historial. */
+    await db.update(users).set({ referralCode: null }).where(eq(users.id, afiliadoId));
     return NextResponse.json({ ok: true });
   }
 

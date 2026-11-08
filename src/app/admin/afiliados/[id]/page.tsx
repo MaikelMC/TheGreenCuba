@@ -4,7 +4,7 @@ import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { formatoCup, METODOS_COBRO, notasAfiliado, REGLAS_AFILIADOS as R, resumenAfiliado, tasaUsdCup } from "@/lib/afiliados";
-import { NuevaNota } from "@/components/afiliados/acciones-admin";
+import { NuevaNota, QuitarAfiliacion } from "@/components/afiliados/acciones-admin";
 import { Barra, Dinero, TablaNegocios, fecha, rotulo, tarjeta, textoMeta } from "@/components/afiliados/piezas";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +33,11 @@ export default async function AdminAfiliadoPage({ params }: { params: Promise<{ 
 
   return (
     <div className="flex flex-col gap-gap-lg p-gap-md font-lv text-ink">
-      <Link href="/admin/afiliados" className="text-small font-semibold text-verde-700 underline">← Todos los afiliados</Link>
+      <div className="flex items-center gap-gap-md">
+        <Link href="/admin/afiliados" className="text-small font-semibold text-verde-700 underline">
+          ← Todos los afiliados
+        </Link>
+      </div>
 
       <section className={`${tarjeta} flex flex-col gap-gap-sm`}>
         <header className="flex flex-wrap items-start justify-between gap-gap-sm">
@@ -41,9 +45,12 @@ export default async function AdminAfiliadoPage({ params }: { params: Promise<{ 
             <span className={rotulo}>{a.ciudad ?? "Sin ciudad"}</span>
             <h1 className="font-lv-display text-h2 font-bold">{a.nombre ?? a.email}</h1>
           </div>
-          <span className="rounded-full border border-verde-200 bg-verde-50 px-3 py-1 text-meta font-semibold text-verde-700">
-            {Math.round(resumen.porcentajeRecurrente * 100)}% mensual · {resumen.pagando} pagando
-          </span>
+          <div className="flex flex-wrap items-center gap-gap-sm">
+            <span className="rounded-full border border-verde-200 bg-verde-50 px-3 py-1 text-meta font-semibold text-verde-700">
+              {Math.round(resumen.porcentajeRecurrente * 100)}% mensual · {resumen.pagando} pagando
+            </span>
+            <QuitarAfiliacion afiliadoId={a.id} nombre={a.nombre ?? a.email} />
+          </div>
         </header>
         <dl className="grid gap-x-gap-md gap-y-2 text-small sm:grid-cols-3">
           {datos.map(([k, v]) => (
@@ -70,7 +77,7 @@ export default async function AdminAfiliadoPage({ params }: { params: Promise<{ 
 
       <section className={`${tarjeta} flex flex-col gap-gap-sm`}>
         <h2 className="font-lv-display text-[18px] font-bold">Negocios que ha traído</h2>
-        <TablaNegocios negocios={resumen.negocios} tasa={tasa} conPagos />
+        <TablaNegocios negocios={resumen.negocios} tasa={tasa} conPagos conAcciones />
       </section>
 
       <div className="grid gap-gap-md lg:grid-cols-2">

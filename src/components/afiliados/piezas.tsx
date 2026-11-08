@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { EstadoNegocio, NegocioAfiliado } from "@/lib/afiliados";
 import { aCup, formatoCup } from "@/lib/afiliados";
 
@@ -40,7 +41,18 @@ export function Dinero({ etiqueta, usd, tasa, destacado, nota }: { etiqueta: str
   );
 }
 
-export function TablaNegocios({ negocios, tasa, conPagos }: { negocios: NegocioAfiliado[]; tasa: number; conPagos?: boolean }) {
+export function TablaNegocios({
+  negocios,
+  tasa,
+  conPagos,
+  conAcciones,
+}: {
+  negocios: NegocioAfiliado[];
+  tasa: number;
+  conPagos?: boolean;
+  /** Muestra columna de acciones (editar negocio, ver plan). Solo en la vista de admin. */
+  conAcciones?: boolean;
+}) {
   if (!negocios.length) {
     return <p className="text-small text-ink-soft/75">Todavía no hay negocios registrados con este enlace.</p>;
   }
@@ -48,27 +60,50 @@ export function TablaNegocios({ negocios, tasa, conPagos }: { negocios: NegocioA
     <div className="-mx-1 overflow-x-auto">
       <table className="w-full border-collapse text-small">
         <thead>
-          <tr className="text-left text-[10px] uppercase tracking-[0.12em] text-ink-soft/70">
-            <th className="px-1 py-2">Negocio</th>
-            <th className="px-1 py-2">Estado</th>
-            {conPagos && <th className="px-1 py-2">Primer pago</th>}
-            {conPagos && <th className="px-1 py-2 text-right">Pagos</th>}
-            <th className="px-1 py-2 text-right">Generó</th>
-            <th className="px-1 py-2 text-right">Al mes</th>
+          <tr className="text-left text-[10px] uppercase tracking-[0.12em] text-ink-soft/70 border-b border-ink/5">
+            <th className="px-2 py-2.5">Negocio</th>
+            <th className="px-2 py-2.5">Plan · Estado</th>
+            {conPagos && <th className="px-2 py-2.5">Primer pago</th>}
+            {conPagos && <th className="px-2 py-2.5 text-right">Pagos</th>}
+            <th className="px-2 py-2.5 text-right">Comisión</th>
+            <th className="px-2 py-2.5 text-right">Al mes</th>
+            {conAcciones && <th className="px-2 py-2.5">Acciones</th>}
           </tr>
         </thead>
         <tbody>
           {negocios.map((n) => (
-            <tr key={n.id} className="border-t border-ink/5 align-top">
-              <td className="px-1 py-2.5">
+            <tr key={n.id} className="border-t border-ink/5 align-middle">
+              <td className="px-2 py-3">
                 <b className="font-semibold text-ink">{n.nombre}</b>
-                {n.plan && n.plan !== "gratis" && <span className="block text-meta capitalize text-ink-soft/70">{n.plan.replace("_", " ")}</span>}
               </td>
-              <td className="px-1 py-2.5"><EstadoPill estado={n.estado} /></td>
-              {conPagos && <td className="px-1 py-2.5 tabular-nums">{fecha(n.primerPago)}</td>}
-              {conPagos && <td className="px-1 py-2.5 text-right tabular-nums">{n.pagos}</td>}
-              <td className="px-1 py-2.5 text-right tabular-nums">{n.comisionUsdCentavos ? formatoCup(aCup(n.comisionUsdCentavos, tasa)) : "—"}</td>
-              <td className="px-1 py-2.5 text-right tabular-nums">{n.porMesUsdCentavos ? formatoCup(aCup(n.porMesUsdCentavos, tasa)) : "—"}</td>
+              <td className="px-2 py-3">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {n.plan && n.plan !== "gratis" && (
+                    <span className="rounded-full bg-verde-50 border border-verde-200 px-2 py-0.5 text-[11px] font-semibold capitalize text-verde-700">
+                      {n.plan.replace("_", " ")}
+                    </span>
+                  )}
+                  <EstadoPill estado={n.estado} />
+                </div>
+              </td>
+              {conPagos && <td className="px-2 py-3 tabular-nums text-ink-soft/70">{fecha(n.primerPago)}</td>}
+              {conPagos && <td className="px-2 py-3 text-right tabular-nums">{n.pagos}</td>}
+              <td className="px-2 py-3 text-right tabular-nums font-semibold">
+                {n.comisionUsdCentavos ? formatoCup(aCup(n.comisionUsdCentavos, tasa)) : <span className="font-normal text-ink-soft/60">—</span>}
+              </td>
+              <td className="px-2 py-3 text-right tabular-nums">
+                {n.porMesUsdCentavos ? formatoCup(aCup(n.porMesUsdCentavos, tasa)) : <span className="text-ink-soft/60">—</span>}
+              </td>
+              {conAcciones && (
+                <td className="px-2 py-3">
+                  <Link
+                    href={`/admin/negocios/${n.id}/editar`}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-full border border-ink/10 bg-sand px-3 font-lv-display text-meta font-semibold text-ink hover:bg-sand-deep transition-colors duration-300"
+                  >
+                    Ver negocio / plan
+                  </Link>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

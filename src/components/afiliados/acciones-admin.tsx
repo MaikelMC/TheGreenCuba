@@ -77,6 +77,55 @@ export function EntregarPremio({ afiliadoId, tipo }: { afiliadoId: string; tipo:
   );
 }
 
+/** Quita el código de referido del afiliado (ya no puede traer nuevos negocios). */
+export function QuitarAfiliacion({ afiliadoId, nombre }: { afiliadoId: string; nombre: string }) {
+  const router = useRouter();
+  const [confirmar, setConfirmar] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+
+  if (!confirmar) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirmar(true)}
+        className={`${boton} border border-red-200 bg-red-50 text-red-700 hover:bg-red-100`}
+      >
+        Quitar afiliación
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2">
+      <span className="text-meta text-red-800">¿Quitar a {nombre}?</span>
+      <button
+        type="button"
+        disabled={ocupado}
+        onClick={async () => {
+          setOcupado(true);
+          if (await accion({ accion: "quitar_afiliacion", afiliadoId })) {
+            toast.success("Afiliación eliminada.");
+            router.refresh();
+          }
+          setOcupado(false);
+          setConfirmar(false);
+        }}
+        className={`${boton} bg-red-600 text-white hover:bg-red-700`}
+      >
+        Confirmar
+      </button>
+      <button
+        type="button"
+        disabled={ocupado}
+        onClick={() => setConfirmar(false)}
+        className={`${boton} bg-white text-ink hover:bg-sand`}
+      >
+        Cancelar
+      </button>
+    </div>
+  );
+}
+
 export function NuevaNota({ afiliadoId }: { afiliadoId: string }) {
   const router = useRouter();
   const [texto, setTexto] = useState("");
