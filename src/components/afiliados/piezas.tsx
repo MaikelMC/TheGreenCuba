@@ -15,11 +15,11 @@ export function Barra({ valor, max }: { valor: number; max: number }) {
   );
 }
 
-const ESTADOS: Record<EstadoNegocio, [string, string]> = {
-  registrado: ["Registrado, sin pagar", "bg-sand-deep text-ink-soft"],
-  activo: ["Activo", "bg-verde-50 text-verde-700"],
-  vence: ["Vence pronto", "bg-amber-100 text-amber-800"],
-  baja: ["Dejó de pagar", "bg-red-50 text-red-700"],
+const ESTADOS: Record<EstadoNegocio, [string, string, string]> = {
+  registrado: ["Registrado, sin pagar", "bg-sand-deep text-ink-soft", "border-l-ink/20"],
+  activo:     ["Activo",               "bg-verde-50 text-verde-700",  "border-l-verde-400"],
+  vence:      ["Vence pronto",         "bg-amber-100 text-amber-800", "border-l-amber-400"],
+  baja:       ["Dejó de pagar",        "bg-red-50 text-red-700",      "border-l-red-400"],
 };
 
 export function EstadoPill({ estado }: { estado: EstadoNegocio }) {
@@ -50,64 +50,75 @@ export function TablaNegocios({
   negocios: NegocioAfiliado[];
   tasa: number;
   conPagos?: boolean;
-  /** Muestra columna de acciones (editar negocio, ver plan). Solo en la vista de admin. */
+  /** Muestra enlace a editar negocio/plan. Solo en la vista de admin. */
   conAcciones?: boolean;
 }) {
   if (!negocios.length) {
     return <p className="text-small text-ink-soft/75">Todavía no hay negocios registrados con este enlace.</p>;
   }
   return (
-    <div className="-mx-1 overflow-x-auto">
-      <table className="w-full border-collapse text-small">
-        <thead>
-          <tr className="text-left text-[10px] uppercase tracking-[0.12em] text-ink-soft/70 border-b border-ink/5">
-            <th className="px-2 py-2.5">Negocio</th>
-            <th className="px-2 py-2.5">Plan · Estado</th>
-            {conPagos && <th className="px-2 py-2.5">Primer pago</th>}
-            {conPagos && <th className="px-2 py-2.5 text-right">Pagos</th>}
-            <th className="px-2 py-2.5 text-right">Comisión</th>
-            <th className="px-2 py-2.5 text-right">Al mes</th>
-            {conAcciones && <th className="px-2 py-2.5">Acciones</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {negocios.map((n) => (
-            <tr key={n.id} className="border-t border-ink/5 align-middle">
-              <td className="px-2 py-3">
-                <b className="font-semibold text-ink">{n.nombre}</b>
-              </td>
-              <td className="px-2 py-3">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {n.plan && n.plan !== "gratis" && (
-                    <span className="rounded-full bg-verde-50 border border-verde-200 px-2 py-0.5 text-[11px] font-semibold capitalize text-verde-700">
-                      {n.plan.replace("_", " ")}
-                    </span>
-                  )}
-                  <EstadoPill estado={n.estado} />
+    <div className="flex flex-col gap-2">
+      {negocios.map((n) => {
+        const [, , bordeClase] = ESTADOS[n.estado];
+        return (
+          <div
+            key={n.id}
+            className={`rounded-xl border border-ink/8 border-l-4 bg-white p-3 ${bordeClase}`}
+          >
+            {/* Cabecera: nombre + estado */}
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <p className="font-lv-display font-semibold text-ink leading-snug">{n.nombre}</p>
+              <EstadoPill estado={n.estado} />
+            </div>
+
+            {/* Plan */}
+            {n.plan && n.plan !== "gratis" && (
+              <span className="mt-1 inline-block rounded-full border border-verde-200 bg-verde-50 px-2 py-0.5 text-[11px] font-semibold capitalize text-verde-700">
+                {n.plan.replace(/_/g, " ")}
+              </span>
+            )}
+
+            {/* Métricas */}
+            <div className="mt-2.5 grid grid-cols-3 gap-2 border-t border-ink/5 pt-2.5">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-ink-soft/60">Comisión</span>
+                <span className="font-lv-display text-[15px] font-semibold tabular-nums text-ink">
+                  {n.comisionUsdCentavos ? formatoCup(aCup(n.comisionUsdCentavos, tasa)) : <span className="font-normal text-ink-soft/40">—</span>}
+                </span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-ink-soft/60">Al mes</span>
+                <span className="font-lv-display text-[15px] tabular-nums text-ink">
+                  {n.porMesUsdCentavos ? formatoCup(aCup(n.porMesUsdCentavos, tasa)) : <span className="text-ink-soft/40">—</span>}
+                </span>
+              </div>
+              {conPagos && (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-ink-soft/60">Pagos</span>
+                  <span className="font-lv-display text-[15px] tabular-nums text-ink">
+                    {n.pagos > 0 ? (
+                      <>{n.pagos}<span className="text-[12px] text-ink-soft/60 font-normal"> · {fecha(n.primerPago)}</span></>
+                    ) : (
+                      <span className="text-ink-soft/40">—</span>
+                    )}
+                  </span>
                 </div>
-              </td>
-              {conPagos && <td className="px-2 py-3 tabular-nums text-ink-soft/70">{fecha(n.primerPago)}</td>}
-              {conPagos && <td className="px-2 py-3 text-right tabular-nums">{n.pagos}</td>}
-              <td className="px-2 py-3 text-right tabular-nums font-semibold">
-                {n.comisionUsdCentavos ? formatoCup(aCup(n.comisionUsdCentavos, tasa)) : <span className="font-normal text-ink-soft/60">—</span>}
-              </td>
-              <td className="px-2 py-3 text-right tabular-nums">
-                {n.porMesUsdCentavos ? formatoCup(aCup(n.porMesUsdCentavos, tasa)) : <span className="text-ink-soft/60">—</span>}
-              </td>
-              {conAcciones && (
-                <td className="px-2 py-3">
-                  <Link
-                    href={`/admin/negocios/${n.id}/editar`}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-full border border-ink/10 bg-sand px-3 font-lv-display text-meta font-semibold text-ink hover:bg-sand-deep transition-colors duration-300"
-                  >
-                    Ver negocio / plan
-                  </Link>
-                </td>
               )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            </div>
+
+            {conAcciones && (
+              <div className="mt-2.5 border-t border-ink/5 pt-2.5">
+                <Link
+                  href={`/admin/negocios/${n.id}/editar`}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-ink/10 bg-sand px-3 font-lv-display text-meta font-semibold text-ink hover:bg-sand-deep transition-colors duration-300"
+                >
+                  Ver negocio / plan
+                </Link>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
