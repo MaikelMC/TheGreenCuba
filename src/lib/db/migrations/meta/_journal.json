@@ -386,6 +386,13 @@
       "when": 1794176166452,
       "tag": "0054_mighty_random",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1794090978767,
+      "tag": "0055_afiliados_cobros",
+      "breakpoints": true
     }
   ]
 }
