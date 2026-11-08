@@ -4,8 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { AlertCircle, DollarSign, ExternalLink } from "lucide-react";
 import { QuitarAfiliacion } from "@/components/afiliados/acciones-admin";
-import { fecha as formatFecha } from "@/components/afiliados/piezas";
 
+function formatFecha(d: Date | null): string {
+  return d ? d.toLocaleDateString("es-CU", { day: "2-digit", month: "short" }) : "—";
+}
 function aCup(usdCentavos: number, tasa: number): number {
   return Math.round((usdCentavos / 100) * tasa);
 }
