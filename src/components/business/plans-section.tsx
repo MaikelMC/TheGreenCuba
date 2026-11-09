@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   MODULOS,
+  PACKS,
   PACKS_ORDER,
   nombreDe,
   textoCup,
@@ -74,6 +75,7 @@ export function PlansSection({
   packMedida = null,
   esDueno = false,
   descuentoPct = null,
+  funciones = [],
 }: {
   /** El pack efectivo del negocio, resuelto en el servidor. */
   plan: Plan;
@@ -97,6 +99,8 @@ export function PlansSection({
   esDueno?: boolean;
   /** Descuento acordado para este negocio, 0–100. `null` = sin descuento. */
   descuentoPct?: number | null;
+  /** Las funciones que ya tiene el negocio, para avisar de dependencias. */
+  funciones?: readonly Funcion[];
 }) {
   const router = useRouter();
   const cat = useCatalogo();
@@ -117,6 +121,18 @@ export function PlansSection({
 
   /* Para nombrar el servicio en singular; con varios solo se cuenta. */
   const primerModulo = modulosElegidos[0];
+
+  /* La tarjeta de cliente frecuente suma sellos cuando un pedido se marca
+     entregado: sin pedidos no hay nada que sellar. El aviso va aquí, **antes de
+     pagar**, y la tarjeta no se puede contratar sola: se ofrece con el módulo
+     que le da sentido, con los dos precios a la vista. */
+  const tienePedidos =
+    funciones.includes("whatsapp_pedido") ||
+    (planElegido !== null &&
+      PACKS[planElegido].funciones.includes("whatsapp_pedido")) ||
+    /* Entre los módulos, el que trae pedidos es «Reservas y pedidos»: si se
+       está comprando en el mismo momento, no hay nada que avisar. */
+    modulosElegidos.includes("pedidos_reservas");
 
   async function solicitarPack() {
     if (solicitandoPack || serviciosPack.length === 0) return;
@@ -279,24 +295,45 @@ export function PlansSection({
         detalle="Se contrata el que haga falta, al mes."
       >
         <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-          {(Object.keys(cat.modulos) as ClaveModulo[]).map((clave) => (
-            <ModuloTile
-              key={clave}
-              clave={clave}
-              elegido={modulosElegidos.includes(clave)}
-              pagando={pagando === `modulo:${clave}`}
-              bloqueado={pagando !== null}
-              descuentoPct={descuentoPct}
-              onPagar={() =>
-                pedirMetodo(
-                  "modulo",
-                  clave,
-                  cat.modulos[clave].nombre,
-                  cat.modulos[clave].usd,
-                )
-              }
-            />
-          ))}
+          {(Object.keys(cat.modulos) as ClaveModulo[]).map((clave) => {
+            /* La tarjeta no se vende sola: sin pedidos no suma sellos. */
+            const faltaPedidos =
+              clave === "cliente_frecuente" && !tienePedidos;
+            return (
+              <ModuloTile
+                key={clave}
+                clave={clave}
+                elegido={modulosElegidos.includes(clave)}
+                pagando={pagando !== null}
+                bloqueado={false}
+                descuentoPct={descuentoPct}
+                dependencia={
+                  faltaPedidos
+                    ? {
+                        nombre: cat.modulos.pedidos_reservas.nombre,
+                        usd: cat.modulos.pedidos_reservas.usd,
+                      }
+                    : null
+                }
+                onPagarDependencia={() =>
+                  pedirMetodo(
+                    "modulo",
+                    "pedidos_reservas",
+                    cat.modulos.pedidos_reservas.nombre,
+                    cat.modulos.pedidos_reservas.usd,
+                  )
+                }
+                onPagar={() =>
+                  pedirMetodo(
+                    "modulo",
+                    clave,
+                    cat.modulos[clave].nombre,
+                    cat.modulos[clave].usd,
+                  )
+                }
+              />
+            );
+          })}
         </div>
       </Bloque>
 
@@ -636,7 +673,9 @@ function ModuloTile({
   pagando,
   bloqueado,
   descuentoPct,
+  dependencia,
   onPagar,
+  onPagarDependencia,
 }: {
   clave: ClaveModulo;
   /** Marcado en la portada: se paga este, no hace falta buscarlo. */
@@ -644,7 +683,13 @@ function ModuloTile({
   pagando: boolean;
   bloqueado: boolean;
   descuentoPct?: number | null;
+  /**
+   * Lo que hay que tener antes de que este módulo sirva. Hoy solo la tarjeta
+   * de sellos, que necesita pedidos para sumar algo.
+   */
+  dependencia?: { nombre: string; usd: number } | null;
   onPagar: () => void;
+  onPagarDependencia?: () => void;
 }) {
   const cat = useCatalogo();
   const modulo = cat.modulos[clave];
@@ -672,16 +717,28 @@ function ModuloTile({
 
       <ListaLineas texto={modulo.texto} />
 
+      {dependencia && (
+        <div className="mt-gap-md rounded-xl border border-amber-200 bg-amber-50 p-gap-xs">
+          <p className="font-lv-display text-meta font-semibold text-amber-800">
+            Necesita {dependencia.nombre}
+          </p>
+          <p className="mt-[2px] text-meta leading-relaxed text-amber-800/80">
+            Sin pedidos no hay nada que sellar, así que se contrata con la
+            tarjeta: {modulo.usd} + {dependencia.usd} USD al mes.
+          </p>
+        </div>
+      )}
+
       {/* `mt-auto` para que los botones caigan a la misma altura aunque las
           listas midan distinto. */}
       <div className="mt-auto pt-gap-lg">
         <button
           type="button"
-          onClick={onPagar}
+          onClick={dependencia ? onPagarDependencia : onPagar}
           disabled={pagando || bloqueado}
           className={cn(
             "flex h-11 w-full items-center justify-center gap-gap-xs rounded-full font-lv-display text-small font-semibold transition duration-500 ease-outquint disabled:cursor-not-allowed disabled:opacity-60",
-            elegido
+            elegido || dependencia
               ? "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300 active:scale-[0.98]"
               : "border border-ink/10 bg-white text-ink hover:border-verde-300 hover:text-verde-700",
           )}
@@ -691,6 +748,8 @@ function ModuloTile({
               <Loader2 size={16} className="animate-spin" />
               Abriendo…
             </>
+          ) : dependencia ? (
+            "Contratar el módulo que falta"
           ) : elegido ? (
             "Pagar 1 mes"
           ) : (

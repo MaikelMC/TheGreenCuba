@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, sql } from "drizzle-orm";
 import { actualizarTasa, configTasaDe } from "@/lib/tasa-server";
 import { chatJSON } from "@/lib/ai";
 import { resolveBotProviders } from "@/lib/ai/providers-store";
@@ -8,6 +8,7 @@ import {
   asistenteCodigos,
   asistenteLog,
   businessOwners,
+  pedidos,
   placeMetrics,
   places,
   telegramUpdates,
@@ -26,6 +27,12 @@ import {
 import { setDisponibilidad } from "@/lib/disponibilidad-server";
 import { puede } from "@/lib/plans-server";
 import { estadoCocinaDeNegocio, actualizarPausa } from "@/lib/cocina-server";
+import {
+  sellarAMano,
+  tarjetaPorTelefono,
+} from "@/lib/fidelidad-server";
+import type { EstadoTarjeta } from "@/lib/fidelidad";
+import { enmascararTelefono } from "@/lib/telefono";
 import { rateLimitKey } from "@/lib/rate-limit";
 import {
   registrarSeguidor,
@@ -1160,6 +1167,9 @@ function permisoDeComando(comando: string): PermisoNegocio | null {
     case "cerrar":
       return "ficha";
     case "cocina":
+    case "programados":
+    case "sello":
+    case "tarjeta":
       return "pedidos";
     case "tasa":
       /* La tasa es una decisión comercial: solo el dueño. No está en
@@ -1263,10 +1273,109 @@ async function manejarComando(
       return;
     }
 
+    case "programados": {
+      if (!(await puede(negocio.negocioId, "pedidos_programados"))) {
+        await enviarTexto(chatId, "Los pedidos programados no están en tu plan.");
+        return;
+      }
+      await manejarProgramados(negocio.negocioId, chatId);
+      return;
+    }
+
+    case "tarjeta":
+    case "sello": {
+      if (!(await puede(negocio.negocioId, "cliente_frecuente"))) {
+        await enviarTexto(
+          chatId,
+          "La tarjeta de cliente frecuente no está en tu plan.",
+        );
+        return;
+      }
+
+      const telefono = resto.trim();
+      if (!telefono) {
+        await enviarTexto(
+          chatId,
+          `Escríbeme el teléfono del cliente. Ejemplo: /${comando} 51234567`,
+        );
+        return;
+      }
+
+      if (comando === "sello") {
+        const res = await sellarAMano(
+          negocio.negocioId,
+          telefono,
+          negocio.userId,
+          "Sello desde Telegram",
+        );
+        if (res.estado === "telefono_invalido") {
+          await enviarTexto(
+            chatId,
+            "Ese teléfono no es un número cubano de 8 dígitos.",
+          );
+          return;
+        }
+        if (res.estado !== "sumado") {
+          await enviarTexto(chatId, "No pude dar el sello: la tarjeta no está activa.");
+          return;
+        }
+        await enviarBotones(
+          chatId,
+          `*Sello sumado.*\n${textoTarjeta(res.cliente.telefono, res.tarjeta)}`,
+          soloMenu(),
+        );
+        return;
+      }
+
+      const data = await tarjetaPorTelefono(negocio.negocioId, telefono);
+      if (!data) {
+        await enviarTexto(
+          chatId,
+          `Ese teléfono no tiene tarjeta en este negocio. Puedes dársela con /sello ${telefono}.`,
+        );
+        return;
+      }
+      await enviarBotones(
+        chatId,
+        textoTarjeta(data.cliente.telefono, data.tarjeta),
+        soloMenu(),
+      );
+      return;
+    }
+
     default:
       /* Comando conocido pero sin rama —`start` ya se atendió antes—. */
       await enviarBotones(chatId, "Ese no lo tengo. Escribe /ayuda.", soloMenu());
   }
+}
+
+/**
+ * La tarjeta de un cliente, en texto de Telegram.
+ *
+ * El teléfono va enmascarado: el chat del negocio lo lee el equipo, pero un
+ * mensaje se reenvía sin querer y el número entero no hace falta para saber de
+ * quién es. Los premios listos van primero porque es lo que se viene a mirar.
+ */
+function textoTarjeta(telefono: string, tarjeta: EstadoTarjeta): string {
+  const lineas = [
+    `*Tarjeta de ${enmascararTelefono(telefono) ?? telefono}*`,
+    `${tarjeta.sellos} de ${tarjeta.metaFinal.sellos} sellos · ciclo ${tarjeta.ciclo}`,
+    "",
+  ];
+  for (const meta of tarjeta.metas) {
+    const estado = meta.canjeada
+      ? " · canjeado"
+      : meta.alcanzada
+        ? " · listo"
+        : ` · faltan ${meta.faltan}`;
+    lineas.push(`${meta.sellos} → ${meta.premio}${estado}`);
+  }
+  if (tarjeta.listas[0]) {
+    lineas.push("", `Ya puede canjear: *${tarjeta.listas[0].premio}*.`);
+  } else if (tarjeta.siguiente) {
+    lineas.push("", `Le faltan ${tarjeta.siguiente.faltan} para ${tarjeta.siguiente.premio}.`);
+  }
+  return lineas.join("\n");
 }
 
 /** La lista paginada de productos, con un botón por producto.
@@ -2118,6 +2227,54 @@ async function manejarCocina(
   ];
 
   await enviarBotones(chatId, textoEstado, botones);
+}
+
+async function manejarProgramados(negocioId: string, chatId: string): Promise<void> {
+  const ahora = new Date();
+  const inicioDia = new Date(ahora);
+  inicioDia.setUTCHours(0, 0, 0, 0);
+  const finDia = new Date(inicioDia);
+  finDia.setUTCDate(finDia.getUTCDate() + 1);
+
+  const filas = await db
+    .select({
+      codigo: pedidos.codigo,
+      programadoPara: pedidos.programadoPara,
+      estado: pedidos.estado,
+      lineas: pedidos.lineas,
+    })
+    .from(pedidos)
+    .where(
+      and(
+        eq(pedidos.placeId, negocioId),
+        isNotNull(pedidos.programadoPara),
+        gte(pedidos.programadoPara, ahora),
+      ),
+    )
+    .orderBy(pedidos.programadoPara)
+    .limit(20);
+
+  if (filas.length === 0) {
+    await enviarTexto(chatId, "No hay pedidos programados pendientes para hoy.");
+    return;
+  }
+
+  const FMT = new Intl.DateTimeFormat("es-CU", {
+    timeZone: "America/Havana",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const lineas = filas.map((f) => {
+    const hora = f.programadoPara ? FMT.format(new Date(f.programadoPara)) : "?";
+    const productos = (f.lineas as Array<{ name: string; qty: number }>)
+      .map((l) => `${l.name} ×${l.qty}`)
+      .join(", ");
+    const estadoTag = f.estado === "nuevo" ? "" : ` [${f.estado}]`;
+    return `🕐 ${hora} — #${f.codigo ?? "?"} — ${productos}${estadoTag}`;
+  });
+
+  await enviarTexto(chatId, `Pedidos programados pendientes:\n\n${lineas.join("\n")}`);
 }
 
 /* ── capa 2: texto libre sin modelo ─────────────────────────────────────── */

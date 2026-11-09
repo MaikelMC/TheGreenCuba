@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, jsonb, index, doublePrecision, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, jsonb, index, uniqueIndex, doublePrecision, boolean } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { places } from "./places";
 import type { LineaPedido } from "../../pedido";
@@ -32,6 +32,9 @@ export const pedidos = pgTable(
     lineas: jsonb("lineas").$type<LineaPedido[]>().notNull(),
     /** Dónde se entrega. Vacío o `null` = el cliente lo recoge. */
     direccion: text("direccion"),
+    /** Teléfono normalizado del cliente para la tarjeta de sellos.
+     *  `null` = no lo dejó (o el negocio no tiene la función). */
+    telefonoCliente: text("telefono_cliente"),
     /** «recogida» o «domicilio». `null` si el negocio no tenía zonas configuradas. */
     modoEntrega: text("modo_entrega", { enum: ["recogida", "domicilio"] }),
     /** Copia del nombre de la zona en el momento del pedido. */
@@ -46,6 +49,16 @@ export const pedidos = pgTable(
     /** `true` si el pedido llegó fuera del horario de cocina. Solo informativo:
      *  el pedido se guarda igual para que el dueño lo vea y decida. */
     fueraDeHorario: boolean("fuera_de_horario").default(false).notNull(),
+    /** Código corto de 5 caracteres, único por negocio. Aparece en WhatsApp y en el panel. */
+    codigo: text("codigo").notNull(),
+    /** La franja para la que se programó el pedido. `null` = «lo antes posible». */
+    programadoPara: timestamp("programado_para", { withTimezone: true }),
+    /** Si la hora programada no pudo validarse completamente en el servidor. */
+    revisarHora: boolean("revisar_hora").default(false).notNull(),
+    /** Motivo de revisión: "franja_llena" | "fuera_de_horario" | "sin_antelacion" | "fuera_de_dias" | "sin_funcion". */
+    revisarMotivo: text("revisar_motivo"),
+    /** Cuándo se envió el aviso por Telegram. `null` = pendiente. */
+    avisadoEn: timestamp("avisado_en", { withTimezone: true }),
     estado: text("estado", { enum: ["nuevo", "completado", "cancelado"] })
       .default("nuevo")
       .notNull(),
@@ -61,6 +74,15 @@ export const pedidos = pgTable(
     negocioFechaIdx: index("pedidos_negocio_fecha_idx").on(
       table.placeId,
       table.createdAt,
+    ),
+    codigoNegocioIdx: uniqueIndex("pedidos_place_codigo_idx").on(
+      table.placeId,
+      table.codigo,
+    ),
+    /* Para encontrar los pedidos de un teléfono al pintar la tarjeta o avisar. */
+    placeTelefonoIdx: index("pedidos_place_telefono_idx").on(
+      table.placeId,
+      table.telefonoCliente,
     ),
   }),
 );

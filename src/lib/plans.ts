@@ -99,6 +99,14 @@ export const FUNCIONES = {
     texto: "Horario y pausa de cocina para pedidos a domicilio",
     disponible: true,
   },
+  pedidos_programados: {
+    texto: "Pedidos programados por franja horaria",
+    disponible: true,
+  },
+  cliente_frecuente: {
+    texto: "Tarjeta de sellos para clientes frecuentes",
+    disponible: true,
+  },
 
   /* Visibilidad. */
   verificado: { texto: "Sello de negocio verificado", disponible: true },
@@ -259,6 +267,31 @@ export const MODULOS = {
     usd: 3,
     funciones: ["eventos", "seguidores", "destacado_semana"],
   },
+  pedidos_programados: {
+    nombre: "Pedidos programados",
+    lema: "Que te pidan para cuando puedes.",
+    texto: [
+      "Programa pedidos por franja horaria (hoy y días siguientes)",
+      "Código corto en cada pedido para cruzar con WhatsApp",
+      "Recordatorio por Telegram antes de cada pedido",
+      "Requiere el módulo Reservas y pedidos",
+    ].join("\n"),
+    usd: 1,
+    funciones: ["pedidos_programados"] as const,
+  },
+  cliente_frecuente: {
+    nombre: "Cliente frecuente",
+    lema: "Su tarjeta de sellos, ahora en el móvil.",
+    texto: [
+      "Tarjeta de sellos digital para tus clientes de siempre",
+      "Sellos automáticos al marcar un pedido como entregado",
+      "Premios por cantidad de compras, canje y ajustes",
+      "Pasa a digital las tarjetas impresas que ya usas",
+      "Requiere el módulo Reservas y pedidos",
+    ].join("\n"),
+    usd: 1.5,
+    funciones: ["cliente_frecuente"],
+  },
   asistente_telegram: {
     nombre: "Agente de Telegram",
     lema: "Tu menú, desde el móvil, hablando.",
@@ -316,9 +349,15 @@ const PUBLICIDAD_MAX: readonly Funcion[] = [
   "seguidores",
 ];
 
-/** Pro es la unión de los otros dos más el asistente, sin repetir. */
+/** Pro es la unión de los otros dos más el asistente y pedidos programados. */
 const PRO: readonly Funcion[] = [
-  ...new Set<Funcion>([...ESENCIAL, ...PUBLICIDAD_MAX, "asistente_ia"]),
+  ...new Set<Funcion>([
+    ...ESENCIAL,
+    ...PUBLICIDAD_MAX,
+    "asistente_ia",
+    "pedidos_programados",
+    "cliente_frecuente",
+  ]),
 ];
 
 export const PACKS = {

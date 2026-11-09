@@ -72,8 +72,19 @@ const PAGES_CACHE = `lv-pages-${CACHE_VERSION}`;
 const API_CACHE = `lv-api-${CACHE_VERSION}`;
 const IMAGES_CACHE = `lv-images-${CACHE_VERSION}`;
 const TILES_CACHE = `lv-tiles-${CACHE_VERSION}`;
+/* Tarjetas de sellos: caché propia, aparte de lv-pages. Una tarjeta es de una
+   persona, pero no es una página privada al uso: se guarda para que el cliente
+   la vea sin red. Solo entran respuestas 200 de una tarjeta válida. */
+const TARJETAS_CACHE = `lv-tarjetas-${CACHE_VERSION}`;
 
-const CURRENT_CACHES = new Set([STATIC_CACHE, PAGES_CACHE, API_CACHE, IMAGES_CACHE, TILES_CACHE]);
+const CURRENT_CACHES = new Set([
+  STATIC_CACHE,
+  PAGES_CACHE,
+  API_CACHE,
+  IMAGES_CACHE,
+  TILES_CACHE,
+  TARJETAS_CACHE,
+]);
 
 /* `lv-private-` se reserva para cachés de datos privados. Hoy no existe
    ninguna, pero la purga ya las contempla para que el día que se añada una no
@@ -157,6 +168,9 @@ const DOCUMENTOS_PRIVADOS = ["/admin", "/business", "/profile", "/notifications"
 const DOCUMENTOS_PERFIL_OFFLINE = ["/profile", "/notifications"];
 
 const NAV_TIMEOUT_MS = 4000;
+/* Una tarjeta espera 4 s a la red y, si no llega, enseña la copia guardada. */
+const TARJETA_TIMEOUT_MS = 4000;
+const TARJETAS_MAX_ENTRIES = 5;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -231,6 +245,7 @@ self.addEventListener("message", (event) => {
                 name.startsWith("lv-pages-") ||
                 name.startsWith("lv-api-") ||
                 name.startsWith("lv-images-") ||
+                name.startsWith("lv-tarjetas-") ||
                 name.startsWith("lv-tiles-"),
             )
             .map((name) => caches.delete(name)),
@@ -288,6 +303,14 @@ self.addEventListener("fetch", (event) => {
   if (esApiProhibida(url)) return;
 
   if (request.mode === "navigate") {
+    /* La tarjeta de sellos tiene su propia estrategia: red primero con 4 s de
+       espera y, si falla, la copia guardada. Va antes de la navegación normal
+       porque su documento nunca entra en `lv-pages`. */
+    if (esTarjeta(url)) {
+      event.respondWith(navegacionTarjeta(event, request));
+      return;
+    }
+
     event.respondWith(
       esDocumentoPrivado(request, url) ? navegacionPrivada(request, url) : navegacion(request, url),
     );
@@ -348,7 +371,17 @@ function esApiProhibida(url) {
   return /^\/api\/places\/[^/]+\/dis/.test(url.pathname);
 }
 
+function esTarjeta(url) {
+  return /^\/m\/[^/]+\/tarjeta\/[^/]+\/?$/.test(url.pathname);
+}
+
 function esDocumentoPrivado(request, url) {
+  /* La tarjeta de sellos es de un cliente concreto: token en la URL, teléfono
+     enmascarado y un saldo que cambia con cada pedido. Nunca entra en la caché
+     de páginas (tiene la suya, `lv-tarjetas-`), así que un `/m/x` cacheado no
+     puede enseñar el saldo de otra persona. */
+  if (/^\/m\/[^/]+\/tarjeta(\/|$)/.test(url.pathname)) return true;
+
   return DOCUMENTOS_PRIVADOS.some(
     (base) => url.pathname === base || url.pathname.startsWith(`${base}/`),
   );
@@ -492,6 +525,58 @@ async function navegacionPrivada(request, url) {
     const perfilOffline = await caches.match("/sin-conexion/perfil");
     if (perfilOffline) return perfilOffline;
   }
+
+  const offline = await caches.match("/offline.html");
+  if (offline) return offline;
+
+  return respuestaSinConexion();
+}
+
+/**
+ * La tarjeta de sellos del cliente.
+ *
+ * Red primero con 4 s de espera: si la red contesta, es la tarjeta de ahora y
+ * se guarda. Si falla o se pasa del tiempo, la copia guardada —el cliente la
+ * ve con el aviso de que puede estar desactualizada, que pinta la propia
+ * página—. Si tampoco hay copia, `offline.html`.
+ *
+ * Un 404/410 significa que la tarjeta ya no existe (cliente borrado, negocio
+ * sin la tarjeta): se borra la copia para que no se siga enseñando un saldo
+ * que ya no vale.
+ *
+ * Solo se guardan respuestas 200. No se usa `sePuedeCachear` porque el App
+ * Router marca estas páginas con `no-store` —son dinámicas a propósito— y aquí
+ * la copia es justo lo que se quiere.
+ */
+async function navegacionTarjeta(event, request) {
+  const cache = await caches.open(TARJETAS_CACHE);
+
+  let response = null;
+  try {
+    response = await conTimeout(fetch(request), TARJETA_TIMEOUT_MS);
+  } catch {
+    response = null;
+  }
+
+  if (response) {
+    if (response.status === 404 || response.status === 410) {
+      await cache.delete(request).catch(() => {});
+      return response;
+    }
+
+    if (response.status === 200 && !response.headers.get("Set-Cookie")) {
+      event.waitUntil(
+        cache
+          .put(request, response.clone())
+          .then(() => trimCache(TARJETAS_CACHE, TARJETAS_MAX_ENTRIES))
+          .catch(() => {}),
+      );
+    }
+    return response;
+  }
+
+  const guardada = await cache.match(request);
+  if (guardada) return guardada;
 
   const offline = await caches.match("/offline.html");
   if (offline) return offline;

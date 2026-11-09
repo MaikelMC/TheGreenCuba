@@ -170,6 +170,7 @@ export default async function BusinessPage({
               placeId={place.id}
               planElegido={planElegido}
               modulosElegidos={modulosElegidos}
+              funciones={[...funciones]}
             />
           </div>
         </div>

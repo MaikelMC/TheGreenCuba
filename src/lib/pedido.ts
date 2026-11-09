@@ -11,6 +11,19 @@ import { whatsappHref } from "./contact-links";
 import { currencyLabel, formatMenuPrice } from "./utils";
 import { aplicarTasa, formatCup, type ConfigTasa } from "./precios";
 
+/** Alfabeto sin 0/O/1/I/L para no confundir en el móvil. 31 caracteres. */
+const ALFA_PEDIDO = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+/** Código corto de 5 caracteres, único por intento. Se genera en el cliente
+ *  y viaja en la cola offline para mantener la idempotencia en reintentos. */
+export function generarCodigoPedido(): string {
+  const bytes = new Uint8Array(5);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (const b of bytes) out += ALFA_PEDIDO[b % ALFA_PEDIDO.length];
+  return out;
+}
+
 /** Una línea del carrito: un producto y cuántos van. */
 export interface LineaPedido {
   /** Identificador estable del producto dentro de la carta. */
@@ -85,6 +98,10 @@ export function mensajePedido({
   direccion,
   configTasa,
   entrega,
+  codigo,
+  programadoPara,
+  programadoFin,
+  tarjetaSellos,
 }: {
   negocio: string;
   lineas: readonly LineaPedido[];
@@ -94,6 +111,14 @@ export function mensajePedido({
   configTasa?: ConfigTasa | null;
   /** Datos de entrega calculados. Ausente = sin selector de zona (comportamiento anterior). */
   entrega?: EntregaPedido | null;
+  /** Código corto de 5 caracteres. Aparece en la primera línea del mensaje. */
+  codigo?: string;
+  /** Inicio de la franja programada (UTC). `null` = lo antes posible. */
+  programadoPara?: Date | null;
+  /** Fin de la franja programada (UTC). */
+  programadoFin?: Date | null;
+  /** El cliente dejó su teléfono para la tarjeta de sellos. */
+  tarjetaSellos?: boolean;
 }): string {
   const cuerpo = lineas.map((linea) => {
     const precio = formatMenuPrice(linea.price, linea.currency);
@@ -112,7 +137,29 @@ export function mensajePedido({
     return `• ${linea.name} x${linea.qty}${precio ? ` — ${precio}` : ""}`;
   });
 
-  const partes = [`*Pedido — ${negocio}*`, "", ...cuerpo];
+  /* ── Cabecera ────────────────────────────────────────────────────────── */
+  const encabezado = [`*Pedido — ${negocio}*`];
+  if (codigo) encabezado.push(`Pedido #${codigo}`);
+  if (programadoPara) {
+    const FMT = new Intl.DateTimeFormat("es-CU", {
+      timeZone: "America/Havana",
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const finTxt = programadoFin
+      ? ` – ${new Intl.DateTimeFormat("es-CU", {
+          timeZone: "America/Havana",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(programadoFin)}`
+      : "";
+    encabezado.unshift(`🕐 *PEDIDO PROGRAMADO — ${FMT.format(programadoPara)}${finTxt}*`);
+  }
+
+  const partes = [...encabezado, "", ...cuerpo];
 
   /* ── Entrega ─────────────────────────────────────────────────────────── */
   if (entrega) {
@@ -125,6 +172,10 @@ export function mensajePedido({
   }
   const dir = direccion?.trim();
   if (dir) partes.push(`*Dirección:* ${dir}`);
+
+  /* La dependienta tiene que saber que este pedido lleva tarjeta: el sello se
+     suma al marcarlo entregado, y si no lo marca, el cliente no lo gana. */
+  if (tarjetaSellos) partes.push("*Tarjeta de sellos:* sí");
 
   const total = totalDePedido(lineas);
   if (total || (entrega && entrega.costoEnvio !== null)) {

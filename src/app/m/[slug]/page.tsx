@@ -51,6 +51,8 @@ import {
   type ProductoPedible,
 } from "@/components/menu/pedido-whatsapp";
 import { EventosMenu } from "@/components/menu/eventos-menu";
+import { PildoraTarjeta } from "@/components/menu/pildora-tarjeta";
+import { configFidelidadDe } from "@/lib/fidelidad-server";
 import { CartaMenu, type CartaGrupo } from "@/components/menu/carta-menu";
 import { MenuHeader } from "@/components/menu/menu-header";
 import { siteConfig } from "@/config/site";
@@ -429,6 +431,22 @@ export default async function MenuPage({
     place.pedidosWhatsapp &&
     Boolean(whatsappPedidos) &&
     (await tieneFuncion(place.id, "whatsapp_pedido"));
+
+  /* La tarjeta de sellos, solo si el negocio la tiene contratada **y** activa.
+     La comprobación del módulo va antes que la lectura de la columna: una carta
+     sin la función —la mayoría— no paga la consulta del jsonb. */
+  const configTarjeta =
+    puedePedir && (await tieneFuncion(place.id, "cliente_frecuente"))
+      ? await configFidelidadDe(place.id)
+      : null;
+  const tarjetaPedido =
+    configTarjeta?.activo && configTarjeta.metas[0]
+      ? {
+          nombre: configTarjeta.nombre,
+          metaSellos: configTarjeta.metas[0].sellos,
+          premio: configTarjeta.metas[0].premio,
+        }
+      : null;
 
   /* Las ofertas vivas, filtradas una vez con el «ahora» de esta petición. La
      carta se sirve sin caché de Next —esta página no está en `unstable_cache`—
@@ -930,6 +948,8 @@ export default async function MenuPage({
      devuelve la carta tal cual y no se manda ni un byte de JavaScript de más. */
   if (!puedePedir) return carta;
 
+  const tieneProgramados = await tieneFuncion(place.id, "pedidos_programados");
+
   return (
     <PedidoProvider
       placeId={place.id}
@@ -938,7 +958,10 @@ export default async function MenuPage({
       productos={productos}
       configTasa={configTasa ?? undefined}
       configEntrega={configEntrega}
+      tieneProgramados={tieneProgramados}
+      fidelidad={tarjetaPedido}
     >
+      <PildoraTarjeta placeId={place.id} slug={place.slug} />
       {carta}
     </PedidoProvider>
   );

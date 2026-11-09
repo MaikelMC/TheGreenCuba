@@ -249,6 +249,9 @@ export const COMANDOS: Record<string, string> = {
   stats: "Te cuenta las visitas de tu ficha.",
   tasa: "Consulta o cambia la tasa del día. Ej: /tasa 350",
   cocina: "Consulta o cambia el estado de la cocina (abierta/cerrada).",
+  programados: "Lista los pedidos programados de hoy.",
+  tarjeta: "Consulta la tarjeta de un cliente. Ej: /tarjeta 51234567",
+  sello: "Da un sello a mano. Ej: /sello 51234567",
   ayuda: "Te dice lo que puede hacer este asistente.",
 };
 

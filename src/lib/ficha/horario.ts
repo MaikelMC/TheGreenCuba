@@ -317,7 +317,7 @@ const DIA_POR_NOMBRE: Record<string, number> = {
   Sat: 6,
 };
 
-interface Reloj {
+export interface Reloj {
   /** 0 = domingo … 6 = sábado, en la zona del negocio. */
   dia: number;
   /** Minutos desde medianoche, en la zona del negocio. */
@@ -326,7 +326,7 @@ interface Reloj {
   fecha: string;
 }
 
-function relojEn(now: Date, tz: string): Reloj {
+export function relojEn(now: Date, tz: string): Reloj {
   const partes = formateador(tz).formatToParts(now);
   const dato = (tipo: string): string =>
     partes.find((p) => p.type === tipo)?.value ?? "";
@@ -341,7 +341,7 @@ function relojEn(now: Date, tz: string): Reloj {
 }
 
 /** Suma días a una fecha `YYYY-MM-DD` sin pasar por la zona horaria. */
-function sumarDias(fecha: string, dias: number): string {
+export function sumarDias(fecha: string, dias: number): string {
   const [y, m, d] = fecha.split("-").map(Number);
   const ms = Date.UTC(y ?? 1970, (m ?? 1) - 1, (d ?? 1) + dias);
   const fechaMs = new Date(ms);

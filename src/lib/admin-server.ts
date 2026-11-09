@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { getAppUser, type AppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
@@ -154,6 +154,30 @@ export async function canManagePlace(
   if (!permiso) return true;
 
   return acceso.permisos.includes(permiso);
+}
+
+/**
+ * La respuesta de «no puedes»: 401 si no hay sesión, 403 si la hay pero no
+ * alcanza.
+ *
+ * La diferencia importa: un 401 dice «vuelve a entrar» y el panel podría
+ * mandar a la pantalla de acceso; un 403 dice «esta cuenta no tiene este
+ * permiso» y lo que toca es contarlo, no cerrar la sesión de nadie. La clave de
+ * administración ya se comprobó en `canManagePlace`, así que aquí sin usuario
+ * solo queda el caso de una petición sin sesión.
+ */
+export async function respuestaSinAcceso(): Promise<NextResponse> {
+  const user = await getAppUser();
+  if (!user) {
+    return NextResponse.json(
+      { error: "Inicia sesión para continuar" },
+      { status: 401 },
+    );
+  }
+  return NextResponse.json(
+    { error: "No tienes permiso para esto" },
+    { status: 403 },
+  );
 }
 
 /**

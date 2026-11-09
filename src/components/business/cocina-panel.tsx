@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { estadoCocina } from "@/lib/ficha/cocina";
 import { HorarioEditor } from "@/components/business/horario-editor";
+import { ProgramadosAjustes } from "@/components/business/programados-ajustes";
 import {
   Sheet,
   SheetContent,
@@ -44,12 +45,16 @@ export function CocinaPanel({
   placeHorario,
   puedeAtender,
   puedeEditarFicha,
+  tieneProgramados = false,
+  onVerPlanes,
 }: {
   placeId: string;
   entrega: EntregaConfig | null | undefined;
   placeHorario: Horario | null | undefined;
   puedeAtender: boolean;
   puedeEditarFicha: boolean;
+  tieneProgramados?: boolean;
+  onVerPlanes?: () => void;
 }) {
   const [entregaLocal, setEntregaLocal] = useState<EntregaConfig | null>(
     entrega ?? null,

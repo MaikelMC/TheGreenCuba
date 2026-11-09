@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, desc, eq } from "drizzle-orm";
 import { canManagePlace } from "@/lib/admin-server";
+import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { pedidos, places } from "@/lib/db/schema";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
@@ -12,6 +13,17 @@ import { calcularEntrega } from "@/lib/entrega-calculo";
 import type { EntregaConfig } from "@/lib/ficha/entrega";
 import { estadoCocina } from "@/lib/ficha/cocina";
 import type { Horario } from "@/lib/ficha/horario";
+import { franjasDisponibles } from "@/lib/ficha/programados";
+import { esFidelidadConfig } from "@/lib/fidelidad";
+import {
+  alCancelarPedido,
+  alCompletarPedido,
+  configFidelidadDe,
+  negocioPublico,
+  resumenesPorTelefono,
+  type ResultadoSello,
+} from "@/lib/fidelidad-server";
+import { normalizarTelefono } from "@/lib/telefono";
 
 /**
  * El historial de pedidos del catálogo.
@@ -144,6 +156,7 @@ export async function POST(req: NextRequest) {
       pedidosWhatsapp: places.pedidosWhatsapp,
       whatsapp: places.whatsapp,
       entrega: places.entrega,
+      fidelidad: places.fidelidad,
       horario: places.horario,
       tasaUsdCup: places.tasaUsdCup,
       tasaRedondeo: places.tasaRedondeo,
@@ -186,10 +199,39 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  /* El teléfono solo se guarda si el negocio tiene la tarjeta activa. Un
+     negocio sin la función no cambia en nada: no se pide y no se apunta. Y si
+     lo que llega no es un cubano de ocho dígitos, se ignora: el teléfono es
+     opcional y no puede bloquear el pedido. */
+  let telefonoCliente: string | null = null;
+  if (
+    place.fidelidad &&
+    esFidelidadConfig(place.fidelidad) &&
+    place.fidelidad.activo &&
+    (await tieneFuncion(negocioId, "cliente_frecuente")) &&
+    typeof body.telefonoCliente === "string"
+  ) {
+    telefonoCliente = normalizarTelefono(body.telefonoCliente);
+  }
+
   const idCliente =
     typeof body.id === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(body.id)
       ? body.id
       : generateId();
+
+  /* El código lo genera el cliente (5 chars). Si falta o tiene mala forma,
+     se genera uno aquí —no debería pasar con clientes actualizados—. */
+  const codigoCliente =
+    typeof body.codigo === "string" && /^[A-Z2-9]{5}$/.test(body.codigo)
+      ? body.codigo
+      : Array.from({ length: 5 }, () => "ABCDEFGHJKMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 31)]).join("");
+
+  /* Hora programada: llega como ISO string desde el cliente. */
+  let programadoPara: Date | null = null;
+  if (typeof body.programadoPara === "string") {
+    const dt = new Date(body.programadoPara);
+    if (Number.isFinite(dt.getTime())) programadoPara = dt;
+  }
 
   const tasaUsada =
     typeof body.tasaUsada === "number" &&
@@ -244,22 +286,77 @@ export async function POST(req: NextRequest) {
   const estadoCocinaActual = estadoCocina(entregaConfig, placeHorario, Date.now());
   const fueraDeHorario = !estadoCocinaActual.abierta;
 
-  await db
-    .insert(pedidos)
-    .values({
-      id: idCliente,
-      placeId: negocioId,
-      lineas,
-      direccion: texto(body.direccion, MAX_DIRECCION),
-      modoEntrega,
-      zonaNombre,
-      costoEnvio,
-      costoEnvioMoneda,
-      tasaUsada,
-      fueraDeHorario,
-    })
-    /* Reintento del mismo clic: la fila ya está y no se duplica. */
-    .onConflictDoNothing({ target: pedidos.id });
+  /* Validación no bloqueante de la franja programada. */
+  let revisarHora = false;
+  let revisarMotivo: string | null = null;
+
+  if (programadoPara) {
+    const pgConfig = entregaConfig?.programados;
+    const horarioCocina = entregaConfig?.horario ?? placeHorario;
+    if (!pgConfig?.activo) {
+      revisarHora = true;
+      revisarMotivo = "sin_funcion";
+    } else {
+      /* Comprobar que la franja todavía existe y tiene cupo. */
+      const ocupacion = new Map<string, number>();
+      /* ponytail: sin consulta de ocupación aquí para no añadir un viaje a
+         la DB en el hot path público. La franja se valida por existencia,
+         no por cupo; el panel ya muestra la alerta si revisar_hora es true. */
+      const dias = franjasDisponibles(pgConfig, horarioCocina, new Date(), ocupacion);
+      const ahora = Date.now();
+      const msInicio = programadoPara.getTime();
+      const franjaMatch = dias
+        .flatMap((d) => d.franjas)
+        .find((f) => f.inicio.getTime() === msInicio);
+      if (!franjaMatch) {
+        revisarHora = true;
+        /* ¿Es porque está fuera del horario? ¿Sin antelación? ¿Fuera de los días? */
+        if (msInicio < ahora + (pgConfig.antelacionMin * 60_000)) {
+          revisarMotivo = "sin_antelacion";
+        } else if (msInicio > ahora + pgConfig.diasMax * 24 * 3600_000) {
+          revisarMotivo = "fuera_de_dias";
+        } else {
+          revisarMotivo = "fuera_de_horario";
+        }
+      }
+    }
+  }
+
+  /* Intentar insertar. En colisión de código (raro, mismo código + negocio),
+     añadir un sufijo numérico y reintentar una vez. */
+  const valoresBase = {
+    placeId: negocioId,
+    lineas,
+    direccion: texto(body.direccion, MAX_DIRECCION),
+    telefonoCliente,
+    modoEntrega,
+    zonaNombre,
+    costoEnvio,
+    costoEnvioMoneda,
+    tasaUsada,
+    fueraDeHorario,
+    revisarHora,
+    revisarMotivo,
+    programadoPara,
+  };
+
+  try {
+    await db
+      .insert(pedidos)
+      .values({ id: idCliente, codigo: codigoCliente, ...valoresBase })
+      .onConflictDoNothing({ target: pedidos.id });
+  } catch (err) {
+    /* Colisión del unique index (place_id, codigo): añadir sufijo y reintentar. */
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("pedidos_place_codigo_idx")) {
+      const codigoAlt = `${codigoCliente.slice(0, 4)}${Math.floor(Math.random() * 10)}`;
+      await db
+        .insert(pedidos)
+        .values({ id: idCliente, codigo: codigoAlt, ...valoresBase })
+        .onConflictDoNothing({ target: pedidos.id });
+    }
+    /* Cualquier otro error: el pedido salió por WhatsApp igual; no romper. */
+  }
 
   return NextResponse.json({ ok: true });
 }
@@ -283,6 +380,7 @@ export async function GET(req: NextRequest) {
   const filas = await db
     .select({
       id: pedidos.id,
+      codigo: pedidos.codigo,
       lineas: pedidos.lineas,
       direccion: pedidos.direccion,
       modoEntrega: pedidos.modoEntrega,
@@ -292,6 +390,10 @@ export async function GET(req: NextRequest) {
       estado: pedidos.estado,
       tasaUsada: pedidos.tasaUsada,
       fueraDeHorario: pedidos.fueraDeHorario,
+      revisarHora: pedidos.revisarHora,
+      revisarMotivo: pedidos.revisarMotivo,
+      programadoPara: pedidos.programadoPara,
+      telefonoCliente: pedidos.telefonoCliente,
       createdAt: pedidos.createdAt,
     })
     .from(pedidos)
@@ -299,7 +401,45 @@ export async function GET(req: NextRequest) {
     .orderBy(desc(pedidos.createdAt))
     .limit(100);
 
-  return NextResponse.json({ pedidos: filas, puede });
+  /* La tarjeta de cada pedido, para la etiqueta «Tiene premio» y el «4 de 5
+     sellos» de la ficha. Se resuelve en dos consultas, no una por pedido. */
+  const config = puede ? await configFidelidadDe(placeId) : null;
+  const activa =
+    Boolean(config?.activo) &&
+    puede &&
+    (await tieneFuncion(placeId, "cliente_frecuente"));
+
+  const resumenes =
+    activa && config
+      ? await resumenesPorTelefono(
+          placeId,
+          config,
+          filas
+            .map((f) => f.telefonoCliente)
+            .filter((t): t is string => Boolean(t)),
+        )
+      : new Map();
+
+  const negocio = activa ? await negocioPublico(placeId) : null;
+
+  return NextResponse.json({
+    pedidos: filas.map((fila) => ({
+      ...fila,
+      tarjeta: fila.telefonoCliente
+        ? (resumenes.get(fila.telefonoCliente) ?? null)
+        : null,
+    })),
+    puede,
+    fidelidad:
+      activa && config && negocio
+        ? {
+            activa: true,
+            nombre: config.nombre,
+            negocioNombre: negocio.nombre,
+            slug: negocio.slug,
+          }
+        : { activa: false },
+  });
 }
 
 /** Marca un pedido como completado o cancelado. Solo el dueño. */
@@ -332,5 +472,20 @@ export async function PATCH(req: NextRequest) {
        dejaría cambiar el pedido de otro negocio conociendo su id. */
     .where(and(eq(pedidos.id, id), eq(pedidos.placeId, placeId)));
 
-  return NextResponse.json({ ok: true });
+  /* Aquí, y solo aquí, se suma o se revierte el sello: es el punto único por
+     el que pasa cualquier cambio de estado de un pedido. La respuesta lleva el
+     resultado para que el panel pueda decir qué pasó con la tarjeta. */
+  const usuario = await getAppUser();
+  const usuarioId = usuario?.id ?? null;
+
+  let sello: ResultadoSello | undefined;
+  let revertido: boolean | undefined;
+
+  if (estado === "completado") {
+    sello = await alCompletarPedido(placeId, id, usuarioId);
+  } else if (estado === "cancelado") {
+    revertido = await alCancelarPedido(placeId, id, usuarioId);
+  }
+
+  return NextResponse.json({ ok: true, sello, revertido });
 }

@@ -13,6 +13,7 @@ import {
   Menu,
   Settings,
   Sparkles,
+  Stamp,
   Tag,
   Users,
   Utensils,
@@ -33,6 +34,7 @@ export type PanelView =
   | "dashboard"
   | "catalogo"
   | "pedidos"
+  | "clientes"
   | "editor"
   | "ofertas"
   | "publicaciones"
@@ -105,6 +107,7 @@ const PRIMARY_NAV: NavItem[] = [
 ];
 
 const SECONDARY_NAV: NavItem[] = [
+  { id: "clientes", label: "Frecuentes", icon: Stamp },
   { id: "ofertas", label: "Ofertas", icon: Tag },
   { id: "publicaciones", label: "Publicar", icon: Megaphone },
   { id: "telegram", label: "Asistente", icon: Bot },

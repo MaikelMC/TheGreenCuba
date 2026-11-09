@@ -52,7 +52,9 @@ import { PhotoGrid } from "@/components/business/photo-grid";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { CatalogoView } from "@/components/business/catalogo-view";
 import { PedidosView } from "@/components/business/pedidos-view";
+import { ClientesFrecuentesView } from "@/components/business/clientes-frecuentes-view";
 import { CocinaPanel } from "@/components/business/cocina-panel";
+import { ProgramadosAjustes } from "@/components/business/programados-ajustes";
 import { OfertasView } from "@/components/business/ofertas-view";
 import { MenuLinkCard } from "@/components/business/menu-link-card";
 import { PlanCard } from "@/components/business/plan-card";
@@ -293,6 +295,9 @@ export function BusinessPanel({
     "dashboard",
     ...(puede("catalogo") ? (["catalogo", "ofertas"] as PanelView[]) : []),
     ...(puede("pedidos") ? (["pedidos"] as PanelView[]) : []),
+    ...(puede("pedidos") || puede("ficha")
+      ? (["clientes"] as PanelView[])
+      : []),
     ...(puede("ficha") ? (["editor"] as PanelView[]) : []),
     ...(esDueno ? (["publicaciones"] as PanelView[]) : []),
     ...(puede("telegram") ? (["telegram"] as PanelView[]) : []),
@@ -369,6 +374,13 @@ export function BusinessPanel({
                comprueba la propiedad en cada lectura y escritura. */
             return (
               <div className="flex flex-col gap-gap-md">
+                <PedidosView
+                  key={place.id}
+                  placeId={place.id}
+                  funciones={funciones}
+                  onVerPlanes={onVerPlanes}
+                  onVerClientes={() => setView("clientes")}
+                />
                 {funciones.includes("horario_cocina") && (
                   <CocinaPanel
                     placeId={place.id}
@@ -376,15 +388,35 @@ export function BusinessPanel({
                     placeHorario={place.horario ?? null}
                     puedeAtender={puede("pedidos")}
                     puedeEditarFicha={puede("ficha")}
+                    tieneProgramados={funciones.includes("pedidos_programados")}
+                    onVerPlanes={onVerPlanes}
                   />
                 )}
-                <PedidosView
-                  key={place.id}
-                  placeId={place.id}
-                  funciones={funciones}
-                  onVerPlanes={onVerPlanes}
-                />
+                {funciones.includes("horario_cocina") && puede("ficha") && (
+                  <section className="rounded-2xl border border-ink/5 bg-white p-gap-md">
+                    <ProgramadosAjustes
+                      placeId={place.id}
+                      tieneFuncion={funciones.includes("pedidos_programados")}
+                      onVerPlanes={onVerPlanes}
+                    />
+                  </section>
+                )}
               </div>
+            );
+          case "clientes":
+            /* Las tarjetas de sellos. La sección la ven los dos permisos que
+               puede hacer falta: `pedidos` para atender el mostrador y `ficha`
+               para configurar la tarjeta. Cada botón vuelve a comprobar su
+               permiso antes de llamar; el servidor, otra vez. */
+            return (
+              <ClientesFrecuentesView
+                key={place.id}
+                placeId={place.id}
+                funciones={funciones}
+                esDueno={esDueno}
+                permisos={permisos}
+                onVerPlanes={onVerPlanes}
+              />
             );
           case "publicaciones":
             /* Las funciones deciden si la sección se abre o enseña el candado,
@@ -459,6 +491,7 @@ export function BusinessPanel({
                 packMedida={packMedida}
                 esDueno={esDueno}
                 descuentoPct={descuentoPct}
+                funciones={funciones}
               />
             );
           case "settings":

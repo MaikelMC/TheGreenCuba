@@ -400,6 +400,20 @@
       "when": 1794182115588,
       "tag": "0056_perfect_sentry",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1794204290532,
+      "tag": "0057_flawless_victor_mancha",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1794211671262,
+      "tag": "0058_bored_grandmaster",
+      "breakpoints": true
     }
   ]
 }

@@ -12,10 +12,12 @@ import {
 import {
   ChefHat,
   ChevronDown,
+  Clock,
   MessageCircle,
   Minus,
   Plus,
   ShoppingBag,
+  Stamp,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -31,6 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  generarCodigoPedido,
   hrefPedido,
   mensajePedido,
   totalDePedido,
@@ -40,6 +43,7 @@ import {
 import { aplicarTasa, formatCup, type ConfigTasa } from "@/lib/precios";
 import { calcularEntrega } from "@/lib/entrega-calculo";
 import type { EntregaConfig, ZonaEntrega } from "@/lib/ficha/entrega";
+import { normalizarTelefono } from "@/lib/telefono";
 
 /**
  * El carrito del menú público, y el enlace que lo convierte en un pedido.
@@ -189,6 +193,19 @@ function nuevoIdPedido(): string {
   return `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+interface FranjaJson {
+  inicio: string;  // ISO UTC
+  fin: string;     // ISO UTC
+  llena: boolean;
+  etiqueta: string;
+}
+
+interface DiaJson {
+  fecha: string;
+  etiqueta: string;
+  franjas: FranjaJson[];
+}
+
 export function PedidoProvider({
   placeId,
   negocio,
@@ -196,6 +213,8 @@ export function PedidoProvider({
   productos,
   configTasa,
   configEntrega,
+  tieneProgramados = false,
+  fidelidad = null,
   children,
 }: {
   placeId: string;
@@ -207,12 +226,20 @@ export function PedidoProvider({
   configTasa?: ConfigTasa;
   /** Config de entrega resuelta en el servidor. `null` = sin zonas. */
   configEntrega?: EntregaConfig | null;
+  /** `true` si el plan incluye pedidos programados. */
+  tieneProgramados?: boolean;
+  /** La tarjeta de sellos, ya resuelta en el servidor. `null` = no se pide teléfono. */
+  fidelidad?: { nombre: string; metaSellos: number; premio: string } | null;
   children: React.ReactNode;
 }) {
   const clave = `la-verde:pedido:${placeId}`;
   const claveDir = `la-verde:pedido-direccion:${placeId}`;
+  const claveTel = `la-verde:tarjeta-telefono:${placeId}`;
   const [lineas, setLineas] = useState<LineaPedido[]>([]);
   const [direccion, setDireccion] = useState("");
+  /* El teléfono de la tarjeta. Se recuerda entre pedidos del mismo negocio
+     —a diferencia del carrito—, así que no se borra al salir de la carta. */
+  const [telefono, setTelefono] = useState("");
 
   /* ── Entrega ─────────────────────────────────────────────────────────── */
   const tieneZonas =
@@ -236,6 +263,15 @@ export function PedidoProvider({
   /* El id de este intento. Se renueva al abrir la ventana de confirmación, no
      en cada clic: dos clics seguidos son el mismo pedido y no dos. */
   const idPedido = useRef<string | null>(null);
+  /* El código corto del pedido. Se genera junto con el id. */
+  const codigoPedido = useRef<string | null>(null);
+  /* Franjas disponibles: se cargan al abrir el diálogo si tieneProgramados. */
+  const [diasProg, setDiasProg] = useState<DiaJson[]>([]);
+  const [diaElegido, setDiaElegido] = useState<string>("");
+  const [franjaElegida, setFranjaElegida] = useState<FranjaJson | null>(null);
+  /* Valor crudo del input de hora: vive independiente de franjaElegida para
+     que el usuario pueda seguir escribiendo aunque la hora no coincida aún. */
+  const [horaInput, setHoraInput] = useState<string>("");
   /* Lo que se acaba de quitar, junto con la foto del carrito de antes de
      quitarlo. Una sola a la vez: cualquier gesto nuevo la reemplaza, y a los
      ocho segundos se va sola. */
@@ -264,6 +300,9 @@ export function PedidoProvider({
       setDireccion(
         recarga ? (window.localStorage.getItem(claveDir) ?? "") : "",
       );
+      /* El teléfono sí se recuerda aunque no sea una recarga: es el gesto de
+         «ya te lo di la vez pasada» que el cliente espera. */
+      setTelefono(window.localStorage.getItem(claveTel) ?? "");
     } catch {
       /* Sin `localStorage` la dirección se escribe igual, solo no persiste. */
     }
@@ -274,17 +313,22 @@ export function PedidoProvider({
        refresca. Al montar ya se cruzó con la carta de ese momento, que es lo
        que hace falta. */
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clave, claveDir]);
+  }, [clave, claveDir, claveTel]);
 
   useEffect(() => {
     if (!hidratado) return;
     try {
       window.localStorage.setItem(clave, JSON.stringify(lineas));
       window.localStorage.setItem(claveDir, direccion);
+      if (telefono.trim()) {
+        window.localStorage.setItem(claveTel, telefono.trim());
+      } else {
+        window.localStorage.removeItem(claveTel);
+      }
     } catch {
       /* Cuota llena o modo privado: el carrito sigue, solo no persiste. */
     }
-  }, [clave, claveDir, lineas, direccion, hidratado]);
+  }, [clave, claveDir, claveTel, lineas, direccion, telefono, hidratado]);
 
   /* Salir de la carta se lleva la selección. El desmontaje cubre la navegación
      interna y la comprobación de `esRecarga` al montar cubre cerrar la pestaña
@@ -428,16 +472,19 @@ export function PedidoProvider({
     [lineas, agregar, sumar, quitar, vaciar],
   );
 
-  /** Abre la confirmación con un id nuevo: es el intento que se va a guardar. */
+  /** Abre la confirmación con un id y código nuevos. */
   const abrirPedido = useCallback(() => {
     idPedido.current = nuevoIdPedido();
+    codigoPedido.current = generarCodigoPedido();
     setCocina(null);
+    setDiasProg([]);
+    setDiaElegido("");
+    setFranjaElegida(null);
+    setHoraInput("");
     setPidiendo(true);
   }, []);
 
-  /* Consulta el estado de la cocina cada vez que se abre el diálogo. Es una
-     lectura rápida y sin bloqueo: el diálogo se abre igual; solo muestra la
-     advertencia si la cocina está cerrada. */
+  /* Consulta el estado de la cocina cada vez que se abre el diálogo. */
   useEffect(() => {
     if (!pidiendo) return;
     void fetch(`/api/pedidos/cocina?negocioId=${encodeURIComponent(placeId)}`)
@@ -448,10 +495,25 @@ export function PedidoProvider({
           setCocina(d);
         }
       })
-      .catch(() => {
-        /* Sin red: no bloqueamos. `cocina` queda null = no se muestra aviso. */
-      });
+      .catch(() => {/* Sin red: `cocina` queda null = no se muestra aviso. */});
   }, [pidiendo, placeId]);
+
+  /* Carga las franjas si tieneProgramados y se abre el diálogo. */
+  useEffect(() => {
+    if (!pidiendo || !tieneProgramados) return;
+    void fetch(`/api/pedidos/franjas?negocioId=${encodeURIComponent(placeId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: unknown) => {
+        if (data && typeof data === "object" && "dias" in data) {
+          const d = data as { dias: DiaJson[] };
+          setDiasProg(d.dias);
+          if (d.dias.length > 0) {
+            setDiaElegido(d.dias[0]!.fecha);
+          }
+        }
+      })
+      .catch(() => {/* Sin red: diasProg queda [] = no se ofrece programar. */});
+  }, [pidiendo, placeId, tieneProgramados]);
 
   /**
    * Guarda una copia del pedido en el panel del negocio.
@@ -470,11 +532,18 @@ export function PedidoProvider({
 
     const cuerpo = JSON.stringify({
       id,
+      codigo: codigoPedido.current ?? undefined,
       negocioId: placeId,
       lineas,
       direccion: direccion.trim(),
       tasaUsada: configTasa?.tasaUsdCup ?? null,
       ...(tieneZonas ? { modoEntrega, zonaId: zonaId || undefined } : {}),
+      ...(franjaElegida ? { programadoPara: franjaElegida.inicio } : {}),
+      /* Solo viaja si el negocio tiene la tarjeta: el servidor lo vuelve a
+         validar y lo normaliza. */
+      ...(fidelidad && telefono.trim()
+        ? { telefonoCliente: telefono.trim() }
+        : {}),
     });
 
     if (!navigator.onLine) {
@@ -492,6 +561,11 @@ export function PedidoProvider({
         headers: { "Content-Type": "application/json" },
         body: cuerpo,
         keepalive: true,
+      }).then((res) => {
+        /* Respuesta no-ok (rate limit, validación): encolar para reintento. */
+        if (!res.ok) {
+          void encolar({ id, tipo: "pedido", ruta: "/api/pedidos", metodo: "POST", cuerpo });
+        }
       }).catch(() => {
         /* Fallo de red después de salir: encolar silenciosamente. */
         void encolar({ id, tipo: "pedido", ruta: "/api/pedidos", metodo: "POST", cuerpo });
@@ -499,7 +573,7 @@ export function PedidoProvider({
     } catch {
       void encolar({ id, tipo: "pedido", ruta: "/api/pedidos", metodo: "POST", cuerpo });
     }
-  }, [lineas, direccion, placeId, configTasa, tieneZonas, modoEntrega, zonaId]);
+  }, [lineas, direccion, placeId, configTasa, tieneZonas, modoEntrega, zonaId, franjaElegida, fidelidad, telefono]);
 
   /* Desplegada manda ella: el desplazamiento no decide mientras se mira el
      pedido. */
@@ -534,7 +608,17 @@ export function PedidoProvider({
 
   const href = hrefPedido(
     whatsapp,
-    mensajePedido({ negocio, lineas, direccion, configTasa, entrega: entregaCalc }),
+    mensajePedido({
+      negocio,
+      lineas,
+      direccion,
+      configTasa,
+      entrega: entregaCalc,
+      codigo: codigoPedido.current ?? undefined,
+      programadoPara: franjaElegida ? new Date(franjaElegida.inicio) : null,
+      programadoFin: franjaElegida ? new Date(franjaElegida.fin) : null,
+      tarjetaSellos: Boolean(fidelidad && normalizarTelefono(telefono)),
+    }),
   );
 
   return (
@@ -827,6 +911,47 @@ export function PedidoProvider({
                 </label>
               )}
 
+              {/* ── Tarjeta de sellos ───────────────────────────────────────
+                  Solo cuando el negocio la tiene activa: el resto de cartas no
+                  cambia en nada. Es opcional y nunca bloquea el pedido; si el
+                  número no cuadra se avisa, pero el botón sigue vivo. */}
+              {fidelidad && (
+                <label className="block">
+                  <span className="mb-[6px] flex items-center gap-[5px] text-meta font-semibold text-ink">
+                    <Stamp
+                      size={13}
+                      strokeWidth={2}
+                      className="shrink-0 text-verde-600"
+                    />
+                    Pon tu teléfono y gana sellos
+                  </span>
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={telefono}
+                    onChange={(evento) => setTelefono(evento.target.value)}
+                    placeholder="+53 5 123 4567"
+                    maxLength={20}
+                    aria-describedby="tarjeta-ayuda"
+                    className="h-12 w-full rounded-2xl border border-ink/10 bg-white px-gap-sm text-body text-ink outline-none placeholder:text-ink-soft focus:border-verde-400 focus:ring-2 focus:ring-verde-400/30"
+                  />
+                  <span
+                    id="tarjeta-ayuda"
+                    className={cn(
+                      "mt-[6px] block text-meta",
+                      telefono.trim() && !normalizarTelefono(telefono)
+                        ? "font-medium text-destructive/80"
+                        : "text-ink-soft/70",
+                    )}
+                  >
+                    {telefono.trim() && !normalizarTelefono(telefono)
+                      ? "Ese número no parece cubano. Revísalo o déjalo en blanco."
+                      : `${fidelidad.metaSellos} ${fidelidad.metaSellos === 1 ? "pedido" : "pedidos"} = ${fidelidad.premio}. Opcional: sin teléfono el pedido sale igual.`}
+                  </span>
+                </label>
+              )}
+
               {/* Los dos botones en una fila también en el teléfono, y a la
                   misma altura.
 
@@ -852,6 +977,94 @@ export function PedidoProvider({
                 </div>
               )}
 
+              {/* ¿Para cuándo? — solo cuando cocina cerrada + tieneProgramados + hay franjas */}
+              {cocina && !cocina.abierta && tieneProgramados && diasProg.length > 0 && (
+                <div className="flex flex-col gap-gap-xs">
+                  <p className="font-lv-display text-meta font-semibold text-ink">
+                    ¿Para cuándo lo quieres?
+                  </p>
+                  {/* Chips de día */}
+                  <div className="flex flex-wrap gap-gap-xs">
+                    {diasProg.map((dia) => (
+                      <button
+                        key={dia.fecha}
+                        type="button"
+                        onClick={() => {
+                          setDiaElegido(dia.fecha);
+                          setFranjaElegida(null);
+                          setHoraInput("");
+                        }}
+                        className={cn(
+                          "rounded-full border px-gap-sm py-[6px] font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint",
+                          diaElegido === dia.fecha
+                            ? "border-verde-400 bg-verde-400 text-verde-950"
+                            : "border-ink/10 bg-white text-ink hover:border-verde-300",
+                        )}
+                      >
+                        {dia.etiqueta}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Selector de franja — input de hora nativo */}
+                  {diaElegido && (() => {
+                    const franjasDia = diasProg.find((d) => d.fecha === diaElegido)?.franjas ?? [];
+                    /* Extrae "HH:MM" del inicio de la etiqueta ("10:00 – 10:30" → "10:00"). */
+                    const horaDeEtiqueta = (f: FranjaJson) => f.etiqueta.split(" – ")[0] ?? "";
+                    const disponibles = franjasDia.filter((f) => !f.llena);
+                    const listId = `franjas-${diaElegido}`;
+                    return (
+                      <div className="flex flex-col gap-[6px]">
+                        <datalist id={listId}>
+                          {disponibles.map((f) => (
+                            <option key={f.inicio} value={horaDeEtiqueta(f)} />
+                          ))}
+                        </datalist>
+                        <div className="flex items-baseline justify-between">
+                          <span className="invisible text-meta">·</span>
+                          {franjaElegida && (
+                            <span className="font-lv-display text-meta font-semibold text-verde-700">
+                              {franjaElegida.etiqueta}
+                            </span>
+                          )}
+                        </div>
+                        <div className="relative">
+                          <Clock
+                            size={16}
+                            strokeWidth={1.8}
+                            className="pointer-events-none absolute left-gap-sm top-1/2 -translate-y-1/2 text-ink-soft"
+                          />
+                          <input
+                            type="time"
+                            list={listId}
+                            value={horaInput}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setHoraInput(val);
+                              const match = val
+                                ? (franjasDia.find((f) => !f.llena && horaDeEtiqueta(f) === val) ?? null)
+                                : null;
+                              setFranjaElegida(match);
+                            }}
+                            className={cn(
+                              "h-12 w-full rounded-2xl border bg-white pl-10 pr-gap-sm text-body text-ink outline-none transition-colors duration-300",
+                              franjaElegida
+                                ? "border-verde-400 ring-2 ring-verde-400/30"
+                                : "border-ink/10 focus:border-verde-400 focus:ring-2 focus:ring-verde-400/30",
+                            )}
+                          />
+                        </div>
+                        {horaInput && !franjaElegida && disponibles.length > 0 && (
+                          <p className="text-meta text-amber-600">
+                            No disponible. Rango:{" "}
+                            {horaDeEtiqueta(disponibles[0]!)} – {horaDeEtiqueta(disponibles[disponibles.length - 1]!)}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               <DialogFooter className="grid grid-cols-[auto_1fr] gap-gap-xs sm:flex sm:justify-end sm:space-x-0">
                 <DialogClose asChild>
                   <button
@@ -870,14 +1083,19 @@ export function PedidoProvider({
                     teléfono, ese `flex-1` repartía por el eje vertical y el
                     botón dejaba de medir su alto. Ahora el ancho lo da la
                     columna de la rejilla y el alto, `h-10`. */}
-                {cocina && !cocina.abierta ? (
+                {cocina && !cocina.abierta && !franjaElegida ? (
+                  /* Cocina cerrada y sin franja elegida: botón deshabilitado. */
                   <button
                     type="button"
                     disabled
                     className="inline-flex h-10 min-w-0 cursor-not-allowed items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-ink/10 px-gap-sm font-lv-display text-meta font-semibold text-ink-soft sm:px-gap-md sm:text-small"
                   >
                     <ChefHat size={15} strokeWidth={1.8} className="shrink-0" />
-                    Cocina cerrada
+                    {tieneProgramados && diasProg.length > 0
+                      ? "Elige una franja"
+                      : tieneProgramados
+                        ? "Sin franjas disponibles"
+                        : "Cocina cerrada"}
                   </button>
                 ) : (
                   <a
@@ -887,12 +1105,10 @@ export function PedidoProvider({
                     onClick={() => {
                       guardarPedido();
                       setPidiendo(false);
-                      /* El pedido ya salió: el carrito se vacía para que quien
-                         vuelva a la pestaña no lo mande otra vez sin querer. La
-                         dirección se conserva. */
                       setLineas([]);
                       setDeshacer(null);
                       setAbierto(false);
+                      setFranjaElegida(null);
                     }}
                     className="inline-flex h-10 min-w-0 items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 sm:px-gap-md sm:text-small"
                   >
@@ -901,7 +1117,7 @@ export function PedidoProvider({
                       strokeWidth={1.8}
                       className="shrink-0"
                     />
-                    Enviar el pedido
+                    {franjaElegida ? "Programar por WhatsApp" : "Enviar el pedido"}
                   </a>
                 )}
               </DialogFooter>

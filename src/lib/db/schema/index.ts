@@ -3,6 +3,7 @@ export * from "./categories";
 export * from "./places";
 export * from "./reservas";
 export * from "./pedidos";
+export * from "./fidelidad";
 export * from "./place_images";
 export * from "./place_hours";
 export * from "./place_menu_items";

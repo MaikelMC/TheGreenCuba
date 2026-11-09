@@ -141,6 +141,7 @@ test("cada pack trae exactamente sus extras sobre Gratis", () => {
   const orden = (fs: readonly Funcion[]) => [...fs].sort();
   assert.deepEqual(orden(PACKS.esencial.funciones), [
     "fotos_ilimitadas",
+    "horario_cocina",
     /* Se sumó a propósito: el Menú Pro del que sale Esencial ahora concede
        `hoy_hay`, y un pack que nombra sus funciones tiene que repetirlo. */
     "hoy_hay",
@@ -149,8 +150,10 @@ test("cada pack trae exactamente sus extras sobre Gratis", () => {
     "qr_sin_marca",
     "reservas_whatsapp",
     "seguidores",
+    "tasa_del_dia",
     "telegram_menu",
     "whatsapp_pedido",
+    "zonas_domicilio",
   ]);
   assert.deepEqual(orden(PACKS.publicidad_max.funciones), [
     "eventos",
@@ -160,17 +163,22 @@ test("cada pack trae exactamente sus extras sobre Gratis", () => {
   ]);
   assert.deepEqual(orden(PACKS.pro.funciones), [
     "asistente_ia",
+    "cliente_frecuente",
     "eventos",
     "fotos_ilimitadas",
+    "horario_cocina",
     "hoy_hay",
     "ofertas_flash",
+    "pedidos_programados",
     "publicaciones_fb",
     "publicaciones_fb_3",
     "qr_sin_marca",
     "reservas_whatsapp",
     "seguidores",
+    "tasa_del_dia",
     "telegram_menu",
     "whatsapp_pedido",
+    "zonas_domicilio",
   ]);
 });
 

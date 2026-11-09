@@ -27,6 +27,7 @@ import {
   type ModuloFicha,
 } from "@/lib/ficha/tipos";
 import type { Disponibilidad } from "@/lib/disponibilidad";
+import type { FidelidadConfig } from "@/lib/fidelidad";
 
 export const places = pgTable(
   "places",
@@ -281,6 +282,9 @@ export const places = pgTable(
     cerradoMensaje: text("cerrado_mensaje"),
     /** Tarjeta de domicilio: costo, tiempo y pedido mínimo. */
     entrega: jsonb("entrega").$type<EntregaConfig>(),
+    /** Tarjeta de sellos. Columna aparte de `entrega` para que ningún otro
+        guardado de la ficha pueda pisarla. `null` = no configurada. */
+    fidelidad: jsonb("fidelidad").$type<FidelidadConfig>(),
     /** Cómo se compra en una tienda: recoger y/o apartar. */
     comoComprar: jsonb("como_comprar").$type<ComoComprar>(),
     /** Cómo atiende un servicio: con cita, sin cita, a domicilio. */

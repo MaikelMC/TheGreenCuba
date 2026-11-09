@@ -196,6 +196,11 @@ test("la lista de comandos sale de COMANDOS y sin duplicar la ayuda", () => {
     "abrir",
     "cerrar",
     "stats",
+    "tasa",
+    "cocina",
+    "programados",
+    "tarjeta",
+    "sello",
     "ayuda",
   ]);
   /* `help` es el mismo comando que `ayuda`: dos entradas iguales estorban. */
