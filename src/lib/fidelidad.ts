@@ -42,6 +42,8 @@ export const FIDELIDAD_DEFAULT: FidelidadConfig = {
 
 export const MAX_METAS = 4;
 export const MAX_SELLOS_META = 100;
+/** Máximo de casillas en la tarjeta (última meta). */
+export const MAX_SELLOS_TOTAL = 20;
 export const MAX_NOMBRE_TARJETA = 60;
 export const MAX_PREMIO = 80;
 

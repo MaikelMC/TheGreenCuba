@@ -5,6 +5,7 @@ import { tieneFuncion } from "@/lib/plans-server";
 import {
   configFidelidadDe,
   crearCliente,
+  estadisticasFidelidad,
   listarClientes,
   negocioPublico,
 } from "@/lib/fidelidad-server";
@@ -36,15 +37,17 @@ export async function GET(req: NextRequest, { params }: Params) {
   }
 
   const q = req.nextUrl.searchParams.get("q") ?? "";
-  const [clientes, negocio] = await Promise.all([
+  const [clientes, negocio, stats] = await Promise.all([
     listarClientes(id, q.slice(0, 60), config),
     negocioPublico(id),
+    estadisticasFidelidad(id),
   ]);
 
   return NextResponse.json({
     clientes,
     config,
     negocio,
+    stats,
     tieneModulo: await tieneFuncion(id, "cliente_frecuente"),
   });
 }

@@ -820,6 +820,120 @@ export async function crearCliente(
   return { estado: "creado", cliente: aClienteTarjeta(fila) };
 }
 
+/* ── estadísticas ───────────────────────────────────────────────────────── */
+
+export interface Estadisticas {
+  totalClientes: number;
+  sellosEsteMes: number;
+  canjesEsteMes: number;
+  repitieron: number;
+}
+
+/** Métricas del 2×2 del panel. Se calculan en el servidor con zona Havana. */
+export async function estadisticasFidelidad(placeId: string): Promise<Estadisticas> {
+  const [cli] = await rows<{ total: number; repitieron: number }>(sql`
+    SELECT
+      COUNT(*)::int AS "total",
+      COUNT(*) FILTER (WHERE sellos_totales >= 2)::int AS "repitieron"
+    FROM clientes_frecuentes
+    WHERE place_id = ${placeId}
+  `);
+  const [mov] = await rows<{ sellos: number; canjes: number }>(sql`
+    SELECT
+      COUNT(*) FILTER (WHERE tipo = 'sello' AND anulado = false)::int AS "sellos",
+      COUNT(*) FILTER (WHERE tipo = 'canje')::int AS "canjes"
+    FROM movimientos_sellos
+    WHERE place_id = ${placeId}
+      AND creado_en >=
+        date_trunc('month', now() AT TIME ZONE 'America/Havana') AT TIME ZONE 'America/Havana'
+  `);
+  return {
+    totalClientes: cli?.total ?? 0,
+    sellosEsteMes: mov?.sellos ?? 0,
+    canjesEsteMes: mov?.canjes ?? 0,
+    repitieron: cli?.repitieron ?? 0,
+  };
+}
+
+/* ── sello por clienteId ────────────────────────────────────────────────── */
+
+/**
+ * Da un sello a un cliente existente por su id, sin pasar por el teléfono.
+ * Lo llama el botón «+Sello» de la fila; requiere `pedidos`, no `ficha`.
+ * Devuelve el movimientoId para que el frontend pueda deshacer en 6 s.
+ */
+export async function sellarClienteExistente(
+  placeId: string,
+  clienteId: string,
+  usuarioId: string | null,
+): Promise<
+  | { estado: "sumado"; movimientoId: string }
+  | { estado: "sin_funcion" | "inactiva" | "no_encontrado" }
+> {
+  if (!(await tieneFuncion(placeId, "cliente_frecuente"))) return { estado: "sin_funcion" };
+  const config = await configFidelidadDe(placeId);
+  if (!config?.activo) return { estado: "inactiva" };
+  const cliente = await clientePorId(placeId, clienteId);
+  if (!cliente) return { estado: "no_encontrado" };
+
+  const movimientoId = generateId();
+  await db.execute(sql`
+    WITH mov AS (
+      INSERT INTO movimientos_sellos
+        (id, cliente_id, place_id, tipo, cantidad, ciclo, usuario_id)
+      VALUES (${movimientoId}, ${clienteId}, ${placeId}, 'sello', 1, ${cliente.ciclo}, ${usuarioId})
+      RETURNING cliente_id
+    )
+    UPDATE clientes_frecuentes c
+    SET sellos = c.sellos + 1,
+        sellos_totales = c.sellos_totales + 1,
+        actualizado_en = now()
+    WHERE c.id IN (SELECT cliente_id FROM mov)
+  `);
+
+  return { estado: "sumado", movimientoId };
+}
+
+/**
+ * Deshace un sello manual (el movimiento queda anulado, no borrado).
+ * Solo actúa si el movimiento existe, es un sello sin pedido y no está ya anulado.
+ */
+export async function deshacerSelloManual(
+  placeId: string,
+  movimientoId: string,
+  usuarioId: string | null,
+): Promise<{ deshecho: boolean }> {
+  const resultado = await rows<{ n: number }>(sql`
+    WITH anulado AS (
+      UPDATE movimientos_sellos
+      SET anulado = true
+      WHERE id = ${movimientoId}
+        AND place_id = ${placeId}
+        AND tipo = 'sello'
+        AND pedido_id IS NULL
+        AND anulado = false
+      RETURNING cliente_id, ciclo
+    ),
+    rev AS (
+      INSERT INTO movimientos_sellos
+        (id, cliente_id, place_id, tipo, cantidad, ciclo, usuario_id)
+      SELECT ${generateId()}, cliente_id, ${placeId}, 'reversion', -1, ciclo, ${usuarioId}
+      FROM anulado
+      RETURNING cliente_id
+    ),
+    upd AS (
+      UPDATE clientes_frecuentes c
+      SET sellos = GREATEST(0, c.sellos - 1),
+          sellos_totales = GREATEST(0, c.sellos_totales - 1),
+          actualizado_en = now()
+      WHERE c.id IN (SELECT cliente_id FROM rev)
+      RETURNING c.id
+    )
+    SELECT count(*)::int AS "n" FROM upd
+  `);
+  return { deshecho: (resultado[0]?.n ?? 0) > 0 };
+}
+
 export async function borrarCliente(
   placeId: string,
   clienteId: string,

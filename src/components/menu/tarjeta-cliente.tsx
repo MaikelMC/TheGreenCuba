@@ -382,6 +382,21 @@ export function TarjetaCliente({
                       ? " · listo para canjear"
                       : ` · te faltan ${meta.faltan}`}
                 </p>
+                <div className="mt-[6px] h-[5px] overflow-hidden rounded-full bg-ink/8">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      meta.canjeada
+                        ? "bg-ink/20"
+                        : meta.alcanzada
+                          ? "bg-verde-400"
+                          : "bg-verde-300",
+                    )}
+                    style={{
+                      width: `${Math.min(100, Math.round((tarjeta.sellos / meta.sellos) * 100))}%`,
+                    }}
+                  />
+                </div>
               </div>
             </li>
           ))}

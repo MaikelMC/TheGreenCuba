@@ -8,8 +8,8 @@ import {
   Loader2,
   Lock,
   MessageCircle,
+  Pencil,
   Plus,
-  RefreshCw,
   Search,
   Stamp,
   Trash2,
@@ -18,10 +18,17 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { estadoTarjeta, type FidelidadConfig } from "@/lib/fidelidad";
+import {
+  estadoTarjeta,
+  MAX_METAS,
+  MAX_PREMIO,
+  MAX_SELLOS_TOTAL,
+  type FidelidadConfig,
+} from "@/lib/fidelidad";
 import { enmascararTelefono } from "@/lib/telefono";
 import type { Funcion } from "@/lib/plans";
 import type { PermisoNegocio } from "@/lib/permisos-negocio";
+import type { Estadisticas } from "@/lib/fidelidad-server";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +38,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-/* ── tipos del borde ────────────────────────────────────────────────────── */
+/* ── constantes ─────────────────────────────────────────────────────────── */
+
+/** Días sin actividad para el filtro «Sin volver». */
+const DIAS_SIN_VOLVER = 30;
+
+/* ── tipos ───────────────────────────────────────────────────────────────── */
 
 interface ClienteFila {
   clienteId: string;
@@ -78,10 +90,12 @@ interface Detalle {
     origen: "pedido" | "manual";
     actualizadoEn: string;
   };
-  tarjeta: Awaited<ReturnType<typeof estadoTarjeta>>;
+  tarjeta: ReturnType<typeof estadoTarjeta>;
   movimientos: Movimiento[];
   config: FidelidadConfig;
 }
+
+type Filtro = "todos" | "premio_listo" | "sin_volver";
 
 const MONEDAS = ["CUP", "USD", "MLC"] as const;
 
@@ -89,8 +103,6 @@ const FECHA = new Intl.DateTimeFormat("es-CU", {
   timeZone: "America/Havana",
   day: "numeric",
   month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
 });
 
 const BTN_GHOST =
@@ -107,7 +119,7 @@ function inicial(nombre: string | null, telefono: string): string {
   return (base?.charAt(0) ?? telefono.slice(-2, -1)).toUpperCase();
 }
 
-/* ── la tarjeta, en pequeño ─────────────────────────────────────────────── */
+/* ── tarjeta mini (panel) ───────────────────────────────────────────────── */
 
 function TarjetaVisual({
   config,
@@ -168,47 +180,83 @@ function TarjetaVisual({
   );
 }
 
-/* ── configuración ──────────────────────────────────────────────────────── */
+/* ── configuración (tab Ajustes) ────────────────────────────────────────── */
 
 function EditorTarjeta({
   placeId,
   config,
+  negocio,
   onGuardada,
 }: {
   placeId: string;
   config: FidelidadConfig | null;
+  negocio: { nombre: string; logoUrl: string | null } | null;
   onGuardada: (config: FidelidadConfig) => void;
 }) {
-  const [abierto, setAbierto] = useState(!config);
+  const DEFAULT_CONFIG: FidelidadConfig = {
+    activo: true,
+    nombre: "Tarjeta de cliente frecuente",
+    metas: [{ sellos: 5, premio: "Un premio gratis" }],
+    compraMinima: null,
+  };
+
+  const [modo, setModo] = useState<"ver" | "editar">(config ? "ver" : "editar");
   const [guardando, setGuardando] = useState(false);
-  /* La primera vez que llega la config del servidor (null → FidelidadConfig),
-     cerramos el editor Y sincronizamos el borrador. `useState` solo usa el
-     valor inicial, así que si config=null al montar, el borrador se queda con
-     el default hasta que este efecto lo corrija. */
+  const [borrador, setBorrador] = useState<FidelidadConfig>(config ?? DEFAULT_CONFIG);
+  const [monto, setMonto] = useState(config?.compraMinima ? String(config.compraMinima.monto) : "");
+  const [moneda, setMoneda] = useState(config?.compraMinima?.moneda ?? "USD");
+
+  /* Sincroniza borrador la primera vez que config llega del servidor (async). */
   const sincronizadoRef = useRef(false);
   useEffect(() => {
     if (config && !sincronizadoRef.current) {
       sincronizadoRef.current = true;
-      setAbierto(false);
       setBorrador(config);
       setMonto(config.compraMinima ? String(config.compraMinima.monto) : "");
       setMoneda(config.compraMinima?.moneda ?? "USD");
     }
   }, [config]);
-  const [borrador, setBorrador] = useState<FidelidadConfig>(
-    config ?? {
-      activo: true,
-      nombre: "Tarjeta de cliente frecuente",
-      metas: [{ sellos: 5, premio: "Un premio gratis" }],
-      compraMinima: null,
-    },
-  );
-  const [monto, setMonto] = useState(
-    config?.compraMinima ? String(config.compraMinima.monto) : "",
-  );
-  const [moneda, setMoneda] = useState(
-    config?.compraMinima?.moneda ?? "USD",
-  );
+
+  const isDirty = useMemo(() => {
+    if (!config) return true;
+    return JSON.stringify(borrador) !== JSON.stringify(config) ||
+      monto !== (config.compraMinima ? String(config.compraMinima.monto) : "") ||
+      moneda !== (config.compraMinima?.moneda ?? "USD");
+  }, [borrador, config, monto, moneda]);
+
+  function descartar() {
+    if (!config) return;
+    setBorrador(config);
+    setMonto(config.compraMinima ? String(config.compraMinima.monto) : "");
+    setMoneda(config.compraMinima?.moneda ?? "USD");
+  }
+
+  /* Stepper de sellos por meta. */
+  function incrementarSellos(indice: number) {
+    setBorrador((b) => {
+      const siguiente = b.metas[indice + 1]?.sellos;
+      const tope = siguiente ? siguiente - 1 : MAX_SELLOS_TOTAL;
+      return {
+        ...b,
+        metas: b.metas.map((m, i) =>
+          i === indice ? { ...m, sellos: Math.min(m.sellos + 1, tope) } : m,
+        ),
+      };
+    });
+  }
+
+  function decrementarSellos(indice: number) {
+    setBorrador((b) => {
+      const anterior = b.metas[indice - 1]?.sellos;
+      const piso = anterior ? anterior + 1 : 1;
+      return {
+        ...b,
+        metas: b.metas.map((m, i) =>
+          i === indice ? { ...m, sellos: Math.max(m.sellos - 1, piso) } : m,
+        ),
+      };
+    });
+  }
 
   async function guardar() {
     if (guardando) return;
@@ -226,12 +274,7 @@ function EditorTarjeta({
       .map((m) => ({ sellos: Number(m.sellos), premio: m.premio.trim() }))
       .sort((a, b) => a.sellos - b.sellos);
 
-    const cuerpo: FidelidadConfig = {
-      ...borrador,
-      nombre: borrador.nombre.trim(),
-      metas,
-      compraMinima: minima,
-    };
+    const cuerpo: FidelidadConfig = { ...borrador, nombre: borrador.nombre.trim(), metas, compraMinima: minima };
 
     setGuardando(true);
     try {
@@ -246,6 +289,7 @@ function EditorTarjeta({
         return;
       }
       onGuardada(cuerpo);
+      setModo("ver");
       toast.success("Tarjeta guardada.");
     } catch {
       toast.error("No se pudo guardar. Revisa la conexión.");
@@ -254,157 +298,193 @@ function EditorTarjeta({
     }
   }
 
-  return (
-    <section className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
-      <div className="flex flex-wrap items-center justify-between gap-gap-xs">
-        <div className="flex items-center gap-gap-sm">
-          <span className="grid size-9 place-items-center rounded-xl bg-verde-50 text-verde-600">
-            <Stamp size={16} strokeWidth={1.8} />
+  /* Vista previa en vivo con 0 sellos. */
+  const preview = useMemo(() => estadoTarjeta(borrador, 0, 1, []), [borrador]);
+
+  /* ── vista cerrada premium ───────────────────────────────────────────── */
+  if (modo === "ver" && config) {
+    return (
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-verde-500 via-verde-600 to-verde-800 p-gap-md text-white shadow-card">
+        {/* Decoración de fondo */}
+        <div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-white/[0.04]" />
+        <div className="pointer-events-none absolute -bottom-8 right-4 size-28 rounded-full bg-white/[0.04]" />
+
+        {/* Encabezado */}
+        <div className="relative flex items-start justify-between gap-gap-sm">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-verde-100/65">
+              Tarjeta de sellos
+            </p>
+            <p className="mt-[4px] truncate font-lv-display text-h3 font-bold text-white leading-tight">
+              {config.nombre}
+            </p>
+          </div>
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-[10px] py-[3px] text-[10px] font-semibold uppercase tracking-[0.1em]",
+              config.activo
+                ? "bg-white/15 text-verde-50 ring-1 ring-white/20"
+                : "bg-white/8 text-verde-100/50 ring-1 ring-white/10",
+            )}
+          >
+            {config.activo ? "Activa" : "Inactiva"}
           </span>
-          <div>
-            <h2 className="font-lv-display text-small font-semibold text-ink">
-              Ajustes de la tarjeta
-            </h2>
-            <p className="text-meta text-ink-soft/70">
-              Metas, nombre y compra mínima.
-            </p>
-          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setAbierto((v) => !v)}
-          className={BTN_GHOST}
-        >
-          {abierto ? "Cancelar" : "Editar"}
-        </button>
-      </div>
 
-      {/* Resumen de solo lectura cuando ya hay config guardada */}
-      {!abierto && config && (
-        <div className="mt-gap-sm overflow-hidden rounded-xl bg-gradient-to-br from-verde-500 via-verde-600 to-verde-800 p-gap-sm shadow-card">
-          <div className="flex items-start justify-between gap-gap-xs">
-            <p className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-verde-100/80">
-              {config.nombre || "Tarjeta de sellos"}
-            </p>
-            <span
-              className={cn(
-                "rounded-full px-[8px] py-[2px] text-[10px] font-semibold uppercase tracking-[0.1em] ring-1",
-                config.activo
-                  ? "bg-white/15 text-verde-50/90 ring-white/20"
-                  : "bg-black/20 text-verde-50/50 ring-white/10",
-              )}
-            >
-              {config.activo ? "Activa" : "Inactiva"}
-            </span>
-          </div>
-
-          {(() => {
-            const total = config.metas[config.metas.length - 1]?.sellos ?? 5;
-            const hitos = new Set(config.metas.map((m) => m.sellos));
+        {/* Metas */}
+        <div className="relative mt-gap-sm flex flex-col gap-[8px]">
+          {config.metas.map((m, i) => {
+            const esUltima = i === config.metas.length - 1;
             return (
-              <div className="mt-gap-xs flex flex-wrap gap-[4px]">
-                {Array.from({ length: total }, (_, i) => {
-                  const esHito = hitos.has(i + 1);
-                  return (
-                    <span
-                      key={i}
-                      className={cn(
-                        "grid size-[28px] place-items-center rounded-md border",
-                        esHito
-                          ? "border-verde-300/60 bg-verde-400/50 text-white"
-                          : "border-dashed border-white/20 bg-white/5 text-white/25",
-                      )}
-                    >
-                      <Stamp size={12} strokeWidth={esHito ? 2.2 : 1.5} />
-                    </span>
-                  );
-                })}
-              </div>
-            );
-          })()}
-
-          <div className="mt-gap-sm space-y-[4px]">
-            {config.metas.map((m, i) => (
-              <div key={i} className="flex items-center gap-[6px]">
-                <span className="font-lv-display text-[11px] font-semibold tabular-nums text-white">
+              <div key={i} className="flex min-w-0 items-center gap-[10px]">
+                <span className="grid size-[22px] shrink-0 place-items-center rounded-full bg-white/15 text-[10px] font-bold tabular-nums text-white ring-1 ring-white/20">
                   {m.sellos}
                 </span>
-                <span className="text-[11px] text-verde-100/60">sellos →</span>
-                <span className="text-[11px] text-verde-50/90">{m.premio}</span>
+                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-verde-50/90">{m.premio}</span>
+                {esUltima && (
+                  <span className="shrink-0 text-[10px] text-verde-200/55">↺</span>
+                )}
               </div>
-            ))}
-          </div>
+            );
+          })}
+        </div>
 
-          {config.compraMinima && (
-            <p className="mt-[6px] text-[10px] text-verde-100/60">
-              Mínimo {config.compraMinima.monto} {config.compraMinima.moneda} por pedido
-            </p>
-          )}
+        {/* Compra mínima */}
+        {config.compraMinima && (
+          <p className="relative mt-gap-xs text-[11px] text-verde-100/60">
+            Compra mínima: {config.compraMinima.monto} {config.compraMinima.moneda}
+          </p>
+        )}
+
+        {/* Botón editar */}
+        <div className="relative mt-gap-md">
+          <button
+            type="button"
+            onClick={() => setModo("editar")}
+            className="inline-flex h-9 cursor-pointer items-center gap-[6px] rounded-full bg-white/15 px-gap-sm font-lv-display text-meta font-semibold text-white ring-1 ring-white/25 transition-colors duration-300 ease-outquint hover:bg-white/22 hover:ring-white/35"
+          >
+            <Pencil size={12} strokeWidth={2} />
+            Editar tarjeta
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-gap-md">
+      {/* Cabecera del editor con botón volver */}
+      {config && (
+        <div className="flex items-center gap-gap-xs">
+          <button
+            type="button"
+            onClick={() => { descartar(); setModo("ver"); }}
+            className={BTN_GHOST}
+          >
+            <ChevronLeft size={13} strokeWidth={2} />
+            Volver
+          </button>
         </div>
       )}
 
-      {abierto && (
-        <div className="mt-gap-md flex flex-col gap-gap-md">
-          <label className="flex items-center gap-gap-sm">
-            <input
-              type="checkbox"
-              checked={borrador.activo}
-              onChange={(e) =>
-                setBorrador((b) => ({ ...b, activo: e.target.checked }))
-              }
-              className="size-4 accent-verde-500"
-            />
-            <span className="text-small text-ink">
-              Tarjeta activa: el cliente puede dejar su teléfono al pedir
-            </span>
-          </label>
+      {/* Vista previa */}
+      <div>
+        <p className="mb-gap-xs font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-soft/50">
+          Así la ve tu cliente
+        </p>
+        <div className={cn(!borrador.activo && "opacity-45")}>
+          <TarjetaVisual
+            config={borrador}
+            tarjeta={preview}
+            nombre={negocio?.nombre ?? null}
+            telefono="+53 5••• ••••"
+          />
+        </div>
+        {!borrador.activo && (
+          <p className="mt-[6px] text-meta text-ink-soft/55">La tarjeta está inactiva: los clientes no ven este módulo.</p>
+        )}
+      </div>
 
-          <label className="block">
-            <span className="mb-[6px] block text-meta font-semibold text-ink">
-              Nombre de la tarjeta
-            </span>
-            <input
-              type="text"
-              value={borrador.nombre}
-              maxLength={60}
-              onChange={(e) =>
-                setBorrador((b) => ({ ...b, nombre: e.target.value }))
-              }
-              className={INPUT}
-            />
-          </label>
+      {/* Interruptor activo */}
+      <label className="flex cursor-pointer items-center justify-between gap-gap-sm rounded-xl border border-ink/8 bg-white p-gap-sm">
+        <div>
+          <p className="text-small font-semibold text-ink">Tarjeta activa</p>
+          <p className="text-meta text-ink-soft/60">Tus clientes podrán dejar su teléfono al pedir y sumar sellos</p>
+        </div>
+        <span
+          role="switch"
+          aria-checked={borrador.activo}
+          onClick={() => setBorrador((b) => ({ ...b, activo: !b.activo }))}
+          className={cn(
+            "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-300 ease-outquint",
+            borrador.activo ? "bg-verde-400" : "bg-ink/15",
+          )}
+        >
+          <span className={cn(
+            "pointer-events-none inline-block size-5 rounded-full bg-white shadow-md ring-0 transition-transform duration-300 ease-outquint",
+            borrador.activo ? "translate-x-5" : "translate-x-0",
+          )} />
+        </span>
+      </label>
 
-          <div>
-            <p className="mb-[6px] text-meta font-semibold text-ink">
-              Metas (de 1 a 4, en orden)
-            </p>
-            <div className="flex flex-col gap-gap-xs">
-              {borrador.metas.map((meta, indice) => (
-                <div key={indice} className="flex flex-wrap items-center gap-gap-xs">
-                  <div className="flex items-center gap-[6px]">
-                    <input
-                      type="number"
-                      min={1}
-                      max={100}
-                      value={meta.sellos}
-                      onChange={(e) =>
-                        setBorrador((b) => ({
-                          ...b,
-                          metas: b.metas.map((m, i) =>
-                            i === indice
-                              ? { ...m, sellos: Number(e.target.value) }
-                              : m,
-                          ),
-                        }))
-                      }
-                      className={cn(INPUT, "w-[74px] tabular-nums")}
-                    />
-                    <span className="text-meta text-ink-soft/70">sellos →</span>
+      {/* Nombre */}
+      <label className="block">
+        <span className="mb-[6px] block text-meta font-semibold text-ink">Nombre de la tarjeta</span>
+        <input
+          type="text"
+          value={borrador.nombre}
+          maxLength={60}
+          onChange={(e) => setBorrador((b) => ({ ...b, nombre: e.target.value }))}
+          className={INPUT}
+        />
+      </label>
+
+      {/* Premios (antes Metas) */}
+      <div>
+        <p className="mb-[6px] text-meta font-semibold text-ink">Premios</p>
+        <p className="mb-gap-xs text-meta text-ink-soft/60">
+          Hasta 4. El último completa la tarjeta y empieza una nueva.
+        </p>
+        <div className="flex flex-col gap-gap-sm">
+          {borrador.metas.map((meta, indice) => {
+            const esUltima = indice === borrador.metas.length - 1;
+            const anterior = borrador.metas[indice - 1]?.sellos ?? 0;
+            const siguiente = borrador.metas[indice + 1]?.sellos;
+            const puedeSubir = meta.sellos < (siguiente ? siguiente - 1 : MAX_SELLOS_TOTAL);
+            const puedeBajar = meta.sellos > anterior + 1;
+
+            return (
+              <div key={indice} className="rounded-xl border border-ink/8 bg-white p-gap-sm">
+                <div className="flex items-center gap-gap-sm">
+                  {/* Stepper sellos */}
+                  <div className="flex shrink-0 items-center overflow-hidden rounded-xl border border-ink/10">
+                    <button
+                      type="button"
+                      onClick={() => decrementarSellos(indice)}
+                      disabled={!puedeBajar}
+                      className="grid h-9 w-8 place-items-center text-ink-soft/60 transition-colors hover:bg-ink/5 disabled:opacity-30"
+                      aria-label={`Bajar sellos de la meta ${indice + 1}`}
+                    >
+                      <span className="text-body font-semibold leading-none">−</span>
+                    </button>
+                    <span className="min-w-[2ch] text-center font-lv-display text-small font-semibold tabular-nums text-ink">
+                      {meta.sellos}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => incrementarSellos(indice)}
+                      disabled={!puedeSubir}
+                      className="grid h-9 w-8 place-items-center text-ink-soft/60 transition-colors hover:bg-ink/5 disabled:opacity-30"
+                      aria-label={`Subir sellos de la meta ${indice + 1}`}
+                    >
+                      <span className="text-body font-semibold leading-none">+</span>
+                    </button>
                   </div>
+                  <span className="text-meta text-ink-soft/50">sellos →</span>
                   <input
                     type="text"
                     value={meta.premio}
-                    maxLength={80}
+                    maxLength={MAX_PREMIO}
                     placeholder="Un refresco gratis"
                     onChange={(e) =>
                       setBorrador((b) => ({
@@ -414,7 +494,7 @@ function EditorTarjeta({
                         ),
                       }))
                     }
-                    className={cn(INPUT, "min-w-[160px] flex-1")}
+                    className={cn(INPUT, "min-w-0 flex-1")}
                   />
                   <button
                     type="button"
@@ -425,97 +505,92 @@ function EditorTarjeta({
                       }))
                     }
                     disabled={borrador.metas.length === 1}
-                    className={cn(BTN_GHOST, "px-gap-xs")}
-                    aria-label="Quitar meta"
+                    className={cn(BTN_GHOST, "shrink-0 px-gap-xs")}
+                    aria-label="Quitar premio"
                   >
                     <Trash2 size={13} strokeWidth={1.8} />
                   </button>
                 </div>
-              ))}
-            </div>
-            {borrador.metas.length < 4 && (
-              <button
-                type="button"
-                onClick={() =>
-                  setBorrador((b) => ({
+                <p className="mt-[6px] text-[11px] text-ink-soft/50">
+                  {esUltima
+                    ? "Completa la tarjeta y empieza una nueva"
+                    : "Se canjea sin perder los sellos"}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+
+        {borrador.metas.length < MAX_METAS &&
+          (borrador.metas[borrador.metas.length - 1]?.sellos ?? 0) < MAX_SELLOS_TOTAL && (
+            <button
+              type="button"
+              onClick={() =>
+                setBorrador((b) => {
+                  const ultimo = b.metas[b.metas.length - 1]?.sellos ?? 5;
+                  return {
                     ...b,
                     metas: [
                       ...b.metas,
-                      {
-                        sellos: (b.metas[b.metas.length - 1]?.sellos ?? 5) + 5,
-                        premio: "Otro premio",
-                      },
+                      { sellos: Math.min(ultimo + 5, MAX_SELLOS_TOTAL), premio: "Otro premio" },
                     ],
-                  }))
-                }
-                className={cn(BTN_GHOST, "mt-gap-xs")}
-              >
-                <Plus size={13} strokeWidth={2} />
-                Otra meta
-              </button>
-            )}
-            <p className="mt-gap-xs text-meta text-ink-soft/60">
-              Las metas intermedias se canjean sin restar sellos; la última
-              cierra la tarjeta y la reinicia con los sellos que sobren.
-            </p>
-          </div>
-
-          <div>
-            <p className="mb-[6px] text-meta font-semibold text-ink">
-              Compra mínima para dar sello
-            </p>
-            <div className="flex flex-wrap items-center gap-gap-xs">
-              <input
-                type="text"
-                inputMode="decimal"
-                value={monto}
-                placeholder="Sin mínimo"
-                onChange={(e) => setMonto(e.target.value)}
-                className={cn(INPUT, "w-[120px] tabular-nums")}
-              />
-              <select
-                value={moneda}
-                onChange={(e) => setMoneda(e.target.value)}
-                className={cn(INPUT, "w-[100px]")}
-              >
-                {MONEDAS.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-              <span className="text-meta text-ink-soft/60">
-                Vacío = cualquier pedido da sello.
-              </span>
-            </div>
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => void guardar()}
-              disabled={guardando}
-              className={BTN_VERDE}
+                  };
+                })
+              }
+              className={cn(BTN_GHOST, "mt-gap-xs")}
             >
-              {guardando && (
-                <Loader2 size={13} strokeWidth={2} className="animate-spin" />
-              )}
-              Guardar tarjeta
+              <Plus size={13} strokeWidth={2} />
+              Añadir otro premio
             </button>
-          </div>
+          )}
+      </div>
+
+      {/* Compra mínima */}
+      <div>
+        <p className="mb-[6px] text-meta font-semibold text-ink">Compra mínima para dar sello</p>
+        <p className="mb-gap-xs text-meta text-ink-soft/60">Déjalo vacío si cualquier pedido da sello.</p>
+        <div className="flex flex-wrap items-center gap-gap-xs">
+          <input
+            type="text"
+            inputMode="decimal"
+            value={monto}
+            placeholder="Sin mínimo"
+            onChange={(e) => setMonto(e.target.value)}
+            className={cn(INPUT, "w-[120px] tabular-nums")}
+          />
+          <select
+            value={moneda}
+            onChange={(e) => setMoneda(e.target.value)}
+            className={cn(INPUT, "w-[90px]")}
+          >
+            {MONEDAS.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
         </div>
-      )}
-    </section>
+      </div>
+
+      {/* Botones */}
+      <div className="flex justify-end gap-gap-xs">
+        {config && isDirty && (
+          <button type="button" onClick={descartar} className={BTN_GHOST}>
+            Descartar cambios
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => void guardar()}
+          disabled={guardando || !isDirty}
+          className={BTN_VERDE}
+        >
+          {guardando && <Loader2 size={13} strokeWidth={2} className="animate-spin" />}
+          Guardar tarjeta
+        </button>
+      </div>
+    </div>
   );
 }
 
-/**
- * El texto del error que manda el servidor, con el 403 ya redactado.
- *
- * Las rutas de la tarjeta contestan 403 cuando la cuenta no tiene el permiso
- * («No tienes permiso para esto») y 401 solo cuando no hay sesión. Aquí no se
- * cierra la sesión de nadie: se cuenta lo que pasa.
- */
+/* ── helper ─────────────────────────────────────────────────────────────── */
+
 async function textoError(res: Response, porDefecto: string): Promise<string> {
   const data = (await res.json().catch(() => null)) as { error?: string } | null;
   if (data?.error) return data.error;
@@ -542,33 +617,24 @@ export function ClientesFrecuentesView({
   const puedePedidos = esDueno || permisos.includes("pedidos");
   const puedeFicha = esDueno || permisos.includes("ficha");
 
+  const [tab, setTab] = useState<"clientes" | "ajustes">("clientes");
   const [cargando, setCargando] = useState(true);
   const [config, setConfig] = useState<FidelidadConfig | null>(null);
-  const [negocio, setNegocio] = useState<{
-    slug: string;
-    nombre: string;
-    logoUrl: string | null;
-  } | null>(null);
+  const [negocio, setNegocio] = useState<{ slug: string; nombre: string; logoUrl: string | null } | null>(null);
   const [clientes, setClientes] = useState<ClienteFila[]>([]);
+  const [stats, setStats] = useState<Estadisticas | null>(null);
   const [busqueda, setBusqueda] = useState("");
+  const [filtro, setFiltro] = useState<Filtro>("todos");
   const [detalle, setDetalle] = useState<Detalle | null>(null);
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const [ocupado, setOcupado] = useState(false);
 
   const [altaAbierta, setAltaAbierta] = useState(false);
   const [selloAbierto, setSelloAbierto] = useState(false);
-  const [alta, setAlta] = useState({
-    telefono: "",
-    nombre: "",
-    sellos: "0",
-    nota: "",
-  });
-  const [selloManual, setSelloManual] = useState<{
-    modo: "telefono" | "codigo";
-    valor: string;
-    nota: string;
-  }>({ modo: "telefono", valor: "", nota: "" });
-
+  const [alta, setAlta] = useState({ telefono: "", nombre: "", sellos: "0", nota: "" });
+  const [selloManual, setSelloManual] = useState<{ modo: "telefono" | "codigo"; valor: string; nota: string }>(
+    { modo: "telefono", valor: "", nota: "" },
+  );
   const [ajuste, setAjuste] = useState({ cantidad: "1", nota: "" });
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
 
@@ -587,10 +653,12 @@ export function ClientesFrecuentesView({
           clientes?: ClienteFila[];
           config?: FidelidadConfig | null;
           negocio?: { slug: string; nombre: string; logoUrl: string | null } | null;
+          stats?: Estadisticas;
         };
         setClientes(data.clientes ?? []);
         setConfig(data.config ?? null);
         setNegocio(data.negocio ?? null);
+        if (data.stats) setStats(data.stats);
       } catch {
         toast.error("No se pudieron cargar las tarjetas. Revisa la conexión.");
       } finally {
@@ -610,9 +678,7 @@ export function ClientesFrecuentesView({
     async (clienteId: string) => {
       setCargandoDetalle(true);
       try {
-        const res = await fetch(
-          `/api/places/${placeId}/clientes-frecuentes/${clienteId}`,
-        );
+        const res = await fetch(`/api/places/${placeId}/clientes-frecuentes/${clienteId}`);
         if (!res.ok) {
           toast.error(await textoError(res, "No se pudo abrir esa tarjeta."));
           return;
@@ -627,8 +693,6 @@ export function ClientesFrecuentesView({
     [placeId],
   );
 
-  /* El enlace público de la tarjeta. Se arma en el navegador porque el origen
-     es el de la pestaña, no una constante del servidor. */
   function enlaceTarjeta(token: string): string {
     if (typeof window === "undefined" || !negocio) return "";
     return `${window.location.origin}/m/${negocio.slug}/tarjeta/${token}`;
@@ -637,15 +701,9 @@ export function ClientesFrecuentesView({
   function avisarCliente() {
     if (!detalle || !negocio) return;
     const numero = detalle.cliente.telefono.replace(/\D/g, "");
-    const saludo = detalle.cliente.nombre
-      ? `Hola ${detalle.cliente.nombre}`
-      : "Hola";
+    const saludo = detalle.cliente.nombre ? `Hola ${detalle.cliente.nombre}` : "Hola";
     const texto = `${saludo}, esta es tu tarjeta de ${negocio.nombre}. Llevas ${detalle.tarjeta.sellos} de ${detalle.tarjeta.metaFinal.sellos} sellos: ${enlaceTarjeta(detalle.cliente.token)}`;
-    window.open(
-      `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
+    window.open(`https://wa.me/${numero}?text=${encodeURIComponent(texto)}`, "_blank", "noopener,noreferrer");
   }
 
   async function refrescarDetalle(clienteId: string) {
@@ -659,17 +717,10 @@ export function ClientesFrecuentesView({
     try {
       const res = await fetch(
         `/api/places/${placeId}/clientes-frecuentes/${detalle.cliente.id}/canje`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ metaIndice }),
-        },
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ metaIndice }) },
       );
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
-      if (!res.ok) {
-        toast.error(data?.error ?? "No se pudo canjear el premio.");
-        return;
-      }
+      if (!res.ok) { toast.error(data?.error ?? "No se pudo canjear el premio."); return; }
       toast.success("Premio canjeado.");
       await refrescarDetalle(detalle.cliente.id);
     } finally {
@@ -680,29 +731,16 @@ export function ClientesFrecuentesView({
   async function ajustarSellos(signo: 1 | -1) {
     if (!detalle || ocupado) return;
     const n = Math.abs(Number(ajuste.cantidad));
-    if (!Number.isInteger(n) || n === 0) {
-      toast.error("Pon una cantidad entera.");
-      return;
-    }
-    if (!ajuste.nota.trim()) {
-      toast.error("La nota es obligatoria: explica el ajuste.");
-      return;
-    }
+    if (!Number.isInteger(n) || n === 0) { toast.error("Pon una cantidad entera."); return; }
+    if (!ajuste.nota.trim()) { toast.error("La nota es obligatoria: explica el ajuste."); return; }
     setOcupado(true);
     try {
       const res = await fetch(
         `/api/places/${placeId}/clientes-frecuentes/${detalle.cliente.id}/sellos`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cantidad: n * signo, nota: ajuste.nota.trim() }),
-        },
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cantidad: n * signo, nota: ajuste.nota.trim() }) },
       );
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
-      if (!res.ok) {
-        toast.error(data?.error ?? "No se pudo ajustar.");
-        return;
-      }
+      if (!res.ok) { toast.error(data?.error ?? "No se pudo ajustar."); return; }
       toast.success(signo > 0 ? "Sellos sumados." : "Sellos restados.");
       await refrescarDetalle(detalle.cliente.id);
     } finally {
@@ -714,14 +752,8 @@ export function ClientesFrecuentesView({
     if (!detalle || ocupado) return;
     setOcupado(true);
     try {
-      const res = await fetch(
-        `/api/places/${placeId}/clientes-frecuentes/${detalle.cliente.id}`,
-        { method: "DELETE" },
-      );
-      if (!res.ok) {
-        toast.error(await textoError(res, "No se pudo borrar el cliente."));
-        return;
-      }
+      const res = await fetch(`/api/places/${placeId}/clientes-frecuentes/${detalle.cliente.id}`, { method: "DELETE" });
+      if (!res.ok) { toast.error(await textoError(res, "No se pudo borrar el cliente.")); return; }
       toast.success("Cliente borrado.");
       setDetalle(null);
       void cargar(busqueda);
@@ -737,18 +769,10 @@ export function ClientesFrecuentesView({
       const res = await fetch(`/api/places/${placeId}/clientes-frecuentes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          telefono: alta.telefono,
-          nombre: alta.nombre.trim() || null,
-          sellos: Number(alta.sellos) || 0,
-          nota: alta.nota,
-        }),
+        body: JSON.stringify({ telefono: alta.telefono, nombre: alta.nombre.trim() || null, sellos: Number(alta.sellos) || 0, nota: alta.nota }),
       });
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
-      if (!res.ok) {
-        toast.error(data?.error ?? "No se pudo crear la tarjeta.");
-        return;
-      }
+      if (!res.ok) { toast.error(data?.error ?? "No se pudo crear la tarjeta."); return; }
       toast.success("Tarjeta creada.");
       setAltaAbierta(false);
       setAlta({ telefono: "", nombre: "", sellos: "0", nota: "" });
@@ -762,11 +786,7 @@ export function ClientesFrecuentesView({
     if (ocupado) return;
     const valor = selloManual.valor.trim();
     if (!valor) {
-      toast.error(
-        selloManual.modo === "telefono"
-          ? "Escribe el teléfono."
-          : "Escribe el código del pedido.",
-      );
+      toast.error(selloManual.modo === "telefono" ? "Escribe el teléfono." : "Escribe el código del pedido.");
       return;
     }
     setOcupado(true);
@@ -780,28 +800,15 @@ export function ClientesFrecuentesView({
             : { codigo: valor },
         ),
       });
-      const data = (await res.json().catch(() => null)) as {
-        error?: string;
-        resultado?: { estado: string };
-      } | null;
-      if (!res.ok) {
-        toast.error(data?.error ?? "No se pudo dar el sello.");
-        return;
-      }
+      const data = (await res.json().catch(() => null)) as { error?: string; resultado?: { estado: string } } | null;
+      if (!res.ok) { toast.error(data?.error ?? "No se pudo dar el sello."); return; }
       const estado = data?.resultado?.estado;
-      if (estado === "sumado") {
-        toast.success("Sello sumado.");
-      } else if (estado === "duplicado") {
-        toast.info("Ese pedido ya tenía su sello.");
-      } else if (estado === "sin_comprobar") {
-        toast.info("No se pudo comprobar la compra mínima.");
-      } else if (estado === "bajo_minimo") {
-        toast.info("El pedido no llega a la compra mínima.");
-      } else if (estado === "sin_telefono") {
-        toast.info("Ese pedido no tiene teléfono.");
-      } else {
-        toast.info("No se sumó el sello.");
-      }
+      if (estado === "sumado") toast.success("Sello sumado.");
+      else if (estado === "duplicado") toast.info("Ese pedido ya tenía su sello.");
+      else if (estado === "sin_comprobar") toast.info("No se pudo comprobar la compra mínima.");
+      else if (estado === "bajo_minimo") toast.info("El pedido no llega a la compra mínima.");
+      else if (estado === "sin_telefono") toast.info("Ese pedido no tiene teléfono.");
+      else toast.info("No se sumó el sello.");
       setSelloAbierto(false);
       setSelloManual({ modo: "telefono", valor: "", nota: "" });
       void cargar(busqueda);
@@ -810,10 +817,102 @@ export function ClientesFrecuentesView({
     }
   }
 
-  const tarjetaDetalle = useMemo(() => {
-    if (!detalle) return null;
-    return detalle.tarjeta;
-  }, [detalle]);
+  /* +Sello por fila: optimista + undo en toast de 6 s */
+  async function darSelloPorId(clienteId: string, nombre: string | null) {
+    /* Actualización optimista */
+    setClientes((cs) =>
+      cs.map((c) =>
+        c.clienteId === clienteId
+          ? { ...c, sellos: c.sellos + 1, sellosTotales: c.sellosTotales + 1 }
+          : c,
+      ),
+    );
+
+    try {
+      const res = await fetch(
+        `/api/places/${placeId}/clientes-frecuentes/${clienteId}/sello`,
+        { method: "POST" },
+      );
+      const data = (await res.json().catch(() => null)) as { movimientoId?: string; error?: string } | null;
+
+      if (!res.ok) {
+        /* Revertir optimismo */
+        setClientes((cs) =>
+          cs.map((c) =>
+            c.clienteId === clienteId
+              ? { ...c, sellos: c.sellos - 1, sellosTotales: c.sellosTotales - 1 }
+              : c,
+          ),
+        );
+        toast.error(data?.error ?? "No se pudo dar el sello.");
+        return;
+      }
+
+      const movimientoId = data?.movimientoId ?? "";
+      const etiqueta = nombre?.trim() || "ese cliente";
+
+      toast.success(`+1 sello para ${etiqueta}`, {
+        duration: 6000,
+        action: movimientoId
+          ? {
+              label: "Deshacer",
+              onClick: () => void deshacerSello(clienteId, movimientoId),
+            }
+          : undefined,
+      });
+    } catch {
+      setClientes((cs) =>
+        cs.map((c) =>
+          c.clienteId === clienteId
+            ? { ...c, sellos: c.sellos - 1, sellosTotales: c.sellosTotales - 1 }
+            : c,
+        ),
+      );
+      toast.error("Error de red. Recarga la lista.");
+    }
+  }
+
+  async function deshacerSello(clienteId: string, movimientoId: string) {
+    /* Revertir optimista */
+    setClientes((cs) =>
+      cs.map((c) =>
+        c.clienteId === clienteId
+          ? { ...c, sellos: Math.max(0, c.sellos - 1), sellosTotales: Math.max(0, c.sellosTotales - 1) }
+          : c,
+      ),
+    );
+    try {
+      const res = await fetch(
+        `/api/places/${placeId}/clientes-frecuentes/${clienteId}/sello`,
+        { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ movimientoId }) },
+      );
+      if (!res.ok) {
+        /* Volver a sumar si el deshacer falla */
+        setClientes((cs) =>
+          cs.map((c) =>
+            c.clienteId === clienteId
+              ? { ...c, sellos: c.sellos + 1, sellosTotales: c.sellosTotales + 1 }
+              : c,
+          ),
+        );
+        toast.error("No se pudo deshacer.");
+      }
+    } catch {
+      toast.error("Error de red al deshacer.");
+    }
+  }
+
+  /* Filtro cliente-side */
+  const clientesFiltrados = useMemo(() => {
+    if (filtro === "premio_listo") return clientes.filter((c) => c.premioListo);
+    if (filtro === "sin_volver") {
+      const corte = Date.now() - DIAS_SIN_VOLVER * 24 * 60 * 60 * 1000;
+      return clientes.filter((c) => new Date(c.actualizadoEn).getTime() < corte);
+    }
+    return clientes;
+  }, [clientes, filtro]);
+
+  const conPremio = useMemo(() => clientes.filter((c) => c.premioListo).length, [clientes]);
 
   /* ── candados ─────────────────────────────────────────────────────────── */
 
@@ -825,17 +924,11 @@ export function ClientesFrecuentesView({
             <Lock size={18} strokeWidth={1.8} />
           </span>
           <div>
-            <h1 className="font-lv-display text-small font-semibold text-ink">
-              Cliente frecuente
-            </h1>
-            <p className="text-meta text-ink-soft/75">
-              La tarjeta de sellos entra con el módulo Cliente frecuente.
-            </p>
+            <h1 className="font-lv-display text-small font-semibold text-ink">Cliente frecuente</h1>
+            <p className="text-meta text-ink-soft/75">La tarjeta de sellos entra con el módulo Cliente frecuente.</p>
           </div>
         </div>
-        <button type="button" onClick={onVerPlanes} className={cn(BTN_VERDE, "mt-gap-md")}>
-          Ver planes
-        </button>
+        <button type="button" onClick={onVerPlanes} className={cn(BTN_VERDE, "mt-gap-md")}>Ver planes</button>
       </div>
     );
   }
@@ -848,43 +941,31 @@ export function ClientesFrecuentesView({
             <Lock size={18} strokeWidth={1.8} />
           </span>
           <div>
-            <h1 className="font-lv-display text-small font-semibold text-ink">
-              Necesita Pedidos y reservas
-            </h1>
-            <p className="text-meta text-amber-800/85">
-              La tarjeta suma un sello cuando un pedido se marca entregado. Sin
-              pedidos guardados no hay nada que sellar, así que se contrata con
-              los dos módulos.
-            </p>
+            <h1 className="font-lv-display text-small font-semibold text-ink">Necesita Pedidos y reservas</h1>
+            <p className="text-meta text-amber-800/85">La tarjeta suma un sello cuando un pedido se marca entregado. Sin pedidos guardados no hay nada que sellar.</p>
           </div>
         </div>
-        <button type="button" onClick={onVerPlanes} className={cn(BTN_VERDE, "mt-gap-md")}>
-          Ver planes
-        </button>
+        <button type="button" onClick={onVerPlanes} className={cn(BTN_VERDE, "mt-gap-md")}>Ver planes</button>
       </div>
     );
   }
 
-  /* ── detalle ──────────────────────────────────────────────────────────── */
+  /* ── detalle de cliente ───────────────────────────────────────────────── */
 
-  if (detalle && tarjetaDetalle) {
+  if (detalle) {
+    const tarjetaDetalle = detalle.tarjeta;
     return (
       <div className="flex flex-1 flex-col gap-gap-md">
         <div className="flex items-center gap-gap-xs">
           <button
             type="button"
-            onClick={() => {
-              setDetalle(null);
-              setConfirmarBorrado(false);
-            }}
+            onClick={() => { setDetalle(null); setConfirmarBorrado(false); }}
             className={BTN_GHOST}
           >
             <ChevronLeft size={13} strokeWidth={2} />
             Clientes
           </button>
-          {cargandoDetalle && (
-            <Loader2 size={14} className="animate-spin text-verde-500" />
-          )}
+          {cargandoDetalle && <Loader2 size={14} className="animate-spin text-verde-500" />}
         </div>
 
         <TarjetaVisual
@@ -905,9 +986,7 @@ export function ClientesFrecuentesView({
                 <button
                   key={lista.sellos}
                   type="button"
-                  onClick={() =>
-                    void canjear(detalle.config.metas.indexOf(lista))
-                  }
+                  onClick={() => void canjear(detalle.config.metas.indexOf(lista))}
                   disabled={ocupado || !puedePedidos}
                   className={BTN_VERDE}
                 >
@@ -920,95 +999,48 @@ export function ClientesFrecuentesView({
         )}
 
         <div className="flex flex-wrap gap-gap-xs">
-          <button
-            type="button"
-            onClick={avisarCliente}
-            disabled={!puedePedidos}
-            className={BTN_VERDE}
-          >
+          <button type="button" onClick={avisarCliente} disabled={!puedePedidos} className={BTN_VERDE}>
             <MessageCircle size={13} strokeWidth={1.8} />
             Enviar tarjeta por WhatsApp
           </button>
-          <a
-            href={enlaceTarjeta(detalle.cliente.token)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={BTN_GHOST}
-          >
+          <a href={enlaceTarjeta(detalle.cliente.token)} target="_blank" rel="noopener noreferrer" className={BTN_GHOST}>
             Ver como el cliente
           </a>
         </div>
 
         {puedeFicha && (
           <section className="rounded-2xl border border-ink/5 bg-white p-gap-sm shadow-soft">
-            <h2 className="font-lv-display text-small font-semibold text-ink">
-              Ajustar sellos
-            </h2>
-            <p className="mt-[2px] text-meta text-ink-soft/70">
-              La nota es obligatoria: es lo que explica el saldo más adelante.
-            </p>
+            <h2 className="font-lv-display text-small font-semibold text-ink">Ajustar sellos</h2>
+            <p className="mt-[2px] text-meta text-ink-soft/70">La nota es obligatoria: es lo que explica el saldo más adelante.</p>
             <div className="mt-gap-xs flex flex-wrap items-center gap-gap-xs">
               <input
-                type="number"
-                min={1}
-                max={100}
-                value={ajuste.cantidad}
-                onChange={(e) =>
-                  setAjuste((a) => ({ ...a, cantidad: e.target.value }))
-                }
+                type="number" min={1} max={100} value={ajuste.cantidad}
+                onChange={(e) => setAjuste((a) => ({ ...a, cantidad: e.target.value }))}
                 className={cn(INPUT, "w-[84px] tabular-nums")}
               />
               <input
-                type="text"
-                value={ajuste.nota}
-                maxLength={300}
-                placeholder="Motivo (obligatorio)"
+                type="text" value={ajuste.nota} maxLength={300} placeholder="Motivo (obligatorio)"
                 onChange={(e) => setAjuste((a) => ({ ...a, nota: e.target.value }))}
                 className={cn(INPUT, "min-w-[180px] flex-1")}
               />
-              <button
-                type="button"
-                onClick={() => void ajustarSellos(1)}
-                disabled={ocupado}
-                className={BTN_GHOST}
-              >
-                + Sumar
-              </button>
-              <button
-                type="button"
-                onClick={() => void ajustarSellos(-1)}
-                disabled={ocupado}
-                className={BTN_GHOST}
-              >
-                − Restar
-              </button>
+              <button type="button" onClick={() => void ajustarSellos(1)} disabled={ocupado} className={BTN_GHOST}>+ Sumar</button>
+              <button type="button" onClick={() => void ajustarSellos(-1)} disabled={ocupado} className={BTN_GHOST}>− Restar</button>
             </div>
           </section>
         )}
 
         <section className="rounded-2xl border border-ink/5 bg-white shadow-soft">
-          <h2 className="px-gap-sm pt-gap-sm font-lv-display text-small font-semibold text-ink">
-            Historial
-          </h2>
+          <h2 className="px-gap-sm pt-gap-sm font-lv-display text-small font-semibold text-ink">Historial</h2>
           <ul className="mt-gap-xs divide-y divide-ink/5">
             {detalle.movimientos.map((m) => (
-              <li
-                key={m.id}
-                className="flex items-center gap-gap-sm px-gap-sm py-[8px]"
-              >
+              <li key={m.id} className="flex items-center gap-gap-sm px-gap-sm py-[8px]">
                 <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-sand-deep text-ink-soft/60">
-                  {m.tipo === "canje" ? (
-                    <Gift size={13} strokeWidth={1.8} />
-                  ) : (
-                    <Stamp size={13} strokeWidth={1.8} />
-                  )}
+                  {m.tipo === "canje" ? <Gift size={13} strokeWidth={1.8} /> : <Stamp size={13} strokeWidth={1.8} />}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-meta font-medium text-ink">
                     {m.tipo === "sello"
-                      ? m.pedidoCodigo
-                        ? `Sello del pedido #${m.pedidoCodigo}`
-                        : "Sello a mano"
+                      ? m.pedidoCodigo ? `Sello del pedido #${m.pedidoCodigo}` : "Sello a mano"
                       : m.tipo === "canje"
                         ? `Canje de ${detalle.config.metas[m.metaIndice ?? 0]?.premio ?? "premio"}`
                         : m.tipo === "reversion"
@@ -1022,14 +1054,8 @@ export function ClientesFrecuentesView({
                   </p>
                 </div>
                 {m.cantidad !== 0 && (
-                  <span
-                    className={cn(
-                      "shrink-0 text-meta font-semibold tabular-nums",
-                      m.cantidad > 0 ? "text-verde-700" : "text-ink-soft/50",
-                    )}
-                  >
-                    {m.cantidad > 0 ? "+" : ""}
-                    {m.cantidad}
+                  <span className={cn("shrink-0 text-meta font-semibold tabular-nums", m.cantidad > 0 ? "text-verde-700" : "text-ink-soft/50")}>
+                    {m.cantidad > 0 ? "+" : ""}{m.cantidad}
                   </span>
                 )}
               </li>
@@ -1039,33 +1065,18 @@ export function ClientesFrecuentesView({
 
         {puedeFicha && (
           <div className="flex flex-wrap items-center justify-between gap-gap-xs rounded-2xl border border-destructive/20 bg-destructive/5 p-gap-sm">
-            <p className="text-meta text-ink-soft/75">
-              Borrar la tarjeta borra también su historial.
-            </p>
+            <p className="text-meta text-ink-soft/75">Borrar la tarjeta borra también su historial.</p>
             {confirmarBorrado ? (
               <div className="flex gap-gap-xs">
-                <button
-                  type="button"
-                  onClick={() => void borrar()}
-                  disabled={ocupado}
-                  className="inline-flex h-9 cursor-pointer items-center rounded-full bg-destructive px-gap-sm font-lv-display text-meta font-semibold text-white"
-                >
+                <button type="button" onClick={() => void borrar()} disabled={ocupado}
+                  className="inline-flex h-9 cursor-pointer items-center rounded-full bg-destructive px-gap-sm font-lv-display text-meta font-semibold text-white">
                   Sí, borrar
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmarBorrado(false)}
-                  className={BTN_GHOST}
-                >
-                  Cancelar
-                </button>
+                <button type="button" onClick={() => setConfirmarBorrado(false)} className={BTN_GHOST}>Cancelar</button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmarBorrado(true)}
-                className="inline-flex h-9 cursor-pointer items-center gap-[5px] rounded-full border border-destructive/30 px-gap-sm font-lv-display text-meta font-semibold text-destructive"
-              >
+              <button type="button" onClick={() => setConfirmarBorrado(true)}
+                className="inline-flex h-9 cursor-pointer items-center gap-[5px] rounded-full border border-destructive/30 px-gap-sm font-lv-display text-meta font-semibold text-destructive">
                 <Trash2 size={13} strokeWidth={1.8} />
                 Borrar cliente
               </button>
@@ -1076,138 +1087,199 @@ export function ClientesFrecuentesView({
     );
   }
 
-  /* ── lista ────────────────────────────────────────────────────────────── */
+  /* ── lista + ajustes ─────────────────────────────────────────────────── */
 
   return (
     <div className="flex flex-1 flex-col gap-gap-md">
       <h1 className="sr-only">Clientes frecuentes</h1>
 
-      {puedeFicha && (
-        <EditorTarjeta
-          placeId={placeId}
-          config={config}
-          onGuardada={(nueva) => {
-            setConfig(nueva);
-            void cargar(busqueda);
-          }}
-        />
-      )}
-
-      <div className="flex flex-wrap items-center gap-gap-xs">
-        <div className="relative">
-          <Search
-            size={13}
-            strokeWidth={2}
-            className="pointer-events-none absolute left-gap-sm top-1/2 -translate-y-1/2 text-ink-soft/50"
-          />
-          <input
-            type="search"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Teléfono o nombre…"
-            className={cn(INPUT, "w-[220px] pl-8")}
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={() => void cargar(busqueda)}
-          disabled={cargando}
-          className={BTN_GHOST}
-        >
-          <RefreshCw
-            size={13}
-            strokeWidth={1.8}
-            className={cn(cargando && "animate-spin")}
-          />
-          Actualizar
-        </button>
-
-        {puedePedidos && (
-          <>
-            <button
-              type="button"
-              onClick={() => setSelloAbierto(true)}
-              className={cn(BTN_GHOST, "ml-auto")}
-            >
-              <Stamp size={13} strokeWidth={1.8} />
-              Dar sello a mano
-            </button>
-            <button
-              type="button"
-              onClick={() => setAltaAbierta(true)}
-              className={BTN_VERDE}
-            >
-              <UserPlus size={13} strokeWidth={2} />
-              Nuevo cliente
-            </button>
-          </>
-        )}
+      {/* Control de pestañas */}
+      <div role="tablist" className="flex rounded-full bg-ink/5 p-[3px]">
+        {(["clientes", "ajustes"] as const).map((t) => (
+          <button
+            key={t}
+            role="tab"
+            aria-selected={tab === t}
+            onClick={() => setTab(t)}
+            className={cn(
+              "flex-1 rounded-full px-gap-sm py-[6px] font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint",
+              tab === t ? "bg-white text-ink shadow-sm" : "text-ink-soft/55 hover:text-ink",
+            )}
+          >
+            {t === "clientes" ? "Clientes" : "Ajustes de la tarjeta"}
+          </button>
+        ))}
       </div>
 
-      {cargando ? (
-        <div className="flex items-center gap-gap-sm rounded-2xl border border-ink/5 bg-white p-gap-md text-small text-ink-soft/75 shadow-soft">
-          <Loader2 size={16} className="animate-spin text-verde-500" />
-          Cargando tarjetas…
-        </div>
-      ) : clientes.length === 0 ? (
-        <div className="rounded-2xl border border-ink/5 bg-white p-gap-lg text-center shadow-soft">
-          <span className="mx-auto mb-gap-sm grid size-12 place-items-center rounded-2xl bg-sand-deep text-verde-600">
-            <Users size={22} strokeWidth={1.5} />
-          </span>
-          <p className="font-lv-display text-small font-semibold text-ink">
-            {busqueda
-              ? "Ningún cliente coincide con esa búsqueda"
-              : "Todavía no hay tarjetas"}
-          </p>
-          {!busqueda && (
-            <p className="mt-[6px] text-meta text-ink-soft/60">
-              Cuando un cliente deje su teléfono al pedir, aparece aquí. También
-              puedes pasar sus tarjetas impresas con «Nuevo cliente».
-            </p>
+      {/* ── Tab: Ajustes ── */}
+      {tab === "ajustes" && (
+        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+          {puedeFicha ? (
+            <EditorTarjeta
+              placeId={placeId}
+              config={config}
+              negocio={negocio}
+              onGuardada={(nueva) => { setConfig(nueva); void cargar(busqueda); }}
+            />
+          ) : (
+            <p className="text-meta text-ink-soft/60">No tienes permiso para editar la tarjeta.</p>
           )}
-        </div>
-      ) : (
-        <ul className="flex flex-col gap-gap-xs">
-          {clientes.map((cliente) => (
-            <li key={cliente.clienteId}>
-              <button
-                type="button"
-                onClick={() => void abrirDetalle(cliente.clienteId)}
-                className="flex w-full cursor-pointer items-center gap-gap-sm rounded-2xl border border-ink/5 bg-white p-gap-sm text-left shadow-soft transition-colors duration-300 ease-outquint hover:border-verde-300"
-              >
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-verde-50 font-lv-display text-small font-bold text-verde-700">
-                  {inicial(cliente.nombre, cliente.telefono)}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-lv-display text-small font-semibold text-ink">
-                    {cliente.nombre?.trim() || cliente.telefono}
-                  </p>
-                  <p className="truncate text-meta text-ink-soft/65">
-                    {cliente.nombre ? `${cliente.telefono} · ` : ""}
-                    {cliente.sellos} de {cliente.metaSellos} sellos
-                    {cliente.proximoPremio && cliente.proximoFaltan
-                      ? ` · próximo: ${cliente.proximoPremio} (faltan ${cliente.proximoFaltan})`
-                      : ""}
-                    {cliente.ciclo > 1 ? ` · ciclo ${cliente.ciclo}` : ""}
-                  </p>
+        </section>
+      )}
+
+      {/* ── Tab: Clientes ── */}
+      {tab === "clientes" && (
+        <>
+          {/* Métricas 2×2 */}
+          {stats && (
+            <div className="grid grid-cols-2 gap-gap-xs">
+              {[
+                { label: "Clientes con tarjeta", value: stats.totalClientes },
+                { label: "Sellos este mes", value: stats.sellosEsteMes },
+                { label: "Premios canjeados", value: stats.canjesEsteMes },
+                { label: "Repiten (2+ sellos)", value: stats.repitieron },
+              ].map(({ label, value }) => (
+                <div key={label} className="rounded-2xl border border-ink/5 bg-white p-gap-sm shadow-soft">
+                  <p className="font-lv-display text-h2 font-bold tabular-nums text-ink">{value}</p>
+                  <p className="text-meta text-ink-soft/60">{label}</p>
                 </div>
-                {cliente.premioListo ? (
-                  <span className="inline-flex shrink-0 items-center gap-[3px] rounded-full border border-verde-300 bg-verde-50 px-[8px] py-[3px] font-lv-display text-[10px] font-semibold text-verde-700">
-                    <Gift size={9} strokeWidth={2} />
-                    {cliente.premioListo}
-                  </span>
-                ) : (
-                  <span className="shrink-0 text-meta text-ink-soft/45">
-                    {cliente.sellosTotales === 0
-                      ? "Nuevo"
-                      : FECHA.format(new Date(cliente.actualizadoEn))}
-                  </span>
+              ))}
+            </div>
+          )}
+
+          {/* Barra de controles */}
+          <div className="flex flex-wrap items-center gap-gap-xs">
+            <div className="relative">
+              <Search size={13} strokeWidth={2} className="pointer-events-none absolute left-gap-sm top-1/2 -translate-y-1/2 text-ink-soft/50" />
+              <input
+                type="search"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Teléfono o nombre…"
+                className={cn(INPUT, "w-[200px] pl-8")}
+              />
+            </div>
+
+            {puedePedidos && (
+              <>
+                <button type="button" onClick={() => setSelloAbierto(true)} className={BTN_GHOST}>
+                  <Stamp size={13} strokeWidth={1.8} />
+                  Dar sello
+                </button>
+                <button type="button" onClick={() => setAltaAbierta(true)} className={cn(BTN_VERDE, "ml-auto")}>
+                  <UserPlus size={13} strokeWidth={2} />
+                  Nuevo
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Filtros */}
+          <div className="flex flex-wrap gap-[6px]">
+            {([
+              { id: "todos", label: "Todos" },
+              { id: "premio_listo", label: `Premio listo${conPremio > 0 ? ` (${conPremio})` : ""}` },
+              { id: "sin_volver", label: `Sin volver +${DIAS_SIN_VOLVER}d` },
+            ] as { id: Filtro; label: string }[]).map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setFiltro(id)}
+                className={cn(
+                  "h-8 rounded-full border px-gap-sm font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint",
+                  filtro === id
+                    ? "border-verde-400 bg-verde-400 text-verde-950"
+                    : "border-ink/10 bg-white text-ink-soft/65 hover:border-verde-300 hover:text-verde-700",
                 )}
+              >
+                {label}
               </button>
-            </li>
-          ))}
-        </ul>
+            ))}
+          </div>
+
+          {/* Lista */}
+          {cargando ? (
+            <div className="flex items-center gap-gap-sm rounded-2xl border border-ink/5 bg-white p-gap-md text-small text-ink-soft/75 shadow-soft">
+              <Loader2 size={16} className="animate-spin text-verde-500" />
+              Cargando tarjetas…
+            </div>
+          ) : clientesFiltrados.length === 0 ? (
+            <div className="rounded-2xl border border-ink/5 bg-white p-gap-lg text-center shadow-soft">
+              <span className="mx-auto mb-gap-sm grid size-12 place-items-center rounded-2xl bg-sand-deep text-verde-600">
+                <Users size={22} strokeWidth={1.5} />
+              </span>
+              <p className="font-lv-display text-small font-semibold text-ink">
+                {busqueda || filtro !== "todos"
+                  ? "Ningún cliente coincide"
+                  : "Todavía no hay tarjetas"}
+              </p>
+              {!busqueda && filtro === "todos" && (
+                <p className="mt-[6px] text-meta text-ink-soft/60">
+                  Cuando un cliente deje su teléfono al pedir, aparece aquí. También puedes añadirlos con «Nuevo».
+                </p>
+              )}
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-gap-xs">
+              {clientesFiltrados.map((cliente) => (
+                <li key={cliente.clienteId}>
+                  <div
+                    className={cn(
+                      "flex w-full items-center gap-gap-sm rounded-2xl border bg-white p-gap-sm shadow-soft transition-colors duration-300 ease-outquint",
+                      cliente.premioListo
+                        ? "border-verde-300 bg-verde-50/30"
+                        : "border-ink/5 hover:border-verde-300",
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => void abrirDetalle(cliente.clienteId)}
+                      className="flex min-w-0 flex-1 cursor-pointer items-center gap-gap-sm text-left"
+                    >
+                      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-verde-50 font-lv-display text-small font-bold text-verde-700">
+                        {inicial(cliente.nombre, cliente.telefono)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-lv-display text-small font-semibold text-ink">
+                          {cliente.nombre?.trim() || cliente.telefonoEnmascarado}
+                        </p>
+                        <p className="truncate text-meta text-ink-soft/65">
+                          {cliente.sellos}/{cliente.metaSellos} sellos
+                          {cliente.proximoFaltan ? ` · faltan ${cliente.proximoFaltan}` : ""}
+                          {cliente.ciclo > 1 ? ` · ciclo ${cliente.ciclo}` : ""}
+                        </p>
+                      </div>
+                      {cliente.premioListo ? (
+                        <span className="inline-flex max-w-[90px] shrink-0 items-center gap-[3px] rounded-full border border-verde-300 bg-verde-50 px-[8px] py-[3px] font-lv-display text-[10px] font-semibold text-verde-700">
+                          <Gift size={9} strokeWidth={2} className="shrink-0" />
+                          <span className="truncate">{cliente.premioListo}</span>
+                        </span>
+                      ) : (
+                        <span className="shrink-0 text-meta text-ink-soft/45">
+                          {cliente.sellosTotales === 0
+                            ? "Nuevo"
+                            : FECHA.format(new Date(cliente.actualizadoEn))}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Botón +Sello por fila */}
+                    {puedePedidos && (
+                      <button
+                        type="button"
+                        onClick={() => void darSelloPorId(cliente.clienteId, cliente.nombre)}
+                        aria-label={`Dar un sello a ${cliente.nombre ?? cliente.telefono}`}
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-ink/10 bg-white text-ink-soft/60 transition-colors hover:border-verde-400 hover:bg-verde-50 hover:text-verde-700"
+                      >
+                        <Stamp size={14} strokeWidth={1.8} />
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
 
       {/* ── Alta de cliente ─────────────────────────────────────────────── */}
@@ -1216,72 +1288,31 @@ export function ClientesFrecuentesView({
           <DialogHeader>
             <DialogTitle>Nueva tarjeta</DialogTitle>
             <DialogDescription>
-              Para pasar a digital las tarjetas impresas que ya tienes. Los
-              sellos iniciales cuentan como un ajuste con su nota.
+              Para pasar a digital las tarjetas impresas que ya tienes. Los sellos iniciales cuentan como un ajuste con su nota.
             </DialogDescription>
           </DialogHeader>
 
           <label className="block">
-            <span className="mb-[6px] block text-meta font-semibold text-ink">
-              Teléfono
-            </span>
-            <input
-              type="tel"
-              value={alta.telefono}
-              onChange={(e) => setAlta((a) => ({ ...a, telefono: e.target.value }))}
-              placeholder="+53 5 123 4567"
-              className={INPUT}
-            />
+            <span className="mb-[6px] block text-meta font-semibold text-ink">Teléfono</span>
+            <input type="tel" value={alta.telefono} onChange={(e) => setAlta((a) => ({ ...a, telefono: e.target.value }))} placeholder="+53 5 123 4567" className={INPUT} />
           </label>
-
           <label className="block">
-            <span className="mb-[6px] block text-meta font-semibold text-ink">
-              Nombre (opcional)
-            </span>
-            <input
-              type="text"
-              value={alta.nombre}
-              maxLength={80}
-              onChange={(e) => setAlta((a) => ({ ...a, nombre: e.target.value }))}
-              className={INPUT}
-            />
+            <span className="mb-[6px] block text-meta font-semibold text-ink">Nombre (opcional)</span>
+            <input type="text" value={alta.nombre} maxLength={80} onChange={(e) => setAlta((a) => ({ ...a, nombre: e.target.value }))} className={INPUT} />
           </label>
-
           <label className="block">
-            <span className="mb-[6px] block text-meta font-semibold text-ink">
-              Sellos que ya tiene
-            </span>
-            <input
-              type="number"
-              min={0}
-              max={1000}
-              value={alta.sellos}
-              onChange={(e) => setAlta((a) => ({ ...a, sellos: e.target.value }))}
-              className={cn(INPUT, "w-[110px] tabular-nums")}
-            />
+            <span className="mb-[6px] block text-meta font-semibold text-ink">Sellos que ya tiene</span>
+            <input type="number" min={0} max={1000} value={alta.sellos} onChange={(e) => setAlta((a) => ({ ...a, sellos: e.target.value }))} className={cn(INPUT, "w-[110px] tabular-nums")} />
           </label>
-
           <label className="block">
             <span className="mb-[6px] block text-meta font-semibold text-ink">
               Nota{Number(alta.sellos) > 0 ? " (obligatoria)" : " (opcional)"}
             </span>
-            <input
-              type="text"
-              value={alta.nota}
-              maxLength={300}
-              placeholder="De la tarjeta impresa"
-              onChange={(e) => setAlta((a) => ({ ...a, nota: e.target.value }))}
-              className={INPUT}
-            />
+            <input type="text" value={alta.nota} maxLength={300} placeholder="De la tarjeta impresa" onChange={(e) => setAlta((a) => ({ ...a, nota: e.target.value }))} className={INPUT} />
           </label>
 
           <DialogFooter>
-            <button
-              type="button"
-              onClick={() => void crearCliente()}
-              disabled={ocupado}
-              className={cn(BTN_VERDE, "justify-center")}
-            >
+            <button type="button" onClick={() => void crearCliente()} disabled={ocupado} className={cn(BTN_VERDE, "justify-center")}>
               {ocupado && <Loader2 size={13} className="animate-spin" />}
               Crear tarjeta
             </button>
@@ -1295,8 +1326,7 @@ export function ClientesFrecuentesView({
           <DialogHeader>
             <DialogTitle>Dar un sello a mano</DialogTitle>
             <DialogDescription>
-              Para cuando el pedido no quedó guardado. Con el código, el sello
-              pasa por el mismo camino que marcar entregado: no suma dos veces.
+              Para cuando el pedido no quedó guardado. Con el código, el sello pasa por el mismo camino que marcar entregado: no suma dos veces.
             </DialogDescription>
           </DialogHeader>
 
@@ -1324,15 +1354,10 @@ export function ClientesFrecuentesView({
             onChange={(e) =>
               setSelloManual((s) => ({
                 ...s,
-                valor:
-                  s.modo === "codigo"
-                    ? e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")
-                    : e.target.value,
+                valor: s.modo === "codigo" ? e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") : e.target.value,
               }))
             }
-            placeholder={
-              selloManual.modo === "telefono" ? "+53 5 123 4567" : "Código #XXXXX"
-            }
+            placeholder={selloManual.modo === "telefono" ? "+53 5 123 4567" : "Código #XXXXX"}
             maxLength={20}
             className={INPUT}
           />
@@ -1343,20 +1368,13 @@ export function ClientesFrecuentesView({
               value={selloManual.nota}
               maxLength={300}
               placeholder="Nota (opcional)"
-              onChange={(e) =>
-                setSelloManual((s) => ({ ...s, nota: e.target.value }))
-              }
+              onChange={(e) => setSelloManual((s) => ({ ...s, nota: e.target.value }))}
               className={INPUT}
             />
           )}
 
           <DialogFooter>
-            <button
-              type="button"
-              onClick={() => void darSelloManual()}
-              disabled={ocupado}
-              className={cn(BTN_VERDE, "justify-center")}
-            >
+            <button type="button" onClick={() => void darSelloManual()} disabled={ocupado} className={cn(BTN_VERDE, "justify-center")}>
               {ocupado && <Loader2 size={13} className="animate-spin" />}
               Dar sello
             </button>
