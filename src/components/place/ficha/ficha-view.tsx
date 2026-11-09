@@ -31,6 +31,7 @@ import { Catalogo } from "./catalogo";
 import { DireccionContacto } from "./direccion-contacto";
 import { Distintivos } from "./distintivos";
 import { EstadoApertura } from "./estado-apertura";
+import { estadoCocina } from "@/lib/ficha/cocina";
 import { FilaAcciones } from "./fila-acciones";
 import { Galeria } from "./galeria";
 import { PortadaMarca } from "./portada-marca";
@@ -132,6 +133,11 @@ export function FichaView({
 
   const titulo = tituloCatalogo(place.catalogoTitulo, place.tipoNegocio);
   const ofertas = place.ofertas ?? [];
+
+  /* Cocina: solo relevante si el negocio tiene pedidos activos. */
+  const estadoCocinaActual = place.pedidosHabilitado
+    ? estadoCocina(place.entrega, place.horario)
+    : null;
 
   /* Carrito: solo activo si el módulo domicilio está encendido, el plan lo
      permite **y hay WhatsApp**, que es a donde va el pedido. Sin las tres no
@@ -263,6 +269,15 @@ export function FichaView({
               schedule={place.schedule}
               nowIso={nowIso}
             />
+            {estadoCocinaActual && !estadoCocinaActual.abierta && (
+              <span className="inline-flex items-center gap-[7px] font-lv-display text-small font-semibold text-amber-700">
+                <span
+                  aria-hidden
+                  className="size-[7px] rounded-full bg-amber-500"
+                />
+                {estadoCocinaActual.texto}
+              </span>
+            )}
             <Distintivos
               atributos={place.atributos}
               energiaRespaldo={place.energiaRespaldo}
@@ -394,6 +409,15 @@ export function FichaView({
               schedule={place.schedule}
               nowIso={nowIso}
             />
+            {estadoCocinaActual && !estadoCocinaActual.abierta && (
+              <span className="inline-flex items-center gap-[7px] font-lv-display text-small font-semibold text-amber-700">
+                <span
+                  aria-hidden
+                  className="size-[7px] rounded-full bg-amber-500"
+                />
+                {estadoCocinaActual.texto}
+              </span>
+            )}
             <Distintivos
               atributos={place.atributos}
               energiaRespaldo={place.energiaRespaldo}

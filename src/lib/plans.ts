@@ -95,6 +95,10 @@ export const FUNCIONES = {
     texto: "Zonas y costo de domicilio",
     disponible: true,
   },
+  horario_cocina: {
+    texto: "Horario y pausa de cocina para pedidos a domicilio",
+    disponible: true,
+  },
 
   /* Visibilidad. */
   verificado: { texto: "Sello de negocio verificado", disponible: true },
@@ -204,6 +208,7 @@ export const MODULOS = {
       "Todo el Menú Pro",
       "Flujo de pedidos por WhatsApp conectados a tu Menú",
       "Apartado de reservas por capacidad en tu local",
+      "Horario de cocina y pausa manual para pedidos",
     ].join("\n"),
     usd: 1.5,
     funciones: [
@@ -215,6 +220,7 @@ export const MODULOS = {
       "whatsapp_pedido",
       "reservas_whatsapp",
       "zonas_domicilio",
+      "horario_cocina",
     ],
   },
   facebook: {
@@ -297,6 +303,7 @@ const ESENCIAL: readonly Funcion[] = [
   "whatsapp_pedido",
   "reservas_whatsapp",
   "zonas_domicilio",
+  "horario_cocina",
   "publicaciones_fb",
   "seguidores",
 ];
@@ -325,6 +332,7 @@ export const PACKS = {
       "Menú Pro(QR + Ofertas + Productos ilimitados)",
       "Actualización del menú en tiempo real por Telegram",
       "Flujo de pedidos conectados catálogo + agendar reservas",
+      "Horario de cocina y pausa manual para pedidos",
       "1 Publicación en grupos de facebook a la semana",
       "Avisos a usuarios conectados con tu negocio sobre tus novedades",
     ].join("\n"),

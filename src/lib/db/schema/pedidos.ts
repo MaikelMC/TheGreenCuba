@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, jsonb, index, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, jsonb, index, doublePrecision, boolean } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { places } from "./places";
 import type { LineaPedido } from "../../pedido";
@@ -43,6 +43,9 @@ export const pedidos = pgTable(
     /** Tasa CUP/USD con la que se calcularon los precios al hacer el pedido.
         `null` si el negocio no tenía la tasa activa en ese momento. */
     tasaUsada: doublePrecision("tasa_usada"),
+    /** `true` si el pedido llegó fuera del horario de cocina. Solo informativo:
+     *  el pedido se guarda igual para que el dueño lo vea y decida. */
+    fueraDeHorario: boolean("fuera_de_horario").default(false).notNull(),
     estado: text("estado", { enum: ["nuevo", "completado", "cancelado"] })
       .default("nuevo")
       .notNull(),

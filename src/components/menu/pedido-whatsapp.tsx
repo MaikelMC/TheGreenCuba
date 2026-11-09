@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import {
+  ChefHat,
   ChevronDown,
   MessageCircle,
   Minus,
@@ -230,6 +231,8 @@ export function PedidoProvider({
   const [hidratado, setHidratado] = useState(false);
   const [abierto, setAbierto] = useState(false);
   const [pidiendo, setPidiendo] = useState(false);
+  /* Estado de cocina: se consulta al abrir el diálogo. `null` = no consultado. */
+  const [cocina, setCocina] = useState<{ abierta: boolean; texto: string } | null>(null);
   /* El id de este intento. Se renueva al abrir la ventana de confirmación, no
      en cada clic: dos clics seguidos son el mismo pedido y no dos. */
   const idPedido = useRef<string | null>(null);
@@ -428,8 +431,27 @@ export function PedidoProvider({
   /** Abre la confirmación con un id nuevo: es el intento que se va a guardar. */
   const abrirPedido = useCallback(() => {
     idPedido.current = nuevoIdPedido();
+    setCocina(null);
     setPidiendo(true);
   }, []);
+
+  /* Consulta el estado de la cocina cada vez que se abre el diálogo. Es una
+     lectura rápida y sin bloqueo: el diálogo se abre igual; solo muestra la
+     advertencia si la cocina está cerrada. */
+  useEffect(() => {
+    if (!pidiendo) return;
+    void fetch(`/api/pedidos/cocina?negocioId=${encodeURIComponent(placeId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: unknown) => {
+        if (data && typeof data === "object" && "abierta" in data) {
+          const d = data as { abierta: boolean; texto: string };
+          setCocina(d);
+        }
+      })
+      .catch(() => {
+        /* Sin red: no bloqueamos. `cocina` queda null = no se muestra aviso. */
+      });
+  }, [pidiendo, placeId]);
 
   /**
    * Guarda una copia del pedido en el panel del negocio.
@@ -822,6 +844,14 @@ export function PedidoProvider({
                   componente; `sm:space-x-0` quita el margen suelto de la base
                   para que el hueco lo ponga solo `gap-gap-xs` en los dos
                   anchos. */}
+              {/* Banner de cocina cerrada */}
+              {cocina && !cocina.abierta && (
+                <div className="flex items-center gap-gap-xs rounded-2xl border border-amber-200 bg-amber-50 px-gap-sm py-[10px] text-small text-amber-800">
+                  <ChefHat size={15} strokeWidth={1.8} className="shrink-0" />
+                  {cocina.texto}
+                </div>
+              )}
+
               <DialogFooter className="grid grid-cols-[auto_1fr] gap-gap-xs sm:flex sm:justify-end sm:space-x-0">
                 <DialogClose asChild>
                   <button
@@ -840,29 +870,40 @@ export function PedidoProvider({
                     teléfono, ese `flex-1` repartía por el eje vertical y el
                     botón dejaba de medir su alto. Ahora el ancho lo da la
                     columna de la rejilla y el alto, `h-10`. */}
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => {
-                    guardarPedido();
-                    setPidiendo(false);
-                    /* El pedido ya salió: el carrito se vacía para que quien
-                       vuelva a la pestaña no lo mande otra vez sin querer. La
-                       dirección se conserva. */
-                    setLineas([]);
-                    setDeshacer(null);
-                    setAbierto(false);
-                  }}
-                  className="inline-flex h-10 min-w-0 items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 sm:px-gap-md sm:text-small"
-                >
-                  <MessageCircle
-                    size={15}
-                    strokeWidth={1.8}
-                    className="shrink-0"
-                  />
-                  Enviar el pedido
-                </a>
+                {cocina && !cocina.abierta ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex h-10 min-w-0 cursor-not-allowed items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-ink/10 px-gap-sm font-lv-display text-meta font-semibold text-ink-soft sm:px-gap-md sm:text-small"
+                  >
+                    <ChefHat size={15} strokeWidth={1.8} className="shrink-0" />
+                    Cocina cerrada
+                  </button>
+                ) : (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      guardarPedido();
+                      setPidiendo(false);
+                      /* El pedido ya salió: el carrito se vacía para que quien
+                         vuelva a la pestaña no lo mande otra vez sin querer. La
+                         dirección se conserva. */
+                      setLineas([]);
+                      setDeshacer(null);
+                      setAbierto(false);
+                    }}
+                    className="inline-flex h-10 min-w-0 items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 sm:px-gap-md sm:text-small"
+                  >
+                    <MessageCircle
+                      size={15}
+                      strokeWidth={1.8}
+                      className="shrink-0"
+                    />
+                    Enviar el pedido
+                  </a>
+                )}
               </DialogFooter>
             </DialogContent>
           </Dialog>

@@ -74,6 +74,10 @@ export function permisoDeAccion(accion: string | null | undefined): PermisoNegoc
     case "set_horario":
     case "abrir_cerrar_hoy":
       return "ficha";
+    case "abrir_cerrar_cocina":
+      return "pedidos";
+    case "set_horario_cocina":
+      return "ficha";
     default:
       return null;
   }

@@ -10,6 +10,8 @@ import { generateId } from "@/lib/utils";
 import type { LineaPedido } from "@/lib/pedido";
 import { calcularEntrega } from "@/lib/entrega-calculo";
 import type { EntregaConfig } from "@/lib/ficha/entrega";
+import { estadoCocina } from "@/lib/ficha/cocina";
+import type { Horario } from "@/lib/ficha/horario";
 
 /**
  * El historial de pedidos del catálogo.
@@ -142,6 +144,7 @@ export async function POST(req: NextRequest) {
       pedidosWhatsapp: places.pedidosWhatsapp,
       whatsapp: places.whatsapp,
       entrega: places.entrega,
+      horario: places.horario,
       tasaUsdCup: places.tasaUsdCup,
       tasaRedondeo: places.tasaRedondeo,
       tasaActiva: places.tasaActiva,
@@ -235,6 +238,12 @@ export async function POST(req: NextRequest) {
     costoEnvioMoneda = resultado.costoEnvioMoneda;
   }
 
+  /* Marcar si llegó fuera del horario de cocina. No bloquea el pedido:
+     es informativo para que el dueño sepa que llegó cuando no atendía. */
+  const placeHorario = place.horario as Horario | null;
+  const estadoCocinaActual = estadoCocina(entregaConfig, placeHorario, Date.now());
+  const fueraDeHorario = !estadoCocinaActual.abierta;
+
   await db
     .insert(pedidos)
     .values({
@@ -247,6 +256,7 @@ export async function POST(req: NextRequest) {
       costoEnvio,
       costoEnvioMoneda,
       tasaUsada,
+      fueraDeHorario,
     })
     /* Reintento del mismo clic: la fila ya está y no se duplica. */
     .onConflictDoNothing({ target: pedidos.id });
@@ -281,6 +291,7 @@ export async function GET(req: NextRequest) {
       costoEnvioMoneda: pedidos.costoEnvioMoneda,
       estado: pedidos.estado,
       tasaUsada: pedidos.tasaUsada,
+      fueraDeHorario: pedidos.fueraDeHorario,
       createdAt: pedidos.createdAt,
     })
     .from(pedidos)

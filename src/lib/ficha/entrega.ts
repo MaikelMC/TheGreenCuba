@@ -44,8 +44,10 @@ export interface EntregaConfig {
   tiempo: { min: number; max: number };
   /** Pedido mínimo para repartir. Ausente = sin mínimo. */
   pedidoMinimo?: Monto;
-  /** Horario propio del reparto. Ausente = el del local. */
+  /** Horario propio del reparto (= horario de cocina). Ausente = el del local. */
   horario?: Horario;
+  /** Pausa manual de cocina. `hasta: null` = cerrada indefinidamente. */
+  pausa?: { desde: number; hasta: number | null; motivo?: string };
   /** El cliente puede pasar a recoger en el local. */
   recogida?: boolean;
   /** El negocio hace entregas a domicilio. */
@@ -146,6 +148,13 @@ export function esEntregaConfig(value: unknown): value is EntregaConfig {
      quien guarda llama a las dos validaciones. */
   if (e.horario !== undefined && (typeof e.horario !== "object" || e.horario === null)) {
     return false;
+  }
+  if (e.pausa !== undefined) {
+    if (!e.pausa || typeof e.pausa !== "object") return false;
+    const p = e.pausa as Partial<{ desde: number; hasta: number | null; motivo: string }>;
+    if (typeof p.desde !== "number" || !Number.isFinite(p.desde)) return false;
+    if (p.hasta !== null && (typeof p.hasta !== "number" || !Number.isFinite(p.hasta))) return false;
+    if (p.motivo !== undefined && typeof p.motivo !== "string") return false;
   }
   if (e.recogida !== undefined && typeof e.recogida !== "boolean") return false;
   if (e.domicilio !== undefined && typeof e.domicilio !== "boolean") return false;

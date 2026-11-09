@@ -393,6 +393,13 @@
       "when": 1794090978767,
       "tag": "0055_afiliados_cobros",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1794182115588,
+      "tag": "0056_perfect_sentry",
+      "breakpoints": true
     }
   ]
 }

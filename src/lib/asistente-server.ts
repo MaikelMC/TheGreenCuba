@@ -25,6 +25,7 @@ import {
 } from "@/lib/disponibilidad";
 import { setDisponibilidad } from "@/lib/disponibilidad-server";
 import { puede } from "@/lib/plans-server";
+import { estadoCocinaDeNegocio, actualizarPausa } from "@/lib/cocina-server";
 import { rateLimitKey } from "@/lib/rate-limit";
 import {
   registrarSeguidor,
@@ -1158,6 +1159,8 @@ function permisoDeComando(comando: string): PermisoNegocio | null {
     case "abrir":
     case "cerrar":
       return "ficha";
+    case "cocina":
+      return "pedidos";
     case "tasa":
       /* La tasa es una decisión comercial: solo el dueño. No está en
          `PERMISOS_NEGOCIO` —no se delega a trabajadores—, así que se
@@ -1244,6 +1247,19 @@ async function manejarComando(
         return;
       }
       await manejarTasa(negocio.negocioId, chatId, resto.trim());
+      return;
+    }
+
+    case "cocina": {
+      /* El plan es obligatorio: sin horario_cocina el comando no existe. */
+      if (!(await puede(negocio.negocioId, "horario_cocina"))) {
+        await enviarTexto(
+          chatId,
+          "El horario de cocina no está en tu plan. Entra con Reservas y pedidos desde el panel.",
+        );
+        return;
+      }
+      await manejarCocina(negocio, chatId, resto.trim());
       return;
     }
 
@@ -2031,6 +2047,77 @@ async function manejarTasa(
     chatId,
     `Listo, tu tasa ahora es ${new Intl.NumberFormat("en-US").format(valor)} CUP por USD. Tu carta ya está actualizada.`,
   );
+}
+
+/* ── cocina ─────────────────────────────────────────────────────────────── */
+
+/**
+ * `/cocina`      → estado actual + botones Abrir/Cerrar
+ * `/cocina 1h`   → pausa de 1 hora
+ * `/cocina 2h`   → pausa de 2 horas
+ * `/cocina abrir` → quitar la pausa (abre la cocina)
+ */
+async function manejarCocina(
+  negocio: Negocio,
+  chatId: string,
+  resto: string,
+): Promise<void> {
+  const ahora = Date.now();
+  const arg = resto.toLowerCase().trim();
+
+  if (arg === "abrir" || arg === "open") {
+    await actualizarPausa(negocio.negocioId, undefined);
+    await enviarBotones(
+      chatId,
+      "Listo: tu cocina está abierta.",
+      [[{ text: "Ver estado cocina", callback_data: "cmd:cocina" }], [BTN_MENU]],
+    );
+    return;
+  }
+
+  /* Pausa rápida: 1h, 2h, o cerrar indefinidamente. */
+  let hasta: number | null = null;
+  if (arg === "1h" || arg === "1 hora") {
+    hasta = ahora + 60 * 60_000;
+  } else if (arg === "2h" || arg === "2 horas") {
+    hasta = ahora + 2 * 60 * 60_000;
+  } else if (arg === "cerrar" || arg === "close") {
+    hasta = null; /* indefinido */
+  }
+
+  if (arg && hasta !== undefined) {
+    /* arg coincidió con alguna opción */
+    await actualizarPausa(negocio.negocioId, { desde: ahora, hasta });
+    const msg = hasta !== null
+      ? `Listo: cocina cerrada hasta las ${new Intl.DateTimeFormat("es-CU", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Havana" }).format(new Date(hasta))}.`
+      : "Listo: cocina cerrada hasta que la abras de nuevo.";
+    await enviarBotones(
+      chatId,
+      msg,
+      [[{ text: "Abrir ahora", callback_data: "cocina:abrir" }], [BTN_MENU]],
+    );
+    return;
+  }
+
+  /* Sin argumento válido: mostrar estado + opciones. */
+  const estado = await estadoCocinaDeNegocio(negocio.negocioId, ahora);
+  const textoEstado = estado
+    ? `Estado cocina: ${estado.texto}`
+    : "No tienes horario de cocina configurado.";
+
+  const botones: Boton[][] = [
+    [
+      { text: "Abrir cocina", callback_data: "cocina:abrir" },
+      { text: "Cerrar 1h", callback_data: "cocina:1h" },
+    ],
+    [
+      { text: "Cerrar 2h", callback_data: "cocina:2h" },
+      { text: "Cerrar (indefinido)", callback_data: "cocina:cerrar" },
+    ],
+    [BTN_MENU],
+  ];
+
+  await enviarBotones(chatId, textoEstado, botones);
 }
 
 /* ── capa 2: texto libre sin modelo ─────────────────────────────────────── */
@@ -3234,6 +3321,35 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
           aplicado.texto,
           filas,
         );
+      }
+      return;
+    }
+
+    case "cocina": {
+      /* `cocina:abrir` | `cocina:1h` | `cocina:2h` | `cocina:cerrar` */
+      if (!permite(negocio, "pedidos")) {
+        await responderCallback(callbackId, "El dueño no te dio permiso para cambiar el estado de la cocina.", true);
+        return;
+      }
+      if (!(await puede(negocio.negocioId, "horario_cocina"))) {
+        await responderCallback(callbackId, "El horario de cocina no está en tu plan.", true);
+        return;
+      }
+      const ahora = Date.now();
+      const accionCocina = resto[0] ?? "";
+      await responderCallback(callbackId, "");
+      if (accionCocina === "abrir") {
+        await actualizarPausa(negocio.negocioId, undefined);
+        await manejarCocina(negocio, chatId, "");
+      } else if (accionCocina === "1h") {
+        await actualizarPausa(negocio.negocioId, { desde: ahora, hasta: ahora + 60 * 60_000 });
+        await manejarCocina(negocio, chatId, "");
+      } else if (accionCocina === "2h") {
+        await actualizarPausa(negocio.negocioId, { desde: ahora, hasta: ahora + 2 * 60 * 60_000 });
+        await manejarCocina(negocio, chatId, "");
+      } else if (accionCocina === "cerrar") {
+        await actualizarPausa(negocio.negocioId, { desde: ahora, hasta: null });
+        await manejarCocina(negocio, chatId, "");
       }
       return;
     }

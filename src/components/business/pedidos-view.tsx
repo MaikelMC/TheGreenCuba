@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Check,
   ClipboardList,
+  Clock,
   Loader2,
   MapPin,
   RefreshCw,
@@ -39,6 +40,7 @@ interface Pedido {
   zonaNombre?: string | null;
   costoEnvio?: number | null;
   costoEnvioMoneda?: string | null;
+  fueraDeHorario?: boolean | null;
   createdAt: string;
 }
 
@@ -244,13 +246,24 @@ export function PedidosView({
                     >
                       {FECHA.format(new Date(pedido.createdAt))}
                     </time>
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-full border px-[10px] py-[3px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em]",
-                        estado.clase,
+                    <span className="flex items-center gap-gap-xs">
+                      {pedido.fueraDeHorario && (
+                        <span
+                          title="Llegó fuera del horario de cocina"
+                          className="inline-flex items-center gap-[4px] rounded-full border border-amber-200 bg-amber-50 px-[10px] py-[3px] font-lv-display text-[11px] font-semibold text-amber-700"
+                        >
+                          <Clock size={10} strokeWidth={2} />
+                          Fuera de horario
+                        </span>
                       )}
-                    >
-                      {estado.label}
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-full border px-[10px] py-[3px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em]",
+                          estado.clase,
+                        )}
+                      >
+                        {estado.label}
+                      </span>
                     </span>
                   </div>
 

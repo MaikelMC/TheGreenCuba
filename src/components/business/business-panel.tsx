@@ -52,6 +52,7 @@ import { PhotoGrid } from "@/components/business/photo-grid";
 import { PaymentChips } from "@/components/business/payment-chips";
 import { CatalogoView } from "@/components/business/catalogo-view";
 import { PedidosView } from "@/components/business/pedidos-view";
+import { CocinaPanel } from "@/components/business/cocina-panel";
 import { OfertasView } from "@/components/business/ofertas-view";
 import { MenuLinkCard } from "@/components/business/menu-link-card";
 import { PlanCard } from "@/components/business/plan-card";
@@ -367,12 +368,23 @@ export function BusinessPanel({
                ritmo: la carta se edita, los pedidos se atienden. El servidor
                comprueba la propiedad en cada lectura y escritura. */
             return (
-              <PedidosView
-                key={place.id}
-                placeId={place.id}
-                funciones={funciones}
-                onVerPlanes={onVerPlanes}
-              />
+              <div className="flex flex-col gap-gap-md">
+                {funciones.includes("horario_cocina") && (
+                  <CocinaPanel
+                    placeId={place.id}
+                    entrega={place.entrega}
+                    placeHorario={place.horario ?? null}
+                    puedeAtender={puede("pedidos")}
+                    puedeEditarFicha={puede("ficha")}
+                  />
+                )}
+                <PedidosView
+                  key={place.id}
+                  placeId={place.id}
+                  funciones={funciones}
+                  onVerPlanes={onVerPlanes}
+                />
+              </div>
             );
           case "publicaciones":
             /* Las funciones deciden si la sección se abre o enseña el candado,

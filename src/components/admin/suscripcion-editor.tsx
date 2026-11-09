@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { BadgeCheck, Loader2, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FormSection } from "@/components/business/form-section";
-import { PLAN_ORDER, nombreDe, usdDe, type ClaveModulo, type Plan } from "@/lib/plans";
+import { PLAN_ORDER, MODULOS, nombreDe, usdDe, type ClaveModulo, type Plan } from "@/lib/plans";
 import { useCatalogo } from "@/providers/catalogo-provider";
 
 /**
@@ -251,7 +251,7 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
           {(Object.keys(cat.modulos) as ClaveModulo[]).map((clave) => (
             <label
               key={clave}
-              className="flex cursor-pointer items-center gap-gap-xs text-small text-ink"
+              className="flex cursor-pointer items-start gap-gap-xs text-small text-ink"
             >
               <input
                 type="checkbox"
@@ -263,9 +263,14 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
                       : prev.filter((c) => c !== clave),
                   )
                 }
-                className="size-4 shrink-0 accent-verde-500"
+                className="mt-[3px] size-4 shrink-0 accent-verde-500"
               />
-              {cat.modulos[clave].nombre}
+              <span className="flex flex-col">
+                <span className="font-semibold">{cat.modulos[clave].nombre}</span>
+                <span className="text-meta text-ink-soft/60">
+                  {MODULOS[clave].funciones.map((f) => cat.funciones[f].texto).join(" · ")}
+                </span>
+              </span>
             </label>
           ))}
         </div>
