@@ -16,7 +16,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import type { EntregaConfig, ZonaEntrega } from "@/lib/ficha/entrega";
+import type { EntregaConfig, ParcheEntrega, ZonaEntrega } from "@/lib/ficha/entrega";
 
 interface ZonasDomicilioCardProps {
   placeId: string;
@@ -164,7 +164,10 @@ export function ZonasDomicilioCard({
           })()
         : null;
 
-    const payload: EntregaConfig = {
+    /* `null` explícito en lo opcional: con el merge del servidor, una clave
+       ausente se conserva, así que vaciar el mínimo o la nota tiene que viajar
+       como "borra esto" y no como "no lo toques". */
+    const payload: ParcheEntrega = {
       costo:
         domicilio && zonas.length > 0
           ? { modo: "zonas", zonas, moneda: zonas[0]!.moneda }
@@ -172,8 +175,8 @@ export function ZonasDomicilioCard({
       tiempo: entregaInicial?.tiempo ?? { min: 0, max: 0 },
       recogida,
       domicilio,
-      ...(pedidoMinimo ? { pedidoMinimo } : {}),
-      ...(notaEntrega.trim() ? { notaEntrega: notaEntrega.trim().slice(0, 300) } : {}),
+      pedidoMinimo,
+      notaEntrega: notaEntrega.trim() ? notaEntrega.trim().slice(0, 300) : null,
     };
 
     try {

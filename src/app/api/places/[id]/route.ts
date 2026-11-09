@@ -29,7 +29,7 @@ import {
   MAX_ACCIONES_BARRA,
   MAX_ACCIONES_FILA,
 } from "@/lib/ficha/acciones";
-import { esEntregaConfig } from "@/lib/ficha/entrega";
+import { escribirEntregaParcial } from "@/lib/entrega-server";
 import { esHorario } from "@/lib/ficha/horario";
 import {
   esCatalogoFuente,
@@ -452,15 +452,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     );
   }
 
-  if (
-    body.entrega !== undefined &&
-    body.entrega !== null &&
-    !esEntregaConfig(body.entrega)
-  ) {
-    return NextResponse.json(
-      { error: "La configuración del envío no es válida." },
-      { status: 400 },
-    );
+  /* La entrega se escribe aparte y de forma atómica: el `SET` fusiona solo sus
+     claves en la base, así que este guardado no puede pisar una pausa puesta
+     desde Telegram en el mismo momento. Se quita del cuerpo para que
+     `toPlaceValues` no la vuelva a escribir entera. Va antes de las ofertas
+     para que un parche inválido no deje media escritura. */
+  let entregaEscrita = false;
+  if (body.entrega !== undefined) {
+    const resultado = await escribirEntregaParcial(id, body.entrega);
+    if (!resultado.ok) {
+      return NextResponse.json(
+        { error: resultado.error },
+        { status: resultado.code === "no_encontrado" ? 404 : 400 },
+      );
+    }
+    delete body.entrega;
+    entregaEscrita = true;
   }
 
   const comoComprar: unknown = body.comoComprar;
@@ -882,7 +889,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
      de haber reemplazado las ofertas: la base cambiaba y el panel recibía un
      400 que decía que no se había guardado nada. Sin ofertas en el cuerpo, el
      cuerpo vacío sigue siendo un error. */
-  if (Object.keys(values).length === 0 && !Array.isArray(body.ofertas)) {
+  if (
+    Object.keys(values).length === 0 &&
+    !Array.isArray(body.ofertas) &&
+    !entregaEscrita
+  ) {
     return NextResponse.json(
       { error: "No hay nada que actualizar" },
       { status: 400 },
