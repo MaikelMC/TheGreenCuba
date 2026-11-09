@@ -52,6 +52,26 @@ function texto(valor: unknown, porDefecto: string): string {
   return limpio || porDefecto;
 }
 
+/**
+ * Texto con líneas del factory que no estén en el stored añadidas al final.
+ *
+ * Permite que nuevas líneas en `plans.ts` aparezcan aunque el admin tenga
+ * guardada una versión anterior. Las líneas que el admin editó o quitó no
+ * se tocan. ponytail: comparación por texto exacto; si una línea cambia de
+ * redacción aparece duplicada hasta el próximo guardado en /admin/planes.
+ */
+function textoMerge(valor: unknown, porDefecto: string): string {
+  if (typeof valor !== "string") return porDefecto;
+  const limpio = valor.trim().slice(0, MAX_TEXTO);
+  if (!limpio) return porDefecto;
+  const storedLines = new Set(limpio.split("\n").map((l) => l.trim()));
+  const extras = porDefecto
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !storedLines.has(l));
+  return extras.length ? `${limpio}\n${extras.join("\n")}` : limpio;
+}
+
 /** Un precio finito y no negativo, o el de fábrica. */
 function precio(valor: unknown, porDefecto: number): number {
   const n = typeof valor === "number" ? valor : Number(valor);
@@ -143,7 +163,7 @@ export function normalizarCatalogo(datos: unknown): Catalogo {
     modulos[clave] = {
       nombre: texto(dado.nombre, def.nombre),
       lema: texto(dado.lema, def.lema),
-      texto: texto(dado.texto, def.texto),
+      texto: textoMerge(dado.texto, def.texto),
       usd: precio(dado.usd, def.usd),
       funciones: funcionesMerge(dado.funciones, CLAVES_FUNCION, def.funciones),
     };
@@ -157,7 +177,7 @@ export function normalizarCatalogo(datos: unknown): Catalogo {
     packs[clave] = {
       nombre: texto(dado.nombre, def.nombre),
       lema: texto(dado.lema, def.lema),
-      texto: texto(dado.texto, def.texto),
+      texto: textoMerge(dado.texto, def.texto),
       usd: precio(dado.usd, def.usd),
       funciones: funcionesMerge(dado.funciones, CLAVES_FUNCION, def.funciones),
     };
