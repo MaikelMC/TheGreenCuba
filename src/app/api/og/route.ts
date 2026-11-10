@@ -1,7 +1,8 @@
 import { getPlaceById, getPlaceBySlug } from "@/lib/db/queries";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
-import { logoEnLinea, tarjetaNegocio } from "@/lib/og-card";
+import { logoEnLinea, tarjetaNegocio, tarjetaServicio } from "@/lib/og-card";
 import { renderOgImage } from "@/lib/og-image";
+import { getServicio } from "@/content/servicios";
 
 /**
  * Una sola función para las tres tarjetas que se comparten.
@@ -18,6 +19,17 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const slug = url.searchParams.get("slug");
   const id = url.searchParams.get("place");
+
+  const servicioSlug = url.searchParams.get("servicio");
+  if (servicioSlug) {
+    const servicio = getServicio(servicioSlug);
+    if (!servicio) return renderOgImage();
+    return tarjetaServicio({
+      nombre: servicio.nombre,
+      titulo: servicio.titulo,
+      descripcion: servicio.descripcionCorta,
+    });
+  }
 
   if (slug) {
     const place = await getPlaceBySlug(slug, {

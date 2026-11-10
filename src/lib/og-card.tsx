@@ -156,3 +156,77 @@ export function tarjetaNegocio({
     OG_SIZE,
   );
 }
+
+export function tarjetaServicio({
+  nombre,
+  titulo,
+  descripcion,
+}: {
+  nombre: string;
+  titulo: string;
+  descripcion: string;
+}) {
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          background: "#F5FAF2",
+          padding: "72px 80px",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 28,
+            fontWeight: 600,
+            color: "#3CC46B",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+          }}
+        >
+          {nombre}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          <div
+            style={{
+              fontSize: 64,
+              fontWeight: 700,
+              color: "#1F5A33",
+              letterSpacing: "-0.02em",
+              lineHeight: 1.1,
+              maxWidth: 900,
+            }}
+          >
+            {titulo}
+          </div>
+          <div style={{ fontSize: 28, color: "#3A4A40", maxWidth: 800 }}>
+            {descripcion}
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            alignSelf: "flex-start",
+            background: "rgba(60, 196, 107, 0.16)",
+            border: "2px solid rgba(60, 196, 107, 0.45)",
+            borderRadius: 999,
+            padding: "14px 32px",
+            fontSize: 26,
+            fontWeight: 600,
+            color: "#1F5A33",
+          }}
+        >
+          {new URL(siteConfig.url).hostname}
+        </div>
+      </div>
+    ),
+    OG_SIZE,
+  );
+}

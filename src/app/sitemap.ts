@@ -8,6 +8,7 @@ import {
   cityPath,
 } from "@/lib/structured-data";
 import { slugify } from "@/lib/utils";
+import { SERVICIOS } from "@/content/servicios";
 
 /**
  * Las URL públicas que queremos que un buscador descubra.
@@ -54,6 +55,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "yearly",
       priority: 0.3,
     },
+    {
+      url: `${base}/servicios/comida-a-domicilio`,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    ...SERVICIOS.map((s) => ({
+      url: `${base}/servicios/${s.slug}`,
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+    })),
   ];
 
   try {
