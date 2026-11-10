@@ -4,13 +4,27 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { procesarCola, pendientes } from "@/lib/offline/cola";
 import { setSinRed } from "@/lib/offline/estado-red";
+import { pwaActiva } from "@/lib/pwa/flag";
 
 const INTERVALO_FLUSH_MS = 60_000;
 
 /**
+ * Aviso de «sin conexión» en los builds donde no hay PWA.
+ *
+ * Con la PWA activa el aviso persistente lo pinta `PwaRegister` una sola vez y
+ * se queda en pantalla; este toast solo existe para los builds con
+ * `NEXT_PUBLIC_PWA_ENABLED="false"`. El `id` fijo evita que el arranque sin red
+ * y el evento `offline` —que llegan casi juntos— apilen dos copias iguales.
+ */
+function avisarSinRed(): void {
+  if (pwaActiva()) return;
+  toast("Sin conexión · Viendo datos guardados", { id: "lv-sin-conexion", duration: 5000 });
+}
+
+/**
  * Gestión del estado de conexión. No renderiza nada visible.
  *
- * - Sin conexión: toast «Sin conexión · Viendo datos guardados» (5 s).
+ * - Sin conexión: lo indica la píldora de `PwaRegister`; sin PWA, un toast.
  * - Al volver: toast «De nuevo en línea» + procesa la cola de pedidos pendientes.
  * - Mantiene `sinRed()` sincronizado para NavOffline y navegar.ts.
  * - Procesa la cola al abrir la app si ya hay red.
@@ -25,9 +39,7 @@ export function EstadoConexion() {
 
     const estaOffline = !navigator.onLine;
     setSinRed(estaOffline);
-    if (estaOffline) {
-      toast("Sin conexión · Viendo datos guardados", { duration: 5000 });
-    }
+    if (estaOffline) avisarSinRed();
 
     async function flush(mostrarToast = false) {
       if (!navigator.onLine) return;
@@ -67,7 +79,7 @@ export function EstadoConexion() {
 
     function alOffline() {
       setSinRed(true);
-      toast("Sin conexión · Viendo datos guardados", { duration: 5000 });
+      avisarSinRed();
     }
 
     function alCambiarVisibilidad() {

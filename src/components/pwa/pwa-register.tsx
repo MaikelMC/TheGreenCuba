@@ -58,25 +58,64 @@ export function PwaRegister() {
     }
 
     let cancelado = false;
+    let registro: ServiceWorkerRegistration | null = null;
+    let vigilancia: ReturnType<typeof setInterval> | null = null;
+
+    /** Lo único que decide si se enseña el aviso: que haya versión esperando. */
+    const revisarEsperando = () => {
+      if (cancelado || recargaPedida.current || !registro) return;
+      const enEspera = registro.waiting;
+      if (enEspera) setEsperando(enEspera);
+    };
+
+    const pararVigilancia = () => {
+      if (vigilancia) clearInterval(vigilancia);
+      vigilancia = null;
+    };
+
+    /**
+     * Sondea `waiting` durante 30 s tras cada comprobación.
+     *
+     * No basta con `updatefound` + `statechange`: el navegador dispara
+     * `updatefound` en cuanto empieza a instalar, casi siempre antes de que
+     * `register()` resuelva, y un SW que instala rápido llega a `installed`
+     * antes de que el listener esté enganchado. Cuando eso pasaba el aviso no
+     * aparecía nunca: al cerrar la app el SW en `waiting` se activa solo, y la
+     * siguiente apertura ya no tenía nada que anunciar. El sondeo cubre las dos
+     * carreras sin depender del orden de los eventos.
+     */
+    const vigilarEsperando = () => {
+      revisarEsperando();
+      pararVigilancia();
+      let intentos = 0;
+      vigilancia = setInterval(() => {
+        revisarEsperando();
+        intentos += 1;
+        if (intentos >= 20 || cancelado) pararVigilancia();
+      }, 1500);
+    };
 
     const registrar = async () => {
       try {
-        const registro = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+        /* La solicitud suele existir antes de registrar: se engancha ahí para no
+           perder un `updatefound` que llegue mientras `register()` resuelve. */
+        const previo = await navigator.serviceWorker.getRegistration();
+        if (cancelado) return;
+        if (previo) previo.addEventListener("updatefound", vigilarEsperando);
+
+        const reg = await navigator.serviceWorker.register("/sw.js", {
+          scope: "/",
+          /* `none`: la comprobación de versión no usa la caché HTTP ni para
+             `sw.js` ni para `sw-version.js`. Con el valor por defecto
+             (`imports`), un proxy que sirva el import con caché larga deja los
+             bytes idénticos y el navegador no instala nada. */
+          updateViaCache: "none",
+        });
         if (cancelado) return;
 
-        if (registro.waiting) setEsperando(registro.waiting);
-
-        registro.addEventListener("updatefound", () => {
-          const instalando = registro.installing;
-          if (!instalando) return;
-          instalando.addEventListener("statechange", () => {
-            /* Hay controlador = ya había una versión activa; si no, es la
-               primera instalación y no hay nada que «actualizar». */
-            if (instalando.state === "installed" && navigator.serviceWorker.controller) {
-              setEsperando(instalando);
-            }
-          });
-        });
+        registro = reg;
+        if (reg !== previo) reg.addEventListener("updatefound", vigilarEsperando);
+        vigilarEsperando();
 
         /* Sin throttle, `update()` corre en cada cambio de pestaña y al
            recuperar red. Vercel puede servir sw.js desde distintos edge nodes
@@ -89,7 +128,7 @@ export function PwaRegister() {
           const ahora = Date.now();
           if (ahora - ultimaComprobacion < INTERVALO_MS) return;
           ultimaComprobacion = ahora;
-          void registro.update().catch(() => {});
+          void registro?.update().catch(() => {}).then(vigilarEsperando);
         };
 
         /* Busca versión nueva al volver a la pestaña y al recuperar red. Un
@@ -157,6 +196,7 @@ export function PwaRegister() {
 
     return () => {
       cancelado = true;
+      pararVigilancia();
       window.removeEventListener("load", registrar);
       window.removeEventListener("online", alIrOnline);
       window.removeEventListener("offline", alIrOffline);

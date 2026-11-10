@@ -153,6 +153,10 @@ const API_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const IMAGE_MAX_ENTRIES = 400;
 const IMAGE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
+/* Estilo por defecto de la app (`LIBERTY_STYLE_URL` en `map-config.ts`). Si
+   algún día se sirve desde el VPS, se cambia también aquí. */
+const ESTILO_MAPA_URL = "https://tiles.openfreemap.org/styles/liberty";
+
 const TILES_MAX_ENTRIES = 3000;
 /* Las teselas se recortan cada 100 guardados (más infrecuente que las imágenes
    porque son más ligeras y el límite es mayor). */
@@ -207,6 +211,24 @@ self.addEventListener("install", (event) => {
       } catch {
         /* Sin red en el momento de instalar: sin `/home` en caché. Se guardará
            en la primera visita con conexión, como cualquier otra ruta pública. */
+      }
+
+      /* El mapa no se pinta sin su estilo, y MapLibre lo pide cross-origin.
+         Sin esto la app abría sin red con las teselas ya guardadas pero con el
+         mapa en blanco: `tesela()` solo alcanza `/planet/` y el estilo vive en
+         `/styles/`. Se guardan también el TileJSON de sus fuentes y el sprite. */
+      try {
+        const tilesCache = await caches.open(TILES_CACHE);
+        const estilo = await fetch(ESTILO_MAPA_URL, { cache: "reload" });
+        if (estilo.ok) {
+          /* Se parsea antes de guardar: si el servidor devolviera HTML con
+             un 200, no queremos dejar un «estilo» inválido en la caché. */
+          const cuerpo = await estilo.clone().json();
+          await tilesCache.put(ESTILO_MAPA_URL, estilo);
+          await precachearMapa(cuerpo, tilesCache);
+        }
+      } catch {
+        /* Sin red al instalar: se cachea en la primera visita controlada. */
       }
     })(),
   );
@@ -330,6 +352,13 @@ self.addEventListener("fetch", (event) => {
       event.respondWith(tesela(event, request));
     } else if (url.pathname === "/planet") {
       event.respondWith(tilejson(event, request));
+    } else if (
+      url.pathname.startsWith("/styles/") ||
+      url.pathname.startsWith("/sprites/") ||
+      url.pathname.startsWith("/fonts/") ||
+      url.pathname.startsWith("/natural_earth/")
+    ) {
+      event.respondWith(recursoMapa(event, request));
     }
     /* Cualquier otra ruta de ese host (improbable) se deja pasar sin interceptar. */
     return;
@@ -862,6 +891,57 @@ async function tilejson(event, request) {
     if (cached) return cached;
     return new Response(null, { status: 204 });
   }
+}
+
+/**
+ * Cache-first para el resto del paquete del mapa: el estilo, el sprite, las
+ * fuentes de texto y el raster de base. Son inmutables dentro de una versión
+ * del estilo, así que no tienen sentido en red-first.
+ *
+ * Sin red y sin copia se devuelve 504 en vez de dejar que la promesa rechace:
+ * MapLibre trata el recurso como fallido y no intenta parsear un cuerpo vacío.
+ */
+async function recursoMapa(event, request) {
+  const cache = await caches.open(TILES_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const copia = response.clone();
+      event.waitUntil(cache.put(request, copia).catch(() => {}));
+    }
+    return response;
+  } catch {
+    return new Response(null, { status: 504 });
+  }
+}
+
+/**
+ * Guarda lo que MapLibre necesita antes de pedir teselas: el TileJSON de cada
+ * fuente con `url` y el sprite en sus cuatro variantes (json/png, 1x y 2x).
+ * Las pilas de fuentes de texto se cachean al usarse, con `recursoMapa`.
+ */
+async function precachearMapa(estilo, cache) {
+  const urls = [];
+
+  for (const fuente of Object.values((estilo && estilo.sources) || {})) {
+    if (fuente && typeof fuente.url === "string") urls.push(fuente.url);
+  }
+
+  if (estilo && typeof estilo.sprite === "string") {
+    const sprite = estilo.sprite;
+    if (/\.(json|png)$/.test(sprite)) {
+      urls.push(sprite);
+    } else {
+      urls.push(`${sprite}.json`, `${sprite}.png`, `${sprite}@2x.json`, `${sprite}@2x.png`);
+    }
+  }
+
+  await Promise.allSettled(
+    urls.map((url) => cache.add(new Request(url, { cache: "reload" }))),
+  );
 }
 
 /** Recorte escalonado de la caché de teselas. */

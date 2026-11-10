@@ -162,6 +162,13 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
       },
       {
+        /* El SW importa este archivo y el navegador lo compara para saber si hay
+           versión nueva. Si un proxy lo sirviera con caché larga, los bytes
+           quedarían idénticos y el aviso de actualización no llegaría nunca. */
+        source: "/sw-version.js",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+      },
+      {
         source: "/manifest.webmanifest",
         headers: [{ key: "Cache-Control", value: "public, max-age=604800" }],
       },
