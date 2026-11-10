@@ -32,7 +32,11 @@ export async function GET(_req: Request, { params }: Params) {
      El browser elige el mejor disponible según tamaño y propósito. */
   const iconos = data.negocio.logoUrl
     ? [
-        { src: data.negocio.logoUrl, sizes: "any", type: "image/png", purpose: "any" },
+        /* Chrome requiere tamaños explícitos para el prompt de instalación.
+           El logo se declara dos veces (192 y 512) para que el browser lo
+           escale a lo que necesite; la imagen real puede tener otro tamaño. */
+        { src: data.negocio.logoUrl, sizes: "192x192", type: "image/png", purpose: "any" },
+        { src: data.negocio.logoUrl, sizes: "512x512", type: "image/png", purpose: "any" },
         { src: "/icons/icon-512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
       ]
     : [
