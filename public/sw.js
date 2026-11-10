@@ -199,7 +199,10 @@ self.addEventListener("install", (event) => {
         const pagesCache = await caches.open(PAGES_CACHE);
         const response = await fetch("/home", { cache: "reload" });
         if (sePuedeCachear(response)) {
+          /* El clon se toma antes de `put`, que consume el cuerpo. */
+          const copia = response.clone();
           await pagesCache.put("/home", response);
+          await calentarDocumento(copia);
         }
       } catch {
         /* Sin red en el momento de instalar: sin `/home` en caché. Se guardará
@@ -246,12 +249,16 @@ self.addEventListener("activate", (event) => {
             if (esTarjeta(clientUrl)) {
               const res = await fetch(client.url).catch(() => null);
               if (res && res.status === 200 && !res.headers.get("Set-Cookie")) {
-                await tarjetasCache.put(client.url, res).catch(() => {});
+                const copia = res.clone();
+                await tarjetasCache.put(claveTarjeta(client.url), res).catch(() => {});
+                await calentarDocumento(copia);
               }
             } else if (esRutaPublica(clientUrl)) {
               const res = await fetch(client.url).catch(() => null);
               if (res && sePuedeCachear(res)) {
+                const copia = res.clone();
                 await pagesCache.put(client.url, res).catch(() => {});
+                await calentarDocumento(copia);
               }
             }
           }),
@@ -417,6 +424,20 @@ function esTarjeta(url) {
   return /^\/m\/[^/]+\/tarjeta\/[^/]+\/?$/.test(url.pathname);
 }
 
+/**
+ * Clave de la caché de tarjetas: la tarjeta es el camino (negocio + token).
+ *
+ * La query es ruido de seguimiento del enlace de WhatsApp. Si se guardara tal
+ * cual, el `start_url` limpio del manifest no encontraría la copia al abrir sin
+ * red y el cliente vería `offline.html` en vez de su tarjeta.
+ */
+function claveTarjeta(url) {
+  const clave = new URL(url);
+  clave.search = "";
+  clave.hash = "";
+  return clave.href;
+}
+
 function esDocumentoPrivado(request, url) {
   /* La tarjeta de sellos es de un cliente concreto: token en la URL, teléfono
      enmascarado y un saldo que cambia con cada pedido. Nunca entra en la caché
@@ -450,6 +471,42 @@ function esImagen(request, url) {
   return (
     url.pathname.startsWith("/_next/image") ||
     /\.(png|jpe?g|webp|avif|gif|svg)$/i.test(url.pathname)
+  );
+}
+
+/**
+ * Guarda en caché los estáticos que el documento ya referencia.
+ *
+ * En la primera visita el service worker se instala cuando el HTML ya se
+ * pintó, así que la hoja de estilos, los chunks y el logo del negocio nunca
+ * pasaron por el `fetch` handler. Sin esto, cerrar la app y abrirla sin red
+ * enseña el documento guardado sin estilos —y en la tarjeta de sellos, sin el
+ * logo—. Al activar se relee el documento del cliente y se calientan sus
+ * recursos, que es lo que hace que el arranque en frío se vea como la app.
+ *
+ * `/_next/static/` es inmutable y va a STATIC_CACHE; `/_next/image` (el logo
+ * del negocio) va a IMAGES_CACHE, que es donde lo busca `imagen()`. El HTML
+ * escapa los `&` de las URL como `&amp;`, de ahí el reemplazo.
+ */
+async function calentarDocumento(response) {
+  let html;
+  try {
+    html = await response.clone().text();
+  } catch {
+    return;
+  }
+
+  const encontradas = html.match(/\/_next\/(?:static\/[^"'\s,)]+|image\?[^"'\s,)]+)/g) || [];
+  const urls = [...new Set(encontradas.map((url) => url.replace(/&amp;/g, "&")))].slice(0, 60);
+  if (urls.length === 0) return;
+
+  const estaticos = await caches.open(STATIC_CACHE);
+  const imagenes = await caches.open(IMAGES_CACHE);
+  await Promise.allSettled(
+    urls.map((url) => {
+      const destino = url.startsWith("/_next/image") ? imagenes : estaticos;
+      return destino.add(new Request(url, { cache: "reload" }));
+    }),
   );
 }
 
@@ -599,6 +656,7 @@ async function navegacionPrivada(request, url) {
  */
 async function navegacionTarjeta(event, request) {
   const cache = await caches.open(TARJETAS_CACHE);
+  const clave = claveTarjeta(request.url);
 
   let response = null;
   try {
@@ -609,14 +667,14 @@ async function navegacionTarjeta(event, request) {
 
   if (response) {
     if (response.status === 404 || response.status === 410) {
-      await cache.delete(request).catch(() => {});
+      await cache.delete(clave).catch(() => {});
       return response;
     }
 
     if (response.status === 200 && !response.headers.get("Set-Cookie")) {
       event.waitUntil(
         cache
-          .put(request, response.clone())
+          .put(clave, response.clone())
           .then(() => trimCache(TARJETAS_CACHE, TARJETAS_MAX_ENTRIES))
           .catch(() => {}),
       );
@@ -624,7 +682,7 @@ async function navegacionTarjeta(event, request) {
     return response;
   }
 
-  const guardada = await cache.match(request);
+  const guardada = await cache.match(clave);
   if (guardada) return guardada;
 
   const offline = await caches.match("/offline.html");
