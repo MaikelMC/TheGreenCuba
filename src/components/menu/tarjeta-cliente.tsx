@@ -212,21 +212,6 @@ export function TarjetaCliente({
   const [sinConexion, setSinConexion] = useState(false);
   const [borrada, setBorrada] = useState(false);
 
-  /* Sustituir el manifest global por el específico de esta tarjeta.
-     El App Router añade <link rel="manifest" href="/manifest.webmanifest">
-     a todas las páginas desde app/manifest.ts y no hay forma de sobreescribirlo
-     por página en metadata. Lo hacemos desde el cliente: el browser lee el link
-     cuando el usuario pulsa «Agregar a pantalla de inicio», que es siempre
-     después de la hidratación. */
-  useEffect(() => {
-    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
-    if (!link) return;
-    const anterior = link.getAttribute("href");
-    link.setAttribute("href", `/api/tarjeta/${encodeURIComponent(token)}/manifest`);
-    return () => {
-      if (anterior) link.setAttribute("href", anterior);
-    };
-  }, [token]);
 
   useEffect(() => {
     const control = new AbortController();
