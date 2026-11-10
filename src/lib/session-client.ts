@@ -20,7 +20,9 @@
 
 import {
   borrarDatosOffline,
+  guardarSesionOffline,
   leerAuth,
+  leerSesionOffline,
   marcarAuth,
   purgarCachesPrivadas,
 } from "@/lib/offline/store";
@@ -37,40 +39,66 @@ let cached: Promise<unknown> | null = null;
 let cachedForced = false;
 
 async function pedir(): Promise<unknown> {
-  /* `no-store` explícito: la ruta también lo manda, pero Safari en iOS puede
-     reutilizar una respuesta anterior a la entrada y el header se quedaba con
-     el botón de «Iniciar sesión». */
-  const response = await fetch("/api/me", {
-    cache: "no-store",
-    credentials: "same-origin",
-  });
-  if (!response.ok) throw new Error(`/api/me respondió ${response.status}`);
-  const data = (await response.json()) as {
-    authenticated?: boolean;
-    user?: { id?: string } | null;
-  };
+  let httpStatus: number | undefined;
+  try {
+    /* `no-store` explícito: la ruta también lo manda, pero Safari en iOS puede
+       reutilizar una respuesta anterior a la entrada y el header se quedaba con
+       el botón de «Iniciar sesión». */
+    const response = await fetch("/api/me", {
+      cache: "no-store",
+      credentials: "same-origin",
+    });
 
-  /* Cada respuesta correcta con usuario es una confirmación de que la sesión
-     sigue viva. Se anota para que el modo offline sepa cuándo caduca: pasados
-     siete días sin una confirmación, los snapshots privados se bloquean. */
-  if (data.authenticated && data.user?.id) {
-    const userId = data.user.id;
-    try {
-      /* Si el teléfono cambió de cuenta, los snapshots de la anterior se
-         borran **antes** de que el nuevo escriba los suyos. Sin esto, el
-         segundo usuario abriría el panel offline y vería el negocio del
-         primero. */
-      const previa = await leerAuth();
-      if (previa && previa.userId !== userId) {
-        await Promise.all([borrarDatosOffline(), purgarCachesPrivadas()]);
+    httpStatus = response.status;
+
+    if (!response.ok) {
+      /* 401: sesión inválida; no usar caché (podría ser otro usuario).
+         5xx: error del servidor; caemos al catch y usamos caché. */
+      if (response.status !== 401) {
+        const cached = await leerSesionOffline().catch(() => null);
+        if (cached) return cached;
       }
-    } catch {
-      // Un fallo del almacén local no puede impedir leer la sesión.
+      throw new Error(`/api/me respondió ${response.status}`);
     }
-    await marcarAuth(userId, Date.now());
-  }
 
-  return data;
+    const data = (await response.json()) as {
+      authenticated?: boolean;
+      user?: { id?: string } | null;
+    };
+
+    /* Cada respuesta correcta con usuario es una confirmación de que la sesión
+       sigue viva. Se anota para que el modo offline sepa cuándo caduca: pasados
+       siete días sin una confirmación, los snapshots privados se bloquean. */
+    if (data.authenticated && data.user?.id) {
+      const userId = data.user.id;
+      try {
+        /* Si el teléfono cambió de cuenta, los snapshots de la anterior se
+           borran **antes** de que el nuevo escriba los suyos. Sin esto, el
+           segundo usuario abriría el panel offline y vería el negocio del
+           primero. */
+        const previa = await leerAuth();
+        if (previa && previa.userId !== userId) {
+          await Promise.all([borrarDatosOffline(), purgarCachesPrivadas()]);
+        }
+      } catch {
+        // Un fallo del almacén local no puede impedir leer la sesión.
+      }
+      await marcarAuth(userId, Date.now());
+    }
+
+    /* Guardar para arrancar sin red la próxima vez. */
+    void guardarSesionOffline(data);
+
+    return data;
+  } catch (err) {
+    /* Error de red (TypeError) o 5xx: intentar la caché. 401 no llega aquí. */
+    const es401 = httpStatus === 401;
+    if (!es401) {
+      const cached = await leerSesionOffline().catch(() => null);
+      if (cached) return cached;
+    }
+    throw err;
+  }
 }
 
 /**

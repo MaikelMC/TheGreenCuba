@@ -26,6 +26,10 @@ export interface AccionPendiente {
   cuerpo: string;
   creadoEn: number;
   intentos: number;
+  /** Estado del ciclo de vida. `rejected` es terminal: fallo 4xx irreversible. */
+  status: "pending" | "sending" | "rejected";
+  /** Mensaje de error cuando `status === "rejected"`. */
+  error?: string;
 }
 
 /** Espera mínima entre reintentos, en ms. Se duplica con cada fallo (máx 5 min). */
@@ -36,9 +40,10 @@ function esperaMs(intentos: number): number {
   return Math.min(ESPERA_BASE_MS * 2 ** intentos, ESPERA_MAX_MS);
 }
 
-
 /** Añade una acción a la cola. Devuelve si se pudo escribir. */
-export async function encolar(accion: Omit<AccionPendiente, "creadoEn" | "intentos">): Promise<boolean> {
+export async function encolar(
+  accion: Omit<AccionPendiente, "creadoEn" | "intentos" | "status" | "error">,
+): Promise<boolean> {
   try {
     const db = await abrirDb();
     return await new Promise<boolean>((resolve) => {
@@ -47,6 +52,7 @@ export async function encolar(accion: Omit<AccionPendiente, "creadoEn" | "intent
         ...accion,
         creadoEn: Date.now(),
         intentos: 0,
+        status: "pending",
       } satisfies AccionPendiente);
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => resolve(false);
@@ -57,7 +63,10 @@ export async function encolar(accion: Omit<AccionPendiente, "creadoEn" | "intent
   }
 }
 
-/** Lista de acciones pendientes, ordenadas por fecha de creación. */
+/**
+ * Lista de acciones que pueden enviarse (excluye las rechazadas permanentemente).
+ * Ordenadas por fecha de creación.
+ */
 export async function pendientes(): Promise<AccionPendiente[]> {
   try {
     const db = await abrirDb();
@@ -66,13 +75,24 @@ export async function pendientes(): Promise<AccionPendiente[]> {
       const peticion = tx.objectStore(STORE_COLA).getAll() as IDBRequest<AccionPendiente[]>;
       peticion.onsuccess = () =>
         resolve(
-          (peticion.result ?? []).sort((a, b) => a.creadoEn - b.creadoEn),
+          (peticion.result ?? [])
+            .filter((a) => a.status !== "rejected")
+            .sort((a, b) => a.creadoEn - b.creadoEn),
         );
       peticion.onerror = () => resolve([]);
     });
   } catch {
     return [];
   }
+}
+
+async function escribirAccion(db: IDBDatabase, accion: AccionPendiente): Promise<void> {
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE_COLA, "readwrite");
+    tx.objectStore(STORE_COLA).put(accion);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+  });
 }
 
 async function borrarAccion(db: IDBDatabase, id: string): Promise<void> {
@@ -84,43 +104,57 @@ async function borrarAccion(db: IDBDatabase, id: string): Promise<void> {
   });
 }
 
-async function actualizarIntentos(db: IDBDatabase, accion: AccionPendiente): Promise<void> {
+/** Al arrancar el flush, devuelve a `pending` los que quedaron en `sending`
+ *  por una pestaña que murió en medio de un envío. */
+async function revertirEnviando(db: IDBDatabase): Promise<void> {
   return new Promise((resolve) => {
     const tx = db.transaction(STORE_COLA, "readwrite");
-    tx.objectStore(STORE_COLA).put({ ...accion, intentos: accion.intentos + 1 });
+    const store = tx.objectStore(STORE_COLA);
+    const req = store.getAll() as IDBRequest<AccionPendiente[]>;
+    req.onsuccess = () => {
+      for (const accion of req.result ?? []) {
+        if (accion.status === "sending") {
+          store.put({ ...accion, status: "pending" });
+        }
+      }
+    };
     tx.oncomplete = () => resolve();
     tx.onerror = () => resolve();
   });
 }
 
-/**
- * Reenvía las acciones pendientes.
- *
- * - Éxito (2xx): borra la acción.
- * - Error de cliente (4xx): descarta la acción (no tiene sentido reintentar).
- * - Error de red o 5xx: incrementa intentos y deja para después.
- *
- * Devuelve cuántas acciones se enviaron con éxito.
- */
-export async function procesarCola(): Promise<number> {
-  let enviados = 0;
-  let db: IDBDatabase;
+export interface ResultadoFlush {
+  enviados: number;
+  rechazados: number;
+}
 
+/** Núcleo del flush. Se llama dentro del lock. */
+async function _procesarCola(): Promise<ResultadoFlush> {
+  let db: IDBDatabase;
   try {
     db = await abrirDb();
   } catch {
-    return 0;
+    return { enviados: 0, rechazados: 0 };
   }
 
+  await revertirEnviando(db);
+
   const cola = await pendientes();
-  if (cola.length === 0) return 0;
+  if (cola.length === 0) return { enviados: 0, rechazados: 0 };
+
+  let enviados = 0;
+  let rechazados = 0;
 
   for (const accion of cola) {
-    /* Espera creciente: si ya se intentó y falló hace poco, no reintentar. */
+    /* Backoff: si ya falló y no ha pasado el tiempo mínimo, omitir. */
     if (accion.intentos > 0) {
       const tiempoDesde = Date.now() - accion.creadoEn;
       if (tiempoDesde < esperaMs(accion.intentos - 1)) continue;
     }
+
+    /* Marcar como `sending` antes del fetch: si la pestaña muere, al volver
+       se revertirá a `pending` en el próximo flush. */
+    await escribirAccion(db, { ...accion, status: "sending" });
 
     try {
       const res = await fetch(accion.ruta, {
@@ -134,22 +168,51 @@ export async function procesarCola(): Promise<number> {
         await borrarAccion(db, accion.id);
         enviados++;
       } else if (res.status >= 400 && res.status < 500) {
-        /* Error de cliente: sin cupo, negocio eliminado… No tiene sentido
-           reintentar. El usuario ya envió WhatsApp, el dueño lo confirma por ahí. */
-        console.warn(
-          `[cola] descartada acción ${accion.id} (${accion.tipo}): servidor respondió ${res.status}`,
-        );
-        setSinRed(false);
-        await borrarAccion(db, accion.id);
+        /* Error de cliente: sin cupo, negocio eliminado… Terminal: no reintentar.
+           Se conserva con `rejected` para que la UI pueda avisarlo al usuario. */
+        const errorMsg = `${res.status} ${res.statusText}`.trim();
+        await escribirAccion(db, { ...accion, status: "rejected", error: errorMsg });
+        rechazados++;
       } else {
-        await actualizarIntentos(db, accion);
+        /* 5xx: transitorio, volver a `pending`. */
+        await escribirAccion(db, { ...accion, status: "pending", intentos: accion.intentos + 1 });
       }
     } catch {
-      /* Error de red: dejar para después. */
+      /* Error de red: transitorio. */
       setSinRed(true);
-      await actualizarIntentos(db, accion);
+      await escribirAccion(db, { ...accion, status: "pending", intentos: accion.intentos + 1 });
     }
   }
 
-  return enviados;
+  return { enviados, rechazados };
+}
+
+/**
+ * Reenvía las acciones pendientes.
+ *
+ * - Éxito (2xx): borra la acción.
+ * - Error de cliente (4xx): marca `rejected` (terminal, se muestra al usuario).
+ * - Error de red o 5xx: vuelve a `pending` con backoff exponencial (máx 5 min).
+ *
+ * Exclusión mutua vía `navigator.locks` (una sola pestaña envía a la vez).
+ * Fallback a flag en memoria si el navegador no tiene la API.
+ */
+// ponytail: flag de fallback, solo protege dentro de la misma pestaña; navigator.locks cubre las demás
+let _flushEnCurso = false;
+
+export async function procesarCola(): Promise<ResultadoFlush> {
+  if (typeof navigator !== "undefined" && "locks" in navigator) {
+    return navigator.locks.request(
+      "lv-flush-cola",
+      { ifAvailable: true },
+      async (lock) => lock ? _procesarCola() : { enviados: 0, rechazados: 0 },
+    );
+  }
+  if (_flushEnCurso) return { enviados: 0, rechazados: 0 };
+  _flushEnCurso = true;
+  try {
+    return await _procesarCola();
+  } finally {
+    _flushEnCurso = false;
+  }
 }

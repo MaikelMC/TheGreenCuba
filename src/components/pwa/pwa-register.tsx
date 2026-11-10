@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { RefreshCw, WifiOff } from "lucide-react";
+import { HardDrive, RefreshCw, WifiOff } from "lucide-react";
 
 import { pwaActiva } from "@/lib/pwa/flag";
-import { asegurarPersistencia } from "@/lib/offline/storage-status";
+import { asegurarPersistencia, estadoAlmacenamiento } from "@/lib/offline/storage-status";
+import { procesarCola } from "@/lib/offline/cola";
 
 /**
  * Registro del service worker, aviso de versión nueva y banner de sin conexión.
@@ -27,6 +28,7 @@ import { asegurarPersistencia } from "@/lib/offline/storage-status";
 export function PwaRegister() {
   const [offline, setOffline] = useState(false);
   const [esperando, setEsperando] = useState<ServiceWorker | null>(null);
+  const [alertaCuota, setAlertaCuota] = useState(false);
   const recargaPedida = useRef(false);
 
   useEffect(() => {
@@ -40,11 +42,19 @@ export function PwaRegister() {
 
     setOffline(!window.navigator.onLine);
 
-    /* Persistencia cuando la app abre instalada. Los otros momentos (primer
-       pedido, panel del dueño) llaman a asegurarPersistencia() directamente
-       desde sus componentes. */
+    /* Persistencia y cuota solo cuando abre instalada. */
     if (window.matchMedia("(display-mode: standalone)").matches) {
       void asegurarPersistencia();
+      void estadoAlmacenamiento().then((estado) => {
+        if (
+          estado.usageBytes !== null &&
+          estado.quotaBytes !== null &&
+          estado.quotaBytes > 0 &&
+          estado.usageBytes / estado.quotaBytes > 0.9
+        ) {
+          setAlertaCuota(true);
+        }
+      });
     }
 
     let cancelado = false;
@@ -157,8 +167,11 @@ export function PwaRegister() {
 
   if (!pwaActiva()) return null;
 
-  const actualizar = () => {
+  const actualizar = async () => {
     if (!esperando) return;
+    /* Vaciar la cola antes de recargar: un pedido a mitad de envío no debe
+       perderse porque el SW nuevo cambia el bundle bajo los pies del fetch. */
+    await procesarCola().catch(() => {});
     recargaPedida.current = true;
     esperando.postMessage({ type: "SKIP_WAITING" });
     setEsperando(null);
@@ -166,6 +179,19 @@ export function PwaRegister() {
 
   return (
     <>
+      {alertaCuota && (
+        <div
+          role="alert"
+          className="fixed inset-x-0 top-0 z-[69] flex justify-center px-gutter"
+          style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))" }}
+        >
+          <div className="flex items-center gap-3 rounded-full border border-ink/10 bg-amber-900 px-4 py-2 text-small text-white shadow-soft">
+            <HardDrive size={15} strokeWidth={1.8} aria-hidden="true" />
+            <span>Almacenamiento al 90% · considera liberar espacio en el dispositivo</span>
+          </div>
+        </div>
+      )}
+
       {esperando && (
         <div
           role="status"

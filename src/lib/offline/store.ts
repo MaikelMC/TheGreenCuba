@@ -135,6 +135,28 @@ export async function leerAuth(): Promise<AuthOffline | null> {
   return fila ?? null;
 }
 
+/** Caché de la respuesta de `/api/me` para arrancar sin red. */
+export interface SesionOffline {
+  key: "session";
+  data: unknown;
+  savedAt: number;
+}
+
+/** Guarda la respuesta de `/api/me` en IndexedDB. Fire-and-forget: nunca lanza. */
+export async function guardarSesionOffline(data: unknown): Promise<void> {
+  await conStore(STORE_META, "readwrite", (store) =>
+    store.put({ key: "session", data, savedAt: Date.now() } satisfies SesionOffline),
+  );
+}
+
+/** Lee la sesión cacheada, o `null` si no hay. */
+export async function leerSesionOffline(): Promise<unknown | null> {
+  const fila = await conStore<SesionOffline>(STORE_META, "readonly", (store) =>
+    store.get("session") as IDBRequest<SesionOffline>,
+  );
+  return fila?.data ?? null;
+}
+
 /**
  * Borra la base entera de offline.
  *
