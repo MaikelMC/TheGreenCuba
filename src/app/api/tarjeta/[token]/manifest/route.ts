@@ -28,16 +28,27 @@ export async function GET(_req: Request, { params }: Params) {
   const startUrl = `/m/${data.negocio.slug}/tarjeta/${token}`;
   const nombre = data.negocio.nombre;
 
+  /* El logo tal como está guardado no sirve como icono: es WebP y vive en el
+     bucket, y Chrome pide los iconos del manifest con CORS. `/icono/{lado}` lo
+     devuelve cuadrado, opaco y en PNG desde este dominio.
+
+     El `maskable` también sale del logo: Chrome lo prefiere para la pantalla de
+     inicio, así que declarar aquí el de La Verde dejaba el logo fuera del
+     icono en Android. */
+  const icono = (lado: number): string =>
+    `/api/tarjeta/${token}/icono/${lado}`;
+  const iconoMaskable = `/api/tarjeta/${token}/icono/512?maskable=1`;
+
   /* Icono: logo del negocio si existe, con los de La Verde como respaldo.
      El browser elige el mejor disponible según tamaño y propósito. */
   const iconos = data.negocio.logoUrl
     ? [
-        /* Chrome requiere tamaños explícitos para el prompt de instalación.
-           El logo se declara dos veces (192 y 512) para que el browser lo
-           escale a lo que necesite; la imagen real puede tener otro tamaño. */
-        { src: data.negocio.logoUrl, sizes: "192x192", type: "image/png", purpose: "any" },
-        { src: data.negocio.logoUrl, sizes: "512x512", type: "image/png", purpose: "any" },
-        { src: "/icons/icon-512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        /* Tamaños explícitos: Chrome los exige para el prompt de instalación y
+           para elegir el icono de la pantalla de inicio. Los PNG son de verdad
+           192 y 512, así que no hay que adivinar nada. */
+        { src: icono(192), sizes: "192x192", type: "image/png", purpose: "any" },
+        { src: icono(512), sizes: "512x512", type: "image/png", purpose: "any" },
+        { src: iconoMaskable, sizes: "512x512", type: "image/png", purpose: "maskable" },
       ]
     : [
         { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

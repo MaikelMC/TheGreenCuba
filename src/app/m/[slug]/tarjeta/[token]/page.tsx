@@ -47,10 +47,19 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
        swap client-side no funciona: hay que hacerlo aquí. */
     ...(startUrl && { manifest: `/api/tarjeta/${token}/manifest` }),
     /* iOS Safari usa <link rel="apple-touch-icon"> para el icono de pantalla
-       de inicio, no los icons del manifest. Con esto el icono instalado muestra
-       el logo del negocio en vez del de La Verde. */
+       de inicio, no los icons del manifest. Pero no sirve apuntarlo al logo
+       guardado: es WebP y está en el bucket, y el iPhone exige un PNG cuadrado
+       del mismo origen y sin transparencia. `/icono/180` se lo da así. */
     ...(data?.negocio.logoUrl && {
-      icons: { apple: data.negocio.logoUrl },
+      icons: {
+        apple: [
+          {
+            url: `/api/tarjeta/${token}/icono/180`,
+            sizes: "180x180",
+            type: "image/png",
+          },
+        ],
+      },
     }),
     appleWebApp: {
       capable: true,
