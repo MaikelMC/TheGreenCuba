@@ -13,7 +13,7 @@ import { procesarCola } from "@/lib/offline/cola";
  * Tres responsabilidades porque las tres dependen del mismo registro y separarlas
  * obligaría a compartir estado entre componentes:
  *
- *  - **Registro.** Solo si `NEXT_PUBLIC_PWA_ENABLED === "true"` y nunca en
+ *  - **Registro.** Salvo que `NEXT_PUBLIC_PWA_ENABLED === "false"` y nunca en
  *    desarrollo. Si la bandera está apagada, además se desregistra cualquier
  *    service worker que haya quedado de una prueba anterior y se borran las
  *    cachés `lv-*`: un preview apagado no debe seguir sirviendo HTML viejo.

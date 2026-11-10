@@ -55,8 +55,15 @@ const CSP = [
      sus workers. `tiles.openfreemap.org` se quita cuando el VPS esté listo y
      las teselas salgan de nuestro propio dominio. */
   "connect-src 'self' https://photon.komoot.io https://nominatim.openstreetmap.org https://us.i.posthog.com https://eu.i.posthog.com https://us-assets.i.posthog.com https://eu-assets.i.posthog.com https://tiles.openfreemap.org",
-  /* MapLibre compila sus shaders en un Web Worker instanciado con un blob URL. */
-  "worker-src blob:",
+  /* MapLibre compila sus shaders en un Web Worker instanciado con un blob URL.
+     `'self'` no sobra: Chrome aplica `worker-src` también al registro del
+     service worker, y con la directiva en `blob:` a secas bloquea `/sw.js`
+     ("Creating a worker from ... violates the following Content Security
+     Policy directive: worker-src blob:"). Sin SW no hay precaché y la PWA
+     instalada enseña la página de error del navegador al abrirla sin red. Una
+     pestaña que ya tenía el SW registrado sigue funcionando, así que el fallo
+     solo aparece en instalaciones nuevas o tras cambiar de dominio. */
+  "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
