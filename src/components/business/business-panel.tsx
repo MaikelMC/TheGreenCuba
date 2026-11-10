@@ -360,13 +360,16 @@ export function BusinessPanel({
                cada semana. Con la `key` por negocio, cambiar de negocio vuelve
                a sembrar la lista. */
             return (
-              <CatalogoView
-                key={place.id}
-                place={place}
-                funciones={funciones}
-                configTasa={configTasa ?? undefined}
-                onVerPlanes={onVerPlanes}
-              />
+              <div className="flex flex-col gap-gap-sm">
+                <InfoServicio href="/servicios/carta-y-qr" />
+                <CatalogoView
+                  key={place.id}
+                  place={place}
+                  funciones={funciones}
+                  configTasa={configTasa ?? undefined}
+                  onVerPlanes={onVerPlanes}
+                />
+              </div>
             );
           case "pedidos":
             /* El historial vive aparte de la carta porque se mira con otro
@@ -374,6 +377,7 @@ export function BusinessPanel({
                comprueba la propiedad en cada lectura y escritura. */
             return (
               <div className="flex flex-col gap-gap-md">
+                <InfoServicio href="/servicios/flujo-atencion-pedidos" />
                 <PedidosView
                   key={place.id}
                   placeId={place.id}
@@ -409,14 +413,17 @@ export function BusinessPanel({
                para configurar la tarjeta. Cada botón vuelve a comprobar su
                permiso antes de llamar; el servidor, otra vez. */
             return (
-              <ClientesFrecuentesView
-                key={place.id}
-                placeId={place.id}
-                funciones={funciones}
-                esDueno={esDueno}
-                permisos={permisos}
-                onVerPlanes={onVerPlanes}
-              />
+              <div className="flex flex-col gap-gap-sm">
+                <InfoServicio href="/servicios/cliente-frecuente" />
+                <ClientesFrecuentesView
+                  key={place.id}
+                  placeId={place.id}
+                  funciones={funciones}
+                  esDueno={esDueno}
+                  permisos={permisos}
+                  onVerPlanes={onVerPlanes}
+                />
+              </div>
             );
           case "publicaciones":
             /* Las funciones deciden si la sección se abre o enseña el candado,
@@ -455,12 +462,15 @@ export function BusinessPanel({
                semana y la ficha se toca una vez. Con la `key` por negocio, el
                selector remonta la vista al cambiar de ficha. */
             return (
-              <OfertasView
-                key={place.id}
-                place={place}
-                funciones={funciones}
-                onVerPlanes={onVerPlanes}
-              />
+              <div className="flex flex-col gap-gap-sm">
+                <InfoServicio href="/servicios/ofertas-y-novedades" />
+                <OfertasView
+                  key={place.id}
+                  place={place}
+                  funciones={funciones}
+                  onVerPlanes={onVerPlanes}
+                />
+              </div>
             );
           case "telegram":
             /* El asistente vivía dentro de Ajustes. Se saca a su propia
@@ -507,6 +517,21 @@ export function BusinessPanel({
         }
       }}
     </PanelShell>
+  );
+}
+
+/** Link discreto de «¿Qué hace esto?» para las secciones del panel. */
+function InfoServicio({ href }: { href: string }) {
+  return (
+    <div className="flex justify-end">
+      <Link
+        href={href}
+        className="flex items-center gap-1 text-meta text-ink-soft/60 hover:text-verde-600 transition-colors"
+      >
+        ¿Qué hace esto?
+        <ArrowUpRight size={13} strokeWidth={2} />
+      </Link>
+    </div>
   );
 }
 

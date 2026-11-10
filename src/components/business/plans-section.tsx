@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, MessageCircle, Package, Sparkles, Wallet } from "lucide-react";
+import { ArrowUpRight, Check, Loader2, MessageCircle, Package, Sparkles, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { whatsappHref } from "@/lib/contact-links";
@@ -666,6 +667,13 @@ function Proximamente() {
   );
 }
 
+const MODULO_A_SERVICIO: Partial<Record<ClaveModulo, string>> = {
+  menu_pro: "carta-y-qr",
+  pedidos_reservas: "flujo-atencion-pedidos",
+  pedidos_programados: "pedidos-programados",
+  cliente_frecuente: "cliente-frecuente",
+};
+
 /** Un módulo suelto: su precio, su lema y sus funciones. */
 function ModuloTile({
   clave,
@@ -732,6 +740,15 @@ function ModuloTile({
       {/* `mt-auto` para que los botones caigan a la misma altura aunque las
           listas midan distinto. */}
       <div className="mt-auto pt-gap-lg">
+        {MODULO_A_SERVICIO[clave] && (
+          <Link
+            href={`/servicios/${MODULO_A_SERVICIO[clave]}`}
+            className="mb-gap-sm flex items-center gap-1 text-meta text-verde-600 hover:text-verde-700"
+          >
+            Ver cómo funciona
+            <ArrowUpRight size={13} strokeWidth={2} />
+          </Link>
+        )}
         <button
           type="button"
           onClick={dependencia ? onPagarDependencia : onPagar}
