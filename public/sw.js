@@ -17,10 +17,10 @@
  * `CACHE_VERSION` lo gestiona `public/sw-version.js`, generado en prebuild.
  */
 
-/* La versión la escribe `scripts/sw-version.js` en prebuild y vive en
-   `public/sw-version.js` (ignorado por git). El navegador rastrea los scripts
-   importados: si cambia, instala una versión nueva del SW sin tocar sw.js. */
-importScripts("/sw-version.js");
+/* sw-version.js lo escribe el prebuild y lo rastrea el navegador para detectar
+   actualizaciones del SW sin modificar este archivo. Va en try-catch: si el
+   VPS no regeneró el archivo o lo sirve con 404, el SW sigue instalándose. */
+try { importScripts("/sw-version.js"); } catch { /* sin sw-version.js: solo la detección de updates falla */ }
 
 /* v2: las navegaciones ya no caen a la copia guardada solo porque la red tarde
    más de 4 s. Ese camino servía HTML de un despliegue anterior mientras había
@@ -62,10 +62,19 @@ importScripts("/sw-version.js");
 
    v8: RSC fallback: fallo de red → text/plain → Next hace MPA navigation →
    SW intercepta la navegación completa. Rutas /profile y /notifications sin
-   red → /sin-conexion/perfil. Rutas públicas sin caché → redirect a
-   /home?desde=pagina. IMAGE_MAX_ENTRIES 80 → 400. CACHE_VERSION deja de ser
-   constante hardcoded: la gestiona sw-version.js generado en prebuild. */
-const CACHE_VERSION = (typeof self.SW_VERSION === "string" && self.SW_VERSION) || "lv-v8-fallback";
+   red → /sin-conexion/perfil. IMAGE_MAX_ENTRIES 80 → 400.
+
+   v9: CACHE_VERSION vuelve a ser un literal fijo que el desarrollador sube
+   manualmente. El problema de tenerlo como timestamp del build es que cada
+   deploy borraba TODAS las cachés y el usuario necesitaba reconectar online
+   para reconstruirlas: si abría la app offline justo después de un deploy,
+   el caché estaba vacío y no había nada que servir. La detección de updates
+   sigue funcionando: el navegador rastrea sw-version.js (que sí cambia en
+   cada build) y detecta el cambio sin que CACHE_VERSION tenga que moverse.
+   Cuando la lógica del SW cambie de forma que requiera invalidar las cachés
+   existentes (nueva estructura de datos, cambio de estrategia), se sube a
+   mano: lv-v10, lv-v11, etc. */
+const CACHE_VERSION = "lv-v9";
 
 const STATIC_CACHE = `lv-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `lv-pages-${CACHE_VERSION}`;
