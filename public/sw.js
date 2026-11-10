@@ -217,6 +217,39 @@ self.addEventListener("activate", (event) => {
       /* Una sola vez, al activar: la pestaña que ya estaba abierta pasa a estar
          controlada sin recargar. */
       await self.clients.claim();
+
+      /* Primera visita: el SW se instala mientras la página ya está pintada,
+         así que la navegación inicial no pasó por el fetch handler y el
+         documento nunca entra en caché por sí solo. Tras el claim, buscamos
+         todos los clientes abiertos y guardamos sus páginas ahora.
+         Esto soluciona "abrí la app una vez con red, la cerré, ahora sin red
+         no carga" — tanto para /home como para las tarjetas de fidelidad. */
+      try {
+        const pagesCache = await caches.open(PAGES_CACHE);
+        const tarjetasCache = await caches.open(TARJETAS_CACHE);
+        const clientList = await self.clients.matchAll({ type: "window" });
+        await Promise.allSettled(
+          clientList.map(async (client) => {
+            let clientUrl;
+            try { clientUrl = new URL(client.url); } catch { return; }
+            if (clientUrl.origin !== self.location.origin) return;
+
+            if (esTarjeta(clientUrl)) {
+              const res = await fetch(client.url).catch(() => null);
+              if (res && res.status === 200 && !res.headers.get("Set-Cookie")) {
+                await tarjetasCache.put(client.url, res).catch(() => {});
+              }
+            } else if (esRutaPublica(clientUrl)) {
+              const res = await fetch(client.url).catch(() => null);
+              if (res && sePuedeCachear(res)) {
+                await pagesCache.put(client.url, res).catch(() => {});
+              }
+            }
+          }),
+        );
+      } catch {
+        /* Sin red o sin clientes: se guardará en la siguiente visita con conexión. */
+      }
     })(),
   );
 });
@@ -481,10 +514,17 @@ async function navegacion(request, url) {
       : await cache.match(request);
   if (cached) return cached;
 
-  /* Sin caché: redirigir a /home con aviso en vez de mostrar offline.html.
-     /home ya está en caché (precaché + primera visita), así que el redirect
-     siempre aterriza en algo útil. */
-  return Response.redirect("/home?desde=pagina", 302);
+  /* Sin caché y sin red. Si es una ruta distinta a /home y /home está en
+     caché, redirigir con el aviso offline. Si /home tampoco está o ya
+     estamos en /home, ir directo a offline.html para no caer en un bucle
+     de redirecciones infinitas. */
+  if (url.pathname !== "/home") {
+    const homeEnCache = await cache.match("/home", { ignoreSearch: true });
+    if (homeEnCache) return Response.redirect("/home?desde=pagina", 302);
+  }
+  const offline = await caches.match("/offline.html");
+  if (offline) return offline;
+  return respuestaSinConexion();
 }
 
 /**
