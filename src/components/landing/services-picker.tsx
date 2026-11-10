@@ -2,9 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, SlidersHorizontal } from "lucide-react";
+import { ArrowUpRight, Check, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MODULOS, type ClaveModulo } from "@/lib/plans";
+
+const MODULO_A_SERVICIO: Partial<Record<ClaveModulo, string>> = {
+  menu_pro: "carta-y-qr",
+  pedidos_reservas: "flujo-atencion-pedidos",
+  pedidos_programados: "pedidos-programados",
+  cliente_frecuente: "cliente-frecuente",
+};
 import {
   Dialog,
   DialogContent,
@@ -119,6 +126,16 @@ export function ServicesPicker() {
                   <span className="mt-0.5 block text-xs leading-snug text-ink-soft/75">
                     {modulo.lema}
                   </span>
+                  {MODULO_A_SERVICIO[clave] && (
+                    <Link
+                      href={`/servicios/${MODULO_A_SERVICIO[clave]}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-1 inline-flex items-center gap-0.5 text-[11px] text-verde-600 hover:text-verde-700"
+                    >
+                      Ver cómo funciona
+                      <ArrowUpRight size={11} strokeWidth={2} />
+                    </Link>
+                  )}
                 </span>
               </label>
             );
