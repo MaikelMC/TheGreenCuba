@@ -1625,6 +1625,16 @@ function HomePageContent() {
             syncFilterUrl(value, activeFilters);
           }}
         />
+        {/* Botón de recarga: esquina superior izquierda, debajo de los filtros. */}
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          aria-label="Recargar página"
+          title="Recargar"
+          className="absolute left-gutter top-[64px] z-30 grid size-11 place-items-center rounded-full border border-ink/10 bg-white text-ink-soft shadow-soft transition-colors duration-500 ease-outquint hover:border-ink/20 hover:text-ink active:scale-95"
+        >
+          <RefreshCw size={18} strokeWidth={1.8} />
+        </button>
         {/* Columna flotante de la esquina: la campana arriba y, debajo, el
             interruptor de claro/oscuro. Van juntos para que se apilen con la
             misma separación sin repetir la posición en dos sitios. */}
