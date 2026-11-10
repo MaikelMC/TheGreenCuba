@@ -19,6 +19,8 @@ import {
   GEO_ZOOM,
   LIBERTY_STYLE_URL,
   MAP_ATTRIBUTION,
+  PITCH_3D,
+  BEARING_3D,
 } from "@/lib/map/map-config";
 import { placeIcon } from "@/lib/places";
 import { tieneRespaldo } from "@/lib/energia";
@@ -161,6 +163,8 @@ export function MapContent({
   initialZoom = DEFAULT_ZOOM,
   maxZoom = MAX_ZOOM,
   disableAutoFit,
+  vista3d = false,
+  onVista3dChange,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapa, setMapa] = useState<maplibregl.Map | null>(null);
@@ -398,6 +402,43 @@ export function MapContent({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* ── Vista 3D ─────────────────────────────────────────────────────────────
+     Los gestos ya vienen activos de MapLibre (`dragRotate` y `touchPitch`), así
+     que aquí solo se lleva la cámara a la vista inclinada y se devuelve a plano.
+     Con `prefers-reduced-motion` se salta sin animación: 900 ms de vuelo son
+     justo el tipo de movimiento que esa preferencia pide evitar. */
+  const vista3dAplicada = useRef(false);
+  useEffect(() => {
+    if (!mapa) return;
+
+    /* Al montar `vista3d` es false: un `jumpTo` a plano borraría la vista
+       restaurada (el mapa se abre donde lo dejó el usuario). */
+    if (!vista3dAplicada.current) {
+      vista3dAplicada.current = true;
+      if (!vista3d) return;
+    }
+
+    const vista = vista3d
+      ? { pitch: PITCH_3D, bearing: BEARING_3D }
+      : { pitch: 0, bearing: 0 };
+    const sinMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (sinMovimiento) mapa.jumpTo(vista);
+    else mapa.easeTo({ ...vista, duration: 900 });
+  }, [mapa, vista3d]);
+
+  /* El dedo puede deshacer la inclinación sin tocar el botón. `pitchend` llega
+     al soltar el gesto y también al terminar el `easeTo`, así que el estado de
+     fuera sigue a lo que de verdad se ve. */
+  useEffect(() => {
+    if (!mapa || !onVista3dChange) return;
+    const alSoltar = () => onVista3dChange(mapa.getPitch() > 5);
+    mapa.on("pitchend", alSoltar);
+    return () => {
+      mapa.off("pitchend", alSoltar);
+    };
+  }, [mapa, onVista3dChange]);
 
   /* ── Tema ─────────────────────────────────────────────────────────────── */
   useEffect(() => {

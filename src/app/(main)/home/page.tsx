@@ -623,6 +623,9 @@ function HomePageContent() {
      `true` desde la primera— y los resultados quedaban escondidos bajo la hoja
      recogida. */
   const [openKey, setOpenKey] = useState(0);
+  /* Vista inclinada del mapa. El estado vive aquí y no en `MapContent` porque
+     el botón que la enciende está en la columna de controles de esta página. */
+  const [vista3d, setVista3d] = useState(false);
   /* Vacío al montar, nunca sembrado: el corazón tiene que decir la verdad
      mientras llega `fetchMe`. El efecto de abajo lo rellena desde la misma
      lista de guardados que usa el perfil. */
@@ -1600,6 +1603,8 @@ function HomePageContent() {
         initialCenter={initialCenter ?? undefined}
         initialZoom={restoredMapView?.zoom ?? (disableAutoFit ? 13 : undefined)}
         disableAutoFit={disableAutoFit}
+        vista3d={vista3d}
+        onVista3dChange={setVista3d}
         /* Cada vez que el mapa se asienta se guarda dónde quedó: es lo que se
            restaura al volver desde otra sección o desde una ficha. La lectura
            síncrona de preferencias da la provincia ya guardada, también
@@ -1635,6 +1640,26 @@ function HomePageContent() {
           className="absolute left-gutter top-[64px] z-30 grid size-11 place-items-center rounded-full border border-ink/10 bg-white text-ink-soft shadow-soft transition-colors duration-500 ease-outquint hover:border-ink/20 hover:text-ink active:scale-95"
         >
           <RotateCw size={18} strokeWidth={1.8} />
+        </button>
+        {/* 3D: inclina la cámara para moverse en perspectiva. Va debajo de
+            recarga, con su mismo tamaño y alineación (64 px de la recarga +
+            44 de alto + 10 de hueco), para que la columna izquierda se lea como
+             una sola pila de controles. Sin brújula aparte: apagarlo devuelve a
+            plano y al norte, que es la forma de reorientarse. */}
+        <button
+          type="button"
+          onClick={() => setVista3d((activa) => !activa)}
+          aria-pressed={vista3d}
+          aria-label={vista3d ? "Volver al mapa plano" : "Ver el mapa en 3D"}
+          title={vista3d ? "Volver a plano" : "Mapa en 3D"}
+          className={cn(
+            "absolute left-gutter top-[118px] z-30 grid size-11 place-items-center rounded-full border font-lv-display text-[13px] font-bold shadow-soft transition-colors duration-500 ease-outquint active:scale-95",
+            vista3d
+              ? "border-verde-400 bg-verde-400 text-verde-950"
+              : "border-ink/10 bg-white text-ink-soft hover:border-ink/20 hover:text-ink",
+          )}
+        >
+          3D
         </button>
         {/* Columna flotante de la esquina: la campana arriba y, debajo, el
             interruptor de claro/oscuro. Van juntos para que se apilen con la

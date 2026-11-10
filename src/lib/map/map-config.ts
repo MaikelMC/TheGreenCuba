@@ -9,6 +9,16 @@ export const MAX_ZOOM = 19;
 export const GEO_ZOOM = 15;
 
 /**
+ * Vista 3D: inclinación y giro de la cámara.
+ *
+ * 55° deja margen bajo el tope de MapLibre (60 por defecto) para que el usuario
+ * pueda seguir inclinando con dos dedos sin toparse con el techo. El giro de
+ * -20° es el que da profundidad: sin él, inclinar solo aplasta el mapa de frente.
+ */
+export const PITCH_3D = 55;
+export const BEARING_3D = -20;
+
+/**
  * Límites de Cuba con margen, para maxBounds.
  *
  * Evita que el usuario navegue fuera de Cuba y gaste datos en teselas que

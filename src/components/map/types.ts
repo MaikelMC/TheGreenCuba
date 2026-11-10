@@ -89,6 +89,16 @@ export interface MapViewProps {
   initialCenter?: [number, number];
   initialZoom?: number;
   maxZoom?: number;
+  /** Vista inclinada para moverse por el mapa en perspectiva. */
+  vista3d?: boolean;
+  /**
+   * Lo que el mapa hace con la inclinación, hacia fuera.
+   *
+   * Hace falta porque el gesto de dos dedos también inclina: si el usuario
+   * vuelve a plano por su cuenta, el botón que la encendió tiene que desmarcarse
+   * en vez de seguir diciendo que está activo.
+   */
+  onVista3dChange?: (activa: boolean) => void;
   /** Evita el auto-fit de bounds al montar (útil cuando se centra en una zona elegida). */
   disableAutoFit?: boolean;
   children?: ReactNode;
