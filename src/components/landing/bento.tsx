@@ -1,4 +1,5 @@
 import {
+  ArrowRight,
   CalendarDays,
   Check,
   MapPin,
@@ -7,6 +8,7 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Reveal } from "./reveal";
 
@@ -219,6 +221,23 @@ export function Bento() {
             className="lg:col-span-6"
             wide
           />
+        </div>
+
+        {/* El bento enseña las piezas de producto; el catálogo las pone todas
+            juntas, por tipo de negocio y con precio. Es el paso natural de
+            quien quiere ver «todo lo demás» sin bajar hasta los planes. */}
+        <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Link
+            href="/servicios"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ink/15 bg-white px-5 font-lv-display text-sm font-semibold text-ink transition duration-300 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 focus-visible:ring-offset-2"
+          >
+            Ver todos los servicios
+            <ArrowRight size={16} aria-hidden />
+          </Link>
+          <p className="text-sm text-ink-soft/70">
+            El catálogo completo, agrupado por tipo de negocio y con packs
+            armados.
+          </p>
         </div>
       </div>
     </section>

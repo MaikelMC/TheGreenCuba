@@ -824,6 +824,24 @@
     color: #9be3b4 !important;
   }
 
+  /* Los `hover:text-verde-*` y `group-hover:text-verde-*` son clases distintas
+     de `.text-verde-*`: la tanda de arriba no los alcanza. En oscuro el hover
+     dejaba verde-700 sobre una superficie ya oscura, así que el enlace
+     desaparecía justo al pasar el ratón. Se aclaran al mismo verde que el
+     texto en reposo. */
+  html[data-theme="dark"] [class~="hover:text-verde-600"]:hover,
+  html[data-theme="dark"] [class~="hover:text-verde-700"]:hover,
+  html[data-theme="dark"] [class~="hover:text-verde-800"]:hover,
+  html[data-theme="dark"] [class~="focus-visible:text-verde-600"]:focus-visible,
+  html[data-theme="dark"] [class~="focus-visible:text-verde-700"]:focus-visible {
+    color: #9be3b4 !important;
+  }
+
+  html[data-theme="dark"] .group:hover [class~="group-hover:text-verde-600"],
+  html[data-theme="dark"] .group:hover [class~="group-hover:text-verde-700"] {
+    color: #9be3b4 !important;
+  }
+
   /* ─── Superficies claras que las listas de arriba no alcanzan ───
      Tailwind compila cada variante a una clase distinta —`bg-sand/40` no es
      `.bg-sand`, y `focus:bg-white` no es `.bg-white`—, así que las dos listas
