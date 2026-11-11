@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { SERVICIOS } from "@/content/servicios";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { PrecioServicio } from "@/components/servicios/precio-servicio";
@@ -24,57 +24,90 @@ const SERVICIOS_CATEGORIA = SERVICIOS.filter(
   (s) => s.categoria === "comida-a-domicilio",
 );
 
+/**
+ * La landing de la categoría «comida a domicilio».
+ *
+ * Misma gramática visual que el catálogo: tarjetas `bg-white` con borde `ink`
+ * (las dos se oscurecen con `data-theme="dark"`), pastillas de 48 px y la
+ * curva `ease-outquint` en cada interacción.
+ */
 export default async function ComidaADomicilioPage() {
   const catalogo = await cargarCatalogo();
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10 space-y-10">
-      <header className="space-y-3">
-        <p className="text-sm font-medium text-primary uppercase tracking-wide">
+    <div className="mx-auto w-full max-w-4xl px-gutter py-10 md:px-gutter-lg md:py-16 lv-view-in">
+      <Link
+        href="/servicios"
+        className="inline-flex items-center gap-1.5 text-meta font-semibold text-ink-soft/70 transition-colors duration-300 hover:text-verde-700"
+      >
+        <ArrowLeft size={13} aria-hidden />
+        Todos los servicios
+      </Link>
+
+      <header className="mt-6">
+        <p className="lv-mono text-[11px] uppercase tracking-[0.2em] text-verde-700">
           Comida a domicilio
         </p>
-        <h1 className="text-3xl font-bold leading-tight">
+        <h1 className="mt-3 font-lv-display text-h1 font-bold tracking-[-0.04em] text-ink text-balance">
           Herramientas para negocios de comida
         </h1>
-        <p className="text-muted-foreground text-lg">
-          Carta en línea, pedidos por WhatsApp, horarios de cocina y tarjeta de cliente frecuente. Contrata solo lo que necesitas, uno a uno o combinado.
+        <p className="mt-4 max-w-2xl text-lead text-ink-soft/75 text-pretty">
+          Carta en línea, pedidos por WhatsApp, horarios de cocina y tarjeta de
+          cliente frecuente. Contrata solo lo que necesitas, uno a uno o
+          combinado.
         </p>
-        <TasaCambioNota catalogo={catalogo} />
+        <div className="mt-5">
+          <TasaCambioNota catalogo={catalogo} />
+        </div>
       </header>
 
-      <div className="space-y-4">
+      <div className="mt-10 grid gap-3 sm:grid-cols-2">
         {SERVICIOS_CATEGORIA.map((servicio) => (
           <Link
             key={servicio.slug}
             href={`/servicios/${servicio.slug}`}
-            className="block rounded-xl border bg-card p-5 hover:border-primary/40 transition-colors space-y-3"
+            className="group flex h-full flex-col gap-3 rounded-3xl border border-ink/10 bg-white p-5 shadow-soft transition duration-300 ease-outquint hover:-translate-y-[2px] hover:border-verde-300 hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/60"
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <div className="min-w-0">
+                <p className="lv-mono text-[10px] uppercase tracking-[0.18em] text-verde-700">
                   {servicio.nombre}
                 </p>
-                <h2 className="font-semibold text-foreground">{servicio.titulo}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {servicio.descripcionCorta}
-                </p>
+                <h2 className="mt-2 font-lv-display text-lg font-bold leading-snug tracking-[-0.02em] text-ink">
+                  {servicio.titulo}
+                </h2>
               </div>
-              <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0 mt-1" />
+              <span className="grid size-8 shrink-0 place-items-center rounded-full border border-ink/10 text-ink-soft/70 transition-colors duration-300 group-hover:border-verde-300 group-hover:bg-verde-50 group-hover:text-verde-600">
+                <ArrowRight size={14} aria-hidden />
+              </span>
             </div>
-            <PrecioServicio precio={servicio.precio} catalogo={catalogo} />
+
+            <p className="text-small leading-relaxed text-ink-soft/75">
+              {servicio.descripcionCorta}
+            </p>
+
+            <div className="mt-auto border-t border-ink/10 pt-3">
+              <PrecioServicio precio={servicio.precio} catalogo={catalogo} />
+            </div>
           </Link>
         ))}
       </div>
 
-      <section className="rounded-xl border bg-muted/50 p-5 space-y-2">
-        <h2 className="font-semibold">¿No sabes por cuál empezar?</h2>
-        <p className="text-sm text-muted-foreground">
+      <section className="mt-6 rounded-3xl border border-dashed border-ink/15 bg-sand/40 p-6">
+        <h2 className="font-lv-display text-body font-bold tracking-[-0.01em] text-ink">
+          ¿No sabes por cuál empezar?
+        </h2>
+        <p className="mt-2 max-w-2xl text-small leading-relaxed text-ink-soft/75">
           La mayoría empieza por la{" "}
-          <Link href="/servicios/carta-y-qr" className="text-primary underline underline-offset-2">
+          <Link
+            href="/servicios/carta-y-qr"
+            className="font-semibold text-verde-700 underline decoration-verde-300 underline-offset-2 transition-colors hover:text-verde-800"
+          >
             carta en línea con QR
           </Link>
           . Con ella ya tienes los productos con foto y el QR para imprimir. Los
-          pedidos y la fidelización se pueden añadir después, cuando los necesites.
+          pedidos y la fidelización se pueden añadir después, cuando los
+          necesites.
         </p>
       </section>
     </div>

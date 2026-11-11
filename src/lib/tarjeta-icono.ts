@@ -111,8 +111,8 @@ export async function pngIconoCuadrado(
   }
   const marca = await pipeline
     .resize(interior, interior, {
-      fit: "contain",
-      background: { ...FONDO, alpha: 0 },
+      fit: "cover",
+      position: "centre",
     })
     .png()
     .toBuffer();
