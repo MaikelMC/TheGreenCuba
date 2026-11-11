@@ -49,7 +49,7 @@ export default async function ServiciosPage() {
 
   return (
     <div className="mx-auto w-full max-w-container px-gutter py-10 md:px-gutter-lg md:py-16">
-      <header className="max-w-3xl">
+      <header className="max-w-3xl lv-view-in">
         <p className="lv-mono text-[11px] uppercase tracking-[0.2em] text-verde-700">
           Servicios
         </p>

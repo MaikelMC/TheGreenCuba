@@ -76,17 +76,19 @@ export function CatalogoServicios({ catalogo, autenticado, tieneNegocio }: Props
       };
     }
     if (servicio.modulo) {
-      return { texto: "Contratar", href: hrefPago(undefined, [servicio.modulo]), externo: false };
+      const dest = hrefPago(undefined, [servicio.modulo]);
+      if (autenticado && tieneNegocio) return { texto: "Ir a planes", href: dest, externo: false };
+      if (autenticado) return { texto: "Continuar", href: dest, externo: false };
+      return { texto: "Comenzar", href: dest, externo: false };
     }
     if (servicio.plan) {
-      return {
-        texto: `Con ${catalogo.packs[servicio.plan].nombre}`,
-        href: hrefPago(servicio.plan),
-        externo: false,
-      };
+      const dest = hrefPago(servicio.plan);
+      if (autenticado && tieneNegocio) return { texto: `Con ${catalogo.packs[servicio.plan].nombre}`, href: dest, externo: false };
+      if (autenticado) return { texto: "Continuar", href: dest, externo: false };
+      return { texto: "Comenzar", href: dest, externo: false };
     }
     return {
-      texto: "Empezar gratis",
+      texto: autenticado && tieneNegocio ? "Ir al panel" : "Empezar gratis",
       href: autenticado && tieneNegocio ? "/business" : hrefPago(),
       externo: false,
     };
@@ -102,8 +104,9 @@ export function CatalogoServicios({ catalogo, autenticado, tieneNegocio }: Props
   return (
     <div>
       {/* Filtros */}
+      <p className="mt-8 text-small font-semibold text-ink">Categoría</p>
       <div
-        className="mt-8 flex flex-wrap gap-2"
+        className="mt-2 flex gap-2 overflow-x-auto pb-1 scrollbar-hide"
         role="group"
         aria-label="Filtrar por categoría de negocio"
       >
@@ -112,10 +115,10 @@ export function CatalogoServicios({ catalogo, autenticado, tieneNegocio }: Props
           onClick={() => setFiltro("todas")}
           aria-pressed={filtro === "todas"}
           className={cn(
-            "rounded-full border px-4 py-2 text-small font-medium transition-colors duration-300",
+            "inline-flex shrink-0 min-h-10 items-center rounded-full border px-4 font-lv-display text-small font-semibold transition duration-300 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/60",
             filtro === "todas"
-              ? "border-verde-400 bg-verde-400 text-verde-950"
-              : "border-ink/10 bg-white text-ink-soft/80 hover:border-ink/30 hover:text-ink",
+              ? "border-verde-500 bg-verde-50 text-verde-700"
+              : "border-ink/10 bg-white text-ink-soft/80 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
           )}
         >
           Todas
@@ -127,10 +130,10 @@ export function CatalogoServicios({ catalogo, autenticado, tieneNegocio }: Props
             onClick={() => setFiltro(categoria.slug)}
             aria-pressed={filtro === categoria.slug}
             className={cn(
-              "rounded-full border px-4 py-2 text-small font-medium transition-colors duration-300",
+              "inline-flex shrink-0 min-h-10 items-center rounded-full border px-4 font-lv-display text-small font-semibold transition duration-300 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/60",
               filtro === categoria.slug
-                ? "border-verde-400 bg-verde-400 text-verde-950"
-                : "border-ink/10 bg-white text-ink-soft/80 hover:border-ink/30 hover:text-ink",
+                ? "border-verde-500 bg-verde-50 text-verde-700"
+                : "border-ink/10 bg-white text-ink-soft/80 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
             )}
           >
             {categoria.corto}
@@ -163,38 +166,65 @@ export function CatalogoServicios({ catalogo, autenticado, tieneNegocio }: Props
               <ul className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {categoria.servicios.map((servicio) => {
                   const cta = ctaServicio(servicio);
+                  const proximo = servicio.estado === "proximo";
+                  const lema = servicio.modulo
+                    ? catalogo.modulos[servicio.modulo]?.lema
+                    : servicio.plan
+                      ? catalogo.packs[servicio.plan]?.lema
+                      : undefined;
+                  const precioUsdVal = servicio.modulo
+                    ? catalogo.modulos[servicio.modulo]?.usd
+                    : undefined;
                   return (
                     <li
                       key={servicio.nombre}
-                      className="flex items-center justify-between gap-3 rounded-2xl border border-ink/10 bg-white px-4 py-3"
+                      className="flex items-start justify-between gap-3 rounded-2xl border border-ink/10 bg-white px-4 py-3"
                     >
                       <div className="min-w-0">
-                        <p className="text-small font-medium leading-snug text-ink">
+                        <p className={cn(
+                          "text-small font-medium leading-snug",
+                          proximo ? "text-ink-soft/50" : "text-ink",
+                        )}>
                           {servicio.nombre}
                         </p>
-                        {servicio.ficha && (
+                        {lema && !proximo && (
+                          <p className="mt-0.5 text-[11px] leading-snug text-ink-soft/55">
+                            {lema}
+                          </p>
+                        )}
+                        {servicio.ficha && !proximo && (
                           <Link
                             href={`/servicios/${servicio.ficha}`}
-                            className="mt-1 inline-flex items-center gap-0.5 text-[11px] text-verde-700 underline-offset-2 hover:text-verde-800 hover:underline"
+                            className="mt-1.5 inline-flex min-h-8 items-center gap-1 rounded-full border border-ink/10 bg-white px-3 text-[11px] font-semibold text-ink-soft/80 transition duration-300 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/60"
                           >
-                            Ver cómo funciona
-                            <ArrowUpRight size={11} strokeWidth={2} aria-hidden />
+                            Cómo funciona
+                            <ArrowUpRight size={11} strokeWidth={2.2} aria-hidden />
                           </Link>
                         )}
                       </div>
 
-                      <div className="flex shrink-0 flex-col items-end gap-1.5">
-                        {servicio.estado === "proximo" && (
-                          <span className="rounded-full bg-sand px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-soft/70">
+                      <div className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
+                        {proximo ? (
+                          <span className="rounded-full bg-sand-deep px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-soft/70">
                             Próximamente
                           </span>
-                        )}
+                        ) : precioUsdVal !== undefined ? (
+                          <span className="text-right">
+                            <span className="block text-[13px] font-bold text-ink">
+                              {precioUsd(precioUsdVal)}{" "}
+                              <span className="text-[11px] font-medium text-ink-soft/60">USD</span>
+                            </span>
+                            <span className="block text-[10px] text-ink-soft/50">/mes</span>
+                          </span>
+                        ) : !servicio.plan ? (
+                          <span className="text-[11px] font-semibold text-verde-700">Gratis</span>
+                        ) : null}
                         <Link
                           href={cta.href}
                           {...(cta.externo
                             ? { target: "_blank", rel: "noopener noreferrer" }
                             : {})}
-                          className="inline-flex min-h-9 items-center justify-center rounded-full border border-ink/10 px-3 text-[11px] font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
+                          className="inline-flex min-h-9 items-center justify-center rounded-full border border-ink/15 px-3 text-[11px] font-semibold text-ink transition duration-300 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/60"
                         >
                           {cta.texto}
                         </Link>
@@ -206,7 +236,7 @@ export function CatalogoServicios({ catalogo, autenticado, tieneNegocio }: Props
 
               <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_1fr]">
                 {/* Pack sugerido de la categoría */}
-                <article className="relative flex flex-col rounded-[26px] border border-ink bg-ink p-6 text-white shadow-card">
+                <article className="relative flex flex-col rounded-2xl border border-ink bg-ink p-6 text-white shadow-card dark:border-white/10 dark:bg-[#12241a]">
                   <p className="lv-mono text-[11px] uppercase tracking-[0.18em] text-verde-300">
                     Pack sugerido
                   </p>
@@ -274,7 +304,7 @@ export function CatalogoServicios({ catalogo, autenticado, tieneNegocio }: Props
                 </article>
 
                 {/* Packs estándar, iguales para todas las categorías */}
-                <aside className="rounded-[26px] border border-ink/10 bg-sand/40 p-6">
+                <aside className="rounded-2xl border border-ink/10 bg-sand/40 p-6">
                   <div className="flex items-center gap-2">
                     <Sparkles size={16} className="text-verde-600" aria-hidden />
                     <h3 className="font-lv-display text-body font-bold tracking-[-0.01em] text-ink">

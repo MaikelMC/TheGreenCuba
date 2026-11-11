@@ -5,6 +5,7 @@ import { flujoAtencionPedidos } from "./flujo-atencion-pedidos";
 import { horarioDeCocina } from "./horario-de-cocina";
 import { pedidosProgramados } from "./pedidos-programados";
 import { clienteFrecuente } from "./cliente-frecuente";
+import { zonasDomicilio } from "./zonas-domicilio";
 
 export type { ServicioContent, EjemploTipo, PrecioPieza } from "./_tipos";
 
@@ -16,6 +17,7 @@ export const SERVICIOS = [
   horarioDeCocina,
   pedidosProgramados,
   clienteFrecuente,
+  zonasDomicilio,
 ] as const;
 
 export function getServicio(slug: string) {

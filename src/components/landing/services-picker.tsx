@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Check, SlidersHorizontal } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { textoCup, type Catalogo, type ClaveModulo } from "@/lib/plans";
 
@@ -76,93 +76,129 @@ export function ServicesPicker({ catalogo }: { catalogo: Catalogo }) {
         </DialogTrigger>
       </div>
 
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Arma tu plan</DialogTitle>
-          <DialogDescription>
-            Se contratan por separado y se pagan al mes. Puedes cambiar la
-            elección cuando quieras.
+      <DialogContent className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:max-h-[85dvh]">
+        <DialogHeader className="shrink-0 px-6 pb-4 pt-6">
+          <DialogTitle className="font-lv-display text-xl font-bold tracking-[-0.02em]">
+            Arma tu plan
+          </DialogTitle>
+          <DialogDescription className="text-sm text-ink-soft/75">
+            Elige solo lo que necesitas. Pagas por mes y cambias cuando quieras.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex max-h-[55vh] flex-col gap-2 overflow-y-auto">
-          {claves.map((clave) => {
-            const modulo = catalogo.modulos[clave];
-            const activo = elegidos.includes(clave);
-            return (
-              <label
-                key={clave}
-                className={cn(
-                  "flex cursor-pointer items-start gap-3 rounded-2xl border p-3.5 transition-colors duration-300 focus-within:ring-2 focus-within:ring-verde-400/40",
-                  activo
-                    ? "border-verde-400 bg-verde-50/60"
-                    : "border-ink/10 hover:border-ink/30",
-                )}
-              >
-                <input
-                  type="checkbox"
-                  checked={activo}
-                  onChange={() => alternar(clave)}
-                  className="sr-only"
-                />
-                <span
-                  aria-hidden
+        {/* Lista con scroll, con fade inferior para indicar que hay más */}
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          <div className="flex h-full flex-col gap-2 overflow-y-auto touch-pan-y px-6 pb-2">
+            {claves.map((clave) => {
+              const modulo = catalogo.modulos[clave];
+              const activo = elegidos.includes(clave);
+              return (
+                <label
+                  key={clave}
                   className={cn(
-                    "mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border transition-colors duration-300",
+                    "flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition-all duration-200 ease-outquint focus-within:ring-2 focus-within:ring-verde-400/40 active:scale-[0.99]",
                     activo
-                      ? "border-verde-500 bg-verde-400 text-verde-950"
-                      : "border-ink/15 bg-white",
+                      ? "border-verde-400 bg-verde-50 shadow-sm shadow-verde-200/60"
+                      : "border-ink/10 bg-white hover:border-ink/25 hover:bg-sand/30",
                   )}
                 >
-                  {activo && <Check size={13} strokeWidth={3} />}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-baseline justify-between gap-3">
-                    <span className="font-lv-display text-sm font-semibold text-ink">
-                      {modulo.nombre}
+                  <input
+                    type="checkbox"
+                    checked={activo}
+                    onChange={() => alternar(clave)}
+                    className="sr-only"
+                  />
+                  {/* Checkbox visual */}
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border-2 transition-all duration-200",
+                      activo
+                        ? "border-verde-500 bg-verde-400 text-verde-950"
+                        : "border-ink/20 bg-white",
+                    )}
+                  >
+                    {activo && <Check size={12} strokeWidth={3.5} />}
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    {/* Nombre + precio: precio prominente */}
+                    <span className="flex items-start justify-between gap-3">
+                      <span className="font-lv-display text-sm font-bold leading-snug text-ink">
+                        {modulo.nombre}
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block text-sm font-bold text-ink">
+                          {precioUsd(modulo.usd)}{" "}
+                          <span className="text-xs font-semibold text-ink-soft">USD</span>
+                        </span>
+                        <span className="block text-[10px] leading-tight text-ink-soft/60">
+                          /mes
+                        </span>
+                      </span>
                     </span>
-                    <span className="shrink-0 text-xs font-semibold text-ink">
-                      {precioUsd(modulo.usd)} USD/mes
+
+                    <span className="mt-1 block text-xs leading-snug text-ink-soft/70">
+                      {modulo.lema}
                     </span>
+
+                    <div className="mt-1.5 flex items-center gap-3">
+                      <span className="text-[11px] text-ink-soft/50">
+                        {textoCup(modulo.usd, catalogo)} / mes
+                      </span>
+                      {MODULO_A_SERVICIO[clave] && (
+                        <Link
+                          href={`/servicios/${MODULO_A_SERVICIO[clave]}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-0.5 text-[11px] font-medium text-verde-600 hover:text-verde-700"
+                        >
+                          Ver cómo funciona
+                          <ArrowUpRight size={11} strokeWidth={2.5} />
+                        </Link>
+                      )}
+                    </div>
                   </span>
-                  <span className="mt-0.5 block text-xs leading-snug text-ink-soft/75">
-                    {modulo.lema}
-                  </span>
-                  <span className="mt-0.5 block text-[11px] leading-snug text-ink-soft/60">
-                    {textoCup(modulo.usd, catalogo)} / mes
-                  </span>
-                  {MODULO_A_SERVICIO[clave] && (
-                    <Link
-                      href={`/servicios/${MODULO_A_SERVICIO[clave]}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="mt-1 inline-flex items-center gap-0.5 text-[11px] text-verde-600 hover:text-verde-700"
-                    >
-                      Ver cómo funciona
-                      <ArrowUpRight size={11} strokeWidth={2} />
-                    </Link>
-                  )}
-                </span>
-              </label>
-            );
-          })}
+                </label>
+              );
+            })}
+            {/* Espacio para que el último ítem no quede pegado al fade */}
+            <div className="h-2 shrink-0" />
+          </div>
+          {/* Fade inferior */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white/80 to-transparent" />
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-ink/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-ink-soft/75" aria-live="polite">
-            {elegidos.length === 0
-              ? "Elige al menos un servicio."
-              : `${elegidos.length} ${elegidos.length === 1 ? "servicio" : "servicios"} · ${precioUsd(total)} USD/mes · ${textoCup(total, catalogo)}`}
-          </p>
+        {/* Footer pegado */}
+        <div className="shrink-0 border-t border-ink/10 px-6 pb-6 pt-4">
+          {elegidos.length > 0 && (
+            <div className="mb-3 flex items-baseline justify-between">
+              <p className="text-sm text-ink-soft/75" aria-live="polite">
+                {elegidos.length === 1 ? "1 servicio" : `${elegidos.length} servicios`}
+              </p>
+              <p className="font-lv-display text-base font-bold text-ink">
+                {precioUsd(total)}{" "}
+                <span className="text-sm font-semibold text-ink-soft">USD/mes</span>
+              </p>
+            </div>
+          )}
+
           {elegidos.length === 0 ? (
-            <span className="inline-flex cursor-not-allowed items-center justify-center rounded-full bg-ink/10 px-5 py-3 text-sm font-semibold text-ink-soft">
-              Continuar
-            </span>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-ink-soft/60" aria-live="polite">
+                Elige al menos un servicio.
+              </p>
+              <span className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-full bg-ink/8 px-5 py-3 text-sm font-semibold text-ink-soft/50 opacity-60">
+                Continuar
+                <ArrowRight size={15} strokeWidth={2.2} aria-hidden />
+              </span>
+            </div>
           ) : (
             <Link
               href={href}
-              className="inline-flex items-center justify-center rounded-full bg-verde-400 px-5 py-3 text-sm font-semibold text-verde-950 transition duration-300 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-verde-400 px-5 py-3.5 text-sm font-semibold text-verde-950 transition duration-300 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
             >
               Continuar con {elegidos.length === 1 ? "1 servicio" : `${elegidos.length} servicios`}
+              <ArrowRight size={15} strokeWidth={2.5} aria-hidden />
             </Link>
           )}
         </div>

@@ -15,7 +15,8 @@ function useShowGlobalHeader() {
     pathname !== "/enlaces" &&
     !pathname.startsWith("/profile") &&
     !pathname.startsWith("/place") &&
-    !pathname.startsWith("/notifications")
+    !pathname.startsWith("/notifications") &&
+    !pathname.startsWith("/servicios")
   );
 }
 
