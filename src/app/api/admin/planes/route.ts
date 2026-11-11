@@ -65,5 +65,8 @@ export async function PUT(req: NextRequest) {
   revalidateTag(CATALOGO_TAG, { expire: 0 });
   invalidarCatalogo();
 
-  return NextResponse.json({ catalogo });
+  /* Se devuelve el catálogo **vivo**, no el normalizado: el editor tiene que
+     ver la misma tasa de mercado que verá el panel, no la manual que acaba de
+     guardar como respaldo. */
+  return NextResponse.json({ catalogo: await cargarCatalogo() });
 }

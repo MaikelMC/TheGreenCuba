@@ -9,8 +9,15 @@ import {
 } from "@/components/landing";
 import { Footer } from "@/components/layout/footer";
 import { siteConfig } from "@/config/site";
+import { cargarCatalogo } from "@/lib/catalogo-server";
 import { listPlaces } from "@/lib/db/queries";
 import type { PlaceStripPlace } from "@/components/landing/place-strip";
+
+/**
+ * La portada enseña precios de planes. Se revalida al mismo ritmo que la tasa
+ * de CambioCUP —10 minutos— para que el CUP no se quede congelado en el build.
+ */
+export const revalidate = 600;
 
 /**
  * El canonical va aquí y no en el layout raíz.
@@ -79,6 +86,8 @@ async function loadStripPlaces(): Promise<PlaceStripPlace[]> {
 }
 
 export default async function LandingPage() {
+  const catalogo = await cargarCatalogo();
+
   return (
     <>
       <script
@@ -97,7 +106,7 @@ export default async function LandingPage() {
           <Hero />
           <Bento />
           <PlaceStrip places={await loadStripPlaces()} />
-          <Pricing />
+          <Pricing catalogo={catalogo} />
           <CTASection />
         </main>
 

@@ -2,13 +2,13 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  FUNCIONES,
-  GRATIS,
-  PACKS,
   PACKS_ORDER,
   TRIAL_DIAS,
+  textoCup,
+  type Catalogo,
   type Pack,
 } from "@/lib/plans";
+import { TasaCambioNota } from "@/components/pricing/tasa-cambio-nota";
 import { Reveal } from "./reveal";
 import { ServicesPicker } from "./services-picker";
 
@@ -21,31 +21,31 @@ interface Plan {
   destacado: boolean;
 }
 
-const PLANES: Plan[] = [
-  {
-    key: "gratis",
-    nombre: "Gratis",
-    lema: "Para que te encuentren.",
-    usd: 0,
-    items: GRATIS.map((funcion) => FUNCIONES[funcion].texto),
-    destacado: false,
-  },
-  ...PACKS_ORDER.map((key) => ({
-    key,
-    nombre: PACKS[key].nombre,
-    lema: PACKS[key].lema,
-    usd: PACKS[key].usd,
-    items: PACKS[key].texto.split("\n"),
-    destacado: key === "esencial",
-  })),
-];
-
 /** «3,5» en vez de «3.5»: el catálogo manda precios en dólares con coma. */
 function precio(usd: number) {
   return usd % 1 === 0 ? String(usd) : usd.toFixed(1).replace(".", ",");
 }
 
-export function Pricing() {
+export function Pricing({ catalogo }: { catalogo: Catalogo }) {
+  const planes: Plan[] = [
+    {
+      key: "gratis",
+      nombre: catalogo.gratisNombre,
+      lema: catalogo.gratisLema,
+      usd: 0,
+      items: catalogo.gratis.map((funcion) => catalogo.funciones[funcion].texto),
+      destacado: false,
+    },
+    ...PACKS_ORDER.map((key) => ({
+      key,
+      nombre: catalogo.packs[key].nombre,
+      lema: catalogo.packs[key].lema,
+      usd: catalogo.packs[key].usd,
+      items: catalogo.packs[key].texto.split("\n"),
+      destacado: key === "esencial",
+    })),
+  ];
+
   return (
     <section id="planes" className="scroll-mt-24 py-20 sm:py-28">
       <div className="mx-auto w-full max-w-container px-gutter md:px-gutter-lg">
@@ -67,8 +67,12 @@ export function Pricing() {
           />
         </div>
 
+        <div className="mt-5 flex justify-center">
+          <TasaCambioNota catalogo={catalogo} />
+        </div>
+
         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {PLANES.map((plan) => (
+          {planes.map((plan) => (
             <article
               key={plan.key}
               className={cn(
@@ -119,6 +123,16 @@ export function Pricing() {
                   USD / mes
                 </span>
               </div>
+              {plan.usd > 0 && (
+                <p
+                  className={cn(
+                    "mt-1 text-[11px] leading-snug",
+                    plan.destacado ? "text-white/55" : "text-ink-soft/55",
+                  )}
+                >
+                  {textoCup(plan.usd, catalogo)} / mes al cambio de hoy
+                </p>
+              )}
 
               <ul className="mt-6 flex-1 space-y-2.5">
                 {plan.items.map((item) => (
@@ -158,7 +172,7 @@ export function Pricing() {
           ))}
         </div>
 
-        <ServicesPicker />
+        <ServicesPicker catalogo={catalogo} />
       </div>
     </section>
   );

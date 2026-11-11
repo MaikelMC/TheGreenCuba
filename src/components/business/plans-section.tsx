@@ -38,6 +38,7 @@ function aplicarDescuento(usd: number, pct: number | null | undefined) {
 import type { PackMedidaResumen } from "@/lib/pack-medida";
 import { useCatalogo } from "@/providers/catalogo-provider";
 import { PackMedidaCard } from "@/components/business/pack-medida-card";
+import { TasaCambioNota } from "@/components/pricing/tasa-cambio-nota";
 
 /**
  * Los planes, los módulos y los packs, explicados.
@@ -253,6 +254,10 @@ export function PlansSection({
     <section>
       {/* El nombre de la sección no se repite: ya está en el navbar. */}
       <h1 className="sr-only">Planes</h1>
+
+      {/* De dónde sale el CUP de cada tarjeta. Va antes de los precios, no en
+          letra pequeña al final: es el número que se paga por transferencia. */}
+      <TasaCambioNota catalogo={cat} className="mb-gap-md" />
 
       {puedeElegirPlan && (
         <p className="mb-gap-md rounded-2xl border border-verde-200 bg-verde-50/60 px-gap-md py-gap-sm text-small text-verde-900">

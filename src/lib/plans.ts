@@ -437,6 +437,15 @@ export const PACKS_ORDER: readonly Pack[] = ["esencial", "publicidad_max", "pro"
 /** Pesos cubanos por dólar, por defecto. El valor vivo sale del catálogo. */
 export const TASA_CUP = 780;
 
+/**
+ * De dónde salió la tasa con la que se pintan los precios.
+ *
+ * `cambiocup` es la tasa de mercado de QvaPay —la viva—; `manual` es la que
+ * quedó guardada en `/admin/planes` y solo manda cuando la fuente no responde
+ * o `TASA_CAMBIO_FUENTE=manual`.
+ */
+export type TasaCupFuente = "cambiocup" | "manual";
+
 /* ── El catálogo ────────────────────────────────────────────────────────────
    Todo lo anterior como un objeto plano, que es lo que se puede pisar desde
    `/admin/planes`. Cada campo es un `Record` de claves fijas: el admin cambia
@@ -465,8 +474,12 @@ export interface PackCatalogo {
 }
 
 export interface Catalogo {
-  /** Pesos cubanos por dólar. */
+  /** Pesos cubanos por dólar. Viva si la fuente responde; si no, la manual. */
   tasaCup: number;
+  /** De dónde salió `tasaCup`. */
+  tasaCupFuente: TasaCupFuente;
+  /** Cuándo la publicó la fuente, en ISO. `null` con la tasa manual. */
+  tasaCupActualizadaEn: string | null;
   /** El nombre y el lema de la pieza Gratis, que no es un pack. */
   gratisNombre: string;
   gratisLema: string;
@@ -485,6 +498,8 @@ export interface Catalogo {
 /** El catálogo de fábrica. Es el que se lee cuando no hay nada guardado. */
 export const CATALOGO: Catalogo = {
   tasaCup: TASA_CUP,
+  tasaCupFuente: "manual",
+  tasaCupActualizadaEn: null,
   gratisNombre: "Gratis",
   gratisLema: "Para que te encuentren.",
   gratis: GRATIS,

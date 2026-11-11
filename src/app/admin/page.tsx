@@ -9,6 +9,7 @@ import { DashboardStats } from "@/components/business/dashboard-stats";
 import { MiniChart } from "@/components/business/mini-chart";
 import { CategoryIcon } from "@/components/admin/category-icon";
 import { TopPlaces } from "@/components/admin/top-places";
+import { CambioCupWidget } from "@/components/admin/cambiocup-widget";
 
 export default function AdminDashboardPage() {
   const { places, categories } = usePlaces();
@@ -152,7 +153,9 @@ export default function AdminDashboardPage() {
           {
             label: "Solicitudes pendientes",
             value:
-              solicitudesPendientes === null ? "—" : String(solicitudesPendientes),
+              solicitudesPendientes === null
+                ? "—"
+                : String(solicitudesPendientes),
             change: {
               value:
                 solicitudesPendientes && solicitudesPendientes > 0
@@ -302,6 +305,12 @@ export default function AdminDashboardPage() {
               de cada uno.
             </p>
           </div>
+        </div>
+
+        {/* El widget va debajo de las dos columnas y ocupa todo el ancho: la
+            tasa se lee mejor sin competir con las tarjetas de al lado. */}
+        <div className="lg:col-span-3">
+          <CambioCupWidget />
         </div>
       </div>
     </>

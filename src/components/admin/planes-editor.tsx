@@ -43,9 +43,10 @@ import { useCatalogo } from "@/providers/catalogo-provider";
  * módulos: se marcan una a una y cambiar un módulo no cambia ningún pack. Solo
  * se marcan las que el pack **añade sobre Gratis**; las de Gratis no se repiten.
  *
- * Los precios se escriben en dólares y el CUP se calcula con la tasa de arriba;
- * debajo de cada campo se enseña lo que saldrá en pesos, para no tener que
- * imaginar la multiplicación.
+ * Los precios se escriben en dólares y el CUP se calcula con la tasa **viva**
+ * de QvaPay (CambioCUP); el campo de tasa de arriba es solo el respaldo que
+ * entra si esa fuente no responde. Debajo de cada campo se enseña lo que
+ * saldrá en pesos, para no tener que imaginar la multiplicación.
  */
 
 const INPUT =
@@ -191,8 +192,10 @@ export function PlanesEditor() {
       <FormSections>
         <FormSection title="Tasa del CUP" icon={<Coins size={18} strokeWidth={1.8} />}>
           <p className="text-meta text-ink-soft/75">
-            Pesos cubanos por dólar. Los precios están acordados en dólares y el
-            CUP se calcula de aquí, redondeado a la decena.
+            Pesos cubanos por dólar de <strong className="font-semibold text-ink">respaldo</strong>.
+            Los precios se convierten con la tasa viva de QvaPay (CambioCUP); este
+            valor solo entra si esa fuente no responde. El CUP se redondea a la
+            decena.
           </p>
           <div className="flex flex-col gap-gap-xs">
             <label htmlFor="plTasa" className={LABEL}>

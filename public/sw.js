@@ -85,6 +85,11 @@ const TILES_CACHE = `lv-tiles-${CACHE_VERSION}`;
    persona, pero no es una página privada al uso: se guarda para que el cliente
    la vea sin red. Solo entran respuestas 200 de una tarjeta válida. */
 const TARJETAS_CACHE = `lv-tarjetas-${CACHE_VERSION}`;
+/* Catálogo de servicios: caché propia. Su documento es público —la página es
+   la misma para todos—, pero Next lo marca dinámico al leer la sesión para
+   decidir a dónde lleva cada CTA, así que `sePuedeCachear` lo descartaría. Es
+   el material que los aliados abren sin red, y por eso tiene su regla. */
+const CATALOGO_CACHE = `lv-catalogo-${CACHE_VERSION}`;
 
 const CURRENT_CACHES = new Set([
   STATIC_CACHE,
@@ -93,6 +98,7 @@ const CURRENT_CACHES = new Set([
   IMAGES_CACHE,
   TILES_CACHE,
   TARJETAS_CACHE,
+  CATALOGO_CACHE,
 ]);
 
 /* `lv-private-` se reserva para cachés de datos privados. Hoy no existe
@@ -195,23 +201,21 @@ self.addEventListener("install", (event) => {
         PRECACHE_URLS.map((url) => staticCache.add(new Request(url, { cache: "reload" }))),
       );
 
-      /* `/home` va en la caché de páginas (network-first), no en la estática
-         (cache-first): después de un despliegue los assets del static ya no
-         existen, y una navegación hacia chunks viejos rompe la app. Se guarda
-         solo si la respuesta es pública —sin `Set-Cookie` ni `private`. */
-      try {
-        const pagesCache = await caches.open(PAGES_CACHE);
-        const response = await fetch("/home", { cache: "reload" });
-        if (sePuedeCachear(response)) {
-          /* El clon se toma antes de `put`, que consume el cuerpo. */
-          const copia = response.clone();
-          await pagesCache.put("/home", response);
-          await calentarDocumento(copia);
-        }
-      } catch {
-        /* Sin red en el momento de instalar: sin `/home` en caché. Se guardará
-           en la primera visita con conexión, como cualquier otra ruta pública. */
-      }
+      /* `/home` y el catálogo de servicios se guardan en red-primero, no en
+         la caché estática: después de un despliegue los assets del static ya
+         no existen, y una navegación hacia chunks viejos rompe la app.
+
+         El catálogo se guarda aquí y no solo al visitarlo porque los aliados
+         lo instalan para consultarlo sin red: si la primera apertura en frío
+         fuese sin conexión, no habría copia que enseñar. */
+      const pagesCache = await caches.open(PAGES_CACHE).catch(() => null);
+      const catalogoCache = await caches.open(CATALOGO_CACHE).catch(() => null);
+      await Promise.allSettled([
+        pagesCache ? precachearPagina(pagesCache, "/home") : Promise.resolve(),
+        catalogoCache
+          ? precachearPagina(catalogoCache, "/servicios", { dinamica: true })
+          : Promise.resolve(),
+      ]);
 
       /* El mapa no se pinta sin su estilo, y MapLibre lo pide cross-origin.
          Sin esto la app abría sin red con las teselas ya guardadas pero con el
@@ -261,6 +265,7 @@ self.addEventListener("activate", (event) => {
       try {
         const pagesCache = await caches.open(PAGES_CACHE);
         const tarjetasCache = await caches.open(TARJETAS_CACHE);
+        const catalogoCache = await caches.open(CATALOGO_CACHE);
         const clientList = await self.clients.matchAll({ type: "window" });
         await Promise.allSettled(
           clientList.map(async (client) => {
@@ -273,6 +278,15 @@ self.addEventListener("activate", (event) => {
               if (res && res.status === 200 && !res.headers.get("Set-Cookie")) {
                 const copia = res.clone();
                 await tarjetasCache.put(claveTarjeta(client.url), res).catch(() => {});
+                await calentarDocumento(copia);
+              }
+            } else if (esCatalogo(clientUrl)) {
+              const res = await fetch(client.url).catch(() => null);
+              if (res && res.status === 200 && !res.headers.get("Set-Cookie")) {
+                const copia = res.clone();
+                await catalogoCache
+                  .put(claveCatalogo(client.url), res)
+                  .catch(() => {});
                 await calentarDocumento(copia);
               }
             } else if (esRutaPublica(clientUrl)) {
@@ -317,6 +331,7 @@ self.addEventListener("message", (event) => {
                 name.startsWith("lv-api-") ||
                 name.startsWith("lv-images-") ||
                 name.startsWith("lv-tarjetas-") ||
+                name.startsWith("lv-catalogo-") ||
                 name.startsWith("lv-tiles-"),
             )
             .map((name) => caches.delete(name)),
@@ -389,6 +404,13 @@ self.addEventListener("fetch", (event) => {
       return;
     }
 
+    /* El catálogo tiene caché propia porque su documento, siendo público,
+       viene marcado como dinámico por leer la sesión. */
+    if (esCatalogo(url)) {
+      event.respondWith(navegacionCatalogo(event, request));
+      return;
+    }
+
     event.respondWith(
       esDocumentoPrivado(request, url) ? navegacionPrivada(request, url) : navegacion(request, url),
     );
@@ -453,6 +475,11 @@ function esTarjeta(url) {
   return /^\/m\/[^/]+\/tarjeta\/[^/]+\/?$/.test(url.pathname);
 }
 
+/** El catálogo de servicios y sus fichas. */
+function esCatalogo(url) {
+  return url.pathname === "/servicios" || url.pathname.startsWith("/servicios/");
+}
+
 /**
  * Clave de la caché de tarjetas: la tarjeta es el camino (negocio + token).
  *
@@ -465,6 +492,11 @@ function claveTarjeta(url) {
   clave.search = "";
   clave.hash = "";
   return clave.href;
+}
+
+/** La misma clave limpia para el catálogo: no usa query propia. */
+function claveCatalogo(url) {
+  return claveTarjeta(url);
 }
 
 function esDocumentoPrivado(request, url) {
@@ -501,6 +533,31 @@ function esImagen(request, url) {
     url.pathname.startsWith("/_next/image") ||
     /\.(png|jpe?g|webp|avif|gif|svg)$/i.test(url.pathname)
   );
+}
+
+/**
+ * Guarda una ruta pública en la caché de páginas durante la instalación.
+ *
+ * Si no hay red, o la respuesta no se puede guardar, se calla: la ruta se
+ * guardará en la primera visita con conexión, igual que cualquier otra página
+ * pública.
+ */
+async function precachearPagina(cache, ruta, { dinamica = false } = {}) {
+  try {
+    const response = await fetch(ruta, { cache: "reload" });
+    /* El catálogo es público aunque Next lo marque dinámico; el resto pasa por
+       la regla normal. En los dos casos, una respuesta con cookie no se guarda. */
+    const guardable = dinamica
+      ? response.status === 200 && !response.headers.get("Set-Cookie")
+      : sePuedeCachear(response);
+    if (!guardable) return;
+    /* El clon se toma antes de `put`, que consume el cuerpo. */
+    const copia = response.clone();
+    await cache.put(ruta, response);
+    await calentarDocumento(copia);
+  } catch {
+    /* Sin red al instalar: queda para la próxima visita. */
+  }
 }
 
 /**
@@ -713,6 +770,54 @@ async function navegacionTarjeta(event, request) {
 
   const guardada = await cache.match(clave);
   if (guardada) return guardada;
+
+  const offline = await caches.match("/offline.html");
+  if (offline) return offline;
+
+  return respuestaSinConexion();
+}
+
+/**
+ * Navegación al catálogo de servicios.
+ *
+ * Red primero, como el resto de páginas públicas: con conexión se ve siempre
+ * lo último que publicó La Verde, y la copia guardada solo entra cuando no hay
+ * red. Aquí no se usa `sePuedeCachear` porque el App Router marca la página
+ * como dinámica —lee la sesión para los enlaces de contratación—, y aun así su
+ * contenido es el mismo para todo el mundo: lo que este caché guarda es el
+ * catálogo, no datos de una persona.
+ *
+ * Si falta la ficha concreta, se sirve el catálogo general guardado en vez de
+ * `offline.html`: mejor el índice de servicios que un aviso de sin conexión.
+ */
+async function navegacionCatalogo(event, request) {
+  const cache = await caches.open(CATALOGO_CACHE);
+  const clave = claveCatalogo(request.url);
+  const url = new URL(request.url);
+
+  let response = null;
+  try {
+    response = await conTimeout(fetch(request), NAV_TIMEOUT_MS);
+  } catch {
+    if (self.navigator?.onLine !== false) {
+      response = await fetch(request).catch(() => null);
+    }
+  }
+
+  if (response) {
+    if (response.status === 200 && !response.headers.get("Set-Cookie")) {
+      event.waitUntil(cache.put(clave, response.clone()).catch(() => {}));
+    }
+    return response;
+  }
+
+  const guardada = await cache.match(clave);
+  if (guardada) return guardada;
+
+  if (url.pathname !== "/servicios") {
+    const indice = await cache.match("/servicios");
+    if (indice) return indice;
+  }
 
   const offline = await caches.match("/offline.html");
   if (offline) return offline;

@@ -16,6 +16,7 @@ import {
   type Pack,
   type PackCatalogo,
 } from "@/lib/plans";
+import { tasaMercadoActual } from "@/lib/tasa-cambio";
 
 /**
  * El catálogo, del lado del servidor: leerlo de la base y **validarlo**.
@@ -185,6 +186,11 @@ export function normalizarCatalogo(datos: unknown): Catalogo {
 
   return {
     tasaCup,
+    /* Lo guardado es siempre la tasa manual: la viva la pone `cargarCatalogo`
+       en el momento de leer, no se persiste. Así el respaldo no se pisa con
+       una cotización que caduca. */
+    tasaCupFuente: "manual",
+    tasaCupActualizadaEn: null,
     gratisNombre: texto(src.gratisNombre, CATALOGO.gratisNombre),
     gratisLema: texto(src.gratisLema, CATALOGO.gratisLema),
     gratis: funcionesMerge(src.gratis, CLAVES_FUNCION, CATALOGO.gratis),
@@ -217,6 +223,27 @@ const leerCacheado = unstable_cache(leer, ["catalogo-planes"], {
 });
 
 /**
+ * El catálogo con la tasa de mercado encima.
+ *
+ * La tasa guardada en administración es el **respaldo**, no la fuente. Cuando
+ * CambioCUP contesta, su valor manda y el catálogo viaja al navegador con la
+ * procedencia y la fecha para que la interfaz pueda decirlo. Cuando no
+ * contesta, se queda la manual y se marca como tal.
+ */
+async function conTasaDeMercado(cat: Catalogo): Promise<Catalogo> {
+  const mercado = await tasaMercadoActual();
+  if (!mercado) {
+    return { ...cat, tasaCupFuente: "manual", tasaCupActualizadaEn: null };
+  }
+  return {
+    ...cat,
+    tasaCup: mercado.usdCup,
+    tasaCupFuente: "cambiocup",
+    tasaCupActualizadaEn: mercado.actualizadaEn,
+  };
+}
+
+/**
  * El catálogo vigente. Es lo que llama la capa servidor.
  *
  * Si la tabla está vacía o la lectura falla —Neon caído, red de esta máquina—
@@ -225,7 +252,9 @@ const leerCacheado = unstable_cache(leer, ["catalogo-planes"], {
  */
 export async function cargarCatalogo(): Promise<Catalogo> {
   try {
-    return await (process.env.NODE_ENV === "production" ? leerCacheado() : leer());
+    const base =
+      process.env.NODE_ENV === "production" ? await leerCacheado() : await leer();
+    return await conTasaDeMercado(base);
   } catch {
     return CATALOGO;
   }

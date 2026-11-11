@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Check, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MODULOS, type ClaveModulo } from "@/lib/plans";
+import { textoCup, type Catalogo, type ClaveModulo } from "@/lib/plans";
 
 const MODULO_A_SERVICIO: Partial<Record<ClaveModulo, string>> = {
   menu_pro: "carta-y-qr",
@@ -21,8 +21,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-const CLAVES = Object.keys(MODULOS) as ClaveModulo[];
-
 /** «3,5» en vez de «3.5», igual que en las tarjetas de plan. */
 function precioUsd(usd: number) {
   return usd % 1 === 0 ? String(usd) : usd.toFixed(1).replace(".", ",");
@@ -37,9 +35,10 @@ function precioUsd(usd: number) {
  * elegido en la portada sigue marcado después de registrarse, con el mismo
  * camino que un pack.
  */
-export function ServicesPicker() {
+export function ServicesPicker({ catalogo }: { catalogo: Catalogo }) {
   const [abierto, setAbierto] = useState(false);
   const [elegidos, setElegidos] = useState<ClaveModulo[]>([]);
+  const claves = Object.keys(catalogo.modulos) as ClaveModulo[];
 
   function alternar(clave: ClaveModulo) {
     setElegidos((prev) =>
@@ -47,7 +46,10 @@ export function ServicesPicker() {
     );
   }
 
-  const total = elegidos.reduce((suma, clave) => suma + MODULOS[clave].usd, 0);
+  const total = elegidos.reduce(
+    (suma, clave) => suma + catalogo.modulos[clave].usd,
+    0,
+  );
   const href = `/register?next=${encodeURIComponent(
     `/onboarding?modulos=${elegidos.join(",")}`,
   )}`;
@@ -84,8 +86,8 @@ export function ServicesPicker() {
         </DialogHeader>
 
         <div className="flex max-h-[55vh] flex-col gap-2 overflow-y-auto">
-          {CLAVES.map((clave) => {
-            const modulo = MODULOS[clave];
+          {claves.map((clave) => {
+            const modulo = catalogo.modulos[clave];
             const activo = elegidos.includes(clave);
             return (
               <label
@@ -126,6 +128,9 @@ export function ServicesPicker() {
                   <span className="mt-0.5 block text-xs leading-snug text-ink-soft/75">
                     {modulo.lema}
                   </span>
+                  <span className="mt-0.5 block text-[11px] leading-snug text-ink-soft/60">
+                    {textoCup(modulo.usd, catalogo)} / mes
+                  </span>
                   {MODULO_A_SERVICIO[clave] && (
                     <Link
                       href={`/servicios/${MODULO_A_SERVICIO[clave]}`}
@@ -146,7 +151,7 @@ export function ServicesPicker() {
           <p className="text-sm text-ink-soft/75" aria-live="polite">
             {elegidos.length === 0
               ? "Elige al menos un servicio."
-              : `${elegidos.length} ${elegidos.length === 1 ? "servicio" : "servicios"} · ${precioUsd(total)} USD/mes`}
+              : `${elegidos.length} ${elegidos.length === 1 ? "servicio" : "servicios"} · ${precioUsd(total)} USD/mes · ${textoCup(total, catalogo)}`}
           </p>
           {elegidos.length === 0 ? (
             <span className="inline-flex cursor-not-allowed items-center justify-center rounded-full bg-ink/10 px-5 py-3 text-sm font-semibold text-ink-soft">

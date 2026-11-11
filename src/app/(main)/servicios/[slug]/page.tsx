@@ -8,8 +8,12 @@ import { ownerPlaces } from "@/lib/db/queries";
 import { funcionesDeNegocio } from "@/lib/plans-server";
 import { PrecioServicio } from "@/components/servicios/precio-servicio";
 import { CtaServicio } from "@/components/servicios/cta-servicio";
+import { TasaCambioNota } from "@/components/pricing/tasa-cambio-nota";
 
 type Props = { params: Promise<{ slug: string }> };
+
+/** El CUP del precio se recalcula al ritmo de CambioCUP. */
+export const revalidate = 600;
 
 export async function generateStaticParams() {
   return SERVICIOS.map((s) => ({ slug: s.slug }));
@@ -67,6 +71,7 @@ export default async function ServicioPage({ params }: Props) {
       {/* Precio */}
       <section className="rounded-xl border bg-card p-5 space-y-3">
         <PrecioServicio precio={servicio.precio} catalogo={catalogo} />
+        <TasaCambioNota catalogo={catalogo} />
         <CtaServicio
           servicio={{ nombre: servicio.nombre, anclaPanel: servicio.anclaPanel }}
           tieneServicio={tieneServicio}

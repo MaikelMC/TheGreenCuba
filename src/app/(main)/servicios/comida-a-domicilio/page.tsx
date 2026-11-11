@@ -4,6 +4,9 @@ import { ArrowRight } from "lucide-react";
 import { SERVICIOS } from "@/content/servicios";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { PrecioServicio } from "@/components/servicios/precio-servicio";
+import { TasaCambioNota } from "@/components/pricing/tasa-cambio-nota";
+
+export const revalidate = 600;
 
 export const metadata: Metadata = {
   title: "Servicios para negocios de comida a domicilio · La Verde",
@@ -36,6 +39,7 @@ export default async function ComidaADomicilioPage() {
         <p className="text-muted-foreground text-lg">
           Carta en línea, pedidos por WhatsApp, horarios de cocina y tarjeta de cliente frecuente. Contrata solo lo que necesitas, uno a uno o combinado.
         </p>
+        <TasaCambioNota catalogo={catalogo} />
       </header>
 
       <div className="space-y-4">
