@@ -484,12 +484,6 @@ export function PlansSection({
           Tus productos, fotos y carta se quedan; solo dejas de poder añadir
           más.
         </li>
-        <li>
-          <span className="font-semibold text-ink">
-            Negocio nuevo, 30 días de Pro.
-          </span>{" "}
-          La prueba entra sola al registrarte y no hay que pagar nada por ella.
-        </li>
       </ul>
 
       {/* QvaPay sigue siendo el camino automático; la transferencia en CUP

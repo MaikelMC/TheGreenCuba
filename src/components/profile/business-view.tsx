@@ -112,10 +112,9 @@ const PLANS = [
     id: "trial",
     badge: "Recomendado",
     title: "Eres nuevo",
-    tagline:
-      "Un negocio nuevo disfruta de todos los servicios durante su primer mes, gratis.",
+    tagline: "Da de alta tu negocio y empieza hoy.",
     price: "0 USD",
-    period: "el primer mes",
+    period: "para empezar",
     benefits: BENEFITS,
   },
   {
@@ -387,8 +386,8 @@ export function BusinessForm({
   );
   /* El plan se elige aquí y **viaja con el alta**: se guarda en la ficha, que
      es lo que lo hace persistente, y es lo que el administrador ve en la
-     solicitud antes de aprobarla. No se cobra nada todavía. El mes de prueba
-     viene marcado porque es el que quiere todo el mundo, y cambiarlo tiene que
+     solicitud antes de aprobarla. No se cobra nada todavía. La opción sin coste
+     viene marcada porque es la que quiere todo el mundo, y cambiarla tiene que
      costar un clic, no dos. */
   const [plan, setPlan] = useState<(typeof PLANS)[number]["id"]>(
     initialBusiness?.plan ?? "trial",
@@ -706,7 +705,7 @@ export function BusinessForm({
     plan: (
       <>
         <p className="mb-gap-sm text-meta text-ink-soft/75">
-          Empiezas gratis: el mes de prueba incluye todo.
+          Elige cómo quieres empezar. Puedes cambiarlo después.
         </p>
 
         <fieldset className="grid grid-cols-1 gap-gap-sm lg:grid-cols-2">
@@ -715,7 +714,7 @@ export function BusinessForm({
             const selected = plan === option.id;
             /* El de pago todavía no existe: se enseña lo que será, difuminado y
                sin poder elegirlo, para que el dueño vea que hay algo por encima
-               del mes de prueba sin que se lo cobren ni se lo prometan. */
+               de la opción sin coste sin que se lo cobren ni se lo prometan. */
             const coming = option.id === "paid";
 
             return (
@@ -836,8 +835,7 @@ export function BusinessForm({
                         Planes según tu nivel de publicidad
                       </p>
                       <p className="text-meta text-pretty text-ink-soft/75">
-                        Estamos trabajando en ellos: próximamente. Por ahora,
-                        disfruta gratis de todo.
+                        Estamos trabajando en ellos: próximamente.
                       </p>
                     </div>
                   </div>

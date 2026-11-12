@@ -6,6 +6,7 @@ import {
   Pricing,
   PlaceStrip,
   CTASection,
+  Recomendador,
 } from "@/components/landing";
 import { Footer } from "@/components/layout/footer";
 import { siteConfig } from "@/config/site";
@@ -107,6 +108,7 @@ export default async function LandingPage() {
           <Bento />
           <PlaceStrip places={await loadStripPlaces()} />
           <Pricing catalogo={catalogo} />
+          <Recomendador />
           <CTASection />
         </main>
 

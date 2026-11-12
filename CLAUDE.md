@@ -6,6 +6,21 @@ Al terminar: lista de archivos tocados + 3 a 5 pasos para probar. Sin explicacio
 
 ---
 
+## Diseño (obligatorio en cualquier UI nueva)
+
+- Antes de crear o cambiar una pantalla, lee DESIGN.md y abre la
+  página de referencia más parecida.
+- Usa solo los componentes existentes. Si falta uno, créalo en la
+  carpeta de componentes con los tokens y añádelo a DESIGN.md.
+- Nunca colores, radios ni sombras sueltos (hex, bg-white, text-black):
+  solo tokens, y siempre con su versión de modo oscuro.
+- Headers, listas, inputs y estados vacíos siguen el patrón de su
+  página de referencia, no uno nuevo.
+- Al terminar, revisa la pantalla en modo claro y oscuro y dime qué
+  componentes reutilizaste.
+
+---
+
 ## 1. Cómo trabajar en este proyecto
 
 ### Idioma y estilo

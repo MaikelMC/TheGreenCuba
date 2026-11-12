@@ -4,7 +4,11 @@ import { packsMedida, pagos, suscripciones } from "@/lib/db/schema";
 import { crearSuscripcion } from "@/lib/plans-server";
 import { calcularVencimiento } from "@/lib/pack-medida";
 import { generateId } from "@/lib/utils";
-import type { Pack } from "@/lib/plans";
+import {
+  DIAS_PRIMER_PAGO,
+  DIAS_RENOVACION,
+  type Pack,
+} from "@/lib/plans";
 
 type FilaPago = typeof pagos.$inferSelect;
 
@@ -18,6 +22,10 @@ type FilaPago = typeof pagos.$inferSelect;
  * la de la suscripción decide si se toca, y la del pago lo marca. Si el pago
  * ya estaba pagado las dos son un no-op, así que el reintento de QvaPay no
  * suma dos meses.
+ *
+ * El primer pago de un servicio disfruta del 2×1: cubre dos meses
+ * (`DIAS_PRIMER_PAGO`). Las renovaciones —mismo pack aún vigente, módulo ya
+ * contratado o pago tras vencer— vuelven al mes.
  */
 export async function aplicarDerecho(pago: FilaPago): Promise<void> {
   const sigueCobrable = sql`exists (
@@ -74,7 +82,7 @@ export async function aplicarDerecho(pago: FilaPago): Promise<void> {
           negocioId: pago.negocioId,
           plan: pago.clave as Pack,
           estado: "activa",
-          venceEn: sql`now() + interval '30 days'`,
+          venceEn: sql`now() + make_interval(days => ${DIAS_PRIMER_PAGO})`,
         })
         .onConflictDoUpdate({
           target: suscripciones.negocioId,
@@ -85,11 +93,13 @@ export async function aplicarDerecho(pago: FilaPago): Promise<void> {
               when ${suscripciones.plan} = ${pago.clave}
                 and ${suscripciones.venceEn} is not null
                 and ${suscripciones.venceEn} > now()
-                then ${suscripciones.venceEn} + interval '30 days'
+                then ${suscripciones.venceEn} + make_interval(days => ${DIAS_RENOVACION})
               when ${suscripciones.plan} = ${pago.clave}
                 and ${suscripciones.venceEn} is null
                 then null
-              else now() + interval '30 days'
+              when ${suscripciones.venceEn} is not null
+                then now() + make_interval(days => ${DIAS_RENOVACION})
+              else now() + make_interval(days => ${DIAS_PRIMER_PAGO})
             end`,
           },
           setWhere: sigueCobrable,
@@ -118,6 +128,11 @@ export async function aplicarDerecho(pago: FilaPago): Promise<void> {
       now()::text
     )),
     'hasta', to_jsonb(case
+      when not exists (
+        select 1
+        from jsonb_array_elements(${suscripciones.modulos}) as e
+        where e->>'clave' = ${pago.clave}
+      ) then now() + make_interval(days => ${DIAS_PRIMER_PAGO})
       when exists (
         select 1
         from jsonb_array_elements(${suscripciones.modulos}) as e
@@ -130,8 +145,8 @@ export async function aplicarDerecho(pago: FilaPago): Promise<void> {
         where e->>'clave' = ${pago.clave} and e->>'hasta' is not null
         order by (e->>'hasta')::timestamptz desc
         limit 1
-      ) + interval '30 days'
-      else now() + interval '30 days'
+      ) + make_interval(days => ${DIAS_RENOVACION})
+      else now() + make_interval(days => ${DIAS_RENOVACION})
     end)
   ))`;
 

@@ -645,6 +645,15 @@ export function limiteDe(
 /** Cuántos días dura la prueba de Pro que recibe un negocio nuevo. */
 export const TRIAL_DIAS = 30;
 
+/**
+ * Días que cubre el primer pago de un servicio: el 2×1 —pagas un mes y usas
+ * dos—. Las renovaciones vuelven a `DIAS_RENOVACION`.
+ */
+export const DIAS_PRIMER_PAGO = 60;
+
+/** Días que cubre cada renovación de un pack o de un módulo. */
+export const DIAS_RENOVACION = 30;
+
 export function trialHastaDesde(ahora: Date): Date {
   return new Date(ahora.getTime() + TRIAL_DIAS * 86_400_000);
 }

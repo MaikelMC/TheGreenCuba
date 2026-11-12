@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { Check, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   PACKS_ORDER,
-  TRIAL_DIAS,
   textoCup,
   type Catalogo,
   type Pack,
@@ -59,16 +58,49 @@ export function Pricing({ catalogo }: { catalogo: Catalogo }) {
             accent="sorpresas"
             className="mt-4 font-lv-display text-[clamp(32px,5vw,52px)] font-bold leading-[1.02] tracking-[-0.04em] text-ink text-balance"
           />
-          <Reveal
-            as="p"
-            text={`${TRIAL_DIAS} días de prueba de todos los servicios.`}
-            delay={120}
-            className="mt-4 text-base leading-relaxed text-ink-soft/75"
-          />
+
+          {/* El 2×1 es la promoción vigente: el primer pago de un pack o de un
+              módulo cubre dos meses. Va aquí, antes de las tarjetas, porque es
+              lo que decide la compra; escondido en una nota al pie no lo lee
+              nadie. */}
+          <div className="mt-6 flex justify-center">
+            <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-orange-200/80 bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 px-5 py-4 text-center shadow-soft ring-1 ring-inset ring-white/60 sm:w-auto sm:max-w-none sm:py-3 sm:text-left">
+              {/* Dos brillos cálidos, muy difuminados, dan la sensación de caja
+                  de regalo sin convertir la tarjeta en un anuncio de feria. */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -right-10 -top-12 size-32 rounded-full bg-orange-300/35 blur-2xl"
+              />
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -bottom-14 -left-10 size-32 rounded-full bg-red-400/20 blur-2xl"
+              />
+              {/* El filete superior imita el lazo de la caja. */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-orange-400/60 to-transparent"
+              />
+
+              <div className="relative flex flex-col items-center gap-2.5 sm:flex-row sm:items-center sm:gap-3.5">
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-700 to-red-600 px-2.5 py-1 font-lv-display text-[11px] font-bold uppercase tracking-[0.12em] text-white shadow-sm">
+                  <Gift size={12} strokeWidth={2.4} aria-hidden />
+                  2×1
+                </span>
+                <div className="min-w-0">
+                  <p className="font-lv-display text-base leading-snug font-semibold text-orange-950 sm:text-sm">
+                    Paga un mes y llévate otro gratis
+                  </p>
+                  <p className="mt-1 text-small leading-snug text-balance text-orange-900/75 sm:mt-0.5 sm:text-meta">
+                    El primer pago de un pack o módulo cubre 60 días.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="mt-5 flex justify-center">
-          <TasaCambioNota catalogo={catalogo} />
+          <TasaCambioNota catalogo={catalogo} variante="destacada" />
         </div>
 
         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
