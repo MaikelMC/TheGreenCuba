@@ -157,7 +157,17 @@ Problemas que quiere resolver: ${problemas.trim().slice(0, 800)}`;
     const modulosUsados = new Set<ClaveModulo>();
     const servicios: ServicioRecomendado[] = [];
 
+    /*
+     * El filtro de `item` no es paranoia: `JSON.parse` acepta `null` dentro de
+     * un array, y los modelos lo meten cuando se quedan sin presupuesto de
+     * tokens a mitad de la lista. Sin esta comprobación, `item.id` sobre un
+     * `null` lanza un `TypeError` que cae en el `catch` de abajo y el usuario
+     * recibe un 502 como si la IA entera estuviera caída, cuando la respuesta
+     * traía servicios válidos al lado. Se ve solo en producción porque allí
+     * responde primero un proveedor distinto al de desarrollo.
+     */
     for (const item of data.servicios.slice(0, 5)) {
+      if (!item || typeof item !== "object") continue;
       if (!item.id || typeof item.id !== "string") continue;
 
       const explicacion = String(item.explicacion ?? "").slice(0, 300);
@@ -173,6 +183,10 @@ Problemas que quiere resolver: ${problemas.trim().slice(0, 800)}`;
           servicioYa.precio.tipo === "incluido"
             ? servicioYa.precio.en
             : servicioYa.precio.clave;
+        /* Una clave que ya no esté en `MODULOS` —un servicio huérfano tras
+           retirar un módulo— tumbaría la recomendación entera al leer `.usd`.
+           Se salta ese servicio y el resto de la lista se sigue devolviendo. */
+        if (!MODULOS[claveModulo]) continue;
         modulosUsados.add(claveModulo);
 
         // Busca la ficha en CATEGORIAS (cualquier entrada que tenga ese slug)

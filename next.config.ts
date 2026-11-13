@@ -68,7 +68,14 @@ const CSP = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
-  "frame-src 'none'",
+  /* `frame-ancestors` sigue cerrado: nadie nos incrusta a nosotros.
+     `frame-src` no puede ser `'none'`: el panel de administración incrusta el
+     widget de tasa de CambioCUP (`src/components/admin/cambiocup-widget.tsx`).
+     Con `'none'` el marco salía en blanco solo en producción —el CSP se sirve
+     únicamente allí— y el resto de la tarjeta se veía normal, así que parecía
+     que la fuente fallaba. CambioCUP no manda `X-Frame-Options` ni
+     `frame-ancestors`, así que este es el único permiso que hacía falta. */
+  "frame-src https://www.cambiocup.com",
   "upgrade-insecure-requests",
 ].join("; ");
 
