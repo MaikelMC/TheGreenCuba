@@ -73,3 +73,6 @@ skill_PWA.md
 # —ui-ux-pro-max y vercel-react-best-practices— sí están versionadas; si la idea
 # es no versionar ninguna, hay que sacarlas también.
 .agents/skills/impeccable/
+
+# worktrees temporales de otros frentes: no son del repo
+.tmp-wt/
