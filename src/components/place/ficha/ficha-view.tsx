@@ -290,7 +290,7 @@ export function FichaView({
             acciones={acciones.fila}
             phone={place.phone}
             whatsapp={place.contact.whatsapp}
-            enlaceOfertas={place.seguidores?.enlace}
+            enlaceOfertas={place.seguidores?.enlace ?? undefined}
             seguidores={place.seguidores ?? undefined}
             negocioId={place.id}
             isSaved={saved}
@@ -430,7 +430,7 @@ export function FichaView({
             acciones={acciones.fila}
             phone={place.phone}
             whatsapp={place.contact.whatsapp}
-            enlaceOfertas={place.seguidores?.enlace}
+            enlaceOfertas={place.seguidores?.enlace ?? undefined}
             seguidores={place.seguidores ?? undefined}
             negocioId={place.id}
             isSaved={saved}

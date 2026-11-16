@@ -43,6 +43,7 @@ export function SeguidoresCard({
     place.enlaceSeguidores ?? null,
   );
   const [total, setTotal] = useState<number | null>(null);
+  const [enApp, setEnApp] = useState(0);
   const [restantes, setRestantes] = useState<number | null>(null);
 
   /* Sin la función no se pide nada: el candado ya lo dice todo y la lectura solo
@@ -60,11 +61,13 @@ export function SeguidoresCard({
         const data = (await res.json()) as {
           enlace: string | null;
           seguidores: number;
+          enApp: number;
           avisos: { restantes: number };
         };
         if (!vivo) return;
         setEnlace(data.enlace);
         setTotal(data.seguidores);
+        setEnApp(data.enApp);
         setRestantes(data.avisos.restantes);
       } catch {
         /* Sin red se queda con lo que traía la ficha: el enlace. */
@@ -94,7 +97,7 @@ export function SeguidoresCard({
               : "border border-verde-200 bg-verde-50 text-verde-700",
           )}
         >
-          {bloqueo ?? (total === null ? "Activo" : `${total} seguidores`)}
+          {bloqueo ?? (total === null ? "Activo" : `${total + enApp} seguidores`)}
         </span>
       </div>
 
@@ -139,8 +142,9 @@ export function SeguidoresCard({
             </>
           ) : (
             <p className="rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-3 py-[7px] text-meta font-medium text-ink">
-              El bot de avisos todavía no está listo. En cuanto lo esté, el
-              botón aparecerá en tu ficha sin que tengas que hacer nada.
+              Tus avisos ya llegan por la app (bandeja y móvil). El bot de
+              Telegram todavía no está listo: cuando lo esté, será una segunda
+              vía en el mismo botón.
             </p>
           )}
         </div>

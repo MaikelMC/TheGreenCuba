@@ -100,6 +100,7 @@ export async function conSelloVerificado(
       place.id,
       funciones.has("seguidores"),
     ),
+    avisosHabilitados: funciones.has("seguidores"),
   };
 }
 

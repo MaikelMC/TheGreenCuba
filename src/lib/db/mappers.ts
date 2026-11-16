@@ -220,6 +220,7 @@ export function toUserPlace(
       row.id,
       funciones.has("seguidores"),
     ),
+    avisosHabilitados: funciones.has("seguidores"),
     plan: row.plan,
     /* La prueba se decide por la suscripción, no por el plan elegido en el
        alta: todo negocio nuevo tiene 30 días de Pro, y durante ellos el panel

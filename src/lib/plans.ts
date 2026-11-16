@@ -804,16 +804,25 @@ export function funcionesDe(
     return set;
   }
 
+  /* Cualquier servicio activo —pack de pago o un solo módulo— abre los avisos a
+     seguidores, no solo Marketing: la campana sale a todo negocio que contrata
+     algo. */
+  let conServicio = false;
+
   const pack = packEfectivo(suscripcion, ahora, cat);
   if (pack !== "gratis") {
+    conServicio = true;
     for (const f of cat.packs[pack].funciones) set.add(f);
   }
 
   /* Los módulos sueltos se suman al pack: no se excluyen. */
   for (const m of suscripcion.modulos) {
     if (!moduloVigente(m, ahora)) continue;
+    conServicio = true;
     for (const f of cat.modulos[m.clave].funciones) set.add(f);
   }
+
+  if (conServicio) set.add("seguidores");
 
   return set;
 }

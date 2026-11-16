@@ -378,6 +378,12 @@ export interface UserPlace {
    */
   enlaceSeguidores?: string | null;
   /**
+   * El negocio tiene la función de avisos a seguidores (cualquier servicio
+   * activo). Es lo que decide el botón «Avísame»: la vía de la app no necesita
+   * bot, y `enlaceSeguidores` solo añade la de Telegram.
+   */
+  avisosHabilitados?: boolean;
+  /**
    * El plan que eligió el dueño al dar de alta el negocio, y que se queda con
    * la ficha: es lo que el administrador ve en la solicitud antes de aprobarla.
    *

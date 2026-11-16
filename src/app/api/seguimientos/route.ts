@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema";
+import { tieneFuncion } from "@/lib/plans-server";
 import { rateLimit } from "@/lib/rate-limit";
 import {
   dejarDeSeguir,
@@ -17,9 +18,10 @@ import {
  * —con `autenticado: false`— en vez de un 401 que el diálogo tendría que
  * traducir. Escribir sí exige cuenta: sin `user_id` no hay a quién avisar.
  *
- * No se comprueba aquí el plan del negocio ni el bot de Telegram. El botón ya
- * solo aparece en fichas que ofrecen avisos (`enlaceSeguidores`), y repetir esa
- * decisión en la ruta la haría divergir con el tiempo.
+ * El alta exige la función `seguidores` del negocio (cualquier servicio activo),
+ * pero **no** el bot de Telegram: esta es la vía de la app y no depende de él.
+ * Consultar y darse de baja no piden plan: un negocio que lo pierde no debe
+ * dejar a nadie sin poder dejar de seguirlo.
  */
 
 /* Cinco gestos por minuto: abrir el diálogo consulta una vez y pulsar el
@@ -89,6 +91,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "Ese negocio no existe." },
       { status: 404 },
+    );
+  }
+
+  /* El permiso se decide aquí y no en el botón: el cliente no manda en el plan. */
+  if (!(await tieneFuncion(placeId, "seguidores"))) {
+    return NextResponse.json(
+      { error: "Este negocio no ofrece avisos." },
+      { status: 403 },
     );
   }
 

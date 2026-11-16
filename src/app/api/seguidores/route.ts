@@ -7,6 +7,7 @@ import {
   contarSeguidores,
   enlaceSeguidoresDe,
 } from "@/lib/seguidores-server";
+import { contarSeguidoresApp } from "@/lib/seguimientos-app-server";
 
 /**
  * El estado de los seguidores, para la tarjeta del panel.
@@ -42,14 +43,16 @@ export async function GET(req: NextRequest) {
   }
 
   const conSeguidores = await tieneFuncion(negocioId, "seguidores");
-  const [total, usados] = await Promise.all([
+  const [total, enApp, usados] = await Promise.all([
     contarSeguidores(negocioId),
+    contarSeguidoresApp(negocioId),
     avisosDeLaSemana(negocioId),
   ]);
 
   return NextResponse.json({
     enlace: enlaceSeguidoresDe(negocioId, conSeguidores),
     seguidores: total,
+    enApp,
     avisos: {
       usados,
       tope: AVISOS_POR_SEMANA,

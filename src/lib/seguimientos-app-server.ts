@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { seguimientos } from "@/lib/db/schema";
 import { generateId } from "@/lib/utils";
@@ -76,4 +76,13 @@ export async function seguidoresDeNegocio(
     .from(seguimientos)
     .where(eq(seguimientos.negocioId, negocioId));
   return filas.map((fila) => fila.usuarioId);
+}
+
+/** Cuántos siguen al negocio desde la app. Es el número del panel del dueño. */
+export async function contarSeguidoresApp(negocioId: string): Promise<number> {
+  const [fila] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(seguimientos)
+    .where(eq(seguimientos.negocioId, negocioId));
+  return fila?.total ?? 0;
 }

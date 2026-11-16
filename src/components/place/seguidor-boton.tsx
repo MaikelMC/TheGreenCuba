@@ -43,6 +43,23 @@ export function SeguidorBoton({
 }) {
   const [abierto, setAbierto] = useState(false);
   const [acepta, setAcepta] = useState(false);
+  const enlaceTelegram = seguidores.enlace;
+  /* Campana rellena si ya sigue al negocio en la app. Se consulta al montar
+     para que se vea también al recargar, sin abrir el diálogo. */
+  const [siguiendo, setSiguiendo] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    fetch(`/api/seguimientos?placeId=${encodeURIComponent(negocioId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { siguiendo?: boolean } | null) => {
+        if (vivo && d?.siguiendo) setSiguiendo(true);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [negocioId]);
 
   const BTN =
     variant === "primary"
@@ -67,7 +84,11 @@ export function SeguidorBoton({
           className,
         )}
       >
-        <Bell size={16} strokeWidth={1.8} className="shrink-0" />
+        <Bell
+          size={16}
+          strokeWidth={1.8}
+          className={cn("shrink-0", siguiendo && "fill-current")}
+        />
         {/* En móvil el botón va en una columna de ~140 px: «de ofertas» sobra
             ahí y el icono de campana ya lo dice. El diálogo, que sí tiene
             ancho, conserva el texto largo como título. */}
@@ -83,66 +104,75 @@ export function SeguidorBoton({
             su carta. Son avisos cortos y pocos: como mucho tres por semana.
           </DialogDescription>
 
-          <AvisosApp negocioId={negocioId} nombre={seguidores.negocio} />
+          <AvisosApp
+            negocioId={negocioId}
+            nombre={seguidores.negocio}
+            onSiguiendo={setSiguiendo}
+          />
 
-          <p className="mt-gap-md font-lv-display text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft/60">
-            O por Telegram
-          </p>
-
-          <label className="mt-gap-md flex cursor-pointer items-start gap-gap-sm rounded-2xl border border-ink/10 bg-sand-warm px-4 py-3">
-            <input
-              type="checkbox"
-              checked={acepta}
-              onChange={(e) => setAcepta(e.target.checked)}
-              className="mt-[3px] size-4 shrink-0 accent-verde-600"
-            />
-            <span className="text-small leading-relaxed text-ink-soft">
-              Acepto recibir estos avisos de {seguidores.negocio}. Sé que puedo
-              darme de baja cuando quiera contestando{" "}
-              <span className="font-semibold text-ink">/baja</span> al bot.
-            </span>
-          </label>
-
-          <div className="mt-gap-md flex flex-wrap items-center gap-gap-sm">
-            <a
-              href={acepta ? seguidores.enlace : undefined}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-disabled={!acepta}
-              onClick={(e) => {
-                /* Sin la casilla el enlace no existe. `preventDefault` es la red
-                   de seguridad de un navegador que no respete `aria-disabled`:
-                   no hay que abrir nada que no se haya aceptado. */
-                if (!acepta) {
-                  e.preventDefault();
-                  return;
-                }
-                trackEvento({ tipo: "click_seguidor", negocioId });
-                setAbierto(false);
-              }}
-              className={cn(
-                "inline-flex h-11 items-center justify-center gap-gap-xs rounded-full px-gap-lg font-lv-display text-small font-semibold transition-colors duration-500 ease-outquint",
-                acepta
-                  ? "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300"
-                  : "pointer-events-none border border-ink/10 bg-sand text-ink-soft/75",
-              )}
-            >
-              <Send size={16} strokeWidth={1.8} />
-              Abrir Telegram
-            </a>
-
-            {!acepta && (
-              <p className="text-meta text-ink-soft/75">
-                Marca la casilla para continuar.
+          {/* La vía de Telegram solo se ofrece si hay bot: la de la app va sola. */}
+          {enlaceTelegram && (
+            <>
+              <p className="mt-gap-md font-lv-display text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft/60">
+                También por Telegram
               </p>
-            )}
-          </div>
 
-          <p className="mt-gap-md text-meta leading-relaxed text-ink-soft/75">
-            Se abre la conversación del bot en Telegram: allí pulsa «Iniciar» y
-            quedas suscrito. No hace falta cuenta en La Verde y no te pedimos
-            ningún dato.
-          </p>
+              <label className="mt-gap-md flex cursor-pointer items-start gap-gap-sm rounded-2xl border border-ink/10 bg-sand-warm px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={acepta}
+                  onChange={(e) => setAcepta(e.target.checked)}
+                  className="mt-[3px] size-4 shrink-0 accent-verde-600"
+                />
+                <span className="text-small leading-relaxed text-ink-soft">
+                  Acepto recibir estos avisos de {seguidores.negocio}. Sé que
+                  puedo darme de baja cuando quiera contestando{" "}
+                  <span className="font-semibold text-ink">/baja</span> al bot.
+                </span>
+              </label>
+
+              <div className="mt-gap-md flex flex-wrap items-center gap-gap-sm">
+                <a
+                  href={acepta ? enlaceTelegram : undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-disabled={!acepta}
+                  onClick={(e) => {
+                    /* Sin la casilla el enlace no existe. `preventDefault` es la red
+                     de seguridad de un navegador que no respete `aria-disabled`:
+                     no hay que abrir nada que no se haya aceptado. */
+                    if (!acepta) {
+                      e.preventDefault();
+                      return;
+                    }
+                    trackEvento({ tipo: "click_seguidor", negocioId });
+                    setAbierto(false);
+                  }}
+                  className={cn(
+                    "inline-flex h-11 items-center justify-center gap-gap-xs rounded-full px-gap-lg font-lv-display text-small font-semibold transition-colors duration-500 ease-outquint",
+                    acepta
+                      ? "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300"
+                      : "pointer-events-none border border-ink/10 bg-sand text-ink-soft/75",
+                  )}
+                >
+                  <Send size={16} strokeWidth={1.8} />
+                  Abrir Telegram
+                </a>
+
+                {!acepta && (
+                  <p className="text-meta text-ink-soft/75">
+                    Marca la casilla para continuar.
+                  </p>
+                )}
+              </div>
+
+              <p className="mt-gap-md text-meta leading-relaxed text-ink-soft/75">
+                Se abre la conversación del bot en Telegram: allí pulsa
+                «Iniciar» y quedas suscrito. No hace falta cuenta en La Verde y
+                no te pedimos ningún dato.
+              </p>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </>
@@ -167,9 +197,11 @@ type EstadoApp =
 function AvisosApp({
   negocioId,
   nombre,
+  onSiguiendo,
 }: {
   negocioId: string;
   nombre: string;
+  onSiguiendo: (v: boolean) => void;
 }) {
   const [estado, setEstado] = useState<EstadoApp>("cargando");
   const [aviso, setAviso] = useState<string | null>(null);
@@ -181,7 +213,10 @@ function AvisosApp({
       .then((data: { autenticado?: boolean; siguiendo?: boolean } | null) => {
         if (!vivo) return;
         if (!data?.autenticado) setEstado("sin-sesion");
-        else setEstado(data.siguiendo ? "activo" : "inactivo");
+        else {
+          setEstado(data.siguiendo ? "activo" : "inactivo");
+          onSiguiendo(!!data.siguiendo);
+        }
       })
       .catch(() => {
         /* Un corte de red no es «no has iniciado sesión»: se dice aparte para
@@ -215,6 +250,7 @@ function AvisosApp({
       }
 
       setEstado(seguir ? "activo" : "inactivo");
+      onSiguiendo(seguir);
     } catch {
       setEstado(seguir ? "inactivo" : "activo");
       setAviso("Sin conexión. Inténtalo otra vez.");
@@ -282,7 +318,11 @@ function AvisosApp({
           {cargando || estado === "guardando" ? (
             <Loader2 size={14} strokeWidth={1.8} className="animate-spin" />
           ) : (
-            <Bell size={14} strokeWidth={1.8} />
+            <Bell
+              size={14}
+              strokeWidth={1.8}
+              className={activo ? "fill-current" : undefined}
+            />
           )}
           {activo ? "Desactivar" : "Activar"}
         </button>

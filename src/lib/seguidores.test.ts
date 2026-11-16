@@ -168,3 +168,14 @@ test("sin enlace no hay botón, aunque el negocio tenga nombre", () => {
     { negocio: "El Sabroso", enlace: "https://t.me/x?start=seg_1" },
   );
 });
+
+test("con la función y sin bot el botón sigue: solo la vía de la app", () => {
+  assert.deepEqual(
+    configSeguidores({ name: "El Sabroso", avisosHabilitados: true }),
+    { negocio: "El Sabroso", enlace: null },
+  );
+  assert.equal(
+    configSeguidores({ name: "El Sabroso", avisosHabilitados: false }),
+    undefined,
+  );
+});

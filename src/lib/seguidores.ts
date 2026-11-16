@@ -298,22 +298,31 @@ export function avisosPorCambios({
 export interface SeguidorConfig {
   /** El nombre del negocio, para el texto del diálogo. */
   negocio: string;
-  /** El deep link al bot, ya montado (`https://t.me/<bot>?start=seg_<id>`). */
-  enlace: string;
+  /**
+   * El deep link al bot, ya montado (`https://t.me/<bot>?start=seg_<id>`), o
+   * `null` si no hay bot. Telegram es **una de las dos vías**: sin bot el botón
+   * sigue ahí y ofrece solo los avisos de la app.
+   */
+  enlace: string | null;
 }
 
 /**
  * Arma la configuración del botón, o `undefined` si no hay botón.
  *
- * El enlace llega ya resuelto porque el nombre del bot es configuración del
- * servidor y el navegador no la tiene. Se exige también el nombre del negocio
- * porque sin él el diálogo no sabría a quién va a seguir.
+ * El botón depende de la función del plan (`avisosHabilitados`), **no del bot**:
+ * los avisos de la app —bandeja y push— no necesitan Telegram. El enlace llega ya
+ * resuelto porque el nombre del bot es configuración del servidor y el navegador
+ * no la tiene. Sin `avisosHabilitados` (fuentes antiguas) manda el enlace, como
+ * antes. Se exige también el nombre del negocio porque sin él el diálogo no
+ * sabría a quién va a seguir.
  */
 export function configSeguidores(fuente: {
   name: string;
+  avisosHabilitados?: boolean;
   enlaceSeguidores?: string | null;
 }): SeguidorConfig | undefined {
-  const enlace = fuente.enlaceSeguidores?.trim();
-  if (!enlace || !fuente.name.trim()) return undefined;
+  const enlace = fuente.enlaceSeguidores?.trim() || null;
+  const habilitado = fuente.avisosHabilitados ?? Boolean(enlace);
+  if (!habilitado || !fuente.name.trim()) return undefined;
   return { negocio: fuente.name, enlace };
 }
