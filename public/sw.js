@@ -8,7 +8,10 @@
  * Reglas que no se negocian:
  *  - Solo se interceptan `GET` del propio origen.
  *  - Nunca se cachean respuestas de autenticación, de datos privados ni nada
- *    que venga marcado como `private` o `no-store`.
+ *    que venga marcado como `private` o `no-store`, con dos excepciones
+ *    documentadas: el catálogo de servicios y las fichas de negocio, que Next
+ *    marca dinámicas pero son idénticas para todo el mundo. Las dos exigen
+ *    `200` y la ausencia de `Set-Cookie`.
  *  - Las peticiones RSC del App Router: si la red falla, se devuelve text/plain
  *    vacío para que Next haga MPA navigation y el SW intercepte la navegación.
  *  - `skipWaiting()` solo cuando la página lo pide (botón «Actualizar»). Si se
@@ -163,6 +166,11 @@ const IMAGE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
    algún día se sirve desde el VPS, se cambia también aquí. */
 const ESTILO_MAPA_URL = "https://tiles.openfreemap.org/styles/liberty";
 
+/* Fichas guardadas para abrirlas sin red. Se recortan por separado del resto
+   de `lv-pages` —que solo tiene /home y el aviso offline— para que la app no
+   retenga un número ilimitado de documentos de negocio. */
+const FICHAS_MAX_ENTRIES = 120;
+
 const TILES_MAX_ENTRIES = 3000;
 /* Las teselas se recortan cada 100 guardados (más infrecuente que las imágenes
    porque son más ligeras y el límite es mayor). */
@@ -221,6 +229,24 @@ self.addEventListener("install", (event) => {
           ? precachearPagina(catalogoCache, "/servicios", { dinamica: true })
           : Promise.resolve(),
       ]);
+
+      /* El catálogo alimenta el mapa, sus filtros y la búsqueda. Se guarda ya
+         en la instalación: si la primera apertura sin conexión (o con red muy
+         lenta) llega antes de que `/home` termine de pedirlo, sin esto no
+         habría ni un punto que pintar. */
+      try {
+        const apiCache = await caches.open(API_CACHE);
+        await Promise.allSettled(
+          API_PUBLICAS.map(async (ruta) => {
+            /* Con tope: la instalación no puede quedarse esperando a una red
+               lenta; si no llega, se cachea en la primera visita controlada. */
+            const res = await conTimeout(fetch(ruta, { cache: "reload" }), NAV_TIMEOUT_MS);
+            if (sePuedeCachear(res)) await guardarApi(apiCache, ruta, res.clone());
+          }),
+        );
+      } catch {
+        /* Sin red al instalar: se cachea en la primera visita controlada. */
+      }
 
       /* El mapa no se pinta sin su estilo, y MapLibre lo pide cross-origin.
          Sin esto la app abría sin red con las teselas ya guardadas pero con el
@@ -296,9 +322,11 @@ self.addEventListener("activate", (event) => {
               }
             } else if (esRutaPublica(clientUrl)) {
               const res = await fetch(client.url).catch(() => null);
-              if (res && sePuedeCachear(res)) {
+              if (res && documentoCacheable(res, clientUrl)) {
                 const copia = res.clone();
-                await pagesCache.put(client.url, res).catch(() => {});
+                await pagesCache
+                  .put(claveDocumento(clientUrl) ?? client.url, res)
+                  .catch(() => {});
                 await calentarDocumento(copia);
               }
             }
@@ -394,6 +422,13 @@ self.addEventListener("fetch", (event) => {
        que Next haga MPA navigation y el SW pueda servir la ruta desde caché. */
   if (esPeticionRsc(request, url)) {
     if (request.headers.get("Next-Router-Prefetch")) return;
+    /* Abrir una ficha con el router de Next no descarga su documento: solo el
+       payload RSC. Sin calentarlo, «abrir una ficha» no dejaba nada guardado y
+       sin red no había forma de verla. Se guarda una vez por ficha, por
+       detrás y sin retrasar la navegación. */
+    if (url.pathname.startsWith("/place/")) {
+      event.waitUntil(calentarFicha(url.pathname));
+    }
     event.respondWith(rscFallback(request));
     return;
   }
@@ -426,7 +461,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (esApiPublica(url)) {
-    event.respondWith(apiPublica(request));
+    event.respondWith(apiPublica(event, request));
     return;
   }
 
@@ -597,9 +632,13 @@ async function calentarDocumento(response) {
   const estaticos = await caches.open(STATIC_CACHE);
   const imagenes = await caches.open(IMAGES_CACHE);
   await Promise.allSettled(
-    urls.map((url) => {
+    urls.map(async (url) => {
       const destino = url.startsWith("/_next/image") ? imagenes : estaticos;
-      return destino.add(new Request(url, { cache: "reload" }));
+      /* Los `_next/static` llevan hash: si ya están, no hace falta volver a
+         bajarlos. Sin esta comprobación cada ficha calentada repetía por red
+         todos los chunks de la app, justo en la conexión que va lenta. */
+      if (await destino.match(url)) return;
+      await destino.add(new Request(url, { cache: "reload" }));
     }),
   );
 }
@@ -629,6 +668,38 @@ function conTimeout(promise, ms) {
   });
 }
 
+/**
+ * ¿Se guarda este documento público?
+ *
+ * `sePuedeCachear` respeta `Cache-Control`, que es la regla por defecto. La
+ * ficha de un negocio es la excepción: Next la marca dinámica (`no-store`)
+ * porque consulta la base en cada petición, pero su HTML es el mismo para todo
+ * el mundo —la sesión solo decide el estado de guardado, que se resuelve en el
+ * cliente tras hidratar—. Sin esta excepción, una ficha ya abierta no quedaba
+ * guardada y no se podía ver sin red. Es la misma razón por la que el catálogo
+ * de servicios tiene su propia regla.
+ */
+function documentoCacheable(response, url) {
+  if (!response || response.status !== 200) return false;
+  if (response.headers.get("Set-Cookie")) return false;
+  if (url.pathname.startsWith("/place/")) return true;
+  return sePuedeCachear(response);
+}
+
+/**
+ * Clave de caché de un documento público, o `null` si vale la propia petición.
+ *
+ * `/home` se abre desde el manifest sin query y desde un aviso con
+ * `?desde=pagina`; una ficha se comparte por WhatsApp con parámetros de
+ * seguimiento. En los dos casos la query no cambia el documento, y guardarla en
+ * la clave dejaría la copia invisible al abrir la URL limpia.
+ */
+function claveDocumento(url) {
+  if (url.pathname === "/home") return "/home";
+  if (url.pathname.startsWith("/place/")) return url.pathname;
+  return null;
+}
+
 /** Ruta pública: su documento puede guardarse para abrirlo sin red. */
 function esRutaPublica(url) {
   if (esDocumentoPrivado(null, url)) return false;
@@ -656,13 +727,10 @@ function esRutaPublica(url) {
  */
 async function navegacion(event, request, url) {
   const cache = await caches.open(PAGES_CACHE);
-  /* /home se guarda con su clave limpia: la apertura desde el manifest no
-     lleva query, pero una recarga con `?desde=pagina` sí. */
-  const clave = url.pathname === "/home" ? "/home" : request;
-  const guardada =
-    url.pathname === "/home"
-      ? await cache.match("/home", { ignoreSearch: true })
-      : await cache.match(request);
+  const clave = claveDocumento(url) ?? request;
+  /* `ignoreSearch` conserva las copias guardadas con otra query por versiones
+     anteriores del SW (p. ej. `/home?desde=pagina`). */
+  const guardada = await cache.match(clave, { ignoreSearch: true });
 
   const red = fetch(request);
 
@@ -676,7 +744,7 @@ async function navegacion(event, request, url) {
 
     try {
       const response = await conTimeout(red, NAV_CACHE_GRACE_MS);
-      if (response && sePuedeCachear(response) && esRutaPublica(url)) {
+      if (documentoCacheable(response, url) && esRutaPublica(url)) {
         event.waitUntil(actualizarDocumento(Promise.resolve(response), cache, clave, url));
       }
       return response || guardada;
@@ -699,17 +767,17 @@ async function navegacion(event, request, url) {
   }
 
   if (response) {
-    if (sePuedeCachear(response) && esRutaPublica(url)) {
-      cache.put(clave, response.clone()).catch(() => {});
+    if (documentoCacheable(response, url) && esRutaPublica(url)) {
+      cache
+        .put(clave, response.clone())
+        .then(() => recortarFichas(cache))
+        .catch(() => {});
     }
     return response;
   }
 
-  /* Sin red: buscar en caché. Solo /home tolera ignoreSearch (para /home?desde=pagina). */
-  const cached =
-    url.pathname === "/home"
-      ? await cache.match("/home", { ignoreSearch: true })
-      : await cache.match(request);
+  /* Sin red y sin respuesta: puede que la copia se guardara con otra query. */
+  const cached = await cache.match(clave, { ignoreSearch: true });
   if (cached) return cached;
 
   /* Sin caché y sin red. Si es una ruta distinta a /home y /home está en
@@ -757,9 +825,10 @@ function redLenta() {
 async function actualizarDocumento(red, cache, clave, url) {
   try {
     const response = await red;
-    if (!response || !sePuedeCachear(response) || !esRutaPublica(url)) return;
+    if (!documentoCacheable(response, url) || !esRutaPublica(url)) return;
     const copia = response.clone();
     await cache.put(clave, response.clone()).catch(() => {});
+    await recortarFichas(cache);
     await calentarDocumento(copia);
   } catch {
     /* Sin red: la copia guardada sigue siendo la válida. */
@@ -1009,36 +1078,134 @@ function respuestaSinConexion() {
   );
 }
 
-async function apiPublica(request) {
+/**
+ * Catálogo público (`/api/places`, `/api/categories`).
+ *
+ * Es lo que pinta los puntos del mapa, sus filtros y la búsqueda, así que
+ * también entra en el arranque: con copia guardada la red tiene solo
+ * `NAV_CACHE_GRACE_MS` —nada si la conexión se anuncia lenta o caída— y la
+ * copia refresca por detrás en la misma petición. Sin copia se mantiene la
+ * espera de antes (4 s). Las copias caducan a los 7 días.
+ */
+async function apiPublica(event, request) {
   const cache = await caches.open(API_CACHE);
+  const guardada = await cache.match(request);
+  const red = fetch(request);
+
+  if (guardada && apiVigente(guardada)) {
+    if (sinRedOLenta()) {
+      event.waitUntil(actualizarApi(red, cache, request));
+      return guardada;
+    }
+
+    try {
+      const response = await conTimeout(red, NAV_CACHE_GRACE_MS);
+      if (sePuedeCachear(response)) {
+        event.waitUntil(guardarApi(cache, request, response.clone()));
+      }
+      return response;
+    } catch {
+      event.waitUntil(actualizarApi(red, cache, request));
+      return guardada;
+    }
+  }
+
   try {
-    const response = await conTimeout(fetch(request), NAV_TIMEOUT_MS);
+    const response = await conTimeout(red, NAV_TIMEOUT_MS);
     if (sePuedeCachear(response)) {
-      const headers = new Headers(response.headers);
-      headers.set("X-LV-Cached-At", new Date().toISOString());
-      /* Al reconstruir la respuesta el cuerpo ya viene descomprimido: dejar
-         `Content-Encoding` haría que el navegador intentara descomprimir otra
-         vez y la respuesta fallara al leerse. */
-      headers.delete("Content-Length");
-      headers.delete("Content-Encoding");
-      const body = await response.clone().blob();
-      const copy = new Response(body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers,
-      });
-      cache.put(request, copy).catch(() => {});
+      event.waitUntil(guardarApi(cache, request, response.clone()));
     }
     return response;
   } catch (error) {
-    const cached = await cache.match(request);
-    if (!cached) throw error;
+    /* La red no contestó en 4 s, pero puede contestar después: esa misma
+       petición deja la copia lista para la próxima apertura. */
+    event.waitUntil(actualizarApi(red, cache, request));
 
-    const cachedAt = cached.headers.get("X-LV-Cached-At");
-    if (cachedAt && Date.now() - Date.parse(cachedAt) > API_MAX_AGE_MS) {
-      throw error;
-    }
+    const cached = guardada ?? (await cache.match(request));
+    if (!cached || !apiVigente(cached)) throw error;
     return cached;
+  }
+}
+
+/**
+ * Guarda el documento de una ficha que se abrió con navegación de cliente.
+ *
+ * Se pide una sola vez —si ya hay copia no se repite— con `Accept: text/html`
+ * para que el servidor devuelva el documento entero y no el payload RSC. El
+ * coste es una petición por ficha y dispositivo; a cambio, cada ficha abierta
+ * queda disponible sin red. Con ahorro de datos no se hace: quien lo activó no
+ * quiere descargas que no pidió.
+ */
+async function calentarFicha(ruta) {
+  try {
+    if (self.navigator?.connection?.saveData) return;
+    const cache = await caches.open(PAGES_CACHE);
+    if (await cache.match(ruta)) return;
+
+    const response = await fetch(ruta, { headers: { Accept: "text/html" } });
+    if (!documentoCacheable(response, new URL(ruta, self.location.origin))) return;
+    const copia = response.clone();
+    await cache.put(ruta, response);
+    await recortarFichas(cache);
+    await calentarDocumento(copia);
+  } catch {
+    /* Sin red o sin almacenamiento: se guardará al abrirla como documento. */
+  }
+}
+
+/**
+ * Recorta las fichas guardadas a `FICHAS_MAX_ENTRIES`, de la más antigua a la
+ * más nueva. Se hace por bloques: no cuesta nada en cada apertura normal y
+ * evita que Cache Storage crezca sin freno en un teléfono que abre muchas.
+ */
+async function recortarFichas(cache) {
+  try {
+    const keys = await cache.keys();
+    const fichas = keys.filter((k) => new URL(k.url).pathname.startsWith("/place/"));
+    const sobran = fichas.length - FICHAS_MAX_ENTRIES;
+    if (sobran < 10) return;
+    for (let i = 0; i < sobran; i += 1) await cache.delete(fichas[i]);
+  } catch {
+    /* Sin acceso a las claves: se reintenta en el siguiente guardado. */
+  }
+}
+
+/** `true` si la copia del catálogo no ha pasado su caducidad. */
+function apiVigente(cached) {
+  const cachedAt = cached.headers.get("X-LV-Cached-At");
+  return !cachedAt || Date.now() - Date.parse(cachedAt) <= API_MAX_AGE_MS;
+}
+
+/**
+ * Guarda una respuesta del catálogo con su fecha. Al reconstruirla el cuerpo ya
+ * viene descomprimido: dejar `Content-Encoding` haría que el navegador
+ * intentara descomprimir otra vez y fallara al leerla.
+ */
+async function guardarApi(cache, request, responseClone) {
+  try {
+    const headers = new Headers(responseClone.headers);
+    headers.set("X-LV-Cached-At", new Date().toISOString());
+    headers.delete("Content-Length");
+    headers.delete("Content-Encoding");
+    const body = await responseClone.blob();
+    await cache.put(request, new Response(body, {
+      status: responseClone.status,
+      statusText: responseClone.statusText,
+      headers,
+    }));
+  } catch {
+    /* Sin almacenamiento o cuerpo ilegible: la respuesta ya se sirvió. */
+  }
+}
+
+/** Refresco en segundo plano del catálogo guardado. */
+async function actualizarApi(red, cache, request) {
+  try {
+    const response = await red;
+    if (!response || !sePuedeCachear(response)) return;
+    await guardarApi(cache, request, response.clone());
+  } catch {
+    /* Sin red: la copia guardada sigue siendo la válida. */
   }
 }
 
