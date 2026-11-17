@@ -159,6 +159,10 @@ export function PhotoCarousel({
     if (trackRef.current) trackRef.current.style.transition = "";
     if (Math.abs(touchDeltaX.current) > 50) {
       goTo(touchDeltaX.current > 0 ? current - 1 : current + 1);
+    } else if (trackRef.current) {
+      /* Un arrastre corto no cambia `current`, así que el efecto no vuelve a
+         colocar el carril: se queda desplazado donde lo dejó el dedo. */
+      trackRef.current.style.transform = `translateX(-${current * 100}%)`;
     }
   }, [current, goTo]);
 
@@ -181,7 +185,7 @@ export function PhotoCarousel({
   return (
     <div
       className={cn(
-        "group relative w-full aspect-[4/3] lg:aspect-[16/9] overflow-hidden bg-sand-deep lg:rounded-4xl",
+        "group relative w-full aspect-[4/3] lg:aspect-[16/9] overflow-hidden bg-sand-deep touch-pan-y lg:rounded-4xl",
         className,
       )}
       /* Va en estilo y no en clase porque la proporción es un número, no una

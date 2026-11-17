@@ -4,7 +4,32 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, ChevronLeft, ChevronRight, MessageCircle, Minus, Plus, Search } from "lucide-react";
+import {
+  ArrowUpRight,
+  Beef,
+  Beer,
+  Cake,
+  ChevronLeft,
+  ChevronRight,
+  Coffee,
+  Cookie,
+  Croissant,
+  CupSoda,
+  Fish,
+  IceCream,
+  MessageCircle,
+  Minus,
+  Package,
+  Pizza,
+  Plus,
+  Salad,
+  Sandwich,
+  Search,
+  Soup,
+  Utensils,
+  Wine,
+  type LucideIcon,
+} from "lucide-react";
 import { cn, formatMenuPrice, menuTagFallback, menuTagStyles } from "@/lib/utils";
 import { estaAgotado } from "@/lib/disponibilidad";
 import { preciosDeItem, type ConfigTasa } from "@/lib/precios";
@@ -32,6 +57,62 @@ const PAGE_BTN =
   "grid size-9 place-items-center rounded-full border border-ink/10 bg-white text-ink transition-colors duration-300 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 disabled:opacity-35 disabled:pointer-events-none cursor-pointer";
 
 /* ── Helpers ───────────────────────────────────────────────────────────── */
+
+/* El icono de un producto sin foto. Se elige por lo que dice el nombre —un café
+   no se parece a una pizza— y, si no reconoce nada, cae al genérico de la vista:
+   cubiertos en las cartas de comida y una caja en la tienda. Va por palabra, sin
+   acentos, para que «Café» y «cafe» den lo mismo. */
+const ICONOS_PRODUCTO: [RegExp, LucideIcon][] = [
+  [/\b(cafe|capuchino|cortadito|espresso|te|infusion|chocolate)\b/, Coffee],
+  [/\b(pizza|pizzeta|calzone)\b/, Pizza],
+  [/\b(helado|granizado)\b/, IceCream],
+  [/\b(pastel|cake|flan|postre|torta|bizcocho|dulce)\b/, Cake],
+  [/\b(galleta|galletas|churro|churros|panetela)\b/, Cookie],
+  [/\b(pan|croissant|tostada|tostadas|desayuno)\b/, Croissant],
+  [/\b(cerveza|cervezas|bucanero|cristal|mojito)\b/, Beer],
+  [/\b(vino|ron|cocktail|coctel|trago|copa)\b/, Wine],
+  [/\b(refresco|jugo|zumo|malta|cola|agua|limonada|batido)\b/, CupSoda],
+  [/\b(hamburguesa|sandwich|sandwiches|perro|bocadillo|toston|croqueta|croquetas)\b/, Sandwich],
+  [/\b(ensalada|vegetal|vegetales|vegetariano)\b/, Salad],
+  [/\b(sopa|caldo|ajiaco|potaje|crema)\b/, Soup],
+  [/\b(pescado|camaron|camarones|langosta|mariscos|marisco)\b/, Fish],
+  [/\b(carne|bistec|cerdo|res|chuleta|costilla|filete)\b/, Beef],
+];
+
+function iconoDeProducto(nombre: string, generico: LucideIcon): LucideIcon {
+  const limpio = nombre
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+  return ICONOS_PRODUCTO.find(([patron]) => patron.test(limpio))?.[1] ?? generico;
+}
+
+/* El hueco de un producto sin foto: un icono sugerente en el color de marca, en
+   vez de un cuadro vacío que se lee como algo roto. */
+function SinFoto({
+  nombre,
+  generico = Utensils,
+  className,
+  size = 28,
+}: {
+  nombre: string;
+  generico?: LucideIcon;
+  className?: string;
+  size?: number;
+}) {
+  const Icono = iconoDeProducto(nombre, generico);
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        "grid size-full place-items-center bg-verde-50 text-verde-600/70",
+        className,
+      )}
+    >
+      <Icono size={size} strokeWidth={1.5} />
+    </div>
+  );
+}
 
 type Vista = "lista_foto" | "lista_texto" | "cuadricula" | "servicios";
 
@@ -179,14 +260,14 @@ function FilaConFoto({
         agotado && "opacity-60",
       )}
     >
-      {/* Miniatura — siempre presente; fondo neutro cuando no hay foto */}
+      {/* Miniatura — siempre presente; sin foto, un icono según el producto */}
       <div
         className={cn(
           "relative shrink-0 overflow-hidden rounded-[12px] bg-sand-deep",
           agotado ? "size-14" : "size-[76px]",
         )}
       >
-        {tieneFoto && (
+        {tieneFoto ? (
           <Image
             src={item.image!}
             alt={item.name}
@@ -195,6 +276,8 @@ function FilaConFoto({
             className={cn("object-cover", agotado && "grayscale")}
             loading="lazy"
           />
+        ) : (
+          <SinFoto nombre={item.name} className={cn(agotado && "grayscale")} />
         )}
       </div>
 
@@ -293,11 +376,11 @@ function FilaTexto({
       )}
     >
       {/* La foto del producto abre la fila, a la izquierda de la información,
-          igual que en la vista de domicilio. Sin foto no se pinta el hueco: en
-          una cafetería muchos platos no la tienen y una columna de cuadros
-          vacíos se leería como algo roto. `sizes` en 56 px: no crece. */}
-      {item.image && (
-        <div className="relative size-14 shrink-0 overflow-hidden rounded-[12px] bg-sand-deep">
+          igual que en la vista de domicilio. Sin foto va un icono según el
+          producto: muchos platos no la tienen y un cuadro vacío se leería como
+          algo roto. `sizes` en 56 px: no crece. */}
+      <div className="relative size-14 shrink-0 overflow-hidden rounded-[12px] bg-sand-deep">
+        {item.image ? (
           <Image
             src={item.image}
             alt={item.name}
@@ -306,8 +389,14 @@ function FilaTexto({
             className={cn("object-cover", agotado && "grayscale")}
             loading="lazy"
           />
-        </div>
-      )}
+        ) : (
+          <SinFoto
+            nombre={item.name}
+            size={24}
+            className={cn(agotado && "grayscale")}
+          />
+        )}
+      </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-[5px]">
@@ -561,8 +650,8 @@ function TarjetaCuadricula({
         agotado && "opacity-60",
       )}
     >
-      {tieneFoto && (
-        <div className="relative mb-[6px] aspect-square w-full overflow-hidden rounded-[10px]">
+      <div className="relative mb-[6px] aspect-square w-full overflow-hidden rounded-[10px]">
+        {tieneFoto ? (
           <Image
             src={item.image!}
             alt={item.name}
@@ -571,8 +660,15 @@ function TarjetaCuadricula({
             className="object-cover"
             loading="lazy"
           />
-        </div>
-      )}
+        ) : (
+          <SinFoto
+            nombre={item.name}
+            generico={Package}
+            size={36}
+            className={cn(agotado && "grayscale")}
+          />
+        )}
+      </div>
       <p className="line-clamp-2 font-lv-display text-[13px] font-bold leading-snug text-[#1C2620]">
         {item.name}
       </p>

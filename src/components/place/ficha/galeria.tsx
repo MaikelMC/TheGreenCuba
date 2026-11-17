@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, Expand } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -27,6 +27,9 @@ export function Galeria({
 }) {
   const todas = [...local, ...trabajos];
   const [indice, setIndice] = useState<number | null>(null);
+  /* Dónde empezó el dedo en el visor: deslizar pasa a la foto siguiente o a la
+     anterior, igual que las flechas. */
+  const toqueX = useRef<number | null>(null);
 
   if (todas.length === 0) return null;
 
@@ -72,7 +75,23 @@ export function Galeria({
         <DialogContent className="w-[calc(100vw_-_32px)] max-w-6xl border-0 bg-ink p-0 shadow-none sm:w-[calc(100vw_-_64px)] [&>button]:text-white [&>button:hover]:bg-white/15 [&>button:hover]:text-white">
           <DialogTitle className="sr-only">Fotos de {COPY.galeria}</DialogTitle>
           {activa && (
-            <div className="relative h-[82dvh] min-h-[240px] max-h-[900px] w-full">
+            <div
+              className="relative h-[82dvh] min-h-[240px] max-h-[900px] w-full touch-pan-y"
+              onTouchStart={(e) => {
+                toqueX.current = e.touches[0]?.clientX ?? null;
+              }}
+              onTouchEnd={(e) => {
+                const inicio = toqueX.current;
+                const fin = e.changedTouches[0]?.clientX;
+                toqueX.current = null;
+                if (inicio === null || fin === undefined || todas.length < 2) return;
+                const delta = fin - inicio;
+                if (Math.abs(delta) > 50) mover(delta > 0 ? -1 : 1);
+              }}
+              onTouchCancel={() => {
+                toqueX.current = null;
+              }}
+            >
               <Image
                 src={activa.url!}
                 alt={activa.alt || "Foto de la galería"}

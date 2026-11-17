@@ -1186,7 +1186,10 @@ function EditorView({
     const values: UserPlacePatch = {
       name: trimmed,
       category: categoryLabel,
-      icon: icon ?? undefined,
+      /* Vacío = «el de su categoría»: `toPlaceValues` lo guarda como `null`. Con
+         `undefined` no viajaba y «Usar el de la categoría» no borraba el icono
+         elegido, así que el badge no seguía al cambio de categoría. */
+      icon: icon ?? "",
       /* Cadena vacía borra el logo (`toPlaceValues` la convierte en `null`), que
          es lo que hace «Quitar» en el propio componente. */
       logoUrl: logoUrl.trim(),

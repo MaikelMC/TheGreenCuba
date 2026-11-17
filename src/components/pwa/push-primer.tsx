@@ -189,6 +189,14 @@ export function PushPrimer() {
           </div>
         </div>
 
+        {/* Instalada, el aviso sobra: ya está en la pantalla de inicio. */}
+        {!estaInstalada() && (
+          <p className="mt-gap-sm rounded-2xl border border-ink/10 bg-sand-warm px-4 py-3 text-meta leading-relaxed text-ink-soft">
+            Para recibirlos de forma más cómoda, instala La Verde en tu pantalla
+            de inicio.
+          </p>
+        )}
+
         {error && (
           <p
             role="alert"

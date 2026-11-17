@@ -187,6 +187,11 @@ const DOCUMENTOS_PRIVADOS = ["/admin", "/business", "/profile", "/notifications"
 const DOCUMENTOS_PERFIL_OFFLINE = ["/profile", "/notifications"];
 
 const NAV_TIMEOUT_MS = 4000;
+/* Arranque con copia guardada: se le concede a la red este margen corto antes
+   de pintar la copia. Con conexión buena la red gana y la copia se refresca;
+   con conexión lenta o sin ella se pinta la app guardada en cuanto expira, y la
+   petición de red sigue viva para dejar la caché al día. */
+const NAV_CACHE_GRACE_MS = 1200;
 /* Una tarjeta espera 4 s a la red y, si no llega, enseña la copia guardada. */
 const TARJETA_TIMEOUT_MS = 4000;
 const TARJETAS_MAX_ENTRIES = 5;
@@ -396,9 +401,10 @@ self.addEventListener("fetch", (event) => {
   if (esApiProhibida(url)) return;
 
   if (request.mode === "navigate") {
-    /* La tarjeta de sellos tiene su propia estrategia: red primero con 4 s de
-       espera y, si falla, la copia guardada. Va antes de la navegación normal
-       porque su documento nunca entra en `lv-pages`. */
+    /* La tarjeta de sellos tiene su propia estrategia: red primero, con 4 s de
+       espera si no hay copia y solo el margen corto si ya la hay, y si falla
+       la copia guardada. Va antes de la navegación normal porque su documento
+       nunca entra en `lv-pages`. */
     if (esTarjeta(url)) {
       event.respondWith(navegacionTarjeta(event, request));
       return;
@@ -412,7 +418,9 @@ self.addEventListener("fetch", (event) => {
     }
 
     event.respondWith(
-      esDocumentoPrivado(request, url) ? navegacionPrivada(request, url) : navegacion(request, url),
+      esDocumentoPrivado(request, url)
+        ? navegacionPrivada(request, url)
+        : navegacion(event, request, url),
     );
     return;
   }
@@ -635,18 +643,56 @@ function esRutaPublica(url) {
   );
 }
 
-async function navegacion(request, url) {
+/**
+ * Navegación a una ruta pública.
+ *
+ * Con documento guardado no se espera a la red más de `NAV_CACHE_GRACE_MS`:
+ * en un móvil con conexión débil la petición puede tardar decenas de segundos,
+ * y esperarla era justo la pantalla blanca al abrir la PWA. Pasado el margen se
+ * devuelve la copia guardada y la petición de red sigue en segundo plano para
+ * actualizarla, de modo que la siguiente apertura ya trae lo último. Si la red
+ * se anuncia lenta (`redLenta`) la copia se sirve de inmediato, sin margen. Con
+ * red rápida gana la red y se ve siempre el documento fresco.
+ */
+async function navegacion(event, request, url) {
   const cache = await caches.open(PAGES_CACHE);
+  /* /home se guarda con su clave limpia: la apertura desde el manifest no
+     lleva query, pero una recarga con `?desde=pagina` sí. */
+  const clave = url.pathname === "/home" ? "/home" : request;
+  const guardada =
+    url.pathname === "/home"
+      ? await cache.match("/home", { ignoreSearch: true })
+      : await cache.match(request);
+
   const red = fetch(request);
 
+  if (guardada) {
+    /* Red caída o declarada lenta: ni siquiera se espera el margen. La app
+       guardada se pinta en el acto y el refresco va por detrás. */
+    if (sinRedOLenta()) {
+      event.waitUntil(actualizarDocumento(red, cache, clave, url));
+      return guardada;
+    }
+
+    try {
+      const response = await conTimeout(red, NAV_CACHE_GRACE_MS);
+      if (response && sePuedeCachear(response) && esRutaPublica(url)) {
+        event.waitUntil(actualizarDocumento(Promise.resolve(response), cache, clave, url));
+      }
+      return response || guardada;
+    } catch {
+      /* La red no contestó a tiempo, pero `conTimeout` no la cancela. Se pinta
+         la copia ya y se aprovecha esa misma petición para refrescarla. */
+      event.waitUntil(actualizarDocumento(red, cache, clave, url));
+      return guardada;
+    }
+  }
+
+  /* Sin copia guardada no hay nada que pintar mientras la red contesta. */
   let response = null;
   try {
     response = await conTimeout(red, NAV_TIMEOUT_MS);
   } catch {
-    /* El timeout no cancela `red`: la petición sigue viva. Si hay conexión, se
-       espera a que conteste en vez de servir la copia guardada, que puede ser
-       de otro despliegue (chunks que ya no existen, sesión de antes). Solo sin
-       red se usa el documento guardado por debajo. */
     if (self.navigator?.onLine !== false) {
       response = await red.catch(() => null);
     }
@@ -654,7 +700,7 @@ async function navegacion(request, url) {
 
   if (response) {
     if (sePuedeCachear(response) && esRutaPublica(url)) {
-      cache.put(request, response.clone()).catch(() => {});
+      cache.put(clave, response.clone()).catch(() => {});
     }
     return response;
   }
@@ -677,6 +723,47 @@ async function navegacion(request, url) {
   const offline = await caches.match("/offline.html");
   if (offline) return offline;
   return respuestaSinConexion();
+}
+
+/**
+ * ¿Hay que pintar la copia sin esperar a la red? Cuando el navegador ya sabe
+ * que no hay conexión, `onLine` lo dice; cuando la hay pero es lenta, lo dice
+ * `navigator.connection`.
+ */
+function sinRedOLenta() {
+  return self.navigator?.onLine === false || redLenta();
+}
+
+/**
+ * ¿La conexión se anuncia lenta? Chromium expone `navigator.connection`; en
+ * Safari/iOS no existe y se responde `false` — allí manda el margen corto.
+ */
+function redLenta() {
+  const conexion = self.navigator && self.navigator.connection;
+  if (!conexion) return false;
+  if (conexion.saveData) return true;
+  return (
+    conexion.effectiveType === "slow-2g" ||
+    conexion.effectiveType === "2g" ||
+    conexion.effectiveType === "3g"
+  );
+}
+
+/**
+ * Guarda la respuesta de red que llegó tarde y calienta sus estáticos, para que
+ * la siguiente apertura ya arranque con el documento fresco. No se espera desde
+ * la navegación: la página ya se está pintando con la copia guardada.
+ */
+async function actualizarDocumento(red, cache, clave, url) {
+  try {
+    const response = await red;
+    if (!response || !sePuedeCachear(response) || !esRutaPublica(url)) return;
+    const copia = response.clone();
+    await cache.put(clave, response.clone()).catch(() => {});
+    await calentarDocumento(copia);
+  } catch {
+    /* Sin red: la copia guardada sigue siendo la válida. */
+  }
 }
 
 /**
@@ -727,10 +814,12 @@ async function navegacionPrivada(request, url) {
 /**
  * La tarjeta de sellos del cliente.
  *
- * Red primero con 4 s de espera: si la red contesta, es la tarjeta de ahora y
- * se guarda. Si falla o se pasa del tiempo, la copia guardada —el cliente la
- * ve con el aviso de que puede estar desactualizada, que pinta la propia
- * página—. Si tampoco hay copia, `offline.html`.
+ * Red primero, pero acotada si ya hay copia: se espera `NAV_CACHE_GRACE_MS`
+ * (nada si la conexión se anuncia lenta o caída) y, si la red no llega, se
+ * pinta la copia guardada —el cliente la ve con el aviso de que puede estar
+ * desactualizada, que pinta la propia página— mientras la red la refresca por
+ * detrás. Sin copia se espera `TARJETA_TIMEOUT_MS`; si tampoco hay respuesta,
+ * `offline.html`.
  *
  * Un 404/410 significa que la tarjeta ya no existe (cliente borrado, negocio
  * sin la tarjeta): se borra la copia para que no se siga enseñando un saldo
@@ -743,10 +832,43 @@ async function navegacionPrivada(request, url) {
 async function navegacionTarjeta(event, request) {
   const cache = await caches.open(TARJETAS_CACHE);
   const clave = claveTarjeta(request.url);
+  const guardada = await cache.match(clave);
+  const red = fetch(request);
+
+  /* Con copia guardada manda la velocidad: en un móvil lento esperar la red es
+     quedarse en blanco. La tarjeta se pinta con el aviso de desactualizada —lo
+     pone la propia página— y la red refresca por detrás. Sin copia se mantiene
+     la espera de siempre, porque no hay nada que enseñar. */
+  if (guardada) {
+    if (sinRedOLenta()) {
+      event.waitUntil(refrescarTarjeta(red, cache, clave));
+      return guardada;
+    }
+
+    try {
+      const response = await conTimeout(red, NAV_CACHE_GRACE_MS);
+      if (response) {
+        if (response.status === 404 || response.status === 410) {
+          await cache.delete(clave).catch(() => {});
+        } else if (response.status === 200 && !response.headers.get("Set-Cookie")) {
+          event.waitUntil(
+            cache
+              .put(clave, response.clone())
+              .then(() => trimCache(TARJETAS_CACHE, TARJETAS_MAX_ENTRIES))
+              .catch(() => {}),
+          );
+        }
+        return response;
+      }
+    } catch {
+      event.waitUntil(refrescarTarjeta(red, cache, clave));
+    }
+    return guardada;
+  }
 
   let response = null;
   try {
-    response = await conTimeout(fetch(request), TARJETA_TIMEOUT_MS);
+    response = await conTimeout(red, TARJETA_TIMEOUT_MS);
   } catch {
     response = null;
   }
@@ -768,8 +890,8 @@ async function navegacionTarjeta(event, request) {
     return response;
   }
 
-  const guardada = await cache.match(clave);
-  if (guardada) return guardada;
+  const copia = await cache.match(clave);
+  if (copia) return copia;
 
   const offline = await caches.match("/offline.html");
   if (offline) return offline;
@@ -778,14 +900,36 @@ async function navegacionTarjeta(event, request) {
 }
 
 /**
+ * Refresco en segundo plano de una tarjeta guardada. Un 404/410 sigue mandando:
+ * la tarjeta ya no existe y la copia se borra para no enseñar un saldo viejo.
+ */
+async function refrescarTarjeta(red, cache, clave) {
+  try {
+    const response = await red;
+    if (!response) return;
+
+    if (response.status === 404 || response.status === 410) {
+      await cache.delete(clave).catch(() => {});
+      return;
+    }
+
+    if (response.status !== 200 || response.headers.get("Set-Cookie")) return;
+    await cache.put(clave, response.clone()).catch(() => {});
+    await trimCache(TARJETAS_CACHE, TARJETAS_MAX_ENTRIES).catch(() => {});
+  } catch {
+    /* Sin red: la copia guardada sigue siendo la válida. */
+  }
+}
+
+/**
  * Navegación al catálogo de servicios.
  *
- * Red primero, como el resto de páginas públicas: con conexión se ve siempre
- * lo último que publicó La Verde, y la copia guardada solo entra cuando no hay
- * red. Aquí no se usa `sePuedeCachear` porque el App Router marca la página
- * como dinámica —lee la sesión para los enlaces de contratación—, y aun así su
- * contenido es el mismo para todo el mundo: lo que este caché guarda es el
- * catálogo, no datos de una persona.
+ * Red primero, como el resto de páginas públicas, con el mismo margen corto
+ * cuando ya hay copia: en una conexión lenta se pinta el catálogo guardado al
+ * instante y la red lo refresca por detrás. Aquí no se usa `sePuedeCachear`
+ * porque el App Router marca la página como dinámica —lee la sesión para los
+ * enlaces de contratación—, y aun así su contenido es el mismo para todo el
+ * mundo: lo que este caché guarda es el catálogo, no datos de una persona.
  *
  * Si falta la ficha concreta, se sirve el catálogo general guardado en vez de
  * `offline.html`: mejor el índice de servicios que un aviso de sin conexión.
@@ -794,13 +938,38 @@ async function navegacionCatalogo(event, request) {
   const cache = await caches.open(CATALOGO_CACHE);
   const clave = claveCatalogo(request.url);
   const url = new URL(request.url);
+  const guardada = await cache.match(clave);
+  const red = fetch(request);
 
+  /* Con copia guardada no se espera la red más allá del margen —ni nada si la
+     conexión se anuncia lenta o caída—: el catálogo se pinta al instante y la
+     red refresca la copia por detrás para la siguiente visita. */
+  if (guardada) {
+    if (sinRedOLenta()) {
+      event.waitUntil(refrescarCatalogo(red, cache, clave));
+      return guardada;
+    }
+
+    try {
+      const response = await conTimeout(red, NAV_CACHE_GRACE_MS);
+      if (!response) return guardada;
+      if (response.status === 200 && !response.headers.get("Set-Cookie")) {
+        event.waitUntil(cache.put(clave, response.clone()).catch(() => {}));
+      }
+      return response;
+    } catch {
+      event.waitUntil(refrescarCatalogo(red, cache, clave));
+      return guardada;
+    }
+  }
+
+  /* Sin copia no hay nada que pintar: se espera la red como antes. */
   let response = null;
   try {
-    response = await conTimeout(fetch(request), NAV_TIMEOUT_MS);
+    response = await conTimeout(red, NAV_TIMEOUT_MS);
   } catch {
     if (self.navigator?.onLine !== false) {
-      response = await fetch(request).catch(() => null);
+      response = await red.catch(() => null);
     }
   }
 
@@ -811,9 +980,6 @@ async function navegacionCatalogo(event, request) {
     return response;
   }
 
-  const guardada = await cache.match(clave);
-  if (guardada) return guardada;
-
   if (url.pathname !== "/servicios") {
     const indice = await cache.match("/servicios");
     if (indice) return indice;
@@ -823,6 +989,17 @@ async function navegacionCatalogo(event, request) {
   if (offline) return offline;
 
   return respuestaSinConexion();
+}
+
+/** Refresco en segundo plano de un catálogo guardado. */
+async function refrescarCatalogo(red, cache, clave) {
+  try {
+    const response = await red;
+    if (!response || response.status !== 200 || response.headers.get("Set-Cookie")) return;
+    await cache.put(clave, response.clone()).catch(() => {});
+  } catch {
+    /* Sin red: la copia guardada sigue siendo la válida. */
+  }
 }
 
 function respuestaSinConexion() {

@@ -277,7 +277,10 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
     const values: NewUserPlace = {
       name: trimmedName,
       category,
-      icon: icon ?? undefined,
+      /* Vacío = «el de su categoría»: `toPlaceValues` lo guarda como `null`. Con
+         `undefined` no viajaba y «Usar el de la categoría» no borraba el icono
+         elegido, así que el badge no seguía al cambio de categoría. */
+      icon: icon ?? "",
       logoUrl: logoUrl.trim(),
       lat: location.lat,
       lng: location.lng,
