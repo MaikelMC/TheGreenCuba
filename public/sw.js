@@ -1155,23 +1155,56 @@ async function tesela(event, request) {
 }
 
 /**
- * Network-first para el TileJSON de OpenFreeMap (`/planet`).
- * Se guarda en TILES_CACHE; sin red se sirve la copia guardada.
- * El TileJSON pesa unos pocos KB —no recorta— y es necesario antes de
- * que MapLibre pueda pedir cualquier tesela.
+ * TileJSON de OpenFreeMap (`/planet`).
+ *
+ * Se guarda en TILES_CACHE; sin red se sirve la copia guardada. El TileJSON
+ * pesa unos pocos KB —no recorta— y es necesario antes de que MapLibre pueda
+ * pedir cualquier tesela: con red lenta, esperarlo sin límite era el mapa en
+ * blanco al abrir la app (el `load` del mapa no llega hasta resolverlo). Por
+ * eso, si ya hay copia, la red tiene solo `NAV_CACHE_GRACE_MS` —o nada si la
+ * conexión se anuncia lenta o caída— y el refresco va por detrás.
  */
 async function tilejson(event, request) {
   const cache = await caches.open(TILES_CACHE);
+  const guardada = await cache.match(request);
+  const red = fetch(request);
+
+  if (guardada) {
+    if (sinRedOLenta()) {
+      event.waitUntil(actualizarTilejson(red, cache, request));
+      return guardada;
+    }
+
+    try {
+      const response = await conTimeout(red, NAV_CACHE_GRACE_MS);
+      if (response && response.ok) {
+        event.waitUntil(cache.put(request, response.clone()).catch(() => {}));
+      }
+      return response || guardada;
+    } catch {
+      event.waitUntil(actualizarTilejson(red, cache, request));
+      return guardada;
+    }
+  }
+
   try {
-    const response = await fetch(request);
+    const response = await red;
     if (response.ok && (response.type === "cors" || response.type === "basic")) {
-      cache.put(request, response.clone()).catch(() => {});
+      event.waitUntil(cache.put(request, response.clone()).catch(() => {}));
     }
     return response;
   } catch {
-    const cached = await cache.match(request);
-    if (cached) return cached;
     return new Response(null, { status: 204 });
+  }
+}
+
+/** Refresco en segundo plano del TileJSON guardado. */
+async function actualizarTilejson(red, cache, request) {
+  try {
+    const response = await red;
+    if (response && response.ok) await cache.put(request, response.clone()).catch(() => {});
+  } catch {
+    /* Sin red: la copia guardada sigue siendo la válida. */
   }
 }
 
