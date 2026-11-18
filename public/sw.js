@@ -170,6 +170,10 @@ const ESTILO_MAPA_URL = "https://tiles.openfreemap.org/styles/liberty";
    de `lv-pages` —que solo tiene /home y el aviso offline— para que la app no
    retenga un número ilimitado de documentos de negocio. */
 const FICHAS_MAX_ENTRIES = 120;
+/* Cuántas fichas se dejan listas al recibir el catálogo. Cuatro es suficiente
+   para la primera pantalla sin convertir cada carga del mapa en una tanda de
+   renders de ficha. */
+const FICHAS_PRECARGA = 4;
 
 const TILES_MAX_ENTRIES = 3000;
 /* Las teselas se recortan cada 100 guardados (más infrecuente que las imágenes
@@ -1102,6 +1106,7 @@ async function apiPublica(event, request) {
       const response = await conTimeout(red, NAV_CACHE_GRACE_MS);
       if (sePuedeCachear(response)) {
         event.waitUntil(guardarApi(cache, request, response.clone()));
+        programarPrecargaFichas(event, request, response);
       }
       return response;
     } catch {
@@ -1114,6 +1119,7 @@ async function apiPublica(event, request) {
     const response = await conTimeout(red, NAV_TIMEOUT_MS);
     if (sePuedeCachear(response)) {
       event.waitUntil(guardarApi(cache, request, response.clone()));
+      programarPrecargaFichas(event, request, response);
     }
     return response;
   } catch (error) {
@@ -1124,6 +1130,51 @@ async function apiPublica(event, request) {
     const cached = guardada ?? (await cache.match(request));
     if (!cached || !apiVigente(cached)) throw error;
     return cached;
+  }
+}
+
+/**
+ * Deja listas las primeras fichas del catálogo, para que se puedan abrir sin
+ * red sin haberlas abierto antes. Se lanza solo cuando el catálogo llegó por
+ * red y la conexión no se anuncia lenta: en ese caso la precarga competiría
+ * con lo que el usuario está intentando ver.
+ *
+ * `all=true` es el panel de administración y no entra: esas fichas no son las
+ * que un visitante va a abrir.
+ */
+function programarPrecargaFichas(event, request, response) {
+  let url;
+  try {
+    url = typeof request === "string" ? new URL(request, self.location.origin) : new URL(request.url);
+  } catch {
+    return;
+  }
+  if (url.pathname !== "/api/places" || url.searchParams.get("all") === "true") return;
+  if (self.navigator?.onLine === false || sinRedOLenta()) return;
+
+  event.waitUntil(prefetcharFichas(response.clone()));
+}
+
+/** Precarga en segundo plano las primeras fichas del catálogo recibido. */
+async function prefetcharFichas(response) {
+  try {
+    const lugares = await response.json();
+    if (!Array.isArray(lugares)) return;
+
+    const rutas = lugares
+      .filter(
+        (lugar) =>
+          lugar &&
+          typeof lugar.id === "string" &&
+          lugar.isActive !== false &&
+          !lugar.isProject,
+      )
+      .slice(0, FICHAS_PRECARGA)
+      .map((lugar) => `/place/${encodeURIComponent(lugar.id)}`);
+
+    await Promise.allSettled(rutas.map((ruta) => calentarFicha(ruta)));
+  } catch {
+    /* Catálogo ilegible o almacenamiento lleno: no es crítico. */
   }
 }
 

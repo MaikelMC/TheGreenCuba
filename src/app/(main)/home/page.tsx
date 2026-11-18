@@ -89,6 +89,7 @@ import {
 import { pushRecentSearch } from "@/lib/recent-searches-store";
 import { readActivity, toggleSaved } from "@/lib/activity-store";
 import { saveAiRecommendations } from "@/lib/ai-recommendation-store";
+import { buscarLugaresLocales } from "@/lib/busqueda-local";
 import { sharePlace } from "@/lib/share";
 import { fetchMe, refreshSession } from "@/lib/session-client";
 import {
@@ -1078,7 +1079,12 @@ function HomePageContent() {
       setSheetState("searching");
       searchCtx.setIsSearching(true);
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 28000);
+      /* Con la conexión declarada lenta no se esperan 28 s a la IA: a los 8 s
+         se cae a la búsqueda local. */
+      const timeout = setTimeout(
+        () => controller.abort(),
+        conexionLenta() ? 8000 : 28000,
+      );
       try {
         /* La ubicación entra en la búsqueda: sin ella el modelo elige por
            parecido y no hay forma de cumplir «lo más cercano a mí». Se usa la
@@ -1187,18 +1193,39 @@ function HomePageContent() {
           matches.length,
           matches.length > 0 ? "ok" : "empty",
         );
-      } catch {
+      } catch (error) {
         trackAiSearchCompleted(query, 0, "error");
-        if (!navigator.onLine) {
-          /* Sin red: volver al estado por defecto con los resultados del catálogo
-             local en vez de mostrar el error. El toast avisa del motivo. */
-          import("sonner").then(({ toast }) => {
-            toast("Sin conexión: mostrando resultados guardados.", { duration: 4000 });
+        const sinRed = !navigator.onLine;
+        const agotada = error instanceof DOMException && error.name === "AbortError";
+
+        /* Sin red, con red lenta o con la petición agotada: la IA no puede
+           contestar, pero el catálogo guardado sí. Se buscan los mismos lugares
+           en local y se dice de dónde salen los resultados. */
+        if (sinRed || agotada || conexionLenta()) {
+          const locales = buscarLugaresLocales(places, query);
+          void import("sonner").then(({ toast }) => {
+            toast(
+              sinRed
+                ? "Sin conexión: mostrando resultados guardados."
+                : "Conexión lenta: mostrando resultados guardados.",
+              { duration: 4000 },
+            );
           });
-          setSheetState("default");
-        } else {
-          setSheetState("error");
+
+          if (locales.length > 0) {
+            saveAiRecommendations(query, locales);
+            setAiState({
+              matches: locales,
+              summary: `Resultados guardados para «${query}». La búsqueda con IA vuelve cuando la conexión mejore.`,
+            });
+            setSheetState("results");
+          } else {
+            setSheetState("no-results");
+          }
+          return;
         }
+
+        setSheetState("error");
       } finally {
         clearTimeout(timeout);
         searchCtx.setIsSearching(false);
@@ -1963,9 +1990,113 @@ function HomePageContent() {
   );
 }
 
+/**
+ * ¿El navegador declara la conexión lenta?
+ *
+ * Chromium la expone en `navigator.connection`; Safari/iOS no, y allí se
+ * responde `false` (se espera a la IA como siempre). El ahorro de datos cuenta
+ * como lenta: quien lo activó no quiere gastar en una espera larga.
+ */
+function conexionLenta(): boolean {
+  const conexion = (
+    navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    }
+  ).connection;
+  if (!conexion) return false;
+  if (conexion.saveData) return true;
+  return (
+    conexion.effectiveType === "slow-2g" ||
+    conexion.effectiveType === "2g" ||
+    conexion.effectiveType === "3g"
+  );
+}
+
+/**
+ * El primer pintado del home, sin JavaScript de por medio.
+ *
+ * Es el respaldo de `Suspense`, así que es lo que el servidor manda dentro del
+ * HTML: en una conexión lenta el visitante ve esto mientras baja el bundle, en
+ * vez del rectángulo de arena vacío de antes. Tiene la forma del home real
+ * —chips arriba, mapa detrás y la hoja asomando— para que cuando llegue el
+ * contenido no se mueva nada de sitio.
+ *
+ * La hoja imita su vista de reposo (120 px, lo mismo que `BottomSheet`): si el
+ * esqueleto la pintara abierta, el home daría un salto al montar.
+ */
+function HomeShellSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Cargando el mapa y los lugares"
+      className="fixed inset-x-0 bottom-0 top-[var(--header-h)] overflow-hidden bg-sand-deep"
+    >
+      {/* El mapa, insinuado: una retícula tenue en vez de un color plano. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 opacity-70 [background-image:linear-gradient(to_right,rgba(8,19,13,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(8,19,13,0.05)_1px,transparent_1px)] [background-size:36px_36px]"
+      />
+
+      {/* Chips de categoría: la misma altura que los reales. */}
+      <div
+        aria-hidden
+        className="absolute left-0 right-0 top-gap-sm flex gap-gap-xs overflow-hidden px-gutter"
+      >
+        {[64, 92, 72, 104, 60].map((ancho, i) => (
+          <div
+            key={i}
+            className="skeleton-shimmer h-9 shrink-0 rounded-full"
+            style={{ width: ancho }}
+          />
+        ))}
+      </div>
+
+      <div
+        className="absolute inset-x-0 bottom-0 rounded-t-4xl bg-white shadow-[0_-8px_40px_-12px_rgba(8,19,13,0.18)] [transform:translateY(calc(100%-120px))]"
+      >
+        <div className="flex min-h-11 items-center justify-center pb-[6px] pt-[10px]">
+          <div className="h-[4px] w-[36px] rounded-full bg-ink/10" />
+        </div>
+        <div className="flex items-start justify-between gap-gap-sm border-b border-ink/5 px-5 pb-gap-sm">
+          <div>
+            <h2 className="font-lv-display text-h3 font-semibold text-ink">
+              Recomendaciones
+            </h2>
+            <p className="mt-[2px] text-[13px] leading-[18px] text-ink-soft/75">
+              Lugares cerca de ti
+            </p>
+          </div>
+          <span
+            aria-hidden
+            className="mt-1 size-5 shrink-0 animate-spin rounded-full border-2 border-verde-300 border-t-transparent"
+          />
+        </div>
+        {/* Las tarjetas quedan por debajo del pliegue hasta que la hoja sube;
+            están para que el alto de la hoja sea el suyo desde el principio. */}
+        <div aria-hidden className="flex flex-col gap-[10px] px-gutter py-gap-sm">
+          {[0, 1].map((i) => (
+            <div
+              key={i}
+              className="flex gap-[12px] rounded-2xl border border-ink/5 p-3"
+            >
+              <div className="skeleton-shimmer size-16 shrink-0 rounded-lv-lg" />
+              <div className="flex flex-1 flex-col gap-2 pt-1">
+                <div className="skeleton-shimmer h-[14px] w-[65%] rounded" />
+                <div className="skeleton-shimmer h-[12px] w-[40%] rounded" />
+                <div className="skeleton-shimmer h-[12px] w-[85%] rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-sand" aria-busy />}>
+    <Suspense fallback={<HomeShellSkeleton />}>
       <HomePageContent />
     </Suspense>
   );

@@ -87,6 +87,64 @@ type Result<T> =
 
 const CLAVE_SINCRONIA = "la-verde:catalog-synced-at";
 
+/**
+ * Copia del catálogo en el navegador, para pintar antes de que conteste la red.
+ *
+ * Cada carga de página pedía `/api/places` y esperaba la respuesta para enseñar
+ * el mapa y la lista: en una conexión lenta eso son varios segundos de
+ * esqueletos en cada visita, aunque el catálogo sea el mismo de hace un minuto.
+ * Con la copia, la segunda visita pinta los pines y las tarjetas de inmediato y
+ * la petición sigue por detrás para refrescar (`Cache-Control: max-age=60`, así
+ * que casi siempre sale de la caché HTTP sin tocar la base).
+ *
+ * No es una segunda fuente de verdad: la respuesta de red siempre la sustituye,
+ * y si no llega se ve lo último guardado con su fecha en el subtítulo de la
+ * hoja. Se descarta por sí sola a los siete días y cuando cambia la versión —
+ * el día que cambie la forma de `UserPlace`— para no pintar datos de un
+ * contrato viejo.
+ */
+const CLAVE_COPIA = "la-verde:catalogo-copia";
+const COPIA_VERSION = 1;
+const COPIA_MAX_EDAD_MS = 7 * 24 * 60 * 60 * 1000;
+
+interface CopiaCatalogo {
+  v: number;
+  /** Epoch ms del momento en que se trajo de la red. */
+  at: number;
+  places: UserPlace[];
+  categories: BusinessCategory[];
+}
+
+function leerCopia(): CopiaCatalogo | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const crudo = window.localStorage.getItem(CLAVE_COPIA);
+    if (!crudo) return null;
+    const copia = JSON.parse(crudo) as CopiaCatalogo | null;
+    if (!copia || copia.v !== COPIA_VERSION) return null;
+    if (!Array.isArray(copia.places) || !Array.isArray(copia.categories)) return null;
+    if (!Number.isFinite(copia.at) || Date.now() - copia.at > COPIA_MAX_EDAD_MS) {
+      return null;
+    }
+    return copia;
+  } catch {
+    return null;
+  }
+}
+
+function guardarCopia(
+  places: UserPlace[],
+  categories: BusinessCategory[],
+  at: number,
+): void {
+  try {
+    const copia: CopiaCatalogo = { v: COPIA_VERSION, at, places, categories };
+    window.localStorage.setItem(CLAVE_COPIA, JSON.stringify(copia));
+  } catch {
+    /* Cuota llena o modo privado: sin copia, todo sigue funcionando. */
+  }
+}
+
 function leerSincronia(): number | null {
   if (typeof window === "undefined") return null;
   try {
@@ -216,6 +274,18 @@ export function PlacesProvider({
     const guardada = leerSincronia();
     if (guardada) setLastSyncedAt(guardada);
 
+    /* La copia primero y la red después: el mapa y la lista aparecen con lo
+       último conocido y se sustituyen cuando la respuesta aterriza. En una
+       visita anterior esto se notaba como segundos de esqueleto con el mismo
+       catálogo de siempre. */
+    const copia = leerCopia();
+    if (copia) {
+      setPlaces(copia.places);
+      setCategories(copia.categories);
+      setLastSyncedAt(copia.at);
+      setHydrated(true);
+    }
+
     (async () => {
       const [placesResult, categoriesResult] = await Promise.all([
         request<UserPlace[]>(`/api/places${placesQuery}`),
@@ -240,6 +310,16 @@ export function PlacesProvider({
       cancelled = true;
     };
   }, [hasInitialData, placesQuery, anotarSincronia]);
+
+  /* Cada vez que cambia el catálogo —respuesta de red o mutación del panel—
+     se guarda la copia, con la fecha de la última traída para poder decir de
+     cuándo son los datos. El panel de administración queda fuera: su catálogo
+     incluye lo apagado y no debe acabar en la copia pública. */
+  useEffect(() => {
+    if (includeUnpublished || !hydrated) return;
+    if (places.length === 0) return;
+    guardarCopia(places, categories, lastSyncedAt ?? Date.now());
+  }, [places, categories, lastSyncedAt, hydrated, includeUnpublished]);
 
   const refreshPlaces = useCallback(async () => {
     /* Con la consulta del prop y no sin ella: el panel de administración

@@ -65,21 +65,31 @@ export function Pricing({ catalogo }: { catalogo: Catalogo }) {
               nadie. */}
           <div className="mt-6 flex justify-center">
             <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-orange-200/80 bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 px-5 py-4 text-center shadow-soft ring-1 ring-inset ring-white/60 sm:w-auto sm:max-w-none sm:py-3 sm:text-left">
-              {/* Dos brillos cálidos, muy difuminados, dan la sensación de caja
-                  de regalo sin convertir la tarjeta en un anuncio de feria. */}
-              <span
+              {/* Los brillos van dentro de su propia capa recortada: un `blur` sobre
+                  un hijo de un contenedor con `overflow-hidden` y esquinas redondas
+                  se escapa del recorte en Chrome y Safari, y asomaban las puntas del
+                  naranja en dos esquinas. Con `isolate` y `transform-gpu` el recorte
+                  respeta el radio. */}
+              <div
                 aria-hidden
-                className="pointer-events-none absolute -right-10 -top-12 size-32 rounded-full bg-orange-300/35 blur-2xl"
-              />
-              <span
-                aria-hidden
-                className="pointer-events-none absolute -bottom-14 -left-10 size-32 rounded-full bg-red-400/20 blur-2xl"
-              />
-              {/* El filete superior imita el lazo de la caja. */}
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-orange-400/60 to-transparent"
-              />
+                className="pointer-events-none absolute inset-0 isolate transform-gpu overflow-hidden rounded-[inherit]"
+              >
+                {/* Dos brillos cálidos, muy difuminados, dan la sensación de caja
+                    de regalo sin convertir la tarjeta en un anuncio de feria. */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -right-10 -top-12 size-32 rounded-full bg-orange-300/35 blur-2xl"
+                />
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -bottom-14 -left-10 size-32 rounded-full bg-red-400/20 blur-2xl"
+                />
+                {/* El filete superior imita el lazo de la caja. */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-orange-400/60 to-transparent"
+                />
+              </div>
 
               <div className="relative flex flex-col items-center gap-2.5 sm:flex-row sm:items-center sm:gap-3.5">
                 <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-700 to-red-600 px-2.5 py-1 font-lv-display text-[11px] font-bold uppercase tracking-[0.12em] text-white shadow-sm">
