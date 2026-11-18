@@ -513,6 +513,10 @@ export interface UserPlace {
   tasaRedondeo?: number;
   /** Si la conversión a CUP está activa en la carta pública. */
   tasaActiva?: boolean;
+  /** CUP por EUR / por USD Clásica, y recargo % por transferencia. `null` = sin configurar. */
+  tasaEurCup?: number | null;
+  tasaMlcCup?: number | null;
+  transferenciaPct?: number | null;
   /** Vacío o ausente = el negocio todavía no tiene fotos subidas. */
   photos?: UserPlacePhoto[];
   /** Foto elegida para el pin del mapa; en negocios cae a la portada. */

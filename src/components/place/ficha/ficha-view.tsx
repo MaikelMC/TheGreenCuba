@@ -23,6 +23,7 @@ import { trackEvento } from "@/lib/eventos-client";
 import { fetchMe } from "@/lib/session-client";
 import { mensajePedido, hrefPedido, totalDePedido, type LineaPedido } from "@/lib/pedido";
 import { formatMenuPrice } from "@/lib/utils";
+import { convertirPrecio, monedasVista, type MonedaVista } from "@/lib/precios";
 import { OfferBanner } from "../offer-banner";
 import { PaymentsSection } from "../payments-section";
 import { ReviewDialog } from "../review-dialog";
@@ -71,6 +72,7 @@ export function FichaView({
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewsKey, setReviewsKey] = useState(0);
   const [carrito, setCarrito] = useState<Record<string, number>>({});
+  const [monedaVista, setMonedaVista] = useState<MonedaVista | null>(null);
 
   useEffect(() => {
     fetchMe<{ authenticated: boolean; user: { id?: string } | null }>()
@@ -130,6 +132,32 @@ export function FichaView({
     Boolean(place.reserva) && !acciones.barra.some(esReserva);
   /* Seguidores ya viven en FilaAcciones, no en DireccionContacto. */
   const mostrarSeguidoresEnContacto = false;
+
+  /* Moneda elegida en las chapitas de pago: la carta se pinta convertida con
+     la tasa del dueño. Solo afecta a lo que se ve; el carrito y el pedido por
+     WhatsApp siguen con los precios originales, que son los que cobra. */
+  const convertibles = monedasVista(place.payments, configTasa);
+  const menuVista =
+    monedaVista && configTasa
+      ? place.menu.map((item) => {
+          const conv = (p: string) =>
+            convertirPrecio(p, item.currency, monedaVista, configTasa);
+          const price = conv(item.price);
+          const oferta = item.oferta && {
+            de: conv(item.oferta.de),
+            por: conv(item.oferta.por),
+          };
+          if (price === null || (oferta && (!oferta.de || !oferta.por))) return item;
+          return {
+            ...item,
+            price,
+            currency: monedaVista,
+            oferta: oferta ? { de: oferta.de!, por: oferta.por! } : undefined,
+          };
+        })
+      : place.menu;
+  /* Con la carta convertida, la línea secundaria (USD↔CUP) sobraría. */
+  const tasaCatalogo = monedaVista ? null : configTasa;
 
   const titulo = tituloCatalogo(place.catalogoTitulo, place.tipoNegocio);
   const ofertas = place.ofertas ?? [];
@@ -323,6 +351,9 @@ export function FichaView({
                 <PaymentsSection
                   payments={place.payments}
                   className="mb-0 px-0"
+                  convertibles={convertibles}
+                  seleccionada={monedaVista}
+                  onSeleccionar={setMonedaVista}
                 />
               </div>
             )}
@@ -351,7 +382,7 @@ export function FichaView({
             {place.menu.length > 0 && (
               <Catalogo
                 className={CARD}
-                items={place.menu}
+                items={menuVista}
                 categorias={place.menuCategorias}
                 titulo={titulo}
                 existenciasModo={place.existenciasModo}
@@ -364,7 +395,7 @@ export function FichaView({
                 onAgregar={carritoActivo ? agregarAlCarrito : undefined}
                 onQuitar={carritoActivo ? quitarDelCarrito : undefined}
                 whatsappCita={whatsappCita}
-                configTasa={configTasa}
+                configTasa={tasaCatalogo}
               />
             )}
 
@@ -477,7 +508,13 @@ export function FichaView({
 
         {place.payments.length > 0 && (
           <div className="bg-sand-warm px-gutter pb-gap-lg">
-            <PaymentsSection payments={place.payments} className="mb-0 px-0" />
+            <PaymentsSection
+              payments={place.payments}
+              className="mb-0 px-0"
+              convertibles={convertibles}
+              seleccionada={monedaVista}
+              onSeleccionar={setMonedaVista}
+            />
           </div>
         )}
 
@@ -500,7 +537,7 @@ export function FichaView({
         {place.menu.length > 0 && (
           <Catalogo
             className="bg-sand-warm px-gutter py-gap-lg"
-            items={place.menu}
+            items={menuVista}
             categorias={place.menuCategorias}
             titulo={titulo}
             existenciasModo={place.existenciasModo}
@@ -513,7 +550,7 @@ export function FichaView({
             onAgregar={carritoActivo ? agregarAlCarrito : undefined}
             onQuitar={carritoActivo ? quitarDelCarrito : undefined}
             whatsappCita={whatsappCita}
-            configTasa={configTasa}
+            configTasa={tasaCatalogo}
           />
         )}
 

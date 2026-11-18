@@ -4,21 +4,74 @@ import { useState } from "react";
 import { DollarSign, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { bloqueoDe, type Funcion } from "@/lib/plans";
 import { aplicarTasa, formatCup, REDONDEOS_PERMITIDOS, type ConfigTasa } from "@/lib/precios";
-import { useCatalogo } from "@/providers/catalogo-provider";
 import { FormSection } from "@/components/business/form-section";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 interface TasaDelDiaPorps {
   placeId: string;
-  funciones: Funcion[];
   /** Valores iniciales del servidor. */
   tasaInicial?: number | null;
   redondeoInicial?: number;
-  activaInicial?: boolean;
   actualizadaEnInicial?: number | null;
+  /** Métodos de pago del negocio: decide qué tasas extra se piden. */
+  monedas?: string[];
+  tasaEurInicial?: number | null;
+  tasaMlcInicial?: number | null;
+  transferenciaPctInicial?: number | null;
+}
+
+const INPUT_TASA =
+  "pr-12 tabular-nums bg-transparent border-verde-300/40 text-muted-foreground focus-visible:ring-verde-400/30 dark:bg-transparent dark:border-verde-700/50 dark:focus-visible:ring-verde-600/30";
+
+/** Campo vacío → `null` (sin configurar); texto que no es número → `NaN`. */
+function leerNumero(texto: string): number | null {
+  const t = texto.trim();
+  return t ? Number(t.replace(",", ".")) : null;
+}
+
+function CampoTasa({
+  id,
+  label,
+  sufijo,
+  placeholder,
+  value,
+  onChange,
+  invalido,
+}: {
+  id: string;
+  label: string;
+  sufijo: string;
+  placeholder: string;
+  value: string;
+  onChange: (v: string) => void;
+  invalido: boolean;
+}) {
+  return (
+    <div className="space-y-gap-xs">
+      <Label htmlFor={id} className="text-small font-medium text-muted-foreground">
+        {label}
+      </Label>
+      <div className="relative">
+        <Input
+          id={id}
+          type="text"
+          inputMode="decimal"
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={INPUT_TASA}
+        />
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-small text-muted-foreground">
+          {sufijo}
+        </span>
+      </div>
+      {invalido && (
+        <p className="text-meta text-destructive">Escribe un número válido o déjalo vacío.</p>
+      )}
+    </div>
+  );
 }
 
 /** Cuántos ms son 24 horas. */
@@ -39,21 +92,34 @@ function etiquetaActualizacion(actualizadaEn?: number | null): string {
 
 export function TasaDelDiaCard({
   placeId,
-  funciones,
   tasaInicial,
   redondeoInicial = 5,
-  activaInicial = false,
   actualizadaEnInicial,
+  monedas = [],
+  tasaEurInicial,
+  tasaMlcInicial,
+  transferenciaPctInicial,
 }: TasaDelDiaPorps) {
-  const cat = useCatalogo();
-  const bloqueo = bloqueoDe(funciones, "tasa_del_dia", cat);
+  const [tasaEur, setTasaEur] = useState(tasaEurInicial ? String(tasaEurInicial) : "");
+  const [tasaMlc, setTasaMlc] = useState(tasaMlcInicial ? String(tasaMlcInicial) : "");
+  const [pct, setPct] = useState(
+    transferenciaPctInicial != null ? String(transferenciaPctInicial) : "",
+  );
+  const conEur = monedas.includes("EUR");
+  const conMlc = monedas.includes("MLC");
+  const conTransfer = monedas.includes("transfer");
+  const eurNum = leerNumero(tasaEur);
+  const mlcNum = leerNumero(tasaMlc);
+  const pctNum = leerNumero(pct);
+  const eurMal = conEur && eurNum !== null && !(eurNum > 0 && eurNum < 100_000);
+  const mlcMal = conMlc && mlcNum !== null && !(mlcNum > 0 && mlcNum < 100_000);
+  const pctMal = conTransfer && pctNum !== null && !(pctNum >= 0 && pctNum <= 100);
+  const extrasMal = eurMal || mlcMal || pctMal;
 
   const [tasa, setTasa] = useState(tasaInicial ? String(tasaInicial) : "");
   const [redondeo, setRedondeo] = useState(redondeoInicial);
-  const [activa, setActiva] = useState(activaInicial);
   const [actualizadaEn, setActualizadaEn] = useState(actualizadaEnInicial);
   const [guardando, setGuardando] = useState(false);
-  const [cambiandoActiva, setCambiandoActiva] = useState(false);
 
   const tasaNum = parseFloat(tasa.replace(",", "."));
   const tasaValida = Number.isFinite(tasaNum) && tasaNum > 0;
@@ -62,13 +128,21 @@ export function TasaDelDiaCard({
   const etiqueta = etiquetaActualizacion(actualizadaEn);
 
   async function guardarTasa() {
-    if (!tasaValida || guardando) return;
+    if (!tasaValida || extrasMal || guardando) return;
     setGuardando(true);
     try {
       const res = await fetch(`/api/places/${placeId}/tasa`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tasa: tasaNum, redondeo }),
+        /* Solo se mandan las monedas que el negocio acepta: una tasa oculta
+           no se toca. */
+        body: JSON.stringify({
+          tasa: tasaNum,
+          redondeo,
+          ...(conEur && { tasaEur: eurNum }),
+          ...(conMlc && { tasaMlc: mlcNum }),
+          ...(conTransfer && { transferenciaPct: pctNum }),
+        }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
@@ -84,93 +158,28 @@ export function TasaDelDiaCard({
     }
   }
 
-  async function alternarActiva() {
-    if (bloqueo || cambiandoActiva) return;
-    const siguiente = !activa;
-    setCambiandoActiva(true);
-    setActiva(siguiente);
-    try {
-      const res = await fetch(`/api/places/${placeId}/tasa`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ activa: siguiente }),
-      });
-      if (!res.ok) {
-        setActiva(!siguiente);
-        toast.error("No se pudo cambiar. Revisa la conexión.");
-        return;
-      }
-      toast.success(
-        siguiente
-          ? "Tasa activa. Tu carta ya muestra los precios en CUP."
-          : "Tasa desactivada. Tu carta vuelve a los precios de siempre.",
-      );
-    } catch {
-      setActiva(!siguiente);
-      toast.error("No se pudo cambiar. Revisa la conexión.");
-    } finally {
-      setCambiandoActiva(false);
-    }
-  }
-
+  /* Sin interruptor aquí: los precios mixtos se encienden en Ajustes y esta
+     tarjeta solo se monta cuando están encendidos. */
   return (
     <FormSection
-      title="Tasa del día"
+      title="Precios mixtos: tus tasas"
       icon={<DollarSign size={16} />}
     >
-      {bloqueo ? (
-        /* Candado: mismo patrón visual que el resto de funciones bloqueadas. */
-        <div className="flex items-center gap-gap-sm rounded-lv bg-muted/50 px-gap-md py-gap-sm">
-          <span className="text-small text-muted-foreground">
-            🔒 {bloqueo}
-          </span>
-        </div>
-      ) : (
         <div className="space-y-gap-md">
           {/* Línea de apoyo */}
           <p className="text-small text-muted-foreground">
-            Pon tus precios en USD y te los mostramos en CUP con tu tasa.
+            Tus clientes tocan una moneda en tu ficha y ven la carta con tu tasa.
           </p>
-
-          {/* Toggle activo/inactivo */}
-          <div className="flex items-center justify-between gap-gap-md rounded-lv border border-verde-300/30 bg-transparent px-gap-md py-gap-sm dark:border-verde-700/40">
-            <div>
-              <p className="text-small font-medium text-muted-foreground">
-                Mostrar precios en CUP en tu carta
-              </p>
-              {activa && etiqueta && (
-                <p
-                  className={cn(
-                    "text-meta tabular-nums",
-                    vieja ? "text-lv-amber" : "text-muted-foreground",
-                  )}
-                >
-                  {etiqueta}
-                </p>
-              )}
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={activa}
-              aria-label="Activar conversión a CUP"
-              disabled={cambiandoActiva}
-              onClick={alternarActiva}
+          {etiqueta && (
+            <p
               className={cn(
-                "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                "disabled:cursor-not-allowed disabled:opacity-50",
-                activa ? "bg-verde-500" : "bg-muted",
+                "text-meta tabular-nums",
+                vieja ? "text-lv-amber" : "text-muted-foreground",
               )}
             >
-              <span
-                className={cn(
-                  "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-soft transition-transform duration-200",
-                  activa ? "translate-x-5" : "translate-x-0",
-                )}
-              />
-            </button>
-          </div>
+              {etiqueta}
+            </p>
+          )}
 
           {/* Campo de tasa */}
           <div className="space-y-gap-xs">
@@ -186,7 +195,7 @@ export function TasaDelDiaCard({
                   placeholder="Ej: 350"
                   value={tasa}
                   onChange={(e) => setTasa(e.target.value)}
-                  className="pr-12 tabular-nums bg-transparent border-verde-300/40 text-muted-foreground focus-visible:ring-verde-400/30 dark:bg-transparent dark:border-verde-700/50 dark:focus-visible:ring-verde-600/30"
+                  className={INPUT_TASA}
                 />
                 <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-small text-muted-foreground">
                   CUP
@@ -205,6 +214,42 @@ export function TasaDelDiaCard({
               </p>
             )}
           </div>
+
+          {/* Tasas extra: solo las de las monedas que el negocio acepta. Con
+              ellas la ficha deja al cliente ver la carta en esa moneda. */}
+          {conEur && (
+            <CampoTasa
+              id={`tasa-eur-${placeId}`}
+              label="¿A cómo está el EUR hoy?"
+              sufijo="CUP"
+              placeholder="Ej: 380"
+              value={tasaEur}
+              onChange={setTasaEur}
+              invalido={eurMal}
+            />
+          )}
+          {conMlc && (
+            <CampoTasa
+              id={`tasa-mlc-${placeId}`}
+              label="¿A cómo está la USD Clásica hoy?"
+              sufijo="CUP"
+              placeholder="Ej: 300"
+              value={tasaMlc}
+              onChange={setTasaMlc}
+              invalido={mlcMal}
+            />
+          )}
+          {conTransfer && (
+            <CampoTasa
+              id={`tasa-transfer-${placeId}`}
+              label="Recargo por transferencia (sobre el precio en CUP)"
+              sufijo="%"
+              placeholder="Ej: 10"
+              value={pct}
+              onChange={setPct}
+              invalido={pctMal}
+            />
+          )}
 
           {/* Redondeo */}
           <div className="space-y-gap-xs">
@@ -234,7 +279,7 @@ export function TasaDelDiaCard({
           <button
             type="button"
             onClick={guardarTasa}
-            disabled={!tasaValida || guardando}
+            disabled={!tasaValida || extrasMal || guardando}
             className={cn(
               "flex items-center gap-gap-xs rounded-lv px-gap-md py-gap-sm text-small font-medium transition-colors",
               "bg-verde-500 text-white hover:bg-verde-600",
@@ -247,40 +292,7 @@ export function TasaDelDiaCard({
             {guardando ? "Guardando…" : "Guardar tasa"}
           </button>
         </div>
-      )}
     </FormSection>
-  );
-}
-
-/**
- * Aviso compacto del dashboard: aparece si la tasa está activa y tiene
- * más de 24 horas. No es un componente nuevo — se exporta desde aquí y
- * se monta inline en el dashboard.
- */
-export function AvisoTasaVieja({
-  activa,
-  actualizadaEn,
-  onIrAjustes,
-}: {
-  activa?: boolean;
-  actualizadaEn?: number | null;
-  onIrAjustes: () => void;
-}) {
-  if (!activa || !tasaVieja(actualizadaEn)) return null;
-
-  return (
-    <div className="flex items-center justify-between gap-gap-sm rounded-lv border border-lv-amber/40 bg-lv-amber/8 px-gap-md py-gap-sm">
-      <p className="text-small text-foreground">
-        Tu tasa es de ayer.
-      </p>
-      <button
-        type="button"
-        onClick={onIrAjustes}
-        className="shrink-0 rounded-lv bg-lv-amber/15 px-gap-sm py-gap-2xs text-small font-medium text-foreground transition-colors hover:bg-lv-amber/25"
-      >
-        Actualizar
-      </button>
-    </div>
   );
 }
 

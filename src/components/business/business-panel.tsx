@@ -21,6 +21,7 @@ import {
   MapPin,
   Megaphone,
   MessageCircle,
+  Coins,
   MousePointerClick,
   Package,
   Save,
@@ -63,7 +64,7 @@ import { PublicacionesView } from "@/components/business/publicaciones-view";
 import { AsistenteCard } from "@/components/business/asistente-card";
 import { EquipoView } from "@/components/business/equipo-view";
 import { SeguidoresCard } from "@/components/business/seguidores-card";
-import { AvisoTasaVieja, TasaDelDiaCard } from "@/components/business/tasa-del-dia-card";
+import { TasaDelDiaCard } from "@/components/business/tasa-del-dia-card";
 import { ZonasDomicilioCard } from "@/components/business/zonas-domicilio-card";
 import { KynariCard } from "@/components/business/kynari-card";
 import {
@@ -351,7 +352,6 @@ export function BusinessPanel({
                 /* El botón de la tarjeta de plan navega dentro del panel, no
                    fuera: la sección de planes es una vista más del armazón. */
                 onVerPlanes={onVerPlanes}
-                onVerAjustes={() => setView("settings")}
               />
             );
           case "catalogo":
@@ -566,7 +566,6 @@ function DashboardView({
   negocios,
   esDueno,
   onVerPlanes,
-  onVerAjustes,
 }: {
   place: UserPlace;
   stats: PlaceStats;
@@ -581,7 +580,6 @@ function DashboardView({
   /** La tarjeta del plan solo se enseña a quien puede cambiarlo. */
   esDueno: boolean;
   onVerPlanes: () => void;
-  onVerAjustes: () => void;
 }) {
   /* La marca del negocio: logo, portada o el icono de su categoría, en ese
      orden. Es lo primero que reconoce quien lo busca. */
@@ -833,11 +831,6 @@ function DashboardView({
           Verde. Las búsquedas son las veces que un resultado con IA lo eligió;
           los productos, los activos del catálogo. La tarjeta de publicaciones se
           apaga entera cuando el plan no incluye ninguna. */}
-      <AvisoTasaVieja
-        activa={place.tasaActiva}
-        actualizadaEn={place.tasaActualizadaEn ?? undefined}
-        onIrAjustes={onVerAjustes}
-      />
       <DashboardStats
         stats={[
           {
@@ -929,6 +922,21 @@ function DashboardView({
           url={menuUrl}
           sinMarca={funciones.includes("qr_sin_marca")}
         />
+
+        {/* Tasas de cambio: la tasa la decide solo el dueño (la ruta lo
+            exige), así que un trabajador no ve la tarjeta. */}
+        {esDueno && place.tasaActiva && (
+          <TasaDelDiaCard
+            placeId={place.id}
+            tasaInicial={place.tasaUsdCup}
+            redondeoInicial={place.tasaRedondeo}
+            actualizadaEnInicial={place.tasaActualizadaEn}
+            monedas={place.payments}
+            tasaEurInicial={place.tasaEurCup}
+            tasaMlcInicial={place.tasaMlcCup}
+            transferenciaPctInicial={place.transferenciaPct}
+          />
+        )}
 
         <KynariCard />
 
@@ -1992,6 +2000,38 @@ function SettingsView({
   onVerPlanes: () => void;
 }) {
   const { updatePlace } = usePlaces();
+  const router = useRouter();
+
+  /* Precios mixtos: para todos los negocios, sin plan. Escribe al momento
+     por la ruta de la tasa y refresca para que el Dashboard monte (o quite)
+     la tarjeta de tasas. */
+  const [mixtos, setMixtos] = useState(place.tasaActiva ?? false);
+  const [cambiandoMixtos, setCambiandoMixtos] = useState(false);
+  async function alternarMixtos() {
+    if (cambiandoMixtos) return;
+    const siguiente = !mixtos;
+    setCambiandoMixtos(true);
+    setMixtos(siguiente);
+    const ok = await fetch(`/api/places/${place.id}/tasa`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ activa: siguiente }),
+    })
+      .then((r) => r.ok)
+      .catch(() => false);
+    setCambiandoMixtos(false);
+    if (!ok) {
+      setMixtos(!siguiente);
+      toast.error("No se pudo cambiar. Revisa la conexión: no se cambió nada.");
+      return;
+    }
+    router.refresh();
+    toast.success(
+      siguiente
+        ? "Precios mixtos activados. Pon tus tasas en el Dashboard."
+        : "Precios mixtos desactivados. Tu carta vuelve a los precios de siempre.",
+    );
+  }
 
   const [pedidos, setPedidos] = useState(place.pedidosWhatsapp);
   const [cambiandoPedidos, setCambiandoPedidos] = useState(false);
@@ -2322,6 +2362,48 @@ function SettingsView({
           )}
         </section>
 
+        {/* ── Precios mixtos ──────────────────────────────────────────────
+            Sin plan: lo tiene cualquier negocio. Encendido, el Dashboard
+            pide las tasas y la ficha deja ver la carta en otra moneda. */}
+        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md">
+          <div className="flex flex-wrap items-center justify-between gap-gap-sm">
+            <h2 className="flex items-center gap-gap-xs font-lv-display text-body font-semibold text-ink">
+              <Coins size={18} strokeWidth={1.8} className="text-verde-600" />
+              Precios mixtos
+            </h2>
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em]",
+                mixtos
+                  ? "border border-verde-200 bg-verde-50 text-verde-700"
+                  : "border border-ink/10 bg-sand text-ink-soft/75",
+              )}
+            >
+              {mixtos ? "Activo" : "Desactivado"}
+            </span>
+          </div>
+          <p className="mt-gap-xs max-w-[62ch] text-small text-ink-soft/75">
+            Tus clientes ven la carta en la moneda con la que van a pagar.
+          </p>
+          <div className="mt-gap-md flex items-center justify-between gap-gap-sm border-t border-ink/5 pt-gap-sm">
+            <div className="min-w-0 flex-1">
+              <div className="text-small font-medium text-ink">
+                Mostrar mi carta en varias monedas
+              </div>
+              <div className="text-meta text-ink-soft/75">
+                {mixtos
+                  ? "Pon tus tasas en el Dashboard."
+                  : "Tu carta se ve con los precios que escribiste."}
+              </div>
+            </div>
+            <Switch
+              checked={mixtos}
+              onToggle={() => void alternarMixtos()}
+              label="Mostrar mi carta en varias monedas"
+            />
+          </div>
+        </section>
+
         {/* ── Reservas por WhatsApp ───────────────────────────────────────
             Mismo reparto que los pedidos: el plan (Pro) enciende la función y
             el dueño la enciende o la apaga. Sin plan, la tarjeta se enseña
@@ -2620,18 +2702,7 @@ function SettingsView({
           onVerPlanes={onVerPlanes}
         />
 
-        {/* ── Tasa del día ────────────────────────────────────────────────
-            La tarjeta vive en su propio archivo: tiene estado propio
-            (campo, redondeo, toggle) y llama directamente a su ruta. */}
-        <TasaDelDiaCard
-          placeId={place.id}
-          funciones={funciones}
-          tasaInicial={place.tasaUsdCup}
-          redondeoInicial={place.tasaRedondeo}
-          activaInicial={place.tasaActiva}
-          actualizadaEnInicial={place.tasaActualizadaEn}
-        />
-
+        {/* La tasa del día vive en el Dashboard: se toca a diario. */}
         <ZonasDomicilioCard
           placeId={place.id}
           funciones={funciones}

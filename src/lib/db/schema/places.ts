@@ -319,6 +319,13 @@ export const places = pgTable(
     tasaActualizadaEn: timestamp("tasa_actualizada_en"),
     tasaRedondeo: integer("tasa_redondeo").default(5).notNull(),
     tasaActiva: boolean("tasa_activa").default(false).notNull(),
+    /** CUP por EUR y por USD Clásica (`MLC`). `null` = sin configurar: la
+        ficha no ofrece ver la carta en esa moneda. */
+    tasaEurCup: doublePrecision("tasa_eur_cup"),
+    tasaMlcCup: doublePrecision("tasa_mlc_cup"),
+    /** Recargo en % sobre el precio en CUP al pagar por transferencia.
+        `null` = sin configurar (no es lo mismo que 0 %). */
+    transferenciaPct: doublePrecision("transferencia_pct"),
 
     /* ── Sello de negocio verificado ────────────────────────────────────
        Lo enciende **solo la administración**: la lista blanca del `PATCH`

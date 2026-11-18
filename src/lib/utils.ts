@@ -99,6 +99,7 @@ export function currencyLabel(code: string): string {
     CUP: "CUP",
     USD: "USD",
     EUR: "EUR",
+    transfer: "CUP (transferencia)",
   };
   return labels[code] ?? code;
 }

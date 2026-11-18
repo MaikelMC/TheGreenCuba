@@ -2127,7 +2127,7 @@ async function manejarTasa(
     if (!config) {
       await enviarTexto(
         chatId,
-        "No tienes la tasa del día activa. Escribe /tasa 350 para activarla (con el número que quieras).",
+        "No tienes los precios mixtos activos. Escribe /tasa 350 para activarlos (con el número que quieras).",
       );
       return;
     }
@@ -2150,9 +2150,7 @@ async function manejarTasa(
   if (!resultado.success) {
     await enviarTexto(
       chatId,
-      resultado.code === "plan"
-        ? `La tasa del día entra con el módulo Menú Pro. ${resultado.error}`
-        : `No pude guardar la tasa. ${resultado.error}`,
+      `No pude guardar la tasa. ${resultado.error}`,
     );
     return;
   }

@@ -4,7 +4,13 @@ import type { UserPlaceMenuItem, UserPlaceOferta } from "@/lib/places-store";
 import { BotonAgregar } from "@/components/menu/pedido-whatsapp";
 import { OfertasCarrusel } from "@/components/menu/ofertas-carrusel";
 import { formatMenuPrice, slugify } from "@/lib/utils";
-import { preciosDeItem, type ConfigTasa } from "@/lib/precios";
+import { preciosDeItem, type ConfigTasa, type MonedaVista } from "@/lib/precios";
+import { PrecioMonedas } from "@/components/menu/precio-monedas";
+
+const PRECIO =
+  "font-lv-display text-body font-bold leading-snug text-ink sm:text-h3";
+const PRECIO_DE = "font-lv-display text-meta text-ink-soft/75 line-through";
+const PRECIO_POR = "font-lv-display text-small font-semibold text-verde-600";
 
 /**
  * Las ofertas vivas del negocio, como bloque destacado de la carta.
@@ -47,9 +53,12 @@ const fechaCorta = new Intl.DateTimeFormat("es-CU", {
 export function OfertasHero({
   ofertas,
   configTasa = null,
+  monedas = [],
 }: {
   ofertas: OfertaDestacada[];
   configTasa?: ConfigTasa | null;
+  /** Monedas de los precios mixtos; ver `PrecioMonedas`. */
+  monedas?: MonedaVista[];
 }) {
   if (ofertas.length === 0) return null;
 
@@ -160,17 +169,33 @@ export function OfertasHero({
                   {precios ? (
                     <span className="flex flex-col">
                       <span className="flex items-baseline gap-gap-xs">
-                        <span className="font-lv-display text-meta text-ink-soft/75 line-through">
-                          {formatMenuPrice(precios.de, currency)}
-                        </span>
-                        <span className="font-lv-display text-small font-semibold text-verde-600">
-                          {formatMenuPrice(precios.por, currency)}
-                        </span>
+                        <PrecioMonedas
+                          price={precios.de}
+                          currency={currency}
+                          config={configTasa}
+                          monedas={monedas}
+                          className={PRECIO_DE}
+                        >
+                          <span className={PRECIO_DE}>
+                            {formatMenuPrice(precios.de, currency)}
+                          </span>
+                        </PrecioMonedas>
+                        <PrecioMonedas
+                          price={precios.por}
+                          currency={currency}
+                          config={configTasa}
+                          monedas={monedas}
+                          className={PRECIO_POR}
+                        >
+                          <span className={PRECIO_POR}>
+                            {formatMenuPrice(precios.por, currency)}
+                          </span>
+                        </PrecioMonedas>
                       </span>
                       {configTasa && (() => {
                         const { secundario } = preciosDeItem({ price: precios.por, currency }, configTasa);
                         return secundario ? (
-                          <span className="tabular-nums text-[13px] leading-none text-muted-foreground">
+                          <span data-secundario className="tabular-nums text-[13px] leading-none text-muted-foreground">
                             {secundario}
                           </span>
                         ) : null;
@@ -179,13 +204,21 @@ export function OfertasHero({
                   ) : (
                     item.price && (
                       <span className="flex flex-col">
-                        <span className="font-lv-display text-body font-bold leading-snug text-ink sm:text-h3">
-                          {formatMenuPrice(item.price, currency)}
-                        </span>
+                        <PrecioMonedas
+                          price={item.price}
+                          currency={currency}
+                          config={configTasa}
+                          monedas={monedas}
+                          className={PRECIO}
+                        >
+                          <span className={PRECIO}>
+                            {formatMenuPrice(item.price, currency)}
+                          </span>
+                        </PrecioMonedas>
                         {configTasa && (() => {
                           const { secundario } = preciosDeItem({ price: item.price, currency }, configTasa);
                           return secundario ? (
-                            <span className="tabular-nums text-[13px] leading-none text-muted-foreground">
+                            <span data-secundario className="tabular-nums text-[13px] leading-none text-muted-foreground">
                               {secundario}
                             </span>
                           ) : null;

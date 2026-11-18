@@ -32,12 +32,17 @@ import { tieneFuncion } from "@/lib/plans-server";
 import { configTasaDe } from "@/lib/tasa-server";
 import { configEntregaPublica } from "@/lib/entrega-server";
 import type { ResumenEntrega } from "@/components/menu/menu-header";
-import { preciosDeItem, type ConfigTasa } from "@/lib/precios";
+import {
+  monedasVista,
+  preciosDeItem,
+  type ConfigTasa,
+  type MonedaVista,
+} from "@/lib/precios";
 import { PieTasa } from "@/components/business/tasa-del-dia-card";
+import { PrecioMonedas } from "@/components/menu/precio-monedas";
+import { SelectorMonedas } from "@/components/menu/selector-monedas";
 import {
   cn,
-  currencyLabel,
-  currencyStyles,
   formatMenuPrice,
   menuTagFallback,
   menuTagStyles,
@@ -195,6 +200,12 @@ export async function generateMetadata({
   };
 }
 
+/* Clases del precio: las comparten el original y sus versiones convertidas. */
+const PRECIO =
+  "font-lv-display text-body font-bold leading-snug text-ink sm:text-h3";
+const PRECIO_DE = "font-lv-display text-meta text-ink-soft/75 line-through";
+const PRECIO_POR = "font-lv-display text-small font-semibold text-verde-600";
+
 /** Una entrada del menú, resuelta en el servidor. Sin `motion` ni estado. */
 function MenuRow({
   item,
@@ -202,6 +213,7 @@ function MenuRow({
   pedible,
   oferta,
   configTasa = null,
+  monedas = [],
 }: {
   item: {
     name: string;
@@ -224,6 +236,8 @@ function MenuRow({
    */
   oferta?: { de: string; por: string };
   configTasa?: ConfigTasa | null;
+  /** Monedas a las que se puede ver la carta (precios mixtos). */
+  monedas?: MonedaVista[];
 }) {
   const priceText = formatMenuPrice(item.price, item.currency);
   const { secundario } = preciosDeItem(item, configTasa ?? null);
@@ -324,21 +338,46 @@ function MenuRow({
                 la derecha antes que desbordar. */}
             {enOferta && oferta ? (
               <span className="flex items-baseline gap-gap-xs">
-                <span className="font-lv-display text-meta text-ink-soft/75 line-through">
-                  {formatMenuPrice(oferta.de, item.currency)}
-                </span>
-                <span className="font-lv-display text-small font-semibold text-verde-600">
-                  {formatMenuPrice(oferta.por, item.currency)}
-                </span>
+                <PrecioMonedas
+                  price={oferta.de}
+                  currency={item.currency}
+                  config={configTasa}
+                  monedas={monedas}
+                  className={PRECIO_DE}
+                >
+                  <span className={PRECIO_DE}>
+                    {formatMenuPrice(oferta.de, item.currency)}
+                  </span>
+                </PrecioMonedas>
+                <PrecioMonedas
+                  price={oferta.por}
+                  currency={item.currency}
+                  config={configTasa}
+                  monedas={monedas}
+                  className={PRECIO_POR}
+                >
+                  <span className={PRECIO_POR}>
+                    {formatMenuPrice(oferta.por, item.currency)}
+                  </span>
+                </PrecioMonedas>
               </span>
             ) : (
               priceText && (
                 <span className="flex flex-col">
-                  <span className="font-lv-display text-body font-bold leading-snug text-ink sm:text-h3">
-                    {priceText}
-                  </span>
+                  <PrecioMonedas
+                    price={item.price}
+                    currency={item.currency}
+                    config={configTasa}
+                    monedas={monedas}
+                    className={PRECIO}
+                  >
+                    <span className={PRECIO}>{priceText}</span>
+                  </PrecioMonedas>
                   {secundario && (
-                    <span className="tabular-nums text-[13px] leading-none text-muted-foreground">
+                    <span
+                      data-secundario
+                      className="tabular-nums text-[13px] leading-none text-muted-foreground"
+                    >
                       {secundario}
                     </span>
                   )}
@@ -492,6 +531,9 @@ export default async function MenuPage({
      para pintar el equivalente en CUP en cada producto. `configTasaDe` ya
      devuelve `null` si está desactivada o sin plan. */
   const configTasa = await configTasaDe(place.id);
+  /* Precios mixtos: monedas que acepta y tienen tasa. Sus precios se pintan
+     todos y `SelectorMonedas` elige cuál se ve. */
+  const monedasCarta = monedasVista(place.payments, configTasa);
 
   /* Zonas de domicilio: solo si el negocio tiene el plan y zonas configuradas. */
   const configEntrega = await configEntregaPublica(place.id);
@@ -593,6 +635,7 @@ export default async function MenuPage({
                   pedible={puedePedir && !estaAgotado(item)}
                   oferta={precioOferta}
                   configTasa={configTasa}
+                  monedas={monedasCarta}
                 />
               );
             })}
@@ -800,22 +843,10 @@ export default async function MenuPage({
             <span className="font-lv-display text-meta font-medium text-ink-soft/75">
               Acepta
             </span>
-            {place.payments.map((moneda) => (
-              <span
-                key={moneda}
-                className={cn(
-                  "inline-flex items-center gap-[5px] rounded-full px-[10px] py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.10em] ring-1 ring-inset",
-                  currencyStyles[moneda] ??
-                    "bg-sand-deep text-ink-soft ring-ink/10",
-                )}
-              >
-                <span
-                  aria-hidden
-                  className="size-[5px] shrink-0 rounded-full bg-current opacity-60"
-                />
-                {currencyLabel(moneda)}
-              </span>
-            ))}
+            <SelectorMonedas
+              payments={place.payments}
+              convertibles={monedasCarta}
+            />
           </div>
         )}
 
@@ -872,7 +903,11 @@ export default async function MenuPage({
 
       {/* Las ofertas vivas, antes que la carta: es lo que el negocio quiere que
           se vea sin bajar. El componente no pinta nada si no hay ninguna. */}
-      <OfertasHero ofertas={ofertasDestacadas} configTasa={configTasa} />
+      <OfertasHero
+        ofertas={ofertasDestacadas}
+        configTasa={configTasa}
+        monedas={monedasCarta}
+      />
 
       <section
         id="menu"

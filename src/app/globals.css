@@ -1920,3 +1920,26 @@ html[data-theme="dark"]
 [data-sonner-toaster]:not(.lv-toaster) {
   display: none;
 }
+
+/* ── Precios mixtos en la carta online ──────────────────────────────────
+   `PrecioMonedas` pinta cada precio en todas las monedas con tasa y
+   `SelectorMonedas` escribe `html[data-moneda]` al tocar una chapita. Aquí se
+   decide cuál se ve: la carta es ISR y así no hace falta JS por producto. */
+[data-ver] {
+  display: none;
+}
+html[data-moneda] [data-secundario],
+html[data-moneda="CUP"] [data-oculta~="CUP"],
+html[data-moneda="USD"] [data-oculta~="USD"],
+html[data-moneda="EUR"] [data-oculta~="EUR"],
+html[data-moneda="MLC"] [data-oculta~="MLC"],
+html[data-moneda="transfer"] [data-oculta~="transfer"] {
+  display: none;
+}
+html[data-moneda="CUP"] [data-ver="CUP"],
+html[data-moneda="USD"] [data-ver="USD"],
+html[data-moneda="EUR"] [data-ver="EUR"],
+html[data-moneda="MLC"] [data-ver="MLC"],
+html[data-moneda="transfer"] [data-ver="transfer"] {
+  display: inline;
+}

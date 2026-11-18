@@ -13,6 +13,62 @@ export interface ConfigTasa {
   tasaUsdCup: number;
   tasaRedondeo: number;
   tasaActualizadaEn: Date | null;
+  /** CUP por EUR / por USD Clásica. Ausente o `null` = sin configurar. */
+  tasaEurCup?: number | null;
+  tasaMlcCup?: number | null;
+  /** Recargo % sobre el precio en CUP al pagar por transferencia. */
+  transferenciaPct?: number | null;
+}
+
+/** Monedas a las que la ficha puede pasar la carta. `transfer` = CUP + recargo. */
+export const MONEDAS_VISTA = ["CUP", "USD", "EUR", "MLC", "transfer"] as const;
+export type MonedaVista = (typeof MONEDAS_VISTA)[number];
+
+/** Cuántos CUP vale una unidad de `moneda`, o `null` si no hay tasa. */
+function cupPor(moneda: string, config: ConfigTasa): number | null {
+  if (moneda === "CUP") return 1;
+  if (moneda === "USD") return config.tasaUsdCup;
+  if (moneda === "EUR") return config.tasaEurCup ?? null;
+  if (moneda === "MLC") return config.tasaMlcCup ?? null;
+  return null;
+}
+
+/** Las monedas que el negocio dejó configuradas, de las que acepta. */
+export function monedasVista(aceptadas: string[], config: ConfigTasa | null): MonedaVista[] {
+  if (!config) return [];
+  return MONEDAS_VISTA.filter(
+    (m) =>
+      aceptadas.includes(m) &&
+      (m === "transfer" ? config.transferenciaPct != null : cupPor(m, config) != null),
+  );
+}
+
+/**
+ * El precio de un producto pasado a `destino`, como cifra en texto, o `null`
+ * si no se puede (precio que no es cifra pura, moneda sin tasa, misma moneda).
+ * CUP y transferencia se redondean hacia arriba con `tasaRedondeo`; el resto
+ * va a 2 decimales.
+ */
+export function convertirPrecio(
+  price: string,
+  currency: string,
+  destino: MonedaVista,
+  config: ConfigTasa,
+): string | null {
+  const texto = price.trim();
+  /* Solo la cifra limpia, como `formatMenuPrice`: un rango o «A convenir» no
+     se convierte, se enseña tal cual. */
+  if (!/^\d+(?:\.\d+)?$/.test(texto) || currency === destino) return null;
+  const origen = cupPor(currency, config);
+  if (origen == null) return null;
+  const cup = Number(texto) * origen;
+  if (destino === "CUP" || destino === "transfer") {
+    const pct = destino === "transfer" ? (config.transferenciaPct ?? 0) : 0;
+    return String(aplicarTasa(cup * (1 + pct / 100), 1, config.tasaRedondeo));
+  }
+  const tasaDestino = cupPor(destino, config);
+  if (!tasaDestino) return null;
+  return (cup / tasaDestino).toFixed(2);
 }
 
 /** Un producto de la carta reducido a lo que hace falta para convertir. */

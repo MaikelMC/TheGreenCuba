@@ -18,12 +18,23 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  let body: { tasa?: unknown; redondeo?: unknown; activa?: unknown };
+  let body: {
+    tasa?: unknown;
+    redondeo?: unknown;
+    activa?: unknown;
+    tasaEur?: unknown;
+    tasaMlc?: unknown;
+    transferenciaPct?: unknown;
+  };
   try {
     body = (await req.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
   }
+
+  /* `null` borra el valor; cualquier otra cosa que no sea número se ignora. */
+  const numONull = (v: unknown) =>
+    typeof v === "number" || v === null ? v : undefined;
 
   const result = await actualizarTasa(
     id,
@@ -31,15 +42,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       tasa: typeof body.tasa === "number" ? body.tasa : undefined,
       redondeo: typeof body.redondeo === "number" ? body.redondeo : undefined,
       activa: typeof body.activa === "boolean" ? body.activa : undefined,
+      tasaEur: numONull(body.tasaEur),
+      tasaMlc: numONull(body.tasaMlc),
+      transferenciaPct: numONull(body.transferenciaPct),
     },
     "panel",
   );
 
   if (!result.success) {
-    return NextResponse.json(
-      { error: result.error },
-      { status: result.code === "plan" ? 403 : 400 },
-    );
+    return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
   return NextResponse.json({ ok: true });

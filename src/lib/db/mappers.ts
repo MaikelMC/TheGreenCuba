@@ -283,6 +283,9 @@ export function toUserPlace(
     tasaActualizadaEn: row.tasaActualizadaEn ? row.tasaActualizadaEn.getTime() : null,
     tasaRedondeo: row.tasaRedondeo,
     tasaActiva: row.tasaActiva,
+    tasaEurCup: row.tasaEurCup ?? null,
+    tasaMlcCup: row.tasaMlcCup ?? null,
+    transferenciaPct: row.transferenciaPct ?? null,
     aiTags: row.aiTags ?? undefined,
     priceLabel: row.priceLabel ?? undefined,
     /* Las fotos viven en su propia tabla y llegan ya agrupadas por quien
