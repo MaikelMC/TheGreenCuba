@@ -294,23 +294,32 @@ export function userPlaceToPlaceData(p: UserPlace): PlaceData {
           destacado: item.destacado,
         };
       }),
-    ofertas: vigentes.map((oferta) => {
-      const producto = p.menu.find((item) => item.id === oferta.productoId);
-      const precios = producto ? precioConOferta(producto.price, oferta) : null;
-      return {
-        id: oferta.id,
-        titulo: oferta.titulo,
-        descripcion: oferta.descripcion,
-        termina: `Termina el ${fechaLarga(oferta.termina)}`,
-        precio:
-          precios && producto
-            ? {
-                de: formatMenuPrice(precios.de, producto.currency || "MLC"),
-                por: formatMenuPrice(precios.por, producto.currency || "MLC"),
-              }
-            : undefined,
-      };
-    }),
+    /* La oferta de un producto oculto tampoco sale: anunciar una rebaja de algo
+       que la carta no enseña lleva a un producto que no se encuentra. */
+    ofertas: vigentes
+      .filter(
+        (oferta) =>
+          !p.menu.find((item) => item.id === oferta.productoId)?.oculto,
+      )
+      .map((oferta) => {
+        const producto = p.menu.find((item) => item.id === oferta.productoId);
+        const precios = producto
+          ? precioConOferta(producto.price, oferta)
+          : null;
+        return {
+          id: oferta.id,
+          titulo: oferta.titulo,
+          descripcion: oferta.descripcion,
+          termina: `Termina el ${fechaLarga(oferta.termina)}`,
+          precio:
+            precios && producto
+              ? {
+                  de: formatMenuPrice(precios.de, producto.currency || "MLC"),
+                  por: formatMenuPrice(precios.por, producto.currency || "MLC"),
+                }
+              : undefined,
+        };
+      }),
     contact: contactLinks({
       website: p.website,
       whatsapp: p.whatsapp,

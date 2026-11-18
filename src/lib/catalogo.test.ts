@@ -141,3 +141,16 @@ test("una carta vieja sin ids no nace marcada como sin guardar", () => {
     "los dos lados de la comparación pasan por conIds, o la barra de guardar sale sola",
   );
 });
+
+test("ocultar un producto se guarda y marca la carta como sin guardar", () => {
+  const base = conIds([completo()]);
+  const oculto = [{ ...base[0]!, oculto: true }];
+
+  assert.notEqual(huella(oculto), huella(base), "pulsar el ojo es un cambio");
+  assert.equal(aGuardar(oculto)[0]!.oculto, true, "y viaja al servidor");
+  assert.equal(
+    aGuardar([{ ...base[0]!, oculto: false }])[0]!.oculto,
+    undefined,
+    "volver a mostrarlo no deja un `false` en el jsonb",
+  );
+});

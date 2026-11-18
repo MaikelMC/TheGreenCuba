@@ -175,3 +175,45 @@ test("el menú oculto no llega a la ficha", () => {
     ["Visible"],
   );
 });
+
+test("la oferta de un producto oculto no sale en la ficha", () => {
+  const ahora = Date.now();
+  const place = userPlaceToPlaceData(
+    basePlace({
+      menu: [
+        { id: "1", name: "Visible", description: "", price: "100", currency: "CUP" },
+        {
+          id: "2",
+          name: "Oculto",
+          description: "",
+          price: "200",
+          currency: "CUP",
+          oculto: true,
+        },
+      ],
+      ofertas: [
+        {
+          id: "o1",
+          productoId: "1",
+          titulo: "Rebaja visible",
+          precioOferta: "80",
+          inicia: ahora - 60_000,
+          termina: ahora + 3_600_000,
+        },
+        {
+          id: "o2",
+          productoId: "2",
+          titulo: "Rebaja oculta",
+          precioOferta: "150",
+          inicia: ahora - 60_000,
+          termina: ahora + 3_600_000,
+        },
+      ],
+    }),
+  );
+
+  assert.deepEqual(
+    (place.ofertas ?? []).map((oferta) => oferta.titulo),
+    ["Rebaja visible"],
+  );
+});

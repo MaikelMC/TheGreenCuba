@@ -158,7 +158,8 @@ export async function generateMetadata({
   if (!place) notFound();
 
   const where = place.city || place.barrio || "Cuba";
-  const count = place.menu.length;
+  /* Los ocultos no cuentan: el dueño los sacó de la carta pública. */
+  const count = place.menu.filter((item) => !item.oculto).length;
   const title = `Menú de ${place.name} — ${place.category} en ${where}`;
   const description = count
     ? `${count} ${count === 1 ? "entrada" : "entradas"} con precios y fotos en el menú de ${place.name}.`
@@ -396,6 +397,11 @@ export default async function MenuPage({
   const place = await getPlace(slug, overrideFor);
   if (!place) notFound();
 
+  /* Lo que el dueño ocultó desde el panel no sale en la carta pública: ni en
+     los grupos, ni en las ofertas, ni en el carrito. Se filtra una vez aquí y
+     todo lo de abajo lee de esta lista. */
+  const menu = place.menu.filter((item) => !item.oculto);
+
   const categorySlug = await getCategorySlug(place.category);
   const breadcrumbs = breadcrumbJsonLd([
     { name: "Inicio", url: absoluteUrl("/") },
@@ -427,7 +433,7 @@ export default async function MenuPage({
      aparte: el móvil que atiende el local recibe los dos. */
   const whatsappPedidos = whatsappDePedido(place.whatsapp, place.phone) ?? "";
   const puedePedir =
-    place.menu.length > 0 &&
+    menu.length > 0 &&
     place.pedidosWhatsapp &&
     Boolean(whatsappPedidos) &&
     (await tieneFuncion(place.id, "whatsapp_pedido"));
@@ -462,7 +468,7 @@ export default async function MenuPage({
   const productosConOferta = new Set<string>();
   for (const oferta of ofertas) {
     if (productosConOferta.has(oferta.productoId)) continue;
-    const item = place.menu.find((entrada) => entrada.id === oferta.productoId);
+    const item = menu.find((entrada) => entrada.id === oferta.productoId);
     if (!item) continue;
     productosConOferta.add(oferta.productoId);
     ofertasDestacadas.push({
@@ -513,7 +519,7 @@ export default async function MenuPage({
      sin nombre que va donde aparezca la primera. */
   const groups: { name: string | null; items: typeof place.menu }[] = [];
   const groupIndex = new Map<string, number>();
-  for (const item of place.menu) {
+  for (const item of menu) {
     const name = item.category?.trim() || null;
     const key = name ?? "__sin_categoria__";
     let i = groupIndex.get(key);
@@ -882,7 +888,7 @@ export default async function MenuPage({
           Menú
         </h2>
 
-        {place.menu.length === 0 ? (
+        {menu.length === 0 ? (
           <p className="rounded-3xl border border-ink/5 bg-white p-gap-md text-small text-ink-soft/75 shadow-soft">
             {place.name} todavía no ha publicado su menú aquí.
           </p>

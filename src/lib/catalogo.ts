@@ -34,6 +34,9 @@ export function huella(menu: UserPlaceMenuItem[]): string {
       i.image ?? "",
       i.disponibilidad ?? "",
       i.agotadoHasta ?? "",
+      /* Ocultar se pulsa en esta pantalla: sin esto el cambio no marcaba la
+         carta como «sin guardar» y nunca llegaba al servidor. */
+      i.oculto ? 1 : 0,
     ]),
   );
 }
@@ -43,8 +46,9 @@ export function huella(menu: UserPlaceMenuItem[]): string {
  *
  * **Lista blanca, y a propósito.** El `PATCH` escribe `places.menu` tal cual
  * llega —no comprueba campo a campo—, así que lo que no se nombre aquí se
- * pierde al guardar. Los cinco últimos no se editan en esta pantalla pero
- * tienen que viajar igual: la chapita que puso la administración (`tag`), la
+ * pierde al guardar. `oculto` sí se edita aquí —el botón del ojo— y
+ * por eso va en la lista. Los cinco anteriores no se editan en esta pantalla
+ * pero tienen que viajar igual: la chapita que puso la administración (`tag`), la
  * foto que se acaba de subir (`image`), el «agotado» de «Hoy hay»
  * (`disponibilidad`/`agotadoHasta`) y la marca del CSV, que es lo único que
  * hace posible «Deshacer importación» (`importacionId`).
@@ -66,5 +70,8 @@ export function aGuardar(menu: UserPlaceMenuItem[]): UserPlaceMenuItem[] {
     disponibilidad: item.disponibilidad,
     agotadoHasta: item.agotadoHasta ?? null,
     importacionId: item.importacionId,
+    /* `undefined` y no `false` cuando se ve: el jsonb no gana una clave por
+       producto para decir lo que ya dice su ausencia. */
+    oculto: item.oculto ? true : undefined,
   }));
 }

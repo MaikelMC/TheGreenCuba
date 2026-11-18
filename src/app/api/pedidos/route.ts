@@ -188,11 +188,26 @@ export async function POST(req: NextRequest) {
      reordenar el menú no se queda fuera del historial. */
   const ids = new Set<string>();
   const nombres = new Set<string>();
+  /* Un producto oculto no está en la carta pública, así que tampoco se puede
+     pedir: un carrito viejo o una petición hecha a mano no lo cuelan. Se
+     rechaza por id aunque otro producto visible se llame igual. */
+  const ocultos = new Set<string>();
   for (const [indice, item] of (place.menu ?? []).entries()) {
-    ids.add(item.id ?? `${item.name}-${indice}`);
+    const id = item.id ?? `${item.name}-${indice}`;
+    if (item.oculto) {
+      ocultos.add(id);
+      continue;
+    }
+    ids.add(id);
     nombres.add(normalizar(item.name));
   }
-  if (lineas.some((linea) => !ids.has(linea.id) && !nombres.has(normalizar(linea.name)))) {
+  if (
+    lineas.some(
+      (linea) =>
+        ocultos.has(linea.id) ||
+        (!ids.has(linea.id) && !nombres.has(normalizar(linea.name))),
+    )
+  ) {
     return NextResponse.json(
       { error: "Hay un producto que ya no está en la carta." },
       { status: 400 },
