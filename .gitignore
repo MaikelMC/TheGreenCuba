@@ -76,3 +76,6 @@ skill_PWA.md
 
 # worktrees temporales de otros frentes: no son del repo
 .tmp-wt/
+
+# Copias locales de negocios (scripts/backup-negocio.ts): datos de producción, fuera de git
+/backups/
