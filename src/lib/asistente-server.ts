@@ -25,6 +25,7 @@ import {
   type Disponibilidad,
 } from "@/lib/disponibilidad";
 import { setDisponibilidad } from "@/lib/disponibilidad-server";
+import { reflejarMenu } from "@/lib/productos-server";
 import { puede } from "@/lib/plans-server";
 import { estadoCocinaDeNegocio, actualizarPausa } from "@/lib/cocina-server";
 import {
@@ -369,6 +370,10 @@ interface Resultado {
 
 async function escribirMenu(negocioId: string, menu: Menu): Promise<void> {
   await db.update(places).set({ menu }).where(eq(places.id, negocioId));
+  /* Fase B: la carta se lee de `productos`; se refleja antes de invalidar.
+     Todas las escrituras de carta del asistente —también «Deshacer»— pasan
+     por aquí. */
+  await reflejarMenu(negocioId);
   /* La carta pública va cacheada; sin esto el «agotado» tarda en verse. */
   invalidarCatalogo();
 }

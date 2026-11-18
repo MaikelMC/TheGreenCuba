@@ -28,6 +28,7 @@ import type { ModuloGuardado } from "@/lib/db/schema/suscripciones";
 import { DEV_PLACE_ID, devPlace, devPlaceEnabled } from "@/lib/dev-place";
 import { conSelloVerificado, getDevPlaceFor } from "@/lib/dev-place-server";
 import type { UserPlaceOferta, UserPlacePhoto } from "@/lib/places-store";
+import { cartasPorNegocio, productosDe } from "@/lib/productos-server";
 import { aSuscripcion, type Suscripcion } from "@/lib/plans";
 import {
   toBusinessCategory,
@@ -415,10 +416,11 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
   /* El catálogo de planes en el mismo viaje que las fotos: es una fila, y
      resolver las funciones de treinta negocios contra un catálogo leído en
      paralelo no cuesta nada más. */
-  const [photos, ofertasPorNegocio, cat] = await Promise.all([
+  const [photos, ofertasPorNegocio, cat, cartas] = await Promise.all([
     photosByPlace(ids),
     ofertasByPlace(ids),
     cargarCatalogo(),
+    cartasPorNegocio(ids),
   ]);
 
   const catalog = rows.map((row) =>
@@ -427,6 +429,7 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
         ...unwrap(row),
         photos: photos.get(row.place.id) ?? [],
         ofertas: ofertasPorNegocio.get(row.place.id) ?? [],
+        carta: cartas.get(row.place.id) ?? [],
       },
       cat,
     ),
@@ -499,11 +502,12 @@ export const getPlaceById = cached(
 
     if (!row) return null;
 
-    const [photos, ofertasPorNegocio, valoracion, cat] = await Promise.all([
+    const [photos, ofertasPorNegocio, valoracion, cat, carta] = await Promise.all([
       photosByPlace([row.place.id]),
       ofertasByPlace([row.place.id]),
       reviewsStatsByPlace(row.place.id, row.place.resenaDestacadaId),
       cargarCatalogo(),
+      productosDe(row.place.id),
     ]);
     return toUserPlace(
       {
@@ -511,6 +515,7 @@ export const getPlaceById = cached(
         photos: photos.get(row.place.id) ?? [],
         ofertas: ofertasPorNegocio.get(row.place.id) ?? [],
         ...valoracion,
+        carta,
       },
       cat,
     );
@@ -552,16 +557,18 @@ export const getPlaceBySlug = cached(
     /* La carta pública (`/m/[slug]`) y la tarjeta de `/api/og` no pintan la
        valoración ni la reseña destacada, así que aquí no se paga el segundo
        viaje de `reviewsStatsByPlace`. La ficha sí lo hace, en `getPlaceById`. */
-    const [photos, ofertasPorNegocio, cat] = await Promise.all([
+    const [photos, ofertasPorNegocio, cat, carta] = await Promise.all([
       photosByPlace([row.place.id]),
       ofertasByPlace([row.place.id]),
       cargarCatalogo(),
+      productosDe(row.place.id),
     ]);
     return toUserPlace(
       {
         ...unwrap(row),
         photos: photos.get(row.place.id) ?? [],
         ofertas: ofertasPorNegocio.get(row.place.id) ?? [],
+        carta,
       },
       cat,
     );

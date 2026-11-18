@@ -7,6 +7,7 @@ import { DEV_PLACE_ID } from "@/lib/dev-place";
 import { places } from "@/lib/db/schema";
 import { limite } from "@/lib/plans-server";
 import { generateId } from "@/lib/utils";
+import { reflejarMenu } from "@/lib/productos-server";
 import {
   MAX_FILAS,
   parsearCatalogo,
@@ -216,6 +217,8 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   /* El menú público del negocio se sirve desde esta etiqueta de caché: sin
      invalidarla, la carta nueva no se vería hasta que caducara sola. */
+  /* Fase B: la carta se lee de `productos`; se refleja antes de invalidar. */
+  await reflejarMenu(id);
   invalidarCatalogo();
 
   return NextResponse.json(
@@ -259,6 +262,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   }
 
   await db.update(places).set({ menu: restante }).where(eq(places.id, id));
+  await reflejarMenu(id);
   invalidarCatalogo();
 
   return NextResponse.json({ eliminados: menu.length - restante.length });

@@ -6,6 +6,7 @@ import { DEV_PLACE_ID } from "@/lib/dev-place";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema";
 import { limite } from "@/lib/plans-server";
+import { productosDe } from "@/lib/productos-server";
 import { S3_BUCKET, s3Client } from "@/lib/storage/s3";
 import {
   keyFromUrl,
@@ -59,11 +60,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   /* El negocio primero: `places/{id}/…` es la clave, y un id inventado
-     subiría un objeto a una carpeta que nadie va a leer. Se trae también la
-     carta, que es donde viven las URLs: esta tabla no tiene filas, así que
-     contar las fotos de producto es contar los platos que llevan una. */
+     subiría un objeto a una carpeta que nadie va a leer. */
   const [place] = await db
-    .select({ id: places.id, menu: places.menu })
+    .select({ id: places.id })
     .from(places)
     .where(eq(places.id, id))
     .limit(1);
@@ -75,7 +74,8 @@ export async function POST(req: NextRequest, { params }: Params) {
      corta las nuevas: las que ya están siguen ahí aunque el plan haya bajado. */
   const tope = await limite(id, "fotos_productos_max");
   if (tope !== null) {
-    const conFoto = (place.menu ?? []).filter((item) => item.image).length;
+    /* Contar las fotos de producto es contar los productos que llevan una. */
+    const conFoto = (await productosDe(id)).filter((item) => item.image).length;
     if (conFoto >= tope) {
       return NextResponse.json(
         {

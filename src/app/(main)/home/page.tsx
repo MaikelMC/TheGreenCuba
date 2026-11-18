@@ -71,7 +71,7 @@ import { matchesPlaceFilters } from "@/lib/place-filters";
 import { estadoAhora } from "@/lib/ficha/horario";
 import { hayOferta } from "@/lib/ofertas";
 import { energiaParaIA } from "@/lib/energia";
-import type { UserPlace, UserPlaceMenuItem } from "@/lib/places-store";
+import type { UserPlace } from "@/lib/places-store";
 import {
   readUserPreferences,
   mergeRemoteUserPreferences,
@@ -104,11 +104,6 @@ import { trackPlaceMetric } from "@/lib/place-metrics";
 
 type SheetState =
   "default" | "searching" | "results" | "no-results" | "error" | "guest";
-
-/* Cuántas entradas de «Lo que ofrece» viajan a la búsqueda con IA.
-   El formulario no pone tope a la carta, así que lo pone aquí: sin él, ochenta
-   lugares con una carta larga convierten la petición en un documento. */
-const MENU_ITEMS_PER_PLACE = 12;
 
 /**
  * Pide el consentimiento de novedades, una sola vez, a quien entró con Google.
@@ -153,29 +148,6 @@ function askMarketingConsentOnce(
       },
     },
   });
-}
-
-/**
- * La carta, en una línea por producto o servicio, para el catálogo que va al
- * modelo: «Ropa Vieja de Res: 12 MLC», «Mojito de la casa (2x1): 5 MLC».
- *
- * `price` es texto libre y **puede venir vacío** —un servicio sin precio, tipo
- * «Wi-Fi gratis»—, así que los dos puntos solo se ponen cuando hay algo detrás.
- * La foto y la descripción de cada plato se quedan fuera a propósito: son el
- * grueso del peso y el modelo no las necesita para elegir. Ver `CatalogPlace`.
- */
-function menuLines(menu: UserPlaceMenuItem[]): string[] | undefined {
-  const lines = menu
-    .slice(0, MENU_ITEMS_PER_PLACE)
-    .map((item) => {
-      const name = item.name.trim();
-      if (!name) return "";
-      const tag = item.tag?.trim();
-      const price = item.price.trim();
-      return `${name}${tag ? ` (${tag})` : ""}${price ? `: ${price} ${item.currency}` : ""}`;
-    })
-    .filter(Boolean);
-  return lines.length > 0 ? lines : undefined;
 }
 
 interface HomePlace {
@@ -1125,12 +1097,9 @@ function HomePageContent() {
             payments: p.payments,
             schedule: p.schedule,
             description: p.description,
-            /* La carta viaja con la búsqueda: sin ella el modelo solo podía
-               juzgar por categoría y descripción, así que «¿dónde como pizza
-               barata?» no tenía con qué responderse. `menuLines` la deja en una
-               línea por plato y fuera van la foto y la descripción de cada uno,
-               que es donde se iba el peso. */
-            menu: menuLines(p.menu),
+            /* La carta ya no viaja desde aquí: `/api/ai/search` la arma en el
+               servidor con los ids, desde la tabla de productos. El catálogo
+               público no la trae y así nadie puede colar texto en el prompt. */
             /* La energía va en palabras y **solo cuando hay algo que decir**:
                `energiaParaIA` calla el «ninguna» y el hueco, porque contarle al
                modelo «este NO tiene corriente» en una consulta que busca sitios

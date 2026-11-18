@@ -105,6 +105,12 @@ export type PlaceRowWithCategory = PlaceRow & {
   reviewsStats?: { promedio: number; total: number } | null;
   /** La reseña destacada, si el negocio eligió una. */
   resenaDestacada?: UserPlaceReview | null;
+  /**
+   * La carta leída de la tabla `productos` (fase B). La traen las consultas del
+   * catálogo; si falta —las rutas que responden con la fila recién escrita—,
+   * se cae al jsonb `places.menu`, que en esta fase sigue siendo la fuente.
+   */
+  carta?: UserPlaceMenuItem[];
 };
 
 /**
@@ -127,6 +133,7 @@ export function toUserPlace(
      navegador dejaría el sello puesto en un negocio que dejó de pagarlo, y el
      mapa de planes no viaja por ficha. */
   const funciones = funcionesDe(row.suscripcion ?? null, new Date(), cat);
+  const menu = row.carta ?? conIds((row.menu ?? []) as UserPlaceMenuItem[]);
 
   return {
     id: row.id,
@@ -176,7 +183,7 @@ export function toUserPlace(
        la carta pública y no salía ni el tachado ni el bloque de ofertas. La
        misma función que usa el editor, para que el id sea el mismo en los dos
        lados. Al guardar la carta, el id de respaldo pasa a ser definitivo. */
-    menu: conIds((row.menu ?? []) as UserPlaceMenuItem[]),
+    menu,
     /* El cartel de texto que había aquí se sustituye por las ofertas flash. Las
        columnas `offer_text`/`offer_expiry` siguen en la tabla y siguen
        llegando, porque **los proyectos sí las usan** —ofrecen un paquete, no un
@@ -197,7 +204,7 @@ export function toUserPlace(
          atiende el local es el mismo. Mismo criterio que `whatsappDePedido`,
          que es quien arma el enlace. */
       whatsappDePedido(row.whatsapp, row.phone) !== null &&
-      (row.menu?.length ?? 0) > 0 &&
+      menu.length > 0 &&
       funciones.has("whatsapp_pedido"),
     /* Las reservas viajan crudas por lo mismo que los pedidos —el panel edita
        `aceptaReservas` y elige el tipo— y resueltas en `reservaHabilitada`, que

@@ -15,7 +15,10 @@
  * 3. hace upsert de cada producto en `productos` y borra de la tabla los que ya
  *    no están en la carta.
  *
- * Los pasos 2 y 3 van en una sola transacción por negocio.
+ * Los pasos 2 y 3 van en una sola transacción por negocio. La escritura es
+ * `sincronizarNegocio` (src/lib/productos-server.ts), la misma que usa el
+ * reflejo de la fase B; antes de escribir comprueba que la carta sigue siendo
+ * la que se leyó al empezar, en **todos** los negocios.
  *
  * **Idempotente.** Tras la primera pasada `places.menu` ya no tiene ids
  * posicionales, así que la segunda no reasigna nada y el upsert escribe lo
@@ -24,79 +27,14 @@
  * **No borra `places.menu`**, ni la vacía: mientras dure la transición sigue
  * siendo la fuente de la que se copia.
  */
-import { and, eq, notInArray, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { generateId } from "@/lib/utils";
-import { planMigracion, type FilaProducto } from "@/lib/productos";
+import { planMigracion } from "@/lib/productos";
+import { sincronizarNegocio } from "@/lib/productos-server";
 import type { UserPlaceMenuItem } from "@/lib/places-store";
 
 const APLICAR = process.argv.includes("--aplicar");
-const { places, productos, ofertas, novedades } = schema;
-
-/** Las columnas de contenido: si alguna cambia, sube la versión. */
-const CONTENIDO = [
-  "orden",
-  "categoria",
-  "nombre",
-  "descripcion",
-  "imagen",
-  "tag",
-  "precio_texto",
-  "precio",
-  "moneda",
-  "tipo_precio",
-  "disponibilidad",
-  "agotado_hasta",
-  "oculto",
-  "destacado",
-  "stock",
-  "duracion_min",
-  "external_id",
-  "importacion_id",
-] as const;
-
-const tupla = (prefijo: string) =>
-  CONTENIDO.map((col) => `${prefijo}."${col}"`).join(", ");
-const CAMBIO = sql.raw(
-  `(${tupla('"productos"')}) is distinct from (${tupla("excluded")})`,
-);
-
-/** `excluded."columna"`: el valor que traía el insert que chocó. */
-const ex = (columna: string) => sql.raw(`excluded."${columna}"`);
-
-function upsert(filas: FilaProducto[]) {
-  return db
-    .insert(productos)
-    .values(filas)
-    .onConflictDoUpdate({
-      target: productos.id,
-      set: {
-        placeId: ex("place_id"),
-        orden: ex("orden"),
-        categoria: ex("categoria"),
-        nombre: ex("nombre"),
-        descripcion: ex("descripcion"),
-        imagen: ex("imagen"),
-        tag: ex("tag"),
-        precioTexto: ex("precio_texto"),
-        precio: ex("precio"),
-        moneda: ex("moneda"),
-        tipoPrecio: ex("tipo_precio"),
-        disponibilidad: ex("disponibilidad"),
-        agotadoHasta: ex("agotado_hasta"),
-        oculto: ex("oculto"),
-        destacado: ex("destacado"),
-        stock: ex("stock"),
-        duracionMin: ex("duracion_min"),
-        externalId: ex("external_id"),
-        importacionId: ex("importacion_id"),
-        /* La versión y la fecha solo se mueven si el contenido cambió: correr
-           el script dos veces no debe parecer, en la fase C, un cambio ajeno. */
-        version: sql`case when ${CAMBIO} then ${productos.version} + 1 else ${productos.version} end`,
-        actualizadoEn: sql`case when ${CAMBIO} then now() else ${productos.actualizadoEn} end`,
-      },
-    });
-}
+const { places, ofertas, novedades } = schema;
 
 async function main() {
   console.log(APLICAR ? "== MODO APLICAR: se escribe ==\n" : "== MODO PRUEBA: no se escribe nada ==\n");
@@ -155,68 +93,37 @@ async function main() {
     return;
   }
 
-  /* ── Escritura ────────────────────────────────────────────────────── */
-  const originales = new Map(negocios.map((n) => [n.id, n.menu]));
-  const ofertaDeNegocio = new Map(refsOfertas.map((o) => [o.id, o.negocioId]));
-  const novedadDeNegocio = new Map(refsNovedades.map((n) => [n.id, n.negocioId]));
+  /* ── Escritura ────────────────────────────────────────────────────
+     Negocio a negocio, con la misma función que el reflejo de la fase B
+     (`sincronizarNegocio`). La carta que se leyó al empezar viaja como
+     `menuEsperado`: si el dueño guardó mientras el script corría, ese negocio
+     se salta en vez de escribir una copia vieja encima del reflejo. Los ids
+     nuevos se generan otra vez aquí, así que no coinciden con los de muestra
+     del informe de arriba. */
   const saltados: string[] = [];
+  let aplicados = 0;
 
-  for (const n of plan.negocios) {
-    if (n.cambiaMenu) {
-      /* La guarda: solo si la carta sigue siendo la que se leyó. Si el dueño
-         guardó entre medias, se salta y la próxima pasada lo recoge. */
-      const escrito = await db
-        .update(places)
-        .set({ menu: n.menu })
-        .where(
-          and(
-            eq(places.id, n.placeId),
-            sql`${places.menu} = ${JSON.stringify(originales.get(n.placeId) ?? null)}::jsonb`,
-          ),
-        )
-        .returning({ id: places.id });
-      if (escrito.length === 0) {
-        saltados.push(n.nombre);
-        continue;
-      }
+  for (const negocio of negocios) {
+    const resultado = await sincronizarNegocio(negocio.id, negocio.menu ?? null);
+    if (!resultado.ok) {
+      saltados.push(`${negocio.name} (${resultado.motivo})`);
+      continue;
     }
-
-    const ids = n.filas.map((f) => f.id);
-    const consultas = [
-      ...plan.remapeoOfertas
-        .filter((r) => ofertaDeNegocio.get(r.id) === n.placeId)
-        .map((r) =>
-          db
-            .update(ofertas)
-            .set({ productoId: r.a })
-            .where(and(eq(ofertas.id, r.id), eq(ofertas.productoId, r.de))),
-        ),
-      ...plan.remapeoNovedades
-        .filter((r) => novedadDeNegocio.get(r.id) === n.placeId)
-        .map((r) =>
-          db
-            .update(novedades)
-            .set({ productoId: r.a })
-            .where(and(eq(novedades.id, r.id), eq(novedades.productoId, r.de))),
-        ),
-      ...(n.filas.length > 0 ? [upsert(n.filas)] : []),
-      db
-        .delete(productos)
-        .where(
-          ids.length > 0
-            ? and(eq(productos.placeId, n.placeId), notInArray(productos.id, ids))
-            : eq(productos.placeId, n.placeId),
-        ),
-    ];
-
-    await db.batch(consultas as unknown as Parameters<typeof db.batch>[0]);
+    aplicados += 1;
+    for (const r of resultado.plan.reasignados) {
+      console.log(`  aplicado · ${negocio.name} · «${r.nombre}»: ${r.antes} → ${r.despues}`);
+    }
   }
 
-  console.log(`\nAplicado en ${plan.negocios.length - saltados.length} negocios.`);
+  console.log(`
+Aplicado en ${aplicados} negocios.`);
   if (saltados.length > 0) {
-    console.log(`Saltados porque su carta cambió mientras corría (vuelve a correr): ${saltados.join(", ")}`);
+    console.log(`Saltados (vuelve a correr el script): ${saltados.join(", ")}`);
     process.exitCode = 2;
   }
+  console.log(
+    "La caché del catálogo de producción no se invalida desde aquí: lo leído de la tabla puede tardar hasta que caduque.",
+  );
 }
 
 main().catch((error) => {

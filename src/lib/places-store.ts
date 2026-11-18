@@ -288,6 +288,15 @@ export interface UserPlace {
   vibe?: string[];
   payments: string[];
   menu: UserPlaceMenuItem[];
+  /**
+   * El índice ligero de la carta: los nombres normalizados de los productos
+   * visibles, con tope de 1,5 KB (`indiceMenu`). Solo lo trae el catálogo
+   * público de `/api/places`, que ya no manda la carta entera: es lo que usa la
+   * búsqueda sin conexión. La ficha y la carta llegan completas del servidor.
+   */
+  menuIndice?: string;
+  /** Cuántos productos visibles tiene la carta. Viaja junto a `menuIndice`. */
+  menuTotal?: number;
   offer: UserPlaceOffer | null;
   /**
    * Las ofertas flash del negocio, **con las caducadas dentro**: el filtro por

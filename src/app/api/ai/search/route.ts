@@ -3,6 +3,7 @@ import { recommendPlaces, type CatalogPlace } from "@/lib/ai";
 import { getAppUser } from "@/lib/auth/user";
 import { trackEvent } from "@/lib/analytics/events";
 import { rateLimit } from "@/lib/rate-limit";
+import { lineasIAPorNegocio } from "@/lib/productos-server";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -10,9 +11,9 @@ export const maxDuration = 30;
 const MAX_PLACES = 80;
 const MAX_TEXT = 500;
 const MAX_FIELD = 2000;
-/* Tope de la carta. El cliente ya recorta a doce entradas, pero el cliente no
-   es de fiar: esta ruta la llama cualquiera con el cuerpo que quiera, y cada
-   entrada es una línea que se le paga al modelo. */
+/* Tope de la carta que se le pasa al modelo. Las líneas las arma el servidor
+   desde la tabla de productos, y aun así se acotan: cada entrada es una línea
+   que se le paga al modelo. */
 const MAX_MENU_ITEMS = 12;
 const MAX_MENU_LINE = 60;
 
@@ -90,7 +91,8 @@ function sanitizePlaces(value: unknown): CatalogPlace[] {
       payments,
       schedule: cleanString(p.schedule) || undefined,
       description: cleanString(p.description) || undefined,
-      menu: cleanList(p.menu, MAX_MENU_ITEMS, MAX_MENU_LINE),
+      /* La carta no se copia del cliente: la añade el servidor (ver POST). */
+      menu: undefined,
       /* La energía de respaldo en palabras. **Se colaba aquí y se perdía**: el
          navegador la mandaba y esta lista blanca no la copiaba, así que el
          modelo nunca veía el campo y toda la regla de «con planta», «que tenga
@@ -218,7 +220,18 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-    const places = sanitizePlaces(body.places);
+    /* La carta la pone el servidor, desde la tabla de productos: el catálogo
+       público ya no la trae, y aunque el navegador mande líneas de carta se
+       ignoran —no debe poder colar texto en el prompt—. Si la lectura falla,
+       la búsqueda sigue sin cartas, que es como funcionaba antes de tenerlas. */
+    const sinCarta = sanitizePlaces(body.places);
+    const lineas = await lineasIAPorNegocio(sinCarta.map((p) => p.id)).catch(
+      () => new Map<string, string[]>(),
+    );
+    const places = sinCarta.map((p) => ({
+      ...p,
+      menu: cleanList(lineas.get(p.id), MAX_MENU_ITEMS, MAX_MENU_LINE),
+    }));
     if (places.length === 0) {
       return NextResponse.json(
         { ok: false, error: "places no contiene lugares válidos" },

@@ -827,7 +827,7 @@ export async function getQuality(): Promise<Quality> {
         + CASE WHEN COALESCE(array_length(image_urls, 1), 0) > 0 THEN 10 ELSE 0 END
         + CASE WHEN COALESCE(array_length(payment_methods, 1), 0) > 0 THEN 5 ELSE 0 END
         + CASE WHEN COALESCE(website, instagram, facebook) IS NOT NULL THEN 5 ELSE 0 END
-        + CASE WHEN menu IS NOT NULL THEN 10 ELSE 0 END
+        + CASE WHEN EXISTS (SELECT 1 FROM productos WHERE productos.place_id = places.id) THEN 10 ELSE 0 END
       ) AS score
     FROM places
     WHERE review_status = 'approved'

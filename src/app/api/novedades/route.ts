@@ -18,6 +18,7 @@ import {
   type NovedadHome,
 } from "@/lib/novedades";
 import { precioConOferta } from "@/lib/ofertas";
+import { cartasPorNegocio } from "@/lib/productos-server";
 import { aSuscripcion, funcionesDe } from "@/lib/plans";
 import { placeInUserProvince } from "@/lib/user-province";
 import type { UserPlaceOferta } from "@/lib/places-store";
@@ -66,7 +67,6 @@ export async function GET(req: NextRequest) {
       province: places.province,
       logoUrl: places.logoUrl,
       imageUrls: places.imageUrls,
-      menu: places.menu,
       categoria: categories.name,
       plan: suscripciones.plan,
       estado: suscripciones.estado,
@@ -120,7 +120,9 @@ export async function GET(req: NextRequest) {
   const ids = incluidos.map(({ fila }) => fila.id);
   const desde = new Date(ahora.getTime() - DIAS_NOVEDAD * 86_400_000);
 
-  const [ofertasVivas, cambios] = await Promise.all([
+  /* La carta sale de la tabla de productos, y solo la de los negocios que
+     entran en el feed: antes viajaba el jsonb de todos en la primera consulta. */
+  const [ofertasVivas, cambios, cartas] = await Promise.all([
     db
       .select()
       .from(ofertas)
@@ -140,6 +142,7 @@ export async function GET(req: NextRequest) {
           gte(novedades.createdAt, desde),
         ),
       ),
+    cartasPorNegocio(ids),
   ]);
 
   const porNegocio = new Map(incluidos.map((x) => [x.fila.id, x]));
@@ -150,7 +153,9 @@ export async function GET(req: NextRequest) {
     if (!incluido) continue;
     const { fila, distanciaM } = incluido;
 
-    const producto = fila.menu?.find((p) => p.id === oferta.productoId);
+    const producto = cartas.get(fila.id)?.find((p) => p.id === oferta.productoId);
+    /* La oferta de un producto oculto no sale, igual que en la ficha. */
+    if (producto?.oculto) continue;
     const comoOferta: UserPlaceOferta = {
       id: oferta.id,
       productoId: oferta.productoId,

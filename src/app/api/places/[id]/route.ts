@@ -3,6 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { fusionarMenu } from "@/lib/catalogo";
+import { reflejarMenu } from "@/lib/productos-server";
 import { normalizarWhatsappCubano } from "@/lib/contact-links";
 import { esEnergia } from "@/lib/energia";
 import { esTipoReserva } from "@/lib/reserva";
@@ -1147,6 +1148,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       });
     }
   }
+
+  /* Fase B: la carta se lee de la tabla `productos`, pero se escribe en
+     `places.menu`. El reflejo la deja igual que el jsonb antes de invalidar
+     la caché, para que la relectura de abajo ya vea lo guardado. */
+  if (Array.isArray(body.menu)) await reflejarMenu(id);
 
   /* Antes de releer, y no después: `getPlaceById` está cacheado, así que sin
      invalidar primero devolvería la ficha vieja y el panel guardaría un cambio

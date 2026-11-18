@@ -17,6 +17,8 @@ import { canViewDevPlace } from "@/lib/dev-place";
 import { crearSuscripcion } from "@/lib/plans-server";
 import { generateId } from "@/lib/utils";
 import type { UserPlace } from "@/lib/places-store";
+import { indiceMenu, totalVisibles } from "@/lib/productos";
+import { reflejarMenu } from "@/lib/productos-server";
 
 /**
  * Lista y alta de negocios.
@@ -133,7 +135,24 @@ export async function GET(req: NextRequest) {
       };
     });
 
-  return NextResponse.json([...items, ...projects], {
+  /* El catálogo público ya no lleva las cartas: con ellas la portada
+     descargaba todos los productos de todos los negocios para pintar pins y
+     tarjetas. Va el índice ligero (nombres normalizados, tope de 1,5 KB) para
+     la búsqueda sin conexión y el total; la búsqueda con IA arma las líneas de
+     la carta en el servidor y la ficha llega completa. La lista del panel de
+     administración (`?all=true`, sin caché) **sí** lleva la carta: su
+     formulario la edita entera y sin ella la guardaría vacía. */
+  const conCarta = searchParams.get("all") === "true";
+  const lista = conCarta
+    ? items
+    : items.map((place) => ({
+        ...place,
+        menu: [],
+        menuIndice: indiceMenu(place.menu),
+        menuTotal: totalVisibles(place.menu),
+      }));
+
+  return NextResponse.json([...lista, ...projects], {
     /* Cinco minutos en el borde y diez sirviendo lo viejo mientras se refresca
        por detrás. Sin esto, cada carga del catálogo —y el catálogo se comparte
        por WhatsApp, así que la mayoría de quien lo abre es anónimo— es una
@@ -216,6 +235,10 @@ export async function POST(req: NextRequest) {
   after(async () => {
     await avisarNegocioNuevo(row!.id);
   });
+
+  /* Fase B: el alta puede traer carta (formulario de administración); la
+     tabla `productos` es de donde se lee, así que se refleja ya. */
+  await reflejarMenu(row!.id);
 
   invalidarCatalogo();
 

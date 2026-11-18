@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema";
 import { invalidarCatalogo } from "@/lib/db/queries";
 import { puede } from "@/lib/plans-server";
+import { reflejarMenu } from "@/lib/productos-server";
 import type { Disponibilidad } from "@/lib/disponibilidad";
 
 /**
@@ -79,6 +80,8 @@ export async function setDisponibilidad(
   );
 
   await db.update(places).set({ menu: next }).where(eq(places.id, negocioId));
+  /* Fase B: la carta se lee de `productos`; se refleja antes de invalidar. */
+  await reflejarMenu(negocioId);
 
   /* El menú público se sirve cacheado; sin esto el cambio no se ve hasta que
      caduque el TTL. Misma etiqueta que el resto del catálogo. */

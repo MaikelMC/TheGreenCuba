@@ -198,8 +198,12 @@ export function planMigracion(
   ofertas: readonly Referencia[],
   novedades: readonly Referencia[],
   nuevoId: () => string,
+  /** Ids que ya usa en la tabla algún producto de **otro** negocio. Hace falta
+      al sincronizar un solo negocio: sin ellos, un id repetido en otro negocio
+      no se vería y el upsert chocaría con su fila. */
+  idsAjenos: ReadonlySet<string> = new Set(),
 ): PlanMigracion {
-  const usados = new Set<string>();
+  const usados = new Set<string>(idsAjenos);
   const plan: PlanMigracion = {
     negocios: [],
     remapeoOfertas: [],
@@ -287,4 +291,133 @@ export function planMigracion(
   }
 
   return plan;
+}
+
+/* ── Lectura: de la tabla a lo que ya consumen los componentes ────────── */
+
+/** Lo que hace falta de una fila de `productos` para volver a ser un ítem. */
+export interface FilaLeida {
+  id: string;
+  categoria: string | null;
+  nombre: string;
+  descripcion: string;
+  imagen: string | null;
+  tag: string | null;
+  precioTexto: string;
+  precio: string | number | null;
+  moneda: string;
+  tipoPrecio: TipoPrecio;
+  disponibilidad: "disponible" | "agotado";
+  agotadoHasta: Date | string | null;
+  oculto: boolean;
+  destacado: boolean;
+  stock: number | null;
+  duracionMin: number | null;
+  externalId: string | null;
+  importacionId: string | null;
+}
+
+/**
+ * Una fila convertida en el `UserPlaceMenuItem` de siempre.
+ *
+ * Es lo que hace que la fase B no cambie nada a la vista: la ficha, la carta y
+ * el panel siguen recibiendo el mismo tipo, solo que leído de la tabla.
+ *
+ * `tipoPrecio` solo viaja cuando dice algo que el texto no dice: con precio
+ * numérico y tipo «desde» o «consultar». Un precio sin número se enseña con su
+ * texto tal cual (decisión D4): si el script dedujo «desde» de «100-400»,
+ * anteponer «Desde» cambiaría lo que ve el cliente.
+ */
+export function itemDeFila(fila: FilaLeida): UserPlaceMenuItem {
+  const item: UserPlaceMenuItem = {
+    id: fila.id,
+    name: fila.nombre,
+    description: fila.descripcion,
+    price: fila.precioTexto,
+    currency: fila.moneda,
+  };
+  if (fila.categoria) item.category = fila.categoria;
+  if (fila.imagen) item.image = fila.imagen;
+  if (fila.tag) item.tag = fila.tag;
+  if (fila.disponibilidad === "agotado") item.disponibilidad = "agotado";
+  if (fila.agotadoHasta) item.agotadoHasta = new Date(fila.agotadoHasta).getTime();
+  if (fila.oculto) item.oculto = true;
+  if (fila.destacado) item.destacado = true;
+  if (fila.stock !== null) item.stock = fila.stock;
+  if (fila.duracionMin !== null) item.duracionMin = fila.duracionMin;
+  if (fila.externalId) item.externalId = fila.externalId;
+  if (fila.importacionId) item.importacionId = fila.importacionId;
+  if (fila.precio !== null && fila.tipoPrecio !== "fijo") item.tipoPrecio = fila.tipoPrecio;
+  return item;
+}
+
+/** Sin acentos y en minúsculas: la misma forma que normaliza la búsqueda local. */
+export function normalizarTexto(texto: string): string {
+  return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+/* `TextEncoder` y no `Buffer`: este módulo también se importa en el navegador. */
+const BYTES = new TextEncoder();
+
+/** Tope del índice de un negocio, en bytes. */
+export const TOPE_INDICE_BYTES = 1500;
+
+/**
+ * El índice ligero de la carta: los nombres normalizados de los productos
+ * visibles, sin repetir, separados por `·`, hasta `TOPE_INDICE_BYTES`.
+ *
+ * Es lo que viaja en `/api/places` en lugar de la carta entera: la búsqueda sin
+ * conexión necesita saber que «pizza» está en la carta de un negocio, no su
+ * precio ni su foto. Se corta por producto entero, nunca a media palabra.
+ */
+export function indiceMenu(
+  items: readonly UserPlaceMenuItem[],
+  tope: number = TOPE_INDICE_BYTES,
+): string {
+  const vistos = new Set<string>();
+  let indice = "";
+  for (const item of items) {
+    if (item.oculto) continue;
+    const nombre = normalizarTexto(item.name ?? "");
+    if (!nombre || vistos.has(nombre)) continue;
+    const siguiente = indice ? `${indice} · ${nombre}` : nombre;
+    if (BYTES.encode(siguiente).length > tope) break;
+    vistos.add(nombre);
+    indice = siguiente;
+  }
+  return indice;
+}
+
+/** Cuántos productos visibles tiene la carta. */
+export function totalVisibles(items: readonly UserPlaceMenuItem[]): number {
+  return items.filter((item) => !item.oculto && item.name?.trim()).length;
+}
+
+/** Cuántas entradas de la carta viajan al modelo por negocio. */
+export const LINEAS_IA_POR_NEGOCIO = 12;
+
+/**
+ * La carta de un negocio como la lee el modelo de la búsqueda: una línea por
+ * producto visible, «Nombre (chapita): precio moneda».
+ *
+ * Antes la armaba el navegador con lo que traía `/api/places`; ahora la arma el
+ * servidor a partir de los ids, así que el cliente no puede colar texto en el
+ * prompt y la portada no tiene que descargar las cartas. Mismo formato que
+ * tenía `menuLines` en el home, para que el modelo no note el cambio.
+ */
+export function lineasMenuIA(
+  items: readonly UserPlaceMenuItem[],
+  max: number = LINEAS_IA_POR_NEGOCIO,
+): string[] {
+  const lineas: string[] = [];
+  for (const item of items) {
+    if (lineas.length >= max) break;
+    if (item.oculto) continue;
+    const nombre = item.name?.trim();
+    if (!nombre) continue;
+    const tag = item.tag?.trim();
+    const precio = item.price?.trim();
+    lineas.push(`${nombre}${tag ? ` (${tag})` : ""}${precio ? `: ${precio} ${item.currency}` : ""}`);
+  }
+  return lineas;
 }

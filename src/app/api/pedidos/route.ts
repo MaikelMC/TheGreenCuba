@@ -23,6 +23,7 @@ import {
   resumenesPorTelefono,
   type ResultadoSello,
 } from "@/lib/fidelidad-server";
+import { productosDe } from "@/lib/productos-server";
 import { normalizarTelefono } from "@/lib/telefono";
 
 /**
@@ -152,7 +153,6 @@ export async function POST(req: NextRequest) {
 
   const [place] = await db
     .select({
-      menu: places.menu,
       pedidosWhatsapp: places.pedidosWhatsapp,
       whatsapp: places.whatsapp,
       entrega: places.entrega,
@@ -192,7 +192,10 @@ export async function POST(req: NextRequest) {
      pedir: un carrito viejo o una petición hecha a mano no lo cuelan. Se
      rechaza por id aunque otro producto visible se llame igual. */
   const ocultos = new Set<string>();
-  for (const [indice, item] of (place.menu ?? []).entries()) {
+  /* La carta, de la tabla de productos: todos tienen id estable desde la
+     migración, así que el respaldo `${name}-${indice}` ya no se usa. */
+  const carta = await productosDe(negocioId);
+  for (const [indice, item] of carta.entries()) {
     const id = item.id ?? `${item.name}-${indice}`;
     if (item.oculto) {
       ocultos.add(id);

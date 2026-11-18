@@ -5,7 +5,12 @@ import {
   convertirPrecio,
   esIdPosicional,
   filaDeItem,
+  indiceMenu,
+  itemDeFila,
+  lineasMenuIA,
   planMigracion,
+  TOPE_INDICE_BYTES,
+  totalVisibles,
   type NegocioConMenu,
 } from "./productos";
 
@@ -253,4 +258,89 @@ test("la segunda pasada, con los ids ya escritos, no reasigna nada", () => {
 
   assert.equal(segunda.negocios[0]!.cambiaMenu, false);
   assert.deepEqual(segunda.negocios[0]!.filas, primera.negocios[0]!.filas);
+});
+
+/* ── Fase B: lectura desde la tabla ──────────────────────────────────── */
+
+test("ida y vuelta: el producto leído de la tabla es el mismo que estaba en el jsonb", () => {
+  const original = item({
+    id: "p1",
+    category: "Bebidas",
+    image: "https://bucket/x.webp",
+    tag: "Popular",
+    disponibilidad: "agotado",
+    agotadoHasta: 1_760_000_000_000,
+    oculto: true,
+    destacado: true,
+    stock: 4,
+    duracionMin: 30,
+    externalId: "erp-1",
+    importacionId: "imp-1",
+  });
+  const leido = itemDeFila(filaDeItem(original, "negocio-1", 0, "p1"));
+  assert.deepEqual(leido, original);
+});
+
+test("ida y vuelta de un producto mínimo: no aparecen campos que no tenía", () => {
+  const original = item({ id: "p2" });
+  assert.deepEqual(itemDeFila(filaDeItem(original, "n", 0, "p2")), original);
+});
+
+test("un precio sin número se enseña tal cual, sin «Desde» delante (D4)", () => {
+  const leido = itemDeFila(filaDeItem(item({ id: "r", price: "100-400" }), "n", 0, "r"));
+  assert.equal(leido.price, "100-400");
+  assert.equal(leido.tipoPrecio, undefined);
+});
+
+test("el «desde» que puso el dueño sobre una cifra se conserva", () => {
+  const leido = itemDeFila(
+    filaDeItem(item({ id: "d", price: "8", tipoPrecio: "desde" }), "n", 0, "d"),
+  );
+  assert.equal(leido.tipoPrecio, "desde");
+});
+
+test("menuIndice: nombres normalizados, sin repetir y sin ocultos", () => {
+  const indice = indiceMenu([
+    item({ name: "Café con Leche" }),
+    item({ name: "café con leche" }),
+    item({ name: "Pizza Napolitana" }),
+    item({ name: "Secreto", oculto: true }),
+    item({ name: "  " }),
+  ]);
+  assert.equal(indice, "cafe con leche · pizza napolitana");
+});
+
+test("menuIndice respeta el tope y corta por producto entero", () => {
+  const items = Array.from({ length: 300 }, (_, i) => item({ name: `Producto número ${i}` }));
+  const indice = indiceMenu(items);
+  assert.ok(new TextEncoder().encode(indice).length <= TOPE_INDICE_BYTES);
+  assert.ok(indice.endsWith(indice.split(" · ").at(-1)!), "no corta a media palabra");
+  assert.match(indice.split(" · ").at(-1)!, /^producto numero \d+$/);
+  assert.equal(totalVisibles(items), 300, "el total cuenta todos, aunque el índice se corte");
+});
+
+test("lineasMenuIA: el mismo formato que tenía el home, sin ocultos, hasta 12", () => {
+  const items = [
+    item({ name: "Ropa Vieja", price: "12", currency: "MLC" }),
+    item({ name: "Mojito", tag: "2x1", price: "5", currency: "MLC" }),
+    item({ name: "Wi-Fi", price: "", currency: "MLC" }),
+    item({ name: "Oculto", oculto: true }),
+    ...Array.from({ length: 20 }, (_, i) => item({ name: `Extra ${i}` })),
+  ];
+  const lineas = lineasMenuIA(items);
+  assert.equal(lineas.length, 12);
+  assert.deepEqual(lineas.slice(0, 3), ["Ropa Vieja: 12 MLC", "Mojito (2x1): 5 MLC", "Wi-Fi"]);
+  assert.ok(!lineas.some((l) => l.startsWith("Oculto")));
+});
+
+test("sincronizar un negocio no roba un id que ya es de otro negocio", () => {
+  const plan = planMigracion(
+    [{ id: "b", name: "B", menu: [item({ id: "ajeno" }), item({ id: "propio" })] }],
+    [{ id: "of", negocioId: "b", productoId: "ajeno" }],
+    [],
+    contador(),
+    new Set(["ajeno"]),
+  );
+  assert.deepEqual(plan.negocios[0]!.filas.map((f) => f.id), ["n1", "propio"]);
+  assert.deepEqual(plan.remapeoOfertas, [{ id: "of", de: "ajeno", a: "n1" }]);
 });

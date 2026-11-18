@@ -27,6 +27,12 @@ export interface LugarBuscable {
         description?: string | null;
       }[]
     | null;
+  /**
+   * Los nombres de la carta, normalizados, tal como los manda `/api/places`
+   * (`indiceMenu`). El catálogo público ya no trae la carta entera, así que
+   * esto es lo que encuentra «pizza» sin conexión.
+   */
+  menuIndice?: string | null;
 }
 
 export interface CoincidenciaLocal {
@@ -113,10 +119,10 @@ export function buscarLugaresLocales(
       `${lugar.shortDescription ?? ""} ${lugar.description ?? ""}`,
     );
     const carta = normalizar(
-      (lugar.menu ?? [])
+      `${(lugar.menu ?? [])
         .map((item) => `${item.name ?? ""} ${item.description ?? ""}`)
-        .join(" "),
-    );
+        .join(" ")} ${lugar.menuIndice ?? ""}`,
+    ).trim();
 
     const texto = `${nombre} ${categoria} ${barrio} ${ciudad} ${provincia} ${descripcion} ${carta}`;
     if (!palabras.every((palabra) => texto.includes(palabra))) continue;
