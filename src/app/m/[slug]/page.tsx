@@ -231,10 +231,9 @@ function MenuRow({
   /* Agotado no es «no está»: el producto sigue en la carta, apagado y con la
      etiqueta, para que quien lo buscaba sepa que hoy no hay sin creer que
      desapareció del menú.
-     Se usa `disponibilidad === "agotado"` directamente para que el badge
-     aparezca siempre que el dueño lo marcó así, independientemente de si
-     `agotadoHasta` ya pasó. La fecha de vuelta solo controla el texto. */
-  const agotado = item.disponibilidad === "agotado";
+     Pasa por `estaAgotado`, como la ficha y el panel: un «agotado hasta
+     mañana» vuelve solo a pedirse cuando pasa `agotadoHasta`. */
+  const agotado = estaAgotado(item);
 
   return (
     <div
@@ -476,8 +475,8 @@ export default async function MenuPage({
       item,
       productoId: oferta.productoId,
       precios: precioConOferta(item.price, oferta),
-      pedible: puedePedir && item.disponibilidad !== "agotado",
-      agotado: item.disponibilidad === "agotado",
+      pedible: puedePedir && !estaAgotado(item),
+      agotado: estaAgotado(item),
     });
   }
 
@@ -591,7 +590,7 @@ export default async function MenuPage({
                   key={`${item.name}-${index}`}
                   item={item}
                   productoId={productoId}
-                  pedible={puedePedir && item.disponibilidad !== "agotado"}
+                  pedible={puedePedir && !estaAgotado(item)}
                   oferta={precioOferta}
                   configTasa={configTasa}
                 />

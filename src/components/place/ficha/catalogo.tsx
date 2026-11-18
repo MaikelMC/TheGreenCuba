@@ -31,7 +31,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn, formatMenuPrice, menuTagFallback, menuTagStyles } from "@/lib/utils";
-import { estaAgotado } from "@/lib/disponibilidad";
+import { estaAgotado, separarAgotados } from "@/lib/disponibilidad";
 import { preciosDeItem, type ConfigTasa } from "@/lib/precios";
 import type { PlaceMenu, PlacePhoto } from "@/lib/ficha/place-data";
 import { familiaDe, type EspecialDelDia, type ExistenciasModo, type MenuCategoria, type ModuloFicha, type TipoNegocio } from "@/lib/ficha/tipos";
@@ -983,14 +983,10 @@ export function Catalogo({
     ...autodetectadas.filter((c) => !estructuradas.includes(c)),
   ].filter((nombre) => items.some((i) => i.category?.trim() === nombre));
 
-  /* Separar disponibles y agotados.
-     Se usa `disponibilidad === "agotado"` directamente, sin importar si
-     `agotadoHasta` ya pasó. Un producto marcado como agotado sigue en el
-     grupo de agotados hasta que el dueño lo marque como disponible.
-     `agotadoHasta` solo controla el texto que se muestra («Vuelve mañana»). */
-  const esAgotado = (i: PlaceMenu) => i.disponibilidad === "agotado";
-  const disponibles = items.filter((i) => !esAgotado(i));
-  const agotados = items.filter((i) => esAgotado(i));
+  /* Separar disponibles y agotados con `estaAgotado`, la misma regla que el
+     panel y la carta pública: un «agotado hasta mañana» vuelve solo a
+     disponibles cuando pasa `agotadoHasta`, sin que nadie escriba nada. */
+  const { disponibles, agotados } = separarAgotados(items);
 
   /* Filtrar disponibles por categoría y búsqueda */
   const filtradosDisp = disponibles.filter((i) => {

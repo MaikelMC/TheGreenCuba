@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { estaAgotado, hastaManana } from "./disponibilidad";
+import { estaAgotado, hastaManana, separarAgotados } from "./disponibilidad";
 
 const AHORA = new Date("2026-10-08T12:00:00").getTime();
 
@@ -44,4 +44,25 @@ test("«hasta mañana» cae en la medianoche local siguiente", () => {
   assert.equal(vuelta.getMinutes(), 0);
   assert.equal(vuelta.getSeconds(), 0);
   assert.ok(vuelta.getTime() > tarde.getTime());
+});
+
+test("separarAgotados: un agotadoHasta vencido vuelve a disponibles", () => {
+  const ahora = Date.UTC(2026, 10, 18, 12, 0, 0);
+  const items = [
+    { id: "sin-marca" },
+    { id: "agotado-sin-fecha", disponibilidad: "agotado" as const, agotadoHasta: null },
+    { id: "agotado-futuro", disponibilidad: "agotado" as const, agotadoHasta: ahora + 60_000 },
+    { id: "agotado-vencido", disponibilidad: "agotado" as const, agotadoHasta: ahora - 60_000 },
+  ];
+
+  const { disponibles, agotados } = separarAgotados(items, ahora);
+
+  assert.deepEqual(
+    disponibles.map((i) => i.id),
+    ["sin-marca", "agotado-vencido"],
+  );
+  assert.deepEqual(
+    agotados.map((i) => i.id),
+    ["agotado-sin-fecha", "agotado-futuro"],
+  );
 });

@@ -37,6 +37,24 @@ export function estaAgotado(
 }
 
 /**
+ * Una lista partida en lo que se puede pedir ahora y lo agotado ahora.
+ *
+ * Pasa por `estaAgotado`, así que un producto con `agotadoHasta` vencido vuelve
+ * solo al grupo de disponibles, igual que en el panel y en la carta pública.
+ */
+export function separarAgotados<T extends EstadoDisponibilidad>(
+  items: readonly T[],
+  now: number = Date.now(),
+): { disponibles: T[]; agotados: T[] } {
+  const disponibles: T[] = [];
+  const agotados: T[] = [];
+  for (const item of items) {
+    (estaAgotado(item, now) ? agotados : disponibles).push(item);
+  }
+  return { disponibles, agotados };
+}
+
+/**
  * La marca de tiempo para «agotado hasta mañana»: la medianoche local siguiente.
  *
  * A medianoche en punto el producto vuelve a estar disponible durante todo el
