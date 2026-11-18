@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
+import { fusionarMenu } from "@/lib/catalogo";
 import { normalizarWhatsappCubano } from "@/lib/contact-links";
 import { esEnergia } from "@/lib/energia";
 import { esTipoReserva } from "@/lib/reserva";
@@ -749,13 +750,26 @@ export async function PATCH(req: NextRequest, { params }: Params) {
      los valores que ya había, emparejando por `id` y, para las entradas viejas
      sin id, por posición. El interruptor de verdad es `setDisponibilidad`, que
      sí comprueba el plan. */
+  /* La carta guardada, una sola vez para las dos correcciones de abajo. */
+  const menuGuardado: UserPlaceMenuItem[] = Array.isArray(body.menu)
+    ? ((
+        await db
+          .select({ menu: places.menu })
+          .from(places)
+          .where(eq(places.id, id))
+          .limit(1)
+      )[0]?.menu ?? [])
+    : [];
+
+  /* El panel manda la carta entera pero solo con sus campos (`aGuardar`).
+     Sin fusionar, cada guardado borraba en silencio lo que el panel no maneja
+     —existencias, destacado, tipo de precio— y que había puesto otra vía. */
+  if (Array.isArray(body.menu)) {
+    body.menu = fusionarMenu(body.menu, menuGuardado);
+  }
+
   if (Array.isArray(body.menu) && !(await puede(id, "hoy_hay"))) {
-    const [actual] = await db
-      .select({ menu: places.menu })
-      .from(places)
-      .where(eq(places.id, id))
-      .limit(1);
-    const prev = actual?.menu ?? [];
+    const prev = menuGuardado;
     body.menu = body.menu.map((item, i) => {
       const before =
         (item.id ? prev.find((p) => p.id === item.id) : undefined) ?? prev[i];

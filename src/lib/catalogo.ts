@@ -75,3 +75,57 @@ export function aGuardar(menu: UserPlaceMenuItem[]): UserPlaceMenuItem[] {
     oculto: item.oculto ? true : undefined,
   }));
 }
+
+/**
+ * Los campos que el panel del catálogo escribe: exactamente los de `aGuardar`.
+ *
+ * Lo que no está aquí —`stock`, `tipoPrecio`, `destacado`, `duracionMin`,
+ * `externalId` o cualquier campo que llegue mañana— el panel no lo manda, y
+ * `fusionarMenu` lo conserva de lo que ya estaba guardado. Lo que sí está aquí
+ * manda el cliente, también cuando lo vacía: una foto quitada o una categoría
+ * borrada no pueden volver de la base.
+ */
+export const CAMPOS_PANEL: ReadonlySet<string> = new Set([
+  "id",
+  "name",
+  "description",
+  "price",
+  "currency",
+  "tag",
+  "category",
+  "image",
+  "disponibilidad",
+  "agotadoHasta",
+  "importacionId",
+  "oculto",
+]);
+
+/**
+ * La carta que llega del panel, fusionada por `id` con la que ya estaba.
+ *
+ * El `PATCH` sigue escribiendo la carta entera —eso no cambia aquí—, pero cada
+ * producto que ya existía recupera los campos que el panel no maneja. Sin esto,
+ * guardar desde el panel borraba en silencio las existencias, el destacado o
+ * el tipo de precio que había puesto otra vía.
+ *
+ * Se empareja contra `conIds(previo)` porque el panel siembra los productos
+ * viejos sin id con su índice (`"0"`, `"1"`…), y así los encuentra. Un producto
+ * nuevo, o uno cuyo id ya no está, pasa tal cual.
+ */
+export function fusionarMenu(
+  nuevo: UserPlaceMenuItem[],
+  previo: UserPlaceMenuItem[],
+): UserPlaceMenuItem[] {
+  const antes = new Map(conIds(previo).map((item) => [item.id, item]));
+
+  return nuevo.map((item) => {
+    if (!item || typeof item !== "object" || !item.id) return item;
+    const guardado = antes.get(item.id);
+    if (!guardado) return item;
+
+    const conservados = Object.fromEntries(
+      Object.entries(guardado).filter(([clave]) => !CAMPOS_PANEL.has(clave)),
+    );
+    return { ...conservados, ...item } as UserPlaceMenuItem;
+  });
+}

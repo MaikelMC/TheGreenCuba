@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { aGuardar, conIds, huella } from "./catalogo";
+import {
+  aGuardar,
+  CAMPOS_PANEL,
+  conIds,
+  fusionarMenu,
+  huella,
+} from "./catalogo";
 import type { UserPlaceMenuItem } from "./places-store";
 
 /** Un producto con **todos** los campos llenos: así, si alguno se cae al
@@ -153,4 +159,62 @@ test("ocultar un producto se guarda y marca la carta como sin guardar", () => {
     undefined,
     "volver a mostrarlo no deja un `false` en el jsonb",
   );
+});
+
+test("CAMPOS_PANEL son exactamente los campos que escribe aGuardar", () => {
+  const escritos = Object.keys(aGuardar([completo({ oculto: true })])[0]!);
+  assert.deepEqual(new Set(escritos), CAMPOS_PANEL);
+});
+
+test("guardar la carta desde el panel no borra stock ni destacado", () => {
+  const enBase: UserPlaceMenuItem[] = [
+    completo({
+      stock: 7,
+      destacado: true,
+      tipoPrecio: "desde",
+      duracionMin: 30,
+      externalId: "erp-1",
+    }),
+  ];
+  /* Lo que manda el panel: sus campos, editados, y nada de los otros. */
+  const delPanel = aGuardar(conIds(enBase)).map((item) => ({
+    ...item,
+    price: "400",
+  }));
+
+  const [fusionado] = fusionarMenu(delPanel, enBase);
+
+  assert.equal(fusionado!.price, "400", "lo editado en el panel manda");
+  assert.equal(fusionado!.stock, 7);
+  assert.equal(fusionado!.destacado, true);
+  assert.equal(fusionado!.tipoPrecio, "desde");
+  assert.equal(fusionado!.duracionMin, 30);
+  assert.equal(fusionado!.externalId, "erp-1");
+});
+
+test("lo que el panel vacía no vuelve de la base", () => {
+  const enBase = [completo({ stock: 3 })];
+  /* El JSON no lleva las claves `undefined`: así llega una foto quitada. */
+  const delPanel = JSON.parse(
+    JSON.stringify(aGuardar([{ ...enBase[0]!, image: "", category: "" }])),
+  ) as UserPlaceMenuItem[];
+
+  const [fusionado] = fusionarMenu(delPanel, enBase);
+
+  assert.equal(fusionado!.image, undefined, "la foto quitada no vuelve");
+  assert.equal(fusionado!.category, undefined, "la categoría borrada tampoco");
+  assert.equal(fusionado!.stock, 3, "y lo que el panel no maneja se queda");
+});
+
+test("la fusión encuentra los productos viejos sin id por su índice", () => {
+  const { id: _sinId, ...viejo } = completo({ destacado: true });
+  const enBase = [viejo as UserPlaceMenuItem];
+  const delPanel = aGuardar(conIds(enBase));
+
+  assert.equal(fusionarMenu(delPanel, enBase)[0]!.destacado, true);
+});
+
+test("un producto nuevo pasa tal cual", () => {
+  const nuevo = aGuardar([completo({ id: "new-1" })]);
+  assert.deepEqual(fusionarMenu(nuevo, [completo({ stock: 9 })]), nuevo);
 });
