@@ -4,7 +4,7 @@ import { type ReactNode } from "react";
 import { MotionConfig } from "motion/react";
 import { getAppUser } from "@/lib/auth/user";
 import { cargarCatalogo } from "@/lib/catalogo-server";
-import { listCategories, listPlaces } from "@/lib/db/queries";
+import { listCategories, listPlacesSinCache } from "@/lib/db/queries";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { PlacesProvider } from "@/providers/places-provider";
 import { CatalogoProvider } from "@/providers/catalogo-provider";
@@ -60,7 +60,9 @@ export default async function AdminLayout({
      comporta como antes —el provider pide los datos desde el cliente y enseña
      su error— en lugar de tumbar el panel entero. */
   const [places, categories, catalogo] = await Promise.all([
-    listPlaces().catch(() => null),
+    /* Sin la caché de datos: es la lista con los negocios sin publicar y las
+       cartas enteras, y no se guarda en ningún sitio del servidor. */
+    listPlacesSinCache().catch(() => null),
     listCategories().catch(() => null),
     cargarCatalogo().catch(() => null),
   ]);

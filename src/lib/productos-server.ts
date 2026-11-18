@@ -1,12 +1,17 @@
-import { and, asc, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, getTableColumns, inArray, lte, ne, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { novedades, ofertas, places, productos } from "@/lib/db/schema";
 import { DEV_PLACE_ID, devPlace } from "@/lib/dev-place";
 import { generateId } from "@/lib/utils";
 import {
+  CON_TILDE,
   itemDeFila,
+  LINEAS_IA_POR_NEGOCIO,
   lineasMenuIA,
   planMigracion,
+  puntosCoincidencia,
+  SIN_TILDE,
+  terminosDeBusqueda,
   type FilaProducto,
   type PlanNegocio,
 } from "@/lib/productos";
@@ -60,14 +65,102 @@ export async function productosDe(placeId: string): Promise<UserPlaceMenuItem[]>
   return (await cartasPorNegocio([placeId])).get(placeId) ?? [];
 }
 
-/** Las líneas de la carta que lee el modelo de la búsqueda, por negocio. */
+/**
+ * Los productos que coinciden con una consulta, por negocio, del más al menos
+ * parecido.
+ *
+ * Busca **en la tabla**, no en el índice ligero: todos los productos visibles de
+ * los negocios dados, comparando la consulta (sin tildes, sin palabras vacías y
+ * en su raíz) con el nombre normalizado igual. El `translate()` usa la misma
+ * tabla de letras que `sinTildes`, así que el filtro de la base y la puntuación
+ * de aquí no discrepan.
+ *
+ * Con la carta de hoy (cientos de productos) un `LIKE` sobre la tabla es
+ * instantáneo. Cuando pase de unas decenas de miles de filas convendrá un
+ * índice trigram sobre la misma expresión (ver `productos.ts` en el esquema).
+ */
+export async function buscarProductos(
+  consulta: string,
+  placeIds: readonly string[],
+): Promise<Map<string, UserPlaceMenuItem[]>> {
+  const terminos = terminosDeBusqueda(consulta);
+  const reales = placeIds.filter((id) => id !== DEV_PLACE_ID);
+  const coincidencias = new Map<string, UserPlaceMenuItem[]>();
+  if (terminos.length === 0 || reales.length === 0) return coincidencias;
+
+  const normalizado = sql`translate(lower(${productos.nombre}), ${CON_TILDE}, ${SIN_TILDE})`;
+  const filas = await db
+    .select()
+    .from(productos)
+    .where(
+      and(
+        inArray(productos.placeId, reales),
+        eq(productos.oculto, false),
+        or(...terminos.map((termino) => sql`${normalizado} like ${`%${termino}%`}`)),
+      ),
+    )
+    .limit(MAX_COINCIDENCIAS);
+
+  const puntuadas = filas
+    .map((fila) => ({ fila, puntos: puntosCoincidencia(fila.nombre, terminos) }))
+    .filter((x) => x.puntos > 0)
+    .sort((a, b) => b.puntos - a.puntos || a.fila.orden - b.fila.orden);
+  for (const { fila } of puntuadas) {
+    const lista = coincidencias.get(fila.placeId) ?? [];
+    lista.push(itemDeFila(fila));
+    coincidencias.set(fila.placeId, lista);
+  }
+  return coincidencias;
+}
+
+/** Tope de filas que devuelve una búsqueda de producto, para todos los negocios. */
+const MAX_COINCIDENCIAS = 500;
+
+/**
+ * Las líneas de la carta que lee el modelo de la búsqueda, por negocio.
+ *
+ * No carga la carta entera: trae los `LINEAS_IA_POR_NEGOCIO` primeros productos
+ * visibles de cada negocio (por `orden`) y les antepone los que coinciden con
+ * la consulta, para que el producto buscado entre en las doce líneas aunque
+ * esté al fondo de una carta de trescientos.
+ */
 export async function lineasIAPorNegocio(
   placeIds: readonly string[],
+  coincidencias: ReadonlyMap<string, UserPlaceMenuItem[]> = new Map(),
 ): Promise<Map<string, string[]>> {
-  const cartas = await cartasPorNegocio(placeIds);
   const lineas = new Map<string, string[]>();
-  for (const [id, carta] of cartas) {
-    const negocio = lineasMenuIA(carta);
+  const reales = placeIds.filter((id) => id !== DEV_PLACE_ID);
+  if (placeIds.includes(DEV_PLACE_ID)) {
+    const dev = lineasMenuIA(devPlace().menu);
+    if (dev.length > 0) lineas.set(DEV_PLACE_ID, dev);
+  }
+  if (reales.length === 0) return lineas;
+
+  const numerados = db
+    .select({
+      ...getTableColumns(productos),
+      puesto: sql<number>`row_number() over (partition by ${productos.placeId} order by ${productos.orden})`.as("puesto"),
+    })
+    .from(productos)
+    .where(and(inArray(productos.placeId, reales), eq(productos.oculto, false)))
+    .as("numerados");
+  const primeros = await db
+    .select()
+    .from(numerados)
+    .where(lte(numerados.puesto, LINEAS_IA_POR_NEGOCIO))
+    .orderBy(asc(numerados.placeId), asc(numerados.orden));
+
+  const porNegocio = new Map<string, UserPlaceMenuItem[]>();
+  for (const fila of primeros) {
+    const lista = porNegocio.get(fila.placeId) ?? [];
+    lista.push(itemDeFila(fila));
+    porNegocio.set(fila.placeId, lista);
+  }
+
+  for (const id of reales) {
+    const delante = coincidencias.get(id) ?? [];
+    const carta = [...delante, ...(porNegocio.get(id) ?? [])];
+    const negocio = lineasMenuIA(carta, LINEAS_IA_POR_NEGOCIO, delante.map((p) => p.id ?? ""));
     if (negocio.length > 0) lineas.set(id, negocio);
   }
   return lineas;

@@ -359,31 +359,98 @@ export function normalizarTexto(texto: string): string {
 /* `TextEncoder` y no `Buffer`: este módulo también se importa en el navegador. */
 const BYTES = new TextEncoder();
 
-/** Tope del índice de un negocio, en bytes. */
-export const TOPE_INDICE_BYTES = 1500;
+/* ── Búsqueda por producto ───────────────────────────────────────────── */
 
 /**
- * El índice ligero de la carta: los nombres normalizados de los productos
- * visibles, sin repetir, separados por `·`, hasta `TOPE_INDICE_BYTES`.
+ * Las palabras que no dicen qué se busca. Fuera del índice y de la consulta:
+ * «café con leche» y «pan de la casa» se buscan por «cafe», «leche», «pan» y
+ * «casa».
+ */
+const PALABRAS_VACIAS = new Set([
+  "a", "al", "con", "de", "del", "e", "el", "en", "la", "las", "lo", "los",
+  "o", "para", "por", "sin", "su", "sus", "u", "un", "una", "unas", "unos", "y",
+]);
+
+/**
+ * Las letras con tilde y su forma sin ella. Es **la misma tabla** que usa el
+ * `translate()` de la consulta SQL de `buscarProductos`: así lo que el servidor
+ * filtra en la base y lo que se puntúa aquí no pueden discrepar.
+ */
+export const CON_TILDE = "áàâäãéèêëíìîïóòôöõúùûüñç";
+export const SIN_TILDE = "aaaaaeeeeiiiiooooouuuunc";
+
+/** Minúsculas y sin tildes, letra por letra como el `translate()` de SQL. */
+export function sinTildes(texto: string): string {
+  let salida = "";
+  for (const letra of texto.toLowerCase()) {
+    const i = CON_TILDE.indexOf(letra);
+    salida += i === -1 ? letra : SIN_TILDE[i];
+  }
+  return salida;
+}
+
+/** Las palabras de un texto: sin tildes, en minúscula, sin vacías ni repetidas. */
+export function palabrasClave(texto: string): string[] {
+  const vistas = new Set<string>();
+  for (const palabra of sinTildes(texto).split(/[^a-z0-9]+/)) {
+    if (palabra.length < 2 || PALABRAS_VACIAS.has(palabra) || vistas.has(palabra)) continue;
+    vistas.add(palabra);
+  }
+  return [...vistas];
+}
+
+/**
+ * La raíz con la que se busca: sin el plural, para que «pizzas» encuentre
+ * «Pizza Napolitana». Solo quita el plural evidente —«-es» tras consonante
+ * («panes», «jamones», «flores»), «-s» en el resto («pizzas», «dulces»)— y
+ * nunca deja menos de tres letras.
+ */
+export function raiz(palabra: string): string {
+  const sinEs = palabra.slice(0, -2);
+  if (palabra.endsWith("es") && sinEs.length >= 3 && /[nlrdzj]$/.test(sinEs)) return sinEs;
+  if (palabra.endsWith("s") && palabra.length > 3) return palabra.slice(0, -1);
+  return palabra;
+}
+
+/** Los términos de una consulta: palabras clave, en su raíz, de tres letras o más. */
+export function terminosDeBusqueda(consulta: string): string[] {
+  return [...new Set(palabrasClave(consulta).map(raiz))].filter((t) => t.length >= 3);
+}
+
+/** Cuántos términos de la consulta aparecen en el nombre del producto. */
+export function puntosCoincidencia(nombre: string, terminos: readonly string[]): number {
+  const texto = sinTildes(nombre);
+  return terminos.filter((termino) => texto.includes(termino)).length;
+}
+
+/** Tope del índice de un negocio, en bytes. */
+export const TOPE_INDICE_BYTES = 2048;
+
+/**
+ * El índice ligero de la carta, **solo para la búsqueda sin conexión**: las
+ * palabras de los nombres de los productos visibles, sin tildes, en minúscula,
+ * sin vacías y sin repetir, separadas por espacios, hasta `TOPE_INDICE_BYTES`.
  *
- * Es lo que viaja en `/api/places` en lugar de la carta entera: la búsqueda sin
- * conexión necesita saber que «pizza» está en la carta de un negocio, no su
- * precio ni su foto. Se corta por producto entero, nunca a media palabra.
+ * Palabras y no nombres completos: «Pizza Napolitana», «Pizza con Cebolla» y
+ * «Pizza Doble Queso» se quedan en «pizza napolitana cebolla doble queso», así
+ * que una carta grande cabe entera mucho antes de llegar al tope. La búsqueda
+ * con conexión no lo usa: consulta la tabla directamente.
  */
 export function indiceMenu(
   items: readonly UserPlaceMenuItem[],
   tope: number = TOPE_INDICE_BYTES,
 ): string {
-  const vistos = new Set<string>();
+  const vistas = new Set<string>();
   let indice = "";
   for (const item of items) {
     if (item.oculto) continue;
-    const nombre = normalizarTexto(item.name ?? "");
-    if (!nombre || vistos.has(nombre)) continue;
-    const siguiente = indice ? `${indice} · ${nombre}` : nombre;
-    if (BYTES.encode(siguiente).length > tope) break;
-    vistos.add(nombre);
-    indice = siguiente;
+    for (const palabra of palabrasClave(item.name ?? "")) {
+      if (vistas.has(palabra)) continue;
+      const siguiente = indice ? `${indice} ${palabra}` : palabra;
+      if (BYTES.encode(siguiente).length > tope) return indice;
+      vistas.add(palabra);
+      indice = siguiente;
+    }
   }
   return indice;
 }
@@ -398,23 +465,35 @@ export const LINEAS_IA_POR_NEGOCIO = 12;
 
 /**
  * La carta de un negocio como la lee el modelo de la búsqueda: una línea por
- * producto visible, «Nombre (chapita): precio moneda».
+ * producto visible, «Nombre (chapita): precio moneda», hasta `max`.
  *
- * Antes la armaba el navegador con lo que traía `/api/places`; ahora la arma el
- * servidor a partir de los ids, así que el cliente no puede colar texto en el
- * prompt y la portada no tiene que descargar las cartas. Mismo formato que
- * tenía `menuLines` en el home, para que el modelo no note el cambio.
+ * `primero` son los productos que coinciden con la consulta: van delante, así
+ * que el producto que se busca entra en las doce líneas aunque sea el número
+ * ochenta de la carta. Mismo formato que tenía `menuLines` en el home, para que
+ * el modelo no note el cambio.
  */
 export function lineasMenuIA(
   items: readonly UserPlaceMenuItem[],
   max: number = LINEAS_IA_POR_NEGOCIO,
+  primero: readonly string[] = [],
 ): string[] {
+  const orden = new Map(primero.map((id, i) => [id, i]));
+  const ordenados = [...items].sort(
+    (a, b) =>
+      (orden.get(a.id ?? "") ?? Number.MAX_SAFE_INTEGER) -
+      (orden.get(b.id ?? "") ?? Number.MAX_SAFE_INTEGER),
+  );
   const lineas: string[] = [];
-  for (const item of items) {
+  const vistos = new Set<string>();
+  for (const item of ordenados) {
     if (lineas.length >= max) break;
     if (item.oculto) continue;
     const nombre = item.name?.trim();
     if (!nombre) continue;
+    if (item.id) {
+      if (vistos.has(item.id)) continue;
+      vistos.add(item.id);
+    }
     const tag = item.tag?.trim();
     const precio = item.price?.trim();
     lineas.push(`${nombre}${tag ? ` (${tag})` : ""}${precio ? `: ${precio} ${item.currency}` : ""}`);

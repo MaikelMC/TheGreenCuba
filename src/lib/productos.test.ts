@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { UserPlaceMenuItem } from "./places-store";
 import {
+  CON_TILDE,
   convertirPrecio,
+  palabrasClave,
+  puntosCoincidencia,
+  raiz,
+  SIN_TILDE,
+  sinTildes,
+  terminosDeBusqueda,
   esIdPosicional,
   filaDeItem,
   indiceMenu,
@@ -299,26 +306,6 @@ test("el «desde» que puso el dueño sobre una cifra se conserva", () => {
   assert.equal(leido.tipoPrecio, "desde");
 });
 
-test("menuIndice: nombres normalizados, sin repetir y sin ocultos", () => {
-  const indice = indiceMenu([
-    item({ name: "Café con Leche" }),
-    item({ name: "café con leche" }),
-    item({ name: "Pizza Napolitana" }),
-    item({ name: "Secreto", oculto: true }),
-    item({ name: "  " }),
-  ]);
-  assert.equal(indice, "cafe con leche · pizza napolitana");
-});
-
-test("menuIndice respeta el tope y corta por producto entero", () => {
-  const items = Array.from({ length: 300 }, (_, i) => item({ name: `Producto número ${i}` }));
-  const indice = indiceMenu(items);
-  assert.ok(new TextEncoder().encode(indice).length <= TOPE_INDICE_BYTES);
-  assert.ok(indice.endsWith(indice.split(" · ").at(-1)!), "no corta a media palabra");
-  assert.match(indice.split(" · ").at(-1)!, /^producto numero \d+$/);
-  assert.equal(totalVisibles(items), 300, "el total cuenta todos, aunque el índice se corte");
-});
-
 test("lineasMenuIA: el mismo formato que tenía el home, sin ocultos, hasta 12", () => {
   const items = [
     item({ name: "Ropa Vieja", price: "12", currency: "MLC" }),
@@ -343,4 +330,67 @@ test("sincronizar un negocio no roba un id que ya es de otro negocio", () => {
   );
   assert.deepEqual(plan.negocios[0]!.filas.map((f) => f.id), ["n1", "propio"]);
   assert.deepEqual(plan.remapeoOfertas, [{ id: "of", de: "ajeno", a: "n1" }]);
+});
+
+/* ── Búsqueda por producto y menuIndice ──────────────────────────────── */
+
+test("palabrasClave: sin tildes, en minúscula, sin vacías ni repetidas", () => {
+  assert.deepEqual(palabrasClave("Café con Leche de la Casa y café"), ["cafe", "leche", "casa"]);
+  assert.deepEqual(palabrasClave("Pizza para el niño"), ["pizza", "nino"]);
+});
+
+test("la tabla de tildes de JS es la misma que usa el translate() de SQL", () => {
+  assert.equal(CON_TILDE.length, SIN_TILDE.length);
+  assert.equal(sinTildes("ÁÉÍÓÚÜÑ Çàè"), "aeiouun cae");
+});
+
+test("terminosDeBusqueda quita el plural y lo que no dice qué se busca", () => {
+  assert.equal(raiz("pizzas"), "pizza");
+  assert.equal(raiz("panes"), "pan");
+  assert.equal(raiz("jamones"), "jamon");
+  assert.equal(raiz("dulces"), "dulce");
+  assert.equal(raiz("mes"), "mes", "no deja menos de tres letras");
+  assert.equal(raiz("croquetas"), "croqueta");
+  assert.deepEqual(terminosDeBusqueda("¿Dónde hay pizzas con jamón?"), ["donde", "hay", "pizza", "jamon"]);
+  assert.deepEqual(terminosDeBusqueda("y de la"), []);
+});
+
+test("puntosCoincidencia: acentos y mayúsculas no importan", () => {
+  const terminos = terminosDeBusqueda("jamon");
+  assert.equal(puntosCoincidencia("Familiar de Jamón", terminos), 1);
+  assert.equal(puntosCoincidencia("FAMILIAR DE JAMON", terminos), 1);
+  assert.equal(puntosCoincidencia("Familiar de Queso", terminos), 0);
+});
+
+test("el producto buscado entra en las líneas aunque esté al fondo de la carta", () => {
+  const carta = Array.from({ length: 85 }, (_, i) => item({ id: `p${i}`, name: `Plato ${i}` }));
+  carta[80] = item({ id: "p80", name: "Croqueta de jamón", price: "50" });
+  const coincidentes = [carta[80]!];
+
+  const sin = lineasMenuIA(carta);
+  const con = lineasMenuIA([...coincidentes, ...carta.slice(0, 12)], 12, ["p80"]);
+
+  assert.ok(!sin.some((l) => l.startsWith("Croqueta")), "antes no llegaba al modelo");
+  assert.equal(con[0], "Croqueta de jamón: 50 CUP", "ahora va la primera");
+  assert.equal(con.length, 12);
+  assert.equal(new Set(con).size, 12, "sin repetir el que ya iba en los primeros");
+});
+
+test("menuIndice: palabras únicas, sin vacías, sin tildes y sin ocultos", () => {
+  const indice = indiceMenu([
+    item({ name: "Pizza Napolitana" }),
+    item({ name: "Pizza con Cebolla" }),
+    item({ name: "Café con Leche" }),
+    item({ name: "Secreto de la casa", oculto: true }),
+  ]);
+  assert.equal(indice, "pizza napolitana cebolla cafe leche");
+});
+
+test("menuIndice respeta el tope de 2 KB y corta por palabra entera", () => {
+  const items = Array.from({ length: 400 }, (_, i) => item({ name: `Producto ${i}x${i}` }));
+  const indice = indiceMenu(items);
+  assert.ok(new TextEncoder().encode(indice).length <= TOPE_INDICE_BYTES);
+  assert.equal(TOPE_INDICE_BYTES, 2048);
+  for (const palabra of indice.split(" ")) assert.match(palabra, /^(producto|[0-9]+x[0-9]+)$/);
+  assert.equal(totalVisibles(items), 400, "el total cuenta todos aunque el índice se corte");
 });

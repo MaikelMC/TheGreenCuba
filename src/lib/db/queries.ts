@@ -372,7 +372,7 @@ export interface ListPlacesOptions {
   includeDev?: boolean;
 }
 
-export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
+async function listarLugares(options: ListPlacesOptions = {}) {
   const filters = [];
   /* Una solicitud rechazada no es un negocio: es una fila que se conserva
      apagada para que su dueño pueda corregirla y reenviarla desde el perfil.
@@ -453,7 +453,16 @@ export const listPlaces = cached(async (options: ListPlacesOptions = {}) => {
   if (!dev) return catalog;
 
   return [dev, ...catalog].slice(0, limit);
-}, "places:list");
+}
+
+export const listPlaces = cached(listarLugares, "places:list");
+
+/**
+ * La misma lista **sin** la caché de datos de Next. La usa la lista del panel de
+ * administración (`/api/places?all=true`): lleva negocios sin publicar y las
+ * cartas completas, y no debe quedarse guardada en ningún sitio del servidor.
+ */
+export const listPlacesSinCache = listarLugares;
 
 /**
  * Una ficha concreta. Se cachea por el mismo motivo que la lista —el `sitemap`

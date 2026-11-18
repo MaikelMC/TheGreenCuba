@@ -3,7 +3,8 @@ import { recommendPlaces, type CatalogPlace } from "@/lib/ai";
 import { getAppUser } from "@/lib/auth/user";
 import { trackEvent } from "@/lib/analytics/events";
 import { rateLimit } from "@/lib/rate-limit";
-import { lineasIAPorNegocio } from "@/lib/productos-server";
+import { buscarProductos, lineasIAPorNegocio } from "@/lib/productos-server";
+import type { UserPlaceMenuItem } from "@/lib/places-store";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -225,7 +226,14 @@ export async function POST(req: NextRequest) {
        ignoran —no debe poder colar texto en el prompt—. Si la lectura falla,
        la búsqueda sigue sin cartas, que es como funcionaba antes de tenerlas. */
     const sinCarta = sanitizePlaces(body.places);
-    const lineas = await lineasIAPorNegocio(sinCarta.map((p) => p.id)).catch(
+    const idsCatalogo = sinCarta.map((p) => p.id);
+    /* Los productos que coinciden con la consulta, buscados en la tabla
+       —todos los visibles, no el índice ligero—. Deciden qué negocios van
+       delante y qué líneas de carta ve el modelo. */
+    const coincidencias = await buscarProductos(query, idsCatalogo).catch(
+      () => new Map<string, UserPlaceMenuItem[]>(),
+    );
+    const lineas = await lineasIAPorNegocio(idsCatalogo, coincidencias).catch(
       () => new Map<string, string[]>(),
     );
     const places = sinCarta.map((p) => ({
@@ -248,7 +256,11 @@ export async function POST(req: NextRequest) {
         ? cleanString(body.userProvince).trim()
         : null;
 
-    const candidates = catalogForQuery(query, places);
+    /* Los que tienen el producto pedido van primero: el modelo lee el
+       catálogo en orden y así no se le pierde la pizzería entre ochenta. */
+    const candidates = catalogForQuery(query, places).sort(
+      (a, b) => Number(coincidencias.has(b.id)) - Number(coincidencias.has(a.id)),
+    );
     if (candidates.length === 0) {
       trackEvent({
         type: "search_no_results",

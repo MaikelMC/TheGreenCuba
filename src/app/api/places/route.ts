@@ -11,6 +11,7 @@ import {
   getPlaceById,
   invalidarCatalogo,
   listPlaces,
+  listPlacesSinCache,
   resolveCategoryId,
 } from "@/lib/db/queries";
 import { canViewDevPlace } from "@/lib/dev-place";
@@ -34,6 +35,15 @@ import { reflejarMenu } from "@/lib/productos-server";
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+
+  /* `?all=true` es la lista del panel de administración: trae los negocios
+     sin publicar y las cartas enteras. Solo para administradores —antes la
+     podía pedir cualquiera—, sin caché de datos en el servidor y con
+     `private, no-store`, que ni el CDN ni el service worker guardan. */
+  const todo = searchParams.get("all") === "true";
+  if (todo && !(await isAdminRequest(req))) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
 
   /* Quién pregunta, pero **solo para el negocio de prueba**: el catálogo se
      sirve igual a todo el mundo y esto no es una puerta.
@@ -61,7 +71,7 @@ export async function GET(req: NextRequest) {
   const cacheable =
     searchParams.get("all") !== "true" && !canViewDevPlace(email);
 
-  const items = await listPlaces({
+  const items = await (todo ? listPlacesSinCache : listPlaces)({
     city: searchParams.get("city"),
     categorySlug: searchParams.get("category"),
     /* **Solo lo publicado, por defecto.** Antes era al revés —sin `?active=true`
@@ -142,8 +152,7 @@ export async function GET(req: NextRequest) {
      la carta en el servidor y la ficha llega completa. La lista del panel de
      administración (`?all=true`, sin caché) **sí** lleva la carta: su
      formulario la edita entera y sin ella la guardaría vacía. */
-  const conCarta = searchParams.get("all") === "true";
-  const lista = conCarta
+  const lista = todo
     ? items
     : items.map((place) => ({
         ...place,
