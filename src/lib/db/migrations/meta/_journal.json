@@ -414,6 +414,13 @@
       "when": 1794211671262,
       "tag": "0058_bored_grandmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1795002793411,
+      "tag": "0059_productos",
+      "breakpoints": true
     }
   ]
 }

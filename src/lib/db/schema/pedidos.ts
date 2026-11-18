@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, jsonb, index, uniqueIndex, doublePrecision, boolean } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { places } from "./places";
 import type { LineaPedido } from "../../pedido";
 
@@ -57,6 +57,11 @@ export const pedidos = pgTable(
     revisarHora: boolean("revisar_hora").default(false).notNull(),
     /** Motivo de revisión: "franja_llena" | "fuera_de_horario" | "sin_antelacion" | "fuera_de_dias" | "sin_funcion". */
     revisarMotivo: text("revisar_motivo"),
+    /** Todos los motivos para revisar el pedido: «no_existe», «oculto»,
+     *  «agotado», «precio_cambio», «sin_precio» y los de la hora. Las escrituras
+     *  nuevas solo usan este array; `revisarHora`/`revisarMotivo` quedan por los
+     *  pedidos viejos, y el panel enseña la unión de los dos. */
+    revisarMotivos: text("revisar_motivos").array().notNull().default(sql`'{}'::text[]`),
     /** Cuándo se envió el aviso por Telegram. `null` = pendiente. */
     avisadoEn: timestamp("avisado_en", { withTimezone: true }),
     estado: text("estado", { enum: ["nuevo", "completado", "cancelado"] })
