@@ -3,12 +3,12 @@ import { isAdminRequest } from "@/lib/admin-server";
 import { enviarRecordatoriosDePago } from "@/lib/recordatorios-pago-server";
 
 /**
- * El recordatorio mensual de pago (`vercel.json`, una vez al día).
+ * El recordatorio mensual de pago (crontab del VPS, una vez al día).
  *
  * Es idempotente por construcción: la tabla `recordatorios_pago` guarda qué
  * aviso salió por negocio y fecha, así que lanzarlo dos veces el mismo día —o a
  * mano desde el panel— no duplica correos. Se puede llamar con
- * `Authorization: Bearer $CRON_SECRET` (lo pone Vercel) o con `x-admin-key` /
+ * `Authorization: Bearer $CRON_SECRET` (lo pone el crontab del VPS) o con `x-admin-key` /
  * sesión de administrador para probarlo desde fuera.
  *
  * La respuesta lleva el recuento y no los destinatarios: sirve para saber si el

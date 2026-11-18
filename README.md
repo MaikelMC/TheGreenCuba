@@ -148,6 +148,49 @@ npm run db:studio    # Drizzle Studio UI
 npm run db:seed      # Sembrar datos de prueba
 ```
 
+## Tareas programadas (crons)
+
+Los crons viven en el **crontab del VPS**, no en `vercel.json`: el sitio ya no
+se sirve desde Vercel y los crons de ese archivo no corren en ningún sitio.
+`vercel.json` solo conserva `git.deploymentEnabled: false`.
+
+Cada endpoint exige `Authorization: Bearer $CRON_SECRET` (o `x-admin-key` /
+sesión de administrador para lanzarlo a mano). El secreto **nunca** va en la
+URL: el crontab lo lee de un archivo de cabecera con permisos `600`.
+
+| Endpoint | Método | Frecuencia (UTC) | Qué hace |
+|---|---|---|---|
+| `/api/cron/recordatorios-pedidos` | `POST` | cada minuto | Avisa por Telegram de los pedidos programados |
+| `/api/cron/analytics` | `GET` | diario, 03:00 | Recalcula los agregados de 3 días y limpia eventos viejos |
+| `/api/cron/recordatorios` | `GET` | diario, 14:00 | Recordatorios de pago de suscripciones y packs a medida |
+| `/api/cron/ranking` | `GET` | día 1 de cada mes, 04:15 | Cierra el «Top del mes» del mes anterior |
+
+Todos son idempotentes: relanzarlos no duplica avisos ni datos.
+
+Preparación en el VPS (una vez):
+
+```bash
+sudo install -d -m 700 /etc/laverde
+# Una sola línea, con el mismo valor que CRON_SECRET en el .env del VPS:
+#   Authorization: Bearer <CRON_SECRET>
+sudoedit /etc/laverde/cron.header
+sudo chmod 600 /etc/laverde/cron.header
+sudo chown "$USER" /etc/laverde/cron.header
+```
+
+Crontab (`crontab -e` con el usuario dueño del archivo de cabecera). Las horas
+asumen el VPS en UTC; compruébalo con `timedatectl`:
+
+```cron
+LV=https://laverde.kynari.dev
+H=/etc/laverde/cron.header
+
+* * * * *  curl -fsS -m 55  -X POST -H @"$H" "$LV/api/cron/recordatorios-pedidos" -o /dev/null 2>>/var/log/laverde-cron.log
+0 3 * * *  curl -fsS -m 120 -H @"$H" "$LV/api/cron/analytics"     >>/var/log/laverde-cron.log 2>&1
+0 14 * * * curl -fsS -m 120 -H @"$H" "$LV/api/cron/recordatorios" >>/var/log/laverde-cron.log 2>&1
+15 4 1 * * curl -fsS -m 120 -H @"$H" "$LV/api/cron/ranking"       >>/var/log/laverde-cron.log 2>&1
+```
+
 ## Convenciones
 
 - **Rutas:** Next.js App Router con route groups `(auth)`, `(main)`

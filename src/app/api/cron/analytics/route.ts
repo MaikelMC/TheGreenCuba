@@ -18,8 +18,8 @@ import { isAdminRequest } from "@/lib/admin-server";
  *
  * Dos formas de autorizarlo:
  *
- * - **Vercel Cron**, con `Authorization: Bearer $CRON_SECRET` (Vercel lo pone
- *   solo si la variable está configurada).
+ * - **El crontab del VPS**, con `Authorization: Bearer $CRON_SECRET` (ver la
+ *   sección «Tareas programadas» del README).
  * - **`x-admin-key` o sesión admin**, para lanzarlo a mano desde la UI o `curl`.
  *
  * Sin `CRON_SECRET` configurado y sin ser admin, responde 401: un agregador
