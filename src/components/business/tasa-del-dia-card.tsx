@@ -4,7 +4,7 @@ import { useState } from "react";
 import { DollarSign, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { aplicarTasa, formatCup, REDONDEOS_PERMITIDOS, type ConfigTasa } from "@/lib/precios";
+import { aplicarTasa, formatCup, type ConfigTasa } from "@/lib/precios";
 import { FormSection } from "@/components/business/form-section";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -117,13 +117,12 @@ export function TasaDelDiaCard({
   const extrasMal = eurMal || mlcMal || pctMal;
 
   const [tasa, setTasa] = useState(tasaInicial ? String(tasaInicial) : "");
-  const [redondeo, setRedondeo] = useState(redondeoInicial);
   const [actualizadaEn, setActualizadaEn] = useState(actualizadaEnInicial);
   const [guardando, setGuardando] = useState(false);
 
   const tasaNum = parseFloat(tasa.replace(",", "."));
   const tasaValida = Number.isFinite(tasaNum) && tasaNum > 0;
-  const previewCup = tasaValida ? aplicarTasa(10, tasaNum, redondeo) : null;
+  const previewCup = tasaValida ? aplicarTasa(10, tasaNum, redondeoInicial) : null;
   const vieja = tasaVieja(actualizadaEn);
   const etiqueta = etiquetaActualizacion(actualizadaEn);
 
@@ -138,7 +137,8 @@ export function TasaDelDiaCard({
            no se toca. */
         body: JSON.stringify({
           tasa: tasaNum,
-          redondeo,
+          /* Sin redondeo: el selector se quitó del panel. El servidor conserva el
+             que el negocio tenía guardado. */
           ...(conEur && { tasaEur: eurNum }),
           ...(conMlc && { tasaMlc: mlcNum }),
           ...(conTransfer && { transferenciaPct: pctNum }),
@@ -250,30 +250,6 @@ export function TasaDelDiaCard({
               invalido={pctMal}
             />
           )}
-
-          {/* Redondeo */}
-          <div className="space-y-gap-xs">
-            <Label className="text-small font-medium text-muted-foreground">
-              Redondear el precio en CUP a
-            </Label>
-            <div className="flex flex-wrap gap-gap-xs">
-              {REDONDEOS_PERMITIDOS.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRedondeo(r)}
-                  className={cn(
-                    "rounded-lv border px-gap-sm py-gap-2xs text-small font-medium tabular-nums transition-colors",
-                    redondeo === r
-                      ? "border-verde-500/60 bg-verde-500/10 text-muted-foreground dark:border-verde-400/50 dark:bg-verde-400/10"
-                      : "border-verde-300/30 bg-transparent text-muted-foreground hover:border-verde-400/60 dark:border-verde-700/40 dark:hover:border-verde-500/60",
-                  )}
-                >
-                  {r === 1 ? "Sin redondear" : `× ${r}`}
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Botón guardar */}
           <button
