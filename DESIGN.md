@@ -249,6 +249,13 @@ Props: `icon` (Lucide), `title`, `description`, `actions`.
 - `<Skeleton>`: `animate-pulse rounded-2xl bg-sand-deep`. Forma libre con `className`.
 - `<LoadingState>`: spinner + label centrado. `label={null}` deja solo el spinner.
 
+### CargandoNavegacion
+**Archivo**: `src/components/layout/cargando-navegacion.tsx`
+Aviso global entre páginas, montado una sola vez en `src/app/layout.tsx`.
+Logo (`<Logo>`) dentro de un círculo `bg-white shadow-card` con `<Spinner>`
+alrededor, sobre `bg-ink/10`. Aparece a los 250 ms de tocar un enlace interno
+y se va cuando cambia la URL. No montarlo en otras pantallas.
+
 ### PlaceCard
 **Archivo**: `src/components/layout/place-card.tsx`
 Tarjeta de lista canónica. Layout: logo 64×64 (`rounded-lv-lg`) + columna info.

@@ -10,6 +10,8 @@ import { PushPrimer } from "@/components/pwa/push-primer";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { EstadoConexion } from "@/components/layout/estado-conexion";
 import { NavOffline } from "@/components/layout/nav-offline";
+import { CargandoNavegacion } from "@/components/layout/cargando-navegacion";
+import { Suspense } from "react";
 import { Toaster } from "sonner";
 /* Sin el CSS de `@neondatabase/auth-ui`: no hay ningún componente de ese
    paquete montado. Las pantallas de acceso usan las clases propias de
@@ -312,6 +314,11 @@ export default function RootLayout({
               todas las rutas, incluida /m/[slug]. */}
           <EstadoConexion />
           <NavOffline />
+          {/* `useSearchParams` sin Suspense haría que todo el árbol se
+              renderizase en cliente en las páginas estáticas. */}
+          <Suspense fallback={null}>
+            <CargandoNavegacion />
+          </Suspense>
           {/* Avisos flotantes. La pastilla va en `ink` con texto blanco, como
               la del panel de negocio: es el mismo aviso y tiene que leerse
               igual. Los tokens `--foreground` / `--background` eran el
