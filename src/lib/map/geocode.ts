@@ -4,6 +4,8 @@
 // Ambas permiten CORS desde el navegador. Son best-effort: si fallan o están
 // offline, el flujo actual (pin manual) sigue funcionando sin geocoder.
 
+import { CUBA_AREAS } from "@/lib/map/cuba-areas";
+
 export interface GeocodeSuggestion {
   lat: number;
   lng: number;
@@ -43,11 +45,10 @@ const NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse";
 const CUBA_TAIL =
   /\s*(?:santiago de cuba|la habana|varadero|cienfuegos|trinidad|santa clara|cuba)\s*$/i;
 
-const CUBA_QUERY_TAIL = /\bcuba\s*$/i;
-
 /** Extrae "A y B" de texto con formato cubano "e/ A y B" o "entre A y B". */
 export function extractBetween(text: string): string | null {
-  const idx = text.search(/\be\/\b|entre/i);
+  // Sin `\b` tras la barra: «e/ San Pedro» lleva espacio y no casaba.
+  const idx = text.search(/\be\/|\bentre\b/i);
   if (idx < 0) return null;
   const rest = text
     .slice(idx)
@@ -115,23 +116,132 @@ function streetLabel(feature: PhotonFeature): string {
   return p.housenumber ? `${name} ${p.housenumber}` : name;
 }
 
+/** Cuba entera: oeste, sur, este, norte. Corta resultados de otros países. */
+const CUBA_BBOX = "-85.2,19.6,-73.9,23.4";
+
+/** Dónde está el usuario, para que gane su ciudad y no la de otra provincia. */
+export interface SearchNear {
+  lat: number;
+  lng: number;
+  /** «Santiago de Cuba». Se añade a la consulta si el texto no nombra ya otra. */
+  city?: string;
+}
+
+const sinTildes = (s: string) =>
+  s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/** Palabras con las que el usuario busca la calle, sin «calle». */
+function palabrasClave(calle: string): string[] {
+  return sinTildes(calle)
+    .split(/[^a-z0-9ñ]+/)
+    .filter((w) => w.length >= 2 && w !== "calle" && w !== "ave" && w !== "avenida");
+}
+
+/** Ciudades y provincias, la más larga primero: «Santiago de Cuba» antes que «Cuba». */
+const LUGARES = [
+  ...new Set(CUBA_AREAS.flatMap((a) => [a.name, a.province]).concat("Cuba")),
+]
+  .map((nombre) => ({
+    nombre,
+    clave: sinTildes(nombre),
+    area:
+      CUBA_AREAS.find((a) => a.name === nombre) ??
+      CUBA_AREAS.find((a) => a.province === nombre),
+  }))
+  .sort((a, b) => b.clave.length - a.clave.length);
+
+/**
+ * Separa «Maceo, Holguín» en calle y lugar. Si quitar el lugar deja la
+ * búsqueda vacía («Calle Trinidad»), el lugar es el nombre de la calle y no se
+ * quita.
+ */
+function separarLugar(q: string): { resto: string; lugar?: (typeof LUGARES)[number] } {
+  const limpio = q.replace(/[,.;\s]+$/, "");
+  const norm = sinTildes(limpio);
+  for (const lugar of LUGARES) {
+    if (!norm.endsWith(lugar.clave)) continue;
+    const antes = norm.charAt(norm.length - lugar.clave.length - 1);
+    if (antes && !/[\s,]/.test(antes)) continue;
+    const resto = limpio
+      .slice(0, limpio.length - lugar.clave.length)
+      .replace(/[,\s]+$/, "");
+    const sinCuba = separarLugar(resto); // «Maceo, Holguín, Cuba»
+    const base = lugar.nombre === "Cuba" && sinCuba.lugar ? sinCuba : { resto, lugar };
+    if (palabrasClave(base.resto.split(/\be\/|\bentre\b/i)[0] ?? "").length === 0) {
+      return { resto: q };
+    }
+    return base;
+  }
+  return { resto: q };
+}
+
+async function photon(
+  q: string,
+  near: SearchNear | undefined,
+  signal?: AbortSignal,
+): Promise<PhotonFeature[]> {
+  /* Sin sesgo fuerte Photon prima la coincidencia exacta en cualquier
+     provincia: «Aguilera» daba la de Holguín estando en Santiago. `zoom` y
+     `location_bias_scale` bajos hacen que pese la cercanía. */
+  const bias = near
+    ? `&lat=${near.lat}&lon=${near.lng}&zoom=12&location_bias_scale=0.1`
+    : "";
+  const url = `${PHOTON_URL}?q=${encodeURIComponent(q)}&limit=15&bbox=${CUBA_BBOX}${bias}`;
+  const data = (await fetchJson(url, 9000, signal)) as {
+    features?: PhotonFeature[];
+  } | null;
+  return data?.features ?? [];
+}
+
 /** Búsqueda de direcciones con Photon. Devuelve calles de OSM ordenadas. */
 export async function searchAddress(
   query: string,
   signal?: AbortSignal,
+  near?: SearchNear,
 ): Promise<GeocodeSuggestion[]> {
   const q = query.trim();
   if (q.length < 3) return [];
-  // Ámbito nacional: no fijar Santiago por defecto, porque eso hacía que
-  // «hoteles en Varadero» devolviera resultados de Santiago de Cuba.
-  const qSearch = CUBA_QUERY_TAIL.test(q) ? q : `${q}, Cuba`;
-  const between = extractBetween(q);
-  const url = `${PHOTON_URL}?q=${encodeURIComponent(qSearch)}&limit=6`;
-  const data = (await fetchJson(url, 9000, signal)) as {
-    features?: PhotonFeature[];
-  } | null;
-  if (!data?.features) return [];
-  return data.features
+  const { resto, lugar } = separarLugar(q);
+  const between = extractBetween(resto);
+  // A Photon solo le llega la calle: con «e/ A y B» detrás no encuentra nada.
+  const corte = resto.search(/\be\/|\bentre\b/i);
+  const calleQ = (corte > 0 ? resto.slice(0, corte) : resto)
+    .replace(/[,\s]+$/, "")
+    /* OSM en Cuba casi nunca pone «Calle» en el nombre, y con él delante
+       Photon no encontraba «Calle Trinidad» en Santiago. Se respeta en las
+       numeradas y de una letra («Calle 23», «Calle K»), donde sí forma parte. */
+    .replace(/^calle\s+(?=\p{L}{2,})/iu, "");
+  const palabras = palabrasClave(calleQ);
+
+  /* «Maceo, Holguín» desde Santiago: manda la ciudad escrita, no la del
+     usuario. «Cuba» a secas no es una ciudad y deja el sesgo como estaba. */
+  const ciudad =
+    lugar?.area && lugar.nombre !== "Cuba"
+      ? { lat: lugar.area.lat, lng: lugar.area.lng, city: lugar.nombre }
+      : near;
+
+  /* En Santiago la calle es «Francisco Vicente Aguilera (Marina)»: buscando
+     «Aguilera» a secas ni sale entre los 15 primeros. Con la ciudad en la
+     consulta sí. Si así no queda ninguna calle que contenga lo escrito, se
+     repite sin ella (el usuario busca en otra ciudad). */
+  let features = ciudad?.city
+    ? await photon(`${calleQ} ${ciudad.city}`, ciudad, signal)
+    : [];
+  let sugerencias = aSugerencias(features, between, palabras);
+  if (sugerencias.length === 0) {
+    features = await photon(calleQ, ciudad, signal);
+    sugerencias = aSugerencias(features, between, palabras);
+  }
+  return sugerencias.slice(0, 6);
+}
+
+function aSugerencias(
+  features: PhotonFeature[],
+  between: string | null,
+  palabras: string[],
+): GeocodeSuggestion[] {
+  const vistas = new Set<string>();
+  return features
     .filter((f) => {
       const p = f.properties;
       const t = p.type;
@@ -141,7 +251,11 @@ export async function searchAddress(
         p.osm_key === "building" ||
         t === "house" ||
         (Boolean(p.housenumber) && Boolean(p.street));
-      return isRoad && Number.isFinite(f.geometry.coordinates[0]);
+      return (
+        isRoad &&
+        (!p.country || p.country.toLowerCase() === "cuba") &&
+        Number.isFinite(f.geometry.coordinates[0])
+      );
     })
     .map((f) => {
       const p = f.properties;
@@ -160,8 +274,25 @@ export async function searchAddress(
         label,
       };
     })
-    .filter((s) => s.street.length > 0)
-    .slice(0, 6);
+    // La calle entera antes que un portal suyo con número.
+    .sort((a, b) => Number(Boolean(a.housenumber)) - Number(Boolean(b.housenumber)))
+    .filter((s) => {
+      if (!s.street) return false;
+      // La calle tiene que contener lo escrito; «Hostal Heredia» en la calle
+      // Saco no es la calle Heredia.
+      const calle = sinTildes(s.street);
+      if (!palabras.every((w) => calle.includes(w))) return false;
+      // OSM parte cada calle en tramos y portales con número: uno por calle
+      // y ciudad.
+      const base = s.housenumber
+        ? calle.slice(0, -s.housenumber.length).trim()
+        : calle;
+      const ciudad = sinTildes(s.city ?? "").replace(/^ciudad de /, "");
+      const clave = `${base}|${ciudad}`;
+      if (vistas.has(clave)) return false;
+      vistas.add(clave);
+      return true;
+    });
 }
 
 /** Busca ciudades, municipios y pueblos de Cuba para el salto rápido del mapa. */

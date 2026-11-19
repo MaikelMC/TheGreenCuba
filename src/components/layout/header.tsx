@@ -260,7 +260,15 @@ export function Header({
       const controller = new AbortController();
       addrAbort.current = controller;
       try {
-        const results = await searchAddress(raw, controller.signal);
+        const { origin, preferences } = suggestionOrigin(userId);
+        const results = await searchAddress(raw, controller.signal, {
+          ...origin,
+          // «Otra ciudad» no es un nombre que Photon entienda.
+          city:
+            preferences.location === "otra"
+              ? undefined
+              : preferences.locationName,
+        });
         if (seq !== addrSeq.current) return;
         setAddrResults(results);
         setShowAllAddr(false);

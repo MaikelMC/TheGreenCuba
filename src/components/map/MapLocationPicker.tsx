@@ -165,7 +165,11 @@ export function MapLocationPicker({
       searchTimer.current = setTimeout(async () => {
         const seq = ++reverseSeq.current;
         try {
-          const results = await searchAddress(raw);
+          const results = await searchAddress(
+            raw,
+            undefined,
+            value ? { lat: value.lat, lng: value.lng } : undefined,
+          );
           if (seq !== reverseSeq.current) return;
           setSuggestions(results);
           setSearchingAddr(false);
@@ -176,7 +180,7 @@ export function MapLocationPicker({
         }
       }, 350);
     },
-    [],
+    [value],
   );
 
   const filteredAreas = useMemo(() => {
