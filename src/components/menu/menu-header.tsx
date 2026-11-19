@@ -179,7 +179,15 @@ export function MenuHeader({
           quedaba bajo la hora del iPhone. */}
       <header
         ref={headerRef}
-        className="safe-top sticky top-0 z-50 -mx-gutter border-b border-ink/5 bg-white/90 px-gutter py-gap-xs shadow-soft backdrop-blur-md"
+        className={cn(
+          "safe-top sticky top-0 z-50 -mx-gutter border-b px-gutter py-gap-xs transition-[background-color,border-color,box-shadow] duration-500 ease-outquint",
+          /* Arriba es parte de la carta: transparente, sin borde ni sombra,
+             para que se vea su mismo fondo. Pegada, la superficie la separa
+             del contenido que pasa por debajo. */
+          pegado
+            ? "border-ink/5 bg-white/90 shadow-soft backdrop-blur-md"
+            : "border-transparent bg-transparent",
+        )}
       >
         {/* Solo con la barra pegada: el negocio y las acciones. Arriba no
             hacen falta —la ficha completa está justo encima— y robaban sitio
