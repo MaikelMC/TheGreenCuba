@@ -5,6 +5,7 @@ import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { ofertas, pedidos, places } from "@/lib/db/schema";
 import { revisarPedido } from "@/lib/pedido-servidor";
+import { whatsappDePedido } from "@/lib/contact-links";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
 import { rateLimit } from "@/lib/rate-limit";
 import { tieneFuncion } from "@/lib/plans-server";
@@ -156,6 +157,7 @@ export async function POST(req: NextRequest) {
     .select({
       pedidosWhatsapp: places.pedidosWhatsapp,
       whatsapp: places.whatsapp,
+      phone: places.phone,
       entrega: places.entrega,
       fidelidad: places.fidelidad,
       horario: places.horario,
@@ -174,7 +176,11 @@ export async function POST(req: NextRequest) {
   if (
     !place ||
     !place.pedidosWhatsapp ||
-    !place.whatsapp?.trim() ||
+    /* El número con el mismo criterio que el carrito (`whatsappDePedido`): sin
+       WhatsApp aparte vale el teléfono. Antes se exigía `whatsapp` a secas, y
+       un negocio que solo tenía teléfono —PQTT? Pizzería— recibía el pedido
+       por WhatsApp pero el 409 lo dejaba fuera del panel. */
+    whatsappDePedido(place.whatsapp, place.phone) === null ||
     !(await tieneFuncion(negocioId, "whatsapp_pedido"))
   ) {
     return NextResponse.json(
