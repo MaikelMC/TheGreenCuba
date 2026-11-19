@@ -4,6 +4,7 @@ import {
   aGuardar,
   CAMPOS_PANEL,
   conIds,
+  diferenciasCatalogo,
   fusionarMenu,
   huella,
 } from "./catalogo";
@@ -217,4 +218,63 @@ test("la fusión encuentra los productos viejos sin id por su índice", () => {
 test("un producto nuevo pasa tal cual", () => {
   const nuevo = aGuardar([completo({ id: "new-1" })]);
   assert.deepEqual(fusionarMenu(nuevo, [completo({ stock: 9 })]), nuevo);
+});
+
+/* ── Fase C: guardado por diferencias ─────────────────────────────────── */
+
+function guardadoCon(...items: UserPlaceMenuItem[]) {
+  return items.map((item, i) => ({ ...item, version: i + 3 }));
+}
+
+test("diferencias: solo viaja lo que el panel cambió, con su versión", () => {
+  const guardado = guardadoCon(completo({ id: "a" }), completo({ id: "b", name: "Té" }));
+  const actual = aGuardar([
+    { ...guardado[0]!, price: "400" },
+    guardado[1]!,
+  ]);
+
+  const ops = diferenciasCatalogo(guardado, actual);
+
+  assert.deepEqual(ops.actualizar, [{ id: "a", version: 3, cambios: { price: "400" } }]);
+  assert.deepEqual(ops.crear, []);
+  assert.deepEqual(ops.borrar, []);
+  assert.equal(ops.orden, undefined, "sin mover nada no se manda el orden");
+});
+
+test("diferencias: altas, bajas y orden", () => {
+  const guardado = guardadoCon(completo({ id: "a" }), completo({ id: "b" }));
+  const actual = aGuardar([completo({ id: "new-1", name: "Nuevo" }), guardado[0]!]);
+
+  const ops = diferenciasCatalogo(guardado, actual);
+
+  assert.deepEqual(ops.crear.map((c) => c.idTemporal), ["new-1"]);
+  assert.deepEqual(ops.borrar, ["b"]);
+  assert.deepEqual(ops.orden, ["new-1", "a"]);
+});
+
+test("diferencias: un campo vaciado viaja como null para que se borre", () => {
+  const guardado = guardadoCon(completo({ id: "a" }));
+  const actual = aGuardar([{ ...guardado[0]!, image: "" }]);
+  assert.deepEqual(diferenciasCatalogo(guardado, actual).actualizar[0]!.cambios, { image: null });
+});
+
+test("diferencias: el agotado puesto por Telegram no viaja si el panel no lo tocó", () => {
+  /* El panel leyó el producto disponible; mientras tanto Telegram lo agotó. El
+     panel solo cambió el precio: su guardado no puede devolverlo a disponible. */
+  const guardado = guardadoCon(completo({ id: "a", disponibilidad: "disponible", agotadoHasta: null }));
+  const actual = aGuardar([{ ...guardado[0]!, price: "999" }]);
+  const cambios = diferenciasCatalogo(guardado, actual).actualizar[0]!.cambios;
+  assert.deepEqual(Object.keys(cambios), ["price"]);
+});
+
+test("diferencias sin versión (admin, Telegram): el cambio no lleva versión", () => {
+  const guardado = guardadoCon(completo({ id: "a" }));
+  const actual = aGuardar([{ ...guardado[0]!, name: "Otro" }]);
+  assert.equal(diferenciasCatalogo(guardado, actual, false).actualizar[0]!.version, undefined);
+});
+
+test("diferencias: ocultar un producto es un cambio", () => {
+  const guardado = guardadoCon(completo({ id: "a" }));
+  const actual = aGuardar([{ ...guardado[0]!, oculto: true }]);
+  assert.deepEqual(diferenciasCatalogo(guardado, actual).actualizar[0]!.cambios, { oculto: true });
 });

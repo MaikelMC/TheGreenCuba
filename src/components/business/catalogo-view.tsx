@@ -34,7 +34,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { aGuardar, conIds, huella } from "@/lib/catalogo";
+import { aGuardar, conIds, diferenciasCatalogo, huella } from "@/lib/catalogo";
+import { convertirPrecio } from "@/lib/productos";
+import { DEV_PLACE_ID } from "@/lib/dev-place-id";
 import { AvailabilityControl } from "@/components/business/menu-item-editor";
 import { ImportarCatalogo } from "@/components/admin/importar-catalogo";
 import { usePlaces } from "@/providers/places-provider";
@@ -163,6 +165,12 @@ export function CatalogoView({
   const [busyEstado, setBusyEstado] = useState<string | null>(null);
   const [errorEstado, setErrorEstado] = useState<string | null>(null);
   const [puedeReintentarGuardado, setPuedeReintentarGuardado] = useState(false);
+  /* Los productos que otro cambió mientras el panel estaba abierto (Telegram,
+     otro trabajador). El guardado no los pisa: se marcan y se ofrece cargar
+     la versión que hay en la base. `null` = el producto ya no existe. */
+  const [conflictos, setConflictos] = useState<Map<string, UserPlaceMenuItem | null>>(
+    () => new Map(),
+  );
   /* La última acción de disponibilidad que falló, para reintentarla sin que el
      dueño tenga que volver a buscar el producto. */
   const reintentarEstado = useRef<(() => void) | null>(null);
@@ -483,9 +491,15 @@ export function CatalogoView({
         /* La API ya lo escribió: se vuelca también en `guardado`, o la carta
            queda marcada como «sin guardar» por un cambio que el servidor ya
            tiene —y eso, además de la barra, desactiva «Importar CSV»—. */
+        const respuesta = (await res.json().catch(() => null)) as {
+          version?: number;
+        } | null;
         const campos = {
           disponibilidad: estado,
           agotadoHasta: estado === "agotado" ? (hasta ?? null) : null,
+          /* La versión nueva que dio el servidor: sin ella, el siguiente
+             guardado de este producto chocaría con su propio cambio. */
+          ...(typeof respuesta?.version === "number" ? { version: respuesta.version } : {}),
         };
         patch(id, campos);
         guardado.current = guardado.current.map((item) =>
@@ -532,6 +546,25 @@ export function CatalogoView({
     }
   }, [place.id]);
 
+  /** Carga la versión de la base de un producto en conflicto y descarta la
+      edición local de ese producto (solo de ese). */
+  const recargarProducto = useCallback(
+    (id: string) => {
+      const actual = conflictos.get(id) ?? null;
+      setItems((prev) =>
+        actual
+          ? prev.map((item) => (item.id === id ? actual : item))
+          : prev.filter((item) => item.id !== id),
+      );
+      setConflictos((prev) => {
+        const siguiente = new Map(prev);
+        siguiente.delete(id);
+        return siguiente;
+      });
+    },
+    [conflictos],
+  );
+
   /** Vuelve la lista a la última versión guardada, sin salir de la sección. */
   const descartarCambios = useCallback(() => {
     if (
@@ -567,22 +600,75 @@ export function CatalogoView({
        se ve cuál de estos campos se queda fuera hasta que ya no está. */
     const limpio = aGuardar(items);
 
-    const saved = await updatePlace(place.id, { menu: limpio });
-    setSaving(false);
+    /* El negocio de prueba no tiene filas en `productos`: su carta es una copia
+       personal y se sigue guardando entera con el PATCH de la ficha. */
+    if (place.id === DEV_PLACE_ID) {
+      const saved = await updatePlace(place.id, { menu: limpio });
+      setSaving(false);
+      if (!saved) {
+        setError("No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada.");
+        setPuedeReintentarGuardado(true);
+        return;
+      }
+      pruneMenuImages(place.id, guardado.current, limpio);
+      guardado.current = limpio;
+      setItems(limpio);
+    } else {
+      /* Fase C: solo viaja lo que cambió desde la última lectura, producto a
+         producto y con la versión de cada uno. Lo que el panel no tocó no se
+         reescribe, y lo que otro cambió mientras tanto vuelve como conflicto. */
+      const ops = diferenciasCatalogo(guardado.current, limpio);
+      let respuesta: {
+        productos: UserPlaceMenuItem[];
+        conflictos: { id: string; actual: UserPlaceMenuItem | null }[];
+      };
+      try {
+        const res = await fetch(`/api/places/${place.id}/productos`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(ops),
+        });
+        const data = (await res.json().catch(() => null)) as
+          | (typeof respuesta & { error?: string })
+          | null;
+        if (!res.ok || !data) throw new Error(data?.error ?? "No se pudo guardar.");
+        respuesta = data;
+      } catch (e) {
+        setSaving(false);
+        setError(mensajeDeRed(e, "No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada."));
+        setPuedeReintentarGuardado(true);
+        return;
+      }
+      setSaving(false);
 
-    if (!saved) {
-      setError(
-        "No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada.",
+      const servidor = conIds(respuesta.productos);
+      const enConflicto = new Map(respuesta.conflictos.map((c) => [c.id, c.actual]));
+      pruneMenuImages(place.id, guardado.current, servidor);
+      guardado.current = servidor;
+      /* Lo que entró queda como lo devuelve el servidor —con su versión y sus
+         ids definitivos—; lo que chocó conserva lo que escribió el dueño, que
+         sigue contando como «sin guardar» hasta que decida. */
+      const locales = new Map(limpio.map((item) => [item.id, item]));
+      setItems(
+        servidor.map((item) =>
+          enConflicto.has(item.id ?? "")
+            ? { ...(locales.get(item.id) ?? item), version: item.version }
+            : item,
+        ),
       );
-      setPuedeReintentarGuardado(true);
-      return;
+      setConflictos(enConflicto);
+      if (enConflicto.size > 0) {
+        setNuevoId(null);
+        toast.warning(
+          enConflicto.size === 1
+            ? "Un producto cambió desde el móvil mientras editabas. Revísalo antes de volver a guardar."
+            : `${enConflicto.size} productos cambiaron desde el móvil mientras editabas. Revísalos antes de volver a guardar.`,
+        );
+        router.refresh();
+        return;
+      }
     }
 
-    /* Ya escrito en la base: las fotos que este guardado dejó fuera se retiran
-       del bucket. Antes no, por lo que explica `pruneMenuImages`. */
-    pruneMenuImages(place.id, guardado.current, limpio);
-    guardado.current = limpio;
-    setItems(limpio);
     setNuevoId(null);
     /* Guardado es que ya no hay nada que recuperar. */
     setBorrador(null);
@@ -938,6 +1024,8 @@ export function CatalogoView({
                       onElegirFoto={elegirFoto}
                       onSetEstado={setEstado}
                       configTasa={configTasa}
+                      conflicto={conflictos.has(item.id ?? "")}
+                      onRecargar={recargarProducto}
                     />
                   ))}
                 </div>
@@ -1041,6 +1129,8 @@ function FilaProducto({
   categoriasUsadas,
   sinNombre,
   configTasa = null,
+  conflicto = false,
+  onRecargar,
   onPatch,
   onEliminar,
   onElegirFoto,
@@ -1059,6 +1149,9 @@ function FilaProducto({
   /** Sin nombre: se marca en rojo para que el aviso de guardar diga cuál es. */
   sinNombre: boolean;
   configTasa?: ConfigTasa | null;
+  /** Otro cambió este producto mientras el panel estaba abierto. */
+  conflicto?: boolean;
+  onRecargar?: (id: string) => void;
   onPatch: (id: string, campos: Partial<UserPlaceMenuItem>) => void;
   onEliminar: (id: string) => void;
   onElegirFoto: (id: string) => void;
@@ -1097,7 +1190,25 @@ function FilaProducto({
   };
 
   return (
-    <div className="group flex scroll-mt-[88px] items-start gap-gap-sm border-b border-ink/5 py-gap-sm last:border-b-0">
+    <div className="group flex flex-wrap scroll-mt-[88px] items-start gap-gap-sm border-b border-ink/5 py-gap-sm last:border-b-0">
+      {/* Otro lo cambió mientras el panel estaba abierto: el guardado no lo
+          pisó. El dueño decide si se queda con lo suyo (vuelve a guardar) o
+          carga lo que hay en la base. */}
+      {conflicto && (
+        <div
+          role="status"
+          className="flex basis-full flex-wrap items-center gap-gap-sm rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-3 py-[7px] text-meta font-medium text-ink"
+        >
+          <span className="min-w-0 flex-1">Este producto cambió desde el móvil.</span>
+          <button
+            type="button"
+            onClick={() => onRecargar?.(id)}
+            className="cursor-pointer font-lv-display font-semibold text-verde-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+          >
+            Recargar este producto
+          </button>
+        </div>
+      )}
       <div className="relative size-14 shrink-0 overflow-hidden rounded-2xl border border-ink/5 transition-colors duration-500 ease-outquint group-hover:border-verde-300 sm:size-16">
         <button
           type="button"
@@ -1260,6 +1371,22 @@ function FilaProducto({
               }
               return null;
             })()}
+            {/* Un precio que no es una cifra («100-400», «1.200») se enseña tal
+                cual, pero el carrito no puede sumarlo: el pedido llega sin
+                total. Se avisa aquí, donde se escribe. */}
+            {item.price.trim() &&
+              convertirPrecio(item.price, item.currency).precio === null && (
+                <details className="max-w-[220px] text-[11px] leading-snug text-ink-soft/75">
+                  <summary className="cursor-pointer select-none font-medium">
+                    Este precio no se suma en el carrito
+                  </summary>
+                  <span className="mt-[2px] block">
+                    Escribe solo una cifra, por ejemplo «3.50», para que el
+                    pedido calcule el total. Un rango o un texto se enseña igual,
+                    pero no suma.
+                  </span>
+                </details>
+              )}
           </div>
           {item.tag && (
             <span

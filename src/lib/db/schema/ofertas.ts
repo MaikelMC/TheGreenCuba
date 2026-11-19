@@ -8,6 +8,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { places } from "./places";
+import { productos } from "./productos";
 
 /**
  * Una oferta flash de un negocio: un precio rebajado con fecha de caducidad.
@@ -18,11 +19,11 @@ import { places } from "./places";
  * las cinco sin que nadie escriba nada —ni una fila que puede quedar en el
  * estado equivocado si la tarea que la apaga no corre—.
  *
- * `producto_id` apunta a una entrada del jsonb `places.menu` por su `id`, **no
- * por clave foránea**: la carta no vive en una tabla, vive ahí, y no hay fila
- * contra la que referenciar. Por eso el borrado de un producto no arrastra la
- * oferta: quien escribe la carta la limpia (ver `limpiarOfertas` en
- * `src/lib/ofertas.ts`).
+ * `producto_id` apunta a `productos.id` con clave foránea desde la fase C de la
+ * migración del catálogo: borrar un producto borra sus ofertas. Antes apuntaba a
+ * una entrada del jsonb `places.menu`, sin clave foránea posible. La migración
+ * de la FK exige que no quede ninguna oferta huérfana: ver
+ * `scripts/ofertas-huerfanas.ts`.
  *
  * El tope de ofertas vivas a la vez lo pone el plan (`ofertas_vigentes_max`) y
  * lo comprueba la ruta al crear, no la base: es una regla comercial y cambia
@@ -36,8 +37,11 @@ export const ofertas = pgTable(
       .notNull()
       .references(() => places.id, { onDelete: "cascade" }),
 
-    /** La entrada de `places.menu` a la que apunta. Ver el comentario de arriba. */
-    productoId: text("producto_id").notNull(),
+    /** El producto rebajado. Clave foránea a `productos.id` desde la fase C:
+        borrar el producto borra su oferta. */
+    productoId: text("producto_id")
+      .notNull()
+      .references(() => productos.id, { onDelete: "cascade" }),
 
     titulo: text("titulo").notNull(),
     descripcion: text("descripcion"),

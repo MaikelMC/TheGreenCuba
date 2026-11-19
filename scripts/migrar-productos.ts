@@ -93,6 +93,18 @@ async function main() {
     return;
   }
 
+  /* Desde la fase C la fuente es la tabla y `places.menu` está congelado:
+     aplicar copiaría una carta vieja encima de la buena y borraría lo creado
+     después. Solo con `--forzar`, sabiendo lo que se hace (volver a la B). */
+  if (!process.argv.includes("--forzar")) {
+    console.error(
+      "\nNo se aplica: desde la fase C la carta vive en la tabla `productos` y `places.menu` está congelado." +
+        "\nAplicar pisaría la tabla con la carta vieja. Si de verdad es lo que quieres (volviendo a la fase B), añade --forzar.",
+    );
+    process.exitCode = 3;
+    return;
+  }
+
   /* ── Escritura ────────────────────────────────────────────────────
      Negocio a negocio, con la misma función que el reflejo de la fase B
      (`sincronizarNegocio`). La carta que se leyó al empezar viaja como

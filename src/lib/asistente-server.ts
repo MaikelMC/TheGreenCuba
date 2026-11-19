@@ -25,7 +25,10 @@ import {
   type Disponibilidad,
 } from "@/lib/disponibilidad";
 import { setDisponibilidad } from "@/lib/disponibilidad-server";
-import { reflejarMenu } from "@/lib/productos-server";
+import { productosDe as cartaDeLaTabla } from "@/lib/productos-server";
+import { aplicarCatalogo } from "@/lib/productos-escritura";
+import { diferenciasCatalogo, hayOperaciones } from "@/lib/catalogo";
+import type { UserPlaceMenuItem } from "@/lib/places-store";
 import { puede } from "@/lib/plans-server";
 import { estadoCocinaDeNegocio, actualizarPausa } from "@/lib/cocina-server";
 import {
@@ -206,7 +209,6 @@ async function cargarNegocio(chatId: string): Promise<Negocio | null> {
     .select({
       negocioId: telegramVinculos.negocioId,
       nombre: places.name,
-      menu: places.menu,
       status: places.status,
       schedule: places.schedule,
       userId: telegramVinculos.userId,
@@ -239,7 +241,8 @@ async function cargarNegocio(chatId: string): Promise<Negocio | null> {
   return {
     negocioId: fila.negocioId,
     nombre: fila.nombre,
-    menu: fila.menu,
+    /* La carta, de la tabla `productos` (fase C): todos con id estable. */
+    menu: await cartaDeLaTabla(fila.negocioId),
     status: fila.status,
     schedule: fila.schedule,
     userId: fila.userId ?? null,
@@ -368,14 +371,25 @@ interface Resultado {
   texto: string;
 }
 
-async function escribirMenu(negocioId: string, menu: Menu): Promise<void> {
-  await db.update(places).set({ menu }).where(eq(places.id, negocioId));
-  /* Fase B: la carta se lee de `productos`; se refleja antes de invalidar.
-     Todas las escrituras de carta del asistente —también «Deshacer»— pasan
-     por aquí. */
-  await reflejarMenu(negocioId);
-  /* La carta pública va cacheada; sin esto el «agotado» tarda en verse. */
-  invalidarCatalogo();
+/**
+ * Guarda en la tabla `productos` lo que el asistente cambió en la carta.
+ *
+ * El asistente sigue trabajando sobre la carta como lista —la que cargó al
+ * llegar el mensaje—, pero ya no la escribe entera: se compara con esa misma
+ * carta y solo se aplican los productos que este mensaje tocó (fase C). Lo que
+ * el panel cambiara mientras tanto en otros productos no se pisa. Todas las
+ * escrituras de carta del asistente —también «Deshacer»— pasan por aquí, y
+ * `aplicarCatalogo` aplica el tope del plan, el precio numérico y la caché.
+ *
+ * Devuelve el error para el dueño, o `null` si se guardó.
+ */
+async function escribirMenu(negocio: Negocio, menu: Menu): Promise<string | null> {
+  const antes = (negocio.menu ?? []) as UserPlaceMenuItem[];
+  const despues = (menu ?? []) as UserPlaceMenuItem[];
+  const ops = diferenciasCatalogo(antes, despues, false);
+  if (!hayOperaciones(ops)) return null;
+  const resultado = await aplicarCatalogo(negocio.negocioId, ops);
+  return resultado.ok ? null : resultado.error;
 }
 
 async function ejecutarDisponibilidad(
@@ -455,7 +469,7 @@ async function ejecutarPrecio(
   const siguiente = menu.map((item, i) =>
     i === indice ? { ...item, price: precio } : item,
   );
-  await escribirMenu(negocio.negocioId, siguiente);
+  await escribirMenu(negocio, siguiente);
 
   return {
     ok: true,
@@ -530,7 +544,18 @@ async function ejecutarAgregarProductos(
     };
   }
 
-  await escribirMenu(negocio.negocioId, [...menu, ...creados]);
+  /* Antes el alta por Telegram no miraba `productos_max`; ahora lo aplica
+     `aplicarCatalogo`, como en el resto de vías. */
+  const errorAlta = await escribirMenu(negocio, [...menu, ...creados]);
+  if (errorAlta) {
+    return {
+      ok: false,
+      accion: "agregar_productos",
+      antes,
+      despues: antes,
+      texto: errorAlta,
+    };
+  }
 
   const yaEstaban =
     repetidos.length > 0
@@ -579,7 +604,7 @@ async function ejecutarEditarProducto(
   }
 
   await escribirMenu(
-    negocio.negocioId,
+    negocio,
     menu.map((entrada, i) => (i === indice ? despuesItem : entrada)),
   );
 
@@ -607,7 +632,7 @@ async function ejecutarEliminarProducto(
   const despues = { productoId };
 
   await escribirMenu(
-    negocio.negocioId,
+    negocio,
     menu.filter((_, i) => i !== indice),
   );
 
@@ -708,7 +733,7 @@ async function deshacer(logId: string, negocio: Negocio): Promise<string> {
       ? new Set(despues.ids.map(String))
       : new Set<string>();
     await escribirMenu(
-      negocio.negocioId,
+      negocio,
       (negocio.menu ?? []).filter(
         (item, i) => !ids.has(item.id ?? String(i)),
       ),
@@ -722,7 +747,7 @@ async function deshacer(logId: string, negocio: Negocio): Promise<string> {
     );
     if (indice !== -1 && item) {
       await escribirMenu(
-        negocio.negocioId,
+        negocio,
         menu.map((entrada, i) => (i === indice ? item : entrada)),
       );
     }
@@ -736,7 +761,7 @@ async function deshacer(logId: string, negocio: Negocio): Promise<string> {
           ? Math.min(indice, menu.length)
           : menu.length;
       menu.splice(donde, 0, item);
-      await escribirMenu(negocio.negocioId, menu);
+      await escribirMenu(negocio, menu);
     }
   } else if (fila.accion === "set_disponibilidad" && antes) {
     await setDisponibilidad(
@@ -752,7 +777,7 @@ async function deshacer(logId: string, negocio: Negocio): Promise<string> {
     );
     if (indice !== -1) {
       await escribirMenu(
-        negocio.negocioId,
+        negocio,
         menu.map((item, i) =>
           i === indice ? { ...item, price: String(antes.precio) } : item,
         ),
@@ -1411,7 +1436,7 @@ async function enviarPaginaProductos(
   const filas: Boton[][] = pagina.map((p) => [
     {
       text: A.recortarEtiqueta(p.name),
-      callback_data: `d:${estado}:${p.indice}`,
+      callback_data: `d:${estado}:${p.id}`,
     },
   ]);
 
@@ -2766,13 +2791,13 @@ function botonesCandidatos(
   logId: string,
 ): Boton[][] {
   return candidatos
-    .map((c) => ({ indice: indiceDe(productos, c.id), name: c.name }))
+    .map((c) => ({ id: c.id, indice: indiceDe(productos, c.id), name: c.name }))
     .filter((c) => c.indice !== -1)
     .slice(0, 6)
     .map((c) => [
       {
         text: A.recortarEtiqueta(c.name),
-        callback_data: `c:${logId}:${c.indice}`,
+        callback_data: `c:${logId}:${c.id}`,
       },
     ]);
 }
@@ -3350,7 +3375,7 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
       const filas: Boton[][] = pagina.map((prod) => [
         {
           text: A.recortarEtiqueta(prod.name),
-          callback_data: `d:${estado}:${prod.indice}`,
+          callback_data: `d:${estado}:${prod.id}`,
         },
       ]);
       const nav: Boton[] = [];
@@ -3382,7 +3407,9 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
     case "d": {
       const estado: Disponibilidad =
         resto[0] === "agotado" ? "agotado" : "disponible";
-      const indice = Number.parseInt(resto[1] ?? "", 10);
+      /* El botón lleva el id del producto, no su posición: entre que se pinta
+         la lista y se toca, la carta puede haber cambiado desde el panel. */
+      const indice = indicePorId(negocio, resto[1] ?? "");
       const res = await ejecutarDisponibilidad(negocio, indice, estado, null);
       const logId = await registrarLog({
         negocioId: negocio.negocioId,
@@ -3412,10 +3439,11 @@ async function manejarCallback(update: A.ParsedTelegram): Promise<void> {
 
     case "c": {
       /* El dueño eligió, entre los candidatos, a cuál se refería. */
+      /* El botón lleva el id del candidato, no su posición en la carta. */
       const elegido = await elegirCandidato(
         resto[0] ?? "",
         negocio,
-        Number.parseInt(resto[1] ?? "", 10),
+        indicePorId(negocio, resto[1] ?? ""),
       );
       await responderCallback(callbackId, elegido.aviso, elegido.alerta);
       if (update.callback_mensaje_id) {

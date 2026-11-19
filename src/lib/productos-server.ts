@@ -28,14 +28,12 @@ import type { UserPlaceMenuItem } from "@/lib/places-store";
  * por la clave foránea): para él se devuelve la carta del fixture, con el mismo
  * tipo, y ningún componente necesita un segundo camino (decisión D1).
  *
- * **Fase B: la fuente sigue siendo `places.menu`.** Las escrituras siguen yendo
- * al jsonb y, justo después, `reflejarMenu` deja la tabla igual que él. Es la
- * misma función que usa `scripts/migrar-productos.ts`, así que el script y el
- * reflejo no pueden escribir cosas distintas a partir de la misma carta.
+ * **Escritura.** Desde la fase C la fuente es la tabla y las escrituras viven
+ * en `productos-escritura.ts`. Aquí queda `sincronizarNegocio`, que copia
+ * `places.menu` a la tabla y solo usa `scripts/migrar-productos.ts`.
  *
- * Nada de aquí invalida la caché: lo hace quien llama, que ya lo hacía después
- * de escribir `places.menu` (y el script corre fuera de Next, donde
- * `revalidateTag` no existe).
+ * Nada de aquí invalida la caché: el script corre fuera de Next, donde
+ * `revalidateTag` no existe.
  */
 
 /* ── Lectura ─────────────────────────────────────────────────────────── */
@@ -166,7 +164,9 @@ export async function lineasIAPorNegocio(
   return lineas;
 }
 
-/* ── Fase B: de `places.menu` a la tabla ─────────────────────────────── */
+/* ── De `places.menu` a la tabla (solo `scripts/migrar-productos.ts`) ──
+   Desde la fase C nadie escribe `places.menu` y esto ya no se llama desde la
+   app: lo usa el script de migración, que tras la fase C exige `--forzar`. */
 
 /** Las columnas de contenido: si alguna cambia, sube la versión. */
 const CONTENIDO = [
@@ -334,33 +334,4 @@ export async function sincronizarNegocio(
     remapeoOfertas: plan.remapeoOfertas.length,
     remapeoNovedades: plan.remapeoNovedades.length,
   };
-}
-
-/**
- * El reflejo de la fase B: después de cada escritura en `places.menu`.
- *
- * No lanza nunca: la escritura del dueño ya entró en la fuente y no se puede
- * tumbar por la copia. Un fallo se reintenta una vez —la red con Neon corta a
- * ratos— y, si persiste, queda en el log; la siguiente escritura del negocio o
- * una pasada de `migrar-productos.ts --aplicar` lo corrige.
- */
-export async function reflejarMenu(placeId: string): Promise<void> {
-  if (placeId === DEV_PLACE_ID) return;
-  for (let intento = 1; intento <= 2; intento++) {
-    try {
-      const resultado = await sincronizarNegocio(placeId);
-      if (resultado.ok || resultado.motivo === "no_existe") return;
-      /* La carta cambió entre la lectura y la escritura de ids: otra petición
-         la acaba de guardar y su propio reflejo la dejará al día. */
-      return;
-    } catch (error) {
-      if (intento === 2) {
-        console.error(
-          "[productos] no se pudo reflejar la carta en la tabla:",
-          placeId,
-          error instanceof Error ? error.message : error,
-        );
-      }
-    }
-  }
 }

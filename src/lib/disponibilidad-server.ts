@@ -1,9 +1,5 @@
-import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { places } from "@/lib/db/schema";
-import { invalidarCatalogo } from "@/lib/db/queries";
 import { puede } from "@/lib/plans-server";
-import { reflejarMenu } from "@/lib/productos-server";
+import { setDisponibilidadProducto } from "@/lib/productos-escritura";
 import type { Disponibilidad } from "@/lib/disponibilidad";
 
 /**
@@ -31,6 +27,8 @@ export type SetDisponibilidadResult =
       /** El estado **efectivo** tras la escritura, ya resuelto contra `ahora`. */
       agotado: boolean;
       agotadoHasta: number | null;
+      /** La versión nueva del producto, para que el panel no la vea como ajena. */
+      version: number;
     }
   | { success: false; error: string; code: "plan" | "no_encontrado" };
 
@@ -49,47 +47,19 @@ export async function setDisponibilidad(
     };
   }
 
-  const [row] = await db
-    .select({ menu: places.menu })
-    .from(places)
-    .where(eq(places.id, negocioId))
-    .limit(1);
-  if (!row) {
-    return { success: false, code: "no_encontrado", error: "Negocio no encontrado." };
-  }
-
-  const menu = row.menu ?? [];
-  let index = menu.findIndex((item) => item.id === productoId);
-  /* Respaldo por posición para las cartas guardadas **antes** de que los
-     productos tuvieran id: el panel las siembra con `String(i)` y el asistente
-     de Telegram no tiene de dónde sacar otro. En cuanto el dueño guarda la
-     carta una vez, el id queda persistido y este camino deja de usarse. */
-  if (index === -1 && /^\d+$/.test(productoId)) {
-    const asIndex = Number(productoId);
-    if (asIndex >= 0 && asIndex < menu.length) index = asIndex;
-  }
-  if (index === -1) {
+  /* Fase C: la disponibilidad vive en la fila del producto, en `productos`.
+     Se señala **por id** y nada más: el respaldo por posición que tenía el
+     jsonb desapareció con la migración, que dio un id estable a cada producto.
+     `places.menu` ya no se escribe. */
+  const agotadoHasta = estado === "agotado" ? (hasta ?? null) : null;
+  const escrito = await setDisponibilidadProducto(negocioId, productoId, estado, agotadoHasta);
+  if (!escrito.ok) {
     return { success: false, code: "no_encontrado", error: "Producto no encontrado." };
   }
-
-  /* `hasta` solo tiene sentido cuando se agota; al marcar disponible se limpia,
-     para no dejar una fecha vieja esperando a la próxima vez que se agote. */
-  const agotadoHasta = estado === "agotado" ? (hasta ?? null) : null;
-  const next = menu.map((item, i) =>
-    i === index ? { ...item, disponibilidad: estado, agotadoHasta } : item,
-  );
-
-  await db.update(places).set({ menu: next }).where(eq(places.id, negocioId));
-  /* Fase B: la carta se lee de `productos`; se refleja antes de invalidar. */
-  await reflejarMenu(negocioId);
-
-  /* El menú público se sirve cacheado; sin esto el cambio no se ve hasta que
-     caduque el TTL. Misma etiqueta que el resto del catálogo. */
-  invalidarCatalogo();
 
   const agotado =
     estado === "agotado" &&
     !(agotadoHasta != null && agotadoHasta <= Date.now());
 
-  return { success: true, agotado, agotadoHasta };
+  return { success: true, agotado, agotadoHasta, version: escrito.version };
 }

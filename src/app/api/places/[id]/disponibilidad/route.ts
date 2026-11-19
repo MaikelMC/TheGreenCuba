@@ -57,5 +57,6 @@ export async function POST(req: NextRequest, { params }: Params) {
   return NextResponse.json({
     agotado: result.agotado,
     agotadoHasta: result.agotadoHasta,
+    version: result.version,
   });
 }

@@ -315,6 +315,7 @@ export interface FilaLeida {
   duracionMin: number | null;
   externalId: string | null;
   importacionId: string | null;
+  version?: number;
 }
 
 /**
@@ -348,6 +349,7 @@ export function itemDeFila(fila: FilaLeida): UserPlaceMenuItem {
   if (fila.externalId) item.externalId = fila.externalId;
   if (fila.importacionId) item.importacionId = fila.importacionId;
   if (fila.precio !== null && fila.tipoPrecio !== "fijo") item.tipoPrecio = fila.tipoPrecio;
+  if (fila.version !== undefined) item.version = fila.version;
   return item;
 }
 

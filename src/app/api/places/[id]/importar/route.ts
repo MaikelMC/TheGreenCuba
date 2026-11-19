@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { canManagePlace } from "@/lib/admin-server";
 import { db } from "@/lib/db";
-import { invalidarCatalogo } from "@/lib/db/queries";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
 import { places } from "@/lib/db/schema";
 import { limite } from "@/lib/plans-server";
 import { generateId } from "@/lib/utils";
-import { reflejarMenu } from "@/lib/productos-server";
+import { productosDe } from "@/lib/productos-server";
+import { aplicarCatalogo, deshacerImportacion } from "@/lib/productos-escritura";
 import {
   MAX_FILAS,
   parsearCatalogo,
@@ -39,11 +39,9 @@ type Params = { params: Promise<{ id: string }> };
  *   **antes** de tocar nada.
  * - `DELETE` → deshace una importación concreta por su marca.
  *
- * **Una sola escritura.** La carta no es una tabla de productos sino el jsonb
- * `places.menu`, así que «insertar en lote» aquí es un único `update` que
- * reemplaza el array por el que había más los nuevos. Y eso es justo lo que
- * pedía el «todo o nada»: una sola sentencia, sin transacción que orquestar
- * —el driver HTTP de Neon no la ofrece—, no puede quedar a medias.
+ * **Una sola escritura.** La carta vive en la tabla `productos` (fase C), así
+ * que «insertar en lote» es un único `insert` con todas las filas. Eso es justo
+ * lo que pedía el «todo o nada»: una sola sentencia no puede quedar a medias.
  *
  * Nada de IA y nada de polling: parsear y validar caben en esta petición.
  */
@@ -51,12 +49,11 @@ type Params = { params: Promise<{ id: string }> };
 /** La carta del negocio, o `null` si el negocio no existe. */
 async function menuDe(id: string): Promise<UserPlaceMenuItem[] | null> {
   const [fila] = await db
-    .select({ menu: places.menu })
+    .select({ id: places.id })
     .from(places)
     .where(eq(places.id, id))
     .limit(1);
-
-  return fila ? (fila.menu ?? []) : null;
+  return fila ? productosDe(id) : null;
 }
 
 /** Los productos que ya hay, reducidos a lo que hace falta para el duplicado. */
@@ -205,21 +202,17 @@ export async function POST(req: NextRequest, { params }: Params) {
     importacionId,
   }));
 
-  const [fila] = await db
-    .update(places)
-    .set({ menu: [...menu, ...items] })
-    .where(eq(places.id, id))
-    .returning({ id: places.id });
-
-  if (!fila) {
-    return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
+  /* Fase C: un solo `insert` en `productos` con todas las filas —todo o
+     nada—, con el precio numérico calculado como en cualquier otra vía.
+     `aplicarCatalogo` vuelve a comprobar el tope e invalida la caché. */
+  const escrito = await aplicarCatalogo(id, {
+    crear: items.map((item) => ({ idTemporal: item.id ?? "", item })),
+    actualizar: [],
+    borrar: [],
+  });
+  if (!escrito.ok) {
+    return NextResponse.json({ error: escrito.error }, { status: escrito.status });
   }
-
-  /* El menú público del negocio se sirve desde esta etiqueta de caché: sin
-     invalidarla, la carta nueva no se vería hasta que caducara sola. */
-  /* Fase B: la carta se lee de `productos`; se refleja antes de invalidar. */
-  await reflejarMenu(id);
-  invalidarCatalogo();
 
   return NextResponse.json(
     {
@@ -256,14 +249,8 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
   }
 
-  const restante = menu.filter((m) => m.importacionId !== importacionId);
-  if (restante.length === menu.length) {
-    return NextResponse.json({ eliminados: 0 });
-  }
-
-  await db.update(places).set({ menu: restante }).where(eq(places.id, id));
-  await reflejarMenu(id);
-  invalidarCatalogo();
-
-  return NextResponse.json({ eliminados: menu.length - restante.length });
+  /* Se borran de la tabla los productos con esa marca, y sus ofertas con
+     ellos. Lo que entró después, o en otra tanda, no se toca. */
+  const eliminados = await deshacerImportacion(id, importacionId);
+  return NextResponse.json({ eliminados });
 }

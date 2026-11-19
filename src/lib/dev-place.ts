@@ -15,7 +15,8 @@ import type { UserPlace } from "@/lib/places-store";
  * Lo que **no** cubre: la búsqueda por lenguaje natural, que ordena por el
  * vector `embedding` de `places` y este negocio no tiene fila donde guardarlo.
  */
-export const DEV_PLACE_ID = "dev-cafe-la-ceiba";
+export { DEV_PLACE_ID } from "@/lib/dev-place-id";
+import { DEV_PLACE_ID } from "@/lib/dev-place-id";
 
 /**
  * Las fechas del fixture, fijas y no `Date.now()`.

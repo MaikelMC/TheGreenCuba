@@ -17,9 +17,10 @@ import {
 import { canViewDevPlace } from "@/lib/dev-place";
 import { crearSuscripcion } from "@/lib/plans-server";
 import { generateId } from "@/lib/utils";
-import type { UserPlace } from "@/lib/places-store";
+import type { UserPlace, UserPlaceMenuItem } from "@/lib/places-store";
 import { indiceMenu, totalVisibles } from "@/lib/productos";
-import { reflejarMenu } from "@/lib/productos-server";
+import { aplicarCatalogo } from "@/lib/productos-escritura";
+import { diferenciasCatalogo } from "@/lib/catalogo";
 
 /**
  * Lista y alta de negocios.
@@ -245,9 +246,15 @@ export async function POST(req: NextRequest) {
     await avisarNegocioNuevo(row!.id);
   });
 
-  /* Fase B: el alta puede traer carta (formulario de administración); la
-     tabla `productos` es de donde se lee, así que se refleja ya. */
-  await reflejarMenu(row!.id);
+  /* El alta puede traer carta (formulario de administración). Va a la tabla
+     `productos`, con el tope del plan y el precio numérico de siempre; la
+     prueba de 30 días ya está creada, así que el tope es el de Pro. */
+  if (Array.isArray(body.menu) && body.menu.length > 0) {
+    await aplicarCatalogo(
+      row!.id,
+      diferenciasCatalogo([], body.menu as UserPlaceMenuItem[], false),
+    );
+  }
 
   invalidarCatalogo();
 

@@ -129,3 +129,103 @@ export function fusionarMenu(
     return { ...conservados, ...item } as UserPlaceMenuItem;
   });
 }
+
+/** Un producto nuevo del panel: su id es provisional hasta que lo crea el servidor. */
+export interface ProductoACrear {
+  idTemporal: string;
+  item: UserPlaceMenuItem;
+}
+
+/** Los campos de un producto que cambiaron, con la versión que tenía al leerlo. */
+export interface ProductoAActualizar {
+  id: string;
+  /** Ausente = sin comprobar versión (administración, Telegram: gana el último). */
+  version?: number;
+  cambios: Partial<UserPlaceMenuItem>;
+}
+
+export interface OperacionesCatalogo {
+  crear: ProductoACrear[];
+  actualizar: ProductoAActualizar[];
+  borrar: string[];
+  /** El orden final de los ids (los nuevos con su id temporal). Ausente = sin cambios. */
+  orden?: string[];
+}
+
+/** Los campos de `CAMPOS_PANEL` que se comparan para saber si un producto cambió. */
+const CAMPOS_EDITABLES = [...CAMPOS_PANEL].filter((campo) => campo !== "id");
+
+/** Mismo valor a efectos de la carta: vacío, `null` y ausente son lo mismo. */
+function igual(a: unknown, b: unknown): boolean {
+  const norm = (v: unknown) => (v === "" || v === null || v === false ? undefined : v);
+  return norm(a) === norm(b);
+}
+
+/**
+ * Lo que hay que hacer en la tabla para pasar de `guardado` a `actual`.
+ *
+ * Es la base del guardado por producto (fase C): el panel ya no manda la carta
+ * entera para que el servidor la escriba encima, sino solo lo que cambió. Un
+ * producto que el panel no tocó no viaja, así que lo que haya cambiado en él
+ * desde otro sitio —un agotado puesto por Telegram— no se pisa.
+ *
+ * - Nuevo: el id no estaba en `guardado`.
+ * - Borrado: estaba en `guardado` y ya no está.
+ * - Actualizado: mismo id y algún campo editable distinto; viajan **solo** los
+ *   campos que cambiaron, con la versión que tenía en `guardado`.
+ * - Orden: solo si la secuencia de ids cambió.
+ *
+ * `conVersion = false` es para quien no lleva la cuenta de versiones
+ * (administración y Telegram): el cambio se aplica gane quien gane.
+ */
+export function diferenciasCatalogo(
+  guardado: readonly UserPlaceMenuItem[],
+  actual: readonly UserPlaceMenuItem[],
+  conVersion = true,
+): OperacionesCatalogo {
+  const antes = new Map(guardado.map((item) => [item.id, item]));
+  const ahora = new Set(actual.map((item) => item.id));
+  const ops: OperacionesCatalogo = { crear: [], actualizar: [], borrar: [] };
+
+  for (const item of actual) {
+    const previo = item.id ? antes.get(item.id) : undefined;
+    if (!previo) {
+      ops.crear.push({ idTemporal: item.id ?? "", item });
+      continue;
+    }
+    const cambios: Record<string, unknown> = {};
+    for (const campo of CAMPOS_EDITABLES) {
+      const valor = (item as unknown as Record<string, unknown>)[campo];
+      if (!igual(valor, (previo as unknown as Record<string, unknown>)[campo])) {
+        cambios[campo] = valor ?? null;
+      }
+    }
+    if (Object.keys(cambios).length > 0) {
+      ops.actualizar.push({
+        id: item.id!,
+        ...(conVersion && previo.version !== undefined ? { version: previo.version } : {}),
+        cambios: cambios as Partial<UserPlaceMenuItem>,
+      });
+    }
+  }
+
+  for (const item of guardado) {
+    if (item.id && !ahora.has(item.id)) ops.borrar.push(item.id);
+  }
+
+  const ordenAntes = guardado.map((item) => item.id).filter((id) => ahora.has(id));
+  const ordenAhora = actual.map((item) => item.id ?? "");
+  if (ordenAhora.join("\u0000") !== ordenAntes.join("\u0000")) ops.orden = ordenAhora;
+
+  return ops;
+}
+
+/** ¿Hay algo que guardar? */
+export function hayOperaciones(ops: OperacionesCatalogo): boolean {
+  return (
+    ops.crear.length > 0 ||
+    ops.actualizar.length > 0 ||
+    ops.borrar.length > 0 ||
+    ops.orden !== undefined
+  );
+}

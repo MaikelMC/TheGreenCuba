@@ -39,11 +39,34 @@ interface Pedido {
   fueraDeHorario?: boolean | null;
   revisarHora?: boolean | null;
   revisarMotivo?: string | null;
+  /** Todos los motivos para revisar (los pedidos nuevos solo escriben este). */
+  revisarMotivos?: string[] | null;
   programadoPara?: string | null;
   createdAt: string;
   telefonoCliente?: string | null;
   /** La tarjeta de sellos de quien hizo el pedido, si la tiene. */
   tarjeta?: TarjetaResumen | null;
+}
+
+/** Lo que dice cada motivo de revisión, para el dueño. */
+const MOTIVO_TEXTO: Record<string, string> = {
+  no_existe: "Un producto ya no está en la carta",
+  oculto: "Un producto está oculto",
+  agotado: "Un producto está agotado",
+  precio_cambio: "El precio no era el de la carta: se guardó el de la carta",
+  sin_precio: "Un producto no tiene precio en cifra: el total no se puede comprobar",
+  sin_funcion: "Los pedidos programados están apagados",
+  sin_antelacion: "Sin la antelación mínima",
+  fuera_de_dias: "Fuera de los días que aceptas",
+  fuera_de_horario: "Fuera del horario de cocina",
+};
+const MOTIVOS_HORA = new Set(["sin_funcion", "sin_antelacion", "fuera_de_dias", "fuera_de_horario"]);
+
+/** La unión de los motivos nuevos (array) y los de los pedidos anteriores. */
+function motivosDe(pedido: Pedido): string[] {
+  const todos = new Set(pedido.revisarMotivos ?? []);
+  if (pedido.revisarHora && pedido.revisarMotivo) todos.add(pedido.revisarMotivo);
+  return [...todos];
 }
 
 interface TarjetaResumen {
@@ -195,9 +218,12 @@ function TarjetaPedido({
             Programado para el{" "}
             {FMT_PROGRAMADO.format(new Date(pedido.programadoPara!))}
           </span>
-          {pedido.revisarHora && (
+          {motivosDe(pedido).some((m) => MOTIVOS_HORA.has(m)) && (
             <span
-              title={`Revisar hora: ${pedido.revisarMotivo ?? ""}`}
+              title={`Revisar hora: ${motivosDe(pedido)
+                .filter((m) => MOTIVOS_HORA.has(m))
+                .map((m) => MOTIVO_TEXTO[m] ?? m)
+                .join(", ")}`}
               className="ml-auto inline-flex items-center gap-[3px] rounded-full border border-orange-200 bg-orange-50 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold text-orange-700"
             >
               <TriangleAlert size={9} strokeWidth={2} />
@@ -208,6 +234,24 @@ function TarjetaPedido({
       )}
 
       <div className="p-gap-sm">
+        {/* Lo que hay que revisar de las líneas: producto que ya no existe,
+            oculto, agotado, precio distinto o sin cifra. El pedido entró igual
+            —ya había salido por WhatsApp— y aquí se dice qué mirar. */}
+        {motivosDe(pedido).some((m) => !MOTIVOS_HORA.has(m)) && (
+          <div
+            role="status"
+            className="mb-gap-xs flex items-start gap-[6px] rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-gap-xs py-[6px] text-meta font-medium text-ink"
+          >
+            <TriangleAlert size={13} strokeWidth={2} className="mt-[2px] shrink-0" />
+            <span>
+              Revisar:{" "}
+              {motivosDe(pedido)
+                .filter((m) => !MOTIVOS_HORA.has(m))
+                .map((m) => MOTIVO_TEXTO[m] ?? m)
+                .join(" · ")}
+            </span>
+          </div>
+        )}
         {/* Cabecera: fecha + código + badge de estado */}
         <div className="flex flex-wrap items-start justify-between gap-gap-xs">
           <div className="flex flex-col gap-[2px]">

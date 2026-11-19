@@ -3,7 +3,8 @@ import { and, desc, eq } from "drizzle-orm";
 import { canManagePlace } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
-import { pedidos, places } from "@/lib/db/schema";
+import { ofertas, pedidos, places } from "@/lib/db/schema";
+import { revisarPedido } from "@/lib/pedido-servidor";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
 import { rateLimit } from "@/lib/rate-limit";
 import { tieneFuncion } from "@/lib/plans-server";
@@ -137,7 +138,7 @@ export async function POST(req: NextRequest) {
   const body = (cuerpo ?? {}) as Record<string, unknown>;
   const negocioId =
     typeof body.negocioId === "string" ? body.negocioId.trim().slice(0, 64) : "";
-  const lineas = leerLineas(body.lineas);
+  let lineas = leerLineas(body.lineas);
 
   if (!negocioId) {
     return NextResponse.json({ error: "Falta el negocio." }, { status: 400 });
@@ -182,40 +183,36 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  /* La carta es la que manda: cada línea tiene que apuntar a un producto de
-     hoy. Se acepta también por nombre porque las entradas viejas no tienen
-     `id` y el suyo se calcula con la posición. Así un carrito guardado antes de
-     reordenar el menú no se queda fuera del historial. */
-  const ids = new Set<string>();
-  const nombres = new Set<string>();
-  /* Un producto oculto no está en la carta pública, así que tampoco se puede
-     pedir: un carrito viejo o una petición hecha a mano no lo cuelan. Se
-     rechaza por id aunque otro producto visible se llame igual. */
-  const ocultos = new Set<string>();
-  /* La carta, de la tabla de productos: todos tienen id estable desde la
-     migración, así que el respaldo `${name}-${indice}` ya no se usa. */
-  const carta = await productosDe(negocioId);
-  for (const [indice, item] of carta.entries()) {
-    const id = item.id ?? `${item.name}-${indice}`;
-    if (item.oculto) {
-      ocultos.add(id);
-      continue;
-    }
-    ids.add(id);
-    nombres.add(normalizar(item.name));
-  }
-  if (
-    lineas.some(
-      (linea) =>
-        ocultos.has(linea.id) ||
-        (!ids.has(linea.id) && !nombres.has(normalizar(linea.name))),
-    )
-  ) {
-    return NextResponse.json(
-      { error: "Hay un producto que ya no está en la carta." },
-      { status: 400 },
-    );
-  }
+  /* Fase C: cada línea se contrasta con la carta de la tabla y el precio que
+     se guarda es **el del servidor** (el numérico del producto o el de su
+     oferta viva), no el que mandó el navegador. Nada se rechaza: el pedido ya
+     salió por WhatsApp, y un 400 solo lo dejaría fuera del panel. Lo raro
+     —producto que ya no existe, oculto, agotado, precio distinto o sin
+     número— se guarda y se marca para revisar. Ver `revisarPedido`. */
+  const ahora = Date.now();
+  const [carta, ofertasNegocio] = await Promise.all([
+    productosDe(negocioId),
+    db
+      .select()
+      .from(ofertas)
+      .where(eq(ofertas.negocioId, negocioId)),
+  ]);
+  const revision = revisarPedido(
+    lineas,
+    carta,
+    ofertasNegocio.map((o) => ({
+      id: o.id,
+      productoId: o.productoId,
+      titulo: o.titulo,
+      precioOferta: o.precioOferta ?? undefined,
+      descuentoPct: o.descuentoPct ?? undefined,
+      inicia: o.inicia.getTime(),
+      termina: o.termina.getTime(),
+    })),
+    ahora,
+  );
+  lineas = revision.lineas;
+  const revisarMotivos: string[] = [...revision.motivos];
 
   /* El teléfono solo se guarda si el negocio tiene la tarjeta activa. Un
      negocio sin la función no cambia en nada: no se pide y no se apunta. Y si
@@ -304,15 +301,15 @@ export async function POST(req: NextRequest) {
   const estadoCocinaActual = estadoCocina(entregaConfig, placeHorario, Date.now());
   const fueraDeHorario = !estadoCocinaActual.abierta;
 
-  /* Validación no bloqueante de la franja programada. */
-  let revisarHora = false;
+  /* Validación no bloqueante de la franja programada. Los motivos van al
+     array `revisar_motivos` (decisión D2): `revisar_hora` y `revisar_motivo`
+     quedan solo por los pedidos anteriores. */
   let revisarMotivo: string | null = null;
 
   if (programadoPara) {
     const pgConfig = entregaConfig?.programados;
     const horarioCocina = entregaConfig?.horario ?? placeHorario;
     if (!pgConfig?.activo) {
-      revisarHora = true;
       revisarMotivo = "sin_funcion";
     } else {
       /* Comprobar que la franja todavía existe y tiene cupo. */
@@ -327,7 +324,6 @@ export async function POST(req: NextRequest) {
         .flatMap((d) => d.franjas)
         .find((f) => f.inicio.getTime() === msInicio);
       if (!franjaMatch) {
-        revisarHora = true;
         /* ¿Es porque está fuera del horario? ¿Sin antelación? ¿Fuera de los días? */
         if (msInicio < ahora + (pgConfig.antelacionMin * 60_000)) {
           revisarMotivo = "sin_antelacion";
@@ -353,8 +349,7 @@ export async function POST(req: NextRequest) {
     costoEnvioMoneda,
     tasaUsada,
     fueraDeHorario,
-    revisarHora,
-    revisarMotivo,
+    revisarMotivos: revisarMotivo ? [...revisarMotivos, revisarMotivo] : revisarMotivos,
     programadoPara,
   };
 
@@ -410,6 +405,7 @@ export async function GET(req: NextRequest) {
       fueraDeHorario: pedidos.fueraDeHorario,
       revisarHora: pedidos.revisarHora,
       revisarMotivo: pedidos.revisarMotivo,
+      revisarMotivos: pedidos.revisarMotivos,
       programadoPara: pedidos.programadoPara,
       telefonoCliente: pedidos.telefonoCliente,
       createdAt: pedidos.createdAt,

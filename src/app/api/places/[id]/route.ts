@@ -2,8 +2,9 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
-import { fusionarMenu } from "@/lib/catalogo";
-import { reflejarMenu } from "@/lib/productos-server";
+import { conIds, diferenciasCatalogo, fusionarMenu } from "@/lib/catalogo";
+import { productosDe } from "@/lib/productos-server";
+import { aplicarCatalogo } from "@/lib/productos-escritura";
 import { normalizarWhatsappCubano } from "@/lib/contact-links";
 import { esEnergia } from "@/lib/energia";
 import { esTipoReserva } from "@/lib/reserva";
@@ -83,10 +84,9 @@ async function leerFichaPrevia(id: string): Promise<{
   schedule: string | null;
   ofertaIds: Set<string>;
 }> {
-  const [filas, ofertasPrevias] = await Promise.all([
+  const [filas, ofertasPrevias, carta] = await Promise.all([
     db
       .select({
-        menu: places.menu,
         status: places.status,
         description: places.description,
         schedule: places.schedule,
@@ -98,6 +98,7 @@ async function leerFichaPrevia(id: string): Promise<{
       .select({ id: ofertas.id })
       .from(ofertas)
       .where(eq(ofertas.negocioId, id)),
+    productosDe(id),
   ]);
 
   /* `[0]` y no un destructuring directo: dentro de un `Promise.all` cada
@@ -106,7 +107,7 @@ async function leerFichaPrevia(id: string): Promise<{
   const fila = filas[0];
 
   return {
-    menu: fila?.menu ?? [],
+    menu: carta,
     /* El respaldo no adivina nada: sin fila, el `update` de abajo responde 404 y
        no hay ningún aviso que mandar. */
     status: fila?.status ?? "active",
@@ -717,77 +718,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     body.whatsapp = numero;
   }
 
-  /* El tope de productos, solo al **crecer**.
-   *
-   * Comparar contra el menú que ya había y no contra el tope a secas importa:
-   * el formulario manda la carta entera en cada guardado, así que un negocio
-   * que bajó de plan teniendo más productos de los que el plan permite no
-   * podría guardar ni el horario. Se le deja como está y solo se le corta
-   * cuando intenta añadir. */
-  if (Array.isArray(body.menu)) {
-    const tope = await limite(id, "productos_max");
-    if (tope !== null && body.menu.length > tope) {
-      const [actual] = await db
-        .select({ menu: places.menu })
-        .from(places)
-        .where(eq(places.id, id))
-        .limit(1);
-
-      if (body.menu.length > (actual?.menu?.length ?? 0)) {
-        return NextResponse.json(
-          {
-            error: `Tu plan permite hasta ${tope} productos en la carta. Quita alguno para guardar, o mejora tu plan.`,
-          },
-          { status: 400 },
-        );
-      }
-    }
-  }
-
-  /* «Hoy hay» es una función de pago, y este `PATCH` escribe la carta entera: sin
-     esto, un plan que no lo incluye podría cambiar la disponibilidad colando los
-     campos en el guardado normal. En vez de rechazar el guardado entero —el
-     dueño está corrigiendo un precio, no la disponibilidad—, se **conservan**
-     los valores que ya había, emparejando por `id` y, para las entradas viejas
-     sin id, por posición. El interruptor de verdad es `setDisponibilidad`, que
-     sí comprueba el plan. */
-  /* La carta guardada, una sola vez para las dos correcciones de abajo. */
-  const menuGuardado: UserPlaceMenuItem[] = Array.isArray(body.menu)
-    ? ((
-        await db
-          .select({ menu: places.menu })
-          .from(places)
-          .where(eq(places.id, id))
-          .limit(1)
-      )[0]?.menu ?? [])
-    : [];
-
-  /* El panel manda la carta entera pero solo con sus campos (`aGuardar`).
-     Sin fusionar, cada guardado borraba en silencio lo que el panel no maneja
-     —existencias, destacado, tipo de precio— y que había puesto otra vía. */
-  if (Array.isArray(body.menu)) {
-    body.menu = fusionarMenu(body.menu, menuGuardado);
-  }
-
-  if (Array.isArray(body.menu) && !(await puede(id, "hoy_hay"))) {
-    const prev = menuGuardado;
-    body.menu = body.menu.map((item, i) => {
-      const before =
-        (item.id ? prev.find((p) => p.id === item.id) : undefined) ?? prev[i];
-      return {
-        ...item,
-        disponibilidad: before?.disponibilidad,
-        agotadoHasta: before?.agotadoHasta,
-      };
-    });
-  }
+  /* La carta que manda la administración —su formulario la edita entera— se
+     convierte en operaciones por producto contra la tabla (fase C): solo se
+     tocan los productos que cambiaron, y el tope del plan, «Hoy hay» y el
+     precio numérico los aplica `aplicarCatalogo`. `places.menu` ya no se
+     escribe. Se aplica más abajo, cuando ya pasaron todas las validaciones. */
+  const menuEnviado = Array.isArray(body.menu)
+    ? conIds(body.menu as UserPlaceMenuItem[])
+    : null;
+  delete body.menu;
 
   /* Lo que había antes, una sola vez para los tres avisos. Se lee aquí, con los
      cambios de tipo ya filtrados y antes de tocar las ofertas —que es el único
      bloque de abajo que borra—, y solo si el cuerpo trae algo que avisa. */
   const previo =
     Array.isArray(body.ofertas) ||
-    Array.isArray(body.menu) ||
+    menuEnviado !== null ||
     body.status !== undefined ||
     body.description !== undefined ||
     body.schedule !== undefined
@@ -863,6 +809,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       }
     }
 
+    /* Cada oferta apunta a un producto de la carta (`productos.id`). Con la
+       clave foránea de la fase C una que apunte a nada haría fallar el insert
+       entero; se dice antes y con una frase que se entiende. */
+    if (limpias.length > 0) {
+      const ids = new Set((previo?.menu ?? (await productosDe(id))).map((p) => p.id));
+      if (limpias.some((o) => !ids.has(o.productoId))) {
+        return NextResponse.json(
+          { error: "Una oferta apunta a un producto que ya no está en la carta. Elige otro producto." },
+          { status: 400 },
+        );
+      }
+    }
+
     await db.delete(ofertas).where(eq(ofertas.negocioId, id));
     if (limpias.length > 0) {
       await db.insert(ofertas).values(
@@ -894,6 +853,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
   }
 
+  let cartaDespues: UserPlaceMenuItem[] | null = null;
+  if (menuEnviado) {
+    const cartaAntes = previo?.menu ?? (await productosDe(id));
+    const resultado = await aplicarCatalogo(
+      id,
+      diferenciasCatalogo(cartaAntes, fusionarMenu(menuEnviado, cartaAntes), false),
+    );
+    if (!resultado.ok) {
+      return NextResponse.json({ error: resultado.error }, { status: resultado.status });
+    }
+    cartaDespues = resultado.productos;
+  }
+
   const values = toPlaceValues(
     name === undefined ? body : { ...body, name },
     categoryId,
@@ -907,7 +879,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (
     Object.keys(values).length === 0 &&
     !Array.isArray(body.ofertas) &&
-    !entregaEscrita
+    !entregaEscrita &&
+    cartaDespues === null
   ) {
     return NextResponse.json(
       { error: "No hay nada que actualizar" },
@@ -1034,7 +1007,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         titulo: o.titulo,
         descripcion: o.descripcion,
       })),
-      productosNuevos: nuevosProductos(body.menu, previo.menu),
+      productosNuevos: cartaDespues ? nuevosProductos(cartaDespues, previo.menu) : [],
       reabre: body.status === "active" && previo.status !== "active",
     });
     if (avisos.length > 0) {
@@ -1055,7 +1028,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (previo) {
     const { productosNuevos, cambiosPrecio } = cambiosDeCarta(
       previo.menu,
-      row.menu,
+      cartaDespues ?? previo.menu,
     );
     const filas: (typeof novedades.$inferInsert)[] = [];
 
@@ -1148,11 +1121,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       });
     }
   }
-
-  /* Fase B: la carta se lee de la tabla `productos`, pero se escribe en
-     `places.menu`. El reflejo la deja igual que el jsonb antes de invalidar
-     la caché, para que la relectura de abajo ya vea lo guardado. */
-  if (Array.isArray(body.menu)) await reflejarMenu(id);
 
   /* Antes de releer, y no después: `getPlaceById` está cacheado, así que sin
      invalidar primero devolvería la ficha vieja y el panel guardaría un cambio

@@ -108,7 +108,8 @@ export type PlaceRowWithCategory = PlaceRow & {
   /**
    * La carta leída de la tabla `productos` (fase B). La traen las consultas del
    * catálogo; si falta —las rutas que responden con la fila recién escrita—,
-   * se cae al jsonb `places.menu`, que en esta fase sigue siendo la fuente.
+   * se cae al jsonb `places.menu`, congelado desde la fase C (solo lo usa el
+   * negocio de prueba y las rutas que responden con la fila recién escrita).
    */
   carta?: UserPlaceMenuItem[];
 };
@@ -404,7 +405,9 @@ export function toPlaceValues(
   if (patch.notaApagon !== undefined)
     values.notaApagon = patch.notaApagon || null;
   if (patch.payments !== undefined) values.paymentMethods = patch.payments;
-  if (patch.menu !== undefined) values.menu = patch.menu;
+  /* `menu` ya no se escribe (fase C): la carta vive en la tabla `productos` y
+     `places.menu` queda congelado como respaldo. Quien manda una carta la
+     aplica con `aplicarCatalogo`. */
   if (patch.offer !== undefined) {
     values.offerText = patch.offer?.text ?? null;
     values.offerExpiry = patch.offer?.expiry ?? null;

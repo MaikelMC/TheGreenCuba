@@ -128,6 +128,12 @@ export interface UserPlaceMenuItem {
    * la cabecera del tipo). Es opcional y lo escriben solo las importaciones.
    */
   importacionId?: string;
+  /**
+   * La versión de la fila en la tabla `productos` (bloqueo optimista). La pone
+   * el servidor al leer; el panel la devuelve al guardar para que un cambio
+   * hecho mientras tanto —desde Telegram, por ejemplo— no se pise.
+   */
+  version?: number;
 }
 
 export interface UserPlaceOffer {
