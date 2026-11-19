@@ -3,6 +3,7 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import { getPlaceById, listCategories } from "@/lib/db/queries";
 import { configTasaDe } from "@/lib/tasa-server";
+import { configPedidoDe } from "@/lib/pedido-config-server";
 import type { ConfigTasa } from "@/lib/precios";
 import { getAppUser } from "@/lib/auth/user";
 import {
@@ -180,9 +181,12 @@ export default async function PlacePage({
      a ser 200. El esqueleto lo pone ahora el `loading.tsx` de `(main)`. */
   if (!place) notFound();
 
-  const [categorySlug, configTasa] = await Promise.all([
+  /* La configuración del pedido (entrega, programados, tarjeta) solo si el
+     negocio recibe pedidos: con ella la ficha pide igual que la carta. */
+  const [categorySlug, configTasa, configPedido] = await Promise.all([
     getCategorySlug(place.category),
     configTasaDe(place.id),
+    place.pedidosHabilitado ? configPedidoDe(place.id).catch(() => null) : null,
   ]);
   const breadcrumbs = breadcrumbJsonLd([
     { name: "Inicio", url: absoluteUrl("/") },
@@ -219,6 +223,7 @@ export default async function PlacePage({
            estado (o con el del servidor, que puede ir en otra zona horaria). */
         nowIso={new Date().toISOString()}
         configTasa={configTasa}
+        configPedido={configPedido}
       />
     </>
   );

@@ -17,6 +17,7 @@ import {
   Minus,
   Plus,
   ShoppingBag,
+  ShoppingCart,
   Stamp,
   Trash2,
 } from "lucide-react";
@@ -1130,6 +1131,14 @@ export function PedidoProvider({
 }
 
 /**
+ * El carrito de la carta, para quien pinta sus propios botones (la ficha).
+ * `null` fuera de `PedidoProvider`: ahí no se puede pedir.
+ */
+export function useCarritoPedido(): Carrito | null {
+  return useContext(CarritoCtx);
+}
+
+/**
  * El botón «añadir» que va en cada entrada de la carta.
  *
  * Es también donde el carrito se ve desde la carta: en cuanto el producto lleva
@@ -1159,14 +1168,17 @@ export function BotonAgregar({ producto }: { producto: ProductoPedible }) {
           : `Añadir ${producto.name} al pedido`
       }
       onClick={() => carrito.agregar(producto)}
+      /* Carrito y «Añadir», no un «+» suelto: el «+» no decía a dónde iba el
+         producto. Con algo dentro enseña cuántos lleva, con el carrito al lado. */
       className={cn(
-        "grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border font-lv-display transition-colors duration-500 ease-outquint active:scale-95",
+        "inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-[5px] rounded-full border px-[12px] font-lv-display text-meta font-semibold transition-colors duration-500 ease-outquint active:scale-95",
         qty > 0
-          ? "border-verde-400 bg-verde-400 text-small font-bold text-verde-950 hover:bg-verde-300"
+          ? "border-verde-400 bg-verde-400 font-bold text-verde-950 hover:bg-verde-300"
           : "border-verde-300 bg-verde-50 text-verde-700 hover:bg-verde-400 hover:text-verde-950",
       )}
     >
-      {qty > 0 ? qty : <Plus size={18} strokeWidth={2} />}
+      <ShoppingCart size={16} strokeWidth={2} className="shrink-0" />
+      {qty > 0 ? qty : "Añadir"}
     </button>
   );
 }

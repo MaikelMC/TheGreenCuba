@@ -41,12 +41,14 @@ export function PlaceView({
   initialPlace = null,
   nowIso,
   configTasa = null,
+  configPedido = null,
 }: {
   id: string;
   initialPlace?: UserPlace | null;
   /** El «ahora» del servidor, para que el estado de apertura no se hidrate mal. */
   nowIso?: string;
   configTasa?: ConfigTasa | null;
+  configPedido?: import("@/lib/pedido").ConfigPedido | null;
 }) {
   const router = useRouter();
   const { places, hydrated } = usePlaces();
@@ -90,6 +92,7 @@ export function PlaceView({
       onNavigate={() => navegar(`/home?lugar=${place.id}`, router.push)}
       nowIso={nowIso}
       configTasa={configTasa}
+      configPedido={configPedido}
     />
   );
 }

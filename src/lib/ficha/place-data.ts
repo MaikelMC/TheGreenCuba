@@ -196,6 +196,11 @@ export interface PlaceDetailProps {
    */
   nowIso?: string;
   configTasa?: import("@/lib/precios").ConfigTasa | null;
+  /**
+   * Lo que necesita el carrito para pedir igual que en la carta (entrega,
+   * programados, tarjeta). Solo llega si el negocio recibe pedidos.
+   */
+  configPedido?: import("@/lib/pedido").ConfigPedido | null;
 }
 
 function fechaLarga(ms: number): string {

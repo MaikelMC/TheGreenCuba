@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Clock, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PlaceDetailProps } from "@/lib/ficha/place-data";
 import {
@@ -21,8 +21,7 @@ import { trackPlaceSaveToggled, trackPlaceViewed } from "@/lib/analytics";
 import { trackPlaceMetric } from "@/lib/place-metrics";
 import { trackEvento } from "@/lib/eventos-client";
 import { fetchMe } from "@/lib/session-client";
-import { mensajePedido, hrefPedido, totalDePedido, type LineaPedido } from "@/lib/pedido";
-import { formatMenuPrice } from "@/lib/utils";
+import { PedidoProvider, useCarritoPedido } from "@/components/menu/pedido-whatsapp";
 import { convertirPrecio, monedasVista, type MonedaVista } from "@/lib/precios";
 import { OfferBanner } from "../offer-banner";
 import { PaymentsSection } from "../payments-section";
@@ -55,7 +54,7 @@ const CARD = "bg-white rounded-2xl border border-ink/5 shadow-soft p-gap-lg";
  * La maqueta de proyectos no pasa por aquí: `PlaceDetail` la deja intacta en su
  * rama de siempre.
  */
-export function FichaView({
+function FichaContenido({
   place,
   state = "normal",
   onBack,
@@ -71,7 +70,13 @@ export function FichaView({
   const [userId, setUserId] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewsKey, setReviewsKey] = useState(0);
-  const [carrito, setCarrito] = useState<Record<string, number>>({});
+  /* El carrito es el de la carta online (`PedidoProvider`): mismas preguntas
+     al confirmar —entrega, dirección, hora, tarjeta— y el pedido queda en el
+     panel. `null` cuando el negocio no recibe pedidos. */
+  const pedido = useCarritoPedido();
+  const carrito: Record<string, number> = Object.fromEntries(
+    (pedido?.lineas ?? []).map((linea) => [linea.id, linea.qty]),
+  );
   const [monedaVista, setMonedaVista] = useState<MonedaVista | null>(null);
 
   useEffect(() => {
@@ -167,14 +172,9 @@ export function FichaView({
     ? estadoCocina(place.entrega, place.horario)
     : null;
 
-  /* Carrito: solo activo si el módulo domicilio está encendido, el plan lo
-     permite **y hay WhatsApp**, que es a donde va el pedido. Sin las tres no
-     hay botones + ni carrito: sumar productos sin poder mandarlos era dejar al
-     cliente tocando «+» para nada. */
-  const carritoActivo =
-    place.modulosActivos.includes("domicilio") &&
-    place.pedidosHabilitado &&
-    Boolean(place.pedidoWhatsapp);
+  /* Carrito: lo monta `FichaView` solo si el negocio recibe pedidos (módulo
+     domicilio, plan e interruptor del dueño, y WhatsApp). */
+  const carritoActivo = pedido !== null;
 
   /* «Pedir cita» por ítem: solo cuando el módulo servicios está activo y el
      negocio tiene WhatsApp. El URL lo construye Catalogo por ítem. */
@@ -184,59 +184,27 @@ export function FichaView({
       : undefined;
 
   function agregarAlCarrito(id: string) {
-    setCarrito((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
+    const item = place.menu.find((m) => m.id === id);
+    if (!item || !pedido) return;
+    /* El precio de la oferta viva, igual que el botón de la carta: es el que
+       viaja al mensaje y el que el servidor comprueba. */
+    pedido.agregar({
+      id,
+      name: item.name,
+      price: item.oferta?.por ?? item.price,
+      currency: item.currency,
+    });
   }
 
   function quitarDelCarrito(id: string) {
-    setCarrito((prev) => {
-      const qty = (prev[id] ?? 0) - 1;
-      if (qty <= 0) {
-        const { [id]: _removed, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [id]: qty };
-    });
+    pedido?.sumar(id, -1);
   }
 
-  /* Líneas del carrito para `mensajePedido` y la barra fija. */
-  const carritoLineas: LineaPedido[] = Object.entries(carrito)
-    .filter(([, qty]) => qty > 0)
-    .flatMap(([id, qty]) => {
-      const item = place.menu.find((m) => m.id === id);
-      if (!item) return [];
-      return [{ id, name: item.name, price: item.price, currency: item.currency, qty }];
-    });
-
-  const carritoHref =
-    carritoActivo && carritoLineas.length > 0 && place.pedidoWhatsapp
-      ? hrefPedido(
-          place.pedidoWhatsapp,
-          mensajePedido({ negocio: place.name, lineas: carritoLineas }),
-        )
-      : undefined;
-
-  const carritoLabel = (() => {
-    if (!carritoHref) return undefined;
-    const n = carritoLineas.reduce((sum, l) => sum + l.qty, 0);
-    const total = totalDePedido(carritoLineas);
-    const totalStr = total
-      ? ` · ${formatMenuPrice(String(total.total), total.currency)}`
-      : "";
-    return `${COPY.pedir} ${n}${totalStr}`;
-  })();
-
-  /* El carrito no puede depender de que el dueño haya configurado «Pedir» en la
-     barra. Antes el enlace al pedido vivía solo dentro de `BarraFija`, y esa
-     barra se pinta con `acciones.barra` —vacía en la mayoría de las fichas—,
-     así que elegir productos no mostraba ninguna forma de confirmar. Con
-     carrito, «pedir» entra en la barra aunque no esté configurado. */
+  /* Con algo en el pedido, la barra del carrito (la de `PedidoProvider`, la
+     misma de la carta) ocupa el pie de la pantalla: la barra fija de la ficha
+     se aparta para no taparla. */
   const accionesBarra: AccionBarra[] =
-    carritoHref && !acciones.barra.includes("pedir")
-      ? (["pedir", ...acciones.barra] as AccionBarra[]).slice(
-          0,
-          MAX_ACCIONES_BARRA,
-        )
-      : acciones.barra;
+    pedido && pedido.lineas.length > 0 ? [] : acciones.barra;
 
   function handleSave() {
     const next = toggleSaved(place.id, userId);
@@ -580,25 +548,8 @@ export function FichaView({
       <BarraFija
         acciones={accionesBarra}
         place={place}
-        carritoHref={carritoHref}
-        carritoLabel={carritoLabel}
         onNavigate={handleNavigate}
       />
-
-      {/* En escritorio la barra fija es de móvil (`lg:hidden`), así que el
-          pedido se confirmaba en ningún sitio. Este botón flotante es el mismo
-          enlace, con el mismo texto, solo cuando hay algo en el carrito. */}
-      {carritoHref && carritoLabel && (
-        <a
-          href={carritoHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="fixed bottom-gap-lg right-gap-lg z-40 hidden items-center gap-gap-sm rounded-full bg-verde-400 px-gap-lg py-gap-sm font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 lg:inline-flex"
-        >
-          <ShoppingCart size={17} strokeWidth={1.8} className="shrink-0" />
-          {carritoLabel}
-        </a>
-      )}
 
       <ReviewDialog
         open={reviewOpen}
@@ -608,5 +559,51 @@ export function FichaView({
         onPublished={handlePublished}
       />
     </div>
+  );
+}
+
+/**
+ * La ficha, con el carrito de la carta online cuando el negocio recibe pedidos.
+ *
+ * Antes la ficha llevaba su propio carrito, que mandaba el WhatsApp directo: sin
+ * entrega, dirección, hora programada ni tarjeta de sellos, y sin dejar el
+ * pedido en el panel del negocio. Ahora monta el mismo `PedidoProvider` que
+ * `/m/[slug]` —mismas preguntas al confirmar, mismo registro— y el carrito se
+ * comparte con la carta, porque los dos lo guardan con la misma clave.
+ */
+export function FichaView(props: PlaceDetailProps) {
+  const { place, configPedido, configTasa } = props;
+  const recibePedidos =
+    place.modulosActivos.includes("domicilio") &&
+    place.pedidosHabilitado &&
+    Boolean(place.pedidoWhatsapp) &&
+    Boolean(configPedido);
+
+  if (!recibePedidos || !configPedido || !place.pedidoWhatsapp) {
+    return <FichaContenido {...props} />;
+  }
+
+  const productos = place.menu
+    .filter((item) => item.id)
+    .map((item) => ({
+      id: item.id!,
+      name: item.name,
+      price: item.oferta?.por ?? item.price,
+      currency: item.currency,
+    }));
+
+  return (
+    <PedidoProvider
+      placeId={place.id}
+      negocio={place.name}
+      whatsapp={place.pedidoWhatsapp}
+      productos={productos}
+      configTasa={configTasa ?? undefined}
+      configEntrega={configPedido.configEntrega}
+      tieneProgramados={configPedido.tieneProgramados}
+      fidelidad={configPedido.fidelidad}
+    >
+      <FichaContenido {...props} />
+    </PedidoProvider>
   );
 }

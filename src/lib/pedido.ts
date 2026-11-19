@@ -221,6 +221,18 @@ export function mensajePedido({
   return partes.join("\n");
 }
 
+/**
+ * Lo que el carrito necesita del negocio para pedir: zonas de domicilio,
+ * pedidos programados y tarjeta de sellos, ya resueltos en el servidor.
+ */
+export interface ConfigPedido {
+  /** `null` = sin zonas de domicilio. */
+  configEntrega: import("./ficha/entrega").EntregaConfig | null;
+  tieneProgramados: boolean;
+  /** `null` = no se pide teléfono para la tarjeta de sellos. */
+  fidelidad: { nombre: string; metaSellos: number; premio: string } | null;
+}
+
 /** `https://wa.me/<número>?text=<mensaje>` — la URL que abre WhatsApp. */
 export function hrefPedido(whatsapp: string, mensaje: string): string {
   const base = whatsappHref(whatsapp);
