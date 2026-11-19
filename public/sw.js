@@ -351,6 +351,13 @@ self.addEventListener("message", (event) => {
     return;
   }
 
+  /* La página compara esto con `/sw-version.js` del servidor (40 bytes) para
+     saber si hubo despliegue sin descargar los 60 KB de este archivo. */
+  if (data.type === "GET_VERSION") {
+    if (event.ports && event.ports[0]) event.ports[0].postMessage(self.SW_VERSION || null);
+    return;
+  }
+
   if (data.type === "PURGE_PRIVATE") {
     event.waitUntil(
       (async () => {

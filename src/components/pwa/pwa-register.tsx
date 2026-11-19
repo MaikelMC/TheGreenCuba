@@ -29,6 +29,7 @@ export function PwaRegister() {
   const [offline, setOffline] = useState(false);
   const [esperando, setEsperando] = useState<ServiceWorker | null>(null);
   const [alertaCuota, setAlertaCuota] = useState(false);
+  const [actualizando, setActualizando] = useState(false);
   const recargaPedida = useRef(false);
 
   useEffect(() => {
@@ -61,11 +62,18 @@ export function PwaRegister() {
     let registro: ServiceWorkerRegistration | null = null;
     let vigilancia: ReturnType<typeof setInterval> | null = null;
 
-    /** Lo único que decide si se enseña el aviso: que haya versión esperando. */
+    /**
+     * Lo único que decide si se enseña el aviso: que haya versión nueva,
+     * instalada o **instalándose**. La instalación precachea páginas, catálogo
+     * y mapa, y con red lenta tarda minutos: esperar a `waiting` retrasaba el
+     * aviso todo ese rato. Sin `controller` es la primera instalación y no hay
+     * nada que actualizar.
+     */
     const revisarEsperando = () => {
       if (cancelado || recargaPedida.current || !registro) return;
-      const enEspera = registro.waiting;
-      if (enEspera) setEsperando(enEspera);
+      if (!navigator.serviceWorker.controller) return;
+      const nueva = registro.waiting ?? registro.installing;
+      if (nueva) setEsperando(nueva);
     };
 
     const pararVigilancia = () => {
@@ -117,31 +125,48 @@ export function PwaRegister() {
         if (reg !== previo) reg.addEventListener("updatefound", vigilarEsperando);
         vigilarEsperando();
 
-        /* Sin throttle, `update()` corre en cada cambio de pestaña y al
-           recuperar red. Vercel puede servir sw.js desde distintos edge nodes
-           con contenido ligeramente distinto, lo que el navegador interpreta
-           como SW nuevo. 30 min es suficiente para pillar un deploy real sin
-           disparar el aviso en cada gesto del usuario. */
-        let ultimaComprobacion = 0;
-        const INTERVALO_MS = 30 * 60 * 1000;
-        const comprobar = () => {
-          const ahora = Date.now();
-          if (ahora - ultimaComprobacion < INTERVALO_MS) return;
-          ultimaComprobacion = ahora;
-          void registro?.update().catch(() => {}).then(vigilarEsperando);
+        /* Detección de despliegue. Antes era `update()` con un tope de 30 min:
+           cada llamada baja los 60 KB de `sw.js`, así que no se podía hacer a
+           menudo y el aviso llegaba tarde. Ahora se pide `/sw-version.js`
+           (40 bytes) y se compara con la versión del SW activo; `update()`
+           solo corre cuando difieren. Un SW de antes de este cambio no sabe
+           contestar la versión: se trata como distinta, una sola vez. */
+        let versionVista: string | null = null;
+        let comprobando = false;
+        const comprobar = async () => {
+          if (comprobando || cancelado || !navigator.onLine) return;
+          if (registro?.waiting || registro?.installing) return vigilarEsperando();
+          comprobando = true;
+          try {
+            const res = await fetch(`/sw-version.js?t=${Date.now()}`, { cache: "no-store" });
+            const servidor = res.ok ? /"([^"]+)"/.exec(await res.text())?.[1] : undefined;
+            if (!servidor || servidor === versionVista) return;
+            if ((await versionActiva(registro)) !== servidor) await registro?.update();
+            versionVista = servidor;
+            vigilarEsperando();
+          } catch {
+            /* Sin red: se reintenta en el siguiente aviso. */
+          } finally {
+            comprobando = false;
+          }
         };
 
-        /* Busca versión nueva al volver a la pestaña y al recuperar red. Un
-           teléfono puede pasar días con la app en segundo plano. */
+        /* Al abrir, al volver a la app, al recuperar red y cada minuto con la
+           pestaña visible. Un minuto de sondeo son ~0,3 KB: cabe en cualquier
+           plan de datos y deja el aviso, como mucho, un minuto tarde. */
         const alVolver = () => {
-          if (document.visibilityState === "visible") comprobar();
+          if (document.visibilityState === "visible") void comprobar();
         };
+        const alRecuperarRed = () => void comprobar();
         document.addEventListener("visibilitychange", alVolver);
-        window.addEventListener("online", comprobar);
+        window.addEventListener("online", alRecuperarRed);
+        const sondeo = setInterval(alVolver, 60_000);
+        void comprobar();
 
         window.addEventListener("beforeunload", () => {
+          clearInterval(sondeo);
           document.removeEventListener("visibilitychange", alVolver);
-          window.removeEventListener("online", comprobar);
+          window.removeEventListener("online", alRecuperarRed);
         });
       } catch {
         /* Sin registro no hay offline. No se avisa: la app sigue funcionando
@@ -213,8 +238,29 @@ export function PwaRegister() {
        perderse porque el SW nuevo cambia el bundle bajo los pies del fetch. */
     await procesarCola().catch(() => {});
     recargaPedida.current = true;
-    esperando.postMessage({ type: "SKIP_WAITING" });
-    setEsperando(null);
+    const sw = esperando;
+    if (sw.state === "installed") {
+      sw.postMessage({ type: "SKIP_WAITING" });
+      setEsperando(null);
+      return;
+    }
+    /* Aún instalándose: el aviso sale en cuanto se detecta el despliegue, y
+       el botón espera a que termine de bajar lo que necesita sin conexión. */
+    setActualizando(true);
+    const alCambiar = () => {
+      if (sw.state === "installed") {
+        sw.removeEventListener("statechange", alCambiar);
+        sw.postMessage({ type: "SKIP_WAITING" });
+      } else if (sw.state === "redundant") {
+        // La instalación falló (red caída): se retira el aviso y se reintentará.
+        sw.removeEventListener("statechange", alCambiar);
+        recargaPedida.current = false;
+        setActualizando(false);
+        setEsperando(null);
+      }
+    };
+    sw.addEventListener("statechange", alCambiar);
+    alCambiar();
   };
 
   return (
@@ -239,15 +285,22 @@ export function PwaRegister() {
           style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))" }}
         >
           <div className="flex items-center gap-3 rounded-full border border-ink/10 bg-verde-950 px-4 py-2 text-small text-white shadow-soft">
-            <RefreshCw size={15} strokeWidth={1.8} aria-hidden="true" />
-            <span>Hay una versión nueva</span>
-            <button
-              type="button"
-              onClick={actualizar}
-              className="rounded-full bg-verde-400 px-3 py-1 text-meta font-semibold text-verde-950 transition-colors duration-300 hover:bg-verde-300"
-            >
-              Actualizar
-            </button>
+            <RefreshCw
+              size={15}
+              strokeWidth={1.8}
+              aria-hidden="true"
+              className={actualizando ? "animate-spin" : undefined}
+            />
+            <span>{actualizando ? "Actualizando…" : "Hay una versión nueva"}</span>
+            {!actualizando && (
+              <button
+                type="button"
+                onClick={actualizar}
+                className="rounded-full bg-verde-400 px-3 py-1 text-meta font-semibold text-verde-950 transition-colors duration-300 hover:bg-verde-300"
+              >
+                Actualizar
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -269,6 +322,21 @@ export function PwaRegister() {
       )}
     </>
   );
+}
+
+/** La versión que lleva el SW activo, o `null` si no contesta (SW antiguo). */
+function versionActiva(registro: ServiceWorkerRegistration | null): Promise<string | null> {
+  const sw = navigator.serviceWorker.controller ?? registro?.active;
+  if (!sw) return Promise.resolve(null);
+  return new Promise((resolver) => {
+    const canal = new MessageChannel();
+    const tope = setTimeout(() => resolver(null), 1500);
+    canal.port1.onmessage = (e) => {
+      clearTimeout(tope);
+      resolver(typeof e.data === "string" ? e.data : null);
+    };
+    sw.postMessage({ type: "GET_VERSION" }, [canal.port2]);
+  });
 }
 
 /** Desregistra el service worker y borra todo lo que haya cacheado la PWA. */
