@@ -302,7 +302,7 @@ function TarjetaPedido({
           {pedido.lineas.map((linea) => (
             <li
               key={linea.id}
-              className="flex items-baseline justify-between gap-gap-sm"
+              className="flex flex-wrap items-baseline justify-between gap-x-gap-sm"
             >
               <span className="min-w-0 text-small text-ink">
                 <span className="font-semibold tabular-nums text-ink-soft/60">
@@ -313,6 +313,15 @@ function TarjetaPedido({
               <span className="shrink-0 tabular-nums text-meta text-ink-soft/60">
                 {formatMenuPrice(linea.price, linea.currency) || "—"}
               </span>
+              {/* El precio cambió entre que el cliente vio la carta y pidió: se
+                  enseñan los dos y quien atiende decide qué cobrar. */}
+              {linea.precioCliente !== undefined && (
+                <span className="basis-full text-meta font-medium text-ink">
+                  El cliente vio{" "}
+                  {formatMenuPrice(linea.precioCliente, linea.monedaCliente ?? linea.currency) || "—"}
+                  {" · "}precio actual {formatMenuPrice(linea.price, linea.currency) || "—"}
+                </span>
+              )}
             </li>
           ))}
         </ul>

@@ -33,6 +33,15 @@ export interface LineaPedido {
   price: string;
   currency: string;
   qty: number;
+  /**
+   * El precio que vio el cliente, cuando no coincidía con el de la carta
+   * (motivo `precio_cambio`). `price` guarda el del servidor; esto es lo que
+   * decía el mensaje de WhatsApp, para que quien atiende decida qué cobrar.
+   * Lo escribe solo el servidor (`revisarPedido`): no se acepta del cliente.
+   */
+  precioCliente?: string;
+  /** La moneda de `precioCliente`, si no era la del producto. */
+  monedaCliente?: string;
 }
 
 /**

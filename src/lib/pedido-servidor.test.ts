@@ -18,6 +18,7 @@ test("con el precio bien no hay nada que revisar", () => {
   const r = revisarPedido([linea()], [producto()], [], AHORA);
   assert.deepEqual(r.motivos, []);
   assert.equal(r.lineas[0]!.price, "250");
+  assert.equal(r.lineas[0]!.precioCliente, undefined, "sin cambio no se guarda");
 });
 
 test("el precio que se guarda es el del servidor, y se marca precio_cambio", () => {
@@ -25,6 +26,7 @@ test("el precio que se guarda es el del servidor, y se marca precio_cambio", () 
   assert.deepEqual(r.motivos, ["precio_cambio"]);
   assert.equal(r.lineas[0]!.price, "250");
   assert.equal(r.lineas[0]!.qty, 2, "la cantidad no se toca");
+  assert.equal(r.lineas[0]!.precioCliente, "100", "y se guarda lo que vio el cliente");
 });
 
 test("una oferta viva manda sobre el precio de la carta", () => {

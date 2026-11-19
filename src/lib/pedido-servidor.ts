@@ -16,8 +16,8 @@
  * - `oculto`: el producto está oculto;
  * - `agotado`: el producto está agotado ahora (el cliente pudo cargar la carta
  *   antes de que se agotara);
- * - `precio_cambio`: el precio del mensaje no es el del servidor —se guarda el
- *   del servidor—;
+ * - `precio_cambio`: el precio del mensaje no es el del servidor —en `price`
+ *   se guarda el del servidor y en `precioCliente` el que vio el cliente—;
  * - `sin_precio`: el producto no tiene precio numérico y el total no se puede
  *   comprobar.
  *
@@ -104,14 +104,22 @@ export function revisarPedido(
     }
 
     const cliente = precioDeLinea(linea.price);
-    if (cliente === null || !mismoPrecio(cliente, servidor) || linea.currency !== producto.currency) {
-      motivos.add("precio_cambio");
-    }
+    const cambio =
+      cliente === null || !mismoPrecio(cliente, servidor) || linea.currency !== producto.currency;
+    if (cambio) motivos.add("precio_cambio");
     return {
       ...linea,
       id: producto.id ?? linea.id,
       price: textoPrecio(servidor),
       currency: producto.currency,
+      /* Lo que vio el cliente se guarda junto al precio del servidor: la
+         dependienta decide qué cobrar con los dos delante. */
+      ...(cambio
+        ? {
+            precioCliente: linea.price,
+            ...(linea.currency !== producto.currency ? { monedaCliente: linea.currency } : {}),
+          }
+        : {}),
     };
   });
 
