@@ -15,6 +15,7 @@ import {
 import { textoFalta, type EstadoTarjeta } from "@/lib/fidelidad";
 import type { MovimientoVistaDTO, TarjetaVistaDTO } from "@/lib/tarjeta-vista";
 import { NoExiste } from "@/components/menu/tarjeta-no-existe";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const HORA = new Intl.DateTimeFormat("en-US", {
@@ -291,6 +292,9 @@ export function TarjetaCliente({
           </p>
           <p className="text-meta text-ink-soft/60">{tarjeta.config.nombre}</p>
         </div>
+        {/* Mismo interruptor y mismo estilo que en la carta: la tarjeta se
+            instala como app propia y no tiene otro sitio donde cambiar tema. */}
+        <ThemeToggle className="ml-auto shrink-0 border-transparent bg-transparent shadow-none" />
       </header>
 
       {/* La tarjeta */}
