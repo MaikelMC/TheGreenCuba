@@ -27,6 +27,7 @@ import {
 import { setDisponibilidad } from "@/lib/disponibilidad-server";
 import { productosDe as cartaDeLaTabla } from "@/lib/productos-server";
 import { aplicarCatalogo } from "@/lib/productos-escritura";
+import { horarioConApertura } from "@/lib/apertura-server";
 import { diferenciasCatalogo, hayOperaciones } from "@/lib/catalogo";
 import type { UserPlaceMenuItem } from "@/lib/places-store";
 import { puede } from "@/lib/plans-server";
@@ -676,9 +677,15 @@ async function ejecutarAbrirCerrar(
   if (!permite(negocio, "ficha")) return negado("abrir_cerrar_hoy", "ficha");
   const status: EstadoNegocio = abierto ? "active" : "closed";
   const antes = { status: negocio.status };
+  /* «Abrir hoy» fuera de horario abre de verdad: la apertura manual gana al
+     horario hasta su próxima apertura. Cerrar la quita. */
+  const horario = await horarioConApertura(negocio.negocioId, {
+    status,
+    abrirAhora: abierto,
+  });
   await db
     .update(places)
-    .set({ status })
+    .set({ status, ...(horario !== undefined ? { horario } : {}) })
     .where(eq(places.id, negocio.negocioId));
   invalidarCatalogo();
 

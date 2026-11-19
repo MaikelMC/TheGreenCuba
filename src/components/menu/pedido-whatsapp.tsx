@@ -1014,7 +1014,7 @@ export function PedidoProvider({
                     const disponibles = franjasDia.filter((f) => !f.llena);
                     const listId = `franjas-${diaElegido}`;
                     return (
-                      <div className="flex flex-col gap-[6px]">
+                      <div className="flex min-w-0 flex-col gap-[6px]">
                         <datalist id={listId}>
                           {disponibles.map((f) => (
                             <option key={f.inicio} value={horaDeEtiqueta(f)} />
@@ -1028,7 +1028,7 @@ export function PedidoProvider({
                             </span>
                           )}
                         </div>
-                        <div className="relative">
+                        <div className="relative min-w-0">
                           <Clock
                             size={16}
                             strokeWidth={1.8}
@@ -1047,7 +1047,11 @@ export function PedidoProvider({
                               setFranjaElegida(match);
                             }}
                             className={cn(
-                              "h-12 w-full rounded-2xl border bg-white pl-10 pr-gap-sm text-body text-ink outline-none transition-colors duration-300",
+                              /* `appearance-none`, `min-w-0` y `max-w-full`: el campo de hora
+                                 del móvil (Safari de iPhone sobre todo) trae un ancho mínimo
+                                 propio que ignora `w-full` y se salía de la ventana por la
+                                 derecha. La hora se alinea a la izquierda, junto al reloj. */
+                              "block h-12 w-full min-w-0 max-w-full appearance-none rounded-2xl border bg-white pl-10 pr-gap-sm text-left text-body text-ink outline-none transition-colors duration-300 [&::-webkit-date-and-time-value]:text-left",
                               franjaElegida
                                 ? "border-verde-400 ring-2 ring-verde-400/30"
                                 : "border-ink/10 focus:border-verde-400 focus:ring-2 focus:ring-verde-400/30",

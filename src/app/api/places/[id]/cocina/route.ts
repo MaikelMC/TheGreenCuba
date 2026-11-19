@@ -72,9 +72,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       hasta: (p.hasta as number | null) ?? null,
       motivo: typeof p.motivo === "string" ? p.motivo.trim().slice(0, 100) : undefined,
     });
-  } else {
-    await actualizarPausa(id, undefined);
+    return NextResponse.json({ ok: true, aperturaManual: null });
   }
 
-  return NextResponse.json({ ok: true });
+  /* Abrir: si el horario dice cerrada, el servidor guarda la apertura manual y
+     la devuelve para que el panel pinte lo mismo que la ficha. */
+  const aperturaManual = await actualizarPausa(id, undefined);
+  return NextResponse.json({ ok: true, aperturaManual });
 }

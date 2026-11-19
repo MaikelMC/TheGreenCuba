@@ -87,10 +87,18 @@ export function CocinaPanel({
         toast.error(data.error ?? "No se pudo abrir la cocina.");
         return;
       }
+      const data = (await res.json().catch(() => null)) as {
+        aperturaManual?: EntregaConfig["aperturaManual"] | null;
+      } | null;
       setEntregaLocal((prev) => {
-        if (!prev) return prev;
-        const { pausa: _, ...resto } = prev;
-        return resto;
+        const base: EntregaConfig = prev ?? {
+          costo: { modo: "consultar" },
+          tiempo: { min: 0, max: 0 },
+        };
+        const { pausa: _, aperturaManual: _a, ...resto } = base;
+        /* Fuera de horario el servidor guarda una apertura manual: sin ella
+           aquí, el panel seguiría calculando «cerrada» con el horario. */
+        return data?.aperturaManual ? { ...resto, aperturaManual: data.aperturaManual } : resto;
       });
       toast.success("Cocina abierta.");
     } catch {
@@ -138,7 +146,9 @@ export function CocinaPanel({
           costo: { modo: "consultar" },
           tiempo: { min: 0, max: 0 },
         };
-        return { ...base, pausa };
+        /* Cerrar quita también la apertura manual, como en el servidor. */
+        const { aperturaManual: _a, ...sinApertura } = base;
+        return { ...sinApertura, pausa };
       });
       setMotivo("");
       toast.success("Cocina pausada.");

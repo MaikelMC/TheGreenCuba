@@ -33,7 +33,8 @@ import {
   MAX_ACCIONES_FILA,
 } from "@/lib/ficha/acciones";
 import { escribirEntregaParcial } from "@/lib/entrega-server";
-import { esHorario } from "@/lib/ficha/horario";
+import { esHorario, type Horario } from "@/lib/ficha/horario";
+import { horarioConApertura } from "@/lib/apertura-server";
 import {
   esCatalogoFuente,
   esExistenciasModo,
@@ -441,6 +442,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       { error: "El horario tiene horas o excepciones mal formadas." },
       { status: 400 },
     );
+  }
+
+  /* Abrir o cerrar a mano y el horario van juntos: abrir fuera de horario
+     guarda una apertura manual que gana al horario hasta su próxima apertura;
+     cerrar la quita; y editar las franjas conserva la que esté vigente. Solo el
+     botón rápido del panel manda `abrirAhora`: el guardado de la ficha también
+     lleva `status` y no debe abrir nada por su cuenta. */
+  if (body.status !== undefined || body.horario !== undefined) {
+    const horario = await horarioConApertura(id, {
+      status: body.status,
+      abrirAhora: (body as { abrirAhora?: unknown }).abrirAhora === true,
+      horario: body.horario as Horario | null | undefined,
+    });
+    if (horario !== undefined) body.horario = horario;
   }
 
   if (

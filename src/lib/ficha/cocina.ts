@@ -12,7 +12,7 @@
  *   4. Sin horario configurado: cocina abierta (no afirmamos nada).
  */
 
-import { estadoApertura } from "./horario";
+import { aperturaManualVigente, estadoApertura } from "./horario";
 import type { Horario } from "./horario";
 import type { EntregaConfig } from "./entrega";
 
@@ -66,6 +66,14 @@ export function estadoCocina(
 
       return { abierta: false, motivo, vuelveA, texto };
     }
+  }
+
+  /* ── 1b. Apertura manual ────────────────────────────────────────────────
+     El dueño abrió la cocina a mano fuera de horario: gana al horario hasta la
+     próxima apertura que marcaba, o hasta que la cierre (que pone `pausa`, y
+     esa ya ganó arriba). */
+  if (aperturaManualVigente(entrega?.aperturaManual, ahora)) {
+    return { abierta: true, motivo: null, vuelveA: null, texto: "Cocinando ahora" };
   }
 
   /* ── 2 & 3. Horario (cocina o local) ──────────────────────────────────── */

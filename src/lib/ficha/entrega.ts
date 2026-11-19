@@ -70,6 +70,11 @@ export interface EntregaConfig {
   horario?: Horario;
   /** Pausa manual de cocina. `hasta: null` = cerrada indefinidamente. */
   pausa?: { desde: number; hasta: number | null; motivo?: string };
+  /**
+   * Cocina abierta a mano fuera de su horario. Gana al horario hasta `hasta`
+   * (la próxima apertura que marcaba el horario) o hasta que se cierre.
+   */
+  aperturaManual?: { desde: number; hasta: number | null };
   /** El cliente puede pasar a recoger en el local. */
   recogida?: boolean;
   /** El negocio hace entregas a domicilio. */
@@ -221,6 +226,18 @@ function esTiempoEntrega(value: unknown): value is EntregaConfig["tiempo"] {
   );
 }
 
+function esAperturaCocina(
+  value: unknown,
+): value is NonNullable<EntregaConfig["aperturaManual"]> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const a = value as Record<string, unknown>;
+  return (
+    typeof a.desde === "number" &&
+    Number.isFinite(a.desde) &&
+    (a.hasta === null || (typeof a.hasta === "number" && Number.isFinite(a.hasta)))
+  );
+}
+
 function esPausa(value: unknown): value is NonNullable<EntregaConfig["pausa"]> {
   if (!value || typeof value !== "object") return false;
   const p = value as Partial<{ desde: number; hasta: number | null; motivo: string }>;
@@ -252,6 +269,7 @@ const CLAVES_ENTREGA: ReadonlySet<string> = new Set<keyof EntregaConfig>([
   "pedidoMinimo",
   "horario",
   "pausa",
+  "aperturaManual",
   "recogida",
   "domicilio",
   "notaEntrega",
@@ -291,6 +309,13 @@ export function esParcheEntrega(value: unknown): value is ParcheEntrega {
     return false;
   }
   if (p.pausa !== undefined && p.pausa !== null && !esPausa(p.pausa)) return false;
+  if (
+    p.aperturaManual !== undefined &&
+    p.aperturaManual !== null &&
+    !esAperturaCocina(p.aperturaManual)
+  ) {
+    return false;
+  }
   if (p.recogida !== undefined && typeof p.recogida !== "boolean") return false;
   if (p.domicilio !== undefined && typeof p.domicilio !== "boolean") return false;
   if (p.notaEntrega !== undefined && typeof p.notaEntrega !== "string") return false;
@@ -322,6 +347,7 @@ export function esEntregaConfig(value: unknown): value is EntregaConfig {
     return false;
   }
   if (e.pausa !== undefined && !esPausa(e.pausa)) return false;
+  if (e.aperturaManual !== undefined && !esAperturaCocina(e.aperturaManual)) return false;
   if (e.recogida !== undefined && typeof e.recogida !== "boolean") return false;
   if (e.domicilio !== undefined && typeof e.domicilio !== "boolean") return false;
   if (e.notaEntrega !== undefined && typeof e.notaEntrega !== "string") return false;

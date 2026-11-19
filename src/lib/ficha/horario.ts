@@ -57,9 +57,39 @@ export interface ExcepcionHorario {
  * que significa no haberlo configurado. `excepciones` cubre festivos y cierres
  * puntuales.
  */
+/**
+ * El dueño abrió a mano fuera de horario. Gana al horario hasta `hasta` (la
+ * próxima apertura que marcaba el horario cuando se abrió), o hasta que el
+ * dueño cierre. `hasta: null` = sin fecha: hasta que cierre.
+ */
+export interface AperturaManual {
+  desde: number;
+  hasta: number | null;
+}
+
 export interface Horario {
   semana: Partial<Record<DiaSemana, Franja[]>>;
   excepciones?: ExcepcionHorario[];
+  /** Apertura a mano fuera de horario. Ver `aperturaManualPara`. */
+  aperturaManual?: AperturaManual;
+}
+
+/** ¿Sigue vigente esta apertura manual? */
+export function aperturaManualVigente(
+  manual: AperturaManual | null | undefined,
+  ahora: number,
+): boolean {
+  return Boolean(manual) && (manual!.hasta === null || ahora < manual!.hasta);
+}
+
+function esAperturaManual(value: unknown): value is AperturaManual {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const a = value as Record<string, unknown>;
+  return (
+    typeof a.desde === "number" &&
+    Number.isFinite(a.desde) &&
+    (a.hasta === null || (typeof a.hasta === "number" && Number.isFinite(a.hasta)))
+  );
 }
 
 /** Lo que devuelve `estadoApertura`, ya sin textos: los copys van aparte. */
@@ -139,6 +169,9 @@ export function esHorario(value: unknown): value is Horario {
     if (!Array.isArray(h.excepciones) || !h.excepciones.every(esExcepcion)) {
       return false;
     }
+  }
+  if (h.aperturaManual !== undefined && !esAperturaManual(h.aperturaManual)) {
+    return false;
   }
   return true;
 }
@@ -419,6 +452,21 @@ export function estadoApertura({
     };
   }
 
+  /* El dueño abrió a mano fuera de horario: gana al horario mientras siga
+     vigente (hasta la próxima apertura que marcaba el horario, o hasta que
+     cierre). Cerrar a mano ya ganó arriba, con `status`. */
+  if (aperturaManualVigente(horario?.aperturaManual, now.getTime())) {
+    return {
+      abierto: true,
+      sinHorario: false,
+      cierraA: null,
+      abreA: null,
+      abreDia: null,
+      diasHastaApertura: null,
+      mensaje: null,
+    };
+  }
+
   if (!horario || horarioVacio(horario)) {
     return {
       abierto: false,
@@ -503,4 +551,53 @@ export function estadoApertura({
     diasHastaApertura: null,
     mensaje: excepcionHoy?.mensaje?.trim() || null,
   };
+}
+
+/* ── Apertura manual ──────────────────────────────────────────────────── */
+
+/**
+ * El instante de la próxima apertura según el horario, o `null` si ahora está
+ * abierto, no hay horario o no se conoce la próxima apertura.
+ *
+ * Se calcula con los minutos que faltan en la zona del negocio, no montando una
+ * fecha: así no hace falta saber el desfase horario de La Habana.
+ */
+export function proximaAperturaMs(
+  horario: Horario | null | undefined,
+  now: Date = new Date(),
+  tz = "America/Havana",
+): number | null {
+  if (!horario) return null;
+  const { aperturaManual: _manual, ...soloHorario } = horario;
+  const estado = estadoApertura({ horario: soloHorario, now, tz });
+  if (estado.abierto || estado.sinHorario) return null;
+  if (estado.abreA === null || estado.diasHastaApertura === null) return null;
+  const abre = parseHora(estado.abreA);
+  if (abre === null) return null;
+  const faltan = estado.diasHastaApertura * 1440 + abre - relojEn(now, tz).minutos;
+  return now.getTime() + Math.max(0, faltan) * 60_000;
+}
+
+/**
+ * La apertura manual que toca al pulsar «Abrir» ahora, o `undefined` si no
+ * hace falta (el horario ya dice abierto, o no hay horario que ganar).
+ *
+ * Dura hasta la próxima apertura del horario —desde ahí manda el horario— o,
+ * si no se conoce, hasta que el dueño cierre.
+ */
+export function aperturaManualPara(
+  horario: Horario | null | undefined,
+  now: Date = new Date(),
+  tz = "America/Havana",
+): AperturaManual | undefined {
+  if (!horario || horarioVacio(horario)) return undefined;
+  const { aperturaManual: _manual, ...soloHorario } = horario;
+  if (estadoApertura({ horario: soloHorario, now, tz }).abierto) return undefined;
+  return { desde: now.getTime(), hasta: proximaAperturaMs(soloHorario, now, tz) };
+}
+
+/** El horario sin apertura manual: lo que queda al cerrar a mano. */
+export function sinAperturaManual(horario: Horario): Horario {
+  const { aperturaManual: _manual, ...resto } = horario;
+  return resto;
 }

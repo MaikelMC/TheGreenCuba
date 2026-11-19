@@ -604,7 +604,13 @@ function DashboardView({
       if (next === status || statusSaving) return;
       setStatus(next);
       setStatusSaving(true);
-      const ok = await updatePlace(place.id, { status: next });
+      /* `abrirAhora`: abrir a mano fuera de horario abre de verdad (el servidor
+         guarda una apertura manual que gana al horario hasta su próxima
+         apertura). Sin esto «Abierto» solo significaba «sigue el horario». */
+      const ok = await updatePlace(place.id, {
+        status: next,
+        ...(next === "active" ? { abrirAhora: true } : {}),
+      } as Partial<UserPlace>);
       setStatusSaving(false);
       if (!ok) {
         setStatus(place.status); // revertir

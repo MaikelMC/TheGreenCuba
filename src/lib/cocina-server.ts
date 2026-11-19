@@ -17,7 +17,7 @@ import { CATALOG_TAG } from "@/lib/db/queries";
 import { estadoCocina, type EstadoCocina } from "@/lib/ficha/cocina";
 import type { EntregaConfig, ProgramadosConfig } from "@/lib/ficha/entrega";
 import { escribirEntregaParcial } from "@/lib/entrega-server";
-import type { Horario } from "@/lib/ficha/horario";
+import { proximaAperturaMs, type Horario } from "@/lib/ficha/horario";
 
 /** Lee la entrega y el horario del negocio en una sola consulta. */
 async function leerCocina(negocioId: string): Promise<{
@@ -44,19 +44,54 @@ export async function estadoCocinaDeNegocio(negocioId: string, ahora = Date.now(
 }
 
 /**
- * Escribe la pausa en el jsonb `entrega` sin tocar nada más.
+ * Abre o cierra la cocina a mano, en el jsonb `entrega`, sin tocar nada más.
  *
- * `undefined` = quitar la pausa (cocina abierta). Si no hay entrega configurada,
- * crea una mínima para guardar la pausa. Invalida la caché de la carta pública.
+ * - **Cerrar** (`pausa`): guarda la pausa y quita la apertura manual.
+ * - **Abrir** (`undefined`): quita la pausa y, si el horario de cocina dice
+ *   que ahora está cerrada, guarda una apertura manual que gana al horario
+ *   hasta su próxima apertura (desde ahí manda el horario) o hasta que se
+ *   cierre. Antes «Abrir» solo quitaba la pausa, y fuera de horario la cocina
+ *   seguía cerrada aunque el panel dijera «Cocina abierta».
+ *
+ * Devuelve la apertura manual guardada (o `null`). Invalida la caché de la
+ * carta y la ficha.
  */
 export async function actualizarPausa(
   negocioId: string,
   pausa: EntregaConfig["pausa"],
-): Promise<void> {
-  const resultado = await escribirEntregaParcial(negocioId, { pausa: pausa ?? null });
-  if (!resultado.ok) return;
+): Promise<EntregaConfig["aperturaManual"] | null> {
+  let aperturaManual: EntregaConfig["aperturaManual"] | null = null;
+  if (!pausa) {
+    const datos = await leerCocina(negocioId);
+    if (datos) {
+      const ahora = new Date();
+      const { pausa: _p, aperturaManual: _a, ...sinManual } = datos.entrega ?? {
+        costo: { modo: "consultar" as const },
+        tiempo: { min: 0, max: 0 },
+      };
+      const horarioCocina = datos.entrega?.horario ?? datos.horario;
+      const cerradaPorHorario = !estadoCocina(
+        sinManual as EntregaConfig,
+        datos.horario,
+        ahora.getTime(),
+      ).abierta;
+      if (cerradaPorHorario && horarioCocina) {
+        aperturaManual = {
+          desde: ahora.getTime(),
+          hasta: proximaAperturaMs(horarioCocina, ahora),
+        };
+      }
+    }
+  }
+
+  const resultado = await escribirEntregaParcial(negocioId, {
+    pausa: pausa ?? null,
+    aperturaManual,
+  });
+  if (!resultado.ok) return null;
 
   revalidateTag(CATALOG_TAG, { expire: 0 });
+  return aperturaManual;
 }
 
 /**
