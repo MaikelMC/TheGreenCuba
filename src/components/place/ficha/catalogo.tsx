@@ -22,6 +22,7 @@ import {
   Package,
   Pizza,
   Plus,
+  ShoppingCart,
   Salad,
   Sandwich,
   Search,
@@ -192,6 +193,8 @@ function BtnCarrito({
 }) {
   if (!item.id) return null;
   const qty = carrito[item.id] ?? 0;
+  /* Carrito y la palabra «Añadir», no un «+» suelto: el «+» no decía a dónde
+     iba el producto, y aquí el gesto es meterlo en el pedido. */
   if (qty === 0) {
     return (
       <button
@@ -199,11 +202,12 @@ function BtnCarrito({
         onClick={() => onAgregar(item.id!)}
         aria-label={`Añadir ${item.name} al pedido`}
         className={cn(
-          "grid shrink-0 place-items-center rounded-full bg-verde-400 text-verde-950 shadow-primary-halo transition-colors duration-300 hover:bg-verde-300 active:scale-95",
-          size === "sm" ? "size-8" : "size-11",
+          "inline-flex shrink-0 items-center justify-center gap-[5px] rounded-full bg-verde-400 font-lv-display font-semibold text-verde-950 shadow-primary-halo transition-colors duration-300 hover:bg-verde-300 active:scale-95",
+          size === "sm" ? "h-8 px-[10px] text-meta" : "h-11 px-gap-sm text-small",
         )}
       >
-        <Plus size={size === "sm" ? 15 : 20} strokeWidth={2} />
+        <ShoppingCart size={size === "sm" ? 14 : 17} strokeWidth={2} className="shrink-0" />
+        Añadir
       </button>
     );
   }
