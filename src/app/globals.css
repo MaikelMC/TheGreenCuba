@@ -165,11 +165,18 @@
   html[data-theme="dark"] .bg-sand-warm,
   html[data-theme="dark"] .bg-white\/90,
   html[data-theme="dark"] .bg-white\/95,
+  html[data-theme="dark"] .bg-white\/80,
   html[data-theme="dark"] .bg-white\/70,
   html[data-theme="dark"] .bg-white\/60,
   html[data-theme="dark"] .bg-sand-warm\/90,
   html[data-theme="dark"] .bg-background {
     background-color: #0e1720 !important;
+  }
+
+  /* Brillo interior de la tarjeta de tasa de la portada: en oscuro dibujaba un
+     borde blanco alrededor de una tarjeta oscura. */
+  html[data-theme="dark"] .ring-white\/70 {
+    --tw-ring-color: rgba(237, 247, 240, 0.06) !important;
   }
 
   /* `bg-white/50` es el carril de lugares de la portada. No estaba en la lista
@@ -1012,6 +1019,112 @@
 
   html[data-theme="dark"] .slide-fallback svg {
     color: #9be3b4 !important;
+  }
+
+  /* ── Fondos claros que se escapaban de las listas de arriba ─────────────── */
+
+  /* Pies fijos del onboarding y del alta de negocio: el degradado arena que
+     tapa el scroll bajo los botones quedaba como una franja crema. */
+  html[data-theme="dark"] .bg-gradient-to-t.from-sand-warm {
+    background-image: linear-gradient(
+      to top,
+      #0e1720,
+      #0e1720,
+      transparent
+    ) !important;
+  }
+
+  /* Fade inferior del selector de servicios de la portada. */
+  html[data-theme="dark"] .bg-gradient-to-t.from-white\/80 {
+    background-image: linear-gradient(
+      to top,
+      rgba(14, 23, 32, 0.8),
+      transparent
+    ) !important;
+  }
+
+  /* Banner del 2×1 en los precios de la portada: naranja-crema sobre fondo
+     oscuro. Se queda cálido, oscurecido, y su texto se aclara. */
+  html[data-theme="dark"] .bg-gradient-to-br.from-orange-50 {
+    background-image: linear-gradient(
+      to bottom right,
+      rgba(249, 115, 22, 0.14),
+      rgba(245, 158, 11, 0.1),
+      rgba(244, 63, 94, 0.12)
+    ) !important;
+  }
+
+  html[data-theme="dark"] .ring-white\/60 {
+    --tw-ring-color: rgba(237, 247, 240, 0.06) !important;
+  }
+
+  html[data-theme="dark"] .text-orange-950,
+  html[data-theme="dark"] .text-orange-900\/75 {
+    color: #fed7aa !important;
+  }
+
+  /* Chapita «programado» de pedidos y su aviso. */
+  html[data-theme="dark"] .bg-orange-50 {
+    background-color: rgba(249, 115, 22, 0.12) !important;
+  }
+
+  html[data-theme="dark"] .border-orange-200,
+  html[data-theme="dark"] .border-orange-200\/80 {
+    border-color: rgba(249, 115, 22, 0.35) !important;
+  }
+
+  html[data-theme="dark"] .text-orange-700 {
+    color: #fdba74 !important;
+  }
+
+  html[data-theme="dark"] .border-amber-100 {
+    border-color: rgba(245, 158, 11, 0.2) !important;
+  }
+
+  /* Estado «Preparando» del pack a medida (negocio y admin). */
+  html[data-theme="dark"] .bg-blue-50 {
+    background-color: rgba(59, 130, 246, 0.12) !important;
+  }
+
+  html[data-theme="dark"] .border-blue-200 {
+    border-color: rgba(59, 130, 246, 0.35) !important;
+  }
+
+  html[data-theme="dark"] .text-blue-700 {
+    color: #93c5fd !important;
+  }
+
+  /* Bordes verde muy claro: módulos, recomendador y ficha. */
+  html[data-theme="dark"] .border-verde-100,
+  html[data-theme="dark"] .border-verde-50 {
+    border-color: rgba(103, 199, 146, 0.2) !important;
+  }
+
+  html[data-theme="dark"] .ring-verde-50 {
+    --tw-ring-color: rgba(103, 199, 146, 0.2) !important;
+  }
+
+  /* Cliente con premio listo en «Clientes frecuentes». */
+  html[data-theme="dark"] .bg-verde-50\/30 {
+    background-color: rgba(103, 199, 146, 0.08) !important;
+  }
+
+  /* Hovers con opacidad: el `hover:bg-sand` de arriba no los alcanza porque
+     compilan a clases distintas. */
+  html[data-theme="dark"] [class~="hover:bg-sand/60"]:hover,
+  html[data-theme="dark"] [class~="hover:bg-sand/30"]:hover,
+  html[data-theme="dark"] [class~="hover:bg-verde-50/50"]:hover {
+    background-color: rgba(237, 247, 240, 0.05) !important;
+  }
+
+  /* Etiqueta de provincia sobre el mapa del onboarding. */
+  html[data-theme="dark"] .bg-sand-warm\/85 {
+    background-color: rgba(14, 23, 32, 0.85) !important;
+  }
+
+  /* Sellos vacíos de la tarjeta de cliente en la carta. */
+  html[data-theme="dark"] .bg-white\/40.border-dashed {
+    background-color: rgba(237, 247, 240, 0.04) !important;
   }
 
   /* ── Tarjeta «Pedidos a domicilio» en la ficha pública ──────────────────── */
