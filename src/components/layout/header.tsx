@@ -7,6 +7,10 @@ import { cn } from "@/lib/utils";
 import { useSearchActions, useSearchState } from "@/providers/search-provider";
 import { searchAddress, type GeocodeSuggestion } from "@/lib/map/geocode";
 import {
+  guardarCallesProvincia,
+  provinciaDePreferencia,
+} from "@/lib/map/calles-offline";
+import {
   readRecentSearches,
   type RecentSearch,
 } from "@/lib/recent-searches-store";
@@ -213,6 +217,21 @@ export function Header({
     };
   }, []);
 
+  /* App instalada y con red: guarda las calles de la provincia para poder
+     buscar direcciones sin conexión. Con retraso, para no competir con la
+     carga del mapa; en la web normal se guardan solo al buscar una dirección. */
+  useEffect(() => {
+    if (!window.matchMedia("(display-mode: standalone)").matches) return;
+    const timer = setTimeout(() => {
+      if (!navigator.onLine) return;
+      const { origin, preferences } = suggestionOrigin(userId);
+      void guardarCallesProvincia(
+        provinciaDePreferencia(preferences.location, origin.lat, origin.lng),
+      );
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [userId]);
+
   useEffect(() => {
     function handleClickOutside(e: PointerEvent) {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
@@ -268,6 +287,11 @@ export function Header({
             preferences.location === "otra"
               ? undefined
               : preferences.locationName,
+          provincia: provinciaDePreferencia(
+            preferences.location,
+            origin.lat,
+            origin.lng,
+          ),
         });
         if (seq !== addrSeq.current) return;
         setAddrResults(results);

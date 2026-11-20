@@ -8,6 +8,11 @@
  * decide en el componente, que es quien conoce su propia interfaz.
  */
 
+/* Lo máximo que se espera a que el service worker esté activo. El primer aviso
+   de la app usa el mismo tope; aquí se repite para no importar un componente
+   desde una utilidad. */
+const ESPERA_SW_MS = 5000;
+
 /** La clave pública viaja en el bundle; sin ella no se puede suscribir nada. */
 export function clavePublicaVapid(): string {
   return (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "").trim();
@@ -79,7 +84,13 @@ export async function altaPushDispositivo(): Promise<ResultadoAltaPush> {
   if (permiso === "denied") return { ok: false, motivo: "denegado" };
   if (permiso !== "granted") return { ok: false, motivo: "cancelado" };
 
-  const registro = await navigator.serviceWorker.getRegistration();
+  /* `getRegistration()` devuelve el registro aunque el worker todavía esté
+     instalándose, y suscribir ahí revienta. `ready` espera al activo. El tope
+     evita dejar el botón colgado si el registro no llega nunca. */
+  const registro = await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ESPERA_SW_MS)),
+  ]);
   if (!registro) return { ok: false, motivo: "sin-sw" };
 
   const existente = await registro.pushManager.getSubscription();

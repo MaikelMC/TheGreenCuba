@@ -13,9 +13,10 @@
  *    línea de `/baja`. La baja tiene que ir **dentro del mensaje**: quien lo
  *    recibe no ha visto la app, así que la única forma de irse es contestar
  *    algo, y ese algo es `/baja`.
- * 3. **Tres avisos por semana y negocio.** El tope se cuenta por semana ISO, que
- *    es la misma clave con la que el plan cuenta publicaciones: el lunes no hay
- *    nada que reiniciar.
+ * 3. **Sin tope semanal, con espera entre avisos.** Lo que llega dentro de
+ *    `ESPERA_ENTRE_AVISOS_MS` se junta en un solo mensaje (ver
+ *    `agruparCambios`). Antes eran tres avisos por semana y negocio, que se
+ *    quedaba corto para un negocio con muchos seguidores.
  *
  * Sin base de datos y sin red a propósito: el envío por lotes y la escritura
  * están en `seguidores-server.ts`.
@@ -129,17 +130,55 @@ export function validarAviso(titulo: string, texto: string): string | null {
   return null;
 }
 
-/** Cuántos avisos puede mandar un negocio por semana. */
-export const AVISOS_POR_SEMANA = 3;
+/**
+ * Espera mínima entre dos mensajes de un mismo negocio.
+ *
+ * Sustituye al tope de tres avisos por semana, que se quedaba corto para un
+ * negocio con muchos seguidores o que cambia la carta a menudo. Ya no hay
+ * tope: lo que llega dentro de esta ventana no se pierde, se **junta** y sale
+ * en un solo mensaje al cumplirse. Los avisos salen solos al guardar, y todos
+ * los negocios comparten el bot de Telegram: sin esta espera, añadir veinte
+ * productos de uno en uno serían veinte mensajes a cada seguidor, y las
+ * denuncias por spam caerían sobre el bot de toda La Verde.
+ */
+export const ESPERA_ENTRE_AVISOS_MS = 30 * 60_000;
 
-/** La clave del tope: la semana ISO del envío. */
+/** La semana ISO del envío. Solo para el registro y el contador del panel. */
 export function semanaDelAviso(fecha: Date = new Date()): string {
   return semanaDe(fecha);
 }
 
-/** Cuántos avisos quedan esta semana. Se usa para explicárselo al dueño. */
-export function avisosRestantes(usados: number): number {
-  return Math.max(0, AVISOS_POR_SEMANA - usados);
+/**
+ * Junta varios cambios en un solo aviso.
+ *
+ * Con uno solo sale tal cual. Con varios, un titular que dice cuántos y una
+ * línea por cambio, con su propio titular. Si la lista no cabe en
+ * `MAX_TEXTO`, se corta en una línea entera y se dice cuántos quedan: un
+ * mensaje recortado a media frase se lee como un error.
+ */
+export function agruparCambios(
+  cambios: readonly { titulo: string; texto: string }[],
+): { titulo: string; texto: string } | null {
+  if (cambios.length === 0) return null;
+  if (cambios.length === 1) return cambios[0]!;
+
+  const titulo = `${cambios.length} novedades`;
+  const lineas = cambios.map((cambio) => `• ${cambio.titulo.trim()}`);
+  const entero = lineas.join("\n");
+  if (entero.length <= MAX_TEXTO) return { titulo, texto: entero };
+
+  /* No cabe: se añaden líneas mientras quepan junto con la de «…y N más». */
+  const dentro: string[] = [];
+  for (const [i, linea] of lineas.entries()) {
+    const restantes = lineas.length - i - 1;
+    const prueba = [...dentro, linea, `…y ${restantes} más.`].join("\n");
+    if (prueba.length > MAX_TEXTO) {
+      dentro.push(`…y ${lineas.length - i} más.`);
+      break;
+    }
+    dentro.push(linea);
+  }
+  return { titulo, texto: dentro.join("\n") };
 }
 
 /**

@@ -237,7 +237,9 @@ test("el candado nombra la vía más barata que abre la función", () => {
   /* Suelta: el módulo, por nombre. */
   assert.equal(textoBloqueo("qr_sin_marca"), "Está en Menú Pro");
   assert.equal(textoBloqueo("reservas_whatsapp"), "Está en Reservas y pedidos");
-  assert.equal(textoBloqueo("asistente_ia"), "Está en Agente de Telegram");
+  assert.equal(textoBloqueo("asistente_ia"), "Está en Agente de Telegram (IA)");
+  /* El agente con botones es la vía más barata al bot: 1 USD frente a Esencial. */
+  assert.equal(textoBloqueo("telegram_menu"), "Está en Agente de Telegram");
   /* Todavía no existe: se vende, pero el candado lo dice. */
   assert.equal(textoBloqueo("eventos"), "Próximamente");
 });

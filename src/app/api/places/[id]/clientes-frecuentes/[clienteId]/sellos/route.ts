@@ -47,6 +47,11 @@ export async function POST(req: NextRequest, { params }: Params) {
         { error: "La tarjeta de cliente frecuente no está en tu plan." },
         { status: 403 },
       );
+    case "inactiva":
+      return NextResponse.json(
+        { error: "La tarjeta no está activa." },
+        { status: 409 },
+      );
     default:
       return NextResponse.json(
         { error: "Cantidad inválida o falta la nota." },

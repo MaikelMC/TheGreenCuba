@@ -106,13 +106,13 @@ const FECHA = new Intl.DateTimeFormat("es-CU", {
 });
 
 const BTN_GHOST =
-  "inline-flex h-9 cursor-pointer items-center gap-[5px] rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-300 ease-outquint hover:border-verde-300 hover:text-verde-700 disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex h-11 cursor-pointer items-center gap-[5px] rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-300 ease-outquint hover:border-verde-300 hover:text-verde-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40";
 
 const BTN_VERDE =
-  "inline-flex h-9 cursor-pointer items-center gap-[5px] rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-300 ease-outquint hover:bg-verde-300 disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex h-11 cursor-pointer items-center gap-[5px] rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-300 ease-outquint hover:bg-verde-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40";
 
 const INPUT =
-  "h-10 w-full rounded-xl border border-ink/10 bg-white px-gap-sm font-lv-display text-small text-ink outline-none placeholder:text-ink-soft/40 focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
+  "h-11 w-full rounded-xl border border-ink/10 bg-white px-gap-sm font-lv-display text-body text-ink outline-none placeholder:text-ink-soft/70 focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 
 function inicial(nombre: string | null, telefono: string): string {
   const base = nombre?.trim();
@@ -137,20 +137,20 @@ function TarjetaVisual({
   const hitos = new Set(config.metas.map((m) => m.sellos));
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-verde-500 via-verde-600 to-verde-800 p-gap-sm text-verde-50 shadow-card">
+    <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-verde-600 via-verde-700 to-verde-800 p-gap-sm text-verde-50 shadow-card">
       <div className="flex items-start justify-between gap-gap-xs">
         <div>
-          <p className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-verde-100/80">
+          <p className="font-lv-display text-meta font-semibold text-verde-50">
             {config.nombre}
           </p>
           <p className="mt-[4px] font-lv-display text-body font-bold tabular-nums text-white">
             {tarjeta.sellos}
-            <span className="ml-[4px] text-meta font-medium text-verde-100/80">
+            <span className="ml-[4px] text-meta font-medium text-verde-50">
               de {total}
             </span>
           </p>
         </div>
-        <span className="rounded-full bg-white/10 px-[8px] py-[2px] text-[10px] font-semibold uppercase tracking-[0.1em] text-verde-50/90 ring-1 ring-white/15">
+        <span className="rounded-full bg-white/10 px-[8px] py-[2px] text-[11px] font-semibold text-verde-50 ring-1 ring-white/20">
           Ciclo {tarjeta.ciclo}
         </span>
       </div>
@@ -172,7 +172,7 @@ function TarjetaVisual({
         ))}
       </div>
 
-      <p className="mt-gap-xs truncate font-mono text-[11px] text-verde-100/85">
+      <p className="mt-gap-xs truncate font-mono text-meta text-verde-50">
         {nombre ? `${nombre} · ` : ""}
         {enmascararTelefono(telefono) ?? telefono}
       </p>
@@ -203,6 +203,9 @@ function EditorTarjeta({
   const [modo, setModo] = useState<"ver" | "editar">(config ? "ver" : "editar");
   const [guardando, setGuardando] = useState(false);
   const [borrador, setBorrador] = useState<FidelidadConfig>(config ?? DEFAULT_CONFIG);
+  const [errores, setErrores] = useState<{ nombre?: string; metas: Record<number, string> }>({
+    metas: {},
+  });
   const [monto, setMonto] = useState(config?.compraMinima ? String(config.compraMinima.monto) : "");
   const [moneda, setMoneda] = useState(config?.compraMinima?.moneda ?? "USD");
 
@@ -214,6 +217,7 @@ function EditorTarjeta({
       setBorrador(config);
       setMonto(config.compraMinima ? String(config.compraMinima.monto) : "");
       setMoneda(config.compraMinima?.moneda ?? "USD");
+      setModo("ver");
     }
   }, [config]);
 
@@ -270,11 +274,35 @@ function EditorTarjeta({
       return;
     }
 
-    const metas = [...borrador.metas]
-      .map((m) => ({ sellos: Number(m.sellos), premio: m.premio.trim() }))
-      .sort((a, b) => a.sellos - b.sellos);
+    const nombre = borrador.nombre.trim();
+    const metasLimpias = borrador.metas.map((m) => ({
+      sellos: Number(m.sellos),
+      premio: m.premio.trim(),
+    }));
+    const erroresMetas: Record<number, string> = {};
+    metasLimpias.forEach((meta, indice) => {
+      if (!meta.premio) erroresMetas[indice] = "Escribe el premio.";
+    });
 
-    const cuerpo: FidelidadConfig = { ...borrador, nombre: borrador.nombre.trim(), metas, compraMinima: minima };
+    if (!nombre || Object.keys(erroresMetas).length > 0) {
+      setErrores({
+        nombre: nombre ? undefined : "Ponle un nombre a la tarjeta.",
+        metas: erroresMetas,
+      });
+      toast.error("Revisa los campos marcados.");
+      if (!nombre) {
+        document.getElementById("tarjeta-nombre")?.focus();
+      } else {
+        const primero = Number(Object.keys(erroresMetas)[0]);
+        document.getElementById(`meta-premio-${primero}`)?.focus();
+      }
+      return;
+    }
+    setErrores({ metas: {} });
+
+    const metas = metasLimpias.sort((a, b) => a.sellos - b.sellos);
+
+    const cuerpo: FidelidadConfig = { ...borrador, nombre, metas, compraMinima: minima };
 
     setGuardando(true);
     try {
@@ -304,15 +332,12 @@ function EditorTarjeta({
   /* ── vista cerrada premium ───────────────────────────────────────────── */
   if (modo === "ver" && config) {
     return (
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-verde-500 via-verde-600 to-verde-800 p-gap-md text-white shadow-card">
-        {/* Decoración de fondo */}
-        <div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-white/[0.04]" />
-        <div className="pointer-events-none absolute -bottom-8 right-4 size-28 rounded-full bg-white/[0.04]" />
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-verde-600 via-verde-700 to-verde-800 p-gap-md text-white shadow-card">
 
         {/* Encabezado */}
         <div className="relative flex items-start justify-between gap-gap-sm">
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-verde-100/65">
+            <p className="text-meta font-semibold text-verde-50">
               Tarjeta de sellos
             </p>
             <p className="mt-[4px] truncate font-lv-display text-h3 font-bold text-white leading-tight">
@@ -321,10 +346,10 @@ function EditorTarjeta({
           </div>
           <span
             className={cn(
-              "shrink-0 rounded-full px-[10px] py-[3px] text-[10px] font-semibold uppercase tracking-[0.1em]",
+              "shrink-0 rounded-full px-[10px] py-[3px] text-[11px] font-semibold",
               config.activo
-                ? "bg-white/15 text-verde-50 ring-1 ring-white/20"
-                : "bg-white/8 text-verde-100/50 ring-1 ring-white/10",
+                ? "bg-white/15 text-verde-50 ring-1 ring-white/25"
+                : "bg-white/10 text-verde-50 ring-1 ring-white/15",
             )}
           >
             {config.activo ? "Activa" : "Inactiva"}
@@ -337,12 +362,15 @@ function EditorTarjeta({
             const esUltima = i === config.metas.length - 1;
             return (
               <div key={i} className="flex min-w-0 items-center gap-[10px]">
-                <span className="grid size-[22px] shrink-0 place-items-center rounded-full bg-white/15 text-[10px] font-bold tabular-nums text-white ring-1 ring-white/20">
+                <span className="grid size-[22px] shrink-0 place-items-center rounded-full bg-white/15 text-[11px] font-bold tabular-nums text-white ring-1 ring-white/20">
                   {m.sellos}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-verde-50/90">{m.premio}</span>
+                <span className="min-w-0 flex-1 truncate text-small font-medium text-verde-50">{m.premio}</span>
                 {esUltima && (
-                  <span className="shrink-0 text-[10px] text-verde-200/55">↺</span>
+                  <>
+                    <span className="shrink-0 text-[11px] text-verde-50" aria-hidden="true">↺</span>
+                    <span className="sr-only">La última meta reinicia la tarjeta.</span>
+                  </>
                 )}
               </div>
             );
@@ -351,7 +379,7 @@ function EditorTarjeta({
 
         {/* Compra mínima */}
         {config.compraMinima && (
-          <p className="relative mt-gap-xs text-[11px] text-verde-100/60">
+          <p className="relative mt-gap-xs text-meta text-verde-50">
             Compra mínima: {config.compraMinima.monto} {config.compraMinima.moneda}
           </p>
         )}
@@ -361,7 +389,7 @@ function EditorTarjeta({
           <button
             type="button"
             onClick={() => setModo("editar")}
-            className="inline-flex h-9 cursor-pointer items-center gap-[6px] rounded-full bg-white/15 px-gap-sm font-lv-display text-meta font-semibold text-white ring-1 ring-white/25 transition-colors duration-300 ease-outquint hover:bg-white/22 hover:ring-white/35"
+            className="inline-flex h-11 cursor-pointer items-center gap-[6px] rounded-full bg-white/15 px-gap-sm font-lv-display text-meta font-semibold text-white ring-1 ring-white/25 transition-colors duration-300 ease-outquint hover:bg-white/22 hover:ring-white/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-verde-700"
           >
             <Pencil size={12} strokeWidth={2} />
             Editar tarjeta
@@ -389,61 +417,78 @@ function EditorTarjeta({
 
       {/* Vista previa */}
       <div>
-        <p className="mb-gap-xs font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-soft/50">
+        <p className="mb-gap-xs font-lv-display text-meta font-semibold text-ink-soft/70">
           Así la ve tu cliente
         </p>
-        <div className={cn(!borrador.activo && "opacity-45")}>
-          <TarjetaVisual
-            config={borrador}
-            tarjeta={preview}
-            nombre={negocio?.nombre ?? null}
-            telefono="+53 5••• ••••"
-          />
-        </div>
+        <TarjetaVisual
+          config={borrador}
+          tarjeta={preview}
+          nombre={negocio?.nombre ?? null}
+          telefono="+53 5••• ••••"
+        />
         {!borrador.activo && (
-          <p className="mt-[6px] text-meta text-ink-soft/55">La tarjeta está inactiva: los clientes no ven este módulo.</p>
+          <p className="mt-[6px] text-meta text-ink-soft/75">La tarjeta está inactiva: los clientes no ven este módulo.</p>
         )}
       </div>
 
       {/* Interruptor activo */}
-      <label className="flex cursor-pointer items-center justify-between gap-gap-sm rounded-xl border border-ink/8 bg-white p-gap-sm">
+      <div className="flex items-center justify-between gap-gap-sm rounded-xl border border-ink/10 bg-white p-gap-sm">
         <div>
-          <p className="text-small font-semibold text-ink">Tarjeta activa</p>
-          <p className="text-meta text-ink-soft/60">Tus clientes podrán dejar su teléfono al pedir y sumar sellos</p>
+          <p id="tarjeta-activa-titulo" className="text-small font-semibold text-ink">Tarjeta activa</p>
+          <p id="tarjeta-activa-desc" className="text-meta text-ink-soft/70">Tus clientes podrán dejar su teléfono al pedir y sumar sellos</p>
         </div>
-        <span
+        <button
+          type="button"
           role="switch"
           aria-checked={borrador.activo}
+          aria-labelledby="tarjeta-activa-titulo"
+          aria-describedby="tarjeta-activa-desc"
           onClick={() => setBorrador((b) => ({ ...b, activo: !b.activo }))}
-          className={cn(
-            "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-300 ease-outquint",
-            borrador.activo ? "bg-verde-400" : "bg-ink/15",
-          )}
+          className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/50 focus-visible:ring-offset-2"
         >
-          <span className={cn(
-            "pointer-events-none inline-block size-5 rounded-full bg-white shadow-md ring-0 transition-transform duration-300 ease-outquint",
-            borrador.activo ? "translate-x-5" : "translate-x-0",
-          )} />
-        </span>
-      </label>
+          <span
+            aria-hidden="true"
+            className={cn(
+              "relative inline-flex h-6 w-11 items-center rounded-full border-2 border-transparent transition-colors duration-300 ease-outquint",
+              borrador.activo ? "bg-verde-400" : "bg-ink/25",
+            )}
+          >
+            <span className={cn(
+              "pointer-events-none inline-block size-5 rounded-full bg-white shadow-md ring-0 transition-transform duration-300 ease-outquint motion-reduce:transition-none",
+              borrador.activo ? "translate-x-5" : "translate-x-0",
+            )} />
+          </span>
+        </button>
+      </div>
 
       {/* Nombre */}
       <label className="block">
         <span className="mb-[6px] block text-meta font-semibold text-ink">Nombre de la tarjeta</span>
         <input
+          id="tarjeta-nombre"
           type="text"
           value={borrador.nombre}
           maxLength={60}
-          onChange={(e) => setBorrador((b) => ({ ...b, nombre: e.target.value }))}
-          className={INPUT}
+          aria-invalid={Boolean(errores.nombre)}
+          aria-describedby={errores.nombre ? "error-nombre-tarjeta" : undefined}
+          onChange={(e) => {
+            setBorrador((b) => ({ ...b, nombre: e.target.value }));
+            setErrores((prev) => ({ ...prev, nombre: undefined }));
+          }}
+          className={cn(INPUT, errores.nombre && "border-destructive/60")}
         />
+        {errores.nombre && (
+          <p id="error-nombre-tarjeta" role="alert" className="mt-[6px] text-meta font-medium text-destructive-ink">
+            {errores.nombre}
+          </p>
+        )}
       </label>
 
       {/* Premios (antes Metas) */}
       <div>
         <p className="mb-[6px] text-meta font-semibold text-ink">Premios</p>
-        <p className="mb-gap-xs text-meta text-ink-soft/60">
-          Hasta 4. El último completa la tarjeta y empieza una nueva.
+        <p className="mb-gap-xs text-meta text-ink-soft/75">
+          Hasta 4. El último completa la tarjeta y empieza una nueva. Los sellos por encima del último premio se guardan para la próxima.
         </p>
         <div className="flex flex-col gap-gap-sm">
           {borrador.metas.map((meta, indice) => {
@@ -454,47 +499,56 @@ function EditorTarjeta({
             const puedeBajar = meta.sellos > anterior + 1;
 
             return (
-              <div key={indice} className="rounded-xl border border-ink/8 bg-white p-gap-sm">
-                <div className="flex items-center gap-gap-sm">
+              <div key={indice} className="rounded-xl border border-ink/10 bg-white p-gap-sm">
+                <div className="flex flex-wrap items-center gap-gap-sm">
                   {/* Stepper sellos */}
                   <div className="flex shrink-0 items-center overflow-hidden rounded-xl border border-ink/10">
                     <button
                       type="button"
                       onClick={() => decrementarSellos(indice)}
                       disabled={!puedeBajar}
-                      className="grid h-9 w-8 place-items-center text-ink-soft/60 transition-colors hover:bg-ink/5 disabled:opacity-30"
+                      className="grid size-11 place-items-center text-ink-soft/70 transition-colors hover:bg-ink/5 disabled:cursor-not-allowed disabled:opacity-30"
                       aria-label={`Bajar sellos de la meta ${indice + 1}`}
                     >
                       <span className="text-body font-semibold leading-none">−</span>
                     </button>
-                    <span className="min-w-[2ch] text-center font-lv-display text-small font-semibold tabular-nums text-ink">
+                    <span className="min-w-[2ch] px-[2px] text-center font-lv-display text-small font-semibold tabular-nums text-ink">
                       {meta.sellos}
                     </span>
                     <button
                       type="button"
                       onClick={() => incrementarSellos(indice)}
                       disabled={!puedeSubir}
-                      className="grid h-9 w-8 place-items-center text-ink-soft/60 transition-colors hover:bg-ink/5 disabled:opacity-30"
+                      className="grid size-11 place-items-center text-ink-soft/70 transition-colors hover:bg-ink/5 disabled:cursor-not-allowed disabled:opacity-30"
                       aria-label={`Subir sellos de la meta ${indice + 1}`}
                     >
                       <span className="text-body font-semibold leading-none">+</span>
                     </button>
                   </div>
-                  <span className="text-meta text-ink-soft/50">sellos →</span>
+                  <span className="text-meta text-ink-soft/70">sellos →</span>
                   <input
+                    id={`meta-premio-${indice}`}
                     type="text"
                     value={meta.premio}
                     maxLength={MAX_PREMIO}
                     placeholder="Un refresco gratis"
-                    onChange={(e) =>
+                    aria-label={`Premio de la meta de ${meta.sellos} sellos`}
+                    aria-invalid={Boolean(errores.metas[indice])}
+                    aria-describedby={errores.metas[indice] ? `error-meta-${indice}` : undefined}
+                    onChange={(e) => {
+                      const valor = e.target.value;
                       setBorrador((b) => ({
                         ...b,
                         metas: b.metas.map((m, i) =>
-                          i === indice ? { ...m, premio: e.target.value } : m,
+                          i === indice ? { ...m, premio: valor } : m,
                         ),
-                      }))
-                    }
-                    className={cn(INPUT, "min-w-0 flex-1")}
+                      }));
+                      setErrores((prev) => ({
+                        ...prev,
+                        metas: { ...prev.metas, [indice]: "" },
+                      }));
+                    }}
+                    className={cn(INPUT, "min-w-[160px] flex-1", errores.metas[indice] && "border-destructive/60")}
                   />
                   <button
                     type="button"
@@ -505,13 +559,18 @@ function EditorTarjeta({
                       }))
                     }
                     disabled={borrador.metas.length === 1}
-                    className={cn(BTN_GHOST, "shrink-0 px-gap-xs")}
+                    className={cn(BTN_GHOST, "size-11 shrink-0 px-0")}
                     aria-label="Quitar premio"
                   >
                     <Trash2 size={13} strokeWidth={1.8} />
                   </button>
                 </div>
-                <p className="mt-[6px] text-[11px] text-ink-soft/50">
+                {errores.metas[indice] && (
+                  <p id={`error-meta-${indice}`} role="alert" className="mt-[6px] text-meta font-medium text-destructive-ink">
+                    {errores.metas[indice]}
+                  </p>
+                )}
+                <p className="mt-[6px] text-meta text-ink-soft/70">
                   {esUltima
                     ? "Completa la tarjeta y empieza una nueva"
                     : "Se canjea sin perder los sellos"}
@@ -548,7 +607,7 @@ function EditorTarjeta({
       {/* Compra mínima */}
       <div>
         <p className="mb-[6px] text-meta font-semibold text-ink">Compra mínima para dar sello</p>
-        <p className="mb-gap-xs text-meta text-ink-soft/60">Déjalo vacío si cualquier pedido da sello.</p>
+        <p className="mb-gap-xs text-meta text-ink-soft/75">Déjalo vacío si cualquier pedido da sello.</p>
         <div className="flex flex-wrap items-center gap-gap-xs">
           <input
             type="text"
@@ -628,6 +687,10 @@ export function ClientesFrecuentesView({
   const [detalle, setDetalle] = useState<Detalle | null>(null);
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const [ocupado, setOcupado] = useState(false);
+  const [errorCarga, setErrorCarga] = useState(false);
+  const peticionRef = useRef(0);
+  const tabClientesRef = useRef<HTMLButtonElement>(null);
+  const btnBorrarRef = useRef<HTMLButtonElement>(null);
 
   const [altaAbierta, setAltaAbierta] = useState(false);
   const [selloAbierto, setSelloAbierto] = useState(false);
@@ -639,13 +702,16 @@ export function ClientesFrecuentesView({
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
 
   const cargar = useCallback(
-    async (q: string) => {
-      setCargando(true);
+    async (q: string, silencioso = false) => {
+      const peticion = ++peticionRef.current;
+      if (!silencioso) setCargando(true);
       try {
         const res = await fetch(
           `/api/places/${placeId}/clientes-frecuentes?q=${encodeURIComponent(q)}`,
         );
+        if (peticion !== peticionRef.current) return;
         if (!res.ok) {
+          setErrorCarga(true);
           toast.error(await textoError(res, "No se pudieron cargar las tarjetas."));
           return;
         }
@@ -655,14 +721,18 @@ export function ClientesFrecuentesView({
           negocio?: { slug: string; nombre: string; logoUrl: string | null } | null;
           stats?: Estadisticas;
         };
+        if (peticion !== peticionRef.current) return;
         setClientes(data.clientes ?? []);
         setConfig(data.config ?? null);
         setNegocio(data.negocio ?? null);
         if (data.stats) setStats(data.stats);
+        setErrorCarga(false);
       } catch {
+        if (peticion !== peticionRef.current) return;
+        setErrorCarga(true);
         toast.error("No se pudieron cargar las tarjetas. Revisa la conexión.");
       } finally {
-        setCargando(false);
+        if (peticion === peticionRef.current) setCargando(false);
       }
     },
     [placeId],
@@ -686,6 +756,8 @@ export function ClientesFrecuentesView({
         setDetalle((await res.json()) as Detalle);
         setAjuste({ cantidad: "1", nota: "" });
         setConfirmarBorrado(false);
+      } catch {
+        toast.error("No se pudo abrir esa tarjeta. Revisa la conexión.");
       } finally {
         setCargandoDetalle(false);
       }
@@ -708,7 +780,7 @@ export function ClientesFrecuentesView({
 
   async function refrescarDetalle(clienteId: string) {
     await abrirDetalle(clienteId);
-    void cargar(busqueda);
+    void cargar(busqueda, true);
   }
 
   async function canjear(metaIndice: number) {
@@ -757,6 +829,7 @@ export function ClientesFrecuentesView({
       toast.success("Cliente borrado.");
       setDetalle(null);
       void cargar(busqueda);
+      requestAnimationFrame(() => tabClientesRef.current?.focus());
     } finally {
       setOcupado(false);
     }
@@ -860,6 +933,7 @@ export function ClientesFrecuentesView({
             }
           : undefined,
       });
+      void cargar(busqueda, true);
     } catch {
       setClientes((cs) =>
         cs.map((c) =>
@@ -897,6 +971,7 @@ export function ClientesFrecuentesView({
         );
         toast.error("No se pudo deshacer.");
       }
+      void cargar(busqueda, true);
     } catch {
       toast.error("Error de red al deshacer.");
     }
@@ -956,6 +1031,9 @@ export function ClientesFrecuentesView({
     const tarjetaDetalle = detalle.tarjeta;
     return (
       <div className="flex flex-1 flex-col gap-gap-md">
+        <h1 className="sr-only">
+          Tarjeta de {detalle.cliente.nombre?.trim() || detalle.cliente.telefono}
+        </h1>
         <div className="flex items-center gap-gap-xs">
           <button
             type="button"
@@ -1013,12 +1091,16 @@ export function ClientesFrecuentesView({
             <h2 className="font-lv-display text-small font-semibold text-ink">Ajustar sellos</h2>
             <p className="mt-[2px] text-meta text-ink-soft/70">La nota es obligatoria: es lo que explica el saldo más adelante.</p>
             <div className="mt-gap-xs flex flex-wrap items-center gap-gap-xs">
+              <label htmlFor="ajuste-cantidad" className="sr-only">Cantidad de sellos</label>
               <input
+                id="ajuste-cantidad"
                 type="number" min={1} max={100} value={ajuste.cantidad}
                 onChange={(e) => setAjuste((a) => ({ ...a, cantidad: e.target.value }))}
                 className={cn(INPUT, "w-[84px] tabular-nums")}
               />
+              <label htmlFor="ajuste-nota" className="sr-only">Motivo del ajuste</label>
               <input
+                id="ajuste-nota"
                 type="text" value={ajuste.nota} maxLength={300} placeholder="Motivo (obligatorio)"
                 onChange={(e) => setAjuste((a) => ({ ...a, nota: e.target.value }))}
                 className={cn(INPUT, "min-w-[180px] flex-1")}
@@ -1047,14 +1129,14 @@ export function ClientesFrecuentesView({
                           ? "Pedido cancelado"
                           : m.nota?.trim() || "Ajuste"}
                   </p>
-                  <p className="text-[11px] text-ink-soft/55">
+                  <p className="text-meta text-ink-soft/70">
                     {FECHA.format(new Date(m.creadoEn))}
                     {m.usuario ? ` · ${m.usuario}` : ""}
                     {m.anulado ? " · anulado" : ""}
                   </p>
                 </div>
                 {m.cantidad !== 0 && (
-                  <span className={cn("shrink-0 text-meta font-semibold tabular-nums", m.cantidad > 0 ? "text-verde-700" : "text-ink-soft/50")}>
+                  <span className={cn("shrink-0 text-meta font-semibold tabular-nums", m.cantidad > 0 ? "text-verde-700" : "text-ink-soft/70")}>
                     {m.cantidad > 0 ? "+" : ""}{m.cantidad}
                   </span>
                 )}
@@ -1067,16 +1149,29 @@ export function ClientesFrecuentesView({
           <div className="flex flex-wrap items-center justify-between gap-gap-xs rounded-2xl border border-destructive/20 bg-destructive/5 p-gap-sm">
             <p className="text-meta text-ink-soft/75">Borrar la tarjeta borra también su historial.</p>
             {confirmarBorrado ? (
-              <div className="flex gap-gap-xs">
+              <div className="flex flex-wrap gap-gap-xs">
                 <button type="button" onClick={() => void borrar()} disabled={ocupado}
-                  className="inline-flex h-9 cursor-pointer items-center rounded-full bg-destructive px-gap-sm font-lv-display text-meta font-semibold text-white">
+                  className="inline-flex h-11 cursor-pointer items-center rounded-full border border-destructive/30 bg-destructive/10 px-gap-sm font-lv-display text-meta font-semibold text-destructive-ink transition-colors hover:bg-destructive/15 disabled:cursor-not-allowed disabled:opacity-40">
                   Sí, borrar
                 </button>
-                <button type="button" onClick={() => setConfirmarBorrado(false)} className={BTN_GHOST}>Cancelar</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmarBorrado(false);
+                    requestAnimationFrame(() => btnBorrarRef.current?.focus());
+                  }}
+                  className={BTN_GHOST}
+                >
+                  Cancelar
+                </button>
               </div>
             ) : (
-              <button type="button" onClick={() => setConfirmarBorrado(true)}
-                className="inline-flex h-9 cursor-pointer items-center gap-[5px] rounded-full border border-destructive/30 px-gap-sm font-lv-display text-meta font-semibold text-destructive">
+              <button
+                ref={btnBorrarRef}
+                type="button"
+                onClick={() => setConfirmarBorrado(true)}
+                className="inline-flex h-11 cursor-pointer items-center gap-[5px] rounded-full border border-destructive/30 px-gap-sm font-lv-display text-meta font-semibold text-destructive-ink transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40 focus-visible:ring-offset-2"
+              >
                 <Trash2 size={13} strokeWidth={1.8} />
                 Borrar cliente
               </button>
@@ -1094,16 +1189,41 @@ export function ClientesFrecuentesView({
       <h1 className="sr-only">Clientes frecuentes</h1>
 
       {/* Control de pestañas */}
-      <div role="tablist" className="flex rounded-full bg-ink/5 p-[3px]">
+      <div role="tablist" aria-label="Clientes frecuentes" className="flex rounded-full bg-ink/5 p-[3px]">
         {(["clientes", "ajustes"] as const).map((t) => (
           <button
             key={t}
+            id={`tab-${t}`}
+            ref={t === "clientes" ? tabClientesRef : undefined}
             role="tab"
             aria-selected={tab === t}
+            aria-controls={`panel-${t}`}
+            tabIndex={tab === t ? 0 : -1}
             onClick={() => setTab(t)}
+            onKeyDown={(e) => {
+              if (
+                e.key !== "ArrowLeft" &&
+                e.key !== "ArrowRight" &&
+                e.key !== "Home" &&
+                e.key !== "End"
+              ) {
+                return;
+              }
+              e.preventDefault();
+              const destino =
+                e.key === "Home"
+                  ? "clientes"
+                  : e.key === "End"
+                    ? "ajustes"
+                    : tab === "clientes"
+                      ? "ajustes"
+                      : "clientes";
+              setTab(destino);
+              document.getElementById(`tab-${destino}`)?.focus();
+            }}
             className={cn(
-              "flex-1 rounded-full px-gap-sm py-[6px] font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint",
-              tab === t ? "bg-white text-ink shadow-sm" : "text-ink-soft/55 hover:text-ink",
+              "h-11 flex-1 rounded-full px-gap-sm font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/50 focus-visible:ring-offset-2",
+              tab === t ? "bg-white text-ink shadow-sm" : "text-ink-soft/75 hover:text-ink",
             )}
           >
             {t === "clientes" ? "Clientes" : "Ajustes de la tarjeta"}
@@ -1112,8 +1232,12 @@ export function ClientesFrecuentesView({
       </div>
 
       {/* ── Tab: Ajustes ── */}
-      {tab === "ajustes" && (
-        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">
+      <section
+        role="tabpanel"
+        id="panel-ajustes"
+        aria-labelledby="tab-ajustes"
+        className={cn("rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft", tab !== "ajustes" && "hidden")}
+      >
           {puedeFicha ? (
             <EditorTarjeta
               placeId={placeId}
@@ -1122,14 +1246,17 @@ export function ClientesFrecuentesView({
               onGuardada={(nueva) => { setConfig(nueva); void cargar(busqueda); }}
             />
           ) : (
-            <p className="text-meta text-ink-soft/60">No tienes permiso para editar la tarjeta.</p>
+            <p className="text-meta text-ink-soft/75">No tienes permiso para editar la tarjeta.</p>
           )}
-        </section>
-      )}
+      </section>
 
       {/* ── Tab: Clientes ── */}
-      {tab === "clientes" && (
-        <>
+      <div
+        role="tabpanel"
+        id="panel-clientes"
+        aria-labelledby="tab-clientes"
+        className={cn("flex flex-col gap-gap-md", tab !== "clientes" && "hidden")}
+      >
           {/* Métricas 2×2 */}
           {stats && (
             <div className="grid grid-cols-2 gap-gap-xs">
@@ -1137,36 +1264,41 @@ export function ClientesFrecuentesView({
                 { label: "Clientes con tarjeta", value: stats.totalClientes },
                 { label: "Sellos este mes", value: stats.sellosEsteMes },
                 { label: "Premios canjeados", value: stats.canjesEsteMes },
-                { label: "Repiten (2+ sellos)", value: stats.repitieron },
+                { label: "Con 2+ sellos", value: stats.repitieron },
               ].map(({ label, value }) => (
                 <div key={label} className="rounded-2xl border border-ink/5 bg-white p-gap-sm shadow-soft">
                   <p className="font-lv-display text-h2 font-bold tabular-nums text-ink">{value}</p>
-                  <p className="text-meta text-ink-soft/60">{label}</p>
+                  <p className="text-meta text-ink-soft/75">{label}</p>
                 </div>
               ))}
             </div>
           )}
 
           {/* Barra de controles */}
-          <div className="flex flex-wrap items-center gap-gap-xs">
-            <div className="relative">
-              <Search size={13} strokeWidth={2} className="pointer-events-none absolute left-gap-sm top-1/2 -translate-y-1/2 text-ink-soft/50" />
+          {/* En móvil todo va en una fila: el buscador cede el ancho que sobra
+              y «Nuevo» queda a la derecha. El placeholder es corto porque en
+              360 px no cabía «Teléfono o nombre…»; la etiqueta oculta lo dice. */}
+          <div className="flex items-center gap-gap-xs sm:flex-wrap">
+            <div className="relative min-w-0 flex-1 sm:flex-none">
+              <label htmlFor="buscar-clientes" className="sr-only">Buscar por teléfono o nombre</label>
+              <Search size={13} strokeWidth={2} className="pointer-events-none absolute left-gap-sm top-1/2 -translate-y-1/2 text-ink-soft/60" />
               <input
+                id="buscar-clientes"
                 type="search"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Teléfono o nombre…"
-                className={cn(INPUT, "w-[200px] pl-8")}
+                placeholder="Buscar…"
+                className={cn(INPUT, "w-full min-w-0 pl-8 sm:w-[220px]")}
               />
             </div>
 
             {puedePedidos && (
               <>
-                <button type="button" onClick={() => setSelloAbierto(true)} className={BTN_GHOST}>
+                <button type="button" onClick={() => setSelloAbierto(true)} className={cn(BTN_GHOST, "shrink-0")}>
                   <Stamp size={13} strokeWidth={1.8} />
                   Dar sello
                 </button>
-                <button type="button" onClick={() => setAltaAbierta(true)} className={cn(BTN_VERDE, "ml-auto")}>
+                <button type="button" onClick={() => setAltaAbierta(true)} className={cn(BTN_VERDE, "ml-auto shrink-0")}>
                   <UserPlus size={13} strokeWidth={2} />
                   Nuevo
                 </button>
@@ -1185,11 +1317,12 @@ export function ClientesFrecuentesView({
                 key={id}
                 type="button"
                 onClick={() => setFiltro(id)}
+                aria-pressed={filtro === id}
                 className={cn(
-                  "h-8 rounded-full border px-gap-sm font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint",
+                  "h-11 rounded-full border px-gap-sm font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/50 focus-visible:ring-offset-2",
                   filtro === id
                     ? "border-verde-400 bg-verde-400 text-verde-950"
-                    : "border-ink/10 bg-white text-ink-soft/65 hover:border-verde-300 hover:text-verde-700",
+                    : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:text-verde-700",
                 )}
               >
                 {label}
@@ -1203,6 +1336,14 @@ export function ClientesFrecuentesView({
               <Loader2 size={16} className="animate-spin text-verde-500" />
               Cargando tarjetas…
             </div>
+          ) : errorCarga && clientesFiltrados.length === 0 ? (
+            <div role="alert" className="rounded-2xl border border-destructive/20 bg-destructive/5 p-gap-md text-center">
+              <p className="font-lv-display text-small font-semibold text-destructive-ink">No se pudieron cargar las tarjetas</p>
+              <p className="mt-[6px] text-meta text-ink-soft/75">Revisa la conexión y vuelve a intentarlo.</p>
+              <button type="button" onClick={() => void cargar(busqueda)} className={cn(BTN_VERDE, "mt-gap-md justify-center")}>
+                Reintentar
+              </button>
+            </div>
           ) : clientesFiltrados.length === 0 ? (
             <div className="rounded-2xl border border-ink/5 bg-white p-gap-lg text-center shadow-soft">
               <span className="mx-auto mb-gap-sm grid size-12 place-items-center rounded-2xl bg-sand-deep text-verde-600">
@@ -1214,7 +1355,7 @@ export function ClientesFrecuentesView({
                   : "Todavía no hay tarjetas"}
               </p>
               {!busqueda && filtro === "todos" && (
-                <p className="mt-[6px] text-meta text-ink-soft/60">
+                <p className="mt-[6px] text-meta text-ink-soft/75">
                   Cuando un cliente deje su teléfono al pedir, aparece aquí. También puedes añadirlos con «Nuevo».
                 </p>
               )}
@@ -1243,19 +1384,19 @@ export function ClientesFrecuentesView({
                         <p className="truncate font-lv-display text-small font-semibold text-ink">
                           {cliente.nombre?.trim() || cliente.telefonoEnmascarado}
                         </p>
-                        <p className="truncate text-meta text-ink-soft/65">
+                        <p className="truncate text-meta text-ink-soft/75">
                           {cliente.sellos}/{cliente.metaSellos} sellos
                           {cliente.proximoFaltan ? ` · faltan ${cliente.proximoFaltan}` : ""}
                           {cliente.ciclo > 1 ? ` · ciclo ${cliente.ciclo}` : ""}
                         </p>
                       </div>
                       {cliente.premioListo ? (
-                        <span className="inline-flex max-w-[90px] shrink-0 items-center gap-[3px] rounded-full border border-verde-300 bg-verde-50 px-[8px] py-[3px] font-lv-display text-[10px] font-semibold text-verde-700">
+                        <span className="inline-flex max-w-[90px] shrink-0 items-center gap-[3px] rounded-full border border-verde-300 bg-verde-50 px-[8px] py-[3px] font-lv-display text-[11px] font-semibold text-verde-700">
                           <Gift size={9} strokeWidth={2} className="shrink-0" />
                           <span className="truncate">{cliente.premioListo}</span>
                         </span>
                       ) : (
-                        <span className="shrink-0 text-meta text-ink-soft/45">
+                        <span className="shrink-0 text-meta text-ink-soft/70">
                           {cliente.sellosTotales === 0
                             ? "Nuevo"
                             : FECHA.format(new Date(cliente.actualizadoEn))}
@@ -1264,12 +1405,12 @@ export function ClientesFrecuentesView({
                     </button>
 
                     {/* Botón +Sello por fila */}
-                    {puedePedidos && (
+                    {puedePedidos && config?.activo && (
                       <button
                         type="button"
                         onClick={() => void darSelloPorId(cliente.clienteId, cliente.nombre)}
                         aria-label={`Dar un sello a ${cliente.nombre ?? cliente.telefono}`}
-                        className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-ink/10 bg-white text-ink-soft/60 transition-colors hover:border-verde-400 hover:bg-verde-50 hover:text-verde-700"
+                        className="grid size-11 shrink-0 place-items-center rounded-xl border border-ink/10 bg-white text-ink-soft/70 transition-colors hover:border-verde-400 hover:bg-verde-50 hover:text-verde-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/50 focus-visible:ring-offset-2"
                       >
                         <Stamp size={14} strokeWidth={1.8} />
                       </button>
@@ -1279,8 +1420,7 @@ export function ClientesFrecuentesView({
               ))}
             </ul>
           )}
-        </>
-      )}
+      </div>
 
       {/* ── Alta de cliente ─────────────────────────────────────────────── */}
       <Dialog open={altaAbierta} onOpenChange={setAltaAbierta}>
@@ -1336,8 +1476,9 @@ export function ClientesFrecuentesView({
                 key={modo}
                 type="button"
                 onClick={() => setSelloManual((s) => ({ ...s, modo, valor: "" }))}
+                aria-pressed={selloManual.modo === modo}
                 className={cn(
-                  "h-9 flex-1 rounded-full border font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint",
+                  "h-11 flex-1 rounded-full border font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/50 focus-visible:ring-offset-2",
                   selloManual.modo === modo
                     ? "border-verde-400 bg-verde-400 text-verde-950"
                     : "border-ink/10 bg-white text-ink",
@@ -1367,6 +1508,7 @@ export function ClientesFrecuentesView({
               type="text"
               value={selloManual.nota}
               maxLength={300}
+              aria-label="Nota del sello"
               placeholder="Nota (opcional)"
               onChange={(e) => setSelloManual((s) => ({ ...s, nota: e.target.value }))}
               className={INPUT}

@@ -14,8 +14,11 @@ import { Input } from "@/components/ui/input";
 
 const VACIA: Franja = { abre: "08:00", cierra: "18:00" };
 
-const TOGGLE =
-  "grid size-5 place-items-center rounded-sm border-2 cursor-pointer transition-colors duration-300 ease-outquint";
+/* La caja visible sigue siendo de 20 px; el asa es el botón de 44 px que la
+   envuelve. Es el control que más se toca con el pulgar y medía la mitad del
+   mínimo. */
+const CAJA =
+  "grid size-5 place-items-center rounded-sm border-2 transition-colors duration-300 ease-outquint";
 
 /**
  * Editor de horario estructurado, día por día.
@@ -79,20 +82,24 @@ export function HorarioEditor({
         const abierto = franjas.length > 0;
 
         return (
-          <div key={dia} className="rounded-xl border border-ink/8 bg-white p-gap-sm">
+          <div key={dia} className="rounded-xl border border-ink/10 bg-white p-gap-sm">
             <div className="flex items-center gap-gap-sm">
               <button
                 type="button"
                 aria-label={`${abierto ? "Cerrar" : "Abrir"} ${DIA_SEMANA_LABEL[dia]}`}
                 onClick={() => toggleDia(dia)}
-                className={cn(
-                  TOGGLE,
-                  abierto
-                    ? "border-verde-500 bg-verde-500 text-white"
-                    : "border-ink/20 bg-white",
-                )}
+                aria-pressed={abierto}
+                className="grid size-11 cursor-pointer place-items-center"
               >
-                {abierto && (
+                <span
+                  className={cn(
+                    CAJA,
+                    abierto
+                      ? "border-verde-500 bg-verde-500 text-white"
+                      : "border-ink/20 bg-white",
+                  )}
+                >
+                  {abierto && (
                   <svg
                     viewBox="0 0 12 12"
                     fill="none"
@@ -105,9 +112,10 @@ export function HorarioEditor({
                       strokeWidth="1.8"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
+                      />
+                    </svg>
+                  )}
+                </span>
               </button>
 
               <span className="min-w-[6ch] font-lv-display text-small font-semibold text-ink">
@@ -115,14 +123,14 @@ export function HorarioEditor({
               </span>
 
               {!abierto && (
-                <span className="text-meta text-ink-soft/50">Cerrado</span>
+                <span className="text-meta text-ink-soft/75">Cerrado</span>
               )}
 
               {abierto && franjas.length < 3 && (
                 <button
                   type="button"
                   onClick={() => addFranja(dia)}
-                  className="ml-auto inline-flex h-7 cursor-pointer items-center gap-[4px] rounded-full border border-ink/10 bg-sand px-gap-sm font-lv-display text-meta text-ink-soft/70 transition-colors hover:border-verde-300 hover:text-verde-600"
+                  className="ml-auto inline-flex h-11 cursor-pointer items-center gap-[4px] rounded-full border border-ink/10 bg-sand px-gap-sm font-lv-display text-meta text-ink-soft/75 transition-colors hover:border-verde-300 hover:text-verde-600"
                 >
                   <Plus size={13} strokeWidth={2} />
                   Franja
@@ -133,30 +141,32 @@ export function HorarioEditor({
             {abierto && (
               <div className="mt-gap-xs flex flex-col gap-[6px]">
                 {franjas.map((franja, idx) => (
-                  <div key={idx} className="flex items-center gap-[6px]">
+                  <div key={idx} className="flex flex-wrap items-center gap-[6px]">
                     <Input
                       type="time"
+                      aria-label={`Hora de apertura del ${DIA_SEMANA_LABEL[dia]}`}
                       value={franja.abre}
                       onChange={(e) =>
                         updateFranja(dia, idx, "abre", e.target.value)
                       }
-                      className="h-8 rounded-lg border-ink/10 bg-sand px-2 text-small"
+                      className="h-11 min-w-0 flex-1 rounded-lg border-ink/10 bg-sand px-2 text-body"
                     />
-                    <span className="shrink-0 text-meta text-ink-soft/50">–</span>
+                    <span className="shrink-0 text-meta text-ink-soft/75">–</span>
                     <Input
                       type="time"
+                      aria-label={`Hora de cierre del ${DIA_SEMANA_LABEL[dia]}`}
                       value={franja.cierra}
                       onChange={(e) =>
                         updateFranja(dia, idx, "cierra", e.target.value)
                       }
-                      className="h-8 rounded-lg border-ink/10 bg-sand px-2 text-small"
+                      className="h-11 min-w-0 flex-1 rounded-lg border-ink/10 bg-sand px-2 text-body"
                     />
                     {franjas.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeFranja(dia, idx)}
                         aria-label="Quitar franja"
-                        className="grid size-7 cursor-pointer place-items-center rounded-lg text-ink-soft/50 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                        className="grid size-11 cursor-pointer place-items-center rounded-lg text-ink-soft/75 transition-colors hover:bg-destructive/10 hover:text-destructive-ink"
                       >
                         <Trash2 size={14} strokeWidth={1.8} />
                       </button>

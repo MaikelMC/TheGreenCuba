@@ -89,7 +89,11 @@ export function PackMedidaCard({
   }
 
   return (
-    <article className="relative isolate flex flex-col rounded-[26px] border border-verde-200/60 bg-[linear-gradient(120deg,#edf7ef,#f7fbf7)] p-gap-lg shadow-soft">
+    /* Tokens y no un degradado con hex: `bg-[linear-gradient(#edf7ef…)]` no
+       tenía versión oscura y la tarjeta seguía verde claro con el texto ya
+       aclarado encima, ilegible. `bg-verde-50/60` y `border-verde-200` son los
+       de los avisos verdes de Planes y sí se oscurecen en `globals.css`. */
+    <article className="relative isolate flex flex-col rounded-[26px] border border-verde-200 bg-verde-50/60 p-gap-lg shadow-soft">
       <div className="flex flex-wrap items-center gap-gap-xs">
         <Package size={16} className="shrink-0 text-verde-600" strokeWidth={1.8} />
         <h3 className="font-lv-display text-body font-bold tracking-[-0.01em] text-ink">
@@ -130,7 +134,7 @@ export function PackMedidaCard({
           )}
 
           {pack.servicios.length > 0 && (
-            <p className="mt-gap-xs text-meta text-ink-soft/60">
+            <p className="mt-gap-xs text-meta text-ink-soft/75">
               Incluye: {pack.servicios.join(" · ")}
             </p>
           )}
@@ -176,7 +180,7 @@ export function PackMedidaCard({
           type="button"
           onClick={cancelar}
           disabled={cancelando}
-          className="mt-gap-md self-start text-meta text-ink-soft/60 underline underline-offset-2 hover:text-ink-soft disabled:cursor-not-allowed"
+          className="mt-gap-md self-start text-meta text-ink-soft/75 underline underline-offset-2 hover:text-ink-soft disabled:cursor-not-allowed"
         >
           {cancelando ? "Cancelando…" : "Cancelar solicitud"}
         </button>

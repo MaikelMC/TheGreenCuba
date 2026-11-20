@@ -2,7 +2,9 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
+import { TERMS_VERSION } from "@/lib/legal";
 import {
   OnboardingShell,
   StatusBar,
@@ -396,8 +398,16 @@ export default function OnboardingPage() {
   /* Google no pregunta el teléfono. Si la cuenta llega sin él, esta ventana
      bloquea el onboarding hasta que se escriba. */
   const [phonePrompt, setPhonePrompt] = useState(false);
+  /* Quien crea la cuenta con «Iniciar sesión con Google» no pasó por la
+     casilla de términos (el botón de entrar no la tiene). La misma ventana se
+     la pide antes de empezar; la ruta de Google ya no inventa la aceptación. */
+  const [faltanTerminos, setFaltanTerminos] = useState(false);
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [phoneInput, setPhoneInput] = useState("");
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  /* Qué control tiene la culpa del error, para marcar y describir solo ese.
+     `null` es un fallo de red: no es de ningún campo. */
+  const [phoneErrorEn, setPhoneErrorEn] = useState<"phone" | "terms" | null>(null);
   const [phoneSaving, setPhoneSaving] = useState(false);
   const [gpsDetected, setGpsDetected] = useState(false);
   const [detectedName, setDetectedName] = useState<string | null>(null);
@@ -434,6 +444,7 @@ export default function OnboardingPage() {
         name: string;
         email: string;
         phone?: string | null;
+        termsVersion?: string | null;
         locationCity?: string | null;
         onboardingCompleted?: boolean;
         preferences?: {
@@ -456,6 +467,7 @@ export default function OnboardingPage() {
                 "pedirTelefono",
               ) === "1",
           );
+          setFaltanTerminos(!data.user.termsVersion?.trim());
 
           const merged = mergeRemoteUserPreferences(
             readUserPreferences(nextUserId),
@@ -793,29 +805,44 @@ export default function OnboardingPage() {
   async function handleSavePhone() {
     if (phoneSaving) return;
     const value = phoneInput.trim();
-    if (value.length < 6) {
+    if (phonePrompt && value.length < 6) {
       setPhoneError("Escribe un número de teléfono válido.");
+      setPhoneErrorEn("phone");
+      return;
+    }
+    if (faltanTerminos && !aceptaTerminos) {
+      setPhoneError("Acepta los términos y la política de privacidad para continuar.");
+      setPhoneErrorEn("terms");
       return;
     }
 
     setPhoneSaving(true);
     setPhoneError(null);
+    setPhoneErrorEn(null);
     try {
+      /* Solo viaja lo que falta: mandar `phone` vacío lo borraría. */
+      const body: { phone?: string; termsVersion?: string } = {};
+      if (phonePrompt) body.phone = value;
+      if (faltanTerminos) body.termsVersion = TERMS_VERSION;
       const response = await fetch("/api/me", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: value }),
+        body: JSON.stringify(body),
       });
       if (!response.ok) throw new Error();
 
       refreshSession();
-      writeUserPreferences(
-        { ...readUserPreferences(userId), phone: value },
-        userId,
-      );
+      if (phonePrompt) {
+        writeUserPreferences(
+          { ...readUserPreferences(userId), phone: value },
+          userId,
+        );
+      }
       setPhonePrompt(false);
+      setFaltanTerminos(false);
     } catch {
-      setPhoneError("No pudimos guardar tu teléfono. Revisa tu conexión.");
+      setPhoneError("No pudimos guardarlo. Revisa tu conexión.");
+      setPhoneErrorEn(null);
     } finally {
       setPhoneSaving(false);
     }
@@ -829,16 +856,20 @@ export default function OnboardingPage() {
 
       {/* La ventana del teléfono. Bloquea el onboarding: se cierra al guardar,
           que es lo único que la cierra. */}
-      <Dialog open={phonePrompt}>
+      <Dialog open={phonePrompt || faltanTerminos}>
         <DialogContent
           hideClose
           onEscapeKeyDown={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
         >
           <DialogHeader>
-            <DialogTitle>¿Cuál es tu teléfono?</DialogTitle>
+            <DialogTitle>
+              {phonePrompt ? "¿Cuál es tu teléfono?" : "Antes de empezar"}
+            </DialogTitle>
             <DialogDescription>
-              Lo necesitamos para contactarte sobre tu negocio en La Verde.
+              {phonePrompt
+                ? "Lo necesitamos para contactarte sobre tu negocio en La Verde."
+                : "Acepta los términos para terminar de crear tu cuenta."}
             </DialogDescription>
           </DialogHeader>
 
@@ -849,28 +880,65 @@ export default function OnboardingPage() {
             }}
             className="flex flex-col gap-gap-md"
           >
-            <label className="flex flex-col gap-gap-xs">
-              <span className="font-lv-display text-meta font-semibold text-ink-soft/75">
-                Teléfono
-              </span>
-              <span className="flex items-center gap-gap-sm rounded-2xl border border-ink/10 bg-sand-warm px-gap-sm h-12 transition-colors duration-500 ease-outquint focus-within:border-verde-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-verde-400/20">
+            {phonePrompt && (
+              <label className="flex flex-col gap-gap-xs">
+                <span className="font-lv-display text-meta font-semibold text-ink-soft/75">
+                  Teléfono
+                </span>
+                {/* Mismo campo que el acceso (`auth-field`, `rounded-xl`): es la
+                    pantalla siguiente y no debe verse distinto. */}
+                <span className="auth-field flex items-center gap-gap-sm rounded-xl border border-ink/10 bg-sand-warm px-gap-sm h-12 transition-colors duration-500 ease-outquint focus-within:border-verde-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-verde-400/20">
+                  <input
+                    type="tel"
+                    value={phoneInput}
+                    onChange={(event) => setPhoneInput(event.target.value)}
+                    autoComplete="tel"
+                    inputMode="tel"
+                    required
+                    autoFocus
+                    aria-invalid={phoneError && phoneErrorEn === "phone" ? true : undefined}
+                    aria-describedby={
+                      phoneError && phoneErrorEn === "phone" ? "onboarding-error" : undefined
+                    }
+                    className="flex-1 min-w-0 bg-transparent text-small text-ink outline-none placeholder:text-ink-soft/75"
+                    placeholder="+53 5 123 4567"
+                  />
+                </span>
+              </label>
+            )}
+
+            {/* Misma casilla y mismo texto que el alta (`auth-card.tsx`), con
+                las mismas clases para que el modo oscuro la cubra igual. */}
+            {faltanTerminos && (
+              <label className="auth-terms-label flex items-start gap-gap-sm text-meta leading-relaxed text-ink-soft">
                 <input
-                  type="tel"
-                  value={phoneInput}
-                  onChange={(event) => setPhoneInput(event.target.value)}
-                  autoComplete="tel"
-                  inputMode="tel"
+                  type="checkbox"
+                  checked={aceptaTerminos}
+                  onChange={(event) => setAceptaTerminos(event.target.checked)}
                   required
-                  autoFocus
-                  aria-label="Teléfono"
-                  className="flex-1 min-w-0 bg-transparent text-small text-ink outline-none placeholder:text-ink-soft/75"
-                  placeholder="+53 5 123 4567"
+                  aria-invalid={phoneError && phoneErrorEn === "terms" ? true : undefined}
+                  aria-describedby={
+                    phoneError && phoneErrorEn === "terms" ? "onboarding-error" : undefined
+                  }
+                  className="auth-terms-checkbox mt-0.5 size-4 shrink-0 accent-verde-500"
                 />
-              </span>
-            </label>
+                <span>
+                  He leído y acepto los{" "}
+                  <Link
+                    href="/terminos"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="auth-terms-link font-semibold text-verde-600 underline underline-offset-2 transition-colors duration-500 ease-outquint hover:text-verde-700"
+                  >
+                    términos y la política de privacidad
+                  </Link>
+                  , incluido el tratamiento de mis datos tal como se describe ahí.
+                </span>
+              </label>
+            )}
 
             {phoneError && (
-              <p role="alert" className="text-meta text-destructive">
+              <p id="onboarding-error" role="alert" className="text-meta text-destructive">
                 {phoneError}
               </p>
             )}

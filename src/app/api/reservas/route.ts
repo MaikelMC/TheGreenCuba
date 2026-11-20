@@ -4,7 +4,6 @@ import { canManagePlace } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
-import { diaUtc } from "@/lib/eventos-server";
 import { tieneFuncion } from "@/lib/plans-server";
 import { rateLimit } from "@/lib/rate-limit";
 import { errorFechaReserva } from "@/lib/reserva";
@@ -41,6 +40,23 @@ import {
 /** Tope por IP. El formulario manda una o dos peticiones; esto corta el abuso. */
 const LIMITE = 30;
 const VENTANA_MS = 60_000;
+
+/**
+ * La fecha de hoy en Cuba, `AAAA-MM-DD`.
+ *
+ * El cupo se lee desde aquí y no desde el día UTC: entre las 19:00 y las 20:00
+ * de Cuba ya es mañana en UTC, y la ocupación de hoy se quedaba fuera de la
+ * lectura. El cliente no veía «quedan N plazas» para hoy y se enteraba al
+ * enviar, con el 409. `en-CA` porque es el formato que da `AAAA-MM-DD`.
+ */
+function hoyEnCuba(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Havana",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
 
 /** El negocio cuyo cupo se puede tocar, o `null` si no ofrece reservas. */
 async function cupoDe(
@@ -100,7 +116,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     capacidad: cupo.capacidad,
-    dias: await ocupacionDesde(negocioId, diaUtc()),
+    dias: await ocupacionDesde(negocioId, hoyEnCuba()),
   });
 }
 

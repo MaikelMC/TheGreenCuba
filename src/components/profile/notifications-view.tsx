@@ -129,7 +129,8 @@ export function NotificationsView() {
           <button
             type="button"
             onClick={() => void markAllRead()}
-            className="inline-flex shrink-0 items-center gap-[6px] rounded-full border border-ink/10 bg-white px-3 py-2 text-meta font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700"
+            aria-label="Marcar leídas"
+            className="inline-flex min-h-[44px] shrink-0 items-center gap-[6px] rounded-full border border-ink/10 bg-white px-4 text-meta font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700"
           >
             <CheckCheck size={15} strokeWidth={1.8} />
             <span className="hidden sm:inline">Marcar leídas</span>
@@ -140,13 +141,13 @@ export function NotificationsView() {
       {errorCarga && (
         <div
           role="alert"
-          className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+          className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive-ink"
         >
           <span className="flex-1">{errorCarga}</span>
           <button
             type="button"
             onClick={() => void cargar()}
-            className="rounded-full border border-destructive/25 bg-white px-3 py-[5px] font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
+            className="inline-flex min-h-[44px] items-center rounded-full border border-destructive/25 bg-white px-4 font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
           >
             Reintentar
           </button>
@@ -158,13 +159,13 @@ export function NotificationsView() {
       {aviso && (
         <div
           role="alert"
-          className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+          className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive-ink"
         >
           <span className="flex-1">{aviso}</span>
           <button
             type="button"
             onClick={() => void markAllRead()}
-            className="rounded-full border border-destructive/25 bg-white px-3 py-[5px] font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
+            className="inline-flex min-h-[44px] items-center rounded-full border border-destructive/25 bg-white px-4 font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
           >
             Reintentar
           </button>
@@ -177,7 +178,7 @@ export function NotificationsView() {
             key={value}
             type="button"
             onClick={() => setFilter(value)}
-            className={`rounded-full px-4 py-2 text-meta font-semibold transition-colors duration-500 ease-outquint ${filter === value ? "bg-verde-950 text-white" : "text-ink-soft/70 hover:bg-white hover:text-ink"}`}
+            className={`inline-flex min-h-[44px] items-center rounded-full px-4 text-meta font-semibold transition-colors duration-500 ease-outquint ${filter === value ? "bg-verde-950 text-white" : "text-ink-soft/70 hover:bg-white hover:text-ink"}`}
           >
             {value === "all" ? "Todas" : `Sin leer${unread > 0 ? ` (${unread})` : ""}`}
           </button>
@@ -250,10 +251,11 @@ export function NotificationsView() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="truncate font-lv-display text-small font-semibold text-ink">
+                        <span className="truncate font-lv-display text-small font-semibold text-ink">
                           {item.title}
-                        </h3>
-                        {isUnread && <Sparkles size={12} strokeWidth={2} className="text-verde-600" />}
+                        </span>
+                        {isUnread && <span className="sr-only">Sin leer</span>}
+                        {isUnread && <Sparkles size={12} strokeWidth={2} className="text-verde-600" aria-hidden="true" />}
                       </div>
                       {item.senderName && (
                         <p className="mt-[2px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.14em] text-verde-600">
@@ -265,17 +267,22 @@ export function NotificationsView() {
                       </p>
                     </div>
 
-                    {isUnread && <span className="mt-1 size-2.5 shrink-0 rounded-full bg-verde-500" aria-label="Sin leer" />}
+                    {isUnread && (
+                      <span
+                        className="mt-1 size-2.5 shrink-0 rounded-full bg-verde-500"
+                        aria-hidden="true"
+                      />
+                    )}
                   </div>
 
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-[5px] text-[11px] text-ink-soft/60">
+                    <span className="inline-flex items-center gap-[5px] text-[11px] text-ink-soft/70">
                       <Clock3 size={12} strokeWidth={1.8} />
                       {formatDate(item.createdAt)}
                     </span>
 
                     {isRejected && (
-                      <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-1 font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-destructive">
+                      <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-1 font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-destructive-ink">
                         Acción requerida
                       </span>
                     )}

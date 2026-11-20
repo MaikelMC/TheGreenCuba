@@ -44,13 +44,19 @@ function Toggle({
   label: string;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-gap-sm">
+    <label
+      className="flex min-h-11 cursor-pointer items-center gap-gap-sm"
+      onClick={() => onChange(!checked)}
+    >
       <span
         role="checkbox"
         aria-checked={checked}
         tabIndex={0}
-        onClick={() => onChange(!checked)}
-        onKeyDown={(e) => e.key === " " && onChange(!checked)}
+        onKeyDown={(e) => {
+          if (e.key !== " " && e.key !== "Enter") return;
+          e.preventDefault();
+          onChange(!checked);
+        }}
         className={cn(
           "relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400",
           checked ? "bg-verde-500" : "bg-ink/15",
@@ -191,7 +197,7 @@ function EntregaSimpleEditor({
               }
               placeholder="20"
             />
-            <span className="shrink-0 text-meta text-ink-soft/60">–</span>
+            <span className="shrink-0 text-meta text-ink-soft/75">–</span>
             <Input
               type="number"
               min={1}
@@ -426,7 +432,7 @@ export function ModulosEditor({
           <button
             type="button"
             onClick={() => onTipoChange(null)}
-            className="self-start font-lv-display text-meta text-ink-soft/60 hover:text-ink"
+            className="inline-flex min-h-11 items-center self-start font-lv-display text-meta text-ink-soft/75 hover:text-ink"
           >
             Quitar tipo
           </button>
@@ -461,7 +467,7 @@ export function ModulosEditor({
                     <p className="font-lv-display text-small font-bold text-ink">
                       {MODULO_FICHA_LABEL[m]}
                     </p>
-                    <p className="text-meta text-ink-soft/60">
+                    <p className="text-meta text-ink-soft/75">
                       {m === "domicilio" && "Pedidos y envío a domicilio"}
                       {m === "local" && "Atención en el local, especial del día"}
                       {m === "tienda" && "Catálogo de productos, existencias"}

@@ -53,7 +53,7 @@ export function AtributosChips({
             onClick={() => toggle(atributo.clave)}
             aria-pressed={activo}
             className={cn(
-              "inline-flex h-8 cursor-pointer items-center gap-[5px] rounded-full border px-[10px] font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint active:scale-[0.98]",
+              "inline-flex h-11 cursor-pointer items-center gap-[6px] rounded-full border px-gap-sm font-lv-display text-small font-semibold transition-colors duration-300 ease-outquint active:scale-[0.98]",
               activo
                 ? "border-verde-400 bg-verde-400 text-verde-950"
                 : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",

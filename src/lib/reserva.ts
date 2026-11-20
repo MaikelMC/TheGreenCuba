@@ -278,6 +278,17 @@ export function errorFechaReserva(
 }
 
 /**
+ * Si la reserva es para hoy a una hora que ya pasó. Solo mira el reloj local:
+ * otro día cualquiera vale, y la fecha ya la filtra `errorFechaReserva`.
+ * `HH:MM` se compara como texto porque los dos lados van con ceros delante.
+ */
+export function horaPasada(fecha: string, hora: string, hoy: Date = new Date()): boolean {
+  if (fecha.trim() !== fechaLocalIso(hoy) || !/^\d{2}:\d{2}$/.test(hora.trim())) return false;
+  const ahora = `${String(hoy.getHours()).padStart(2, "0")}:${String(hoy.getMinutes()).padStart(2, "0")}`;
+  return hora.trim() < ahora;
+}
+
+/**
  * El primer error del formulario, o `null` si está bien.
  *
  * Se devuelve el mensaje y no un booleano porque cada caso pide una frase
@@ -302,6 +313,9 @@ export function validarReserva(
   if (falloFecha) return falloFecha;
 
   if (!datos.hora.trim()) return "Elige la hora.";
+  if (horaPasada(datos.fecha, datos.hora, hoy)) {
+    return "Esa hora ya pasó. Elige una más tarde u otro día.";
+  }
 
   if (tipo === "mesa") {
     const personas = datos.personas;

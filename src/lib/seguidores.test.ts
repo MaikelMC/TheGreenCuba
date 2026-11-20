@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  AVISOS_POR_SEMANA,
+  agruparCambios,
   avisosPorCambios,
-  avisosRestantes,
   configSeguidores,
   deepLinkTelegram,
   esBaja,
@@ -79,16 +78,34 @@ test("el titular y el texto tienen que caber", () => {
   assert.match(validarAviso("2x1", "x".repeat(MAX_TEXTO + 1)) ?? "", /caracteres/);
 });
 
-test("el tope son tres avisos por semana y negocio", () => {
-  assert.equal(AVISOS_POR_SEMANA, 3);
-  assert.equal(avisosRestantes(0), 3);
-  assert.equal(avisosRestantes(2), 1);
-  assert.equal(avisosRestantes(3), 0);
-  /* Un contador que se pasó no da negativos: dice que no queda nada. */
-  assert.equal(avisosRestantes(9), 0);
-  /* La clave del tope es la semana ISO, la misma que la de las publicaciones. */
+test("la semana del registro es la semana ISO", () => {
+  /* Ya no hay tope semanal: la semana solo cuenta para el contador del panel. */
   assert.match(semanaDelAviso(new Date("2026-10-08T12:00:00Z")), /^2026-W41$/);
   assert.equal(semanaDelAviso(new Date("2026-10-12T12:00:00Z")), "2026-W42");
+});
+
+test("los cambios seguidos se juntan en un solo aviso", () => {
+  assert.equal(agruparCambios([]), null);
+  /* Uno solo sale tal cual. */
+  const uno = { titulo: "2x1 en pizzas", texto: "Hasta el domingo." };
+  assert.deepEqual(agruparCambios([uno]), uno);
+
+  /* Varios: titular con cuántos y una línea por cambio. */
+  const varios = agruparCambios([
+    uno,
+    { titulo: "Nuevo en la carta", texto: "Batido de mango" },
+  ]);
+  assert.equal(varios?.titulo, "2 novedades");
+  assert.equal(varios?.texto, "• 2x1 en pizzas\n• Nuevo en la carta");
+
+  /* Si no caben, se corta en una línea entera y se dice cuántos quedan. */
+  const muchos = Array.from({ length: 200 }, (_, i) => ({
+    titulo: `Producto nuevo número ${i}`,
+    texto: "",
+  }));
+  const cortado = agruparCambios(muchos);
+  assert.ok((cortado?.texto.length ?? 0) <= MAX_TEXTO);
+  assert.match(cortado?.texto ?? "", /…y \d+ más\.$/);
 });
 
 test("el reparto en lotes respeta el tamaño y no pierde a nadie", () => {

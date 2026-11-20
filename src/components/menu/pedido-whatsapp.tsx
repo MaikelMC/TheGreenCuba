@@ -607,6 +607,14 @@ export function PedidoProvider({
       })()
     : null;
 
+  /* «¿Dónde te lo llevamos?» solo cuando se sabe que va a domicilio: con
+     «Recoger» elegido, o en un negocio sin zonas (que puede ser solo para
+     recoger), la pregunta no cuadraba. */
+  const tituloPedido =
+    tieneZonas && modoEntrega === "domicilio"
+      ? "¿Dónde te lo llevamos?"
+      : "Confirma tu pedido";
+
   const href = hrefPedido(
     whatsapp,
     mensajePedido({
@@ -665,7 +673,7 @@ export function PedidoProvider({
                     <button
                       type="button"
                       onClick={vaciar}
-                      className="inline-flex h-10 cursor-pointer items-center gap-[5px] rounded-full px-gap-xs font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-sand-deep hover:text-ink"
+                      className="inline-flex h-11 cursor-pointer items-center gap-[5px] rounded-full px-gap-xs font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-sand-deep hover:text-ink"
                     >
                       <Trash2
                         size={14}
@@ -688,7 +696,7 @@ export function PedidoProvider({
                       <button
                         type="button"
                         onClick={volverAtras}
-                        className="inline-flex h-10 shrink-0 cursor-pointer items-center rounded-full px-gap-sm font-lv-display text-meta font-semibold text-verde-700 transition-colors duration-500 ease-outquint hover:bg-white hover:text-verde-600"
+                        className="inline-flex h-11 shrink-0 cursor-pointer items-center rounded-full px-gap-sm font-lv-display text-meta font-semibold text-verde-700 transition-colors duration-500 ease-outquint hover:bg-white hover:text-verde-600"
                       >
                         Deshacer
                       </button>
@@ -739,7 +747,7 @@ export function PedidoProvider({
                           type="button"
                           aria-label={`Quitar ${linea.name} del pedido`}
                           onClick={() => quitar(linea.id)}
-                          className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-full text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-destructive/10 hover:text-destructive"
+                          className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-destructive/10 hover:text-destructive"
                         >
                           <Trash2 size={16} strokeWidth={1.8} />
                         </button>
@@ -776,7 +784,7 @@ export function PedidoProvider({
                         {total.total.toFixed(2)} {total.currency}
                       </span>
                       {totalCup && (
-                        <span className="tabular-nums text-[10px] text-muted-foreground">
+                        <span className="tabular-nums text-meta text-muted-foreground">
                           {totalCup}
                         </span>
                       )}
@@ -818,14 +826,22 @@ export function PedidoProvider({
                 escrito: sin una disposición de flex, ese hueco no se aplica a
                 nada —una caja de bloque no reparte `gap`— y el título, el campo
                 y los botones salían pegados unos a otros. */}
-            <DialogContent className="flex flex-col">
-              <DialogHeader>
-                <DialogTitle>¿Dónde te lo llevamos?</DialogTitle>
+            {/* Altura acotada, el cuerpo con scroll y el pie fijo. Con zona,
+                envío, dirección, teléfono de sellos, cocina cerrada y franjas a
+                la vez, la ventana pasaba del alto de un móvil: se cortaba por
+                arriba y por abajo sin poder desplazarse, y «Enviar el pedido»
+                quedaba fuera de alcance. */}
+            <DialogContent className="flex max-h-[calc(100dvh-32px)] flex-col">
+              <DialogHeader className="shrink-0 pr-gap-lg">
+                <DialogTitle>{tituloPedido}</DialogTitle>
                 <DialogDescription>
-                  La dirección va dentro del mensaje. El pedido también queda en
-                  el historial del negocio.
+                  {modoEntrega === "recogida" && tieneZonas
+                    ? "Lo preparan para que pases a buscarlo. El pedido también queda en el historial del negocio."
+                    : "La dirección va dentro del mensaje. El pedido también queda en el historial del negocio."}
                 </DialogDescription>
               </DialogHeader>
+
+              <div className="-mx-gap-lg flex min-h-0 flex-1 flex-col gap-gap-md overflow-y-auto overscroll-contain px-gap-lg pb-gap-2xs">
 
               {/* ── Selector Recoger / A domicilio ──────────────────────── */}
               {tieneZonas && configEntrega && (configEntrega.recogida || configEntrega.domicilio) && (
@@ -839,7 +855,7 @@ export function PedidoProvider({
                           type="button"
                           onClick={() => setModoEntrega(m)}
                           className={cn(
-                            "h-10 flex-1 rounded-full border font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint",
+                            "h-11 flex-1 rounded-full border font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint",
                             modoEntrega === m
                               ? "border-verde-400 bg-verde-400 text-verde-950"
                               : "border-ink/10 bg-white text-ink hover:border-verde-300 hover:bg-verde-50",
@@ -900,6 +916,11 @@ export function PedidoProvider({
                 <label className="block">
                   <span className="mb-[6px] block text-meta font-semibold text-ink">
                     Dirección de entrega
+                    {/* Sin zonas no se sabe si el negocio lleva o solo se
+                        recoge: la dirección puede quedar en blanco. */}
+                    {!tieneZonas && (
+                      <span className="font-normal text-ink-soft/75"> (si es a domicilio)</span>
+                    )}
                   </span>
                   <input
                     type="text"
@@ -996,7 +1017,7 @@ export function PedidoProvider({
                           setHoraInput("");
                         }}
                         className={cn(
-                          "rounded-full border px-gap-sm py-[6px] font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint",
+                          "inline-flex h-11 items-center rounded-full border px-gap-sm font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint",
                           diaElegido === dia.fecha
                             ? "border-verde-400 bg-verde-400 text-verde-950"
                             : "border-ink/10 bg-white text-ink hover:border-verde-300",
@@ -1059,7 +1080,9 @@ export function PedidoProvider({
                           />
                         </div>
                         {horaInput && !franjaElegida && disponibles.length > 0 && (
-                          <p className="text-meta text-amber-600">
+                          <p className="text-meta text-amber-700">
+                            {/* `amber-700` y no 600: el 600 daba 3,2:1 sobre
+                                blanco y no tenía versión oscura; el 700 sí. */}
                             No disponible. Rango:{" "}
                             {horaDeEtiqueta(disponibles[0]!)} – {horaDeEtiqueta(disponibles[disponibles.length - 1]!)}
                           </p>
@@ -1069,12 +1092,13 @@ export function PedidoProvider({
                   })()}
                 </div>
               )}
+              </div>
 
-              <DialogFooter className="grid grid-cols-[auto_1fr] gap-gap-xs sm:flex sm:justify-end sm:space-x-0">
+              <DialogFooter className="grid shrink-0 grid-cols-[auto_1fr] gap-gap-xs border-t border-ink/5 pt-gap-sm sm:flex sm:justify-end sm:space-x-0">
                 <DialogClose asChild>
                   <button
                     type="button"
-                    className="inline-flex h-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 sm:px-gap-md sm:text-small"
+                    className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 sm:px-gap-md sm:text-small"
                   >
                     Volver
                   </button>
@@ -1087,13 +1111,14 @@ export function PedidoProvider({
                     Sin `flex-1`: mientras el pie fue una columna en el
                     teléfono, ese `flex-1` repartía por el eje vertical y el
                     botón dejaba de medir su alto. Ahora el ancho lo da la
-                    columna de la rejilla y el alto, `h-10`. */}
+                    columna de la rejilla y el alto, `h-11` (44 px, el mínimo
+                    táctil del proyecto). */}
                 {cocina && !cocina.abierta && !franjaElegida ? (
                   /* Cocina cerrada y sin franja elegida: botón deshabilitado. */
                   <button
                     type="button"
                     disabled
-                    className="inline-flex h-10 min-w-0 cursor-not-allowed items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-ink/10 px-gap-sm font-lv-display text-meta font-semibold text-ink-soft sm:px-gap-md sm:text-small"
+                    className="inline-flex h-11 min-w-0 cursor-not-allowed items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-ink/10 px-gap-sm font-lv-display text-meta font-semibold text-ink-soft sm:px-gap-md sm:text-small"
                   >
                     <ChefHat size={15} strokeWidth={1.8} className="shrink-0" />
                     {tieneProgramados && diasProg.length > 0
@@ -1115,7 +1140,7 @@ export function PedidoProvider({
                       setAbierto(false);
                       setFranjaElegida(null);
                     }}
-                    className="inline-flex h-10 min-w-0 items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 sm:px-gap-md sm:text-small"
+                    className="inline-flex h-11 min-w-0 items-center justify-center gap-gap-xs whitespace-nowrap rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 sm:px-gap-md sm:text-small"
                   >
                     <MessageCircle
                       size={15}
@@ -1175,7 +1200,7 @@ export function BotonAgregar({ producto }: { producto: ProductoPedible }) {
       /* Carrito y «Añadir», no un «+» suelto: el «+» no decía a dónde iba el
          producto. Con algo dentro enseña cuántos lleva, con el carrito al lado. */
       className={cn(
-        "inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-[5px] rounded-full border px-[12px] font-lv-display text-meta font-semibold transition-colors duration-500 ease-outquint active:scale-95",
+        "inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-[5px] rounded-full border px-[12px] font-lv-display text-meta font-semibold transition-colors duration-500 ease-outquint active:scale-95",
         qty > 0
           ? "border-verde-400 bg-verde-400 font-bold text-verde-950 hover:bg-verde-300"
           : "border-verde-300 bg-verde-50 text-verde-700 hover:bg-verde-400 hover:text-verde-950",
@@ -1201,7 +1226,7 @@ function BotonCantidad({
       type="button"
       aria-label={etiqueta}
       onClick={onClick}
-      className="grid size-10 cursor-pointer place-items-center rounded-full border border-ink/10 bg-white text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700"
+      className="grid size-11 cursor-pointer place-items-center rounded-full border border-ink/10 bg-white text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700"
     >
       {children}
     </button>

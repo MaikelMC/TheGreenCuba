@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, MessageCircle } from "lucide-react";
+import { CalendarDays, ChevronDown, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { cn, generateId } from "@/lib/utils";
 import { encolar } from "@/lib/offline/cola";
@@ -15,7 +15,9 @@ import {
 import {
   avisoCupo,
   DIAS_MAX_RESERVA,
+  errorFechaReserva,
   fechaLocalIso,
+  horaPasada,
   hrefReserva,
   mensajeReserva,
   RESERVA_LABEL,
@@ -47,6 +49,25 @@ const INPUT =
 
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
 
+/* Fecha y hora van en dos columnas. Los selectores de Safari en iPhone traen
+   un ancho mínimo propio que ignora `w-full` y se salían por la derecha; el
+   diálogo de pedidos lo resolvió igual: `min-w-0`, `max-w-full` y
+   `appearance-none`, con el valor alineado a la izquierda. */
+const INPUT_FECHA =
+  "min-w-0 max-w-full appearance-none text-left [&::-webkit-date-and-time-value]:text-left";
+
+type CampoReserva = "nombre" | "fecha" | "hora" | "personas" | "producto" | "cantidad";
+
+/** El `id` de cada campo, para llevarle el foco cuando falla. */
+const CAMPO_ID: Record<CampoReserva, string> = {
+  nombre: "rvNombre",
+  fecha: "rvFecha",
+  hora: "rvHora",
+  personas: "rvPersonas",
+  producto: "rvProducto",
+  cantidad: "rvCantidad",
+};
+
 const BTN_PRIMARY =
   "inline-flex h-11 cursor-pointer items-center justify-center gap-gap-xs rounded-full bg-verde-400 px-gap-md font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]";
 
@@ -75,7 +96,24 @@ export function ReservaWhatsApp({
   const [cantidad, setCantidad] = useState("1");
   const [nota, setNota] = useState("");
   const [error, setError] = useState<string | null>(null);
+  /* Qué campo tiene la culpa: solo ese se marca y se le une el mensaje. */
+  const [campoError, setCampoError] = useState<CampoReserva | null>(null);
   const [enviando, setEnviando] = useState(false);
+
+  /** Los atributos de error de un campo: marcado y unido al aviso, solo si es él. */
+  const errorDe = (campo: CampoReserva) =>
+    campoError === campo && error
+      ? { "aria-invalid": true as const, "aria-describedby": "rv-error" }
+      : {};
+
+  /** Al tocar el campo que tenía la culpa, el aviso se va: ya no describe lo
+      que hay escrito, y dejarlo en rojo hace creer que sigue mal. */
+  const limpiar = (campo: CampoReserva) => {
+    if (campoError === campo) {
+      setError(null);
+      setCampoError(null);
+    }
+  };
 
   /* El cupo del día. `cupoVivo` arranca con lo que trajo la ficha y se refresca
      al abrir el diálogo: la ficha puede venir de una respuesta en caché y el
@@ -177,9 +215,12 @@ export function ReservaWhatsApp({
 
   /**
    * Toma plaza en el servidor. Devuelve `"lleno"` cuando el día ya no da para
-   * lo pedido y deja puesto el error; `"sin-red"` cuando no hubo respuesta.
+   * lo pedido y deja puesto el error; `"sin-red"` cuando no hubo respuesta o
+   * fue un fallo pasajero (se encola); `"rechazado"` cuando el servidor dijo
+   * que no por otro motivo (no se encola: fallaría igual). En los dos últimos
+   * casos el WhatsApp sale igual: quien confirma es el negocio.
    */
-  async function tomarCupoRemoto(): Promise<"ok" | "lleno" | "sin-red"> {
+  async function tomarCupoRemoto(): Promise<"ok" | "lleno" | "sin-red" | "rechazado"> {
     try {
       const res = await fetch("/api/reservas", {
         method: "POST",
@@ -194,15 +235,20 @@ export function ReservaWhatsApp({
         /* El servidor manda cuánto queda; el mensaje se arma con la misma
            función que el aviso en vivo para que digan lo mismo. */
         const quedan = data?.restantes ?? 0;
+        /* Con la ocupación al día, el aviso en vivo ya dice cuánto queda y
+           marca el campo. Antes se ponía además en `error` y salían dos cajas
+           rojas con el mismo texto. */
         setOcupacion((o) => ({ ...(o ?? {}), [fecha]: cupoVivo! - quedan }));
-        setError(
-          avisoCupo(Number(personas) || 1, cupoVivo! - quedan, cupoVivo) ??
-            "Ese día ya no hay espacio.",
-        );
+        /* Se arregla bajando las personas o cambiando de día; el foco va a
+           las personas, que es lo primero que se puede tocar. */
+        document.getElementById(CAMPO_ID.personas)?.focus();
         return "lleno";
       }
 
-      if (!res.ok) return "sin-red";
+      /* Solo vale reintentar lo pasajero: un 5xx o el tope por IP (429). Un
+         400 o un 403 volvería a fallar igual al reenviarse desde la cola, y
+         acabaría como «no pudo registrarse» sin motivo. */
+      if (!res.ok) return res.status >= 500 || res.status === 429 ? "sin-red" : "rechazado";
 
       const data = (await res.json()) as { restantes?: number | null };
       if (typeof data.restantes === "number") {
@@ -214,15 +260,38 @@ export function ReservaWhatsApp({
     }
   }
 
+  /**
+   * Qué campo tiene la culpa del error. Repite, en el mismo orden, las
+   * comprobaciones de `validarReserva`, que devuelve solo el texto: así el
+   * mensaje sigue saliendo de un único sitio y aquí solo se decide a qué
+   * campo se une y adónde va el foco.
+   */
+  function campoConError(): CampoReserva {
+    if (!datos.nombre.trim()) return "nombre";
+    if (errorFechaReserva(datos.fecha, new Date())) return "fecha";
+    if (!datos.hora.trim() || horaPasada(datos.fecha, datos.hora)) return "hora";
+    if (tipo === "apartado") {
+      return datos.producto?.trim() ? "cantidad" : "producto";
+    }
+    /* Personas, aforo o cupo del día: los tres se arreglan cambiando cuántos van. */
+    return "personas";
+  }
+
   async function enviar() {
     const fallo = validarReserva(datos, tipo, new Date(), reserva.aforoMaxPersonas, {
       ocupadas: ocupadasFecha,
       capacidad: cupoVivo,
     });
     if (fallo) {
+      const campo = campoConError();
       setError(fallo);
+      setCampoError(campo);
+      /* `focus-management` (ui-ux-pro-max): en un diálogo con scroll, el
+         aviso al final no dice dónde está el problema; el foco sí. */
+      document.getElementById(CAMPO_ID[campo])?.focus();
       return;
     }
+    setCampoError(null);
 
     const href = hrefReserva(
       reserva.whatsapp,
@@ -243,11 +312,29 @@ export function ReservaWhatsApp({
        —red caída, que aquí es lo normal— se deja pasar: quien confirma es el
        negocio, y perder la reserva por un fallo de red sería peor que una plaza
        contada de más. */
+    let ventana: Window | null = null;
     if (tipo === "mesa" && cupoVivo && cupoVivo > 0) {
+      /* La pestaña se abre **aquí**, en el mismo toque, antes de esperar al
+         servidor. Antes se abría después del `await`, y para entonces el
+         navegador ya no lo contaba como gesto del cliente: Safari lo bloqueaba
+         casi siempre, y Chrome si la respuesta tardaba unos segundos, que con
+         datos móviles es lo normal. La plaza quedaba gastada y WhatsApp no
+         se abría. Sin `noopener` porque hace falta la referencia para
+         llevarla a WhatsApp; se corta el `opener` a mano en la línea de abajo. */
+      ventana = window.open("", "_blank");
+      if (ventana) {
+        ventana.opener = null;
+        ventana.document.title = "Abriendo WhatsApp…";
+        ventana.document.body.textContent = "Comprobando el cupo y abriendo WhatsApp…";
+      }
+
       setEnviando(true);
       const resultado = await tomarCupoRemoto();
       setEnviando(false);
-      if (resultado === "lleno") return;
+      if (resultado === "lleno") {
+        ventana?.close();
+        return;
+      }
       if (resultado === "sin-red") {
         /* Sin red, se encola para cuando vuelva la conexión. El WhatsApp sale
            igualmente. Si al reenviar no hay cupo (409), el dueño lo gestiona
@@ -268,7 +355,23 @@ export function ReservaWhatsApp({
 
     /* El gesto que al dueño le importa contar: la reserva que llegó a salir. */
     trackEvento({ tipo: "click_reserva", negocioId });
-    window.open(href, "_blank", "noopener,noreferrer");
+    const huboEspera = tipo === "mesa" && Boolean(cupoVivo && cupoVivo > 0);
+    if (ventana && !ventana.closed) {
+      /* La pestaña abierta en el toque se lleva ahora a WhatsApp. */
+      ventana.location.href = href;
+    } else if (huboEspera) {
+      /* El navegador bloqueó hasta la pestaña del toque. Después del `await`
+         otro `window.open` también se bloquearía, así que se navega en esta
+         misma pestaña: la reserva tiene que salir. (Con `noopener`,
+         `window.open` devuelve `null` aunque abra, así que no sirve para
+         saber si funcionó.) */
+      window.location.href = href;
+      return;
+    } else {
+      /* Sin cupo que comprobar no hubo espera: esto sigue siendo el mismo
+         toque y se abre como siempre. */
+      window.open(href, "_blank", "noopener,noreferrer");
+    }
     setAbierto(false);
   }
 
@@ -291,7 +394,10 @@ export function ReservaWhatsApp({
       </button>
 
       <Dialog open={abierto} onOpenChange={setAbierto}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        {/* `dvh` y no `vh`: en el iPhone, con la barra del navegador a la
+            vista, `90vh` es más alto que la pantalla real y el botón de enviar
+            quedaba por debajo. Mismo tope que el diálogo de pedidos. */}
+        <DialogContent className="max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain">
           <DialogTitle>{label}</DialogTitle>
           <DialogDescription>
             Rellena los datos y se abrirá WhatsApp con el mensaje escrito. El
@@ -312,15 +418,19 @@ export function ReservaWhatsApp({
               <input
                 id="rvNombre"
                 value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
+                onChange={(e) => {
+                  setNombre(e.target.value);
+                  limpiar("nombre");
+                }}
                 placeholder="Ej: Ana Pérez"
                 className={INPUT}
                 autoComplete="name"
+                {...errorDe("nombre")}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-gap-sm">
-              <div className="flex flex-col gap-gap-xs">
+              <div className="flex min-w-0 flex-col gap-gap-xs">
                 <label htmlFor="rvFecha" className={LABEL}>
                   Fecha
                 </label>
@@ -330,11 +440,17 @@ export function ReservaWhatsApp({
                   value={fecha}
                   min={rango?.min}
                   max={rango?.max}
-                  onChange={(e) => setFecha(e.target.value)}
-                  className={INPUT}
+                  onChange={(e) => {
+                    setFecha(e.target.value);
+                    limpiar("fecha");
+                    /* El fallo de «hora pasada» depende también del día. */
+                    limpiar("hora");
+                  }}
+                  className={cn(INPUT, INPUT_FECHA)}
+                  {...errorDe("fecha")}
                 />
               </div>
-              <div className="flex flex-col gap-gap-xs">
+              <div className="flex min-w-0 flex-col gap-gap-xs">
                 <label htmlFor="rvHora" className={LABEL}>
                   Hora
                 </label>
@@ -342,8 +458,12 @@ export function ReservaWhatsApp({
                   id="rvHora"
                   type="time"
                   value={hora}
-                  onChange={(e) => setHora(e.target.value)}
-                  className={INPUT}
+                  onChange={(e) => {
+                    setHora(e.target.value);
+                    limpiar("hora");
+                  }}
+                  className={cn(INPUT, INPUT_FECHA)}
+                  {...errorDe("hora")}
                 />
               </div>
             </div>
@@ -360,9 +480,15 @@ export function ReservaWhatsApp({
                   min={1}
                   max={reserva.aforoMaxPersonas ?? undefined}
                   value={personas}
-                  onChange={(e) => setPersonas(e.target.value)}
+                  onChange={(e) => {
+                    setPersonas(e.target.value);
+                    limpiar("personas");
+                  }}
                   placeholder="Ej: 4"
                   className={INPUT}
+                  {...(avisoEnVivo
+                    ? { "aria-invalid": true as const, "aria-describedby": "rv-aviso" }
+                    : errorDe("personas"))}
                 />
                 {reserva.aforoMaxPersonas ? (
                   <p className="text-meta text-ink-soft/75">
@@ -388,18 +514,32 @@ export function ReservaWhatsApp({
                   <label htmlFor="rvProducto" className={LABEL}>
                     Qué quieres apartar
                   </label>
-                  <select
-                    id="rvProducto"
-                    value={productoId}
-                    onChange={(e) => setProductoId(e.target.value)}
-                    className={cn(INPUT, "appearance-none pr-8")}
-                  >
-                    {reserva.productos.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+                  {/* `appearance-none` quita la flecha del sistema: sin la
+                      nuestra, el campo parecía de texto. */}
+                  <div className="relative">
+                    <select
+                      id="rvProducto"
+                      value={productoId}
+                      onChange={(e) => {
+                        setProductoId(e.target.value);
+                        limpiar("producto");
+                      }}
+                      className={cn(INPUT, "appearance-none pr-10")}
+                      {...errorDe("producto")}
+                    >
+                      {reserva.productos.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={16}
+                      strokeWidth={1.8}
+                      aria-hidden
+                      className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-ink-soft"
+                    />
+                  </div>
                 </div>
                 <div className="flex flex-col gap-gap-xs">
                   <label htmlFor="rvCantidad" className={LABEL}>
@@ -411,8 +551,12 @@ export function ReservaWhatsApp({
                     inputMode="numeric"
                     min={1}
                     value={cantidad}
-                    onChange={(e) => setCantidad(e.target.value)}
+                    onChange={(e) => {
+                      setCantidad(e.target.value);
+                      limpiar("cantidad");
+                    }}
                     className={INPUT}
+                    {...errorDe("cantidad")}
                   />
                 </div>
               </div>
@@ -443,17 +587,24 @@ export function ReservaWhatsApp({
 
             {/* El aviso del cupo, pegado a lo que se escribe: aparece al elegir
                 el día y al cambiar las personas, sin esperar al envío. */}
-            {avisoEnVivo && (
-              <p
-                role="alert"
-                className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
-              >
-                {avisoEnVivo}
-              </p>
-            )}
+            {/* `polite` y no `alert`: cambia con cada tecla en «Personas» y
+                una alerta interrumpiría al lector en cada número. El contenedor
+                está siempre montado para que el anuncio llegue. */}
+            {/* Vacío, el margen negativo anula el hueco del `gap` del form. */}
+            <div aria-live="polite" className="empty:-mt-gap-sm">
+              {avisoEnVivo && (
+                <p
+                  id="rv-aviso"
+                  className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+                >
+                  {avisoEnVivo}
+                </p>
+              )}
+            </div>
 
             {error && (
               <p
+                id="rv-error"
                 role="alert"
                 className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
               >

@@ -1,5 +1,5 @@
 import { cookies, headers } from "next/headers";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { trackEvent } from "@/lib/analytics/events";
 import { auth } from "@/lib/auth/server";
 import { ensureContact } from "@/lib/contacts";
@@ -219,6 +219,29 @@ export async function getAppUser(): Promise<AppUser | null> {
     }
 
     return toAppUser(existing);
+  }
+
+  /* Si la cuenta de acceso ya no existe, esta sesión viene de una cookie vieja.
+     El proxy la da por buena hasta siete días sin preguntar a Neon —ver
+     `sessionDataTtl` en `src/lib/auth/server.ts`—, así que en otro dispositivo
+     puede seguir viva después de borrar la cuenta.
+
+     Sin esta comprobación esa sesión resucitaba el perfil: se creaba una fila
+     nueva para alguien que acababa de pedir que lo borraran, con su correo, y
+     podía seguir usando la app como si nada. Se pregunta solo aquí, en la rama
+     que crea la fila, o sea una vez por persona y no en cada petición.
+
+     La sesión de desarrollo no tiene fila en `neon_auth` porque es local a
+     propósito (ver `src/lib/dev-access.ts`), y excluirla es lo que impide que
+     esta guarda cierre también esa puerta. */
+  if (neonUser.id !== DEV_IDENTITY.id) {
+    const account = await db.execute<{ ok: number }>(sql`
+      SELECT 1 AS ok
+      FROM neon_auth.user
+      WHERE id = ${neonUser.id}::uuid
+      LIMIT 1
+    `);
+    if ((account.rows ?? []).length === 0) return null;
   }
 
   const email = neonUser.email;

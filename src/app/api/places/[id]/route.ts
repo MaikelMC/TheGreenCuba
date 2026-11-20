@@ -43,7 +43,7 @@ import {
   esTipoNegocio,
 } from "@/lib/ficha/tipos";
 import { generateId } from "@/lib/utils";
-import { validarOferta } from "@/lib/ofertas";
+import { parsePrecio, validarOferta } from "@/lib/ofertas";
 import { cambiosDeCarta } from "@/lib/novedades";
 import { toPlaceValues, toUserPlace } from "@/lib/db/mappers";
 import {
@@ -52,6 +52,7 @@ import {
   resolveCategoryId,
 } from "@/lib/db/queries";
 import { limite, puede, suscripcionDe } from "@/lib/plans-server";
+import { textoBloqueo } from "@/lib/plans";
 import {
   AVISOS_DE_FICHA,
   mensajeNegocioVisible,
@@ -797,11 +798,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
          solo no basta: sin Marketing activo `ofertas_vigentes_max` es 0, y el
          dueño leería «tu plan permite hasta 0 ofertas», que no explica nada. */
       if (!(await puede(id, "ofertas_flash"))) {
+        /* La pieza que la abre sale del catálogo, como el candado del panel:
+           el texto fijo nombraba un «módulo Marketing» que ya no existe. */
+        const via = textoBloqueo("ofertas_flash", await cargarCatalogo());
         return NextResponse.json(
-          {
-            error:
-              "Las ofertas flash entran con el módulo Marketing activo o con Publicidad Max.",
-          },
+          { error: `Las ofertas flash no entran en tu plan. ${via}.` },
           { status: 403 },
         );
       }
@@ -828,12 +829,48 @@ export async function PATCH(req: NextRequest, { params }: Params) {
        clave foránea de la fase C una que apunte a nada haría fallar el insert
        entero; se dice antes y con una frase que se entiende. */
     if (limpias.length > 0) {
-      const ids = new Set((previo?.menu ?? (await productosDe(id))).map((p) => p.id));
+      const carta = previo?.menu ?? (await productosDe(id));
+      const ids = new Set(carta.map((p) => p.id));
       if (limpias.some((o) => !ids.has(o.productoId))) {
         return NextResponse.json(
           { error: "Una oferta apunta a un producto que ya no está en la carta. Elige otro producto." },
           { status: 400 },
         );
+      }
+
+      /* Una oferta **nueva** no empieza en el pasado. Antes solo lo comprobaba
+         el formulario (`inicioValido`). Las que ya existían se reenvían enteras
+         en cada guardado y una en curso empezó, por definición, antes de
+         ahora: por eso solo las nuevas. Quince minutos de margen para un
+         teléfono con el reloj algo atrasado, que no debe quedarse sin guardar. */
+      /* Sin `previo` no se sabe cuáles son nuevas: tratarlas todas como tales
+         rechazaría las que ya van en curso. Mejor no comprobar que bloquear. */
+      const margen = Date.now() - 15 * 60_000;
+      if (
+        previo &&
+        limpias.some((o) => !previo.ofertaIds.has(o.id) && o.inicia < margen)
+      ) {
+        return NextResponse.json(
+          { error: "Una oferta nueva no puede empezar antes de ahora." },
+          { status: 400 },
+        );
+      }
+
+      /* El precio rebajado tiene que ser menor que el de la carta. Solo cuando
+         los dos son cifras: con texto libre («3–5 USD») no hay con qué
+         comparar, y `precioConOferta` tampoco tacharía nada. */
+      for (const o of limpias) {
+        if (!o.precioOferta) continue;
+        const original = parsePrecio(carta.find((p) => p.id === o.productoId)?.price ?? "");
+        const rebajado = parsePrecio(o.precioOferta);
+        if (original !== null && rebajado !== null && rebajado >= original) {
+          return NextResponse.json(
+            {
+              error: `«${o.titulo}»: el precio rebajado tiene que ser menor que el de la carta (${original}).`,
+            },
+            { status: 400 },
+          );
+        }
       }
     }
 

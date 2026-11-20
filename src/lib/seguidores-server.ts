@@ -1,10 +1,11 @@
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { avisosSeguidores, places, seguidores } from "@/lib/db/schema";
 import { puede, tieneFuncion } from "@/lib/plans-server";
 import { enlacePerfilDe } from "@/lib/publicaciones-server";
 import {
-  AVISOS_POR_SEMANA,
+  agruparCambios,
+  ESPERA_ENTRE_AVISOS_MS,
   enlaceSeguidores,
   lotes,
   mensajeAviso,
@@ -256,17 +257,17 @@ export type ResultadoAviso =
   | { ok: false; error: string; status: number };
 
 /**
- * Avisa a los seguidores de un negocio. **Máximo tres por semana.**
+ * Avisa a los seguidores de un negocio. Sin tope semanal: el ritmo lo pone
+ * `avisarCambios`, que junta los avisos que llegan seguidos.
  *
  * El orden de las comprobaciones es el que explica mejor lo que pasa: primero se
- * valida el aviso, después el plan, después el bot, después el tope y por último
- * si hay alguien al otro lado. Así el dueño recibe la frase que corresponde a su
- * caso —«esto es de Pro» antes de «ya mandaste tres», que es más útil—.
+ * valida el aviso, después el plan, después el bot y por último si hay alguien
+ * al otro lado.
  *
- * **Sin seguidores no se gasta cuota.** Un aviso que no se entregó a nadie no es
- * un aviso: contarlo dejaría a un negocio recién llegado sin sus tres avisos de
- * la semana por haberlos lanzado al vacío. La fila del registro se escribe solo
- * cuando hubo al menos un intento de entrega.
+ * **Sin seguidores no se registra nada.** Un aviso que no se entregó a nadie no
+ * es un aviso: registrarlo pondría en marcha la espera entre avisos sin que
+ * nadie hubiera recibido nada. La fila se escribe solo cuando hubo al menos un
+ * intento de entrega.
  *
  * Los rebotes definitivos dan de baja al seguidor en la misma pasada, que es lo
  * que evita volver a intentarlo cada semana con un chat que ya no existe.
@@ -305,15 +306,9 @@ export async function avisarSeguidores(
     return { ok: false, error: "Negocio no encontrado", status: 404 };
   }
 
+  /* Sin tope semanal: el ritmo lo marca la espera entre avisos de
+     `avisarCambios`, que junta lo que llega seguido en un solo mensaje. */
   const semana = semanaDelAviso();
-  const usados = await avisosDeLaSemana(negocioId, semana);
-  if (usados >= AVISOS_POR_SEMANA) {
-    return {
-      ok: false,
-      error: `Ya mandaste ${AVISOS_POR_SEMANA} avisos esta semana. El lunes vuelves a tener los tres.`,
-      status: 429,
-    };
-  }
 
   const destinatarios = await seguidoresActivos(negocioId);
   if (destinatarios.length === 0) {
@@ -384,14 +379,60 @@ export async function avisarSeguidores(
   return { ok: true, enviados, fallidos };
 }
 
+/** Cuándo salió el último aviso del negocio, o `null` si nunca. */
+async function ultimoAvisoEn(negocioId: string): Promise<number | null> {
+  const [fila] = await db
+    .select({ en: avisosSeguidores.createdAt })
+    .from(avisosSeguidores)
+    .where(eq(avisosSeguidores.negocioId, negocioId))
+    .orderBy(desc(avisosSeguidores.createdAt))
+    .limit(1);
+  return fila?.en ? fila.en.getTime() : null;
+}
+
 /**
- * Avisa de varios cambios de una vez, parando cuando se agota el tope.
+ * Los cambios que esperan a que pase la ventana, por negocio.
  *
- * La llama el `PATCH` del negocio, que puede traer dos o tres cambios en el
- * mismo guardado —una oferta nueva y un producto nuevo, por ejemplo—. Se avisa
- * de cada uno y se **para al primer «no»**: si el tope semanal ha cortado el
- * segundo, el tercero tampoco va a caber y seguir intentándolo solo escribiría
- * tres líneas de error en el log.
+ * ponytail: en memoria del proceso. Vale porque el VPS corre un solo
+ * `node server.js` que no se duerme; un reinicio o un despliegue dentro de la
+ * ventana pierde lo pendiente (como mucho media hora de avisos de un negocio).
+ * Si algún día hay varias instancias o serverless, pasar esto a una tabla y
+ * vaciarla desde el cron del VPS.
+ */
+const pendientes = new Map<
+  string,
+  { cambios: { titulo: string; texto: string }[]; temporizador: NodeJS.Timeout }
+>();
+
+/** Manda lo acumulado de un negocio como un solo aviso. Nunca lanza. */
+async function enviarJuntos(
+  negocioId: string,
+  cambios: { titulo: string; texto: string }[],
+): Promise<void> {
+  const aviso = agruparCambios(cambios);
+  if (!aviso) return;
+  try {
+    const resultado = await avisarSeguidores(negocioId, aviso.titulo, aviso.texto);
+    if (!resultado.ok) {
+      console.error("[seguidores] aviso no enviado:", resultado.error);
+    }
+  } catch (error) {
+    console.error(
+      "[seguidores] falló el aviso:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+}
+
+/**
+ * Avisa de los cambios de un guardado, sin tope semanal pero con ritmo.
+ *
+ * La llama el `PATCH` del negocio. Todos los cambios del mismo guardado van en
+ * **un** mensaje. Si el último aviso salió hace menos de
+ * `ESPERA_ENTRE_AVISOS_MS`, no se manda nada aún: los cambios se juntan con lo
+ * que llegue después y salen en un solo mensaje al cumplirse la espera. Así un
+ * negocio que añade veinte productos seguidos manda uno o dos mensajes, no
+ * veinte.
  *
  * Nunca lanza: lo que pasa aquí no puede tumbar el guardado que lo originó.
  */
@@ -399,23 +440,37 @@ export async function avisarCambios(
   negocioId: string,
   cambios: { titulo: string; texto: string }[],
 ): Promise<void> {
-  for (const cambio of cambios) {
-    try {
-      const resultado = await avisarSeguidores(
-        negocioId,
-        cambio.titulo,
-        cambio.texto,
-      );
-      if (!resultado.ok) {
-        console.error("[seguidores] aviso no enviado:", resultado.error);
-        return;
-      }
-    } catch (error) {
-      console.error(
-        "[seguidores] falló el aviso:",
-        error instanceof Error ? error.message : error,
-      );
-      return;
-    }
+  if (cambios.length === 0) return;
+
+  /* Ya hay una tanda esperando: se suma a ella. */
+  const enCola = pendientes.get(negocioId);
+  if (enCola) {
+    enCola.cambios.push(...cambios);
+    return;
   }
+
+  let ultimo: number | null = null;
+  try {
+    ultimo = await ultimoAvisoEn(negocioId);
+  } catch (error) {
+    console.error(
+      "[seguidores] no se pudo leer el último aviso:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+
+  const falta = ultimo === null ? 0 : ultimo + ESPERA_ENTRE_AVISOS_MS - Date.now();
+  if (falta <= 0) {
+    await enviarJuntos(negocioId, cambios);
+    return;
+  }
+
+  const temporizador = setTimeout(() => {
+    const tanda = pendientes.get(negocioId);
+    pendientes.delete(negocioId);
+    if (tanda) void enviarJuntos(negocioId, tanda.cambios);
+  }, falta);
+  /* No retiene el proceso abierto solo por esto. */
+  temporizador.unref?.();
+  pendientes.set(negocioId, { cambios: [...cambios], temporizador });
 }

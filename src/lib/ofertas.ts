@@ -17,6 +17,9 @@ import type { UserPlaceOferta } from "@/lib/places-store";
  * nada que enseñar un número inventado.
  */
 
+/** Longitud máxima de cada texto de una oferta. Ver `validarOferta`. */
+export const OFERTA_MAX = { titulo: 80, descripcion: 200, precio: 20 } as const;
+
 /** Lo mínimo para saber si algo está vivo. Compartido con `UserPlaceOferta`. */
 type ConFechas = Pick<UserPlaceOferta, "inicia" | "termina">;
 
@@ -202,6 +205,16 @@ export function validarOferta(entrada: unknown): UserPlaceOferta | string {
   if (!id) return "La oferta necesita un identificador.";
   if (!titulo) return "La oferta necesita un título.";
   if (!productoId) return "Elige a qué producto de la carta apunta la oferta.";
+  /* Topes de longitud: sin ellos un texto de miles de caracteres rompía el
+     cartel de la ficha y la tarjeta de la carta. Los mismos números van como
+     `maxLength` en el formulario, para que no haga falta llegar a este error. */
+  if (titulo.length > OFERTA_MAX.titulo) {
+    return `El título admite hasta ${OFERTA_MAX.titulo} caracteres.`;
+  }
+  const descripcion = o.descripcion?.trim();
+  if (descripcion && descripcion.length > OFERTA_MAX.descripcion) {
+    return `La descripción admite hasta ${OFERTA_MAX.descripcion} caracteres.`;
+  }
 
   if (!Number.isFinite(o.inicia) || !Number.isFinite(o.termina)) {
     return "La oferta necesita fecha de inicio y de fin.";
@@ -219,12 +232,15 @@ export function validarOferta(entrada: unknown): UserPlaceOferta | string {
   if (hayPct && (pct < 1 || pct > 99 || !Number.isInteger(pct))) {
     return "El descuento tiene que ser un número entero entre 1 y 99.";
   }
+  if (precio && precio.length > OFERTA_MAX.precio) {
+    return `El precio rebajado admite hasta ${OFERTA_MAX.precio} caracteres.`;
+  }
 
   return {
     id,
     productoId,
     titulo,
-    descripcion: o.descripcion?.trim() || undefined,
+    descripcion: descripcion || undefined,
     precioOferta: precio || undefined,
     descuentoPct: hayPct ? pct : undefined,
     inicia: o.inicia as number,

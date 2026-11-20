@@ -2,11 +2,9 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
-import { motion } from "motion/react";
 import { ArrowRight, Loader2, Mail } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 import { siteConfig } from "@/config/site";
-import { EASE } from "@/lib/motion";
 
 /**
  * Dónde aterriza el enlace del correo.
@@ -28,7 +26,7 @@ const RESET_REDIRECT = `${siteConfig.url.replace(/\/+$/, "")}/reset-password`;
 /* Mismas clases que los campos del alta (`auth-card.tsx`). Son dos constantes
    de texto; sacarlas a un módulo compartido sería más ceremonia que copiarlas. */
 const FIELD =
-  "auth-field flex items-center gap-gap-sm rounded-2xl border border-ink/10 bg-sand-warm px-gap-sm h-12 transition-colors duration-500 ease-outquint focus-within:border-verde-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-verde-400/20";
+  "auth-field flex items-center gap-gap-sm rounded-xl border border-ink/10 bg-sand-warm px-gap-sm h-12 transition-colors duration-500 ease-outquint focus-within:border-verde-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-verde-400/20";
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
 
 /**
@@ -67,9 +65,16 @@ export default function ForgotPasswordPage() {
       setLoading(true);
       setError(null);
       try {
+        /* El correo viaja en el enlace para que la pantalla de contraseña nueva
+           tenga un campo de usuario: sin él, Chrome y el Llavero de iOS no
+           saben a qué cuenta guardada pertenece la contraseña nueva. Better
+           Auth añade el `token` con `searchParams.set`, así que esta consulta
+           se conserva (comprobado en `api/routes/password.mjs`). */
+        const redirectTo = new URL(RESET_REDIRECT);
+        redirectTo.searchParams.set("email", value);
         const result = await authClient.requestPasswordReset({
           email: value,
-          redirectTo: RESET_REDIRECT,
+          redirectTo: redirectTo.toString(),
         });
         /* El SDK no lanza: devuelve `{ error }`. Un 4xx aquí significa que la
            petición no salió —falta el correo, el servicio no responde—, no que
@@ -89,16 +94,10 @@ export default function ForgotPasswordPage() {
   );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.9, ease: EASE }}
-      className="flex flex-col gap-gap-md"
-    >
-      <header className="flex flex-col gap-gap-xs">
-        <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-200 lg:text-verde-600">
-          Recuperar acceso
-        </span>
+    /* La entrada va en CSS (`fade-up` del tema, a 250 ms): `motion` pesaba en
+       el bundle solo para este fundido. */
+    <div className="flex flex-col gap-gap-md animate-[fade-up_250ms_ease-out] motion-reduce:animate-none">
+      <header className="flex flex-col items-center gap-gap-xs text-center">
         <h1 className="font-lv-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-white lg:text-ink">
           {sent ? "Revisa tu correo" : "¿Olvidaste tu contraseña?"}
         </h1>
@@ -109,7 +108,7 @@ export default function ForgotPasswordPage() {
         </p>
       </header>
 
-      <div className="rounded-4xl border border-ink/5 bg-white shadow-soft p-gap-lg flex flex-col gap-gap-md">
+      <div className="rounded-2xl bg-white shadow-soft p-gap-lg flex flex-col gap-gap-md">
         {sent ? (
           <Link
             href="/login"
@@ -172,6 +171,6 @@ export default function ForgotPasswordPage() {
           Entrar
         </Link>
       </p>
-    </motion.div>
+    </div>
   );
 }

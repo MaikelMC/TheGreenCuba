@@ -34,14 +34,60 @@ export function TasaCambioNota({
 }: {
   catalogo: Catalogo;
   className?: string;
-  /** `destacada` es la tarjeta de la portada; el resto de páginas usa la píldora. */
-  variante?: "compacta" | "destacada";
+  /** `destacada` es la tarjeta de la portada; `panel`, la de Planes del panel
+      del negocio; el resto de páginas usa la píldora. */
+  variante?: "compacta" | "destacada" | "panel";
 }) {
   const viva = catalogo.tasaCupFuente === "cambiocup";
   const fecha =
     viva && catalogo.tasaCupActualizadaEn
       ? fechaTexto(catalogo.tasaCupActualizadaEn)
       : null;
+
+  /* En Planes el dueño está a punto de pagar: la tasa es el dato que convierte
+     el precio en dólares en la transferencia en CUP, así que va como tarjeta
+     del panel (patrón de DESIGN.md) y con la cifra a tamaño de titular, no en
+     una píldora de 12 px que se perdía encima de los precios. */
+  if (variante === "panel") {
+    return (
+      <div
+        className={cn(
+          "flex items-center gap-gap-sm rounded-2xl border border-ink/5 bg-white p-gap-sm shadow-soft sm:gap-gap-md sm:p-gap-md",
+          className,
+        )}
+      >
+        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-verde-50 text-verde-700 sm:size-12">
+          <Coins size={20} strokeWidth={1.8} aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-meta text-ink-soft/75">Tasa para pagar en CUP</p>
+          <p className="font-lv-display text-h3 font-semibold tabular-nums text-ink">
+            <span className="text-small font-medium text-ink-soft/75">1 USD = </span>
+            {tasaTexto(catalogo.tasaCup)}{" "}
+            <span className="text-small font-medium text-ink-soft/75">CUP</span>
+          </p>
+          <p className="mt-[2px] flex flex-wrap items-center gap-x-gap-xs gap-y-[2px] text-meta text-ink-soft/75">
+            <span className="inline-flex items-center gap-[6px]">
+              <span
+                aria-hidden
+                className={cn(
+                  "size-1.5 shrink-0 rounded-full",
+                  viva ? "bg-verde-500" : "bg-amber-500",
+                )}
+              />
+              {viva ? "QvaPay (CambioCUP)" : "Tasa de respaldo"}
+            </span>
+            {fecha && (
+              <>
+                <span aria-hidden className="text-ink-soft/40">·</span>
+                <span>Actualizada el {fecha}</span>
+              </>
+            )}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (variante === "destacada") {
     return (

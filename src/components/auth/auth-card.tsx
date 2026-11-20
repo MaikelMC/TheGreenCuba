@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Home, Loader2, Lock, Mail, Phone } from "lucide-react";
+import { ArrowRight, Home, Loader2, Mail, Phone } from "lucide-react";
+import { CampoContrasena } from "@/components/auth/campo-contrasena";
 import { trackClientEvent } from "@/lib/analytics/client";
 import { authClient } from "@/lib/auth/client";
 import { authErrorCode, messageFor } from "@/lib/auth/error-messages";
@@ -32,15 +33,15 @@ export type AuthMode = "login" | "register";
    tiene su propia URL, y el `mode` solo elige qué método se llama. */
 const COPY: Record<
   AuthMode,
-  { eyebrow: string; title: string; lead?: string; cta: string }
+  { title: string; lead?: string; cta: string }
 > = {
   login: {
-    eyebrow: "Acceso",
-    title: "Bienvenido de vuelta",
+    /* El «de vuelta» solo tiene sentido para quien ya entró alguna vez: ver
+       `TITULO_VUELTA` y `HA_ENTRADO_KEY`. */
+    title: "Entra en tu cuenta",
     cta: "Entrar",
   },
   register: {
-    eyebrow: "Cuenta nueva",
     title: "Crea tu perfil",
     lead: "Treinta segundos. Te preguntamos lo justo para acertar con lo que te enseñamos.",
     cta: "Empezar",
@@ -70,7 +71,7 @@ const COPY: Record<
    El `label` envuelve al `input`, así que la asociación es implícita.
    `h-12` son 48 px de alto, por encima de los 44 que pide el pulgar. */
 const FIELD =
-  "auth-field flex items-center gap-gap-sm rounded-2xl border border-ink/10 bg-sand-warm px-gap-sm h-12 transition-colors duration-500 ease-outquint focus-within:border-verde-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-verde-400/20";
+  "auth-field flex items-center gap-gap-sm rounded-xl border border-ink/10 bg-sand-warm px-gap-sm h-12 transition-colors duration-500 ease-outquint focus-within:border-verde-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-verde-400/20";
 
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
 
@@ -98,7 +99,7 @@ const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
 async function saveRegistration(
   phone: string,
   wantsNews: boolean,
-): Promise<void> {
+): Promise<boolean> {
   const value = phone.trim();
 
   /* `phone` solo viaja si hay algo. Mandarlo vacío **borra** el número en el
@@ -118,40 +119,103 @@ async function saveRegistration(
   };
   if (value) body.phone = value;
 
+  /* Tres intentos con espera creciente. Antes era uno y su fallo se tragaba: con
+     una red mala la cuenta nacía sin teléfono y sin constancia de los términos,
+     y nadie se enteraba. Ahora quien llama sabe si quedó guardado. */
   let userId: string | null = null;
-  try {
-    const response = await fetch("/api/me", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = (await response.json()) as { user?: { id?: string } | null };
-    userId = data.user?.id ?? null;
-    /* El alta acaba de escribir teléfono y consentimiento: la sesión cacheada
-       del módulo se quedaría con lo de antes. */
-    refreshSession();
-  } catch {
-    // Sin id se escribe en la clave de invitado, que es la que lee quien no tiene sesión.
+  let guardado = false;
+  for (let intento = 0; intento < 3 && !guardado; intento++) {
+    if (intento > 0) await new Promise((r) => setTimeout(r, 1000 * intento));
+    try {
+      const response = await fetch("/api/me", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) continue;
+      const data = (await response.json()) as { user?: { id?: string } | null };
+      userId = data.user?.id ?? null;
+      guardado = true;
+      /* El alta acaba de escribir teléfono y consentimiento: la sesión cacheada
+         del módulo se quedaría con lo de antes. */
+      refreshSession();
+    } catch {
+      // Red caída: siguiente intento.
+    }
   }
 
+  /* Sin id se escribe en la clave de invitado, que es la que lee quien no
+     tiene sesión: el número al menos no se pierde. */
   if (value) {
     writeUserPreferences(
       { ...readUserPreferences(userId), phone: value },
       userId,
     );
   }
+  return guardado;
 }
+
+/**
+ * Marca de «este dispositivo ya entró alguna vez». Se escribe al entrar o
+ * registrarse y **no** se borra al cerrar sesión: quien sale y vuelve sigue
+ * siendo alguien que vuelve. `la-verde:last-user` (preferencias) cuenta igual,
+ * para quien ya había entrado antes de que existiera esta marca.
+ */
+const HA_ENTRADO_KEY = "la-verde:ha-entrado";
+const TITULO_VUELTA = "Bienvenido de vuelta";
+
+function marcarHaEntrado() {
+  try {
+    window.localStorage.setItem(HA_ENTRADO_KEY, "1");
+  } catch {
+    // Modo privado: el título se queda en el neutro, sin más.
+  }
+}
+
+function yaHaEntrado(): boolean {
+  try {
+    return (
+      window.localStorage.getItem(HA_ENTRADO_KEY) === "1" ||
+      Boolean(window.localStorage.getItem("la-verde:last-user"))
+    );
+  } catch {
+    return false;
+  }
+}
+
+type Campo = "email" | "password" | "phone";
+const ERROR_ID = "auth-error";
 
 export function AuthCard({
   mode,
   next,
+  aviso = null,
+  correoInicial = "",
 }: {
   mode: AuthMode;
   next: string | null;
+  /** Confirmación que trae la URL, p. ej. tras cambiar la contraseña. */
+  aviso?: string | null;
+  correoInicial?: string;
 }) {
   const copy = COPY[mode];
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(correoInicial);
+  /* Qué campos tienen la culpa del error. Antes cualquier error marcaba
+     correo y contraseña a la vez, y el lector de pantalla anunciaba los dos
+     como inválidos por un teléfono vacío. */
+  const [camposError, setCamposError] = useState<Campo[]>([]);
+  /* La cuenta ya existe pero no se pudo guardar teléfono y términos: el
+     siguiente envío solo reintenta eso, porque repetir el alta daría «ese
+     correo ya tiene cuenta». */
+  const [faltaGuardar, setFaltaGuardar] = useState(false);
+  /* Se decide tras montar: el servidor no ve `localStorage`, y pintar el
+     neutro en los dos lados evita el desajuste de hidratación. */
+  const [vuelve, setVuelve] = useState(false);
+  useEffect(() => {
+    if (mode === "login") setVuelve(yaHaEntrado());
+  }, [mode]);
+  const titulo = vuelve ? TITULO_VUELTA : copy.title;
   const [password, setPassword] = useState("");
   /* Solo lo usa el alta. En el acceso el campo ni se pinta. */
   const [phone, setPhone] = useState("");
@@ -177,12 +241,17 @@ export function AuthCard({
     setGoogleLoading(true);
     setError(null);
     try {
-      const callbackURL = new URL(
-        mode === "register"
-          ? `/api/google-auth-complete${next ? `?next=${encodeURIComponent(next)}` : ""}`
-          : (next ?? "/home"),
-        window.location.origin,
-      ).toString();
+      /* Las dos puertas aterrizan en la misma ruta de servidor: es la que
+         acepta los términos, intercambia el verificador de sesión y decide el
+         destino real (onboarding para una cuenta nueva, `next` o Home para una
+         que ya lo completó). Antes, el acceso con Google saltaba directo al
+         destino y una cuenta recién creada por ahí se quedaba sin onboarding. */
+      const vuelta = new URL("/api/google-auth-complete", window.location.origin);
+      if (next) vuelta.searchParams.set("next", next);
+      /* Solo el botón de registro pasa por la casilla de términos, así que solo
+         él puede decirle a la ruta que hay una aceptación que guardar. */
+      if (mode === "register") vuelta.searchParams.set("alta", "1");
+      const callbackURL = vuelta.toString();
       const errorCallbackURL = new URL(
         mode === "register"
           ? "/register?oauthError=google"
@@ -214,38 +283,72 @@ export function AuthCard({
          («Password too short»), y decirle «8» aquí no cuesta nada y se ahorra
          un viaje. La casilla de términos la corta antes el `required` nativo
          del propio checkbox, con el mensaje del navegador. */
+      /* El autocompletado del móvil deja un espacio al final del correo. Se
+         recorta aquí y es este valor el que viaja: antes se validaba recortado
+         pero se enviaba tal cual, y Neon contestaba «correo o contraseña
+         incorrectos» con la contraseña buena. */
       const emailTrimmed = email.trim();
-      const isGmail = /^[^\s@]+@gmail\.com$/i.test(emailTrimmed);
-      if (!isGmail) {
-        setError("Solo se aceptan correos @gmail.com válidos");
+      /* Gmail solo se exige al **crear** la cuenta. Al entrar no: las cuentas
+         de dominio propio (@laverde.cu, las del arranque de roles) existen y
+         se quedaban fuera de su propio acceso. */
+      const fallo = (mensaje: string, campos: Campo[]) => {
+        setError(mensaje);
+        setCamposError(campos);
+      };
+      if (
+        mode === "register" &&
+        !/^[^\s@]+@gmail\.com$/i.test(emailTrimmed)
+      ) {
+        fallo("Para crear la cuenta usa un correo @gmail.com.", ["email"]);
         return;
       }
       if (mode === "register" && password.length < 8) {
-        setError("La contraseña necesita al menos 8 caracteres.");
+        fallo("La contraseña necesita al menos 8 caracteres.", ["password"]);
         return;
       }
       if (mode === "register" && !phone.trim()) {
-        setError("Escribe tu número de teléfono para continuar.");
+        fallo("Escribe tu número de teléfono para continuar.", ["phone"]);
         return;
       }
 
+      const irAVerificar = () =>
+        window.location.assign(
+          `/verify-email?email=${encodeURIComponent(emailTrimmed)}&next=${encodeURIComponent(next ?? "/onboarding")}`,
+        );
+
       setLoading(true);
       setError(null);
+      setCamposError([]);
+
+      /* Segunda vuelta tras un guardado fallido: la cuenta ya existe. */
+      if (faltaGuardar) {
+        if (await saveRegistration(phone, wantsNews)) {
+          irAVerificar();
+          return;
+        }
+        fallo(
+          "Sigue sin poder guardarse. Revisa tu conexión y vuelve a intentarlo.",
+          [],
+        );
+        setLoading(false);
+        return;
+      }
+
       try {
         /* El SDK no lanza cuando las credenciales están mal: devuelve
            `{ data, error }`. Por eso el error se mira como dato y el `catch` de
            abajo queda solo para lo que se rompe antes de salir a la red. */
         const result =
           mode === "login"
-            ? await authClient.signIn.email({ email, password })
+            ? await authClient.signIn.email({ email: emailTrimmed, password })
             : await authClient.signUp.email({
-                email,
+                email: emailTrimmed,
                 password,
                 /* Better Auth pide un nombre y esta pantalla no lo pregunta: el
                    alta son dos campos a propósito. Se usa la parte del correo
                    antes de la arroba, que es lo que hacía el alta anterior y
                    deja siempre algo que enseñar en el menú. */
-                name: email.split("@")[0] || email,
+                name: emailTrimmed.split("@")[0] || emailTrimmed,
               });
 
         if (result.error) {
@@ -265,14 +368,22 @@ export function AuthCard({
             );
             return;
           }
-          setError(messageFor(result.error, mode));
+          /* Al entrar, el error de credenciales es de los dos campos a la vez
+             (no se dice cuál, a propósito). En el alta casi siempre es el
+             correo: ya tiene cuenta o no es válido. */
+          fallo(
+            messageFor(result.error, mode),
+            mode === "login" ? ["email", "password"] : ["email"],
+          );
           return;
         }
 
         /* Identificación y evento de conversión. El id viene con la sesión que
            el SDK acaba de crear; sin él el evento sale igual, solo que anónimo. */
+        // Desde aquí, este dispositivo ya «vuelve» la próxima vez.
+        marcarHaEntrado();
         const sessionUserId = result.data?.user?.id;
-        if (sessionUserId) identifyUser(sessionUserId, { email });
+        if (sessionUserId) identifyUser(sessionUserId, { email: emailTrimmed });
         if (mode === "register") {
           trackUserRegistered(Boolean(sessionUserId));
         } else {
@@ -287,7 +398,14 @@ export function AuthCard({
         /* El teléfono y la aceptación se guardan aquí, con la sesión ya emitida,
            y no después del salto: la carga limpia de abajo se lleva por delante
            lo que quede a medias. */
-        if (mode === "register") await saveRegistration(phone, wantsNews);
+        if (mode === "register" && !(await saveRegistration(phone, wantsNews))) {
+          setFaltaGuardar(true);
+          fallo(
+            "Tu cuenta está creada, pero no pudimos guardar tu teléfono ni la aceptación de los términos. Pulsa «Reintentar» cuando tengas conexión.",
+            [],
+          );
+          return;
+        }
 
         /* El alta no aterriza en la app sino en la pantalla del código. La
            sesión ya está emitida —Neon la da aunque exija verificar— pero el
@@ -298,10 +416,7 @@ export function AuthCard({
            El acceso sí entra directo: si el correo estuviera sin verificar, el
            `EMAIL_NOT_VERIFIED` de arriba no habría dejado llegar hasta aquí. */
         if (mode === "register") {
-          const after = next ?? "/onboarding";
-          window.location.assign(
-            `/verify-email?email=${encodeURIComponent(emailTrimmed)}&next=${encodeURIComponent(after)}`,
-          );
+          irAVerificar();
           return;
         }
 
@@ -309,33 +424,39 @@ export function AuthCard({
            de escribir Neon en el navegador y el App Router guarda en caché el
            árbol de la ruta: navegando por cliente se corre el riesgo de pintar
            la versión sin sesión. Una carga limpia no deja lugar a ello. */
-        window.location.assign(`${next ?? "/home"}?showSessionNotice=1`);
+        /* Con `URL` y no concatenando: el destino puede traer ya su consulta
+           (`/business?negocio=X`), y `${next}?showSessionNotice=1` dejaba un
+           segundo `?` que se comía el valor del parámetro anterior. */
+        const destino = new URL(next ?? "/home", window.location.origin);
+        destino.searchParams.set("showSessionNotice", "1");
+        window.location.assign(
+          `${destino.pathname}${destino.search}${destino.hash}`,
+        );
         return;
       } catch (error) {
-        setError(messageFor(error, mode));
+        fallo(messageFor(error, mode), []);
       } finally {
         setLoading(false);
       }
     },
-    [email, loading, mode, next, password, phone, wantsNews],
+    [email, faltaGuardar, loading, mode, next, password, phone, wantsNews],
   );
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.9, ease: EASE }}
+      transition={{ duration: 0.25, ease: EASE }}
       className="flex flex-col gap-gap-md"
     >
       {/* El encabezado va fuera de la tarjeta, así que en móvil cae sobre el
           cielo oscuro y en escritorio sobre la arena. De ahí los dos juegos de
           color: el mismo texto, dos fondos. */}
-      <header className="flex flex-col gap-gap-xs">
-        <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-200 lg:text-verde-600">
-          {copy.eyebrow}
-        </span>
-        <h1 className="font-lv-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-white lg:text-ink">
-          {copy.title}
+      {/* Centrado: el logo de móvil ya va centrado encima, y el título
+          alineado a la izquierda debajo quedaba descolgado. */}
+      <header className="flex flex-col items-center gap-gap-xs text-center">
+        <h1 className="font-lv-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-white text-balance lg:text-ink">
+          {titulo}
         </h1>
         {copy.lead && (
           <p className="text-small text-white/70 text-pretty lg:text-ink-soft/75">
@@ -346,8 +467,19 @@ export function AuthCard({
 
       <form
         onSubmit={handleSubmit}
-        className="auth-form rounded-4xl border border-ink/5 bg-white shadow-soft p-gap-lg flex flex-col gap-gap-md"
+        className="auth-form rounded-2xl bg-white shadow-soft p-gap-lg flex flex-col gap-gap-md"
       >
+        {/* Confirmación que llega por la URL (contraseña cambiada). Mismo
+            estilo que el aviso de reenvío de la verificación. */}
+        {aviso && !error && (
+          <p
+            role="status"
+            className="rounded-xl border border-verde-400/30 bg-verde-400/10 px-gap-sm py-gap-xs text-meta text-verde-800"
+          >
+            {aviso}
+          </p>
+        )}
+
         <label className="flex flex-col gap-gap-xs">
           <span className={LABEL}>Correo</span>
           <span className={FIELD}>
@@ -360,39 +492,34 @@ export function AuthCard({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
+              /* `username` en los dos: es lo que los gestores de contraseñas
+                 (Chrome, Llavero de iOS) emparejan con la contraseña para
+                 guardarla y ofrecerla después. Con `email` a veces no la
+                 asociaban a la cuenta. */
+              autoComplete="username"
+              inputMode="email"
               required
-              aria-label="Correo"
-              aria-invalid={error ? true : undefined}
+              readOnly={faltaGuardar}
+              aria-invalid={camposError.includes("email") || undefined}
+              aria-describedby={
+                camposError.includes("email") ? ERROR_ID : undefined
+              }
               className="flex-1 min-w-0 bg-transparent text-small text-ink outline-none placeholder:text-ink-soft/75"
-              placeholder="usuario@laverde.cu"
+              placeholder={
+                mode === "register" ? "tucorreo@gmail.com" : "tucorreo@ejemplo.com"
+              }
             />
           </span>
         </label>
 
-        <label className="flex flex-col gap-gap-xs">
-          <span className={LABEL}>Contraseña</span>
-          <span className={FIELD}>
-            <Lock
-              size={16}
-              strokeWidth={1.8}
-              className="text-ink-soft/75 shrink-0"
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={
-                mode === "login" ? "current-password" : "new-password"
-              }
-              required
-              aria-label="Contraseña"
-              aria-invalid={error ? true : undefined}
-              className="flex-1 min-w-0 bg-transparent text-small text-ink outline-none placeholder:text-ink-soft/75"
-              placeholder="••••••••"
-            />
-          </span>
-        </label>
+        <CampoContrasena
+          etiqueta="Contraseña"
+          value={password}
+          onChange={setPassword}
+          autoComplete={mode === "login" ? "current-password" : "new-password"}
+          invalido={camposError.includes("password")}
+          descritoPor={ERROR_ID}
+        />
 
         {/* Solo en el alta, y obligatorio: el negocio necesita un teléfono de
             contacto para que La Verde pueda localizarlo. */}
@@ -411,7 +538,10 @@ export function AuthCard({
                 onChange={(e) => setPhone(e.target.value)}
                 autoComplete="tel"
                 required
-                aria-label="Teléfono"
+                aria-invalid={camposError.includes("phone") || undefined}
+                aria-describedby={
+                  camposError.includes("phone") ? ERROR_ID : undefined
+                }
                 className="flex-1 min-w-0 bg-transparent text-small text-ink outline-none placeholder:text-ink-soft/75"
                 placeholder="+53 5 123 4567"
               />
@@ -475,6 +605,7 @@ export function AuthCard({
         <AnimatePresence>
           {error && (
             <motion.p
+              id={ERROR_ID}
               role="alert"
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
@@ -498,7 +629,7 @@ export function AuthCard({
           ) : (
             <ArrowRight size={16} strokeWidth={1.8} />
           )}
-          {loading ? "Comprobando…" : copy.cta}
+          {loading ? "Comprobando…" : faltaGuardar ? "Reintentar" : copy.cta}
         </button>
 
         {/* Aviso de las cuentas de Google, visible **siempre** en el acceso y no
@@ -523,7 +654,7 @@ export function AuthCard({
         )}
 
         <div
-          className="flex items-center gap-gap-sm text-meta text-ink-soft/60"
+          className="flex items-center gap-gap-sm text-meta text-ink-soft/75"
           aria-hidden="true"
         >
           <span className="h-px flex-1 bg-ink/10" />

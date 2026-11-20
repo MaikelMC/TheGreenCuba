@@ -66,25 +66,60 @@ export function OfertasView({
   const terminadas =
     ahora === null ? 0 : ofertas.filter((o) => o.termina <= ahora).length;
 
-  const save = useCallback(async () => {
-    setError(null);
-    setSaving(true);
-    const saved = await updatePlace(place.id, { ofertas });
-    setSaving(false);
+  /* Guarda la lista que se le da (no la del estado, que aún no se ha
+     actualizado cuando se llama desde `cambiar`). Devuelve si se guardó. */
+  const save = useCallback(
+    async (lista: UserPlaceOferta[], aviso: string | null = "Ofertas guardadas") => {
+      setError(null);
+      setSaving(true);
+      const saved = await updatePlace(place.id, { ofertas: lista });
+      setSaving(false);
 
-    if (!saved) {
-      setError(
-        "No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada.",
-      );
-      return;
-    }
+      if (!saved) {
+        setError(
+          "No se pudo guardar. Revisa la conexión y pulsa «Guardar ofertas» para reintentar.",
+        );
+        return false;
+      }
 
-    guardado.current = JSON.stringify(ofertas);
-    toast.success("Ofertas guardadas");
-    /* La ficha pública es de servidor: sin esto sigue enseñando las ofertas
-       viejas hasta que caduque la caché. */
-    router.refresh();
-  }, [ofertas, place.id, updatePlace, router]);
+      guardado.current = JSON.stringify(lista);
+      if (aviso) toast.success(aviso);
+      /* La ficha pública es de servidor: sin esto sigue enseñando las ofertas
+         viejas hasta que caduque la caché. */
+      router.refresh();
+      return true;
+    },
+    [place.id, updatePlace, router],
+  );
+
+  /**
+   * Cada cambio del editor se guarda en el acto. Antes el botón del formulario
+   * decía «Añadir a la lista» y la oferta solo quedaba en pantalla hasta pulsar
+   * otro botón abajo: un dueño con prisa salía creyendo que ya estaba
+   * publicada. Quitar una oferta también guarda, con «Deshacer» en el aviso,
+   * que es lo que evita el borrado sin querer sin meter un diálogo más.
+   */
+  const cambiar = useCallback(
+    (siguiente: UserPlaceOferta[]) => {
+      const anterior = ofertas;
+      setOfertas(siguiente);
+      const quitada = siguiente.length < anterior.length;
+      /* Al quitar, el aviso es el de «Deshacer» de abajo, no uno de éxito más. */
+      void save(siguiente, quitada ? null : "Oferta guardada").then((ok) => {
+        if (!ok || !quitada) return;
+        toast("Oferta quitada", {
+          action: {
+            label: "Deshacer",
+            onClick: () => {
+              setOfertas(anterior);
+              void save(anterior, "Oferta recuperada");
+            },
+          },
+        });
+      });
+    },
+    [ofertas, save],
+  );
 
   /* Misma red que el catálogo y la ficha: el armazón pregunta antes de cambiar
      de sección y el navegador antes de cerrar la pestaña. */
@@ -110,57 +145,43 @@ export function OfertasView({
     <div className={cn("flex flex-col", sucio && "pb-[92px]")}>
       <h1 className="sr-only">Ofertas</h1>
 
-      {/* La cabecera reutiliza `ficha-preview` a propósito: es el degradado
-          claro→arena que ya tiene su pareja oscura en `globals.css`. Un
-          degradado nuevo aquí se quedaría blanco con el tema oscuro. */}
-      <section className="ficha-preview relative overflow-hidden rounded-3xl border border-verde-200 bg-gradient-to-br from-verde-50 via-white to-sand-warm p-gap-md shadow-soft sm:p-gap-lg">
-        <span
-          aria-hidden
-          className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-verde-200/40 blur-3xl"
-        />
-        <span
-          aria-hidden
-          className="pointer-events-none absolute -bottom-24 -left-12 size-52 rounded-full bg-sand-deep/60 blur-3xl"
-        />
-        <Sparkles
-          aria-hidden
-          size={72}
-          strokeWidth={1}
-          className="pointer-events-none absolute right-4 top-6 text-verde-600 opacity-15"
-        />
-
-        <div className="relative">
-          <p className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.18em] text-verde-700">
-            Marketing
-          </p>
-          <div className="mt-gap-xs flex items-center gap-gap-sm">
-            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-verde-400 text-verde-950 shadow-soft">
-              <Tag size={24} strokeWidth={2} />
-            </span>
-            <div className="min-w-0">
-              <h2 className="font-lv-display text-h3 font-bold tracking-[-0.02em] text-ink">
-                Ofertas flash
-              </h2>
-              <p className="text-small text-ink-soft/75">
-                Rebaja un producto por tiempo limitado y sale en tu ficha con el
-                precio tachado.
-              </p>
-            </div>
+      {/* Cabecera plana, como la sección de debajo: icono, título y una línea
+          de estado. Antes era un degradado con dos halos, un destello de 72 px
+          y tres tarjetas de cifras con rótulos en mayúsculas sobre vidrio: el
+          patrón de «cifra grande en tarjeta» del SaaS genérico, para contar
+          tres números que caben en una frase. */}
+      <section className="rounded-2xl border border-ink/5 bg-white p-gap-md sm:p-gap-lg">
+        <div className="flex items-center gap-gap-sm">
+          <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-verde-50 text-verde-700">
+            <Tag size={22} strokeWidth={1.9} aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h2 className="font-lv-display text-h3 font-bold tracking-[-0.02em] text-ink text-balance">
+              Ofertas flash
+            </h2>
+            <p className="text-small text-ink-soft/75 text-pretty">
+              Rebaja un producto por tiempo limitado y sale en tu ficha con el
+              precio tachado.
+            </p>
           </div>
-
-          <dl className="mt-gap-md grid grid-cols-3 gap-gap-xs">
-            <DatoOferta label="En curso" value={enCurso} tono="verde" />
-            <DatoOferta label="Programadas" value={programadas} tono="neutro" />
-            <DatoOferta label="Terminadas" value={terminadas} tono="neutro" />
-          </dl>
         </div>
+
+        {/* El estado en una línea. El color nunca va solo: cada punto lleva
+            su palabra (`color-not-decorative-only`). */}
+        <ul className="mt-gap-sm flex flex-wrap items-center gap-x-gap-md gap-y-gap-2xs text-small text-ink-soft/75">
+          <EstadoOfertas valor={enCurso} singular="en curso" plural="en curso" punto="bg-verde-500" />
+          <EstadoOfertas valor={programadas} singular="programada" plural="programadas" punto="bg-amber-500" />
+          <EstadoOfertas valor={terminadas} singular="terminada" plural="terminadas" punto="bg-sand-deep ring-1 ring-inset ring-ink/15" />
+        </ul>
       </section>
 
       <section className="mt-gap-md rounded-2xl border border-ink/5 bg-white p-gap-md">
         {puedeOfertas ? (
           <OfertasEditor
             ofertas={ofertas}
-            onChange={setOfertas}
+            onChange={cambiar}
+            etiquetaGuardar="Guardar oferta"
+            guardando={saving}
             menu={(place.menu ?? []).map((m, i) => ({
               ...m,
               id: m.id ?? String(i),
@@ -215,7 +236,7 @@ export function OfertasView({
         <div className="sticky bottom-4 z-40 mt-gap-lg flex justify-end">
           <button
             type="button"
-            onClick={() => void save()}
+            onClick={() => void save(ofertas)}
             disabled={saving}
             className="inline-flex h-12 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
           >
@@ -232,29 +253,25 @@ export function OfertasView({
   );
 }
 
-/** Una cifra de la cabecera. */
-function DatoOferta({
-  label,
-  value,
-  tono,
+/** Un estado de la línea de la cabecera: «2 programadas», con su punto. */
+function EstadoOfertas({
+  valor,
+  singular,
+  plural,
+  punto,
 }: {
-  label: string;
-  value: number;
-  tono: "verde" | "neutro";
+  valor: number;
+  singular: string;
+  plural: string;
+  punto: string;
 }) {
   return (
-    <div className="rounded-2xl border border-ink/10 bg-white/70 p-gap-sm backdrop-blur-[2px]">
-      <dt className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-verde-700">
-        {label}
-      </dt>
-      <dd
-        className={cn(
-          "mt-[3px] font-lv-display text-h3 font-bold tabular-nums",
-          tono === "verde" ? "text-verde-600" : "text-ink",
-        )}
-      >
-        {value}
-      </dd>
-    </div>
+    <li className="inline-flex items-center gap-[6px]">
+      <span aria-hidden className={cn("size-2 shrink-0 rounded-full", punto)} />
+      <span>
+        <strong className="font-semibold tabular-nums text-ink">{valor}</strong>{" "}
+        {valor === 1 ? singular : plural}
+      </span>
+    </li>
   );
 }

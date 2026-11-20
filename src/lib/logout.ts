@@ -16,8 +16,14 @@
  *
  * Se sale a la portada y no a `/login`: quien cierra sesión no tiene por qué
  * querer volver a entrar, y `/login` le pide la contraseña otra vez.
+ *
+ * **Si el servidor no da la sesión por cerrada, no se navega.** El proxy valida
+ * la cookie en memoria durante siete días, así que irse a la portada con la
+ * sesión viva es peor que quedarse: la persona cree que cerró y al volver sigue
+ * dentro. Se limpia igual el navegador y se avisa para que reintente.
  */
 
+import { toast } from "sonner";
 import { purgarDatosPrivados } from "@/lib/offline/store";
 
 /** Prefijos del navegador que pertenecen a la sesión que se está cerrando. */
@@ -39,47 +45,92 @@ const EXACTAS = [
   "la-verde:recent-searches",
 ];
 
-export async function logout(): Promise<void> {
-  try {
-    /* El cliente de Neon entra con `import()` y no con un `import` de arriba, y
-       no es un detalle de estilo: `@neondatabase/auth` es **el trozo más grande
-       de la aplicación** —unos 105 KB comprimidos, Better Auth entero— y este
-       módulo lo importaba de forma estática. Como medio sitio importa `logout`
-       para un botón, esos 105 KB viajaban en el paquete inicial de todas las
-       páginas con header: el mapa, el panel de negocio y el de administración.
-       Separado así, solo lo descarga quien cierra sesión.
+/**
+ * Si el error dice que ya no había sesión que cerrar.
+ *
+ * Neon responde 401 cuando la sesión no existe. Eso es un cierre igual de
+ * bueno que el otro: pasa, por ejemplo, justo después de borrar la cuenta, que
+ * se lleva por delante las filas de `neon_auth.session`.
+ */
+function sesionYaNoValia(error: unknown): boolean {
+  const status = Number(
+    (error as { status?: unknown })?.status ??
+      (error as { statusCode?: unknown })?.statusCode,
+  );
+  return status === 401;
+}
 
-       El formulario de entrar (`auth-card`) sí lo importa de forma estática, y
-       ahí está bien: en `/login` el cliente *es* la pantalla. */
-    const { authClient } = await import("@/lib/auth/client");
-    await authClient.signOut();
-  } finally {
-    /* En `finally` a propósito: si el `import()` o el `signOut` fallan por red,
-       hay que salir igual o el usuario se queda mirando un botón muerto. */
+/**
+ * Cierra la sesión contra Neon, con un reintento.
+ *
+ * `signOut` no lanza cuando el servidor responde con error: devuelve
+ * `{ error }`. Cualquier fallo que no sea «ya no había sesión» se reintenta una
+ * vez, que es lo que cubre un corte de un segundo en datos móviles.
+ */
+async function cerrarEnServidor(): Promise<boolean> {
+  /* El cliente de Neon entra con `import()` y no con un `import` de arriba, y
+     no es un detalle de estilo: `@neondatabase/auth` es **el trozo más grande
+     de la aplicación** —unos 105 KB comprimidos, Better Auth entero— y este
+     módulo lo importaba de forma estática. Como medio sitio importa `logout`
+     para un botón, esos 105 KB viajaban en el paquete inicial de todas las
+     páginas con header: el mapa, el panel de negocio y el de administración.
+     Separado así, solo lo descarga quien cierra sesión.
+
+     El formulario de entrar (`auth-card`) sí lo importa de forma estática, y
+     ahí está bien: en `/login` el cliente *es* la pantalla. */
+  const { authClient } = await import("@/lib/auth/client");
+
+  for (let intento = 0; intento < 2; intento += 1) {
     try {
-      for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
-        const key = window.localStorage.key(i);
-        if (
-          key &&
-          (POR_PREFIJO.some((prefix) => key.startsWith(prefix)) || EXACTAS.includes(key))
-        ) {
-          window.localStorage.removeItem(key);
-        }
-      }
-    } catch {
-      // El navegador puede bloquear localStorage en modo privado o sin permisos.
+      const result = await authClient.signOut();
+      if (!result?.error) return true;
+      if (sesionYaNoValia(result.error)) return true;
+    } catch (error) {
+      if (sesionYaNoValia(error)) return true;
     }
-
-    /* Snapshot de negocio, de perfil y cachés de imágenes. Va aquí, en el
-       `finally`, por el mismo motivo que el resto: si `signOut()` falló por
-       red, los datos del usuario anterior no pueden quedarse en el teléfono.
-       En un dispositivo compartido eso es una fuga, no una molestia. */
-    try {
-      await purgarDatosPrivados();
-    } catch {
-      // IndexedDB o Cache Storage bloqueados: no hay nada más que hacer.
-    }
-
-    window.location.assign("/");
   }
+
+  return false;
+}
+
+export async function logout(): Promise<void> {
+  /* Primero el servidor. Si no se pudo, el resto de este cierre no puede
+     fingir que sí: el aviso de abajo es la única salida honesta. */
+  const cerrada = await cerrarEnServidor();
+
+  try {
+    for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
+      const key = window.localStorage.key(i);
+      if (
+        key &&
+        (POR_PREFIJO.some((prefix) => key.startsWith(prefix)) || EXACTAS.includes(key))
+      ) {
+        window.localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // El navegador puede bloquear localStorage en modo privado o sin permisos.
+  }
+
+  /* Snapshot de negocio, de perfil y cachés de imágenes. Va aquí, y no solo
+     cuando el cierre salió bien, por el mismo motivo de siempre: los datos del
+     usuario anterior no pueden quedarse en el teléfono. En un dispositivo
+     compartido eso es una fuga, no una molestia. */
+  try {
+    await purgarDatosPrivados();
+  } catch {
+    // IndexedDB o Cache Storage bloqueados: no hay nada más que hacer.
+  }
+
+  if (!cerrada) {
+    /* Sin navegación a propósito: ver la cabecera del archivo. El toast deja el
+       botón a mano para reintentar en cuanto vuelva la conexión. */
+    toast.error(
+      "No pudimos cerrar la sesión en el servidor. Comprueba tu conexión y vuelve a intentarlo.",
+      { duration: 9000 },
+    );
+    return;
+  }
+
+  window.location.assign("/");
 }

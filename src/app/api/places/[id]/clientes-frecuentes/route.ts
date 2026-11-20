@@ -40,14 +40,16 @@ export async function GET(req: NextRequest, { params }: Params) {
   const [clientes, negocio, stats] = await Promise.all([
     listarClientes(id, q.slice(0, 60), config),
     negocioPublico(id),
-    estadisticasFidelidad(id),
+    /* Las métricas son del mes y no dependen de la búsqueda: se piden al
+       abrir la vista y cuando se limpia el buscador, no en cada tecla. */
+    q ? Promise.resolve(null) : estadisticasFidelidad(id),
   ]);
 
   return NextResponse.json({
     clientes,
     config,
     negocio,
-    stats,
+    stats: stats ?? undefined,
     tieneModulo: await tieneFuncion(id, "cliente_frecuente"),
   });
 }

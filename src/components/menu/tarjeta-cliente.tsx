@@ -170,7 +170,7 @@ function Cuadricula({ tarjeta }: { tarjeta: EstadoTarjeta }) {
                 "relative grid aspect-square place-items-center rounded-2xl border transition-colors",
                 lleno
                   ? "border-verde-500 bg-verde-400 text-verde-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]"
-                  : "border-dashed border-ink/15 bg-white/40 text-ink/20",
+                  : "border-dashed border-white/45 bg-white/10 text-white/50",
                 esHito && !lleno && "border-verde-300/70",
               )}
             >
@@ -287,10 +287,10 @@ export function TarjetaCliente({
           )}
         </span>
         <div className="min-w-0">
-          <p className="truncate font-lv-display text-small font-semibold text-ink">
+          <h1 className="truncate font-lv-display text-body font-semibold text-ink">
             {negocio.nombre}
-          </p>
-          <p className="text-meta text-ink-soft/60">{tarjeta.config.nombre}</p>
+          </h1>
+          <p className="text-meta text-ink-soft/75">{tarjeta.config.nombre}</p>
         </div>
         {/* Mismo interruptor y mismo estilo que en la carta: la tarjeta se
             instala como app propia y no tiene otro sitio donde cambiar tema. */}
@@ -298,20 +298,20 @@ export function TarjetaCliente({
       </header>
 
       {/* La tarjeta */}
-      <section className="mt-gap-md overflow-hidden rounded-3xl border border-verde-700/15 bg-gradient-to-br from-verde-500 via-verde-600 to-verde-800 p-gap-md text-verde-50 shadow-card">
+      <section className="mt-gap-md overflow-hidden rounded-2xl border border-verde-700/15 bg-gradient-to-br from-verde-600 via-verde-700 to-verde-800 p-gap-md text-verde-50 shadow-card">
         <div className="flex items-start justify-between gap-gap-sm">
           <div>
-            <p className="font-lv-display text-[11px] font-semibold uppercase tracking-[0.18em] text-verde-100/80">
+            <p className="font-lv-display text-meta font-semibold text-verde-50">
               {tarjeta.config.nombre}
             </p>
             <p className="mt-[6px] font-lv-display text-h2 font-bold leading-none tabular-nums text-white">
               {tarjeta.sellos}
-              <span className="ml-[6px] text-small font-medium text-verde-100/80">
+              <span className="ml-[6px] text-small font-medium text-verde-50">
                 de {tarjeta.metaFinal.sellos} sellos
               </span>
             </p>
           </div>
-          <span className="rounded-full bg-white/10 px-[10px] py-[4px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-verde-50/90 ring-1 ring-white/15">
+          <span className="rounded-full bg-white/10 px-[10px] py-[4px] font-lv-display text-[11px] font-semibold text-verde-50 ring-1 ring-white/20">
             Ciclo {tarjeta.ciclo}
           </span>
         </div>
@@ -320,7 +320,7 @@ export function TarjetaCliente({
           <Cuadricula tarjeta={tarjeta} />
         </div>
 
-        <p className="mt-gap-sm font-mono text-meta text-verde-100/85">
+        <p className="mt-gap-sm font-mono text-meta text-verde-50">
           {cliente.nombre ? `${cliente.nombre} · ` : ""}
           {cliente.telefono}
         </p>
@@ -351,7 +351,7 @@ export function TarjetaCliente({
 
       {/* Metas */}
       <section className="mt-gap-md">
-        <h2 className="font-lv-display text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-soft/50">
+        <h2 className="font-lv-display text-small font-semibold text-ink">
           Los premios
         </h2>
         <ul className="mt-gap-sm space-y-[6px]">
@@ -370,7 +370,7 @@ export function TarjetaCliente({
                   "grid size-8 shrink-0 place-items-center rounded-xl",
                   meta.alcanzada && !meta.canjeada
                     ? "bg-verde-400 text-verde-950"
-                    : "bg-sand-deep text-ink-soft/50",
+                    : "bg-sand-deep text-ink-soft/70",
                 )}
               >
                 <Gift size={15} strokeWidth={1.8} aria-hidden="true" />
@@ -379,7 +379,7 @@ export function TarjetaCliente({
                 <p className="truncate text-small font-semibold text-ink">
                   {meta.premio}
                 </p>
-                <p className="text-meta text-ink-soft/60">
+                <p className="text-meta text-ink-soft/75">
                   {meta.sellos} {meta.sellos === 1 ? "sello" : "sellos"}
                   {meta.canjeada
                     ? " · ya canjeado este ciclo"
@@ -387,10 +387,17 @@ export function TarjetaCliente({
                       ? " · listo para canjear"
                       : ` · te faltan ${meta.faltan}`}
                 </p>
-                <div className="mt-[6px] h-[5px] overflow-hidden rounded-full bg-ink/8">
+                <div
+                  role="progressbar"
+                  aria-label={`${meta.premio}: ${Math.min(tarjeta.sellos, meta.sellos)} de ${meta.sellos} sellos`}
+                  aria-valuemin={0}
+                  aria-valuemax={meta.sellos}
+                  aria-valuenow={Math.min(tarjeta.sellos, meta.sellos)}
+                  className="mt-[6px] h-[5px] overflow-hidden rounded-full bg-ink/10"
+                >
                   <div
                     className={cn(
-                      "h-full rounded-full transition-all duration-500",
+                      "h-full w-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none",
                       meta.canjeada
                         ? "bg-ink/20"
                         : meta.alcanzada
@@ -398,7 +405,7 @@ export function TarjetaCliente({
                           : "bg-verde-300",
                     )}
                     style={{
-                      width: `${Math.min(100, Math.round((tarjeta.sellos / meta.sellos) * 100))}%`,
+                      transform: `scaleX(${Math.min(1, tarjeta.sellos / meta.sellos)})`,
                     }}
                   />
                 </div>
@@ -411,7 +418,7 @@ export function TarjetaCliente({
       {/* Movimientos */}
       {movimientos.length > 0 && (
         <section className="mt-gap-md">
-          <h2 className="font-lv-display text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-soft/50">
+          <h2 className="font-lv-display text-small font-semibold text-ink">
             Últimos movimientos
           </h2>
           <ul className="mt-gap-sm divide-y divide-ink/5 overflow-hidden rounded-2xl border border-ink/5 bg-white">
@@ -427,7 +434,7 @@ export function TarjetaCliente({
                       ? "bg-verde-50 text-verde-600"
                       : movimiento.tipo === "canje"
                         ? "bg-sand-deep text-ink-soft/70"
-                        : "bg-ink/5 text-ink-soft/50",
+                        : "bg-ink/5 text-ink-soft/70",
                   )}
                 >
                   <IconoMovimiento tipo={movimiento.tipo} />
@@ -436,7 +443,7 @@ export function TarjetaCliente({
                   <p className="truncate text-meta font-medium text-ink">
                     {descripcionMovimiento(movimiento, tarjeta)}
                   </p>
-                  <p className="text-[11px] text-ink-soft/55">
+                  <p className="text-meta text-ink-soft/70">
                     {DIA.format(new Date(movimiento.creadoEn))}
                     {movimiento.anulado ? " · anulado" : ""}
                   </p>
@@ -447,7 +454,7 @@ export function TarjetaCliente({
                       "shrink-0 font-lv-display text-meta font-semibold tabular-nums",
                       movimiento.cantidad > 0
                         ? "text-verde-700"
-                        : "text-ink-soft/50",
+                        : "text-ink-soft/70",
                     )}
                   >
                     {movimiento.cantidad > 0 ? "+" : ""}
@@ -468,7 +475,7 @@ export function TarjetaCliente({
         <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
       </Link>
 
-      <p className="mt-gap-md text-center text-[11px] leading-relaxed text-ink-soft/45">
+      <p className="mt-gap-md text-center text-meta leading-relaxed text-ink-soft/70">
         Actualizada el {DIA_LARGO.format(generado)} a las {hora12(generado)}. Tu
         tarjeta vive en este enlace: guárdalo para volver a verla cuando quieras.
       </p>

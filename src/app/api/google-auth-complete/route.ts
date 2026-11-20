@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { forcePublicRedirect, publicOrigin } from "@/lib/auth/public-origin";
 import { auth } from "@/lib/auth/server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
@@ -13,28 +14,45 @@ export async function GET(request: NextRequest) {
      Sin este intercambio, auth.getSession() devuelve null y nunca se crea
      la fila en users. Se aplica aquí el mismo guard que en src/proxy.ts. */
   if (request.nextUrl.searchParams.has("neon_auth_session_verifier")) {
-    return auth.middleware({ loginUrl: "/login" })(request);
+    const exchanged = await auth.middleware({ loginUrl: "/login" })(request);
+    return forcePublicRedirect(exchanged, request);
   }
+
+  /* El origen no sale de `request.url`: dentro del contenedor ese URL lleva el
+     host interno (`0.0.0.0:3000`) cuando el proxy no reenvía `Host`. Ver
+     `publicOrigin` en `src/lib/auth/public-origin.ts`. */
+  const origin = publicOrigin(request);
 
   const user = await getAppUser();
   if (!user) {
-    return NextResponse.redirect(new URL("/register", request.url));
+    return NextResponse.redirect(new URL("/register", origin));
   }
 
-  await db
-    .update(users)
-    .set({
-      termsVersion: TERMS_VERSION,
-      termsAcceptedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(eq(users.id, user.id));
+  /* La aceptación solo se guarda si viene del botón de registro, que es el
+     único que exige marcar la casilla (`alta=1`). Antes se escribía en cada
+     vuelta de Google: quien pulsaba «Iniciar sesión con Google» sin cuenta
+     quedaba dado de alta con unos términos que nunca vio, y a quien ya los
+     había aceptado se le reescribía la fecha en cada acceso. */
+  if (request.nextUrl.searchParams.get("alta") === "1") {
+    await db
+      .update(users)
+      .set({
+        termsVersion: TERMS_VERSION,
+        termsAcceptedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id));
+  }
 
   /* El plan elegido en la portada viaja por aquí: sin esto, entrar con Google
-     perdía el `next` y dejaba al recién registrado en el onboarding genérico. */
+     perdía el `next` y dejaba al recién registrado en el onboarding genérico.
+     Sin `next`, la marca del onboarding decide: quien ya lo completó va al Home
+     —también quien pulsó «Registrarse con Google» con una cuenta que ya existía—
+     y quien no lo ha hecho empieza el flujo, que es el camino normal. */
+  const landed = safeNext(request.nextUrl.searchParams.get("next"));
   const target = new URL(
-    safeNext(new URL(request.url).searchParams.get("next")) ?? "/onboarding",
-    request.url,
+    landed ?? (user.onboardingCompleted ? "/home" : "/onboarding"),
+    origin,
   );
   /* Google no recoge teléfono. Si la cuenta acaba de nacer sin él, el
      onboarding abre la ventana que lo pide antes de empezar. */

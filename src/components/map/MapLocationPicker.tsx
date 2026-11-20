@@ -51,7 +51,7 @@ interface MapLocationPickerProps {
    cantaba. Los 44 px de alto tampoco son decoración: es el mínimo táctil, y
    esto se maneja con el pulgar tanto como con el ratón. */
 const FIELD =
-  "h-11 w-full rounded-xl border border-ink/10 bg-white text-small text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/30";
+  "h-11 w-full rounded-xl border border-ink/10 bg-white text-body text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/30";
 const FLOAT_BTN =
   "absolute top-gap-sm z-[500] inline-flex items-center gap-[6px] rounded-full border border-ink/5 bg-white/95 px-gap-sm py-[7px] font-lv-display text-meta font-medium text-ink shadow-soft backdrop-blur-[12px] transition-colors duration-500 ease-outquint";
 const AREA_CHIP =
@@ -305,7 +305,7 @@ export function MapLocationPicker({
             {displayedAreas.map((area) => (
               <button key={area.id} type="button" onMouseDown={(e) => { e.preventDefault(); handleSelectArea(area.lat, area.lng); }} className="flex w-full items-center gap-gap-xs rounded-xl px-gap-sm py-gap-sm text-left hover:bg-sand">
                 <MapPin size={15} className="shrink-0 text-verde-600" />
-                <span className="truncate text-small text-ink">{area.name} <span className="text-meta text-ink-soft/60">{area.province}</span></span>
+                <span className="truncate text-small text-ink">{area.name} <span className="text-meta text-ink-soft/75">{area.province}</span></span>
               </button>
             ))}
             {searchingAreas && <span className="block px-gap-sm py-gap-sm text-meta text-ink-soft/75">Buscando en Cuba…</span>}
@@ -348,7 +348,7 @@ export function MapLocationPicker({
 
       {/* Locate error */}
       {locateError && (
-        <div className="rounded-xl border border-destructive/25 bg-destructive/10 px-gap-sm py-[7px] text-meta font-medium text-destructive">
+        <div className="rounded-xl border border-destructive/25 bg-destructive/10 px-gap-sm py-[7px] text-meta font-medium text-destructive-ink">
           {locateError}
         </div>
       )}

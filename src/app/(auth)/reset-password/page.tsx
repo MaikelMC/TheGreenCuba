@@ -14,11 +14,14 @@ import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 export default async function ResetPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string; error?: string }>;
+  searchParams: Promise<{ token?: string; error?: string; email?: string }>;
 }) {
   const params = await searchParams;
   const token = typeof params.token === "string" ? params.token : "";
   const linkError = Boolean(params.error);
+  /* Lo añade `forgot-password` al pedir el enlace. Los enlaces pedidos antes
+     de este cambio no lo traen, y el formulario funciona igual sin él. */
+  const email = typeof params.email === "string" ? params.email : "";
 
-  return <ResetPasswordForm token={token} linkError={linkError} />;
+  return <ResetPasswordForm token={token} linkError={linkError} email={email} />;
 }

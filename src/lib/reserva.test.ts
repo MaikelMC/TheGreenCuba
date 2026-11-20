@@ -39,6 +39,16 @@ test("sin plantilla propia se usa la del tipo; con ella, la del dueño", () => {
   assert.equal(plantillaEfectiva("apartado", "Reserva {nombre}"), "Reserva {nombre}");
 });
 
+test("hoy no vale una hora que ya pasó; otro día sí", () => {
+  const tarde = new Date(2026, 9, 15, 15, 30);
+  assert.match(
+    validarReserva(datos({ fecha: "2026-10-15", hora: "09:00" }), "cita", tarde) ?? "",
+    /ya pasó/,
+  );
+  assert.equal(validarReserva(datos({ fecha: "2026-10-15", hora: "16:00" }), "cita", tarde), null);
+  assert.equal(validarReserva(datos({ fecha: "2026-10-16", hora: "09:00" }), "cita", tarde), null);
+});
+
 test("la fecha pasada no vale", () => {
   assert.match(
     validarReserva(datos({ fecha: "2026-10-14" }), "mesa", HOY) ?? "",

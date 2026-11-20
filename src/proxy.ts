@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { forcePublicRedirect } from "@/lib/auth/public-origin";
 import { auth } from "@/lib/auth/server";
 import {
   DEV_COOKIE,
@@ -56,10 +57,15 @@ export async function proxy(request: NextRequest) {
   // auth.middleware() runs processAuthMiddleware which handles the exchange and
   // redirects back to the same URL without the verifier, with the session cookie set.
   if (request.nextUrl.searchParams.has("neon_auth_session_verifier")) {
-    return auth.middleware({ loginUrl: "/login" })(request);
+    const exchanged = await auth.middleware({ loginUrl: "/login" })(request);
+    /* El middleware devuelve la misma URL sin el verificador, construida desde
+       `request.url`. En el contenedor ese URL puede llevar el host interno
+       (`0.0.0.0:3000`) y el navegador acabaría ahí, con la sesión ya emitida.
+       Ver `publicOrigin` en `src/lib/auth/public-origin.ts`. */
+    return forcePublicRedirect(exchanged, request);
   }
 
-  const response = await handle(request);
+  const response = forcePublicRedirect(await handle(request), request);
   dropDevAccess(response, request);
   return carryReferralCode(response, request);
 }

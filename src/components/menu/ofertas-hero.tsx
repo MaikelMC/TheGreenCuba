@@ -137,11 +137,15 @@ export function OfertasHero({
                   </span>
                   {/* Las chapitas van en la fila del nombre, como en la carta:
                       «Oferta» se cambia por el descuento, que dice más. */}
-                  <span className="rounded-full bg-verde-400 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-verde-950">
+                  {/* 12 px y sin mayúsculas espaciadas: a 10 px con tracking no
+                      se leían en el móvil (`readable-font-size`,
+                      `letter-spacing` de ui-ux-pro-max), y así coinciden con la
+                      chapita del cartel de la ficha. */}
+                  <span className="rounded-full bg-verde-400 px-[8px] py-[2px] font-lv-display text-meta font-semibold text-verde-950">
                     {descuento}
                   </span>
                   {agotado && (
-                    <span className="rounded-full bg-sand-deep px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-soft">
+                    <span className="rounded-full bg-sand-deep px-[8px] py-[2px] font-lv-display text-meta font-semibold text-ink-soft">
                       Agotado
                     </span>
                   )}

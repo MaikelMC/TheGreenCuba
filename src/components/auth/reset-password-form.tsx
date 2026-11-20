@@ -2,14 +2,11 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
-import { motion } from "motion/react";
-import { ArrowRight, Loader2, Lock } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
-import { EASE } from "@/lib/motion";
+import { CampoContrasena } from "@/components/auth/campo-contrasena";
 
-const FIELD =
-  "auth-field flex items-center gap-gap-sm rounded-2xl border border-ink/10 bg-sand-warm px-gap-sm h-12 transition-colors duration-500 ease-outquint focus-within:border-verde-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-verde-400/20";
-const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
+const ERROR_ID = "reset-error";
 
 const INVALID_LINK =
   "El enlace no es válido o ha caducado. Pide uno nuevo desde «¿Olvidaste tu contraseña?».";
@@ -35,9 +32,12 @@ const INVALID_LINK =
 export function ResetPasswordForm({
   token,
   linkError,
+  email,
 }: {
   token: string;
   linkError: boolean;
+  /** De qué cuenta es, para el campo de usuario oculto. Puede venir vacío. */
+  email: string;
 }) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -87,29 +87,26 @@ export function ResetPasswordForm({
         /* Carga completa, como el resto de saltos tras un cambio de sesión: el
            App Router cachea el árbol de la ruta y una navegación de cliente
            podría pintar el `/login` de antes. */
-        window.location.assign("/login");
+        /* `cambiada=1` pinta la confirmación en el acceso; antes se llegaba a
+           un `/login` en blanco sin saber si había funcionado. */
+        const destino = new URLSearchParams({ cambiada: "1" });
+        if (email) destino.set("email", email);
+        window.location.assign(`/login?${destino.toString()}`);
       } catch {
         setError("No se pudo cambiar la contraseña. Inténtalo de nuevo.");
       } finally {
         setLoading(false);
       }
     },
-    [confirm, loading, password, token],
+    [confirm, email, loading, password, token],
   );
 
   const deadLink = linkError || !token;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.9, ease: EASE }}
-      className="flex flex-col gap-gap-md"
-    >
-      <header className="flex flex-col gap-gap-xs">
-        <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-200 lg:text-verde-600">
-          Contraseña nueva
-        </span>
+    /* Entrada en CSS, como en `forgot-password`: sin `motion` para un fundido. */
+    <div className="flex flex-col gap-gap-md animate-[fade-up_250ms_ease-out] motion-reduce:animate-none">
+      <header className="flex flex-col items-center gap-gap-xs text-center">
         <h1 className="font-lv-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-white lg:text-ink">
           Elige una contraseña
         </h1>
@@ -120,7 +117,7 @@ export function ResetPasswordForm({
         </p>
       </header>
 
-      <div className="rounded-4xl border border-ink/5 bg-white shadow-soft p-gap-lg flex flex-col gap-gap-md">
+      <div className="rounded-2xl bg-white shadow-soft p-gap-lg flex flex-col gap-gap-md">
         {deadLink ? (
           <Link
             href="/forgot-password"
@@ -130,44 +127,41 @@ export function ResetPasswordForm({
           </Link>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-gap-md">
-            <label className="flex flex-col gap-gap-xs">
-              <span className={LABEL}>Contraseña nueva</span>
-              <span className={FIELD}>
-                <Lock size={16} strokeWidth={1.8} className="text-ink-soft/75 shrink-0" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="new-password"
-                  required
-                  aria-label="Contraseña nueva"
-                  aria-invalid={error ? true : undefined}
-                  className="flex-1 min-w-0 bg-transparent text-small text-ink outline-none placeholder:text-ink-soft/75"
-                  placeholder="••••••••"
-                />
-              </span>
-            </label>
+            {/* Campo de usuario oculto: es lo que dice a Chrome y al Llavero
+                de iOS qué cuenta guardada actualizar con la contraseña nueva.
+                `hidden` y no `sr-only`: no debe leerse ni recibir foco. */}
+            {email && (
+              <input
+                type="email"
+                name="username"
+                autoComplete="username"
+                value={email}
+                readOnly
+                hidden
+              />
+            )}
 
-            <label className="flex flex-col gap-gap-xs">
-              <span className={LABEL}>Repítela</span>
-              <span className={FIELD}>
-                <Lock size={16} strokeWidth={1.8} className="text-ink-soft/75 shrink-0" />
-                <input
-                  type="password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  autoComplete="new-password"
-                  required
-                  aria-label="Repite la contraseña"
-                  aria-invalid={error ? true : undefined}
-                  className="flex-1 min-w-0 bg-transparent text-small text-ink outline-none placeholder:text-ink-soft/75"
-                  placeholder="••••••••"
-                />
-              </span>
-            </label>
+            <CampoContrasena
+              etiqueta="Contraseña nueva"
+              value={password}
+              onChange={setPassword}
+              autoComplete="new-password"
+              invalido={Boolean(error)}
+              descritoPor={ERROR_ID}
+            />
+
+            <CampoContrasena
+              etiqueta="Repítela"
+              value={confirm}
+              onChange={setConfirm}
+              autoComplete="new-password"
+              invalido={Boolean(error)}
+              descritoPor={ERROR_ID}
+            />
 
             {error && (
               <p
+                id={ERROR_ID}
                 role="alert"
                 className="rounded-xl border border-destructive/20 bg-destructive/5 px-gap-sm py-gap-xs text-meta text-destructive"
               >
@@ -200,6 +194,6 @@ export function ResetPasswordForm({
           Volver al acceso
         </Link>
       </p>
-    </motion.div>
+    </div>
   );
 }

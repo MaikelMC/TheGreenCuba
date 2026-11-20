@@ -5,6 +5,12 @@
 // offline, el flujo actual (pin manual) sigue funcionando sin geocoder.
 
 import { CUBA_AREAS } from "@/lib/map/cuba-areas";
+import {
+  buscarCallesOffline,
+  guardarCallesProvincia,
+  provinciaCercana,
+} from "@/lib/map/calles-offline";
+import { sinRed } from "@/lib/offline/estado-red";
 
 export interface GeocodeSuggestion {
   lat: number;
@@ -125,6 +131,9 @@ export interface SearchNear {
   lng: number;
   /** «Santiago de Cuba». Se añade a la consulta si el texto no nombra ya otra. */
   city?: string;
+  /** `santiago-de-cuba`: qué archivo de calles usar sin conexión. Sin él, la
+      provincia más cercana al punto. */
+  provincia?: string;
 }
 
 const sinTildes = (s: string) =>
@@ -220,28 +229,115 @@ export async function searchAddress(
       ? { lat: lugar.area.lat, lng: lugar.area.lng, city: lugar.nombre }
       : near;
 
-  /* En Santiago la calle es «Francisco Vicente Aguilera (Marina)»: buscando
-     «Aguilera» a secas ni sale entre los 15 primeros. Con la ciudad en la
-     consulta sí. Si así no queda ninguna calle que contenga lo escrito, se
-     repite sin ella (el usuario busca en otra ciudad). */
-  let features = ciudad?.city
-    ? await photon(`${calleQ} ${ciudad.city}`, ciudad, signal)
-    : [];
-  let sugerencias = aSugerencias(features, between, palabras);
-  if (sugerencias.length === 0) {
-    features = await photon(calleQ, ciudad, signal);
-    sugerencias = aSugerencias(features, between, palabras);
+  /* Sin red, las calles guardadas de la provincia. Sin `ciudad` (sin pin ni
+     preferencias) no se sabe qué provincia mirar. */
+  const provincia = ciudad
+    ? ciudad === near && near?.provincia
+      ? near.provincia
+      : provinciaCercana(ciudad.lat, ciudad.lng)
+    : undefined;
+  const sinConexion = () =>
+    provincia ? buscarCallesOffline(provincia, palabras, ciudad, between) : [];
+  if (typeof navigator !== "undefined" && (!navigator.onLine || sinRed())) {
+    return sinConexion();
   }
-  return sugerencias.slice(0, 6);
+
+  try {
+    /* En Santiago la calle es «Francisco Vicente Aguilera (Marina)»: buscando
+       «Aguilera» a secas ni sale entre los 15 primeros. Con la ciudad en la
+       consulta sí. Si así no queda ninguna calle que contenga lo escrito, se
+       repite sin ella (el usuario busca en otra ciudad). */
+    let features = ciudad?.city
+      ? await photon(`${calleQ} ${ciudad.city}`, ciudad, signal)
+      : [];
+    /* El punto desde el que se mide la cercanía es la ubicación del usuario; si
+       escribió otra ciudad («Maceo, Holguín» desde Santiago), manda esa ciudad,
+       que es donde están los resultados. */
+    let sugerencias = aSugerencias(features, between, palabras, ciudad);
+    if (sugerencias.length === 0) {
+      features = await photon(calleQ, ciudad, signal);
+      sugerencias = aSugerencias(features, between, palabras, ciudad);
+    }
+    // Hay red y el usuario busca direcciones: se guarda su provincia para luego.
+    if (provincia) void guardarCallesProvincia(provincia);
+    return sugerencias.slice(0, 6);
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    /* `navigator.onLine` miente en las redes cubanas con IP y sin internet, y
+       Photon a veces da 503: se cae a lo guardado antes que a nada. */
+    const locales = await sinConexion();
+    if (locales.length > 0) return locales;
+    throw error;
+  }
+}
+
+/** Distancia en km entre dos puntos. Para ordenar por cercanía. */
+function distanciaKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const RAD = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * RAD;
+  const dLng = (b.lng - a.lng) * RAD;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * RAD) * Math.cos(b.lat * RAD) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * Escalón de la coincidencia: 0 si la calle lleva la palabra escrita tal cual,
+ * 1 si la lleva al principio de otra («Martí» → «Martínez») y 2 si solo la
+ * contiene. Separa coincidencias de distinta calidad sin mirar la distancia.
+ */
+function escalon(street: string, palabras: string[]): number {
+  const primera = palabras[0];
+  if (!primera) return 0;
+  const tokens = sinTildes(street).split(/[^a-z0-9ñ]+/);
+  if (tokens.includes(primera)) return 0;
+  if (tokens.some((token) => token.startsWith(primera))) return 1;
+  return 2;
+}
+
+/**
+ * Ordena las sugerencias de calle por cercanía a la ubicación del usuario.
+ *
+ * Photon ordena por relevancia y su sesgo de ubicación es suave
+ * (`location_bias_scale=0.1`), así que «Aguilera» podía enseñar primero la de
+ * otra provincia estando en Santiago. Aquí manda la distancia al punto de
+ * referencia; el escalón de coincidencia solo desempata entre calidades
+ * distintas, igual que en la búsqueda sin conexión (`calles-offline.ts`). Sin
+ * `cerca` —ni pin ni ciudad— se respeta el orden del proveedor.
+ *
+ * Exportada para poder probarla sin red.
+ */
+export function ordenarSugerencias(
+  sugerencias: GeocodeSuggestion[],
+  {
+    palabras,
+    cerca,
+  }: { palabras: string[]; cerca?: { lat: number; lng: number } },
+): GeocodeSuggestion[] {
+  return [...sugerencias].sort((a, b) => {
+    const porEscalon = escalon(a.street, palabras) - escalon(b.street, palabras);
+    if (porEscalon !== 0) return porEscalon;
+    if (cerca) {
+      const porCercania = distanciaKm(cerca, a) - distanciaKm(cerca, b);
+      if (porCercania !== 0) return porCercania;
+    }
+    // La calle entera antes que un portal suyo con número.
+    return Number(Boolean(a.housenumber)) - Number(Boolean(b.housenumber));
+  });
 }
 
 function aSugerencias(
   features: PhotonFeature[],
   between: string | null,
   palabras: string[],
+  cerca?: { lat: number; lng: number },
 ): GeocodeSuggestion[] {
   const vistas = new Set<string>();
-  return features
+  const sugerencias = features
     .filter((f) => {
       const p = f.properties;
       const t = p.type;
@@ -273,10 +369,11 @@ function aSugerencias(
         between: between ?? undefined,
         label,
       };
-    })
-    // La calle entera antes que un portal suyo con número.
-    .sort((a, b) => Number(Boolean(a.housenumber)) - Number(Boolean(b.housenumber)))
-    .filter((s) => {
+    });
+
+  /* Se ordena **antes** de quitar duplicados a propósito: de cada calle se
+     conserva su tramo más cercano, y no el que Photon colocó en cabeza. */
+  return ordenarSugerencias(sugerencias, { palabras, cerca }).filter((s) => {
       if (!s.street) return false;
       // La calle tiene que contener lo escrito; «Hostal Heredia» en la calle
       // Saco no es la calle Heredia.

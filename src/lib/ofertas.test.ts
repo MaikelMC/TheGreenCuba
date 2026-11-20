@@ -11,6 +11,7 @@ import {
   precioConOferta,
   precioRebajado,
   validarOferta,
+  OFERTA_MAX,
 } from "./ofertas";
 import type { UserPlaceOferta } from "./places-store";
 
@@ -137,4 +138,33 @@ test("lo que llega del navegador se comprueba antes de guardarlo", () => {
   for (const entrada of errores) {
     assert.equal(typeof validarOferta(entrada), "string", `deberia fallar: ${JSON.stringify(entrada)}`);
   }
+});
+
+/* Sin tope, un título de miles de caracteres rompía el cartel de la ficha. El
+   límite justo pasa; uno más ya es error, en los tres textos. */
+test("validarOferta pone tope a la longitud de los textos", () => {
+  const base = {
+    id: "o1",
+    productoId: "p1",
+    titulo: "Oferta",
+    descuentoPct: 20,
+    inicia: 1_000,
+    termina: 2_000,
+  };
+  const largo = (n: number) => "x".repeat(n);
+
+  assert.equal(typeof validarOferta({ ...base, titulo: largo(OFERTA_MAX.titulo) }), "object");
+  assert.equal(typeof validarOferta({ ...base, titulo: largo(OFERTA_MAX.titulo + 1) }), "string");
+  assert.equal(
+    typeof validarOferta({ ...base, descripcion: largo(OFERTA_MAX.descripcion + 1) }),
+    "string",
+  );
+  assert.equal(
+    typeof validarOferta({
+      ...base,
+      descuentoPct: undefined,
+      precioOferta: largo(OFERTA_MAX.precio + 1),
+    }),
+    "string",
+  );
 });

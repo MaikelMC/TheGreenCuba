@@ -249,6 +249,15 @@ Props: `icon` (Lucide), `title`, `description`, `actions`.
 - `<Skeleton>`: `animate-pulse rounded-2xl bg-sand-deep`. Forma libre con `className`.
 - `<LoadingState>`: spinner + label centrado. `label={null}` deja solo el spinner.
 
+### TasaCambioNota
+**Archivo**: `src/components/pricing/tasa-cambio-nota.tsx`
+Tasa USD→CUP con su fuente y fecha. Tres variantes:
+- `compacta` (por defecto): píldora para el catálogo de servicios.
+- `destacada`: tarjeta de la portada (precios de la landing).
+- `panel`: tarjeta del panel (Planes). Patrón de tarjeta real, icono
+  `bg-verde-50 text-verde-700`, cifra en `text-h3`, línea de fuente con punto
+  verde (CambioCUP) o ámbar (respaldo).
+
 ### CargandoNavegacion
 **Archivo**: `src/components/layout/cargando-navegacion.tsx`
 Aviso global entre páginas, montado una sola vez en `src/app/layout.tsx`.

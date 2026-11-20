@@ -140,7 +140,7 @@ export function LogoUpload({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={busy}
-            className="font-lv-display text-meta font-semibold text-verde-600 hover:text-verde-700 cursor-pointer disabled:opacity-50 disabled:cursor-default"
+            className="inline-flex min-h-11 items-center font-lv-display text-meta font-semibold text-verde-600 hover:text-verde-700 cursor-pointer disabled:opacity-50 disabled:cursor-default"
           >
             {busy ? "Subiendo…" : value ? "Cambiar" : "Subir imagen"}
           </button>
@@ -148,7 +148,7 @@ export function LogoUpload({
             <button
               type="button"
               onClick={() => void clear()}
-              className="inline-flex items-center gap-1 font-lv-display text-meta font-semibold text-ink-soft/75 hover:text-destructive cursor-pointer"
+              className="inline-flex min-h-11 items-center gap-1 font-lv-display text-meta font-semibold text-ink-soft/75 hover:text-destructive-ink cursor-pointer"
             >
               <X size={13} strokeWidth={1.8} />
               Quitar
@@ -156,7 +156,7 @@ export function LogoUpload({
           )}
         </div>
         {error && (
-          <p role="alert" className="mt-gap-xs text-meta font-medium text-destructive">
+          <p role="alert" className="mt-gap-xs text-meta font-medium text-destructive-ink">
             {error}
           </p>
         )}

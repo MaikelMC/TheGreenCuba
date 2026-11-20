@@ -30,7 +30,7 @@ import { contactLinks, whatsappDePedido } from "@/lib/contact-links";
 import { configReserva } from "@/lib/reserva";
 import { configSeguidores } from "@/lib/seguidores";
 import { formatDateRange, formatMenuPrice } from "@/lib/utils";
-import { ofertaDe, ofertasVigentes, precioConOferta } from "@/lib/ofertas";
+import { ofertaDe, ofertasVigentes, parsePrecio, precioConOferta } from "@/lib/ofertas";
 import type { Acciones } from "./acciones";
 import type { EntregaConfig } from "./entrega";
 import type { Horario } from "./horario";
@@ -79,7 +79,8 @@ export interface PlaceOffer {
   descripcion?: string;
   /** «Termina el 12 de octubre, 19:30», ya en texto. */
   termina: string;
-  precio?: { de: string; por: string };
+  /** `ahorroPct`: cuánto baja, en entero. Solo si se puede saber de verdad. */
+  precio?: { de: string; por: string; ahorroPct?: number };
 }
 
 /** Una foto de la ficha, con la sección que eligió el dueño. */
@@ -203,12 +204,35 @@ export interface PlaceDetailProps {
   configPedido?: import("@/lib/pedido").ConfigPedido | null;
 }
 
+/* Con la zona de Cuba fija: el servidor del VPS corre en UTC y pintaba
+   «19:30» como «23:30» antes de hidratar, y quien abre la ficha desde fuera
+   vería su hora local. La carta (`ofertas-hero`) ya usaba esta misma zona. */
+/**
+ * El descuento en entero, para la chapita «-30 %» de la oferta.
+ *
+ * Si el dueño puso un porcentaje, ese manda. Si puso un precio cerrado, se
+ * calcula, pero solo cuando los dos son cifras: con un rango o con texto libre
+ * no se inventa nada y la chapita no sale.
+ */
+function ahorroPct(
+  precios: { de: string; por: string },
+  descuentoPct?: number | null,
+): number | undefined {
+  if (descuentoPct != null) return descuentoPct > 0 ? Math.round(descuentoPct) : undefined;
+  const de = parsePrecio(precios.de);
+  const por = parsePrecio(precios.por);
+  if (de === null || por === null || de <= 0 || por >= de) return undefined;
+  const pct = Math.round((1 - por / de) * 100);
+  return pct > 0 ? pct : undefined;
+}
+
 function fechaLarga(ms: number): string {
   return new Date(ms).toLocaleString("es-CU", {
     day: "numeric",
     month: "long",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Havana",
   });
 }
 
@@ -321,6 +345,7 @@ export function userPlaceToPlaceData(p: UserPlace): PlaceData {
               ? {
                   de: formatMenuPrice(precios.de, producto.currency || "MLC"),
                   por: formatMenuPrice(precios.por, producto.currency || "MLC"),
+                  ahorroPct: ahorroPct(precios, oferta.descuentoPct),
                 }
               : undefined,
         };

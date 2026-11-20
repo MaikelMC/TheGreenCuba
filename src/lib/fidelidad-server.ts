@@ -549,6 +549,9 @@ export async function sellarAMano(
   if (!(await tieneFuncion(placeId, "cliente_frecuente"))) {
     return { estado: "sin_funcion" };
   }
+  if (!(await tieneFuncion(placeId, "whatsapp_pedido"))) {
+    return { estado: "sin_funcion" };
+  }
   const config = await configFidelidadDe(placeId);
   if (!config?.activo) return { estado: "inactiva" };
 
@@ -692,6 +695,7 @@ export async function canjearMeta(
 export type ResultadoAjuste =
   | { estado: "ajustado"; tarjeta: EstadoTarjeta }
   | { estado: "sin_funcion" }
+  | { estado: "inactiva" }
   | { estado: "no_encontrado" }
   | { estado: "datos_invalidos" };
 
@@ -715,8 +719,11 @@ export async function ajustarSellos(
   const limpia = nota.trim();
   if (!limpia) return { estado: "datos_invalidos" };
 
+  if (!(await tieneFuncion(placeId, "cliente_frecuente"))) {
+    return { estado: "sin_funcion" };
+  }
   const config = await configFidelidadDe(placeId);
-  if (!config) return { estado: "sin_funcion" };
+  if (!config?.activo) return { estado: "inactiva" };
 
   const cliente = await clientePorId(placeId, clienteId);
   if (!cliente) return { estado: "no_encontrado" };
@@ -871,6 +878,7 @@ export async function sellarClienteExistente(
   | { estado: "sin_funcion" | "inactiva" | "no_encontrado" }
 > {
   if (!(await tieneFuncion(placeId, "cliente_frecuente"))) return { estado: "sin_funcion" };
+  if (!(await tieneFuncion(placeId, "whatsapp_pedido"))) return { estado: "sin_funcion" };
   const config = await configFidelidadDe(placeId);
   if (!config?.activo) return { estado: "inactiva" };
   const cliente = await clientePorId(placeId, clienteId);
@@ -1158,6 +1166,7 @@ export async function tarjetaPublica(token: string): Promise<TarjetaPublica | nu
   if (!fila.fidelidad || !esFidelidadConfig(fila.fidelidad)) return null;
   if (!fila.fidelidad.activo) return null;
   if (!(await tieneFuncion(fila.cliente.placeId, "cliente_frecuente"))) return null;
+  if (!(await tieneFuncion(fila.cliente.placeId, "whatsapp_pedido"))) return null;
 
   const cliente = aClienteTarjeta(fila.cliente);
   const movimientos = await db

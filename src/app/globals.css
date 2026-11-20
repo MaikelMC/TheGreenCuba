@@ -695,6 +695,14 @@
     color: rgba(237, 247, 240, 0.82) !important;
   }
 
+  /* Texto de error. En claro es un rojo oscuro; en oscuro, ese mismo rojo
+     quedaría a poco más de 2:1 sobre la superficie, así que se cambia por el
+     rojo claro del tema. Va junto a los overrides de tinta porque es lo mismo:
+     una pareja de colores que no puede ser la misma en las dos pieles. */
+  html[data-theme="dark"] .text-destructive-ink {
+    color: #ffb4ae !important;
+  }
+
   /* `bg-ink/10`: el asa del bottom sheet de recomendaciones, los toggles
      apagados, los pasos inactivos del onboarding y la barra de búsqueda.
      En claro es un gris sutil sobre blanco; en oscuro era tinta sobre tinta

@@ -29,7 +29,12 @@ const ROLE_NAMES: Record<string, string> = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; motivo?: string }>;
+  searchParams: Promise<{
+    next?: string;
+    motivo?: string;
+    cambiada?: string;
+    email?: string;
+  }>;
 }) {
   const params = await searchParams;
   const next = safeNext(params.next);
@@ -47,14 +52,11 @@ export default async function LoginPage({
     const section = (next && SECTION_NAMES[next.split("?")[0]!]) ?? null;
 
     return (
-      <div className="rounded-4xl border border-ink/5 bg-white shadow-soft p-gap-lg flex flex-col gap-gap-sm animate-fade-up">
+      <div className="rounded-2xl bg-white shadow-soft p-gap-lg flex flex-col gap-gap-sm animate-fade-up">
         <span className="grid size-12 place-items-center rounded-2xl bg-destructive/10 text-destructive">
           <ShieldOff size={22} strokeWidth={1.8} />
         </span>
 
-        <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-destructive">
-          Sin acceso
-        </span>
 
         <h1 className="font-lv-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-ink">
           Esta sección no es para tu cuenta
@@ -84,5 +86,15 @@ export default async function LoginPage({
     );
   }
 
-  return <AuthCard mode="login" next={next} />;
+  /* Vuelta de «contraseña nueva»: se confirma el cambio y el correo llega ya
+     escrito, así el gestor de contraseñas ofrece la nueva para esa cuenta. */
+  const cambiada = params.cambiada === "1";
+  return (
+    <AuthCard
+      mode="login"
+      next={next}
+      aviso={cambiada ? "Contraseña cambiada. Entra con la nueva." : null}
+      correoInicial={cambiada && typeof params.email === "string" ? params.email : ""}
+    />
+  );
 }

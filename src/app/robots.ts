@@ -41,7 +41,6 @@ export default function robots(): MetadataRoute.Robots {
           "/verify-email",
           "/forgot-password",
           "/reset-password",
-          "/restablecer-contrasena",
           /* Fichas de desarrollo: la ruta devuelve 404 en producción, pero no
              hay razón para ofrecérsela a un rastreador. */
           "/dev-login",

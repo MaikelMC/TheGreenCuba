@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Tag, Trash2, X } from "lucide-react";
+import { Loader2, Plus, Tag, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { inicioValido, precioConOferta, validarOferta } from "@/lib/ofertas";
+import {
+  OFERTA_MAX,
+  inicioValido,
+  parsePrecio,
+  precioConOferta,
+  validarOferta,
+} from "@/lib/ofertas";
 import type { UserPlaceMenuItem, UserPlaceOferta } from "@/lib/places-store";
 
 /* `min-w-0`: el `datetime-local` de Android trae un ancho mínimo propio que
@@ -42,6 +48,8 @@ export function OfertasEditor({
   onChange,
   menu,
   max,
+  etiquetaGuardar = "Añadir a la lista",
+  guardando = false,
 }: {
   ofertas: UserPlaceOferta[];
   onChange: (ofertas: UserPlaceOferta[]) => void;
@@ -49,6 +57,11 @@ export function OfertasEditor({
   menu: UserPlaceMenuItem[];
   /** `ofertas_vigentes_max` del plan. `null` = sin tope. */
   max: number | null;
+  /** El botón del formulario. «Añadir a la lista» donde el guardado es aparte
+      (formulario de admin); «Guardar oferta» donde `onChange` ya guarda. */
+  etiquetaGuardar?: string;
+  /** Mientras quien usa el editor está guardando: desactiva el botón. */
+  guardando?: boolean;
 }) {
   const [borrador, setBorrador] = useState<Borrador | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -134,6 +147,19 @@ export function OfertasEditor({
       return;
     }
 
+    /* La misma regla que el servidor: un precio rebajado que no rebaja. Aquí
+       para decirlo antes de enviar, junto al campo que se está editando. */
+    if (limpia.precioOferta) {
+      const original = parsePrecio(
+        objetivos.find((item) => item.id === limpia.productoId)?.price ?? "",
+      );
+      const rebajado = parsePrecio(limpia.precioOferta);
+      if (original !== null && rebajado !== null && rebajado >= original) {
+        setError(`El precio rebajado tiene que ser menor que el de la carta (${original}).`);
+        return;
+      }
+    }
+
     const existe = ofertas.some((o) => o.id === limpia.id);
     onChange(
       existe
@@ -192,6 +218,8 @@ export function OfertasEditor({
           objetivos={objetivos}
           error={error}
           ahora={ahora}
+          etiquetaGuardar={etiquetaGuardar}
+          guardando={guardando}
           onGuardar={guardar}
           onCancelar={() => {
             setBorrador(null);
@@ -203,7 +231,7 @@ export function OfertasEditor({
           type="button"
           onClick={() => abrir()}
           disabled={lleno}
-          className="inline-flex cursor-pointer items-center gap-gap-xs self-start rounded-full border border-ink/10 bg-white px-gap-md py-2 font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-600 disabled:pointer-events-none disabled:opacity-50"
+          className="inline-flex h-11 cursor-pointer items-center gap-gap-xs self-start rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-600 disabled:pointer-events-none disabled:opacity-50"
         >
           <Plus size={16} strokeWidth={1.8} />
           {lleno ? "Tope alcanzado" : "Nueva oferta"}
@@ -250,7 +278,7 @@ function Fila({
 
   const estado =
     oferta.termina <= ahora
-      ? { texto: "Terminada", clase: "text-ink-soft/60" }
+      ? { texto: "Terminada", clase: "text-ink-soft/75" }
       : oferta.inicia > ahora
         ? { texto: "Programada", clase: "text-amber-700" }
         : { texto: "En curso", clase: "text-verde-600" };
@@ -271,7 +299,7 @@ function Fila({
             </>
           )}
         </p>
-        <p className="text-meta text-ink-soft/60">
+        <p className="text-meta text-ink-soft/75">
           <span className={cn("font-semibold", estado.clase)}>{estado.texto}</span>
           {" · "}
           {fecha(oferta.inicia)} → {fecha(oferta.termina)}
@@ -289,7 +317,7 @@ function Fila({
           type="button"
           onClick={onQuitar}
           aria-label={`Quitar la oferta ${oferta.titulo}`}
-          className="-mr-2 grid size-11 cursor-pointer place-items-center rounded-full text-ink-soft/60 transition-colors duration-500 ease-outquint hover:bg-destructive/10 hover:text-destructive"
+          className="-mr-2 grid size-11 cursor-pointer place-items-center rounded-full text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-destructive/10 hover:text-destructive"
         >
           <Trash2 size={16} strokeWidth={1.8} />
         </button>
@@ -304,6 +332,8 @@ function Formulario({
   objetivos,
   error,
   ahora,
+  etiquetaGuardar,
+  guardando,
   onGuardar,
   onCancelar,
 }: {
@@ -311,6 +341,8 @@ function Formulario({
   setBorrador: (b: Borrador) => void;
   objetivos: UserPlaceMenuItem[];
   error: string | null;
+  etiquetaGuardar: string;
+  guardando: boolean;
   /** Para el `min` de las dos fechas. Ver `guardar`, que es quien de verdad
       comprueba: el atributo solo desactiva lo imposible en el calendario. */
   ahora: number;
@@ -321,7 +353,9 @@ function Formulario({
     setBorrador({ ...borrador, [clave]: valor });
 
   return (
-    <div className="flex flex-col gap-gap-xs rounded-xl border border-verde-300/60 bg-verde-50/40 p-gap-sm">
+    /* `border-verde-200` y no `border-verde-300/60`: la variante con opacidad
+       no tiene pareja oscura y el borde quedaba claro en modo oscuro. */
+    <div className="flex flex-col gap-gap-xs rounded-xl border border-verde-200 bg-verde-50/40 p-gap-sm">
       <div className="grid grid-cols-1 gap-gap-sm lg:grid-cols-2">
         <div className="flex flex-col gap-gap-xs">
           <Label htmlFor="ofProducto">Producto del catálogo</Label>
@@ -347,6 +381,7 @@ function Formulario({
             id="ofTitulo"
             className={INPUT}
             value={borrador.titulo}
+            maxLength={OFERTA_MAX.titulo}
             onChange={(e) => campo("titulo", e.target.value)}
             placeholder="Ej: 20% en el café de la casa"
           />
@@ -359,6 +394,7 @@ function Formulario({
           id="ofDesc"
           className={INPUT}
           value={borrador.descripcion}
+          maxLength={OFERTA_MAX.descripcion}
           onChange={(e) => campo("descripcion", e.target.value)}
           placeholder="Ej: solo por la mañana, hasta agotar el tostado del día"
         />
@@ -388,6 +424,7 @@ function Formulario({
             id="ofValor"
             className={INPUT}
             inputMode="decimal"
+            maxLength={OFERTA_MAX.precio}
             value={borrador.valor}
             onChange={(e) => campo("valor", e.target.value)}
             placeholder={borrador.modo === "pct" ? "20" : "120"}
@@ -431,9 +468,11 @@ function Formulario({
         <button
           type="button"
           onClick={onGuardar}
-          className="cursor-pointer rounded-full bg-verde-400 px-gap-md py-2 font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-500 ease-outquint hover:bg-verde-300"
+          disabled={guardando}
+          className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-md font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-500 ease-outquint hover:bg-verde-300 disabled:pointer-events-none disabled:opacity-60"
         >
-          Añadir a la lista
+          {guardando && <Loader2 size={15} strokeWidth={1.8} className="animate-spin" />}
+          {guardando ? "Guardando…" : etiquetaGuardar}
         </button>
         <button
           type="button"

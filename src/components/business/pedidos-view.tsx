@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CalendarClock,
   Check,
@@ -131,7 +131,7 @@ const FMT_PROGRAMADO = new Intl.DateTimeFormat("es-CU", {
 /* ── estilos compartidos ────────────────────────────────────────────────── */
 
 const BTN_GHOST =
-  "inline-flex h-9 cursor-pointer items-center gap-[5px] rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-300 ease-outquint hover:border-verde-300 hover:text-verde-700 disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex h-11 cursor-pointer items-center gap-[5px] rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-300 ease-outquint hover:border-verde-300 hover:text-verde-700 disabled:pointer-events-none disabled:opacity-40";
 
 const ESTADO_BADGE: Record<EstadoPedido, string> = {
   nuevo:
@@ -224,7 +224,7 @@ function TarjetaPedido({
                 .filter((m) => MOTIVOS_HORA.has(m))
                 .map((m) => MOTIVO_TEXTO[m] ?? m)
                 .join(", ")}`}
-              className="ml-auto inline-flex items-center gap-[3px] rounded-full border border-orange-200 bg-orange-50 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold text-orange-700"
+              className="ml-auto inline-flex items-center gap-[3px] rounded-full border border-orange-200 bg-orange-50 px-[8px] py-[2px] font-lv-display text-meta font-semibold text-orange-700"
             >
               <TriangleAlert size={9} strokeWidth={2} />
               Revisar
@@ -262,7 +262,7 @@ function TarjetaPedido({
               {FMT_CORTO.format(new Date(pedido.createdAt))}
             </time>
             {pedido.codigo && (
-              <span className="font-lv-display text-meta font-semibold tracking-wide text-ink-soft/60">
+              <span className="font-lv-display text-meta font-semibold tracking-wide text-ink-soft/75">
                 #{pedido.codigo}
               </span>
             )}
@@ -275,20 +275,22 @@ function TarjetaPedido({
           </div>
           <div className="flex flex-wrap items-center gap-gap-xs">
             {pedido.fueraDeHorario && !esProgramado && (
-              <span className="inline-flex items-center gap-[3px] rounded-full border border-amber-200 bg-amber-50 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold text-amber-700">
+              <span className="inline-flex items-center gap-[3px] rounded-full border border-amber-200 bg-amber-50 px-[8px] py-[2px] font-lv-display text-meta font-semibold text-amber-700">
                 <Clock size={9} strokeWidth={2} />
                 Fuera de horario
               </span>
             )}
             {esPendiente && pedido.tarjeta?.premio && (
-              <span className="inline-flex items-center gap-[3px] rounded-full border border-verde-300 bg-verde-50 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold text-verde-700">
+              <span className="inline-flex items-center gap-[3px] rounded-full border border-verde-300 bg-verde-50 px-[8px] py-[2px] font-lv-display text-meta font-semibold text-verde-700">
                 <Gift size={9} strokeWidth={2} />
                 Tiene premio: {pedido.tarjeta.premio}
               </span>
             )}
             <span
               className={cn(
-                "inline-flex items-center rounded-full border px-[10px] py-[3px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em]",
+                /* 12 px y sin mayúsculas espaciadas: a 10 px no se leían en el
+                   móvil (`readable-font-size` de ui-ux-pro-max). */
+                "inline-flex items-center rounded-full border px-[10px] py-[3px] font-lv-display text-meta font-semibold",
                 ESTADO_BADGE[pedido.estado],
               )}
             >
@@ -305,12 +307,12 @@ function TarjetaPedido({
               className="flex flex-wrap items-baseline justify-between gap-x-gap-sm"
             >
               <span className="min-w-0 text-small text-ink">
-                <span className="font-semibold tabular-nums text-ink-soft/60">
+                <span className="font-semibold tabular-nums text-ink-soft/75">
                   {linea.qty}×
                 </span>{" "}
                 {linea.name}
               </span>
-              <span className="shrink-0 tabular-nums text-meta text-ink-soft/60">
+              <span className="shrink-0 tabular-nums text-meta text-ink-soft/75">
                 {formatMenuPrice(linea.price, linea.currency) || "—"}
               </span>
               {/* El precio cambió entre que el cliente vio la carta y pidió: se
@@ -350,7 +352,7 @@ function TarjetaPedido({
                 : "Total a convenir"}
             </span>
             {pedido.costoEnvio != null && pedido.modoEntrega === "domicilio" && (
-              <span className="text-meta tabular-nums text-ink-soft/60">
+              <span className="text-meta tabular-nums text-ink-soft/75">
                 Envío:{" "}
                 {pedido.costoEnvio === 0
                   ? "gratis"
@@ -358,7 +360,7 @@ function TarjetaPedido({
               </span>
             )}
             {pedido.tasaUsada ? (
-              <span className="text-meta tabular-nums text-ink-soft/60">
+              <span className="text-meta tabular-nums text-ink-soft/75">
                 Tasa: {new Intl.NumberFormat("en-US").format(pedido.tasaUsada)} CUP/USD
               </span>
             ) : null}
@@ -393,7 +395,7 @@ function TarjetaPedido({
                 type="button"
                 onClick={() => onCambiar(pedido.id, "completado")}
                 disabled={actualizando}
-                className="inline-flex h-9 cursor-pointer items-center gap-[5px] rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-300 ease-outquint hover:bg-verde-300 disabled:pointer-events-none disabled:opacity-40"
+                className="inline-flex h-11 cursor-pointer items-center gap-[5px] rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-300 ease-outquint hover:bg-verde-300 disabled:pointer-events-none disabled:opacity-40"
               >
                 {actualizando ? (
                   <Loader2 size={13} strokeWidth={1.8} className="animate-spin" />
@@ -446,40 +448,105 @@ export function PedidosView({
   const [puede, setPuede] = useState(!bloqueo);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hayMas, setHayMas] = useState(false);
+  /* La lista tal como está en pantalla, para el refresco de fondo. */
+  const pedidosRef = useRef(pedidos);
+  pedidosRef.current = pedidos;
+  const [cargandoMas, setCargandoMas] = useState(false);
   const [actualizando, setActualizando] = useState<string | null>(null);
   const [tab, setTab] = useState<"todos" | "programados">("todos");
   const [busqueda, setBusqueda] = useState("");
 
-  const cargar = useCallback(async () => {
-    setCargando(true);
-    setError(null);
+  /**
+   * Carga la primera página. `silencioso` es el refresco de fondo: no pinta el
+   * esqueleto ni borra un error a medias, conserva las páginas anteriores que
+   * el dueño ya abrió y avisa si entró algún pedido nuevo.
+   */
+  const cargar = useCallback(async (silencioso = false) => {
+    if (!silencioso) {
+      setCargando(true);
+      setError(null);
+    }
     try {
       const res = await fetch(`/api/pedidos?placeId=${encodeURIComponent(placeId)}`);
-      if (!res.ok) { setError("No se pudo cargar el historial."); return; }
+      if (!res.ok) {
+        if (!silencioso) setError("No se pudo cargar el historial.");
+        return;
+      }
       const data = (await res.json()) as {
         pedidos?: Pedido[];
         puede?: boolean;
+        hayMas?: boolean;
         fidelidad?: { activa: boolean; nombre?: string; negocioNombre?: string; slug?: string };
       };
-      setPedidos(data.pedidos ?? []);
+      const pagina = data.pedidos ?? [];
+      if (!silencioso) {
+        setPedidos(pagina);
+      } else {
+        /* Se lee de la ref y no dentro de `setPedidos(prev => …)`: el aviso es
+           un efecto, y React ejecuta dos veces esa función en desarrollo. */
+        const prev = pedidosRef.current;
+        const conocidos = new Set(prev.map((p) => p.id));
+        const nuevos = pagina.filter((p) => !conocidos.has(p.id)).length;
+        /* La página fresca manda; detrás, lo más antiguo que ya estaba
+           cargado y que esta página no cubre. */
+        const ultima = pagina.at(-1)?.createdAt;
+        const antiguos = ultima ? prev.filter((p) => p.createdAt < ultima) : [];
+        setPedidos([...pagina, ...antiguos]);
+        if (nuevos > 0 && prev.length > 0) {
+          toast.success(nuevos === 1 ? "Ha entrado un pedido nuevo" : `Han entrado ${nuevos} pedidos nuevos`);
+        }
+      }
+      if (!silencioso) setHayMas(data.hayMas ?? false);
       setPuede(data.puede ?? false);
       setFidelidad(data.fidelidad ?? { activa: false });
     } catch {
-      setError("No se pudo cargar el historial. Revisa la conexión.");
+      if (!silencioso) setError("No se pudo cargar el historial. Revisa la conexión.");
     } finally {
-      setCargando(false);
+      if (!silencioso) setCargando(false);
     }
   }, [placeId]);
 
+  /* Los anteriores al último que hay en pantalla. Antes el historial se
+     cortaba en 100 sin forma de ver más. */
+  const cargarMas = useCallback(async () => {
+    const ultima = pedidos.at(-1)?.createdAt;
+    if (!ultima || cargandoMas) return;
+    setCargandoMas(true);
+    try {
+      const res = await fetch(
+        `/api/pedidos?placeId=${encodeURIComponent(placeId)}&antes=${encodeURIComponent(ultima)}`,
+      );
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { pedidos?: Pedido[]; hayMas?: boolean };
+      setPedidos((prev) => {
+        const conocidos = new Set(prev.map((p) => p.id));
+        return [...prev, ...(data.pedidos ?? []).filter((p) => !conocidos.has(p.id))];
+      });
+      setHayMas(data.hayMas ?? false);
+    } catch {
+      toast.error("No se pudieron cargar los pedidos anteriores. Revisa la conexión.");
+    } finally {
+      setCargandoMas(false);
+    }
+  }, [pedidos, placeId, cargandoMas]);
+
   useEffect(() => { void cargar(); }, [cargar]);
 
-  /* Al volver de WhatsApp (o de cualquier tab), refrescar. */
+  /* Al volver de WhatsApp (o de cualquier pestaña) y cada minuto con el panel
+     a la vista: en la tienda el panel se queda abierto y un pedido nuevo no se
+     veía hasta tocar algo. En silencio, para no hacer parpadear la lista. Un
+     minuto de sondeo son unos pocos KB: cabe en cualquier plan de datos. */
   useEffect(() => {
     const refresh = () => {
-      if (document.visibilityState === "visible") void cargar();
+      if (document.visibilityState === "visible") void cargar(true);
     };
     document.addEventListener("visibilitychange", refresh);
-    return () => document.removeEventListener("visibilitychange", refresh);
+    const intervalo = setInterval(refresh, 60_000);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      clearInterval(intervalo);
+    };
   }, [cargar]);
 
   /**
@@ -671,7 +738,7 @@ export function PedidosView({
           <button
             type="button"
             onClick={onVerPlanes}
-            className="mt-gap-md inline-flex h-10 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-md font-lv-display text-meta font-semibold text-verde-950 shadow-primary-halo transition-colors duration-300 ease-outquint hover:bg-verde-300"
+            className="mt-gap-md inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-md font-lv-display text-meta font-semibold text-verde-950 shadow-primary-halo transition-colors duration-300 ease-outquint hover:bg-verde-300"
           >
             Ver planes
             <ChevronRight size={14} strokeWidth={2} />
@@ -689,7 +756,7 @@ export function PedidosView({
                 type="button"
                 onClick={() => setTab(t)}
                 className={cn(
-                  "h-9 rounded-full border px-gap-sm font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint",
+                  "h-11 rounded-full border px-gap-sm font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint",
                   tab === t
                     ? "border-verde-400 bg-verde-400 text-verde-950"
                     : "border-ink/10 bg-white text-ink hover:border-verde-300",
@@ -714,7 +781,7 @@ export function PedidosView({
             onChange={(e) =>
               setBusqueda(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
             }
-            className="h-9 w-[180px] rounded-full border border-ink/10 bg-white pl-8 pr-gap-sm font-lv-display text-meta text-ink outline-none placeholder:text-ink-soft/40 focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20"
+            className="h-11 w-[180px] rounded-full border border-ink/10 bg-white pl-8 pr-gap-sm font-lv-display text-meta text-ink outline-none placeholder:text-ink-soft/75 focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20"
           />
         </div>
 
@@ -761,7 +828,7 @@ export function PedidosView({
                   : "Sin pedidos registrados"}
           </p>
           {!busqueda && tab === "todos" && puede && (
-            <p className="mt-[6px] text-meta text-ink-soft/60">
+            <p className="mt-[6px] text-meta text-ink-soft/75">
               Cuando un cliente toque «Realizar pedido» en tu carta, aparece aquí.
             </p>
           )}
@@ -779,6 +846,21 @@ export function PedidosView({
             />
           ))}
         </ul>
+      )}
+
+      {/* El historial va por páginas de 100. Botón y no scroll infinito: con
+          datos móviles caros, cargar más tiene que ser una decisión, y con
+          estado de carga mientras llega (`Submit Feedback`, ui-ux-pro-max). */}
+      {hayMas && !cargando && (
+        <button
+          type="button"
+          onClick={() => void cargarMas()}
+          disabled={cargandoMas}
+          className="mx-auto mt-gap-md inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-lg font-lv-display text-meta font-semibold text-ink transition-colors duration-300 ease-outquint hover:border-verde-300 hover:text-verde-700 disabled:pointer-events-none disabled:opacity-60"
+        >
+          {cargandoMas && <Loader2 size={15} strokeWidth={1.8} className="animate-spin" aria-hidden />}
+          {cargandoMas ? "Cargando…" : "Ver pedidos anteriores"}
+        </button>
       )}
     </div>
   );

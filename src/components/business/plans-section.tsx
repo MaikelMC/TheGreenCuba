@@ -21,6 +21,7 @@ import {
   PACKS_ORDER,
   nombreDe,
   textoCup,
+  type Catalogo,
   type ClaveModulo,
   type Funcion,
   type Pack,
@@ -257,7 +258,7 @@ export function PlansSection({
 
       {/* De dónde sale el CUP de cada tarjeta. Va antes de los precios, no en
           letra pequeña al final: es el número que se paga por transferencia. */}
-      <TasaCambioNota catalogo={cat} className="mb-gap-md" />
+      <TasaCambioNota catalogo={cat} variante="panel" className="mb-gap-md" />
 
       {puedeElegirPlan && (
         <p className="mb-gap-md rounded-2xl border border-verde-200 bg-verde-50/60 px-gap-md py-gap-sm text-small text-verde-900">
@@ -410,67 +411,79 @@ export function PlansSection({
       </Bloque>
 
       {/* Diálogo de solicitud de pack a medida. */}
+      {/* Altura acotada con scroll interno y el pie fijo: con once opciones en
+          una columna el diálogo se salía de la pantalla del móvil y el botón
+          de enviar quedaba fuera de alcance. */}
       <Dialog open={dialogPack} onOpenChange={(o) => { if (!solicitandoPack) setDialogPack(o); }}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="flex max-h-[calc(100dvh-32px)] flex-col">
+          <DialogHeader className="shrink-0 pr-gap-lg">
             <DialogTitle>¿Qué servicios necesitas?</DialogTitle>
             <DialogDescription>
               Marca los que te interesan y el equipo te manda un precio en menos de 24 horas.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-gap-sm">
-            <p className="font-lv-display text-meta font-semibold text-ink-soft/75">Módulos</p>
-            <div className="grid grid-cols-1 gap-gap-xs sm:grid-cols-2">
-              {(Object.keys(MODULOS) as (keyof typeof MODULOS)[]).map((clave) => (
-                <label key={clave} className="flex cursor-pointer items-center gap-gap-xs text-small text-ink">
-                  <input
-                    type="checkbox"
-                    checked={serviciosPack.includes(clave)}
-                    onChange={(e) =>
+          <div className="-mx-gap-lg min-h-0 flex-1 overflow-y-auto overscroll-contain px-gap-lg">
+            <div className="flex flex-col gap-gap-md pb-gap-2xs">
+              {/* Packs primero: cubren más con una sola marca. */}
+              <GrupoOpciones titulo="Packs completos">
+                {PACKS_ORDER.map((clave) => (
+                  <OpcionPack
+                    key={clave}
+                    nombre={nombreDe(clave, cat)}
+                    lema={cat.packs[clave].lema}
+                    usd={cat.packs[clave].usd}
+                    marcada={serviciosPack.includes(clave)}
+                    onCambiar={(marcada) =>
                       setServiciosPack((prev) =>
-                        e.target.checked ? [...prev, clave] : prev.filter((s) => s !== clave),
+                        marcada ? [...prev, clave] : prev.filter((s) => s !== clave),
                       )
                     }
-                    className="size-4 shrink-0 accent-verde-500"
                   />
-                  {cat.modulos[clave].nombre}
-                </label>
-              ))}
-            </div>
+                ))}
+              </GrupoOpciones>
 
-            <p className="font-lv-display text-meta font-semibold text-ink-soft/75">Packs</p>
-            <div className="grid grid-cols-1 gap-gap-xs sm:grid-cols-2">
-              {PACKS_ORDER.map((clave) => (
-                <label key={clave} className="flex cursor-pointer items-center gap-gap-xs text-small text-ink">
-                  <input
-                    type="checkbox"
-                    checked={serviciosPack.includes(clave)}
-                    onChange={(e) =>
+              <GrupoOpciones titulo="Módulos sueltos">
+                {(Object.keys(MODULOS) as (keyof typeof MODULOS)[]).map((clave) => (
+                  <OpcionPack
+                    key={clave}
+                    nombre={cat.modulos[clave].nombre}
+                    lema={cat.modulos[clave].lema}
+                    usd={cat.modulos[clave].usd}
+                    marcada={serviciosPack.includes(clave)}
+                    onCambiar={(marcada) =>
                       setServiciosPack((prev) =>
-                        e.target.checked ? [...prev, clave] : prev.filter((s) => s !== clave),
+                        marcada ? [...prev, clave] : prev.filter((s) => s !== clave),
                       )
                     }
-                    className="size-4 shrink-0 accent-verde-500"
                   />
-                  {nombreDe(clave, cat)}
-                </label>
-              ))}
+                ))}
+              </GrupoOpciones>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={solicitarPack}
-            disabled={solicitandoPack || serviciosPack.length === 0}
-            className="flex h-11 w-full items-center justify-center gap-gap-xs rounded-full bg-verde-400 font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {solicitandoPack ? (
-              <><Loader2 size={16} className="animate-spin" /> Enviando…</>
-            ) : (
-              "Enviar solicitud"
-            )}
-          </button>
+          <div className="shrink-0 border-t border-ink/5 pt-gap-sm">
+            {/* Lo que suman por separado: es la referencia contra la que se lee
+                el precio a medida que mande el equipo. `aria-live` para que el
+                lector de pantalla anuncie el cambio al marcar. */}
+            <p aria-live="polite" className="mb-gap-xs text-center text-meta text-ink-soft/75">
+              {serviciosPack.length === 0
+                ? "Marca al menos un servicio para pedir el precio."
+                : `${serviciosPack.length} ${serviciosPack.length === 1 ? "elegido" : "elegidos"} · por separado suman ${formatoUsd(sumaUsd(serviciosPack, cat))} USD al mes`}
+            </p>
+            <button
+              type="button"
+              onClick={solicitarPack}
+              disabled={solicitandoPack || serviciosPack.length === 0}
+              className="flex h-12 w-full items-center justify-center gap-gap-xs rounded-full bg-verde-400 font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-300 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {solicitandoPack ? (
+                <><Loader2 size={16} className="animate-spin" /> Enviando…</>
+              ) : (
+                "Pedir precio a medida"
+              )}
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -930,5 +943,80 @@ function Precio({ usd, original }: { usd: number; original?: number }) {
         </span>
       )}
     </div>
+  );
+}
+
+/* ── Diálogo de pack a medida ─────────────────────────────────────────────── */
+
+/** Suma de lo marcado, cada pieza a su precio suelto. */
+function sumaUsd(claves: readonly string[], cat: Catalogo): number {
+  return claves.reduce((total, clave) => {
+    if (clave in cat.modulos) return total + cat.modulos[clave as ClaveModulo].usd;
+    if (clave in cat.packs) return total + cat.packs[clave as Pack].usd;
+    return total;
+  }, 0);
+}
+
+/** «1,5» y «10»: coma decimal y sin ceros sobrantes, como en las tarjetas. */
+function formatoUsd(usd: number): string {
+  return Number.isInteger(usd) ? String(usd) : usd.toFixed(1).replace(".", ",");
+}
+
+/** Un grupo de opciones con su rótulo: `fieldset` para que el lector de
+    pantalla anuncie «Packs completos, grupo» al entrar. */
+function GrupoOpciones({ titulo, children }: { titulo: string; children: ReactNode }) {
+  return (
+    <fieldset className="flex flex-col gap-gap-xs">
+      <legend className="mb-gap-xs font-lv-display text-small font-semibold text-ink">
+        {titulo}
+      </legend>
+      <div className="grid grid-cols-1 gap-gap-xs sm:grid-cols-2">{children}</div>
+    </fieldset>
+  );
+}
+
+/**
+ * Una opción como tarjeta tocable entera, no una casilla de 16 px con su
+ * nombre al lado: en el móvil el objetivo se quedaba muy por debajo de los
+ * 44 px. El estado marcado va por clases según `marcada` (y no con `has-[]`)
+ * porque `bg-verde-50` y `border-verde-300` ya tienen su versión oscura en
+ * `globals.css`; las variantes `has-[:checked]` compilan a otra clase.
+ */
+function OpcionPack({
+  nombre,
+  lema,
+  usd,
+  marcada,
+  onCambiar,
+}: {
+  nombre: string;
+  lema: string;
+  usd: number;
+  marcada: boolean;
+  onCambiar: (marcada: boolean) => void;
+}) {
+  return (
+    <label
+      className={cn(
+        "flex min-h-12 cursor-pointer items-start gap-gap-sm rounded-xl border p-gap-sm transition-colors duration-200 ease-outquint focus-within:ring-2 focus-within:ring-verde-400/40",
+        marcada ? "border-verde-300 bg-verde-50" : "border-ink/10 bg-white hover:border-ink/20",
+      )}
+    >
+      <input
+        type="checkbox"
+        checked={marcada}
+        onChange={(e) => onCambiar(e.target.checked)}
+        className="mt-[2px] size-5 shrink-0 accent-verde-500"
+      />
+      <span className="min-w-0 flex-1">
+        <span className="flex items-baseline justify-between gap-gap-xs">
+          <span className="font-lv-display text-small font-semibold text-ink">{nombre}</span>
+          <span className="shrink-0 text-meta tabular-nums text-ink-soft/75">
+            {formatoUsd(usd)} USD
+          </span>
+        </span>
+        <span className="mt-[2px] block text-meta leading-snug text-ink-soft/75">{lema}</span>
+      </span>
+    </label>
   );
 }

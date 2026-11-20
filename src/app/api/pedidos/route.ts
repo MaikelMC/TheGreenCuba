@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 import { canManagePlace } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
@@ -49,6 +49,8 @@ const LIMITE = 20;
 const VENTANA_MS = 60_000;
 const MAX_LINEAS = 50;
 const MAX_DIRECCION = 200;
+/** Pedidos por página del historial del panel. */
+const PAGINA = 100;
 
 const ESTADOS = ["nuevo", "completado", "cancelado"] as const;
 type EstadoPedido = (typeof ESTADOS)[number];
@@ -374,7 +376,17 @@ export async function POST(req: NextRequest) {
         .values({ id: idCliente, codigo: codigoAlt, ...valoresBase })
         .onConflictDoNothing({ target: pedidos.id });
     }
-    /* Cualquier otro error: el pedido salió por WhatsApp igual; no romper. */
+    /* Cualquier otro error: el pedido salió por WhatsApp igual; no romper.
+       Pero sí dejar rastro: antes se tragaba sin más y un pedido que no
+       llegaba al panel no se podía diagnosticar. Sin datos del cliente en el
+       log, solo el negocio, el id y el error. */
+    else {
+      console.error("[pedidos] no se pudo guardar el pedido", {
+        negocioId,
+        pedidoId: idCliente,
+        error: msg,
+      });
+    }
   }
 
   return NextResponse.json({ ok: true });
@@ -394,9 +406,20 @@ export async function GET(req: NextRequest) {
 
   /* El fixture no tiene pedidos guardados; su plan sí se puede resolver. */
   const puede = await tieneFuncion(placeId, "whatsapp_pedido");
-  if (placeId === DEV_PLACE_ID) return NextResponse.json({ pedidos: [], puede });
+  if (placeId === DEV_PLACE_ID) return NextResponse.json({ pedidos: [], puede, hayMas: false });
 
-  const filas = await db
+  /* Paginación por fecha: `antes` es la `createdAt` del último pedido que ya
+     tiene el panel. Antes el historial se cortaba en los 100 últimos sin forma
+     de ver los anteriores. Cursor y no `offset`: un pedido nuevo entre dos
+     páginas no desplaza ni duplica nada. */
+  const antesTexto = req.nextUrl.searchParams.get("antes");
+  const antes = antesTexto ? new Date(antesTexto) : null;
+  const condicion =
+    antes && Number.isFinite(antes.getTime())
+      ? and(eq(pedidos.placeId, placeId), lt(pedidos.createdAt, antes))
+      : eq(pedidos.placeId, placeId);
+
+  const filasMas = await db
     .select({
       id: pedidos.id,
       codigo: pedidos.codigo,
@@ -417,9 +440,13 @@ export async function GET(req: NextRequest) {
       createdAt: pedidos.createdAt,
     })
     .from(pedidos)
-    .where(eq(pedidos.placeId, placeId))
+    .where(condicion)
     .orderBy(desc(pedidos.createdAt))
-    .limit(100);
+    /* Uno de más para saber si hay otra página sin una consulta aparte. */
+    .limit(PAGINA + 1);
+
+  const hayMas = filasMas.length > PAGINA;
+  const filas = filasMas.slice(0, PAGINA);
 
   /* La tarjeta de cada pedido, para la etiqueta «Tiene premio» y el «4 de 5
      sellos» de la ficha. Se resuelve en dos consultas, no una por pedido. */
@@ -450,6 +477,7 @@ export async function GET(req: NextRequest) {
         : null,
     })),
     puede,
+    hayMas,
     fidelidad:
       activa && config && negocio
         ? {

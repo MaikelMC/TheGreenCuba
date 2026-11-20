@@ -1,7 +1,4 @@
-"use client";
-
-import { motion } from "motion/react";
-import { Clock, Sparkles, Tag } from "lucide-react";
+import { Clock, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface OfferBannerProps {
@@ -19,7 +16,7 @@ interface OfferBannerProps {
    * se pueda leer como cifra, o una rebaja por porcentaje sobre «3–5 USD»—: en
    * ese caso la tarjeta se sostiene con el título y la fecha.
    */
-  precio?: { de: string; por: string };
+  precio?: { de: string; por: string; ahorroPct?: number };
   visible?: boolean;
   className?: string;
 }
@@ -27,12 +24,15 @@ interface OfferBannerProps {
 /**
  * La oferta flash de la ficha.
  *
- * Es la primera cosa que debe verse al entrar al negocio, así que la tarjeta se
- * separa del resto sin salirse del sistema: fondo verde del tema, un filo de
- * color a la izquierda, dos halos suaves y un brillo que cruza una sola vez al
- * aparecer. Los adornos son `aria-hidden` y translúcidos, de modo que funcionan
- * igual sobre el fondo claro y el oscuro —los tokens `verde-50`, `verde-200` y
- * `white/60` ya tienen su pareja oscura en `globals.css`—.
+ * Mismo acabado que el 2×1 de los precios de la portada (`landing/pricing.tsx`):
+ * caja cálida en degradado, dos brillos muy difuminados, el filete de arriba
+ * como lazo y la chapita en degradado. Así una oferta se reconoce igual en toda
+ * La Verde, y se separa del verde del resto de la ficha, que es justo lo que
+ * tiene que hacer una oferta. Las clases son las mismas que las del 2×1 a
+ * propósito: sus parejas oscuras ya están en `globals.css`.
+ *
+ * Componente de servidor. La entrada es un fundido CSS de 250 ms que llega con
+ * el HTML y se apaga con movimiento reducido; los brillos son estáticos.
  */
 export function OfferBanner({
   label,
@@ -46,85 +46,70 @@ export function OfferBanner({
   if (!visible) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.97, y: 10 }}
-      whileInView={{ opacity: 1, scale: 1, y: 0 }}
-      viewport={{ once: true, margin: "-32px" }}
-      transition={{ type: "spring", stiffness: 320, damping: 28 }}
+    <div
       className={cn(
-        "relative mx-gap-md mb-gap-md overflow-hidden rounded-2xl border border-verde-200 bg-verde-50 p-gap-md shadow-soft",
+        "relative mx-gap-md mb-gap-md overflow-hidden rounded-2xl border border-orange-200/80 bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 p-gap-md shadow-soft ring-1 ring-inset ring-white/60 animate-[fade-up_250ms_ease-out] motion-reduce:animate-none",
         className,
       )}
     >
-      {/* Adornos. Van primero y detrás del contenido. */}
-      <span
+      {/* Capa recortada aparte: un `blur` dentro de un contenedor redondeado
+          con `overflow-hidden` se escapa del radio en Chrome y Safari. */}
+      <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-3 left-0 w-[5px] rounded-r-full bg-verde-400"
-      />
-      <span
-        aria-hidden
-        className="pointer-events-none absolute -right-8 -top-10 size-28 rounded-full bg-verde-400/20 blur-2xl"
-      />
-      <span
-        aria-hidden
-        className="pointer-events-none absolute -bottom-10 -left-6 size-24 rounded-full bg-verde-300/20 blur-2xl"
-      />
-      <Sparkles
-        aria-hidden
-        size={44}
-        strokeWidth={1.2}
-        className="pointer-events-none absolute -right-1 -top-1 text-verde-600 opacity-20"
-      />
-      {/* El brillo cruza una vez al entrar; no se repite ni responde a nada. */}
-      <motion.span
-        aria-hidden
-        initial={{ x: "-130%" }}
-        whileInView={{ x: "160%" }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.9, delay: 0.2, ease: "easeInOut" }}
-        className="pointer-events-none absolute inset-y-0 w-1/3 -skew-x-12 bg-white/30 blur-md"
-      />
+        className="pointer-events-none absolute inset-0 isolate transform-gpu overflow-hidden rounded-[inherit]"
+      >
+        <span className="absolute -right-10 -top-12 size-32 rounded-full bg-orange-300/35 blur-2xl" />
+        <span className="absolute -bottom-14 -left-10 size-32 rounded-full bg-red-400/20 blur-2xl" />
+        <span className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-orange-400/60 to-transparent" />
+      </div>
 
       <div className="relative">
-        <div className="flex flex-wrap items-center justify-between gap-gap-xs">
-          <span className="inline-flex items-center gap-[6px] rounded-full bg-verde-400 px-[10px] py-[4px] font-lv-display text-[10px] font-bold uppercase tracking-[0.18em] text-verde-950 shadow-soft">
-            <Tag size={12} strokeWidth={2.2} />
-            {label}
-          </span>
-          <Sparkles
-            size={14}
-            strokeWidth={2}
-            className="text-verde-600 opacity-60"
-            aria-hidden
-          />
-        </div>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-700 to-red-600 px-2.5 py-1 font-lv-display text-[11px] font-bold uppercase tracking-[0.12em] text-white shadow-sm">
+          <Tag size={12} strokeWidth={2.4} aria-hidden />
+          {label}
+        </span>
 
-        <div className="mt-gap-sm break-words font-lv-display text-body font-bold leading-snug text-ink">
+        <p className="mt-gap-sm break-words font-lv-display text-body font-bold leading-snug text-orange-950 text-balance">
           {text}
-        </div>
+        </p>
 
         {description && (
-          <div className="mt-[6px] break-words text-meta text-ink-soft/75">
+          <p className="mt-[6px] break-words text-small text-orange-900/75 text-pretty">
             {description}
-          </div>
+          </p>
         )}
 
         {precio && (
-          <div className="mt-gap-sm flex flex-wrap items-baseline gap-x-gap-sm gap-y-1 rounded-xl border border-dashed border-verde-300/60 bg-white/60 px-gap-sm py-2">
-            <span className="font-lv-display text-meta text-ink-soft/60 line-through">
-              {precio.de}
-            </span>
-            <span className="font-lv-display text-[20px] font-bold leading-none text-verde-600">
-              {precio.por}
-            </span>
+          /* El precio va suelto sobre la caja, separado por una línea de corte
+             como la de un cupón: antes iba en un recuadro blanco dentro de la
+             tarjeta, que se leía como una tarjeta dentro de otra. El precio de
+             antes arriba y pequeño, el nuevo grande debajo, y el descuento a la
+             derecha cuando se puede calcular. */
+          <div className="mt-gap-md flex flex-wrap items-end justify-between gap-gap-sm border-t border-dashed border-orange-400/40 pt-gap-sm">
+            <p className="min-w-0">
+              <span className="block font-lv-display text-small tabular-nums text-orange-900/75">
+                <span className="sr-only">Antes </span>
+                <span className="line-through decoration-orange-700/60">{precio.de}</span>
+              </span>
+              <span className="mt-1 block break-words font-lv-display text-[28px] font-bold leading-none tracking-[-0.02em] tabular-nums text-orange-700">
+                <span className="sr-only">Ahora </span>
+                {precio.por}
+              </span>
+            </p>
+            {precio.ahorroPct ? (
+              <span className="inline-flex shrink-0 items-center rounded-full border border-orange-400/40 bg-white/60 px-2.5 py-1 font-lv-display text-small font-bold tabular-nums text-orange-700">
+                <span aria-hidden>−{precio.ahorroPct} %</span>
+                <span className="sr-only">Descuento del {precio.ahorroPct} %</span>
+              </span>
+            ) : null}
           </div>
         )}
 
-        <div className="mt-gap-sm flex items-center gap-[6px] border-t border-dashed border-verde-300/50 pt-gap-xs text-[11px] font-medium text-ink-soft/75">
-          <Clock size={12} strokeWidth={2} className="shrink-0" aria-hidden />
+        <p className="mt-gap-sm flex items-center gap-[6px] text-meta font-medium text-orange-900/75">
+          <Clock size={13} strokeWidth={2} className="shrink-0" aria-hidden />
           <span className="min-w-0">{expiry}</span>
-        </div>
+        </p>
       </div>
-    </motion.div>
+    </div>
   );
 }

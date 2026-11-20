@@ -16,6 +16,14 @@ const INTERVALO_FLUSH_MS = 60_000;
  * `NEXT_PUBLIC_PWA_ENABLED="false"`. El `id` fijo evita que el arranque sin red
  * y el evento `offline` —que llegan casi juntos— apilen dos copias iguales.
  */
+/** «1 pedido», «2 reservas», «1 pedido y 1 reserva». */
+function contar(pedidos: number, reservas: number): string {
+  const partes: string[] = [];
+  if (pedidos > 0) partes.push(`${pedidos} ${pedidos === 1 ? "pedido" : "pedidos"}`);
+  if (reservas > 0) partes.push(`${reservas} ${reservas === 1 ? "reserva" : "reservas"}`);
+  return partes.join(" y ");
+}
+
 function avisarSinRed(): void {
   if (pwaActiva()) return;
   toast("Sin conexión · Viendo datos guardados", { id: "lv-sin-conexion", duration: 5000 });
@@ -46,22 +54,24 @@ export function EstadoConexion() {
       const cola = await pendientes();
       const nPendientes = cola.length;
 
+      /* Cada cosa por su nombre: la cola guarda pedidos y reservas, y antes
+         todo se avisaba como «pedido». */
       if (mostrarToast && nPendientes > 0) {
-        toast(
-          nPendientes === 1
-            ? "Enviando 1 pedido pendiente…"
-            : `Enviando ${nPendientes} pedidos pendientes…`,
-          { duration: 3000 },
-        );
+        const reservas = cola.filter((a) => a.tipo === "reserva").length;
+        toast(`Enviando ${contar(nPendientes - reservas, reservas)} pendiente${nPendientes === 1 ? "" : "s"}…`, {
+          duration: 3000,
+        });
       }
 
       const resultado = await procesarCola();
 
       if (resultado.rechazados > 0) {
+        const reservas = resultado.rechazadosReservas;
+        const pedidos = resultado.rechazados - reservas;
         toast.error(
           resultado.rechazados === 1
-            ? "1 pedido no pudo registrarse (sin cupo o negocio no disponible)."
-            : `${resultado.rechazados} pedidos no pudieron registrarse.`,
+            ? `${contar(pedidos, reservas)} no pudo registrarse (sin cupo o negocio no disponible). El mensaje de WhatsApp sí salió.`
+            : `${contar(pedidos, reservas)} no pudieron registrarse. Los mensajes de WhatsApp sí salieron.`,
           { duration: 8000 },
         );
       }

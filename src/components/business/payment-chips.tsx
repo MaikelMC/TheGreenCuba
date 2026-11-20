@@ -13,6 +13,12 @@ interface PaymentOption {
 
 interface PaymentChipsProps {
   options?: PaymentOption[];
+  /**
+   * Selección controlada. Si llega, manda sobre el estado interno: es lo que
+   * permite que el formulario vuelva a un estado guardado sin remontar el
+   * componente.
+   */
+  value?: string[];
   defaultSelected?: string[];
   onChange?: (selected: string[]) => void;
   className?: string;
@@ -32,11 +38,15 @@ const DEFAULT_OPTIONS: PaymentOption[] = [
 
 export function PaymentChips({
   options = DEFAULT_OPTIONS,
+  value,
   defaultSelected = ["MLC", "CUP"],
   onChange,
   className,
 }: PaymentChipsProps) {
-  const [selected, setSelected] = useState<Set<string>>(new Set(defaultSelected));
+  const [propia, setPropia] = useState<Set<string>>(
+    () => new Set(defaultSelected),
+  );
+  const selected = value ? new Set(value) : propia;
 
   /* El `onChange` va **fuera** del actualizador de estado, y no dentro como
      estaba. React ejecuta el actualizador durante el render —y dos veces en
@@ -49,10 +59,10 @@ export function PaymentChips({
       const next = new Set(selected);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      setSelected(next);
+      if (!value) setPropia(next);
       onChange?.(Array.from(next));
     },
-    [selected, onChange],
+    [selected, value, onChange],
   );
 
   return (
@@ -66,7 +76,7 @@ export function PaymentChips({
             onClick={() => toggle(opt.id)}
             aria-pressed={isActive}
             className={cn(
-              "inline-flex items-center gap-[6px] px-[14px] py-2 rounded-full border font-lv-display text-small font-medium cursor-pointer select-none transition duration-500 ease-outquint active:scale-[0.98]",
+              "inline-flex min-h-11 items-center gap-[6px] px-[14px] py-2 rounded-full border font-lv-display text-small font-medium cursor-pointer select-none transition duration-500 ease-outquint active:scale-[0.98]",
               isActive
                 ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
                 : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",

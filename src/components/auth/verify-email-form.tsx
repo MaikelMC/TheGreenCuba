@@ -2,11 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { motion } from "motion/react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 import { authErrorCode } from "@/lib/auth/error-messages";
-import { EASE } from "@/lib/motion";
 
 /** Los mismos que impone el servidor: `email-otp` deja 3 envíos cada 60 s. */
 const COOLDOWN_SECONDS = 60;
@@ -141,16 +139,9 @@ export function VerifyEmailForm({
   );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.9, ease: EASE }}
-      className="flex flex-col gap-gap-md"
-    >
-      <header className="flex flex-col gap-gap-xs">
-        <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-200 lg:text-verde-600">
-          Un paso más
-        </span>
+    /* Entrada en CSS, como en `forgot-password`: sin `motion` para un fundido. */
+    <div className="flex flex-col gap-gap-md animate-[fade-up_250ms_ease-out] motion-reduce:animate-none">
+      <header className="flex flex-col items-center gap-gap-xs text-center">
         <h1 className="font-lv-display text-[26px] font-bold leading-tight tracking-[-0.02em] text-white lg:text-ink">
           Mira tu correo
         </h1>
@@ -163,7 +154,7 @@ export function VerifyEmailForm({
 
       <form
         onSubmit={handleSubmit}
-        className="rounded-4xl border border-ink/5 bg-white shadow-soft p-gap-lg flex flex-col gap-gap-md"
+        className="rounded-2xl bg-white shadow-soft p-gap-lg flex flex-col gap-gap-md"
       >
         <label className="flex flex-col gap-gap-xs">
           <span className="font-lv-display text-meta font-semibold text-ink-soft/75">
@@ -181,15 +172,17 @@ export function VerifyEmailForm({
             required
             aria-label="Código de verificación"
             aria-invalid={error ? true : undefined}
-            className="h-14 w-full rounded-2xl border border-ink/10 bg-sand-warm text-center font-lv-display text-[24px] font-semibold tabular-nums text-ink outline-none transition-colors duration-500 ease-outquint placeholder:tracking-[0.3em] placeholder:text-ink-soft/30 focus:border-verde-400 focus:bg-white focus:ring-2 focus:ring-verde-400/20"
+            aria-describedby={error ? "codigo-error" : undefined}
+            className="h-14 w-full rounded-xl border border-ink/10 bg-sand-warm text-center font-lv-display text-[24px] font-semibold tabular-nums text-ink outline-none transition-colors duration-500 ease-outquint placeholder:tracking-[0.3em] placeholder:text-ink-soft/75 focus:border-verde-400 focus:bg-white focus:ring-2 focus:ring-verde-400/20"
             placeholder="······"
           />
         </label>
 
         {error && (
           <p
+            id="codigo-error"
             role="alert"
-            className="rounded-xl border border-destructive/20 bg-destructive/5 px-gap-sm py-gap-xs text-meta text-destructive"
+            className="rounded-xl border border-destructive/20 bg-destructive/5 px-gap-sm py-gap-xs text-meta text-destructive-ink"
           >
             {error}
           </p>
@@ -198,7 +191,10 @@ export function VerifyEmailForm({
         {/* El aviso del reenvío solo se pinta si no hay error: los dos ocupan el
             mismo sitio y el error es lo que hay que leer. */}
         {notice && !error && (
-          <p className="rounded-xl border border-verde-400/30 bg-verde-400/10 px-gap-sm py-gap-xs text-meta text-verde-800">
+          <p
+            role="status"
+            className="rounded-xl border border-verde-400/30 bg-verde-400/10 px-gap-sm py-gap-xs text-meta text-verde-800"
+          >
             {notice}
           </p>
         )}
@@ -221,7 +217,7 @@ export function VerifyEmailForm({
           type="button"
           onClick={() => void resend()}
           disabled={counting || loading}
-          className="self-center text-meta font-semibold text-verde-600 underline underline-offset-2 transition-colors duration-500 ease-outquint hover:text-verde-700 disabled:cursor-default disabled:no-underline disabled:opacity-60 cursor-pointer"
+          className="inline-flex min-h-[44px] cursor-pointer items-center self-center text-meta font-semibold text-verde-600 underline underline-offset-2 transition-colors duration-500 ease-outquint hover:text-verde-700 disabled:cursor-default disabled:no-underline disabled:opacity-60"
         >
           {counting ? `Reenviar en ${cooldown} s` : "Reenviar código"}
         </button>
@@ -236,6 +232,6 @@ export function VerifyEmailForm({
           Vuelve al acceso
         </Link>
       </p>
-    </motion.div>
+    </div>
   );
 }

@@ -51,6 +51,26 @@ const USUARIOS_POR_LOTE = 500;
 
 const TTL_SEGUNDOS = 24 * 60 * 60;
 
+/* Fallos temporales seguidos tras los que se da la suscripción por muerta. Un
+   dispositivo reinstalado, o un endpoint que el servicio rechaza siempre, deja
+   de sumar sin llegar nunca a un 404; sin este tope la fila se queda para
+   siempre. `lastSuccessAt` la resetea en cuanto un envío entra. */
+const LIMITE_FALLOS = 8;
+
+/* Opciones de cada envío.
+
+   Van en un objeto propio y no en el literal de la llamada a propósito: las
+   definiciones de `web-push` instaladas no declaran `timeout`, pero el runtime
+   sí lo lee y destruye el socket al vencer (3.6.7, `web-push-lib.js`). Pasando
+   una constante no salta el chequeo de propiedades sobrantes de los literales y
+   el campo llega igual. Sin ese corte, un servicio push que no responde deja la
+   función colgada hasta el límite de la plataforma. */
+const OPCIONES_ENVIO = {
+  TTL: TTL_SEGUNDOS,
+  urgency: "normal",
+  timeout: TIMEOUT_ENVIO_MS,
+} as const;
+
 let configurado: boolean | null = null;
 
 /**
@@ -137,7 +157,7 @@ export async function enviarPushAUsuarios(
           keys: { p256dh: fila.p256dh, auth: fila.auth },
         },
         cuerpo,
-        { TTL: TTL_SEGUNDOS, urgency: "normal" },
+        OPCIONES_ENVIO,
       );
 
       resumen.enviados += 1;
@@ -164,10 +184,20 @@ export async function enviarPushAUsuarios(
 
       if (status === 429 || (status !== undefined && status >= 500)) {
         try {
-          await db
+          /* El contador sirve además para podar: una suscripción que falla
+             ocho veces seguidas ya no va a entregar nada. Se lee el valor
+             nuevo en la misma escritura para no sumar una consulta extra. */
+          const [actualizada] = await db
             .update(pushSubscriptions)
             .set({ failureCount: sql`${pushSubscriptions.failureCount} + 1` })
-            .where(sql`${pushSubscriptions.id} = ${fila.id}`);
+            .where(sql`${pushSubscriptions.id} = ${fila.id}`)
+            .returning({ fallos: pushSubscriptions.failureCount });
+
+          if (actualizada && actualizada.fallos >= LIMITE_FALLOS) {
+            await db
+              .delete(pushSubscriptions)
+              .where(sql`${pushSubscriptions.id} = ${fila.id}`);
+          }
         } catch {
           // El contador es diagnóstico: no puede tumbar el resto del envío.
         }

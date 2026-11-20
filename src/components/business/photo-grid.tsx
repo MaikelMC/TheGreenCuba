@@ -223,6 +223,8 @@ export function PhotoGrid({ placeId, placeName, className }: PhotoGridProps) {
       <p className="text-meta text-ink-soft/75 mb-gap-md">
         Sube fotos de tu negocio. Se reducen a 1600 px y se convierten a WebP
         antes de salir de tu dispositivo. La primera será la foto de portada.
+        Las fotos se guardan al momento; el resto de la ficha, con «Guardar
+        cambios».
       </p>
 
       <input
@@ -259,12 +261,18 @@ export function PhotoGrid({ placeId, placeName, className }: PhotoGridProps) {
             {/* Borrar */}
             <button
               type="button"
-              onClick={() => void remove(image.id)}
+              onClick={() => {
+                /* Borrar no tiene vuelta atrás: se pregunta antes. */
+                if (window.confirm("¿Eliminar esta foto? No se puede deshacer.")) {
+                  void remove(image.id);
+                }
+              }}
               disabled={busy}
-              className="absolute top-[6px] right-[6px] size-7 rounded-full bg-ink/70 text-white grid place-items-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-500 ease-outquint z-10 cursor-pointer disabled:opacity-40"
+              /* Visible siempre en móvil y tableta: el hover no existe con el
+                 dedo. En escritorio sigue apareciendo al pasar el ratón. */
+              className="absolute top-[6px] right-[6px] size-11 rounded-full bg-ink/70 text-white grid place-items-center opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100 transition-opacity duration-500 ease-outquint z-10 cursor-pointer disabled:opacity-40"
               aria-label={`Eliminar ${image.alt ?? "foto"}`}
-            >
-              <X size={14} strokeWidth={1.8} />
+            >                <X size={16} strokeWidth={1.8} />
             </button>
             {/* Hacer portada (solo fotos que no lo son) */}
             {!image.isCover && (
@@ -272,11 +280,11 @@ export function PhotoGrid({ placeId, placeName, className }: PhotoGridProps) {
                 type="button"
                 onClick={() => void patch(image.id, { isCover: true })}
                 disabled={busy}
-                className="absolute top-[6px] left-[6px] size-7 rounded-full bg-ink/70 text-white grid place-items-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-500 ease-outquint z-10 cursor-pointer disabled:opacity-40"
+                className="absolute top-[6px] left-[6px] size-11 rounded-full bg-ink/70 text-white grid place-items-center opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100 transition-opacity duration-500 ease-outquint z-10 cursor-pointer disabled:opacity-40"
                 aria-label="Usar como portada"
                 title="Usar como portada"
               >
-                <Star size={13} strokeWidth={1.8} />
+                <Star size={16} strokeWidth={1.8} />
               </button>
             )}
             {/* Badges de portada y sección */}
@@ -302,8 +310,13 @@ export function PhotoGrid({ placeId, placeName, className }: PhotoGridProps) {
                   })
                 }
                 disabled={busy}
-                className="absolute bottom-[8px] right-[8px] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-500 ease-outquint z-10 bg-ink/70 text-white rounded-full px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] cursor-pointer disabled:opacity-40"
+                className="absolute bottom-[8px] right-[8px] inline-flex h-11 items-center rounded-full bg-ink/70 px-gap-sm font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em] text-white opacity-100 transition-opacity duration-500 ease-outquint z-10 cursor-pointer lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100 disabled:opacity-40"
                 title={image.seccion === "trabajos" ? "Mover al local" : "Mover a trabajos"}
+                aria-label={
+                  image.seccion === "trabajos"
+                    ? "Mover la foto al local"
+                    : "Mover la foto a trabajos"
+                }
               >
                 {image.seccion === "trabajos" ? "→ Local" : "→ Trabajos"}
               </button>
@@ -323,7 +336,7 @@ export function PhotoGrid({ placeId, placeName, className }: PhotoGridProps) {
             ) : (
               <Plus size={24} strokeWidth={1.8} />
             )}
-            <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em]">
+            <span className="font-lv-display text-[11px] font-semibold uppercase tracking-[0.14em]">
               {busy ? "Subiendo" : "Añadir"}
             </span>
           </button>
@@ -338,7 +351,7 @@ export function PhotoGrid({ placeId, placeName, className }: PhotoGridProps) {
       )}
 
       {error && (
-        <p role="alert" className="mt-gap-sm px-3 py-[7px] rounded-xl bg-destructive/10 border border-destructive/25 text-meta text-destructive font-medium">
+        <p role="alert" className="mt-gap-sm px-3 py-[7px] rounded-xl bg-destructive/10 border border-destructive/25 text-meta text-destructive-ink font-medium">
           {error}
         </p>
       )}

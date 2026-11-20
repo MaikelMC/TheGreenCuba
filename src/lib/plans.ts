@@ -292,16 +292,34 @@ export const MODULOS = {
     usd: 1.5,
     funciones: ["cliente_frecuente"],
   },
-  asistente_telegram: {
+  /* El agente en dos piezas. La de botones va primero: es la entrada barata y
+     la que nombra el candado de `telegram_menu` (moduloDe elige la más barata). */
+  telegram_botones: {
     nombre: "Agente de Telegram",
-    lema: "Tu menú, desde el móvil, hablando.",
+    lema: "Tu menú desde el móvil, con botones.",
     texto: [
-      "IA para realizar consultas sobre tu negocio",
-      "Editar tu Menú de forma instantánea",
-      "Actualizar elementos del estado en tu negocio",
+      "Consulta y edita tu menú de forma instantánea",
+      "Actualiza el estado de tu negocio",
+      "Todo con una interfaz de botones dentro del agente, sin escribir",
     ].join("\n"),
-    usd: 3,
-    /* El módulo sigue dando el bot entero: la actualización del menú y la IA. */
+    usd: 1,
+    funciones: ["telegram_menu"],
+  },
+  /* La clave se queda como `asistente_telegram` y no se renombra: las
+     suscripciones guardan la clave en `suscripciones.modulos`, y cambiarla
+     dejaría sin el módulo a quien ya lo pagó. */
+  asistente_telegram: {
+    nombre: "Agente de Telegram (IA)",
+    lema: "Escríbele como a una persona.",
+    texto: [
+      "Todo lo del agente con botones",
+      "Lee tus mensajes en lenguaje natural: «se acabó el pan», «sube el café a 150»",
+      "IA para realizar consultas sobre tu negocio",
+      /* El bot aún entiende cada mensaje por separado (ver «Sin historial» en
+         `asistente-server.ts`). Se anuncia, pero sin prometer lo que no hace. */
+      "Memoria de la conversación (próximamente)",
+    ].join("\n"),
+    usd: 2.5,
     funciones: ["telegram_menu", "asistente_ia"],
   },
 } as const satisfies Record<

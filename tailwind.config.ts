@@ -44,6 +44,11 @@ const config: Config = {
         destructive: {
           DEFAULT: "oklch(60% 0.20 25 / <alpha-value>)",
           foreground: "oklch(100% 0 0 / <alpha-value>)",
+          /* Texto de error sobre fondos claros. El rojo del acento se queda en
+             4.4:1 sobre blanco y 3.9:1 sobre `sand`, por debajo de AA a 12px;
+             esta variante oscura pasa de 7:1. En oscuro se sustituye por un
+             rojo claro desde `globals.css`, como el resto de la tinta. */
+          ink: "oklch(45% 0.17 25 / <alpha-value>)",
         },
         muted: {
           DEFAULT: "oklch(96% 0.008 85 / <alpha-value>)",

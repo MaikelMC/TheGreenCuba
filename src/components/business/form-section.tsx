@@ -12,6 +12,13 @@ interface FormSectionProps {
   children: React.ReactNode;
   className?: string;
   /**
+   * Clave estable para abrir la sección desde fuera del acordeón.
+   *
+   * Sin ella la sección usa un `useId`, que sirve para el estado interno pero no
+   * para que la validación del formulario pida «abre la de ubicación».
+   */
+  id?: string;
+  /**
    * Marca la sección cuando el aviso de validación la nombra.
    *
    * Se pinta también cerrada, que es cuando de verdad hace falta: el aviso sale
@@ -49,11 +56,23 @@ const SectionsContext = createContext<{
 export function FormSections({
   children,
   className,
+  openId: openIdExterno,
+  onOpenChange,
 }: {
   children: React.ReactNode;
   className?: string;
+  /**
+   * Versión controlada. La necesita el editor: su validación tiene que abrir la
+   * sección que falla, y el estado abierto vive en el grupo.
+   */
+  openId?: string | null;
+  onOpenChange?: (id: string | null) => void;
 }) {
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [propio, setPropio] = useState<string | null>(null);
+  /* Controlado solo si el padre pasa el manejador: los formularios que ya
+     usaban el acordeón sin props siguen funcionando igual. */
+  const openId = onOpenChange ? (openIdExterno ?? null) : propio;
+  const setOpenId = onOpenChange ?? setPropio;
 
   return (
     <SectionsContext.Provider value={{ openId, setOpenId }}>
@@ -95,6 +114,7 @@ export function FormSection({
   icon,
   children,
   className,
+  id: clave,
   invalid = false,
   autoOpen = false,
 }: FormSectionProps) {
@@ -104,7 +124,10 @@ export function FormSection({
 
   /* `useId` y no un índice de render: el índice se descoloca con el doble
      renderizado de StrictMode y con las secciones que se montan según el caso. */
-  const id = useId();
+  const generado = useId();
+  const id = clave ?? generado;
+  const tituloId = `${id}-titulo`;
+  const panelId = `${id}-panel`;
   const open = group ? group.openId === id : selfOpen;
 
   /* Si nadie ha abierto nada todavía, esta sección se abre sola al montar.
@@ -140,46 +163,59 @@ export function FormSection({
         className,
       )}
     >
-      <motion.button
-        type="button"
-        whileTap={{ scale: 0.995 }}
-        onClick={toggle}
-        aria-expanded={open}
-        className={cn(
-          "flex items-center justify-between w-full p-gap-md border-b border-ink/5 transition-colors duration-500 ease-outquint",
-          invalid
-            ? "bg-destructive/5 hover:bg-destructive/10"
-            : "hover:bg-sand",
-        )}
-      >
-        {/* El título va en tinta, no en rojo: `text-destructive` sobre el
-            `bg-destructive/5` daba 4,08:1 a 16 px, por debajo de AA. El rojo
-            lo dice el fondo teñido, el borde, el anillo, el icono y la
-            flecha; el texto, que es lo que hay que leer, se queda legible. */}
-        <span className="font-lv-display text-body font-semibold flex items-center gap-gap-xs text-ink">
-          {icon && (
-            <span className={invalid ? "text-destructive" : "text-verde-600"}>
-              {icon}
-            </span>
+      {/* El título va dentro de un `h2` para que un lector de pantalla pueda
+          saltar entre las secciones; el botón dentro es el patrón de acordeón de
+          WAI-ARIA y conserva el área táctil de la fila entera. Un `h2` con un
+          solo hijo no cambia el layout, porque Tailwind ya neutraliza el tamaño
+          y el margen de los encabezados. */}
+      <h2>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          aria-controls={open ? panelId : undefined}
+          className={cn(
+            "flex items-center justify-between w-full p-gap-md border-b border-ink/5 transition-colors duration-500 ease-outquint",
+            invalid
+              ? "bg-destructive/5 hover:bg-destructive/10"
+              : "hover:bg-sand",
           )}
-          {title}
-        </span>
-        <motion.span
-          animate={{ rotate: open ? 0 : -90 }}
-          transition={{ duration: 0.3, ease: EASE }}
-          className="grid place-items-center"
         >
-          <ChevronDown
-            size={18}
-            strokeWidth={1.8}
-            className={cn("text-ink-soft/75", invalid && "text-destructive")}
-          />
-        </motion.span>
-      </motion.button>
+          {/* El título va en tinta, no en rojo: `text-destructive` sobre el
+              `bg-destructive/5` daba 4,08:1 a 16 px, por debajo de AA. El rojo
+              lo dice el fondo teñido, el borde, el anillo, el icono y la
+              flecha; el texto, que es lo que hay que leer, se queda legible. */}
+          <span
+            id={tituloId}
+            className="font-lv-display text-body font-semibold flex items-center gap-gap-xs text-ink"
+          >
+            {icon && (
+              <span className={invalid ? "text-destructive" : "text-verde-600"}>
+                {icon}
+              </span>
+            )}
+            {title}
+          </span>
+          <motion.span
+            animate={{ rotate: open ? 0 : -90 }}
+            transition={{ duration: 0.3, ease: EASE }}
+            className="grid place-items-center"
+          >
+            <ChevronDown
+              size={18}
+              strokeWidth={1.8}
+              className={cn("text-ink-soft/75", invalid && "text-destructive")}
+            />
+          </motion.span>
+        </button>
+      </h2>
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
             key="content"
+            id={panelId}
+            role="region"
+            aria-labelledby={tituloId}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}

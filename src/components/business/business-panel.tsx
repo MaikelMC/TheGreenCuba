@@ -30,8 +30,8 @@ import {
   Zap,
 } from "lucide-react";
 import { cn, sanitizePhone } from "@/lib/utils";
-import { normalizarWhatsappCubano } from "@/lib/contact-links";
-import { SUPPORT_EMAIL } from "@/lib/legal";
+import { normalizarWhatsappCubano, whatsappHref } from "@/lib/contact-links";
+import { SUPPORT_EMAIL, SUPPORT_WHATSAPP } from "@/lib/legal";
 import { logout } from "@/lib/logout";
 import { placeIcon } from "@/lib/places";
 import { Label } from "@/components/ui/label";
@@ -157,6 +157,10 @@ const STATUS_OPTIONS: { value: PlaceStatus; label: string; hint: string }[] = [
 /* Mismas clases que el resto de formularios del proyecto. */
 const INPUT =
   "rounded-xl border-ink/10 bg-white text-ink placeholder:text-ink-soft/75 focus-visible:border-verde-400 focus-visible:ring-offset-0 focus-visible:ring-verde-400/30";
+
+/* `verde-600` del sistema, aquí porque el selector de color nativo necesita un
+   valor concreto cuando la ficha todavía no tiene marca. */
+const COLOR_MARCA_POR_DEFECTO = "#0F7A41";
 
 /**
  * El panel del negocio.
@@ -1086,6 +1090,13 @@ function EditorView({
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /* Trabajo pendiente visible, sección abierta y foco pedido. La validación
+     necesita abrir la sección que falla y llevar el cursor a su campo, y con el
+     acordeón cerrado ese campo no existe en el DOM. */
+  const [pendiente, setPendiente] = useState(false);
+  const [seccionAbierta, setSeccionAbierta] = useState<string | null>(null);
+  const [seccionInvalida, setSeccionInvalida] = useState<string | null>(null);
+  const [enfocarCampo, setEnfocarCampo] = useState<string | null>(null);
 
   /* Todo lo que escribe el botón, en una sola pieza: la huella decide si hay
      trabajo pendiente y el mismo objeto es lo que se guarda como borrador.
@@ -1165,14 +1176,20 @@ function EditorView({
 
   const save = useCallback(async () => {
     const trimmed = name.trim();
+    /* Cada fallo abre su sección y pide el foco al campo: con las secciones
+       plegadas su contenido no está en el DOM y `focus()` no encontraba nada. */
     if (!trimmed) {
+      setSeccionInvalida("basico");
+      setSeccionAbierta("basico");
+      setEnfocarCampo("bizName");
       setError(
         "El nombre del negocio no puede quedar vacío. Está en «Información del negocio».",
       );
-      document.getElementById("bizName")?.focus();
       return;
     }
     if (!location) {
+      setSeccionInvalida("ubicacion");
+      setSeccionAbierta("ubicacion");
       setError(
         "Marca tu negocio en el mapa antes de guardar. Está en «Ubicación en el mapa».",
       );
@@ -1185,16 +1202,78 @@ function EditorView({
     if (whatsapp.trim()) {
       const normalizado = normalizarWhatsappCubano(whatsapp);
       if (!normalizado) {
+        setSeccionInvalida("contacto");
+        setSeccionAbierta("contacto");
+        setEnfocarCampo("bizWhatsapp");
         setError(
           "Ese WhatsApp no parece cubano. Escríbelo como +53 5 123 4567.",
         );
-        document.getElementById("bizWhatsapp")?.focus();
         return;
       }
       numeroWhatsapp = normalizado;
     }
 
+    /* Las mismas reglas que aplica el `PATCH`, comprobadas antes de salir.
+       Si el servidor rechaza el cuerpo, el panel solo puede decir «revisa la
+       conexión», que es mentira y no dice qué arreglar. Estas cuatro son las
+       que el formulario puede producir sin querer. */
+    if (colorMarca.trim() && !/^#[0-9a-fA-F]{6}$/.test(colorMarca.trim())) {
+      setSeccionInvalida("marca");
+      setSeccionAbierta("marca");
+      setEnfocarCampo("bizColorHex");
+      setError(
+        "El color de marca tiene que ser un hex de seis cifras, como #0F7A41. Está en «Color de marca».",
+      );
+      return;
+    }
+    /* Una franja sin hora, o con las dos iguales, la rechaza `esHorario`.
+       Pasa al vaciar un campo de hora con el teclado del móvil. */
+    const franjas = Object.values(horario?.semana ?? {}).flatMap(
+      (delDia) => delDia ?? [],
+    );
+    if (franjas.some((f) => !f.abre || !f.cierra || f.abre === f.cierra)) {
+      setSeccionInvalida("horario");
+      setSeccionAbierta("horario");
+      setError(
+        "Hay una franja de horario sin hora de apertura o de cierre, o con las dos iguales. Está en «Horario».",
+      );
+      return;
+    }
+    const tiempoEntrega = entrega?.tiempo;
+    if (
+      tiempoEntrega &&
+      (!Number.isFinite(tiempoEntrega.min) ||
+        !Number.isFinite(tiempoEntrega.max) ||
+        tiempoEntrega.min < 0 ||
+        tiempoEntrega.min > tiempoEntrega.max)
+    ) {
+      setSeccionInvalida("tipo");
+      setSeccionAbierta("tipo");
+      setError(
+        "El tiempo de entrega no es válido: el mínimo no puede ser mayor que el máximo. Está en «Tipo de negocio y bloques».",
+      );
+      return;
+    }
+    /* El especial del día nace con los campos vacíos al encenderlo, y el
+       servidor exige título, moneda y fecha de fin. Sin esto, encenderlo y
+       guardar devolvía un 400 que el panel contaba como fallo de red. */
+    if (
+      especialDia &&
+      (!especialDia.titulo?.trim() ||
+        !especialDia.moneda?.trim() ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(especialDia.hasta ?? ""))
+    ) {
+      setSeccionInvalida("tipo");
+      setSeccionAbierta("tipo");
+      setEnfocarCampo("especial-titulo");
+      setError(
+        "Para el especial del día hacen falta título y fecha de fin. Está en «Tipo de negocio y bloques».",
+      );
+      return;
+    }
+
     setError(null);
+    setSeccionInvalida(null);
     setSaving(true);
 
     const values: UserPlacePatch = {
@@ -1329,55 +1408,85 @@ function EditorView({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    try {
-      if (sucio) {
-        borradorEscrito.current = true;
-        window.localStorage.setItem(claveBorradorFicha(place.id), huella);
-      } else if (borradorEscrito.current) {
-        borradorEscrito.current = false;
+    setPendiente(sucio);
+    if (!sucio) {
+      if (!borradorEscrito.current) return;
+      borradorEscrito.current = false;
+      try {
         window.localStorage.removeItem(claveBorradorFicha(place.id));
+      } catch {
+        /* Almacén lleno o bloqueado: la guardia de salida sigue siendo la red. */
       }
-    } catch {
-      /* Almacén lleno o bloqueado: la guardia de salida sigue siendo la red. */
+      return;
     }
+    borradorEscrito.current = true;
+    /* 500 ms y no cada tecla: `localStorage` escribe de forma síncrona y en un
+       móvil lento cobraba el peaje en cada pulsación de la descripción. */
+    const t = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(claveBorradorFicha(place.id), huella);
+      } catch {
+        /* Igual que arriba: la guardia de salida sigue siendo la red. */
+      }
+    }, 500);
+    return () => window.clearTimeout(t);
   }, [huella, sucio, place.id]);
+
+  /* Aplica una ficha completa al formulario. La comparten la recuperación del
+     borrador y «Descartar cambios», que son la misma operación con otro origen. */
+  const aplicarFicha = useCallback((ficha: BorradorFicha) => {
+    setName(ficha.name);
+    setCategoryValue(ficha.categoryValue);
+    setIcon(ficha.icon);
+    setLogoUrl(ficha.logoUrl);
+    setDescription(ficha.description);
+    setAddress(ficha.address);
+    setBarrio(ficha.barrio);
+    /* `?? ""`: los borradores escritos antes de que el contacto entrara en el
+       editor no traen estos campos. */
+    setPhone(ficha.phone ?? "");
+    setWebsite(ficha.website ?? "");
+    setWhatsapp(ficha.whatsapp ?? "");
+    setInstagram(ficha.instagram ?? "");
+    setFacebook(ficha.facebook ?? "");
+    setSchedule(ficha.schedule);
+    setStatus(ficha.status);
+    setPayments(ficha.payments);
+    setEnergia(ficha.energia);
+    setNotaApagon(ficha.notaApagon);
+    setLocation(ficha.location);
+    if (ficha.tipoNegocio !== undefined) setTipoNegocio(ficha.tipoNegocio);
+    if (ficha.modulosActivos !== undefined) setModulosActivos(ficha.modulosActivos);
+    if (ficha.atributos !== undefined) setAtributos(ficha.atributos);
+    if (ficha.colorMarca !== undefined) setColorMarca(ficha.colorMarca);
+    if (ficha.horario !== undefined) setHorario(ficha.horario);
+    if (ficha.cerradoMensaje !== undefined) setCerradoMensaje(ficha.cerradoMensaje);
+    if (ficha.entrega !== undefined) setEntrega(ficha.entrega);
+    if (ficha.comoComprar !== undefined) setComoComprar(ficha.comoComprar);
+    if (ficha.comoAtiende !== undefined) setComoAtiende(ficha.comoAtiende);
+    if (ficha.especialDia !== undefined) setEspecialDia(ficha.especialDia);
+    setSeccionInvalida(null);
+    setError(null);
+  }, []);
 
   const recuperarBorrador = useCallback(() => {
     if (!borrador) return;
-    setName(borrador.name);
-    setCategoryValue(borrador.categoryValue);
-    setIcon(borrador.icon);
-    setLogoUrl(borrador.logoUrl);
-    setDescription(borrador.description);
-    setAddress(borrador.address);
-    setBarrio(borrador.barrio);
-    /* `?? ""`: los borradores escritos antes de que el contacto entrara en el
-       editor no traen estos campos. */
-    setPhone(borrador.phone ?? "");
-    setWebsite(borrador.website ?? "");
-    setWhatsapp(borrador.whatsapp ?? "");
-    setInstagram(borrador.instagram ?? "");
-    setFacebook(borrador.facebook ?? "");
-    setSchedule(borrador.schedule);
-    setStatus(borrador.status);
-    setPayments(borrador.payments);
-    setEnergia(borrador.energia);
-    setNotaApagon(borrador.notaApagon);
-    setLocation(borrador.location);
-    if (borrador.tipoNegocio !== undefined) setTipoNegocio(borrador.tipoNegocio);
-    if (borrador.modulosActivos !== undefined) setModulosActivos(borrador.modulosActivos);
-    if (borrador.atributos !== undefined) setAtributos(borrador.atributos);
-    if (borrador.colorMarca !== undefined) setColorMarca(borrador.colorMarca);
-    if (borrador.horario !== undefined) setHorario(borrador.horario);
-    if (borrador.cerradoMensaje !== undefined) setCerradoMensaje(borrador.cerradoMensaje);
-    if (borrador.entrega !== undefined) setEntrega(borrador.entrega);
-    if (borrador.comoComprar !== undefined) setComoComprar(borrador.comoComprar);
-    if (borrador.comoAtiende !== undefined) setComoAtiende(borrador.comoAtiende);
-    if (borrador.especialDia !== undefined) setEspecialDia(borrador.especialDia);
+    aplicarFicha(borrador);
     setBorrador(null);
-    setError(null);
     toast.success("Recuperada la ficha sin guardar");
-  }, [borrador]);
+  }, [borrador, aplicarFicha]);
+
+  /* Volver a lo último que confirmó el servidor, sin recargar la página. */
+  const descartarCambios = useCallback(() => {
+    aplicarFicha(JSON.parse(guardado.current) as BorradorFicha);
+    borradorEscrito.current = false;
+    try {
+      window.localStorage.removeItem(claveBorradorFicha(place.id));
+    } catch {
+      /* Sin almacén no hay borrador que limpiar. */
+    }
+    setPendiente(false);
+  }, [aplicarFicha, place.id]);
 
   const descartarBorrador = useCallback(() => {
     setBorrador(null);
@@ -1409,6 +1518,21 @@ function EditorView({
     };
   }, [sucio]);
 
+  /* El foco se pide después del render que abre la sección: antes, el campo al
+     que hay que llevar al dueño todavía no existía. */
+  useEffect(() => {
+    if (!enfocarCampo) return;
+    const campo = document.getElementById(enfocarCampo);
+    if (!campo) return;
+    campo.focus();
+    setEnfocarCampo(null);
+  }, [enfocarCampo, seccionAbierta]);
+
+  /* La marca roja se retira en cuanto el dueño toca lo que la provocó. */
+  useEffect(() => {
+    setSeccionInvalida(null);
+  }, [name, location, whatsapp]);
+
   return (
     <>
       <h1 className="sr-only">Editar ficha</h1>
@@ -1427,14 +1551,14 @@ function EditorView({
             <button
               type="button"
               onClick={recuperarBorrador}
-              className="cursor-pointer rounded-full bg-verde-400 px-gap-md py-2 font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-500 ease-outquint hover:bg-verde-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+              className="inline-flex min-h-11 cursor-pointer items-center rounded-full bg-verde-400 px-gap-md font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-500 ease-outquint hover:bg-verde-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
             >
               Recuperar
             </button>
             <button
               type="button"
               onClick={descartarBorrador}
-              className="cursor-pointer font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+              className="inline-flex min-h-11 cursor-pointer items-center font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
             >
               Descartar
             </button>
@@ -1442,7 +1566,7 @@ function EditorView({
         </div>
       )}
 
-      <FormSections>
+      <FormSections openId={seccionAbierta} onOpenChange={setSeccionAbierta}>
         <FormSection
           title="Fotos del lugar"
           icon={<ImageIcon size={18} strokeWidth={1.8} />}
@@ -1461,8 +1585,10 @@ function EditorView({
         </FormSection>
 
         <FormSection
+          id="basico"
           title="Información del negocio"
           icon={<Store size={18} strokeWidth={1.8} />}
+          invalid={seccionInvalida === "basico"}
           autoOpen
         >
           <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
@@ -1471,6 +1597,7 @@ function EditorView({
               <Input
                 id="bizName"
                 className={INPUT}
+                aria-invalid={seccionInvalida === "basico" || undefined}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ej: Paladar El Sabroso"
@@ -1545,8 +1672,10 @@ function EditorView({
         </FormSection>
 
         <FormSection
+          id="contacto"
           title="Contacto"
           icon={<AtSign size={18} strokeWidth={1.8} />}
+          invalid={seccionInvalida === "contacto"}
         >
           <p className="mb-gap-sm text-meta text-ink-soft/75">
             Enlaces que aparecen como botones en tu ficha. Todo es opcional: el
@@ -1575,6 +1704,7 @@ function EditorView({
                 type="tel"
                 autoComplete="tel"
                 className={INPUT}
+                aria-invalid={seccionInvalida === "contacto" || undefined}
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(sanitizePhone(e.target.value))}
                 placeholder="Ej: +53 5 123 4567"
@@ -1615,8 +1745,10 @@ function EditorView({
         </FormSection>
 
         <FormSection
+          id="ubicacion"
           title="Ubicación en el mapa"
           icon={<MapPin size={18} strokeWidth={1.8} />}
+          invalid={seccionInvalida === "ubicacion"}
         >
           <p className="mb-gap-sm text-meta text-ink-soft/75">
             Busca tu dirección, elige la coincidencia y ajusta el pin. Ese punto
@@ -1657,7 +1789,7 @@ function EditorView({
             <button
               type="button"
               onClick={() => setIcon(null)}
-              className="mt-gap-sm cursor-pointer self-start font-lv-display text-meta font-semibold text-verde-600 transition-colors duration-500 ease-outquint hover:text-verde-700"
+              className="mt-gap-sm inline-flex min-h-11 cursor-pointer items-center self-start font-lv-display text-meta font-semibold text-verde-600 transition-colors duration-500 ease-outquint hover:text-verde-700"
             >
               Usar el de mi categoría
             </button>
@@ -1665,8 +1797,10 @@ function EditorView({
         </FormSection>
 
         <FormSection
+          id="horario"
           title="Horario"
           icon={<Clock size={18} strokeWidth={1.8} />}
+          invalid={seccionInvalida === "horario"}
         >
           {/* Texto libre: etiqueta de respaldo y referencia rápida en el
               directorio («10:00 – 22:00», «24 horas»). Lo usa `EstadoApertura`
@@ -1692,7 +1826,7 @@ function EditorView({
                   onClick={() => setSchedule(preset)}
                   aria-pressed={schedule === preset}
                   className={cn(
-                    "cursor-pointer select-none rounded-full border px-[14px] py-2 font-lv-display text-meta font-medium transition-colors duration-500 ease-outquint active:scale-[0.98]",
+                    "min-h-11 cursor-pointer select-none rounded-full border px-[14px] py-2 font-lv-display text-meta font-medium transition-colors duration-500 ease-outquint active:scale-[0.98]",
                     schedule === preset
                       ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
                       : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
@@ -1722,7 +1856,7 @@ function EditorView({
               <button
                 type="button"
                 onClick={() => setHorario(null)}
-                className="mt-gap-xs cursor-pointer self-start font-lv-display text-meta text-ink-soft/60 hover:text-ink"
+                className="mt-gap-xs inline-flex min-h-11 cursor-pointer items-center self-start font-lv-display text-meta text-ink-soft/75 hover:text-ink"
               >
                 Borrar horario por día
               </button>
@@ -1738,16 +1872,18 @@ function EditorView({
             Las monedas y métodos que aceptas. Aparecen en tu ficha y en los
             filtros.
           </p>
-          <PaymentChips
-            defaultSelected={place.payments}
-            onChange={setPayments}
-          />
+          {/* Controlado: «Descartar cambios» devuelve la selección al estado
+              guardado, y con el estado interno del componente los chips
+              seguirían enseñando lo que se iba a descartar. */}
+          <PaymentChips value={payments} onChange={setPayments} />
         </FormSection>
 
         {/* ── Tipo de negocio y módulos ──────────────────────────────── */}
         <FormSection
+          id="tipo"
           title="Tipo de negocio y bloques"
           icon={<Store size={18} strokeWidth={1.8} />}
+          invalid={seccionInvalida === "tipo"}
         >
           <p className="mb-gap-sm text-meta text-ink-soft/75">
             El tipo define los valores por defecto de la ficha. Los bloques
@@ -1789,8 +1925,10 @@ function EditorView({
 
         {/* ── Marca ─────────────────────────────────────────────────── */}
         <FormSection
+          id="marca"
           title="Color de marca"
           icon={<Eye size={18} strokeWidth={1.8} />}
+          invalid={seccionInvalida === "marca"}
         >
           <p className="mb-gap-sm text-meta text-ink-soft/75">
             Se usa como fondo de la portada cuando no tienes fotos, y como
@@ -1799,22 +1937,25 @@ function EditorView({
           <div className="flex items-center gap-gap-md">
             <input
               type="color"
-              value={colorMarca || "#0F7A41"}
+              aria-label="Color de marca"
+              value={colorMarca || COLOR_MARCA_POR_DEFECTO}
               onChange={(e) => setColorMarca(e.target.value)}
-              className="h-10 w-16 cursor-pointer rounded-lg border border-ink/10 p-1"
+              className="h-11 w-16 cursor-pointer rounded-lg border border-ink/10 p-1"
             />
             <Input
-              className="w-32 rounded-xl border-ink/10 bg-white font-mono text-small"
+              id="bizColorHex"
+              aria-label="Color de marca en hexadecimal"
+              className="h-11 w-32 rounded-xl border-ink/10 bg-white font-mono text-body"
               value={colorMarca}
               onChange={(e) => setColorMarca(e.target.value)}
-              placeholder="#0F7A41"
+              placeholder={COLOR_MARCA_POR_DEFECTO}
               maxLength={7}
             />
             {colorMarca && (
               <button
                 type="button"
                 onClick={() => setColorMarca("")}
-                className="cursor-pointer font-lv-display text-meta text-ink-soft/60 hover:text-ink"
+                className="inline-flex min-h-11 cursor-pointer items-center font-lv-display text-meta text-ink-soft/75 hover:text-ink"
               >
                 Quitar
               </button>
@@ -1832,13 +1973,14 @@ function EditorView({
             Si lo dejas en blanco, se muestra el texto por defecto.
           </p>
           <Input
-            className="rounded-xl border-ink/10 bg-white text-ink placeholder:text-ink-soft/75 focus-visible:border-verde-400"
+            aria-label="Mensaje de cierre"
+            className="h-11 rounded-xl border-ink/10 bg-white text-ink placeholder:text-ink-soft/75 focus-visible:border-verde-400"
             value={cerradoMensaje}
             onChange={(e) => setCerradoMensaje(e.target.value)}
             placeholder="Ej: Cerrado por vacaciones, volvemos el lunes"
             maxLength={140}
           />
-          <p className="mt-[4px] text-right font-lv-display text-meta text-ink-soft/50">
+          <p className="mt-[4px] text-right font-lv-display text-meta text-ink-soft/75">
             {cerradoMensaje.length}/140
           </p>
         </FormSection>
@@ -1949,29 +2091,54 @@ function EditorView({
           cambios se habían escrito: el `SaveBar` que había publicaba contra
           nada. Este llama al `PATCH` de verdad y avisa cuando el servidor
           confirma. */}
-      <div className="sticky bottom-4 z-40 mt-gap-lg flex items-center justify-end gap-gap-sm">
-        <a
-          href={`/place/${place.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-12 cursor-pointer items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-lg font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
-        >
-          <Eye size={16} strokeWidth={1.8} />
-          Ver ficha
-        </a>
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving}
-          className="inline-flex h-12 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
-        >
-          {saving ? (
-            <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
-          ) : (
-            <Save size={16} strokeWidth={1.8} />
+      <div className="sticky bottom-4 z-40 mt-gap-lg flex flex-col gap-gap-sm">
+        {/* Estado y descarte. Antes no había señal de trabajo pendiente y la
+            única salida era recargar; el catálogo ya lo dice y esta es la
+            pantalla más larga del panel. */}
+        <div className="flex items-center justify-between gap-gap-sm sm:justify-end">
+          <span
+            role="status"
+            aria-live="polite"
+            className="font-lv-display text-meta text-ink-soft/75"
+          >
+            {saving ? "Guardando…" : pendiente ? "Cambios sin guardar" : ""}
+          </span>
+          {pendiente && !saving && (
+            <button
+              type="button"
+              onClick={descartarCambios}
+              className="inline-flex min-h-11 cursor-pointer items-center font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:text-ink"
+            >
+              Descartar cambios
+            </button>
           )}
-          {saving ? "Guardando…" : "Guardar cambios"}
-        </button>
+        </div>
+        {/* En móvil, uno debajo del otro y el primario arriba: en fila no caben
+            a 320 px, que es lo que le pasaba al `SaveBar` retirado. */}
+        <div className="flex flex-col-reverse gap-gap-sm sm:flex-row sm:justify-end">
+          <a
+            href={`/place/${place.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-12 cursor-pointer items-center justify-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-lg font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600"
+          >
+            <Eye size={16} strokeWidth={1.8} />
+            Ver ficha
+          </a>
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            className="inline-flex h-12 cursor-pointer items-center justify-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+          >
+            {saving ? (
+              <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
+            ) : (
+              <Save size={16} strokeWidth={1.8} />
+            )}
+            {saving ? "Guardando…" : "Guardar cambios"}
+          </button>
+        </div>
       </div>
     </>
   );
@@ -2059,6 +2226,11 @@ function SettingsView({
   const [cambiandoReservas, setCambiandoReservas] = useState(false);
   const [guardandoReservas, setGuardandoReservas] = useState(false);
   const [errorReservas, setErrorReservas] = useState<string | null>(null);
+  /* Qué campo tiene la culpa, para marcar solo ese y unirle el mensaje.
+     `null` con un error de red, que no es de ningún campo. */
+  const [campoErrorReservas, setCampoErrorReservas] = useState<
+    "aforo" | "cupo" | null
+  >(null);
 
   /* El cupo que va gastado, por fecha. Se lee del mismo endpoint que usa el
      formulario del cliente —es la misma cifra— y sirve para dos cosas: decir
@@ -2162,6 +2334,7 @@ function SettingsView({
       setErrorReservas(
         "El aforo tiene que ser un número entero de personas, o quedar vacío.",
       );
+      setCampoErrorReservas("aforo");
       document.getElementById("ajAforo")?.focus();
       return;
     }
@@ -2174,11 +2347,13 @@ function SettingsView({
       setErrorReservas(
         "El cupo diario tiene que ser un número entero de personas, o quedar vacío.",
       );
+      setCampoErrorReservas("cupo");
       document.getElementById("ajCupoDia")?.focus();
       return;
     }
 
     setErrorReservas(null);
+    setCampoErrorReservas(null);
     setGuardandoReservas(true);
     const guardado = await updatePlace(place.id, {
       tipoReserva: reservaTipo,
@@ -2305,7 +2480,7 @@ function SettingsView({
             </h2>
             <span
               className={cn(
-                "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em]",
+                "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-meta font-semibold",
                 bloqueo
                   ? "border border-ink/10 bg-sand text-ink-soft/75"
                   : pedidos
@@ -2379,7 +2554,7 @@ function SettingsView({
             </h2>
             <span
               className={cn(
-                "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em]",
+                "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-meta font-semibold",
                 mixtos
                   ? "border border-verde-200 bg-verde-50 text-verde-700"
                   : "border border-ink/10 bg-sand text-ink-soft/75",
@@ -2426,7 +2601,7 @@ function SettingsView({
             </h2>
             <span
               className={cn(
-                "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em]",
+                "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-meta font-semibold",
                 bloqueoReservas
                   ? "border border-ink/10 bg-sand text-ink-soft/75"
                   : reservas
@@ -2494,7 +2669,9 @@ function SettingsView({
                   `FormSection` del editor: aquel pinta su propia tarjeta, y una
                   tarjeta dentro de otra tarjeta queda mal. */}
               <details className="group mt-gap-md border-t border-ink/5 pt-gap-sm">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-gap-sm py-gap-2xs font-lv-display text-small font-semibold text-ink [&::-webkit-details-marker]:hidden">
+                {/* `min-h-11`: era una línea de texto con 4 px de relleno, unos
+                    28 px de alto para el dedo. */}
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-gap-sm font-lv-display text-small font-semibold text-ink [&::-webkit-details-marker]:hidden">
                   Configurar la reserva
                   <ChevronDown
                     size={18}
@@ -2532,6 +2709,10 @@ function SettingsView({
                           type="number"
                           inputMode="numeric"
                           min={1}
+                          aria-invalid={campoErrorReservas === "aforo" || undefined}
+                          aria-describedby={
+                            campoErrorReservas === "aforo" ? "aj-reservas-error" : undefined
+                          }
                           value={aforo}
                           onChange={(e) => setAforo(e.target.value)}
                           placeholder="Ej: 8"
@@ -2552,6 +2733,10 @@ function SettingsView({
                         type="number"
                         inputMode="numeric"
                         min={1}
+                        aria-invalid={campoErrorReservas === "cupo" || undefined}
+                        aria-describedby={
+                          campoErrorReservas === "cupo" ? "aj-reservas-error" : undefined
+                        }
                         value={cupoDia}
                         onChange={(e) => setCupoDia(e.target.value)}
                         placeholder="Ej: 40"
@@ -2659,6 +2844,7 @@ function SettingsView({
                     {errorReservas && (
                       <motion.p
                         key="aj-reservas-error"
+                        id="aj-reservas-error"
                         role="alert"
                         initial={{ opacity: 0, y: -8 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -2713,6 +2899,7 @@ function SettingsView({
           placeId={place.id}
           funciones={funciones}
           entregaInicial={place.entrega}
+          onVerPlanes={onVerPlanes}
         />
 
         {/* ── Lo que solo se consulta ─────────────────────────────────────
@@ -2726,12 +2913,36 @@ function SettingsView({
 
             El plan se queda porque el enlace de verdad está en su tarjeta del
             dashboard, y aquí se lee sin salir de Ajustes. */}
-        <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
+        {/* A todo el ancho: estaba en una rejilla de dos columnas con un solo
+            elemento y en escritorio ocupaba media anchura sin motivo. */}
+        <div>
           <dl className="rounded-2xl border border-ink/5 bg-white p-gap-md">
             {/* Estaba escrito a fuego «Básico (gratis)» para todo el mundo. Ahora
                 es el plan que hay de verdad, resuelto en el servidor. */}
             <Row label="Plan actual" value={nombreDe(plan, cat)} />
-            <Row label="Contacto de soporte" value={SUPPORT_EMAIL} />
+            {/* Pulsable: antes era el correo en texto plano y en el móvil había
+                que copiarlo a mano. WhatsApp primero, que es lo que el dueño
+                tiene abierto; el correo, para quien lo prefiera. */}
+            <div className="flex flex-wrap items-center justify-between gap-gap-sm py-gap-xs">
+              <dt className="text-ink-soft/75">Soporte</dt>
+              <dd className="flex flex-wrap items-center gap-gap-xs">
+                <a
+                  href={whatsappHref(SUPPORT_WHATSAPP)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-11 items-center gap-[6px] rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition-colors duration-300 ease-outquint hover:border-verde-300 hover:text-verde-700"
+                >
+                  <MessageCircle size={15} strokeWidth={1.8} aria-hidden />
+                  WhatsApp
+                </a>
+                <a
+                  href={`mailto:${SUPPORT_EMAIL}`}
+                  className="inline-flex h-11 items-center rounded-full px-gap-sm font-lv-display text-meta font-semibold text-verde-700 underline-offset-2 transition-colors duration-300 ease-outquint hover:underline"
+                >
+                  {SUPPORT_EMAIL}
+                </a>
+              </dd>
+            </div>
           </dl>
         </div>
 

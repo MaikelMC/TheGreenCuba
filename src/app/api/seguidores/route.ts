@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { canManagePlace } from "@/lib/admin-server";
 import { tieneFuncion } from "@/lib/plans-server";
-import { AVISOS_POR_SEMANA, avisosRestantes } from "@/lib/seguidores";
 import {
   avisosDeLaSemana,
   contarSeguidores,
@@ -53,10 +52,7 @@ export async function GET(req: NextRequest) {
     enlace: enlaceSeguidoresDe(negocioId, conSeguidores),
     seguidores: total,
     enApp,
-    avisos: {
-      usados,
-      tope: AVISOS_POR_SEMANA,
-      restantes: avisosRestantes(usados),
-    },
+    /* Sin tope semanal: solo cuántos salieron esta semana, para el panel. */
+    avisos: { usados },
   });
 }

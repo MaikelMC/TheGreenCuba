@@ -99,25 +99,20 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </Link>
 
           <div className="relative mt-4 flex flex-col gap-gap-md">
-            <p className="inline-flex self-start items-center rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-200 backdrop-blur-sm">
-              Descubrimiento de lugares
-            </p>
-
-            {/* Una sola frase con degradado por sección, como manda el sistema.
-              Va como `<p>` y no como titular: es reclamo de marca, y el único
+            {/* Va como `<p>` y no como titular: es reclamo de marca, y el único
               encabezado de la pantalla tiene que ser el del formulario, que es
-              lo que la persona ha venido a hacer. */}
+              lo que la persona ha venido a hacer. La segunda frase en verde
+              liso: el degradado sobre texto era adorno y bajaba el contraste
+              en su extremo más claro. */}
             <p className="font-lv-display text-[38px] font-bold leading-[1.15] tracking-normal text-white text-balance">
               Escribe lo que buscas.{" "}
-              <span className="bg-gradient-to-r from-verde-200 via-verde-300 to-emerald-400 bg-clip-text text-transparent">
-                La Verde te lleva.
-              </span>
+              <span className="text-verde-300">La Verde te lleva.</span>
             </p>
 
             <ul className="flex flex-col gap-gap-md pt-gap-xs">
               {PILLARS.map(({ icon: Icon, title, text }) => (
                 <li key={title} className="flex items-start gap-gap-sm">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-verde-300 backdrop-blur-sm">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-verde-300">
                     <Icon size={16} strokeWidth={1.8} />
                   </span>
                   <span className="min-w-0">
@@ -133,8 +128,8 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             </ul>
           </div>
 
-          <p className="relative font-lv-display text-[10px] uppercase tracking-[0.22em] text-white/35">
-            Santiago de Cuba · Cuba
+          <p className="relative text-meta text-white/55">
+            Santiago de Cuba, Cuba
           </p>
         </aside>
 

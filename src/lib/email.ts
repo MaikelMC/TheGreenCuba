@@ -48,6 +48,104 @@ export function emailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY?.trim());
 }
 
+/**
+ * La URL pública de la app, sin barra final, o `null`.
+ *
+ * Sin valor por defecto a propósito: un `?? ""` produciría enlaces del estilo
+ * `undefined/admin/...` dentro de un correo, que es peor que no enviarlo.
+ */
+function appUrl(): string | null {
+  const url = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  return url ? url.replace(/\/+$/, "") : null;
+}
+
+/**
+ * Texto plano de un correo, derivado de su HTML.
+ *
+ * Resend pide las dos versiones y las plantillas de aquí solo escriben HTML.
+ * Esto no es un parser: quita las etiquetas, conserva los saltos de bloque y
+ * deshace las entidades que usan las plantillas. Basta para que el correo se
+ * lea en un buzón sin HTML y para que los filtros vean contenido real.
+ */
+/* Las entidades con nombre que pueden aparecer en estos correos. Las numéricas
+   se resuelven aparte, así que esto no tiene que ser una tabla completa: solo
+   las que se escriben a mano en las plantillas. */
+const ENTIDADES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+  aacute: "á",
+  eacute: "é",
+  iacute: "í",
+  oacute: "ó",
+  uacute: "ú",
+  Aacute: "Á",
+  Eacute: "É",
+  Iacute: "Í",
+  Oacute: "Ó",
+  Uacute: "Ú",
+  ntilde: "ñ",
+  Ntilde: "Ñ",
+  uuml: "ü",
+  Uuml: "Ü",
+  iexcl: "¡",
+  iquest: "¿",
+  laquo: "«",
+  raquo: "»",
+  mdash: "—",
+  ndash: "–",
+  hellip: "…",
+  middot: "·",
+  bull: "•",
+  copy: "©",
+  reg: "®",
+  deg: "°",
+  euro: "€",
+  rarr: "→",
+};
+
+function deshacerEntidades(texto: string): string {
+  return texto.replace(/&(#[xX]?[0-9a-fA-F]+|[a-zA-Z]+);/g, (original, cuerpo: string) => {
+    if (cuerpo.startsWith("#")) {
+      const hexadecimal = cuerpo[1]?.toLowerCase() === "x";
+      const codigo = hexadecimal
+        ? Number.parseInt(cuerpo.slice(2), 16)
+        : Number.parseInt(cuerpo.slice(1), 10);
+      /* `fromCodePoint` lanza con valores fuera de rango; `Number.isFinite` no
+         basta para eso, así que el rango se comprueba antes. */
+      return codigo >= 0 && codigo <= 0x10ffff
+        ? String.fromCodePoint(codigo)
+        : original;
+    }
+    return ENTIDADES[cuerpo] ?? original;
+  });
+}
+
+/**
+ * Texto plano de un correo, derivado de su HTML.
+ *
+ * Resend pide las dos versiones y las plantillas de aquí solo escriben HTML.
+ * Esto no es un parser: quita las etiquetas, conserva los saltos de bloque y
+ * deshace las entidades que usan las plantillas. Basta para que el correo se
+ * lea en un buzón sin HTML y para que los filtros vean contenido real.
+ */
+export function htmlATexto(html: string): string {
+  const sinEtiquetas = html
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|tr|h1|h2|h3|table)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ");
+
+  return deshacerEntidades(sinEtiquetas)
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 /** Envía un correo. Devuelve el id de Resend, o `null` si no se envió. */
 export async function sendEmail(email: OutgoingEmail): Promise<string | null> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
@@ -75,7 +173,10 @@ export async function sendEmail(email: OutgoingEmail): Promise<string | null> {
       to: email.to,
       subject: email.subject,
       html: email.html,
-      ...(email.text ? { text: email.text } : {}),
+      /* Alternativa en texto: sin ella, un buzón que no pinta HTML o un lector
+         de pantalla de correo se queda con un mensaje vacío. Si la plantilla la
+         trae se respeta; si no, se deriva del HTML. */
+      text: email.text ?? htmlATexto(email.html),
       ...(replyTo ? { reply_to: replyTo } : {}),
     });
 
@@ -345,7 +446,15 @@ export async function notifyAdminsBusinessSubmission(input: {
     return;
   }
 
-  const adminUrl = `${process.env.NEXT_PUBLIC_APP_URL}/admin/solicitudes`;
+  const base = appUrl();
+  if (!base) {
+    console.warn(
+      "[email] NEXT_PUBLIC_APP_URL no configurada: no se envía el aviso de solicitud (el enlace saldría roto).",
+    );
+    return;
+  }
+
+  const adminUrl = `${base}/admin/solicitudes`;
 
   await sendEmail({
     to: recipients,
@@ -431,7 +540,7 @@ export async function notifyOwnerBusinessApproved(input: {
 
   await sendEmail({
     to: [input.ownerEmail],
-    subject: `✅ Tu negocio "${input.businessName}" fue aprobado en La Verde`,
+    subject: `Tu negocio "${input.businessName}" fue aprobado en La Verde`,
     html,
   });
 }
@@ -524,7 +633,7 @@ export async function notifyOwnerBusinessRejected(input: {
 
   await sendEmail({
     to: [input.ownerEmail],
-    subject: `❌ Tu solicitud "${input.businessName}" no fue aprobada`,
+    subject: `Tu solicitud "${input.businessName}" no fue aprobada`,
     html,
   });
 }

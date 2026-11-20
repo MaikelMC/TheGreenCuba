@@ -15,7 +15,7 @@ export default function NotificationsPage() {
           type="button"
           onClick={() => router.back()}
           aria-label="Volver atrás"
-          className="grid size-9 shrink-0 place-items-center rounded-full text-ink-soft/75 transition-colors hover:bg-verde-50 hover:text-verde-600"
+          className="grid size-11 shrink-0 place-items-center rounded-full text-ink-soft/75 transition-colors hover:bg-verde-50 hover:text-verde-600"
         >
           <ArrowLeft size={18} strokeWidth={1.8} />
         </button>

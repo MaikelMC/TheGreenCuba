@@ -126,7 +126,12 @@ async function revertirEnviando(db: IDBDatabase): Promise<void> {
 export interface ResultadoFlush {
   enviados: number;
   rechazados: number;
+  /** Cuántas de las rechazadas eran reservas: el aviso tiene que nombrarlas
+      bien y no llamarlas «pedidos». */
+  rechazadosReservas: number;
 }
+
+const NADA: ResultadoFlush = { enviados: 0, rechazados: 0, rechazadosReservas: 0 };
 
 /** Núcleo del flush. Se llama dentro del lock. */
 async function _procesarCola(): Promise<ResultadoFlush> {
@@ -134,16 +139,17 @@ async function _procesarCola(): Promise<ResultadoFlush> {
   try {
     db = await abrirDb();
   } catch {
-    return { enviados: 0, rechazados: 0 };
+    return NADA;
   }
 
   await revertirEnviando(db);
 
   const cola = await pendientes();
-  if (cola.length === 0) return { enviados: 0, rechazados: 0 };
+  if (cola.length === 0) return NADA;
 
   let enviados = 0;
   let rechazados = 0;
+  let rechazadosReservas = 0;
 
   for (const accion of cola) {
     /* Backoff: si ya falló y no ha pasado el tiempo mínimo, omitir. */
@@ -173,6 +179,7 @@ async function _procesarCola(): Promise<ResultadoFlush> {
         const errorMsg = `${res.status} ${res.statusText}`.trim();
         await escribirAccion(db, { ...accion, status: "rejected", error: errorMsg });
         rechazados++;
+        if (accion.tipo === "reserva") rechazadosReservas++;
       } else {
         /* 5xx: transitorio, volver a `pending`. */
         await escribirAccion(db, { ...accion, status: "pending", intentos: accion.intentos + 1 });
@@ -184,7 +191,7 @@ async function _procesarCola(): Promise<ResultadoFlush> {
     }
   }
 
-  return { enviados, rechazados };
+  return { enviados, rechazados, rechazadosReservas };
 }
 
 /**
@@ -205,10 +212,10 @@ export async function procesarCola(): Promise<ResultadoFlush> {
     return navigator.locks.request(
       "lv-flush-cola",
       { ifAvailable: true },
-      async (lock) => lock ? _procesarCola() : { enviados: 0, rechazados: 0 },
+      async (lock) => lock ? _procesarCola() : NADA,
     );
   }
-  if (_flushEnCurso) return { enviados: 0, rechazados: 0 };
+  if (_flushEnCurso) return NADA;
   _flushEnCurso = true;
   try {
     return await _procesarCola();

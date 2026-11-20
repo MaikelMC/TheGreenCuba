@@ -274,7 +274,7 @@ export function PushToggle() {
               <button
                 type="button"
                 onClick={() => void activar()}
-                className="inline-flex h-9 shrink-0 items-center gap-[6px] rounded-full bg-verde-950 px-4 font-lv-display text-meta font-semibold text-white transition-colors duration-500 ease-outquint hover:bg-verde-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+                className="inline-flex h-11 shrink-0 items-center gap-[6px] rounded-full bg-verde-950 px-4 font-lv-display text-meta font-semibold text-white transition-colors duration-500 ease-outquint hover:bg-verde-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
               >
                 <Bell size={14} strokeWidth={1.8} />
                 Activar
@@ -285,7 +285,7 @@ export function PushToggle() {
               <button
                 type="button"
                 onClick={() => void desactivar()}
-                className="inline-flex h-9 shrink-0 items-center gap-[6px] rounded-full border border-ink/10 bg-white px-4 font-lv-display text-meta font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+                className="inline-flex h-11 shrink-0 items-center gap-[6px] rounded-full border border-ink/10 bg-white px-4 font-lv-display text-meta font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
               >
                 <BellOff size={14} strokeWidth={1.8} />
                 Desactivar
@@ -293,14 +293,17 @@ export function PushToggle() {
             )}
 
             {estado === "guardando" && (
-              <span className="inline-flex h-9 items-center gap-[6px] text-meta text-ink-soft/60">
+              <span className="inline-flex h-11 items-center gap-[6px] text-meta text-ink-soft/70">
                 <Loader2 size={14} strokeWidth={1.8} className="animate-spin" />
                 Guardando
               </span>
             )}
           </div>
 
-          <p className="mt-[6px] text-meta leading-relaxed text-ink-soft/75">
+          <p
+            aria-live="polite"
+            className="mt-[6px] text-meta leading-relaxed text-ink-soft/75"
+          >
             {explicacion[estado]}
           </p>
 
@@ -314,7 +317,7 @@ export function PushToggle() {
           {aviso && (
             <p
               role="alert"
-              className="mt-3 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+              className="mt-3 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive-ink"
             >
               {aviso}
             </p>

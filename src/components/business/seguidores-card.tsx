@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import { CopyLink } from "@/components/profile/copy-link";
 import { bloqueoDe, type Funcion } from "@/lib/plans";
 import { useCatalogo } from "@/providers/catalogo-provider";
-import { AVISOS_POR_SEMANA } from "@/lib/seguidores";
 import type { UserPlace } from "@/lib/places-store";
 
 /**
@@ -44,7 +43,7 @@ export function SeguidoresCard({
   );
   const [total, setTotal] = useState<number | null>(null);
   const [enApp, setEnApp] = useState(0);
-  const [restantes, setRestantes] = useState<number | null>(null);
+  const [enviadosSemana, setEnviadosSemana] = useState<number | null>(null);
 
   /* Sin la función no se pide nada: el candado ya lo dice todo y la lectura solo
      gastaría un viaje para el mismo «no». */
@@ -62,13 +61,13 @@ export function SeguidoresCard({
           enlace: string | null;
           seguidores: number;
           enApp: number;
-          avisos: { restantes: number };
+          avisos: { usados: number };
         };
         if (!vivo) return;
         setEnlace(data.enlace);
         setTotal(data.seguidores);
         setEnApp(data.enApp);
-        setRestantes(data.avisos.restantes);
+        setEnviadosSemana(data.avisos.usados);
       } catch {
         /* Sin red se queda con lo que traía la ficha: el enlace. */
       }
@@ -91,7 +90,9 @@ export function SeguidoresCard({
         </h2>
         <span
           className={cn(
-            "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-[11px] font-semibold uppercase tracking-[0.12em]",
+            /* 12 px y sin mayúsculas espaciadas, como las chapitas del resto
+               de Ajustes (`readable-font-size` de ui-ux-pro-max). */
+            "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-meta font-semibold",
             bloqueo
               ? "border border-ink/10 bg-sand text-ink-soft/75"
               : "border border-verde-200 bg-verde-50 text-verde-700",
@@ -121,13 +122,16 @@ export function SeguidoresCard({
         </div>
       ) : (
         <div className="mt-gap-md flex flex-col gap-gap-md border-t border-ink/5 pt-gap-sm">
-          {restantes !== null && (
+          {/* Sin tope semanal. Lo que se explica es el ritmo: los cambios
+              seguidos salen juntos, para no llenar el chat de tus seguidores. */}
+          {enviadosSemana !== null && (
             <p className="text-small text-ink-soft">
-              Avisos esta semana:{" "}
+              Avisos enviados esta semana:{" "}
               <span className="font-semibold tabular-nums text-ink">
-                {restantes} de {AVISOS_POR_SEMANA}
+                {enviadosSemana}
               </span>
-              {restantes === 0 && " — el lunes vuelves a tenerlos."}
+              . Sin límite; los cambios que hagas seguidos les llegan juntos en un
+              solo mensaje, como mucho uno cada media hora.
             </p>
           )}
 
