@@ -9,7 +9,7 @@ export const pedidosProgramados: ServicioContent = {
   categoria: "comida-a-domicilio",
   precio: { tipo: "modulo", clave: "pedidos_programados" },
   funcion: "pedidos_programados",
-  anclaPanel: "/business?seccion=settings",
+  anclaPanel: "/business?seccion=pedidos&sub=ajustes",
 
   tePasaEsto: [
     "Recibes todos los pedidos en la misma hora del mediodía y no das abasto para preparar y entregar todo a tiempo.",

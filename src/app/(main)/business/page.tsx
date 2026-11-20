@@ -1,4 +1,10 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import {
+  COOKIE_ULTIMA,
+  leerDestino,
+  ultimaDe,
+} from "@/components/business/panel-nav";
 import { accesoNegocio } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { getPlaceById, ownerPlaces, placeStats } from "@/lib/db/queries";
@@ -48,6 +54,9 @@ export default async function BusinessPage({
   searchParams: Promise<{
     negocio?: string;
     seccion?: string;
+    sub?: string;
+    /** Llega desde `/entrar` tras el acceso: abrir la última sección usada. */
+    ultima?: string;
     plan?: string;
     modulos?: string;
   }>;
@@ -58,6 +67,8 @@ export default async function BusinessPage({
   const {
     negocio: pedido,
     seccion,
+    sub,
+    ultima,
     plan: planPedido,
     modulos: modulosPedidos,
   } = await searchParams;
@@ -178,6 +189,17 @@ export default async function BusinessPage({
     );
   }
 
+  /* La pantalla inicial se decide aquí y no en el cliente: así el primer
+     pintado ya es la sección pedida, en vez de montar Hoy y saltar a la otra.
+     Tras el acceso (`?ultima=1`, desde `/entrar`) y sin sección en la URL, la
+     última que se usó en este negocio, que el armazón guarda en una cookie.
+     Si esta cuenta no puede abrirla, el armazón cae a Hoy. */
+  const ultimaUsada =
+    ultima === "1" && !seccion
+      ? ultimaDe((await cookies()).get(COOKIE_ULTIMA)?.value, place.id)
+      : null;
+  const destinoInicial = ultimaUsada ?? leerDestino(seccion, sub);
+
   /* La URL absoluta de la carta se resuelve aquí y no en el cliente: el QR
      necesita la dirección entera, y `window.location.origin` en el panel de un
      despliegue de prueba generaría un QR que apunta a la prueba. */
@@ -209,6 +231,7 @@ export default async function BusinessPage({
         configTasa={configTasa}
         packMedida={packMedida}
         descuentoPct={descuentoPct}
+        destinoInicial={destinoInicial}
       />
     </CatalogoProvider>
   );

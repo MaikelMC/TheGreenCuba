@@ -348,7 +348,9 @@ export default function RootLayout({
               },
             }}
             mobileOffset={{
-              bottom: "calc(5rem + env(safe-area-inset-bottom, 0px))",
+              /* El mismo valor que `bottom-above-nav` (tailwind.config.ts):
+                 por encima del dock flotante, que mide unos 83 px. */
+              bottom: "calc(6rem + env(safe-area-inset-bottom, 0px))",
             }}
           />
         </ThemeProvider>

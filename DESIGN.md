@@ -302,11 +302,19 @@ panel lleva la clase `panel-portal`; `globals.css` le extiende los overrides
 oscuros de `.business-panel`. Scroll vertical fino: `scrollbar-fino`.
 
 ### PanelShell
-**Archivo**: `src/components/business/panel-shell.tsx`
-Header: `bg-sand-warm/90 backdrop-blur-[16px] border-b border-ink/5 h-header`.
-Sidebar: `bg-white border-r border-ink/5 w-[260px]`.
+**Archivo**: `src/components/business/panel-shell.tsx` (navegación en `panel-nav.ts`)
+Header: `bg-sand-warm/90 backdrop-blur-[16px] border-b border-ink/5 h-header`. Izquierda:
+logo o inicial (36 px) + nombre del negocio (abre «Tus negocios» con dos o más) + píldora
+de estado (`estado-negocio.tsx`). Derecha: `UserMenu` con las entradas del panel.
+Sidebar (≥ lg): `<nav>` `bg-white border-r border-ink/5 w-[260px]`, principales arriba y
+grupos de «Más» debajo. Móvil: `MobileDock` (`pb-dock-clear` en el contenido; barras
+fijas y avisos con `bottom-above-nav`, 6 rem).
 Nav activo: `bg-verde-50 text-verde-700 font-semibold` + highlight deslizante `motion`.
 Nav inactivo: `text-ink-soft/75 hover:bg-sand`.
+Subpantallas: flecha (`BotonIcono`) + `h1` `font-lv-display text-h3 font-bold`.
+**Navegación**: `usePanelNav()` → `ir(destino)`, `volver()`, `abrirHoja(id)`, `cerrarHoja()`.
+La URL manda (`?seccion=&sub=&hoja=`); cada cambio usa `pushState` y el atrás del sistema
+cierra la hoja o vuelve atrás. Nunca navegar el panel con `<Link href="?seccion=">`.
 
 ---
 

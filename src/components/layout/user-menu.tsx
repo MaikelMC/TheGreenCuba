@@ -150,7 +150,33 @@ function itemsFor(user: SessionUser) {
   );
 }
 
-export function UserMenu({ initial }: { initial?: string }) {
+/**
+ * Una entrada propia de la pantalla que monta el menú (el panel de negocio:
+ * «Ir a La Verde», «Ver mi ficha», el tema…). Con `href` sale un enlace que
+ * abre en otra pestaña; sin él, un botón.
+ */
+export interface EntradaMenu {
+  key: string;
+  label: string;
+  icon: typeof User;
+  href?: string;
+  onSelect?: () => void;
+}
+
+export function UserMenu({
+  initial,
+  extras = [],
+  antesDeSalir,
+}: {
+  initial?: string;
+  /** Entradas que van antes de las secciones de la cuenta. */
+  extras?: EntradaMenu[];
+  /**
+   * La guardia de trabajo sin guardar de quien monta el menú. Se consulta
+   * antes de irse a otra sección de la cuenta y antes de cerrar sesión.
+   */
+  antesDeSalir?: () => boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(lastKnownUser);
   /* Tres estados, no dos: «todavía no se sabe» no es «no hay sesión». Con dos,
@@ -311,6 +337,7 @@ export function UserMenu({ initial }: { initial?: string }) {
   const handleSelect = useCallback(
     (path: string) => {
       setOpen(false);
+      if (antesDeSalir && !antesDeSalir()) return;
       /* Los dos paneles entran con carga completa y no con navegación de cliente.
          Son las dos rutas más pesadas de la app —los armazones de admin y de
          negocio, cada uno con su propio árbol de componentes— y en una
@@ -325,17 +352,18 @@ export function UserMenu({ initial }: { initial?: string }) {
       }
       navegar(path, router.push);
     },
-    [router],
+    [router, antesDeSalir],
   );
 
   const handleLogout = useCallback(() => {
     setOpen(false);
+    if (antesDeSalir && !antesDeSalir()) return;
     /* La copia en memoria no puede sobrevivir al cierre: aunque `logout()`
        recarga la página al final, si la recarga se queda a medias el siguiente
        montaje pintaría el avatar del usuario que acaba de salir. */
     lastKnownUser = null;
     void logout();
-  }, []);
+  }, [antesDeSalir]);
 
   // El nombre de la sesión manda sobre el `initial` que pase quien lo use: el
   // primero viene del servidor con la firma comprobada, el segundo es una
@@ -464,6 +492,35 @@ export function UserMenu({ initial }: { initial?: string }) {
                   {ROLE_LABEL[user.role]}
                 </div>
               </div>
+            )}
+
+            {extras.map(({ key, label, icon: Icon, href, onSelect }) =>
+              href ? (
+                <a
+                  key={key}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setOpen(false)}
+                  className={ITEM}
+                >
+                  <Icon size={16} strokeWidth={1.8} className="user-menu-icon shrink-0 text-verde-600" />
+                  {label}
+                </a>
+              ) : (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    onSelect?.();
+                  }}
+                  className={ITEM}
+                >
+                  <Icon size={16} strokeWidth={1.8} className="user-menu-icon shrink-0 text-verde-600" />
+                  {label}
+                </button>
+              ),
             )}
 
             {visible.map(({ path, label, icon: Icon }) => (

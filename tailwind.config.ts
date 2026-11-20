@@ -241,7 +241,9 @@ const config: Config = {
         /* Separación por encima del dock, para los avisos flotantes. En iOS el
            inset del indicador de inicio añade ~34 px, así que el valor va
            sumado y no fijo. */
-        "above-nav": "calc(5rem + env(safe-area-inset-bottom, 0px))",
+        /* 6 rem: el dock mide unos 67 px y flota a 16 del borde (83 px en
+           total); con 5 rem el aviso y las barras de guardado lo pisaban. */
+        "above-nav": "calc(6rem + env(safe-area-inset-bottom, 0px))",
         /* Separación del dock flotante con el borde de abajo. */
         "dock-bottom": "calc(1rem + env(safe-area-inset-bottom, 0px))",
       },

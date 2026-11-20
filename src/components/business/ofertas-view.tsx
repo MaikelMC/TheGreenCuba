@@ -126,7 +126,7 @@ export function OfertasView({
      de sección y el navegador antes de cerrar la pestaña. */
   useEffect(() => {
     if (!sucio) return;
-    registrarGuarda(() =>
+    const bajaGuarda = registrarGuarda(() =>
       window.confirm(
         "Tienes ofertas sin guardar. Si sales ahora se descartan. ¿Salir igual?",
       ),
@@ -137,7 +137,7 @@ export function OfertasView({
     };
     window.addEventListener("beforeunload", alCerrar);
     return () => {
-      registrarGuarda(null);
+      bajaGuarda();
       window.removeEventListener("beforeunload", alCerrar);
     };
   }, [sucio]);
@@ -228,7 +228,7 @@ export function OfertasView({
       {/* La barra solo aparece con cambios pendientes: un botón que guarda lo
           mismo que ya está en la base es ruido. */}
       {sucio && (
-        <div className="sticky bottom-4 z-40 mt-gap-lg flex justify-end">
+        <div className="sticky bottom-above-nav z-40 mt-gap-lg flex justify-end lg:bottom-4">
           <BotonPrimario
             alto="lg"
             onClick={() => void save(ofertas)}

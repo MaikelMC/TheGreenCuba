@@ -61,6 +61,21 @@ export default function manifest(): MetadataRoute.Manifest {
         description: "Ficha, métricas y catálogo de tu negocio.",
         url: "/business",
       },
+      /* Lo que se abre a diario en el panel. Sin permiso o sin la función, la
+         sección enseña su aviso o el panel cae a Hoy, como con cualquier
+         enlace. */
+      {
+        name: "Pedidos",
+        short_name: "Pedidos",
+        description: "Los pedidos de tu negocio.",
+        url: "/business?seccion=pedidos",
+      },
+      {
+        name: "Hoy hay",
+        short_name: "Hoy hay",
+        description: "Marca lo que se agotó y lo que vuelve a haber.",
+        url: "/business?seccion=catalogo&sub=hoy-hay",
+      },
       {
         name: "Mi perfil",
         short_name: "Mi perfil",

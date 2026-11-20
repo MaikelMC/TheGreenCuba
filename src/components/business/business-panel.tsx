@@ -9,30 +9,36 @@ import { toast } from "sonner";
 import {
   ArrowUpRight,
   AtSign,
+  BellRing,
+  Bot,
   CalendarDays,
-  Check,
-  ChevronDown,
+  ClipboardList,
   Clock,
+  Coins,
   CreditCard,
+  Ellipsis,
   Eye,
   Image as ImageIcon,
+  LayoutDashboard,
   Loader2,
-  LogOut,
   MapPin,
   Megaphone,
-  MessageCircle,
-  Coins,
   MousePointerClick,
   Package,
+  Pencil,
   Save,
   Search,
+  Settings,
+  Sparkles,
+  Stamp,
   Store,
+  Tag,
+  Users,
+  Utensils,
   Zap,
 } from "lucide-react";
 import { cn, sanitizePhone } from "@/lib/utils";
-import { normalizarWhatsappCubano, whatsappHref } from "@/lib/contact-links";
-import { SUPPORT_EMAIL, SUPPORT_WHATSAPP } from "@/lib/legal";
-import { logout } from "@/lib/logout";
+import { normalizarWhatsappCubano } from "@/lib/contact-links";
 import { placeIcon } from "@/lib/places";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -46,7 +52,25 @@ import {
 import { CategoryIcon } from "@/components/admin/category-icon";
 import { IconPicker } from "@/components/ui/icon-picker";
 import { FormSection, FormSections } from "@/components/business/form-section";
-import { PanelShell, type PanelView } from "@/components/business/panel-shell";
+import {
+  PanelShell,
+  usePanelNav,
+  type ItemNav,
+} from "@/components/business/panel-shell";
+import { INICIO, type Destino } from "@/components/business/panel-nav";
+import {
+  EstadoNegocioProvider,
+  FranjaCocina,
+  HojaEstado,
+  PildoraEstado,
+} from "@/components/business/estado-negocio";
+import {
+  TarjetaPedidosWhatsapp,
+  TarjetaPreciosMixtos,
+  TarjetaReservas,
+} from "@/components/business/ajustes-tarjetas";
+import { HorarioCocinaCard } from "@/components/business/cocina-panel";
+import { MasView } from "@/components/business/mas-view";
 import { DashboardStats } from "@/components/business/dashboard-stats";
 import { LogoUpload } from "@/components/business/logo-upload";
 import { PhotoGrid } from "@/components/business/photo-grid";
@@ -54,7 +78,6 @@ import { PaymentChips } from "@/components/business/payment-chips";
 import { CatalogoView } from "@/components/business/catalogo-view";
 import { PedidosView } from "@/components/business/pedidos-view";
 import { ClientesFrecuentesView } from "@/components/business/clientes-frecuentes-view";
-import { CocinaPanel } from "@/components/business/cocina-panel";
 import { ProgramadosAjustes } from "@/components/business/programados-ajustes";
 import { OfertasView } from "@/components/business/ofertas-view";
 import { MenuLinkCard } from "@/components/business/menu-link-card";
@@ -66,33 +89,13 @@ import { EquipoView } from "@/components/business/equipo-view";
 import { SeguidoresCard } from "@/components/business/seguidores-card";
 import { TasaDelDiaCard } from "@/components/business/tasa-del-dia-card";
 import { ZonasDomicilioCard } from "@/components/business/zonas-domicilio-card";
-import { KynariCard } from "@/components/business/kynari-card";
-import {
-  BusinessSwitcher,
-  type NegocioPanel,
-} from "@/components/business/business-switcher";
-import {
-  bloqueoDe,
-  nombreDe,
-  type ClaveModulo,
-  type Funcion,
-  type Pack,
-  type Plan,
-} from "@/lib/plans";
-import { useCatalogo } from "@/providers/catalogo-provider";
+import type { NegocioPanel } from "@/components/business/business-switcher";
+import type { ClaveModulo, Funcion, Pack, Plan } from "@/lib/plans";
 import {
   ENERGIA_LABEL,
   ENERGIA_ORDER,
   type EnergiaRespaldo,
 } from "@/lib/energia";
-import {
-  PLANTILLA_POR_DEFECTO,
-  RESERVA_LABEL,
-  TIPOS_RESERVA,
-  fechaLocalIso,
-  plantillaEfectiva,
-  type TipoReserva,
-} from "@/lib/reserva";
 import {
   MapLocationPicker,
   type LocationPoint,
@@ -100,10 +103,8 @@ import {
 import { campoResuelto } from "@/lib/map/geocode";
 import { registrarGuarda } from "@/lib/unsaved-guard";
 import { INPUT } from "@/components/business/ui/clases";
-import { BotonPrimario } from "@/components/business/ui/botones";
-import { Chapita, FilaAjuste, TarjetaAjuste } from "@/components/business/ui/tarjeta";
-import { CandadoPlan } from "@/components/business/ui/candado-plan";
-import { Switch } from "@/components/business/ui/switch";
+import { BotonPrimario, BotonSecundario } from "@/components/business/ui/botones";
+import { TarjetaPanel } from "@/components/business/ui/tarjeta";
 import { usePlaces } from "@/providers/places-provider";
 import type { TipoNegocio, ModuloFicha, ComoComprar, ComoAtiende, EspecialDelDia } from "@/lib/ficha/tipos";
 import type { EntregaConfig } from "@/lib/ficha/entrega";
@@ -113,7 +114,6 @@ import { HorarioEditor } from "@/components/business/horario-editor";
 import { ModulosEditor } from "@/components/business/modulos-editor";
 import type { VisitasPanel } from "@/lib/eventos";
 import type {
-  PlaceStatus,
   UserPlace,
   UserPlacePatch,
 } from "@/lib/places-store";
@@ -140,24 +140,6 @@ const SCHEDULE_PRESETS = [
   "10:00 – 22:00",
   "12:00 – 24:00",
   "24 horas",
-];
-
-const STATUS_OPTIONS: { value: PlaceStatus; label: string; hint: string }[] = [
-  {
-    value: "active",
-    label: "Abierto",
-    hint: "Es lo que se enseña por defecto.",
-  },
-  {
-    value: "temporary_closed",
-    label: "Cerrado temporalmente",
-    hint: "La ficha avisa de que ahora no abre.",
-  },
-  {
-    value: "closed",
-    label: "Cerrado",
-    hint: "La ficha se sigue viendo, marcada como cerrada.",
-  },
 ];
 
 /* `verde-600` del sistema, aquí porque el selector de color nativo necesita un
@@ -197,6 +179,7 @@ export function BusinessPanel({
   configTasa = null,
   packMedida = null,
   descuentoPct = null,
+  destinoInicial = INICIO,
 }: {
   /** Id del usuario de la sesión. Solo se usa para nombrar el snapshot offline. */
   userId: string;
@@ -220,12 +203,7 @@ export function BusinessPanel({
    * servidor, que vuelve a comprobarlo en cada ruta que escribe.
    */
   funciones: Funcion[];
-  /**
-   * Los módulos sueltos vigentes del negocio, resueltos en el servidor.
-   *
-   * Solo los usa la tarjeta del plan del dashboard: un negocio en Gratis con
-   * Menú Pro contratado no lo dice su plan, lo dicen sus módulos.
-   */
+  /** Los módulos sueltos vigentes del negocio, para la tarjeta del plan. */
   modulos: ClaveModulo[];
   /** Solo el negocio de prueba: puede cambiarse de plan a voluntad. */
   puedeElegirPlan: boolean;
@@ -233,13 +211,7 @@ export function BusinessPanel({
   planElegido?: Pack | null;
   /** Los servicios sueltos pulsados en la portada, por el mismo motivo. */
   modulosElegidos?: readonly ClaveModulo[];
-  /**
-   * Los negocios que esta cuenta puede abrir, para el selector.
-   *
-   * En el dashboard se pinta dentro de la cabecera aunque haya uno solo —es el
-   * estado de la ficha—; en el resto de secciones solo aparece con dos o más,
-   * cuando de verdad hay algo que elegir. `place.id` ya dice cuál está activo.
-   */
+  /** Los negocios que esta cuenta puede abrir, para «Tus negocios». */
   negocios: NegocioPanel[];
   /**
    * Si quien mira es el dueño. Resuelto en el servidor con `accesoNegocio`.
@@ -256,6 +228,8 @@ export function BusinessPanel({
   packMedida?: PackMedidaResumen | null;
   /** Descuento acordado para este negocio, 0–100. `null` = sin descuento. */
   descuentoPct?: number | null;
+  /** La pantalla que pide la URL (`?seccion=&sub=`), leída en el servidor. */
+  destinoInicial?: Destino;
 }) {
   /* Copia de lectura para el modo offline. Se reescribe cuando cambia algo de
      la ficha, de las métricas o del plan; el panel se resuelve en el servidor,
@@ -291,239 +265,427 @@ export function BusinessPanel({
     permisos,
   ]);
 
-  /* Una función de permiso, tres usos. El dueño pasa siempre; el trabajador
+  /* Una función de permiso, muchos usos. El dueño pasa siempre; el trabajador
      solo si el dueño le marcó esa casilla. */
   const puede = (permiso: PermisoNegocio) =>
     esDueno || permisos.includes(permiso);
+  const tiene = (funcion: Funcion) => funciones.includes(funcion);
 
-  /* Las secciones del armazón. El orden lo pone `NAV_ITEMS`; aquí solo se
-     decide cuáles existen para esta cuenta. */
-  const vistas: PanelView[] = [
-    "dashboard",
-    ...(puede("catalogo") ? (["catalogo", "ofertas"] as PanelView[]) : []),
-    ...(puede("pedidos") ? (["pedidos"] as PanelView[]) : []),
-    ...(puede("pedidos") || puede("ficha")
-      ? (["clientes"] as PanelView[])
-      : []),
-    ...(puede("ficha") ? (["editor"] as PanelView[]) : []),
-    ...(esDueno ? (["publicaciones"] as PanelView[]) : []),
-    ...(puede("telegram") ? (["telegram"] as PanelView[]) : []),
-    ...(esDueno ? (["equipo"] as PanelView[]) : []),
-    ...(esDueno ? (["planes"] as PanelView[]) : []),
-    ...(puede("ficha") ? (["settings"] as PanelView[]) : []),
-  ];
+  /**
+   * Qué pantallas puede abrir esta cuenta. Es solo la interfaz: quien decide de
+   * verdad es el servidor, que vuelve a comprobar el permiso en cada ruta. Está
+   * para que un trabajador no vea —ni abra escribiendo la URL— una pantalla que
+   * le devolvería un 401.
+   */
+  const puedeAbrir = (d: Destino): boolean => {
+    switch (d.seccion) {
+      case "dashboard":
+        return true;
+      case "mas":
+        /* Reservas, Precios y tasa y Avisos venían de «Ajustes», que era de la
+           ficha: siguen con el mismo permiso. */
+        return d.sub === null || puede("ficha");
+      case "catalogo":
+      case "ofertas":
+        return puede("catalogo");
+      case "pedidos":
+        /* Los ajustes de pedidos (carrito, zonas, horario de cocina) también
+           venían de «Ajustes»: son de la ficha, no de atender pedidos. */
+        return d.sub === "ajustes" ? puede("ficha") : puede("pedidos");
+      case "clientes":
+        return puede("pedidos") || puede("ficha");
+      case "editor":
+        return puede("ficha");
+      case "telegram":
+        return puede("telegram");
+      case "publicaciones":
+      case "equipo":
+      case "planes":
+        return esDueno;
+    }
+  };
 
-  /* `businessName` sale de la ficha que se está viendo y no de `/api/me`: con el
-     selector, «la tuya» puede ser el negocio de prueba, y `/api/me` solo conoce
-     el que está en `business_owners`. El selector va en `above` —encima de la
-     vista— para que siga a todas las secciones sin pertenecer a ninguna. */
+  const item = (seccion: Destino["seccion"], sub: Destino["sub"], label: string, icon: ItemNav["icon"]): ItemNav => ({
+    destino: { seccion, sub },
+    label,
+    icon,
+  });
+  const hoy = item("dashboard", null, "Hoy", LayoutDashboard);
+  const pedidos = item("pedidos", null, "Pedidos", ClipboardList);
+  const catalogo = item("catalogo", null, "Catálogo", Utensils);
+  const clientes = item("clientes", null, "Clientes", Stamp);
+  const mas = item("mas", null, "Más", Ellipsis);
+  const reservas = item("mas", "reservas", "Reservas", CalendarDays);
+  const ofertas = item("ofertas", null, "Ofertas", Tag);
+
+  /**
+   * Las pestañas del dock (móvil y tablet). Entre dos y cinco:
+   * - Hoy y Más, siempre.
+   * - Pedidos si se puede atender y el plan tiene pedidos por WhatsApp. Si no,
+   *   su hueco es para Reservas, si las tiene y se pueden configurar.
+   * - Catálogo con el permiso de catálogo.
+   * - Clientes si el plan tiene la tarjeta de sellos. Si no, su hueco es para
+   *   Ofertas, si el plan las tiene y se puede editar el catálogo.
+   * Lo que no entra en el dock sale arriba en «Más», en «Secciones». Un
+   * trabajador con un solo permiso puede quedarse con dos pestañas.
+   */
+  const dock: ItemNav[] = [hoy];
+  if (puede("pedidos") && tiene("whatsapp_pedido")) dock.push(pedidos);
+  else if (puede("ficha") && tiene("reservas_whatsapp")) dock.push(reservas);
+  if (puede("catalogo")) dock.push(catalogo);
+  if ((puede("pedidos") || puede("ficha")) && tiene("cliente_frecuente")) dock.push(clientes);
+  else if (puede("catalogo") && tiene("ofertas_flash")) dock.push(ofertas);
+  dock.push(mas);
+
+  /* Escritorio: las cuatro principales arriba (y «Más», que reúne Kynari y el
+     soporte) y debajo los grupos de «Más», para llegar a todo en un toque. */
+  const lateral = [hoy, pedidos, catalogo, clientes, mas].filter((i) => puedeAbrir(i.destino));
+  const grupos = [
+    {
+      titulo: "Mi negocio",
+      items: [
+        item("editor", null, "Editar mi ficha", Pencil),
+        reservas,
+        item("mas", "precios", "Precios y tasa", Coins),
+        item("mas", "avisos", "Avisos a seguidores", BellRing),
+      ],
+    },
+    {
+      titulo: "Vender más",
+      items: [ofertas, item("publicaciones", null, "Publicar", Megaphone)],
+    },
+    {
+      titulo: "Herramientas",
+      items: [item("telegram", null, "Asistente", Bot), item("equipo", null, "Equipo", Users)],
+    },
+    { titulo: "Cuenta", items: [item("planes", null, "Tu plan", Sparkles)] },
+  ].map((g) => ({ ...g, items: g.items.filter((i) => puedeAbrir(i.destino)) }));
+
   return (
-    <PanelShell
-      businessName={place.name}
-      publicado={place.isActive}
-      vistas={vistas}
-      /* El dashboard pinta el selector en su cabecera; el resto de secciones
-         lo llevan encima de la vista. */
-      above={(view) =>
-        view === "dashboard" ? null : (
-          <BusinessSwitcher negocios={negocios} seleccionado={place.id} />
-        )
-      }
+    <EstadoNegocioProvider
+      place={place}
+      tieneCocina={tiene("horario_cocina")}
+      puedeFicha={puede("ficha")}
+      puedePedidos={puede("pedidos")}
     >
-      {(view, setView) => {
-        /* El botón de planes de las tarjetas no tiene a dónde ir si esta cuenta
-           no paga el negocio: en vez de un botón mudo, se dice a quién
-           pedírselo. */
-        const onVerPlanes = esDueno
-          ? () => setView("planes")
-          : () =>
-              toast.info(
-                "Los planes los gestiona el dueño del negocio. Pídeselo y él lo cambia.",
-              );
+      <PanelShell
+        negocioId={place.id}
+        businessName={place.name}
+        logoUrl={place.logoUrl}
+        publicado={place.isActive}
+        negocios={negocios}
+        destinoInicial={destinoInicial}
+        puedeAbrir={puedeAbrir}
+        dock={dock}
+        lateral={lateral}
+        grupos={grupos}
+        estado={<PildoraEstado />}
+        hojas={<HojaEstado />}
+      >
+        {(destino) => (
+          <VistaPanel
+            destino={destino}
+            dock={dock.map((i) => i.destino)}
+            place={place}
+            stats={stats}
+            visitas={visitas}
+            publicaciones={publicaciones}
+            menuUrl={menuUrl}
+            plan={plan}
+            funciones={funciones}
+            modulos={modulos}
+            puedeElegirPlan={puedeElegirPlan}
+            planElegido={planElegido}
+            modulosElegidos={modulosElegidos}
+            esDueno={esDueno}
+            permisos={permisos}
+            configTasa={configTasa}
+            packMedida={packMedida}
+            descuentoPct={descuentoPct}
+          />
+        )}
+      </PanelShell>
+    </EstadoNegocioProvider>
+  );
+}
 
-        switch (view) {
-          case "dashboard":
-            return (
-              <DashboardView
-                place={place}
-                stats={stats}
-                visitas={visitas}
-                publicaciones={publicaciones}
-                menuUrl={menuUrl}
-                plan={plan}
-                funciones={funciones}
-                modulos={modulos}
-                negocios={negocios}
-                esDueno={esDueno}
-                /* El botón de la tarjeta de plan navega dentro del panel, no
-                   fuera: la sección de planes es una vista más del armazón. */
-                onVerPlanes={onVerPlanes}
-              />
-            );
-          case "catalogo":
-            /* La carta vive aquí y no en «Editar ficha»: son dos ritmos
-               distintos. La ficha se toca una vez y se deja; la carta se cambia
-               cada semana. Con la `key` por negocio, cambiar de negocio vuelve
-               a sembrar la lista. */
-            return (
-              <div className="flex flex-col gap-gap-sm">
-                <InfoServicio href="/servicios/carta-y-qr" />
-                <CatalogoView
-                  key={place.id}
-                  place={place}
-                  funciones={funciones}
-                  configTasa={configTasa ?? undefined}
-                  onVerPlanes={onVerPlanes}
-                />
-              </div>
-            );
-          case "pedidos":
-            /* El historial vive aparte de la carta porque se mira con otro
-               ritmo: la carta se edita, los pedidos se atienden. El servidor
-               comprueba la propiedad en cada lectura y escritura. */
-            return (
-              <div className="flex flex-col gap-gap-md">
-                <InfoServicio href="/servicios/flujo-atencion-pedidos" />
-                <PedidosView
-                  key={place.id}
-                  placeId={place.id}
-                  funciones={funciones}
-                  onVerPlanes={onVerPlanes}
-                  onVerClientes={() => setView("clientes")}
-                />
-                {funciones.includes("horario_cocina") && (
-                  <CocinaPanel
+/** Monta la pantalla que dice la URL. Vive dentro del armazón para poder navegar. */
+function VistaPanel({
+  destino,
+  dock,
+  place,
+  stats,
+  visitas,
+  publicaciones,
+  menuUrl,
+  plan,
+  funciones,
+  modulos,
+  puedeElegirPlan,
+  planElegido,
+  modulosElegidos,
+  esDueno,
+  permisos,
+  configTasa,
+  packMedida,
+  descuentoPct,
+}: {
+  destino: Destino;
+  dock: Destino[];
+  place: UserPlace;
+  stats: PlaceStats;
+  visitas: VisitasPanel;
+  publicaciones: { usadas: number; tope: number };
+  menuUrl: string;
+  plan: Plan;
+  funciones: Funcion[];
+  modulos: ClaveModulo[];
+  puedeElegirPlan: boolean;
+  planElegido: Pack | null;
+  modulosElegidos: readonly ClaveModulo[];
+  esDueno: boolean;
+  permisos: PermisoNegocio[];
+  configTasa: import("@/lib/precios").ConfigTasa | null;
+  packMedida: PackMedidaResumen | null;
+  descuentoPct: number | null;
+}) {
+  const nav = usePanelNav();
+  const tiene = (funcion: Funcion) => funciones.includes(funcion);
+
+  /* El botón de planes de las tarjetas no tiene a dónde ir si esta cuenta no
+     paga el negocio: en vez de un botón mudo, se dice a quién pedírselo. */
+  const onVerPlanes = esDueno
+    ? () => nav.ir({ seccion: "planes", sub: null })
+    : () =>
+        toast.info(
+          "Los planes los gestiona el dueño del negocio. Pídeselo y él lo cambia.",
+        );
+
+  switch (destino.seccion) {
+    case "dashboard":
+      return (
+        <DashboardView
+          place={place}
+          stats={stats}
+          visitas={visitas}
+          publicaciones={publicaciones}
+          menuUrl={menuUrl}
+          plan={plan}
+          funciones={funciones}
+          modulos={modulos}
+          esDueno={esDueno}
+          onVerPlanes={onVerPlanes}
+        />
+      );
+    case "catalogo":
+      /* La carta vive aquí y no en «Editar ficha»: son dos ritmos distintos.
+         Con la `key` por negocio, cambiar de negocio vuelve a sembrar la lista. */
+      return (
+        <div className="flex flex-col gap-gap-sm">
+          <InfoServicio href="/servicios/carta-y-qr" />
+          <CatalogoView
+            key={place.id}
+            place={place}
+            funciones={funciones}
+            configTasa={configTasa ?? undefined}
+            onVerPlanes={onVerPlanes}
+          />
+        </div>
+      );
+    case "pedidos":
+      if (destino.sub === "ajustes") {
+        /* Todo lo que se configura de los pedidos, fuera de la lista: el
+           carrito, las zonas, el horario de cocina y los programados. Las
+           tarjetas son las de «Ajustes», sin cambiar su lógica ni sus rutas. */
+        return (
+          <div className="flex flex-col gap-gap-md">
+            <TarjetaPedidosWhatsapp
+              key={`pw-${place.id}`}
+              place={place}
+              funciones={funciones}
+              onVerPlanes={onVerPlanes}
+            />
+            <ZonasDomicilioCard
+              key={`zonas-${place.id}`}
+              placeId={place.id}
+              funciones={funciones}
+              entregaInicial={place.entrega}
+              onVerPlanes={onVerPlanes}
+            />
+            {tiene("horario_cocina") && (
+              <>
+                <HorarioCocinaCard key={`hc-${place.id}`} placeId={place.id} entrega={place.entrega} />
+                <TarjetaPanel>
+                  <ProgramadosAjustes
                     placeId={place.id}
-                    entrega={place.entrega}
-                    placeHorario={place.horario ?? null}
-                    puedeAtender={puede("pedidos")}
-                    puedeEditarFicha={puede("ficha")}
-                    tieneProgramados={funciones.includes("pedidos_programados")}
+                    tieneFuncion={tiene("pedidos_programados")}
                     onVerPlanes={onVerPlanes}
                   />
-                )}
-                {funciones.includes("horario_cocina") && puede("ficha") && (
-                  <section className="rounded-2xl border border-ink/5 bg-white p-gap-md">
-                    <ProgramadosAjustes
-                      placeId={place.id}
-                      tieneFuncion={funciones.includes("pedidos_programados")}
-                      onVerPlanes={onVerPlanes}
-                    />
-                  </section>
-                )}
-              </div>
-            );
-          case "clientes":
-            /* Las tarjetas de sellos. La sección la ven los dos permisos que
-               puede hacer falta: `pedidos` para atender el mostrador y `ficha`
-               para configurar la tarjeta. Cada botón vuelve a comprobar su
-               permiso antes de llamar; el servidor, otra vez. */
-            return (
-              <div className="flex flex-col gap-gap-sm">
-                <InfoServicio href="/servicios/cliente-frecuente" />
-                <ClientesFrecuentesView
-                  key={place.id}
-                  placeId={place.id}
-                  funciones={funciones}
-                  esDueno={esDueno}
-                  permisos={permisos}
-                  onVerPlanes={onVerPlanes}
-                />
-              </div>
-            );
-          case "publicaciones":
-            /* Las funciones deciden si la sección se abre o enseña el candado,
-               igual que en las ofertas flash del editor. El servidor lo
-               comprueba otra vez: el candado del cliente es información, no
-               permiso. */
-            return (
-              <PublicacionesView
-                key={place.id}
+                </TarjetaPanel>
+              </>
+            )}
+          </div>
+        );
+      }
+      /* El historial vive aparte de la carta porque se mira con otro ritmo: la
+         carta se edita, los pedidos se atienden. El servidor comprueba la
+         propiedad en cada lectura y escritura. */
+      return (
+        <div className="flex flex-col gap-gap-md">
+          <h1 className="sr-only">Pedidos</h1>
+          <FranjaCocina />
+          <div className="flex flex-wrap items-center justify-between gap-gap-sm">
+            {nav.puedeAbrir({ seccion: "pedidos", sub: "ajustes" }) ? (
+              <BotonSecundario onClick={() => nav.ir({ seccion: "pedidos", sub: "ajustes" })}>
+                <Settings size={16} strokeWidth={1.8} />
+                Ajustes de pedidos
+              </BotonSecundario>
+            ) : (
+              <span />
+            )}
+            <InfoServicio href="/servicios/flujo-atencion-pedidos" />
+          </div>
+          <PedidosView
+            key={place.id}
+            placeId={place.id}
+            funciones={funciones}
+            onVerPlanes={onVerPlanes}
+            onVerClientes={() => nav.ir({ seccion: "clientes", sub: null })}
+          />
+        </div>
+      );
+    case "clientes":
+      /* Las tarjetas de sellos. La ven `pedidos` (para atender el mostrador) y
+         `ficha` (para configurar la tarjeta). Cada botón vuelve a comprobar su
+         permiso antes de llamar; el servidor, otra vez. */
+      return (
+        <div className="flex flex-col gap-gap-sm">
+          <InfoServicio href="/servicios/cliente-frecuente" />
+          <ClientesFrecuentesView
+            key={place.id}
+            placeId={place.id}
+            funciones={funciones}
+            esDueno={esDueno}
+            permisos={permisos}
+            onVerPlanes={onVerPlanes}
+          />
+        </div>
+      );
+    case "mas":
+      if (destino.sub === "reservas") {
+        return (
+          <TarjetaReservas
+            key={place.id}
+            place={place}
+            funciones={funciones}
+            onVerPlanes={onVerPlanes}
+          />
+        );
+      }
+      if (destino.sub === "precios") {
+        /* La tasa la decide solo el dueño (la ruta lo exige), así que un
+           trabajador ve el interruptor pero no la tarjeta de tasas. */
+        return (
+          <div className="flex flex-col gap-gap-md">
+            <TarjetaPreciosMixtos key={place.id} place={place} esDueno={esDueno} />
+            {esDueno && place.tasaActiva && (
+              <TasaDelDiaCard
                 placeId={place.id}
-                productos={place.menu}
-                funciones={funciones}
-                onVerPlanes={onVerPlanes}
+                tasaInicial={place.tasaUsdCup}
+                redondeoInicial={place.tasaRedondeo}
+                actualizadaEnInicial={place.tasaActualizadaEn}
+                monedas={place.payments}
+                tasaEurInicial={place.tasaEurCup}
+                tasaMlcInicial={place.tasaMlcCup}
+                transferenciaPctInicial={place.transferenciaPct}
               />
-            );
-          case "editor":
-            /* Las funciones bajan al editor porque «Hoy hay» entra con Menú
-               Pro: los interruptores de disponibilidad solo se pintan si
-               entra. El servidor lo vuelve a comprobar de todas formas.
-
-               La `key` remonta el editor al cambiar de negocio: siembra su
-               estado del `place` y a propósito **no** lo resincroniza —eso
-               borraría lo escrito en cada `router.refresh()`—, así que sin ella
-               cambiar de negocio dejaría en el formulario los datos del
-               anterior. */
-            return (
-              <EditorView
-                key={place.id}
-                place={place}
-                funciones={funciones}
-                onVerPlanes={onVerPlanes}
-              />
-            );
-          case "ofertas":
-            /* Sección propia, como la carta: las ofertas se cambian cada
-               semana y la ficha se toca una vez. Con la `key` por negocio, el
-               selector remonta la vista al cambiar de ficha. */
-            return (
-              <div className="flex flex-col gap-gap-sm">
-                <InfoServicio href="/servicios/ofertas-y-novedades" />
-                <OfertasView
-                  key={place.id}
-                  place={place}
-                  funciones={funciones}
-                  onVerPlanes={onVerPlanes}
-                />
-              </div>
-            );
-          case "telegram":
-            /* El asistente vivía dentro de Ajustes. Se saca a su propia
-               sección porque el trabajador puede tener el permiso de usarlo sin
-               tener el de tocar la ficha, y Ajustes es de la ficha. */
-            return (
-              <div className="flex flex-col gap-gap-md">
-                <h1 className="sr-only">Asistente de Telegram</h1>
-                <AsistenteCard
-                  key={place.id}
-                  place={place}
-                  funciones={funciones}
-                  onVerPlanes={onVerPlanes}
-                />
-              </div>
-            );
-          case "equipo":
-            return <EquipoView key={place.id} placeId={place.id} />;
-          case "planes":
-            return (
-              <PlansSection
-                key={place.id}
-                plan={plan}
-                placeId={place.id}
-                puedeElegirPlan={puedeElegirPlan}
-                planElegido={planElegido}
-                modulosElegidos={modulosElegidos}
-                packMedida={packMedida}
-                esDueno={esDueno}
-                descuentoPct={descuentoPct}
-                funciones={funciones}
-              />
-            );
-          case "settings":
-            return (
-              <SettingsView
-                key={place.id}
-                place={place}
-                plan={plan}
-                funciones={funciones}
-                onVerPlanes={onVerPlanes}
-              />
-            );
-        }
-      }}
-    </PanelShell>
-  );
+            )}
+          </div>
+        );
+      }
+      if (destino.sub === "avisos") {
+        return (
+          <SeguidoresCard
+            key={place.id}
+            place={place}
+            funciones={funciones}
+            onVerPlanes={onVerPlanes}
+          />
+        );
+      }
+      return (
+        <MasView
+          place={place}
+          plan={plan}
+          funciones={funciones}
+          publicaciones={publicaciones}
+          enDock={dock}
+        />
+      );
+    case "publicaciones":
+      /* Las funciones deciden si la sección se abre o enseña el candado. El
+         servidor lo comprueba otra vez: el candado del cliente es información,
+         no permiso. */
+      return (
+        <PublicacionesView
+          key={place.id}
+          placeId={place.id}
+          productos={place.menu}
+          funciones={funciones}
+          onVerPlanes={onVerPlanes}
+        />
+      );
+    case "editor":
+      /* La `key` remonta el editor al cambiar de negocio: siembra su estado del
+         `place` y a propósito **no** lo resincroniza —eso borraría lo escrito
+         en cada `router.refresh()`—. */
+      return (
+        <EditorView
+          key={place.id}
+          place={place}
+          funciones={funciones}
+          onVerPlanes={onVerPlanes}
+        />
+      );
+    case "ofertas":
+      return (
+        <div className="flex flex-col gap-gap-sm">
+          <InfoServicio href="/servicios/ofertas-y-novedades" />
+          <OfertasView
+            key={place.id}
+            place={place}
+            funciones={funciones}
+            onVerPlanes={onVerPlanes}
+          />
+        </div>
+      );
+    case "telegram":
+      return (
+        <AsistenteCard
+          key={place.id}
+          place={place}
+          funciones={funciones}
+          onVerPlanes={onVerPlanes}
+        />
+      );
+    case "equipo":
+      return <EquipoView key={place.id} placeId={place.id} />;
+    case "planes":
+      return (
+        <PlansSection
+          key={place.id}
+          plan={plan}
+          placeId={place.id}
+          puedeElegirPlan={puedeElegirPlan}
+          planElegido={planElegido}
+          modulosElegidos={modulosElegidos}
+          packMedida={packMedida}
+          esDueno={esDueno}
+          descuentoPct={descuentoPct}
+          funciones={funciones}
+        />
+      );
+  }
 }
 
 /** Link discreto de «¿Qué hace esto?» para las secciones del panel. */
@@ -569,7 +731,6 @@ function DashboardView({
   plan,
   funciones,
   modulos,
-  negocios,
   esDueno,
   onVerPlanes,
 }: {
@@ -581,51 +742,10 @@ function DashboardView({
   plan: Plan;
   funciones: Funcion[];
   modulos: ClaveModulo[];
-  /** Los negocios de la cuenta, para el selector de la cabecera. */
-  negocios: NegocioPanel[];
   /** La tarjeta del plan solo se enseña a quien puede cambiarlo. */
   esDueno: boolean;
   onVerPlanes: () => void;
 }) {
-  /* La marca del negocio: logo, portada o el icono de su categoría, en ese
-     orden. Es lo primero que reconoce quien lo busca. */
-  const marca = place.logoUrl || place.photos?.[0]?.url || null;
-  const estadoLabel =
-    place.status === "temporary_closed"
-      ? "Cerrado temporalmente"
-      : place.status === "closed"
-        ? "Cerrado"
-        : "Abierto";
-
-  /* Toggle rápido de estado desde el dashboard: 1 clic desde el hero,
-     sin entrar al editor. Optimista: se pinta el nuevo estado al momento
-     y se revierte si el servidor falla. */
-  const [status, setStatus] = useState<PlaceStatus>(place.status);
-  const [statusSaving, setStatusSaving] = useState(false);
-  const [statusOpen, setStatusOpen] = useState(false);
-  const { updatePlace } = usePlaces();
-
-  const changeStatus = useCallback(
-    async (next: PlaceStatus) => {
-      if (next === status || statusSaving) return;
-      setStatus(next);
-      setStatusSaving(true);
-      /* `abrirAhora`: abrir a mano fuera de horario abre de verdad (el servidor
-         guarda una apertura manual que gana al horario hasta su próxima
-         apertura). Sin esto «Abierto» solo significaba «sigue el horario». */
-      const ok = await updatePlace(place.id, {
-        status: next,
-        ...(next === "active" ? { abrirAhora: true } : {}),
-      } as Partial<UserPlace>);
-      setStatusSaving(false);
-      if (!ok) {
-        setStatus(place.status); // revertir
-        toast.error("No se pudo cambiar el estado.");
-      }
-    },
-    [status, statusSaving, place.id, place.status, updatePlace],
-  );
-
   return (
     <>
       {/* Cabecera de página. Es la única vista que se titula: la barra lateral
@@ -638,188 +758,16 @@ function DashboardView({
               aria-hidden
               className="size-[7px] shrink-0 rounded-full bg-verde-500 shadow-[0_0_0_4px_rgba(24,149,79,0.1)]"
             />
-            Panel del negocio
-          </p>
-          <h1 className="mt-gap-xs font-lv-display text-[26px] font-bold leading-[1.12] tracking-[-0.03em] text-ink sm:text-[32px]">
             {place.name}
+          </p>
+          {/* «Hoy» es el nombre de esta pantalla en el dock y en la barra
+              lateral. El estado del negocio vive en la píldora de la barra
+              superior, no aquí. */}
+          <h1 className="mt-gap-xs font-lv-display text-[26px] font-bold leading-[1.12] tracking-[-0.03em] text-ink sm:text-[32px]">
+            Hoy
           </h1>
         </div>
-        <BusinessSwitcher negocios={negocios} seleccionado={place.id} compact />
       </header>
-
-      {/* Vista previa de la ficha. Usa el hero oscuro del rediseño y **no** la
-          clase `ficha-preview`: su override de tema oscuro repintaría este
-          degradado. El blanco y los verdes claros funcionan en los dos temas. */}
-      <section className="panel-hero relative mb-gap-lg overflow-hidden rounded-[26px] bg-[linear-gradient(116deg,#0e2a1e_0%,#153e2c_72%,#1d5238_100%)] p-gap-md text-white shadow-card ring-1 ring-white/[0.03] sm:p-gap-lg">
-        {/* Adornos fuera de la caja: profundidad sin imágenes, que en datos
-            móviles se pagan. */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute -right-[90px] -top-[220px] size-[350px] rounded-full bg-[radial-gradient(circle,rgba(91,224,143,0.23),rgba(91,224,143,0)_68%)]"
-        />
-        <span
-          aria-hidden
-          className="pointer-events-none absolute right-[130px] -bottom-[220px] size-[240px] rounded-full border border-verde-300/20 shadow-[0_0_0_28px_rgba(91,224,143,0.035),0_0_0_58px_rgba(91,224,143,0.025)]"
-        />
-
-        <div className="relative flex flex-wrap items-center justify-between gap-gap-md">
-          <div className="flex min-w-0 flex-wrap items-center gap-gap-sm">
-            <span className="relative size-16 shrink-0 overflow-hidden rounded-[20px] border border-white/25 bg-white p-1 shadow-[0_8px_24px_rgba(0,0,0,0.12)] sm:size-[68px]">
-              <span className="relative grid size-full place-items-center overflow-hidden rounded-[15px] bg-white">
-                {marca ? (
-                  <Image
-                    src={marca}
-                    alt=""
-                    fill
-                    sizes="(min-width: 640px) 60px, 56px"
-                    quality={70}
-                    className="object-cover"
-                  />
-                ) : (
-                  <span aria-hidden className="text-verde-700/55">
-                    <CategoryIcon
-                      icon={placeIcon(place.icon, place.category)}
-                      size={30}
-                      strokeWidth={1.5}
-                    />
-                  </span>
-                )}
-              </span>
-            </span>
-
-            <div className="min-w-0">
-              <p className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.18em] text-verde-200">
-                Así te ven en La Verde
-              </p>
-              <div className="mt-[5px] flex flex-wrap items-center gap-gap-xs">
-                <h2 className="font-lv-display text-[21px] font-bold leading-[1.15] tracking-[-0.02em] sm:text-[25px]">
-                  {place.name}
-                </h2>
-                <span
-                  className={cn(
-                    "inline-flex shrink-0 items-center gap-[5px] rounded-full border px-[9px] py-[5px] font-lv-display text-[9px] font-semibold uppercase tracking-[0.14em]",
-                    place.isActive
-                      ? "border-verde-300/35 bg-verde-400/15 text-verde-100"
-                      : "border-white/20 bg-white/10 text-white/75",
-                  )}
-                >
-                  {place.isActive && <Check size={10} strokeWidth={3} />}
-                  {place.isActive ? "Publicada" : "Sin publicar"}
-                </span>
-              </div>
-              <div className="mt-[4px] flex flex-wrap items-center gap-x-gap-xs gap-y-[4px] text-small text-verde-100/75">
-                <span>{place.category}</span>
-                <span aria-hidden className="text-white/25">
-                  ·
-                </span>
-                <span>{place.barrio || place.city || "Sin zona"}</span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Toggle de estado + Ver mi ficha en la misma fila:
-            estado a la izquierda, enlace a la derecha. */}
-        <div className="mt-gap-sm flex items-center justify-between gap-gap-sm">
-          {statusOpen ? (
-            <div
-              role="group"
-              aria-label="Cambiar estado"
-              className={cn(
-                "flex flex-wrap gap-[5px]",
-                statusSaving && "opacity-60 pointer-events-none",
-              )}
-            >
-              {STATUS_OPTIONS.map((opt) => {
-                const isActive = status === opt.value;
-                const shortLabel =
-                  opt.value === "temporary_closed" ? "Cerrado temp." : opt.label;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => {
-                      void changeStatus(opt.value);
-                      setStatusOpen(false);
-                    }}
-                    aria-pressed={isActive}
-                    className={cn(
-                      "inline-flex cursor-pointer items-center gap-[4px] rounded-full border px-[9px] py-[4px] font-lv-display text-[10px] font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-300/50",
-                      isActive
-                        ? "border-verde-300/50 bg-verde-400/20 text-verde-100"
-                        : "border-white/15 bg-white/5 text-white/55 hover:bg-white/10 hover:text-white/80",
-                    )}
-                  >
-                    {shortLabel}
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setStatusOpen(true)}
-              aria-label={`Estado: ${estadoLabel}. Pulsa para cambiar`}
-              className={cn(
-                "inline-flex cursor-pointer items-center gap-[5px] rounded-full border border-white/20 bg-white/8 px-[9px] py-[4px] font-lv-display text-[10px] font-semibold text-white/80 transition-colors duration-200 hover:bg-white/12 hover:text-white/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-300/50",
-                statusSaving && "opacity-60 pointer-events-none",
-              )}
-            >
-              <span
-                aria-hidden
-                className={cn(
-                  "size-[5px] shrink-0 rounded-full",
-                  status === "active" ? "bg-verde-400" : "bg-white/40",
-                )}
-              />
-              {status === "temporary_closed" ? "Cerrado temp." : estadoLabel}
-              <ChevronDown size={9} strokeWidth={2.5} className="text-white/50" />
-            </button>
-          )}
-
-          <Link
-            href={`/place/${place.id}`}
-            className="inline-flex shrink-0 items-center gap-gap-xs rounded-[13px] bg-white px-gap-md py-3 font-lv-display text-small font-bold text-verde-950 shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-transform duration-500 ease-outquint hover:-translate-y-[2px]"
-          >
-            Ver mi ficha
-            <ArrowUpRight size={15} strokeWidth={2} />
-          </Link>
-        </div>
-
-        <div className="relative mt-gap-md flex flex-wrap items-center gap-x-gap-lg gap-y-gap-xs border-t border-white/10 pt-gap-sm text-meta text-verde-100/70">
-          <p className="flex min-w-0 items-start gap-[7px]">
-            <MapPin
-              size={14}
-              strokeWidth={1.8}
-              className="mt-[1px] shrink-0 text-verde-300"
-            />
-            <span className="break-words">
-              {place.address || "Todavía no has escrito la dirección"}
-            </span>
-          </p>
-          <p className="flex items-center gap-[7px]">
-            <Clock
-              size={14}
-              strokeWidth={1.8}
-              className="shrink-0 text-verde-300"
-            />
-            <span>{place.schedule || "Sin horario"}</span>
-          </p>
-          <p className="flex items-center gap-[7px]">
-            <Eye
-              size={14}
-              strokeWidth={1.8}
-              className="shrink-0 text-verde-300"
-            />
-            <span>
-              {place.isActive
-                ? "Visible en el mapa y catálogo"
-                : "Aún no aparece en el catálogo"}
-            </span>
-          </p>
-        </div>
-      </section>
 
       {/* Cabecera de la sección, como en el rediseño: un título que dice qué
           se está mirando y el periodo, en vez de la palabra «Estadísticas». */}
@@ -935,23 +883,6 @@ function DashboardView({
           sinMarca={funciones.includes("qr_sin_marca")}
         />
 
-        {/* Tasas de cambio: la tasa la decide solo el dueño (la ruta lo
-            exige), así que un trabajador no ve la tarjeta. */}
-        {esDueno && place.tasaActiva && (
-          <TasaDelDiaCard
-            placeId={place.id}
-            tasaInicial={place.tasaUsdCup}
-            redondeoInicial={place.tasaRedondeo}
-            actualizadaEnInicial={place.tasaActualizadaEn}
-            monedas={place.payments}
-            tasaEurInicial={place.tasaEurCup}
-            tasaMlcInicial={place.tasaMlcCup}
-            transferenciaPctInicial={place.transferenciaPct}
-          />
-        )}
-
-        <KynariCard />
-
         {/* Un trabajador no paga ni elige plan: la tarjeta sería un botón que no
             lleva a ningún sitio. La sección «Planes» tampoco está en su barra. */}
         {esDueno && (
@@ -959,20 +890,6 @@ function DashboardView({
         )}
       </div>
     </>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-gap-sm border-b border-ink/5 py-gap-xs last:border-b-0">
-      <dt className="text-ink-soft/75">{label}</dt>
-      {/* Sin `truncate`: la dirección puede ser larga y «Cómo apareces» es
-          justo donde el dueño viene a comprobar que está bien escrita. Cortarla
-          esconde precisamente lo que viene a leer, así que si no cabe, envuelve. */}
-      <dd className="min-w-0 text-right font-medium text-ink break-words">
-        {value}
-      </dd>
-    </div>
   );
 }
 
@@ -991,7 +908,6 @@ interface BorradorFicha {
   instagram: string;
   facebook: string;
   schedule: string;
-  status: PlaceStatus;
   payments: string[];
   energia: EnergiaRespaldo | "sin";
   notaApagon: string;
@@ -1002,7 +918,6 @@ interface BorradorFicha {
   atributos: string[];
   colorMarca: string;
   horario: import("@/lib/ficha/horario").Horario | null;
-  cerradoMensaje: string;
   entrega: import("@/lib/ficha/entrega").EntregaConfig | null;
   comoComprar: import("@/lib/ficha/tipos").ComoComprar | null;
   comoAtiende: import("@/lib/ficha/tipos").ComoAtiende | null;
@@ -1051,7 +966,6 @@ function EditorView({
   const [instagram, setInstagram] = useState(place.instagram ?? "");
   const [facebook, setFacebook] = useState(place.facebook ?? "");
   const [schedule, setSchedule] = useState(place.schedule);
-  const [status, setStatus] = useState<PlaceStatus>(place.status);
   const [payments, setPayments] = useState<string[]>(place.payments);
   /* `"sin"` es «prefiero no decirlo», que no es un valor del dominio sino la
      opción vacía del `Select` —Radix no admite un `SelectItem` con valor `""`—.
@@ -1075,9 +989,6 @@ function EditorView({
   const [atributos, setAtributos] = useState<string[]>(place.atributos ?? []);
   const [colorMarca, setColorMarca] = useState(place.colorMarca ?? "");
   const [horario, setHorario] = useState<Horario | null>(place.horario ?? null);
-  const [cerradoMensaje, setCerradoMensaje] = useState(
-    place.cerradoMensaje ?? "",
-  );
   const [entrega, setEntrega] = useState<EntregaConfig | null>(
     place.entrega ?? null,
   );
@@ -1118,7 +1029,6 @@ function EditorView({
       instagram,
       facebook,
       schedule,
-      status,
       payments,
       energia,
       notaApagon,
@@ -1128,7 +1038,6 @@ function EditorView({
       atributos,
       colorMarca,
       horario,
-      cerradoMensaje,
       entrega,
       comoComprar,
       comoAtiende,
@@ -1148,7 +1057,6 @@ function EditorView({
       instagram,
       facebook,
       schedule,
-      status,
       payments,
       energia,
       notaApagon,
@@ -1158,7 +1066,6 @@ function EditorView({
       atributos,
       colorMarca,
       horario,
-      cerradoMensaje,
       entrega,
       comoComprar,
       comoAtiende,
@@ -1299,7 +1206,6 @@ function EditorView({
       lat: location.lat,
       lng: location.lng,
       schedule: schedule.trim(),
-      status,
       payments,
       /* La carta y las ofertas flash **no** viajan aquí: cada una se edita en
          su propia sección y manda su propio `PATCH`. Al no nombrarlas, el
@@ -1315,7 +1221,6 @@ function EditorView({
       atributos,
       colorMarca: colorMarca.trim() || null,
       horario: horario ?? null,
-      cerradoMensaje: cerradoMensaje.trim() || null,
       entrega: entrega ?? null,
       comoComprar: comoComprar ?? null,
       comoAtiende: comoAtiende ?? null,
@@ -1360,7 +1265,6 @@ function EditorView({
     facebook,
     location,
     schedule,
-    status,
     payments,
     energia,
     notaApagon,
@@ -1452,7 +1356,6 @@ function EditorView({
     setInstagram(ficha.instagram ?? "");
     setFacebook(ficha.facebook ?? "");
     setSchedule(ficha.schedule);
-    setStatus(ficha.status);
     setPayments(ficha.payments);
     setEnergia(ficha.energia);
     setNotaApagon(ficha.notaApagon);
@@ -1462,7 +1365,6 @@ function EditorView({
     if (ficha.atributos !== undefined) setAtributos(ficha.atributos);
     if (ficha.colorMarca !== undefined) setColorMarca(ficha.colorMarca);
     if (ficha.horario !== undefined) setHorario(ficha.horario);
-    if (ficha.cerradoMensaje !== undefined) setCerradoMensaje(ficha.cerradoMensaje);
     if (ficha.entrega !== undefined) setEntrega(ficha.entrega);
     if (ficha.comoComprar !== undefined) setComoComprar(ficha.comoComprar);
     if (ficha.comoAtiende !== undefined) setComoAtiende(ficha.comoAtiende);
@@ -1504,7 +1406,7 @@ function EditorView({
      queda nada pendiente, incluido el instante posterior a guardar. */
   useEffect(() => {
     if (!sucio) return;
-    registrarGuarda(() =>
+    const bajaGuarda = registrarGuarda(() =>
       window.confirm(
         "Tienes cambios sin guardar en la ficha. Si sales ahora se descartan. ¿Salir igual?",
       ),
@@ -1515,7 +1417,7 @@ function EditorView({
     };
     window.addEventListener("beforeunload", alCerrar);
     return () => {
-      registrarGuarda(null);
+      bajaGuarda();
       window.removeEventListener("beforeunload", alCerrar);
     };
   }, [sucio]);
@@ -1537,7 +1439,6 @@ function EditorView({
 
   return (
     <>
-      <h1 className="sr-only">Editar ficha</h1>
 
       {/* El borrador de la visita anterior, si lo hay. Va arriba del todo porque
           es lo primero que hay que decidir: recuperarlo o tirarlo. */}
@@ -1961,28 +1862,6 @@ function EditorView({
           </div>
         </FormSection>
 
-        {/* ── Mensaje de cierre ─────────────────────────────────────── */}
-        <FormSection
-          title="Mensaje de cierre"
-          icon={<Clock size={18} strokeWidth={1.8} />}
-        >
-          <p className="mb-gap-sm text-meta text-ink-soft/75">
-            Aparece en la ficha cuando el estado es «Cerrado temporalmente».
-            Si lo dejas en blanco, se muestra el texto por defecto.
-          </p>
-          <Input
-            aria-label="Mensaje de cierre"
-            className="h-11 rounded-xl border-ink/10 bg-white text-ink placeholder:text-ink-soft/75 focus-visible:border-verde-400"
-            value={cerradoMensaje}
-            onChange={(e) => setCerradoMensaje(e.target.value)}
-            placeholder="Ej: Cerrado por vacaciones, volvemos el lunes"
-            maxLength={140}
-          />
-          <p className="mt-[4px] text-right font-lv-display text-meta text-ink-soft/75">
-            {cerradoMensaje.length}/140
-          </p>
-        </FormSection>
-
         <FormSection
           title="Energía de respaldo"
           icon={<Zap size={18} strokeWidth={1.8} />}
@@ -2029,45 +1908,6 @@ function EditorView({
           </div>
         </FormSection>
 
-        <FormSection
-          title="Estado del negocio"
-          icon={<Store size={18} strokeWidth={1.8} />}
-        >
-          <p className="mb-gap-sm text-meta text-ink-soft/75">
-            Si ahora mismo estás abierto. La ficha se sigue viendo aunque estés
-            cerrado —los enlaces se comparten— pero avisa de que no abres.
-          </p>
-          <div className="flex flex-col gap-gap-xs">
-            <Label htmlFor="bizStatus">Estado</Label>
-            <Select
-              value={status}
-              onValueChange={(v) => setStatus(v as PlaceStatus)}
-            >
-              <SelectTrigger id="bizStatus">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    <span className="inline-flex flex-col">
-                      <span>{s.label}</span>
-                      <span className="text-meta text-ink-soft/75">
-                        {s.hint}
-                      </span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Aquí estaba el bloque «Destacar en La Verde», con un precio de 25
-              USD al mes y un botón «Activar destacado» que no hacía nada: no hay
-              pasarela de pago ni forma de cobrar. Un botón que promete cobrar y
-              no cobra es peor que no tenerlo, así que se retira entero. El campo
-              `isBoosted` sigue en la base y lo pone la administración. */}
-        </FormSection>
-
         <AnimatePresence>
           {error && (
             <motion.p
@@ -2089,7 +1929,7 @@ function EditorView({
           cambios se habían escrito: el `SaveBar` que había publicaba contra
           nada. Este llama al `PATCH` de verdad y avisa cuando el servidor
           confirma. */}
-      <div className="sticky bottom-4 z-40 mt-gap-lg flex flex-col gap-gap-sm">
+      <div className="sticky bottom-above-nav z-40 mt-gap-lg flex flex-col gap-gap-sm lg:bottom-4">
         {/* Estado y descarte. Antes no había señal de trabajo pendiente y la
             única salida era recargar; el catálogo ya lo dice y esta es la
             pantalla más larga del panel. */}
@@ -2132,753 +1972,6 @@ function EditorView({
             {saving ? "Guardando…" : "Guardar cambios"}
           </BotonPrimario>
         </div>
-      </div>
-    </>
-  );
-}
-
-/**
- * Los ajustes del negocio.
- *
- * Antes esto era una ficha de solo lectura —nombre, categoría, plan— que no
- * hacía nada: lo que se venía a cambiar aquí vivía en «Editar ficha», y para
- * apagar una sola cosa había que abrir el formulario entero y guardarlo todo.
- * Ahora hay dos bloques que **escriben de verdad**, y el interruptor escribe al
- * momento, que es lo que se espera de unos ajustes.
- *
- * Solo hay aquí lo que tiene columna detrás. Estuvieron los tres interruptores
- * de «Notificaciones», «Recomendaciones IA» y «Mostrar horarios», que se movían
- * y se perdían al recargar porque no había dónde guardarlos: un interruptor que
- * miente es peor que no tenerlo, y no vuelven hasta que exista su tabla.
- */
-function SettingsView({
-  place,
-  plan,
-  funciones,
-  onVerPlanes,
-}: {
-  place: UserPlace;
-  /** El pack contratado, solo para nombrarlo en la ficha del final. */
-  plan: Plan;
-  /** Todo lo que puede hacer el negocio, resuelto en el servidor. */
-  funciones: Funcion[];
-  /** Lleva a la sección «Planes» cuando la función no entra. */
-  onVerPlanes: () => void;
-}) {
-  const { updatePlace } = usePlaces();
-  const router = useRouter();
-
-  /* Precios mixtos: para todos los negocios, sin plan. Escribe al momento
-     por la ruta de la tasa y refresca para que el Dashboard monte (o quite)
-     la tarjeta de tasas. */
-  const [mixtos, setMixtos] = useState(place.tasaActiva ?? false);
-  const [cambiandoMixtos, setCambiandoMixtos] = useState(false);
-  async function alternarMixtos() {
-    if (cambiandoMixtos) return;
-    const siguiente = !mixtos;
-    setCambiandoMixtos(true);
-    setMixtos(siguiente);
-    const ok = await fetch(`/api/places/${place.id}/tasa`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ activa: siguiente }),
-    })
-      .then((r) => r.ok)
-      .catch(() => false);
-    setCambiandoMixtos(false);
-    if (!ok) {
-      setMixtos(!siguiente);
-      toast.error("No se pudo cambiar. Revisa la conexión: no se cambió nada.");
-      return;
-    }
-    router.refresh();
-    toast.success(
-      siguiente
-        ? "Precios mixtos activados. Pon tus tasas en el Dashboard."
-        : "Precios mixtos desactivados. Tu carta vuelve a los precios de siempre.",
-    );
-  }
-
-  const [pedidos, setPedidos] = useState(place.pedidosWhatsapp);
-  const [cambiandoPedidos, setCambiandoPedidos] = useState(false);
-  /* Reservas: el interruptor y el formulario van separados como en los pedidos
-     —el interruptor escribe al momento, lo demás con su botón— porque el tipo y
-     la plantilla se escriben a medias y guardar en cada tecla dejaría la ficha
-     con un mensaje incompleto. */
-  const [reservas, setReservas] = useState(place.aceptaReservas ?? false);
-  const [reservaTipo, setReservaTipo] = useState<TipoReserva>(
-    place.tipoReserva ?? "mesa",
-  );
-  const [aforo, setAforo] = useState(
-    place.aforoMaxPersonas ? String(place.aforoMaxPersonas) : "",
-  );
-  const [plantilla, setPlantilla] = useState(place.plantillaReserva ?? "");
-  const [cupoDia, setCupoDia] = useState(
-    place.aforoDiarioPersonas ? String(place.aforoDiarioPersonas) : "",
-  );
-  const [cambiandoReservas, setCambiandoReservas] = useState(false);
-  const [guardandoReservas, setGuardandoReservas] = useState(false);
-  const [errorReservas, setErrorReservas] = useState<string | null>(null);
-  /* Qué campo tiene la culpa, para marcar solo ese y unirle el mensaje.
-     `null` con un error de red, que no es de ningún campo. */
-  const [campoErrorReservas, setCampoErrorReservas] = useState<
-    "aforo" | "cupo" | null
-  >(null);
-
-  /* El cupo que va gastado, por fecha. Se lee del mismo endpoint que usa el
-     formulario del cliente —es la misma cifra— y sirve para dos cosas: decir
-     «hoy van 12 de 40» y saber qué se libera al pulsar. `null` = todavía sin
-     leer, que se pinta como «—» y no como cero. */
-  const [ocupacion, setOcupacion] = useState<Record<string, number> | null>(
-    null,
-  );
-  /* Vacía al montar y se rellena en el efecto: `new Date()` en el
-     inicializador discrepa entre servidor y cliente cerca de medianoche o con
-     otra zona horaria. */
-  const [fechaCupo, setFechaCupo] = useState("");
-  useEffect(() => {
-    setFechaCupo(fechaLocalIso(new Date()));
-  }, []);
-  const [liberando, setLiberando] = useState(false);
-  /* Liberar un día no se deshace solo, así que el botón no dispara a la
-     primera: se convierte en la pregunta, con el número de personas que se
-     van a soltar delante. */
-  const [confirmandoLiberar, setConfirmandoLiberar] = useState(false);
-  const cat = useCatalogo();
-
-  /* `null` si ya lo tiene. Es el mismo texto que usa el candado de «Hoy hay»:
-     una sola forma de decir «esto se abre con un módulo o un pack». */
-  const bloqueo = bloqueoDe(funciones, "whatsapp_pedido", cat);
-  const bloqueoReservas = bloqueoDe(funciones, "reservas_whatsapp", cat);
-  /* Vale el WhatsApp y, si no está, el teléfono: es el mismo móvil y es el
-     criterio con el que se arma el enlace del pedido. */
-  const tieneNumero = Boolean(
-    place.whatsapp?.trim() || place.phone?.trim(),
-  );
-
-  /**
-   * El interruptor escribe al momento.
-   *
-   * Optimista y con vuelta atrás: se pinta el estado nuevo, se manda, y si el
-   * servidor dice que no se devuelve el interruptor a donde estaba. Dejar el
-   * interruptor en «sí» tras un guardado fallido sería peor que no moverse —
-   * el dueño creería que sus pedidos están encendidos y no lo están.
-   */
-  async function alternarPedidos() {
-    if (bloqueo || cambiandoPedidos) return;
-    const siguiente = !pedidos;
-    setCambiandoPedidos(true);
-    setPedidos(siguiente);
-
-    const guardado = await updatePlace(place.id, {
-      pedidosWhatsapp: siguiente,
-    });
-
-    setCambiandoPedidos(false);
-    if (!guardado) {
-      setPedidos(!siguiente);
-      toast.error("No se pudo cambiar. Revisa la conexión: no se cambió nada.");
-      return;
-    }
-    toast.success(
-      siguiente
-        ? "Pedidos por WhatsApp activados en tu catálogo."
-        : "Pedidos por WhatsApp desactivados. Tu catálogo sigue igual, sin carrito.",
-    );
-  }
-
-  /** El interruptor de reservas escribe al momento, igual que el de pedidos. */
-  async function alternarReservas() {
-    if (bloqueoReservas || cambiandoReservas) return;
-    const siguiente = !reservas;
-    setCambiandoReservas(true);
-    setReservas(siguiente);
-
-    const guardado = await updatePlace(place.id, {
-      aceptaReservas: siguiente,
-    });
-
-    setCambiandoReservas(false);
-    if (!guardado) {
-      setReservas(!siguiente);
-      toast.error("No se pudo cambiar. Revisa la conexión: no se cambió nada.");
-      return;
-    }
-    toast.success(
-      siguiente
-        ? `Reservas activadas: tus clientes verán «${RESERVA_LABEL[reservaTipo]}».`
-        : "Reservas desactivadas. Tu ficha sigue igual, sin el botón.",
-    );
-  }
-
-  /**
-   * El tipo, el aforo y la plantilla se guardan de una vez.
-   *
-   * No escriben al teclear: la plantilla es un texto largo que se escribe a
-   * medias y mandar cada pulsación dejaría a los clientes leyendo un mensaje
-   * incompleto mientras el dueño lo redacta.
-   */
-  async function guardarReservas() {
-    const aforoNum = aforo.trim() === "" ? null : Number(aforo);
-    if (
-      aforoNum !== null &&
-      (!Number.isInteger(aforoNum) || aforoNum < 1 || aforoNum > 1000)
-    ) {
-      setErrorReservas(
-        "El aforo tiene que ser un número entero de personas, o quedar vacío.",
-      );
-      setCampoErrorReservas("aforo");
-      document.getElementById("ajAforo")?.focus();
-      return;
-    }
-
-    const cupoNum = cupoDia.trim() === "" ? null : Number(cupoDia);
-    if (
-      cupoNum !== null &&
-      (!Number.isInteger(cupoNum) || cupoNum < 1 || cupoNum > 1000)
-    ) {
-      setErrorReservas(
-        "El cupo diario tiene que ser un número entero de personas, o quedar vacío.",
-      );
-      setCampoErrorReservas("cupo");
-      document.getElementById("ajCupoDia")?.focus();
-      return;
-    }
-
-    setErrorReservas(null);
-    setCampoErrorReservas(null);
-    setGuardandoReservas(true);
-    const guardado = await updatePlace(place.id, {
-      tipoReserva: reservaTipo,
-      /* El aforo y el cupo solo tienen sentido con mesa: al cambiar de tipo se
-         limpian, para no dejar un tope olvidado que el formulario ya no enseña. */
-      aforoMaxPersonas: reservaTipo === "mesa" ? aforoNum : null,
-      aforoDiarioPersonas: reservaTipo === "mesa" ? cupoNum : null,
-      plantillaReserva: plantilla.trim() || null,
-    });
-    setGuardandoReservas(false);
-
-    if (!guardado) {
-      setErrorReservas(
-        "No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada.",
-      );
-      return;
-    }
-    toast.success("Reservas guardadas");
-  }
-
-  /** Lee el cupo gastado por fecha. Best-effort: sin red no se pinta cifra. */
-  const cargarOcupacion = useCallback(async () => {
-    try {
-      const res = await fetch(
-        `/api/reservas?negocioId=${encodeURIComponent(place.id)}`,
-      );
-      if (!res.ok) return;
-      const data = (await res.json()) as { dias?: Record<string, number> };
-      setOcupacion(data.dias ?? {});
-    } catch {
-      /* Sin red el dueño ve «—»: no saber la cifra no es un error suyo. */
-    }
-  }, [place.id]);
-
-  useEffect(() => {
-    void cargarOcupacion();
-  }, [cargarOcupacion]);
-
-  /**
-   * Devuelve el día a su cupo entero. Es el «a voluntad»: cancelaciones, sitio
-   * extra, o volver a empezar la cuenta porque se llevaba mal.
-   *
-   * La confirmación la pone el botón antes de llamar aquí, y el número que se
-   * pierde viaja al «Deshacer» del aviso: liberar borra la cifra de la base y
-   * no hay otra copia de dónde sacarla. La fecha se captura al empezar y no se
-   * vuelve a leer del estado: entre la llamada y el deshacer, el dueño puede
-   * haber cambiado la fecha del campo.
-   */
-  async function liberarFecha() {
-    if (liberando) return;
-    const fecha = fechaCupo;
-    const liberadas = ocupacion?.[fecha] ?? 0;
-    setLiberando(true);
-    try {
-      const res = await fetch(
-        `/api/reservas?negocioId=${encodeURIComponent(place.id)}&fecha=${encodeURIComponent(fecha)}`,
-        { method: "DELETE" },
-      );
-      if (!res.ok) {
-        toast.error(
-          "No se pudo liberar. Revisa la conexión: no se cambió nada.",
-        );
-        return;
-      }
-      setOcupacion((o) => {
-        const copia = { ...(o ?? {}) };
-        delete copia[fecha];
-        return copia;
-      });
-      toast.success("Cupo liberado: ese día vuelve a estar entero.", {
-        action:
-          liberadas > 0
-            ? {
-                label: "Deshacer",
-                onClick: () => void restaurarFecha(fecha, liberadas),
-              }
-            : undefined,
-      });
-    } catch {
-      toast.error("No se pudo liberar. Revisa la conexión: no se cambió nada.");
-    } finally {
-      setLiberando(false);
-    }
-  }
-
-  /** El «deshacer» de `liberarFecha`: vuelve a poner el número que se soltó. */
-  async function restaurarFecha(fecha: string, personas: number) {
-    try {
-      const res = await fetch("/api/reservas", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ negocioId: place.id, fecha, personas }),
-      });
-      if (!res.ok) {
-        toast.error("No se pudo deshacer: vuelve a apuntar el cupo a mano.");
-        return;
-      }
-      setOcupacion((o) => ({ ...(o ?? {}), [fecha]: personas }));
-      toast.success(`El día vuelve a estar con ${personas} apuntadas.`);
-    } catch {
-      toast.error("No se pudo deshacer. Revisa la conexión.");
-    }
-  }
-
-  return (
-    <>
-      <h1 className="sr-only">Ajustes</h1>
-
-      <div className="flex flex-1 flex-col gap-gap-md">
-        {/* ── Pedidos por WhatsApp ────────────────────────────────────────
-            El plan enciende la función y el dueño la apaga a voluntad en su
-            carta. Los dos interruptores se enseñan siempre, también cuando el
-            plan no llega: si no, el dueño no se entera de que la función
-            existe. */}
-        <TarjetaAjuste
-          icono={MessageCircle}
-          titulo="Pedidos por WhatsApp"
-          estado={
-            <Chapita tono={bloqueo ? "candado" : pedidos ? "activa" : "neutra"}>
-              {bloqueo ?? (pedidos ? "Activo" : "Desactivado")}
-            </Chapita>
-          }
-          apoyo="Tus clientes piden desde la carta y el pedido te llega por WhatsApp."
-        >
-          {bloqueo ? (
-            <CandadoPlan
-              onVerPlanes={onVerPlanes}
-              texto="Tu carta se comparte igual; solo le falta el carrito."
-            />
-          ) : (
-            <>
-              <FilaAjuste
-                titulo="Recibir pedidos en mi carta"
-                detalle={
-                  pedidos
-                    ? "El carrito aparece en tu menú."
-                    : "El carrito está oculto; tus productos se siguen viendo."
-                }
-                control={
-                  <Switch
-                    checked={pedidos}
-                    onToggle={() => void alternarPedidos()}
-                    label="Recibir pedidos en mi catálogo"
-                  />
-                }
-              />
-
-              {/* Con el plan puesto y los pedidos encendidos, el único motivo
-                  por el que el carrito no sale es que falte el número. Se dice
-                  aquí, que es donde el dueño lo está mirando. */}
-              {pedidos && !tieneNumero && (
-                <p className="mt-gap-sm rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-3 py-[7px] text-meta font-medium text-ink">
-                  Falta tu número de WhatsApp: sin él no hay a dónde mandar el
-                  pedido y el carrito no se enseña. Añádelo en «Editar ficha»,
-                  sección «Contacto».
-                </p>
-              )}
-            </>
-          )}
-        </TarjetaAjuste>
-
-        {/* ── Precios mixtos ──────────────────────────────────────────────
-            Sin plan: lo tiene cualquier negocio. Encendido, el Dashboard
-            pide las tasas y la ficha deja ver la carta en otra moneda. */}
-        <TarjetaAjuste
-          icono={Coins}
-          titulo="Precios mixtos"
-          estado={
-            <Chapita tono={mixtos ? "activa" : "neutra"}>
-              {mixtos ? "Activo" : "Desactivado"}
-            </Chapita>
-          }
-          apoyo="Tus clientes ven la carta en la moneda con la que van a pagar."
-        >
-          <FilaAjuste
-            titulo="Mostrar mi carta en varias monedas"
-            detalle={
-              mixtos
-                ? "Pon tus tasas en el Dashboard."
-                : "Tu carta se ve con los precios que escribiste."
-            }
-            control={
-              <Switch
-                checked={mixtos}
-                onToggle={() => void alternarMixtos()}
-                label="Mostrar mi carta en varias monedas"
-              />
-            }
-          />
-        </TarjetaAjuste>
-
-        {/* ── Reservas por WhatsApp ───────────────────────────────────────
-            Mismo reparto que los pedidos: el plan (Pro) enciende la función y
-            el dueño la enciende o la apaga. Sin plan, la tarjeta se enseña
-            bloqueada para que se sepa que existe y qué plan la abre. */}
-        <TarjetaAjuste
-          icono={CalendarDays}
-          titulo="Reservas por WhatsApp"
-          estado={
-            <Chapita
-              tono={bloqueoReservas ? "candado" : reservas ? "activa" : "neutra"}
-            >
-              {bloqueoReservas ?? (reservas ? "Activo" : "Desactivado")}
-            </Chapita>
-          }
-          apoyo="Rellenan el formulario en tu ficha y la reserva te llega por WhatsApp."
-        >
-          {bloqueoReservas ? (
-            <CandadoPlan
-              onVerPlanes={onVerPlanes}
-              texto="Tu ficha se comparte igual; solo le falta el botón de reservar."
-            />
-          ) : (
-            <>
-              <FilaAjuste
-                titulo="Aceptar reservas"
-                detalle={
-                  reservas
-                    ? "El botón aparece en tu ficha y en tu catálogo."
-                    : "El botón está oculto; el resto de la ficha se ve igual."
-                }
-                control={
-                  <Switch
-                    checked={reservas}
-                    onToggle={() => void alternarReservas()}
-                    label="Aceptar reservas"
-                  />
-                }
-              />
-
-              {/* Con el plan puesto y las reservas encendidas, el único motivo
-                  por el que el botón no sale es que falte el número. */}
-              {reservas && !tieneNumero && (
-                <p className="mt-gap-sm rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-3 py-[7px] text-meta font-medium text-ink">
-                  Falta tu número de WhatsApp: sin él no hay a dónde mandar la
-                  reserva y el botón no se enseña. Añádelo en «Editar ficha»,
-                  sección «Contacto».
-                </p>
-              )}
-
-              {/* El formulario entero, plegado.
-
-                  Son siete bloques —tipo, aforo, cupo diario, liberar un día,
-                  plantilla, vista previa y guardar— y abiertos empujaban todo lo
-                  que viene detrás fuera de la pantalla. `details` nativo y no el
-                  `FormSection` del editor: aquel pinta su propia tarjeta, y una
-                  tarjeta dentro de otra tarjeta queda mal. */}
-              <details className="group mt-gap-md border-t border-ink/5 pt-gap-sm">
-                {/* `min-h-11`: era una línea de texto con 4 px de relleno, unos
-                    28 px de alto para el dedo. */}
-                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-gap-sm font-lv-display text-small font-semibold text-ink [&::-webkit-details-marker]:hidden">
-                  Configurar la reserva
-                  <ChevronDown
-                    size={18}
-                    strokeWidth={1.8}
-                    className="shrink-0 text-ink-soft/75 transition-transform duration-300 ease-outquint group-open:rotate-180"
-                  />
-                </summary>
-
-                <div className="mt-gap-sm flex flex-col gap-gap-md">
-                  <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
-                    <div className="flex flex-col gap-gap-xs">
-                      <Label htmlFor="ajReservaTipo">Qué se reserva</Label>
-                      <Select
-                        value={reservaTipo}
-                        onValueChange={(v) => setReservaTipo(v as TipoReserva)}
-                      >
-                        <SelectTrigger id="ajReservaTipo">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TIPOS_RESERVA.map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {RESERVA_LABEL[t]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {reservaTipo === "mesa" && (
-                      <div className="flex flex-col gap-gap-xs">
-                        <Label htmlFor="ajAforo">Aforo máximo (opcional)</Label>
-                        <Input
-                          id="ajAforo"
-                          type="number"
-                          inputMode="numeric"
-                          min={1}
-                          aria-invalid={campoErrorReservas === "aforo" || undefined}
-                          aria-describedby={
-                            campoErrorReservas === "aforo" ? "aj-reservas-error" : undefined
-                          }
-                          value={aforo}
-                          onChange={(e) => setAforo(e.target.value)}
-                          placeholder="Ej: 8"
-                          className={INPUT}
-                        />
-                        <p className="text-meta text-ink-soft/75">
-                          Vacío = sin tope.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {reservaTipo === "mesa" && (
-                    <div className="flex flex-col gap-gap-xs">
-                      <Label htmlFor="ajCupoDia">Cupo diario (opcional)</Label>
-                      <Input
-                        id="ajCupoDia"
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        aria-invalid={campoErrorReservas === "cupo" || undefined}
-                        aria-describedby={
-                          campoErrorReservas === "cupo" ? "aj-reservas-error" : undefined
-                        }
-                        value={cupoDia}
-                        onChange={(e) => setCupoDia(e.target.value)}
-                        placeholder="Ej: 40"
-                        className={INPUT}
-                      />
-                      <p className="text-meta text-ink-soft/75">
-                        Se recarga cada día. Al llenarse, el formulario no deja
-                        reservar esa fecha. Vacío = sin cupo.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Liberar el cupo de un día: lo que el dueño hace «a voluntad»
-                    cuando le cancelan o cuando quiere volver a empezar la
-                    cuenta. Solo con un cupo puesto —sin él no hay nada que
-                    liberar—, y se enseña lo ocupado para saber qué se suelta. */}
-                  {reservaTipo === "mesa" && cupoDia.trim() !== "" && (
-                    <div className="rounded-2xl border border-ink/5 bg-sand-warm px-4 py-3">
-                      <div className="font-lv-display text-meta font-semibold text-ink-soft/75">
-                        Cupo de un día
-                      </div>
-                      <div className="mt-gap-xs flex flex-wrap items-center gap-gap-sm">
-                        <Input
-                          type="date"
-                          value={fechaCupo}
-                          onChange={(e) => setFechaCupo(e.target.value)}
-                          aria-label="Día a liberar"
-                          className={cn(INPUT, "w-auto")}
-                        />
-                        <span className="text-small tabular-nums text-ink-soft">
-                          {ocupacion === null
-                            ? "—"
-                            : `${ocupacion[fechaCupo] ?? 0} de ${Number(cupoDia) || 0} ocupadas`}
-                        </span>
-                        {confirmandoLiberar ? (
-                          <>
-                            <span className="text-small font-semibold text-ink">
-                              ¿Liberar{" "}
-                              <span className="tabular-nums">
-                                {ocupacion?.[fechaCupo] ?? 0}
-                              </span>{" "}
-                              de ese día?
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setConfirmandoLiberar(false);
-                                void liberarFecha();
-                              }}
-                              disabled={liberando}
-                              className="inline-flex h-11 cursor-pointer items-center rounded-full border border-destructive/40 bg-destructive/10 px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:bg-destructive/20 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
-                            >
-                              {liberando ? "Liberando…" : "Sí, liberar"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setConfirmandoLiberar(false)}
-                              className="inline-flex h-11 cursor-pointer items-center rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700 active:scale-[0.98]"
-                            >
-                              Cancelar
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setConfirmandoLiberar(true)}
-                            disabled={liberando}
-                            className="inline-flex h-11 cursor-pointer items-center rounded-full border border-ink/10 bg-white px-gap-md font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
-                          >
-                            Liberar ese día
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex flex-col gap-gap-xs">
-                    <Label htmlFor="ajPlantilla">Mensaje que te llega</Label>
-                    <textarea
-                      id="ajPlantilla"
-                      rows={3}
-                      value={plantilla}
-                      onChange={(e) => setPlantilla(e.target.value)}
-                      placeholder={PLANTILLA_POR_DEFECTO[reservaTipo]}
-                      className={cn(
-                        INPUT,
-                        "h-auto min-h-[84px] resize-y py-3 leading-relaxed",
-                      )}
-                    />
-                    <p className="text-meta text-ink-soft/75">
-                      Usa {"{nombre}"} {"{fecha}"} {"{hora}"} {"{personas}"} y,
-                      para apartados, {"{producto}"} y {"{cantidad}"}. Vacío =
-                      el mensaje de siempre.
-                    </p>
-                  </div>
-
-                  {/* La vista previa usa la plantilla efectiva: con el campo
-                    vacío enseña la de por defecto ya rellena con los huecos, que
-                    es lo que verá el cliente. */}
-                  <p className="whitespace-pre-wrap rounded-2xl border border-ink/5 bg-sand-warm px-4 py-3 text-small leading-relaxed text-ink-soft">
-                    {plantillaEfectiva(reservaTipo, plantilla)}
-                  </p>
-
-                  <AnimatePresence>
-                    {errorReservas && (
-                      <motion.p
-                        key="aj-reservas-error"
-                        id="aj-reservas-error"
-                        role="alert"
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0 }}
-                        transition={{
-                          duration: 0.25,
-                          ease: [0.22, 1, 0.36, 1],
-                        }}
-                        className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-ink"
-                      >
-                        {errorReservas}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-
-                  <BotonPrimario
-                    onClick={() => void guardarReservas()}
-                    disabled={guardandoReservas}
-                    className="self-start"
-                  >
-                    {guardandoReservas ? (
-                      <>
-                        <Loader2 size={16} className="animate-spin" />
-                        Guardando…
-                      </>
-                    ) : (
-                      <>
-                        <Save size={16} strokeWidth={1.8} />
-                        Guardar reservas
-                      </>
-                    )}
-                  </BotonPrimario>
-                </div>
-              </details>
-            </>
-          )}
-        </TarjetaAjuste>
-
-        {/* ── Avisos a seguidores ─────────────────────────────────────────
-            La tarjeta vive en su propio archivo —con su lectura y su estado—
-            porque el panel ya es largo y esto es una pieza cerrada: se le da el
-            negocio y el plan, y ella resuelve lo demás. */}
-        <SeguidoresCard
-          place={place}
-          funciones={funciones}
-          onVerPlanes={onVerPlanes}
-        />
-
-        {/* La tasa del día vive en el Dashboard: se toca a diario. */}
-        <ZonasDomicilioCard
-          placeId={place.id}
-          funciones={funciones}
-          entregaInicial={place.entrega}
-          onVerPlanes={onVerPlanes}
-        />
-
-        {/* ── Lo que solo se consulta ─────────────────────────────────────
-            De lectura, y por eso sin botón.
-
-            Eran dos tarjetas y siete filas. Cinco repetían lo que el dashboard
-            o el editor ya enseñan a dos toques —el nombre, la categoría, la
-            ubicación, «ficha publicada», el plan— y una sexta era el id interno
-            de la ficha, un UUID que no le dice nada a nadie. Queda la única que
-            no vive en ningún otro sitio: cómo pedir ayuda.
-
-            El plan se queda porque el enlace de verdad está en su tarjeta del
-            dashboard, y aquí se lee sin salir de Ajustes. */}
-        {/* A todo el ancho: estaba en una rejilla de dos columnas con un solo
-            elemento y en escritorio ocupaba media anchura sin motivo. */}
-        <div>
-          <dl className="rounded-2xl border border-ink/5 bg-white p-gap-md">
-            {/* Estaba escrito a fuego «Básico (gratis)» para todo el mundo. Ahora
-                es el plan que hay de verdad, resuelto en el servidor. */}
-            <Row label="Plan actual" value={nombreDe(plan, cat)} />
-            {/* Pulsable: antes era el correo en texto plano y en el móvil había
-                que copiarlo a mano. WhatsApp primero, que es lo que el dueño
-                tiene abierto; el correo, para quien lo prefiera. */}
-            <div className="flex flex-wrap items-center justify-between gap-gap-sm py-gap-xs">
-              <dt className="text-ink-soft/75">Soporte</dt>
-              <dd className="flex flex-wrap items-center gap-gap-xs">
-                <a
-                  href={whatsappHref(SUPPORT_WHATSAPP)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-11 items-center gap-[6px] rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition-colors duration-300 ease-outquint hover:border-verde-300 hover:text-verde-700"
-                >
-                  <MessageCircle size={15} strokeWidth={1.8} aria-hidden />
-                  WhatsApp
-                </a>
-                <a
-                  href={`mailto:${SUPPORT_EMAIL}`}
-                  className="inline-flex h-11 items-center rounded-full px-gap-sm font-lv-display text-meta font-semibold text-verde-700 underline-offset-2 transition-colors duration-300 ease-outquint hover:underline"
-                >
-                  {SUPPORT_EMAIL}
-                </a>
-              </dd>
-            </div>
-          </dl>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => void logout()}
-          className="inline-flex h-11 cursor-pointer items-center gap-gap-xs self-start rounded-full px-gap-lg font-lv-display text-small font-semibold text-destructive transition-colors duration-500 ease-outquint hover:bg-destructive/10"
-        >
-          <LogOut size={18} strokeWidth={1.8} />
-          Cerrar sesión
-        </button>
       </div>
     </>
   );

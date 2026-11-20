@@ -9,7 +9,7 @@ export const zonasDomicilio: ServicioContent = {
   categoria: "comida-a-domicilio",
   precio: { tipo: "incluido", en: "pedidos_reservas" },
   funcion: "zonas_domicilio",
-  anclaPanel: "/business?seccion=pedidos",
+  anclaPanel: "/business?seccion=pedidos&sub=ajustes",
 
   tePasaEsto: [
     "Un cliente te pregunta cuánto cuesta el domicilio a su barrio, le dices un precio, y cuando llega el momento del pago ya no recuerda lo que acordaron.",

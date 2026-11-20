@@ -9,7 +9,7 @@ export const horarioDeCocina: ServicioContent = {
   categoria: "comida-a-domicilio",
   precio: { tipo: "incluido", en: "pedidos_reservas" },
   funcion: "horario_cocina",
-  anclaPanel: "/business?seccion=settings",
+  anclaPanel: "/business?seccion=pedidos&sub=ajustes",
 
   tePasaEsto: [
     "Son las 10 de la noche, ya recogiste la cocina, y llega un pedido por WhatsApp. Tienes que explicarle al cliente que ya no atiendes y se molesta.",

@@ -79,7 +79,7 @@ export function ZonasDomicilioCard({
      de sección y el navegador antes de cerrar la pestaña. */
   useEffect(() => {
     if (!textosSucios) return;
-    registrarGuarda(() =>
+    const bajaGuarda = registrarGuarda(() =>
       window.confirm(
         "Tienes el pedido mínimo o la nota de entrega sin guardar. Si sales ahora se descartan. ¿Salir igual?",
       ),
@@ -90,7 +90,7 @@ export function ZonasDomicilioCard({
     };
     window.addEventListener("beforeunload", alCerrar);
     return () => {
-      registrarGuarda(null);
+      bajaGuarda();
       window.removeEventListener("beforeunload", alCerrar);
     };
   }, [textosSucios]);

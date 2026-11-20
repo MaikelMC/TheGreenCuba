@@ -1,487 +1,519 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { motion } from "motion/react";
 import {
   ArrowLeft,
-  Bot,
-  ChevronRight,
-  ClipboardList,
-  Edit,
-  LayoutDashboard,
-  Megaphone,
-  Menu,
-  Settings,
-  Sparkles,
-  Stamp,
-  Tag,
-  Users,
-  Utensils,
-  X,
+  ChevronDown,
+  ExternalLink,
+  Home,
+  MessageCircle,
+  MoonStar,
+  Store,
+  SunMedium,
+  type LucideIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import Link from "next/link";
-import { UserMenu } from "@/components/layout/user-menu";
+import { clsx } from "clsx";
+import { UserMenu, type EntradaMenu } from "@/components/layout/user-menu";
+import { MobileDock } from "@/components/layout/mobile-dock";
 import { puedeSalir } from "@/lib/unsaved-guard";
+import { whatsappHref } from "@/lib/contact-links";
+import { SUPPORT_WHATSAPP } from "@/lib/legal";
+import { BotonIcono } from "./ui/botones";
+import { HojaPanel } from "./ui/hoja-panel";
+import { ListaNegocios, type NegocioPanel } from "./business-switcher";
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  COOKIE_ULTIMA,
+  INICIO,
+  claveDestino,
+  conUltima,
+  esPrincipal,
+  leerDestino,
+  leerHoja,
+  mismoDestino,
+  padreDe,
+  tituloDe,
+  type Destino,
+  type HojaId,
+} from "./panel-nav";
 
-export type PanelView =
-  | "dashboard"
-  | "catalogo"
-  | "pedidos"
-  | "clientes"
-  | "editor"
-  | "ofertas"
-  | "publicaciones"
-  | "telegram"
-  | "equipo"
-  | "planes"
-  | "settings";
+export type { PanelView, Destino } from "./panel-nav";
+
+/** Un destino de la barra lateral o del dock. */
+export interface ItemNav {
+  destino: Destino;
+  label: string;
+  icon: LucideIcon;
+}
+
+/* ── Navegación del panel ────────────────────────────────────────────────────
+   La URL manda: `?seccion=` y `&sub=` dicen la pantalla, `&hoja=` la hoja
+   abierta. Cada cambio de pantalla y cada hoja que se abre añaden una entrada
+   al historial, así que el atrás de Android y del navegador cierra la hoja o
+   vuelve a la pantalla anterior sin salir del panel. Es la misma página: nada
+   de esto pide un render al servidor. */
+
+interface PanelNav {
+  destino: Destino;
+  hoja: HojaId | null;
+  /** Ir a otra pantalla. Pasa por la guardia de trabajo sin guardar. */
+  ir: (destino: Destino) => void;
+  /** La flecha de las subpantallas: vuelve a la de origen. */
+  volver: () => void;
+  abrirHoja: (hoja: HojaId) => void;
+  cerrarHoja: () => void;
+  /** Si esta cuenta puede abrir ese destino (permisos de trabajador). */
+  puedeAbrir: (destino: Destino) => boolean;
+}
+
+const NavCtx = createContext<PanelNav | null>(null);
+
+export function usePanelNav(): PanelNav {
+  const nav = useContext(NavCtx);
+  if (!nav) throw new Error("usePanelNav fuera de PanelShell");
+  return nav;
+}
+
+function urlCon(destino: Destino, hoja: HojaId | null): string {
+  const url = new URL(window.location.href);
+  if (destino.seccion === "dashboard" && !destino.sub) url.searchParams.delete("seccion");
+  else url.searchParams.set("seccion", destino.seccion);
+  if (destino.sub) url.searchParams.set("sub", destino.sub);
+  else url.searchParams.delete("sub");
+  if (hoja) url.searchParams.set("hoja", hoja);
+  else url.searchParams.delete("hoja");
+  /* `ultima` solo sirve en la primera carga, tras el acceso. */
+  url.searchParams.delete("ultima");
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function leerCookie(nombre: string): string | null {
+  const fila = document.cookie.split("; ").find((c) => c.startsWith(`${nombre}=`));
+  return fila ? fila.slice(nombre.length + 1) : null;
+}
 
 interface PanelShellProps {
-  /**
-   * El nombre que se lee en la barra lateral y en el pie del cajón.
-   *
-   * Es obligatorio y no se pide a `/api/me`: el armazón ya envuelve todas las
-   * vistas del panel y el dueño puede estar mirando **otro** de sus negocios
-   * —el selector viaja en `?negocio=`—, así que la sesión no sabe cuál está
-   * abierto. Antes había aquí un `fetchMe` de respaldo que solo se usaba si el
-   * prop faltaba, y nunca faltaba: una petición por montaje pagada en datos
-   * móviles para un valor que llegaba siempre por props.
-   */
+  negocioId: string;
+  /** El nombre de la barra. Sale de la ficha que se está viendo. */
   businessName: string;
-  /**
-   * Si la ficha está publicada, y solo entonces se enseña la pastilla.
-   *
-   * Decía «Negocio verificado», y era mentira por dos motivos: la verificación
-   * no existe —lo único que hay detrás es que la ficha esté publicada— y
-   * además el rótulo se pintaba siempre, incluso con la ficha sin publicar.
-   * Ahora dice lo que de verdad sabe y, cuando no lo sabe, no dice nada.
-   */
-  publicado?: boolean;
-  defaultView?: PanelView;
-  /**
-   * Las secciones que esta cuenta puede abrir. Sin lista, todas.
-   *
-   * Es solo la barra: quien decide de verdad es el servidor. Existe para que un
-   * trabajador no vea pestañas que le van a devolver un 401 al pulsarlas.
-   */
-  vistas?: PanelView[];
-  /**
-   * Contenido que va **encima de la vista**, en todas las secciones.
-   *
-   * Lo usa el selector de negocio: elegir qué negocio miras no es una sección
-   * más, tiene que seguir a la vista —si estás editando la ficha y cambias de
-   * negocio, sigues editando, pero la otra— y por eso no puede vivir dentro de
-   * ninguna de ellas. Recibe la vista activa porque el dashboard pinta el
-   * selector dentro de su propia cabecera y no quiere una copia encima.
-   */
-  above?: (activeView: PanelView) => React.ReactNode;
-  children: (
-    activeView: PanelView,
-    setView: (view: PanelView) => void,
-  ) => React.ReactNode;
-  className?: string;
+  logoUrl?: string | null;
+  /** Si la ficha está publicada: decide el texto de la tarjeta lateral. */
+  publicado: boolean;
+  /** Los negocios de la cuenta. Con dos o más, el nombre abre «Tus negocios». */
+  negocios: NegocioPanel[];
+  /** La pantalla que pide la URL, leída en el servidor. */
+  destinoInicial: Destino;
+  puedeAbrir: (destino: Destino) => boolean;
+  /** Las pestañas del dock (móvil). Ver la regla en `business-panel.tsx`. */
+  dock: ItemNav[];
+  /** La barra lateral (escritorio): arriba las principales, debajo los grupos. */
+  lateral: ItemNav[];
+  grupos: { titulo: string; items: ItemNav[] }[];
+  /** La píldora de estado, bajo el nombre. */
+  estado: ReactNode;
+  /** Hojas que dependen de la navegación y se montan dentro del armazón. */
+  hojas?: ReactNode;
+  children: (destino: Destino) => ReactNode;
 }
-
-interface NavItem {
-  id: PanelView;
-  label: string;
-  icon: typeof LayoutDashboard;
-}
-
-/* Los cinco destinos del día a día van primero. Los cinco de gestión van
-   debajo de un separador: siguen accesibles pero no compiten visualmente
-   con lo que el dueño abre tres veces por semana. */
-const PRIMARY_NAV: NavItem[] = [
-  { id: "dashboard", label: "Inicio", icon: LayoutDashboard },
-  { id: "catalogo", label: "Catálogo", icon: Utensils },
-  { id: "pedidos", label: "Pedidos", icon: ClipboardList },
-  { id: "editor", label: "Editar", icon: Edit },
-  { id: "settings", label: "Ajustes", icon: Settings },
-];
-
-const SECONDARY_NAV: NavItem[] = [
-  { id: "clientes", label: "Frecuentes", icon: Stamp },
-  { id: "ofertas", label: "Ofertas", icon: Tag },
-  { id: "publicaciones", label: "Publicar", icon: Megaphone },
-  { id: "telegram", label: "Asistente", icon: Bot },
-  { id: "equipo", label: "Equipo", icon: Users },
-  { id: "planes", label: "Planes", icon: Sparkles },
-];
-
-/* Lista plana: se usa para validar el parámetro `?seccion=` y para el
-   fallback del estado inicial. El orden respeta el de PRIMARY primero. */
-const NAV_ITEMS: NavItem[] = [...PRIMARY_NAV, ...SECONDARY_NAV];
 
 export function PanelShell({
+  negocioId,
   businessName,
-  publicado = false,
-  defaultView = "dashboard",
-  vistas,
-  above,
+  logoUrl,
+  publicado,
+  negocios,
+  destinoInicial,
+  puedeAbrir,
+  dock,
+  lateral,
+  grupos,
+  estado,
+  hojas,
   children,
-  className,
 }: PanelShellProps) {
-  /* Los dos grupos se filtran aquí, igual que antes: el cajón y la barra
-     comparten el mismo criterio de visibilidad. `items` es la lista plana que
-     usan el fallback de `defaultView` y la validación del param `?seccion=`. */
-  const primaryItems = vistas
-    ? PRIMARY_NAV.filter((item) => vistas.includes(item.id))
-    : PRIMARY_NAV;
-  const secondaryItems = vistas
-    ? SECONDARY_NAV.filter((item) => vistas.includes(item.id))
-    : SECONDARY_NAV;
-  const items = [...primaryItems, ...secondaryItems];
-  const [activeView, setActiveView] = useState<PanelView>(() =>
-    !vistas || vistas.includes(defaultView)
-      ? defaultView
-      : (items[0]?.id ?? defaultView),
-  );
+  const router = useRouter();
+  const valido = (d: Destino) => (puedeAbrir(d) ? d : INICIO);
+  const [destino, setDestino] = useState<Destino>(() => valido(destinoInicial));
+  const [hoja, setHoja] = useState<HojaId | null>(null);
+  const destinoRef = useRef(destino);
+  const hojaRef = useRef(hoja);
+  destinoRef.current = destino;
+  hojaRef.current = hoja;
   const contenidoRef = useRef<HTMLDivElement>(null);
 
+  const guardarUltima = useCallback(
+    (d: Destino) => {
+      try {
+        const valor = conUltima(leerCookie(COOKIE_ULTIMA), negocioId, d);
+        document.cookie = `${COOKIE_ULTIMA}=${valor}; path=/business; max-age=31536000; samesite=lax`;
+      } catch {
+        /* Sin cookies, se entra en Hoy: no se pierde nada más. */
+      }
+    },
+    [negocioId],
+  );
+
+  /* Al cambiar de negocio la página llega con otras props: se adopta la
+     pantalla que pide la URL nueva (o Hoy, si en ese negocio no se puede). */
+  const negocioPrevio = useRef(negocioId);
+  useEffect(() => {
+    if (negocioPrevio.current === negocioId) return;
+    negocioPrevio.current = negocioId;
+    setDestino(valido(destinoInicial));
+    setHoja(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [negocioId]);
+
+  /* Al montar: la URL queda en su forma canónica (`settings` ya es `mas`, se
+     quita `ultima`), se abre la hoja si el enlace la pedía y se anota la
+     sección como la última usada. */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const h = leerHoja(params.get("hoja"));
+    window.history.replaceState(window.history.state, "", urlCon(destinoRef.current, h));
+    if (h) setHoja(h);
+    guardarUltima(destinoRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const ir = useCallback(
+    (d: Destino) => {
+      if (!puedeAbrir(d)) return;
+      const cambia = !mismoDestino(d, destinoRef.current);
+      if (!cambia && !hojaRef.current) return;
+      if (cambia && !puedeSalir()) return;
+      window.history.pushState({ lv: true }, "", urlCon(d, null));
+      setDestino(d);
+      setHoja(null);
+      if (cambia) guardarUltima(d);
+    },
+    [puedeAbrir, guardarUltima],
+  );
+
+  const volver = useCallback(() => {
+    /* Con una entrada propia detrás, el atrás vuelve a la pantalla de origen
+       (si se llegó desde Hoy, a Hoy). Entrando por un enlace directo no hay
+       nada propio detrás: se sube a la pantalla madre. */
+    if ((window.history.state as { lv?: boolean } | null)?.lv) {
+      window.history.back();
+      return;
+    }
+    ir(padreDe(destinoRef.current));
+  }, [ir]);
+
+  const abrirHoja = useCallback((h: HojaId) => {
+    window.history.pushState({ lv: true, hoja: h }, "", urlCon(destinoRef.current, h));
+    setHoja(h);
+  }, []);
+
+  const cerrarHoja = useCallback(() => {
+    const actual = hojaRef.current;
+    if (!actual) return;
+    if ((window.history.state as { hoja?: string } | null)?.hoja === actual) {
+      window.history.back();
+      return;
+    }
+    window.history.replaceState(window.history.state, "", urlCon(destinoRef.current, null));
+    setHoja(null);
+  }, []);
+
+  /* El atrás del sistema. `popstate` no se puede cancelar: si hay trabajo sin
+     guardar y la guardia dice que no, se vuelve a empujar la entrada en la que
+     se estaba, y la pantalla no se mueve. Cerrar una hoja no pregunta. */
+  useEffect(() => {
+    function alVolver() {
+      const params = new URLSearchParams(window.location.search);
+      const d = valido(leerDestino(params.get("seccion"), params.get("sub")));
+      const h = leerHoja(params.get("hoja"));
+      const cambia = !mismoDestino(d, destinoRef.current);
+      if (cambia && !puedeSalir()) {
+        window.history.pushState(
+          { lv: true, ...(hojaRef.current ? { hoja: hojaRef.current } : {}) },
+          "",
+          urlCon(destinoRef.current, hojaRef.current),
+        );
+        return;
+      }
+      setDestino(d);
+      setHoja(h);
+      if (cambia) guardarUltima(d);
+    }
+    window.addEventListener("popstate", alVolver);
+    return () => window.removeEventListener("popstate", alVolver);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guardarUltima]);
+
   /* El scroll vive en el contenedor de la vista, no en la ventana: al cambiar
-     de sección se quedaba a la altura de la anterior, y una vista corta parecía
-     vacía hasta que se tocaba la pantalla. También se vuelve arriba al cambiar
-     de negocio, que es otra pantalla con otra altura. */
+     de pantalla o de negocio se vuelve arriba. */
   useEffect(() => {
     const contenido = contenidoRef.current;
     if (contenido) contenido.scrollTop = 0;
-  }, [activeView, businessName]);
-  /* El mismo cajón lateral que el panel de administración, en vez del dock
-     inferior: dos armazones distintos para dos paneles hermanos se leían como
-     dos productos. Aquí sigue habiendo una sola lista de secciones —el dock
-     necesitaba rótulos cortos y la barra lateral largos— porque el cajón y la
-     barra lateral caben con el mismo texto. */
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  }, [destino, negocioId]);
 
-  /* La sección abierta se puede pedir desde la URL, como ya hace el perfil:
-     sin esto, un enlace a «Ajustes» deja a quien llega en el dashboard
-     buscando la pestaña a mano. Se lee de `window.location` y no con
-     `useSearchParams`, que obligaría a envolver la página en un `Suspense` y a
-     renunciar al HTML estático. Para leer un parámetro una vez al montar, no
-     compensa. */
-  useEffect(() => {
-    const seccion = new URLSearchParams(window.location.search).get("seccion");
-    if (
-      seccion &&
-      NAV_ITEMS.some((item) => item.id === seccion) &&
-      (!vistas || vistas.includes(seccion as PanelView))
-    ) {
-      setActiveView(seccion as PanelView);
-    }
-  }, []);
-
-  /* Cambiar de sección no navega —es la misma página—, pero sí actualiza la URL:
-     así una sección se puede compartir y el botón «atrás» no devuelve a un sitio
-     distinto del que se está viendo. `replaceState` y no `pushState`, para que
-     pasar por tres pestañas no deje tres pasos en el historial.
-     Y no vale un `<Link>` con `?seccion=`: cada clic dispararía un render de
-     servidor con sus tres oleadas de consultas, justo lo que este armazón evita
-     desde el principio. */
-  const go = (view: PanelView) => {
-    /* Una sección que esta cuenta no tiene no se abre ni escribiendo la URL:
-       el armazón la ignora aquí, que es por donde pasan las dos barras. */
-    if (vistas && !vistas.includes(view)) return;
-    /* La pantalla que se está dejando puede tener trabajo sin guardar —el
-       catálogo, sobre todo— y ella es la única que sabe qué se pierde. Si su
-       guardia dice que no, no se cambia de sección: `puedeSalir()` ya se ha
-       encargado de preguntar. */
-    if (view !== activeView && !puedeSalir()) return;
-    setActiveView(view);
-    setDrawerOpen(false);
-
-    const url = new URL(window.location.href);
-    if (view === defaultView) url.searchParams.delete("seccion");
-    else url.searchParams.set("seccion", view);
-    window.history.replaceState(null, "", url);
+  /* Qué se marca en la barra: el destino exacto si está en la lista; si no, la
+     pantalla madre (Editar mi ficha marca «Más» en el dock). */
+  const marcado = (items: ItemNav[]) => {
+    const exacto = items.find((i) => mismoDestino(i.destino, destino));
+    return claveDestino(exacto ? exacto.destino : padreDe(destino));
   };
+  const marcadoLateral = marcado([...lateral, ...grupos.flatMap((g) => g.items)]);
+  const marcadoDock = marcado(dock);
 
-  /* De 1024 px para arriba el cajón no existe: las secciones son la barra
-     lateral. Si la ventana crece con él abierto —girar el móvil, ensanchar la
-     ventana— hay que cerrarlo, porque si no quedaría un diálogo invisible con
-     la trampa de foco puesta: el teclado se quedaría dentro de algo que no se
-     ve. Se comprueba con `matchMedia` y no con un ancho leído a mano para que
-     el corte sea exactamente el mismo que el de `lg`. */
-  useEffect(() => {
-    if (!drawerOpen) return;
-    const mq = window.matchMedia("(min-width: 1024px)");
-    const cerrar = () => mq.matches && setDrawerOpen(false);
-    mq.addEventListener("change", cerrar);
-    return () => mq.removeEventListener("change", cerrar);
-  }, [drawerOpen]);
+  const nav: PanelNav = { destino, hoja, ir, volver, abrirHoja, cerrarHoja, puedeAbrir };
+
+  const variosNegocios = negocios.length > 1;
+  const extras = useEntradasMenu(negocioId, variosNegocios ? () => abrirHoja("negocios") : null);
+  const principal = esPrincipal(destino);
 
   return (
-    <div
-      className={cn(
-        "business-panel h-dvh bg-sand font-lv text-ink flex flex-col",
-        className,
-      )}
-    >
-      {/* Top Bar. Igual que la cabecera del home: barra clara translúcida con
-          hairline de tinta, no el `border-border` gris del sistema viejo. */}
-      <header className="safe-top sticky top-0 z-50 bg-sand-warm/90 backdrop-blur-[16px] border-b border-ink/5 h-header flex items-center px-3 gap-2 sm:px-gap-md sm:gap-gap-sm shrink-0">
-        <Link
-          href="/home"
-          /* Salir del panel también pasa por la guardia: es la misma pérdida de
-             trabajo que cambiar de sección, solo que por otra puerta. */
-          onClick={(e) => {
-            if (!puedeSalir()) e.preventDefault();
-          }}
-          className="size-11 grid place-items-center rounded-full hover:bg-verde-50 transition-colors duration-500 ease-outquint text-ink-soft/75 hover:text-verde-600 shrink-0"
-          aria-label="Volver al inicio"
-        >
-          <ArrowLeft size={18} strokeWidth={1.8} />
-        </Link>
-        <div className="font-lv-display font-bold text-[18px] text-ink tracking-[-0.02em] whitespace-nowrap">
-          <span translate="no">La Verde</span>{" "}
-          <span className="font-medium text-verde-600">Panel</span>
-        </div>
-        <div className="flex-1 min-w-0" />
-        {publicado && (
-          <span className="font-lv-display text-meta font-semibold bg-verde-50 text-verde-600 px-[10px] py-[3px] rounded-full border border-verde-200 whitespace-nowrap max-sm:hidden">
-            Publicado en La Verde
-          </span>
-        )}
-        {/* Sin `initial` fijo: la inicial la saca el menú del nombre de la sesión. */}
-        <UserMenu />
-        <button
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-          className="lg:hidden size-11 grid place-items-center rounded-full hover:bg-verde-50 transition-colors duration-500 ease-outquint text-ink-soft/75 hover:text-verde-600 shrink-0"
-          aria-label="Abrir menú"
-          aria-expanded={drawerOpen}
-        >
-          <Menu size={20} strokeWidth={1.8} />
-        </button>
-      </header>
-
-      {/* Shell */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex flex-col w-[260px] bg-white border-r border-ink/5 shrink-0 px-gap-sm pt-gap-md gap-[2px]">
-          {primaryItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeView === item.id;
-            return (
+    <NavCtx.Provider value={nav}>
+      <div className="business-panel flex h-dvh flex-col bg-sand font-lv text-ink">
+        {/* Barra superior: el negocio (con su estado debajo) a la izquierda y la
+            cuenta a la derecha. «Volver al inicio» pasó al menú de la cuenta
+            como «Ir a La Verde», y «Publicado en La Verde» a la pantalla Hoy. */}
+        <header className="safe-top sticky top-0 z-50 flex h-header shrink-0 items-center gap-gap-xs border-b border-ink/5 bg-sand-warm/90 px-3 backdrop-blur-[16px] sm:gap-gap-sm sm:px-gap-md">
+          <Marca nombre={businessName} logoUrl={logoUrl} />
+          <div className="flex min-w-0 flex-1 flex-col items-start gap-[2px]">
+            {variosNegocios ? (
               <button
-                key={item.id}
                 type="button"
-                onClick={() => go(item.id)}
-                aria-current={isActive ? "page" : undefined}
-                className={cn(
-                  "relative flex items-center gap-gap-sm w-full px-gap-md py-3 rounded-full text-small font-medium transition-colors duration-500 ease-outquint text-left border-none bg-transparent cursor-pointer font-lv-display",
-                  isActive
-                    ? "text-verde-700 font-semibold"
-                    : "text-ink-soft/75 hover:bg-sand",
-                )}
+                onClick={() => abrirHoja("negocios")}
+                aria-label={`${businessName}. Cambiar de negocio`}
+                className="relative inline-flex max-w-full cursor-pointer items-center gap-[4px] rounded-full font-lv-display text-small font-bold leading-tight text-ink transition-colors duration-500 ease-outquint after:absolute after:inset-x-0 after:-top-[7px] after:bottom-0 after:content-[''] hover:text-verde-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
               >
-                {isActive && (
-                  <motion.span
-                    layoutId="panel-nav-side"
-                    className="absolute inset-0 rounded-full bg-verde-50"
-                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                  />
-                )}
-                <Icon
-                  size={20}
-                  strokeWidth={1.8}
-                  className="relative shrink-0 z-10"
-                />
-                <span className="relative z-10">{item.label}</span>
+                <span className="truncate">{businessName}</span>
+                <ChevronDown size={14} strokeWidth={2} aria-hidden className="shrink-0" />
               </button>
-            );
-          })}
-
-          {/* Separador entre el grupo diario y el de gestión. Solo se
-              pinta si los dos grupos tienen elementos: un trabajador con
-              pocos permisos puede no tener nada en el secundario. */}
-          {primaryItems.length > 0 && secondaryItems.length > 0 && (
-            <div className="h-px bg-ink/5 mx-gap-md mt-[6px] mb-[2px]" />
-          )}
-
-          {secondaryItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeView === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => go(item.id)}
-                aria-current={isActive ? "page" : undefined}
-                className={cn(
-                  "relative flex items-center gap-gap-sm w-full px-gap-md py-3 rounded-full text-small font-medium transition-colors duration-500 ease-outquint text-left border-none bg-transparent cursor-pointer font-lv-display",
-                  isActive
-                    ? "text-verde-700 font-semibold"
-                    : "text-ink-soft/55 hover:bg-sand",
-                )}
-              >
-                {isActive && (
-                  <motion.span
-                    layoutId="panel-nav-side"
-                    className="absolute inset-0 rounded-full bg-verde-50"
-                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                  />
-                )}
-                <Icon
-                  size={20}
-                  strokeWidth={1.8}
-                  className="relative shrink-0 z-10"
-                />
-                <span className="relative z-10">{item.label}</span>
-              </button>
-            );
-          })}
-
-          <div className="h-px bg-ink/5 mx-gap-md my-gap-sm" />
-
-          {/* Business card */}
-          <div className="mx-gap-sm mt-auto mb-gap-md p-gap-md bg-sand border border-ink/5 rounded-2xl flex flex-col gap-gap-xs">
-            <div className="font-lv-display text-small font-bold text-ink">
-              {businessName}
-            </div>
-            <div className="flex items-center gap-[6px] text-meta text-ink-soft/75">
-              <span className="size-[6px] rounded-full bg-verde-400" />
-              Activo en La Verde
-            </div>
-          </div>
-        </aside>
-
-        {/* Main Content */}
-        <div ref={contenidoRef} className="flex-1 min-w-0 overflow-y-auto">
-          {/* En móvil el aire se recorta a 12 px, como en la cabecera del home.
-              Con los 16 px de escritorio más los 16 de cada `FormSection` se
-              iban 64 px de los 360 de pantalla, y las filas de horarios no
-              cabían.
-              Cada eje por su cuenta en vez del atajo `p-gap-*`: el atajo pone
-              también `padding-bottom`, y como las variantes responsive salen
-              después en el CSS, el valor de móvil se comía el de `lg`. */}
-          <div className="px-gap-sm pt-gap-sm pb-gap-md sm:px-gap-md sm:pt-gap-md lg:px-gap-xl lg:pt-gap-xl lg:pb-gap-xl flex flex-col min-h-full">
-            {above?.(activeView)}
-            {/* Sin `AnimatePresence` y sin espera: React desmonta la vista
-                anterior de golpe y la nueva entra fundiéndose en 180 ms. La
-                animación va por CSS y no con `motion`: el `initial` de
-                `motion` viajaba en el HTML del servidor como `opacity: 0`, y
-                en una conexión lenta la sección se quedaba en blanco hasta
-                que llegaba el JavaScript. La clave sigue cambiando para que
-                la animación se repita en cada sección. */}
-            <div
-              key={activeView}
-              className="lv-view-in flex flex-col min-h-full"
-            >
-              {children(activeView, go)}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Cajón lateral (móvil). Es el `Sheet` del sistema —Radix Dialog por
-          debajo— y no un div con clases a mano: así trae `role="dialog"`,
-          `aria-modal`, cierre con Escape, trampa de foco, foco al primer
-          enlace al abrir y vuelta al botón de la hamburguesa al cerrar. El
-          que había antes no tenía nada de eso: con teclado o lector de
-          pantalla, el menú del móvil era un callejón sin salida.
-          Va montado siempre y se abre con `open`: Radix se encarga del
-          portal, del bloqueo del scroll de detrás y de desmontarlo al cerrar. */}
-      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <SheetContent
-          side="right"
-          className="w-full max-w-[320px] flex flex-col !p-0 !gap-0 lg:hidden"
-        >
-          <div className="flex items-center justify-between p-4 border-b border-ink/5">
-            {/* `asChild` para quedarse con el `<span>`: el título de `Sheet`
-                trae `text-h3` y aquí el rótulo es `text-body`, y `cn` no
-                sabe desempatar dos claves de la escala propia del proyecto. */}
-            <SheetTitle asChild>
-              <span className="font-lv-display text-body font-semibold text-ink">
-                Secciones
+            ) : (
+              <span className="max-w-full truncate font-lv-display text-small font-bold leading-tight text-ink">
+                {businessName}
               </span>
-            </SheetTitle>
-            <SheetClose
-              className="size-11 grid place-items-center rounded-full hover:bg-ink/5 transition-colors text-ink-soft/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/30"
-              aria-label="Cerrar menú"
-            >
-              <X size={20} strokeWidth={1.8} />
-            </SheetClose>
+            )}
+            {estado}
           </div>
-          <nav
-            className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
-            aria-label="Secciones del panel"
-          >
-            {primaryItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeView === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => go(item.id)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={cn(
-                    "flex items-center gap-3 w-full px-4 py-3 rounded-xl text-base font-medium transition-colors duration-200 text-left cursor-pointer",
-                    isActive
-                      ? "bg-verde-50 text-verde-700 font-semibold"
-                      : "text-ink-soft/75 hover:bg-sand",
-                  )}
-                >
-                  <Icon size={22} strokeWidth={1.8} className="shrink-0" />
-                  <span>{item.label}</span>
-                  {isActive && (
-                    <ChevronRight
-                      size={18}
-                      strokeWidth={2}
-                      className="ml-auto text-verde-600"
-                    />
-                  )}
-                </button>
-              );
-            })}
+          <UserMenu extras={extras} antesDeSalir={puedeSalir} />
+        </header>
 
-            {primaryItems.length > 0 && secondaryItems.length > 0 && (
-              <div className="h-px bg-ink/5 mx-1 my-2" />
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          {/* Escritorio: la barra lateral. Arriba las pantallas principales y
+              debajo los grupos de «Más», para llegar a todo en un toque. */}
+          <nav
+            aria-label="Secciones del panel"
+            className="scrollbar-fino hidden w-[260px] shrink-0 flex-col gap-[2px] overflow-y-auto border-r border-ink/5 bg-white px-gap-sm pt-gap-md lg:flex"
+          >
+            {lateral.map((item) => (
+              <BotonLateral
+                key={claveDestino(item.destino)}
+                item={item}
+                activo={marcadoLateral === claveDestino(item.destino)}
+                onClick={() => ir(item.destino)}
+              />
+            ))}
+            {grupos.map(
+              (grupo) =>
+                grupo.items.length > 0 && (
+                  <div key={grupo.titulo} className="flex flex-col gap-[2px]">
+                    <p className="px-gap-md pb-[2px] pt-gap-md font-lv-display text-meta font-semibold text-ink-soft/60">
+                      {grupo.titulo}
+                    </p>
+                    {grupo.items.map((item) => (
+                      <BotonLateral
+                        key={claveDestino(item.destino)}
+                        item={item}
+                        tenue
+                        activo={marcadoLateral === claveDestino(item.destino)}
+                        onClick={() => ir(item.destino)}
+                      />
+                    ))}
+                  </div>
+                ),
             )}
 
-            {secondaryItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeView === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => go(item.id)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={cn(
-                    "flex items-center gap-3 w-full px-4 py-3 rounded-xl text-base font-medium transition-colors duration-200 text-left cursor-pointer",
-                    isActive
-                      ? "bg-verde-50 text-verde-700 font-semibold"
-                      : "text-ink-soft/55 hover:bg-sand",
+            <div className="mx-gap-sm mb-gap-md mt-auto flex flex-col gap-gap-xs rounded-2xl border border-ink/5 bg-sand p-gap-md">
+              <div className="font-lv-display text-small font-bold text-ink">{businessName}</div>
+              <div className="flex items-center gap-[6px] text-meta text-ink-soft/75">
+                <span
+                  className={clsx(
+                    "size-[6px] rounded-full",
+                    publicado ? "bg-verde-400" : "bg-ink/15",
                   )}
-                >
-                  <Icon size={22} strokeWidth={1.8} className="shrink-0" />
-                  <span>{item.label}</span>
-                  {isActive && (
-                    <ChevronRight
-                      size={18}
-                      strokeWidth={2}
-                      className="ml-auto text-verde-600"
-                    />
-                  )}
-                </button>
-              );
-            })}
+                />
+                {publicado ? "Activo en La Verde" : "Sin publicar"}
+              </div>
+            </div>
           </nav>
-          <div className="p-4 border-t border-ink/5">
-            <p className="font-lv-display text-meta text-ink-soft/75 text-center">
-              {businessName}
-            </p>
+
+          <div ref={contenidoRef} className="scrollbar-fino min-w-0 flex-1 overflow-y-auto">
+            {/* En móvil el aire se recorta a 12 px; abajo deja el hueco del dock
+                (`pb-dock-clear`), para que el último elemento no quede tapado.
+                Cada eje por su cuenta en vez del atajo `p-gap-*`: el atajo pone
+                también `padding-bottom` y el valor de móvil se comía el de `lg`. */}
+            <div className="flex min-h-full flex-col px-gap-sm pb-dock-clear pt-gap-sm sm:px-gap-md sm:pt-gap-md lg:px-gap-xl lg:pb-gap-xl lg:pt-gap-xl">
+              {!principal && (
+                <div className="mb-gap-md flex items-center gap-gap-xs">
+                  <BotonIcono
+                    aria-label="Volver"
+                    onClick={volver}
+                    className="-ml-[10px]"
+                  >
+                    <ArrowLeft size={20} strokeWidth={1.8} />
+                  </BotonIcono>
+                  <h1 className="min-w-0 font-lv-display text-h3 font-bold text-ink">
+                    {tituloDe(destino)}
+                  </h1>
+                </div>
+              )}
+              {/* La animación va por CSS y no con `motion`: el `initial` de
+                  `motion` viajaba en el HTML del servidor como `opacity: 0`, y en
+                  una conexión lenta la sección se quedaba en blanco. */}
+              <div key={claveDestino(destino)} className="lv-view-in flex min-h-full flex-col">
+                {children(destino)}
+              </div>
+            </div>
           </div>
-        </SheetContent>
-      </Sheet>
-    </div>
+        </div>
+
+        {/* Móvil y tablet: el mismo dock flotante que el perfil y los proyectos.
+            Sustituye a la hamburguesa y al cajón lateral. */}
+        <MobileDock
+          label="Secciones del panel"
+          items={dock.map((item) => ({
+            key: claveDestino(item.destino),
+            label: item.label,
+            icon: item.icon,
+            active: marcadoDock === claveDestino(item.destino),
+            onSelect: () => ir(item.destino),
+          }))}
+        />
+
+        {variosNegocios && (
+          <HojaPanel
+            open={hoja === "negocios"}
+            onOpenChange={(open) => {
+              if (!open) cerrarHoja();
+            }}
+            titulo="Tus negocios"
+          >
+            <ListaNegocios
+              negocios={negocios}
+              seleccionado={negocioId}
+              destino={destino}
+              onCerrar={cerrarHoja}
+            />
+          </HojaPanel>
+        )}
+        {hojas}
+      </div>
+    </NavCtx.Provider>
   );
+}
+
+/** El logo del negocio o su inicial, en un disco de 36 px. */
+function Marca({ nombre, logoUrl }: { nombre: string; logoUrl?: string | null }) {
+  if (logoUrl) {
+    return (
+      <span className="relative size-9 shrink-0 overflow-hidden rounded-full border border-ink/5 bg-white">
+        <Image src={logoUrl} alt="" fill sizes="36px" quality={70} className="object-cover" />
+      </span>
+    );
+  }
+  const inicial = nombre.trim().charAt(0).toUpperCase();
+  return (
+    <span
+      aria-hidden
+      className="grid size-9 shrink-0 place-items-center rounded-full bg-verde-50 font-lv-display text-small font-bold text-verde-700"
+    >
+      {inicial || <Store size={18} strokeWidth={1.8} />}
+    </span>
+  );
+}
+
+function BotonLateral({
+  item,
+  activo,
+  tenue = false,
+  onClick,
+}: {
+  item: ItemNav;
+  activo: boolean;
+  tenue?: boolean;
+  onClick: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={activo ? "page" : undefined}
+      className={clsx(
+        "relative flex w-full cursor-pointer items-center gap-gap-sm rounded-full border-none bg-transparent px-gap-md py-3 text-left font-lv-display text-small font-medium transition-colors duration-500 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40",
+        activo
+          ? "font-semibold text-verde-700"
+          : clsx(tenue ? "text-ink-soft/55" : "text-ink-soft/75", "hover:bg-sand"),
+      )}
+    >
+      {activo && (
+        <motion.span
+          layoutId="panel-nav-side"
+          className="absolute inset-0 rounded-full bg-verde-50"
+          transition={{ type: "spring", stiffness: 380, damping: 32 }}
+        />
+      )}
+      <Icon size={20} strokeWidth={1.8} className="relative z-10 shrink-0" />
+      <span className="relative z-10">{item.label}</span>
+    </button>
+  );
+}
+
+/**
+ * Las entradas del panel en el menú de la cuenta: «Ir a La Verde» (pasa por la
+ * guardia), «Ver mi ficha», cambiar de negocio, el tema —dentro del panel no
+ * había conmutador— y el soporte. «Cerrar sesión» ya lo trae el menú.
+ */
+function useEntradasMenu(negocioId: string, cambiarNegocio: (() => void) | null): EntradaMenu[] {
+  const router = useRouter();
+  const { resolvedTheme, setTheme } = useTheme();
+  /* En el servidor `resolvedTheme` no existe: sin la guarda, el primer render
+     del cliente pintaría el rótulo contrario al del HTML. */
+  const [montado, setMontado] = useState(false);
+  useEffect(() => setMontado(true), []);
+  const oscuro = montado && resolvedTheme === "dark";
+
+  return [
+    {
+      key: "ir-la-verde",
+      label: "Ir a La Verde",
+      icon: Home,
+      onSelect: () => {
+        if (puedeSalir()) router.push("/home");
+      },
+    },
+    { key: "ficha", label: "Ver mi ficha", icon: ExternalLink, href: `/place/${negocioId}` },
+    ...(cambiarNegocio
+      ? [{ key: "negocios", label: "Cambiar de negocio", icon: Store, onSelect: cambiarNegocio }]
+      : []),
+    {
+      key: "tema",
+      label: oscuro ? "Modo claro" : "Modo oscuro",
+      icon: oscuro ? SunMedium : MoonStar,
+      onSelect: () => setTheme(oscuro ? "light" : "dark"),
+    },
+    {
+      key: "soporte",
+      label: "Soporte por WhatsApp",
+      icon: MessageCircle,
+      href: whatsappHref(SUPPORT_WHATSAPP),
+    },
+  ];
 }

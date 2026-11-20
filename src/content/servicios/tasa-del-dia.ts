@@ -9,7 +9,7 @@ export const tasaDelDia: ServicioContent = {
   categoria: "comida-a-domicilio",
   precio: { tipo: "incluido", en: "menu_pro" },
   funcion: "tasa_del_dia",
-  anclaPanel: "/business?seccion=settings",
+  anclaPanel: "/business?seccion=mas&sub=precios",
 
   tePasaEsto: [
     "Cambias el precio en CUP cada dos días porque la tasa sube y baja, y aun así algún cliente te discute el precio.",

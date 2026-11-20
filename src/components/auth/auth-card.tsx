@@ -427,7 +427,9 @@ export function AuthCard({
         /* Con `URL` y no concatenando: el destino puede traer ya su consulta
            (`/business?negocio=X`), y `${next}?showSessionNotice=1` dejaba un
            segundo `?` que se comía el valor del parámetro anterior. */
-        const destino = new URL(next ?? "/home", window.location.origin);
+        /* Sin `next`, `/entrar` decide en el servidor: quien lleva un negocio
+           va a su panel; el resto, al Home. */
+        const destino = new URL(next ?? "/entrar", window.location.origin);
         destino.searchParams.set("showSessionNotice", "1");
         window.location.assign(
           `${destino.pathname}${destino.search}${destino.hash}`,

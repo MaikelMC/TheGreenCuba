@@ -51,7 +51,8 @@ export async function GET(request: NextRequest) {
      y quien no lo ha hecho empieza el flujo, que es el camino normal. */
   const landed = safeNext(request.nextUrl.searchParams.get("next"));
   const target = new URL(
-    landed ?? (user.onboardingCompleted ? "/home" : "/onboarding"),
+    /* `/entrar` lleva al panel a quien lleva un negocio, y al Home al resto. */
+    landed ?? (user.onboardingCompleted ? "/entrar" : "/onboarding"),
     origin,
   );
   /* Google no recoge teléfono. Si la cuenta acaba de nacer sin él, el

@@ -739,6 +739,13 @@
     border-color: rgba(255, 255, 255, 0.08) !important;
   }
 
+  /* `divide-*` pinta el borde en los **hijos** (`> * + *`), no en el
+     contenedor: la regla de arriba no los alcanzaba y en oscuro las filas de
+     «Más» se separaban con tinta sobre tinta. */
+  html[data-theme="dark"] .divide-ink\/5 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgba(237, 247, 240, 0.08) !important;
+  }
+
   /* `border-ink/15` es el borde de los botones fantasma, los filtros de
      provincia y el CTA de los planes: en oscuro desaparecía y el control
      quedaba sin forma. */
@@ -2085,6 +2092,18 @@ html[data-theme="dark"]
    props que lo apague. */
 [data-sonner-toaster]:not(.lv-toaster) {
   display: none;
+}
+
+/* El aviso en oscuro. En claro es la pastilla de tinta (`#08130D`) de
+   `layout.tsx`; en oscuro esa tinta es el mismo color que el fondo de la página
+   y la pastilla desaparecía. Sube a la superficie de tarjeta oscura, con un
+   filo claro. Sonner pone el `style` en línea en cada aviso: solo un
+   `!important` le gana. */
+html[data-theme="dark"] .lv-toaster [data-sonner-toast] {
+  background: #16212b !important;
+  color: #edf7f0 !important;
+  border: 1px solid rgba(237, 247, 240, 0.14) !important;
+  box-shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.6) !important;
 }
 
 /* ── Precios mixtos en la carta online ──────────────────────────────────
