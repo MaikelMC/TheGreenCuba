@@ -8,13 +8,14 @@ export const metadata: Metadata = {
 };
 
 /**
- * Herramienta temporal para recorrer el onboarding cuantas veces haga falta
- * mientras se optimiza el flujo de registro de usuarios y negocios.
+ * Herramienta de administración para recorrer el onboarding cuantas veces haga
+ * falta, también en producción: cada pulsación devuelve la cuenta a «recién
+ * creada» en el servidor y limpia las preferencias de este navegador, así que
+ * el flujo entero se puede repetir sin límite.
  *
  * Vive bajo `/admin`, así que hereda su puerta —solo un administrador entra— y
- * su armazón, y no se enlaza desde el menú: se abre por URL. Cuando acabe la
- * ronda de pruebas se borran esta carpeta, la ruta de API
- * (`/api/admin/prueba-onboarding`) y el componente `PruebaOnboarding`.
+ * su armazón. Se llega desde el menú lateral («Onboarding») y desde el botón
+ * «Ver onboarding» del dashboard.
  *
  * No lleva `dynamic = "force-dynamic"` propio: el layout de `/admin` ya lo
  * declara y la configuración de segmento se hereda.
@@ -28,7 +29,7 @@ export default async function PruebaOnboardingPage() {
         Prueba del onboarding
       </h1>
       <p className="text-small text-ink-soft/75 mt-1">
-        Temporal · solo administración · se retira al terminar las pruebas
+        Solo administración · repetible sin límite, también en producción
       </p>
 
       <div className="mt-gap-md bg-white border border-ink/5 rounded-2xl p-gap-md">
@@ -47,6 +48,11 @@ export default async function PruebaOnboardingPage() {
         </p>
 
         <PruebaOnboarding />
+
+        <p className="text-meta text-ink-soft/75 mt-gap-md">
+          Para verlo otra vez, vuelve a esta página y pulsa el botón: cada visita
+          vuelve a dejar la cuenta como recién creada.
+        </p>
       </div>
 
       <p className="text-meta text-ink-soft/75 mt-gap-md">

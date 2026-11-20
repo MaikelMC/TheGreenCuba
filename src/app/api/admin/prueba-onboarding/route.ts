@@ -7,10 +7,10 @@ import { users } from "@/lib/db/schema";
 
 /**
  * Deja al administrador que lo pide como recién creado, para poder recorrer el
- * onboarding otra vez.
+ * onboarding otra vez cuantas veces quiera.
  *
- * **Temporal.** Existe para la ronda de pruebas del flujo de registro y se borra
- * junto con `/admin/prueba-onboarding` cuando acabe.
+ * Igual en producción que en desarrollo: escribe en la base y no depende de
+ * ninguna marca local, así que cada `POST` deja el flujo listo para repetirse.
  *
  * No recibe a quién reiniciar: siempre es la cuenta de la sesión. Así la ruta
  * no sirve para tocar el onboarding de nadie más aunque alguien la descubriera,

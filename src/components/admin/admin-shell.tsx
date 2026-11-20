@@ -23,6 +23,7 @@ import {
   BadgeDollarSign,
   Activity,
   HandCoins,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/layout/user-menu";
@@ -121,6 +122,12 @@ const NAV_ITEMS: AdminNavItem[] = [
     label: "Proveedores IA",
     short: "IA",
     icon: Bot,
+  },
+  {
+    href: "/admin/prueba-onboarding",
+    label: "Onboarding",
+    short: "Onboarding",
+    icon: Sparkles,
   },
   {
     href: "/admin/planes",

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { Plus, AlertTriangle, Store } from "lucide-react";
+import { Plus, AlertTriangle, Store, Sparkles } from "lucide-react";
 import { usePlaces } from "@/providers/places-provider";
 import { DashboardStats } from "@/components/business/dashboard-stats";
 import { MiniChart } from "@/components/business/mini-chart";
@@ -108,14 +108,24 @@ export default function AdminDashboardPage() {
         <p className="text-small text-ink-soft/75">
           Resumen de toda la plataforma La Verde
         </p>
-        <Link
-          href="/admin/negocios/nuevo"
-          aria-label="Nuevo negocio"
-          className="inline-flex items-center gap-gap-xs h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition duration-500 ease-outquint active:scale-[0.98] shrink-0"
-        >
-          <Plus size={18} strokeWidth={1.8} />
-          <span className="max-sm:hidden">Nuevo negocio</span>
-        </Link>
+        <div className="flex items-center gap-gap-xs shrink-0">
+          <Link
+            href="/admin/prueba-onboarding"
+            aria-label="Ver el onboarding"
+            className="inline-flex items-center gap-gap-xs h-11 px-gap-lg rounded-full border border-ink/10 bg-white text-ink-soft/75 font-lv-display text-small font-semibold hover:text-verde-700 hover:border-verde-200 transition duration-500 ease-outquint active:scale-[0.98] shrink-0"
+          >
+            <Sparkles size={18} strokeWidth={1.8} />
+            <span className="max-sm:hidden">Ver onboarding</span>
+          </Link>
+          <Link
+            href="/admin/negocios/nuevo"
+            aria-label="Nuevo negocio"
+            className="inline-flex items-center gap-gap-xs h-11 px-gap-lg rounded-full bg-verde-400 text-verde-950 font-lv-display text-small font-semibold shadow-primary-halo hover:bg-verde-300 transition duration-500 ease-outquint active:scale-[0.98] shrink-0"
+          >
+            <Plus size={18} strokeWidth={1.8} />
+            <span className="max-sm:hidden">Nuevo negocio</span>
+          </Link>
+        </div>
       </div>
 
       <DashboardStats
