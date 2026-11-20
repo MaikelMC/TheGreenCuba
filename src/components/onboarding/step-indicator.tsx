@@ -9,7 +9,14 @@ interface StepIndicatorProps {
 
 export function StepBar({ currentStep, totalSteps }: StepIndicatorProps) {
   return (
-    <div className="flex gap-[6px] px-5 pb-4 pt-2 flex-shrink-0">
+    <div
+      role="progressbar"
+      aria-label={`Paso ${currentStep + 1} de ${totalSteps}`}
+      aria-valuemin={1}
+      aria-valuemax={totalSteps}
+      aria-valuenow={currentStep + 1}
+      className="flex flex-1 gap-[6px] px-5 py-3"
+    >
       {Array.from({ length: totalSteps }).map((_, i) => (
         <div
           key={i}
@@ -29,7 +36,8 @@ export function StepBar({ currentStep, totalSteps }: StepIndicatorProps) {
 
 export function StepDots({ currentStep, totalSteps }: StepIndicatorProps) {
   return (
-    <div className="flex justify-center gap-2 px-5 py-4 flex-shrink-0">
+    // Repite lo que ya anuncia `StepBar`: solo visual.
+    <div aria-hidden="true" className="flex justify-center gap-2 px-5 py-4 flex-shrink-0">
       {Array.from({ length: totalSteps }).map((_, i) => (
         <div
           key={i}

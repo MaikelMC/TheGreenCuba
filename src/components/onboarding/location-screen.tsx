@@ -2,7 +2,6 @@
 
 import { type ReactNode } from "react";
 import { LocationPicker } from "@/components/onboarding/location-picker";
-import { ProvinceMap } from "@/components/onboarding/province-map";
 
 /**
  * El cuerpo del paso «¿Dónde estás?».
@@ -15,6 +14,11 @@ import { ProvinceMap } from "@/components/onboarding/province-map";
  * `layer` recibe cada capa con su retardo: el onboarding de usuario pasa
  * `SlideContent` —que da el fundido escalonado de 50/100/150…— y el asistente no
  * pasa nada, y las capas salen planas.
+ *
+ * Sin mapa a propósito. Había un MapLibre no interactivo con un pin: era el
+ * bundle más pesado de la app, más estilo y tiles externos, en la primera
+ * pantalla de un usuario nuevo con datos móviles, y se recreaba en cada cambio
+ * de paso. La lista ya dice qué provincia está marcada.
  */
 interface LocationScreenProps {
   location: string;
@@ -22,7 +26,7 @@ interface LocationScreenProps {
   gpsDetected: boolean;
   /** Nombre de la provincia detectada por GPS, si la hubo. */
   gpsLabel?: string;
-  onUseGPS: () => void;
+  onUseGPS: () => void | Promise<void>;
   layer?: (content: ReactNode, delay: number) => ReactNode;
 }
 
@@ -68,7 +72,6 @@ export function LocationScreen({
         </p>,
         150,
       )}
-      {layer(<ProvinceMap location={location} />, 200)}
       {layer(
         <LocationPicker
           selected={location}

@@ -30,6 +30,7 @@ import {
   MapLocationPicker,
   type LocationPoint,
 } from "@/components/map/MapLocationPicker";
+import { campoResuelto } from "@/lib/map/geocode";
 import { usePlaces } from "@/providers/places-provider";
 import { PLAN_LABEL, type PlacePlan } from "@/lib/places-store";
 import { focusProfileControl } from "@/components/profile/focus-profile-control";
@@ -163,6 +164,20 @@ type SectionId = keyof typeof SECTIONS;
  * vista de página recorre las seis y el asistente pinta la del paso activo.
  */
 const SECTION_ORDER = Object.keys(SECTIONS) as SectionId[];
+
+/**
+ * Las secciones que recorre el asistente. Sin «Tu plan» cuando el usuario ya
+ * eligió un pack o servicios en la portada: ese paso le enseñaba el pago como
+ * «próximamente» justo antes de mandarlo a pagar lo que había elegido. El plan
+ * que viaja con el alta sigue siendo el de por defecto, como cuando el paso se
+ * mostraba (el de pago no se podía marcar).
+ *
+ * Exportada para que el onboarding cuente los pasos de la barra con la misma
+ * lista y no con un número escrito a mano.
+ */
+export function wizardSections(skipPlan = false): SectionId[] {
+  return skipPlan ? SECTION_ORDER.filter((id) => id !== "plan") : SECTION_ORDER;
+}
 
 const SECTION_ICONS: Record<SectionId, ReactNode> = {
   esencial: <Store size={18} strokeWidth={1.8} />,
@@ -341,7 +356,7 @@ export function BusinessForm({
   onStepChange,
   onSubmitted,
   onBack,
-  onSkip,
+  skipPlan = false,
 }: {
   /** Si el catálogo ya está. Sin él, el desplegable de categoría está vacío. */
   categoriesReady?: boolean;
@@ -354,8 +369,8 @@ export function BusinessForm({
   onSubmitted?: () => void;
   /** Solo en `"wizard"`: «Atrás» en la primera sección, que devuelve a la ciudad. */
   onBack?: () => void;
-  /** Solo en `"wizard"`: salir sin crear el negocio. */
-  onSkip?: () => void;
+  /** Solo en `"wizard"`: omite «Tu plan» (ya se eligió en la portada). */
+  skipPlan?: boolean;
 }) {
   const wizard = variant === "wizard";
   const { categories, hydrated } = usePlaces();
@@ -612,14 +627,10 @@ export function BusinessForm({
         <MapLocationPicker
           value={location}
           onChange={setLocation}
-          onResolved={(r) => {
-            if (!r) return;
-            /* No pisa una dirección escrita a mano con entre-calles («e/ A y B»),
-               que es más precisa que la que devuelve el geocodificador. */
-            setAddress((prev) =>
-              prev.trim() === "" || !/e\/|entre/i.test(prev) ? r.address : prev,
-            );
-            setBarrio((prev) => (prev.trim() ? prev : r.barrio));
+          onResolved={(r, anterior) => {
+            /* Lo escrito a mano no se pisa; el relleno automático sigue al pin. */
+            setAddress((prev) => campoResuelto(prev, r?.address, anterior?.address));
+            setBarrio((prev) => campoResuelto(prev, r?.barrio, anterior?.barrio));
           }}
         />
 
@@ -667,7 +678,7 @@ export function BusinessForm({
               className={INPUT}
             />
           </div>
-          <div className="flex flex-wrap gap-[6px]">
+          <div className="flex flex-wrap gap-2">
             {SCHEDULE_PRESETS.map((preset) => (
               <button
                 key={preset}
@@ -675,7 +686,7 @@ export function BusinessForm({
                 onClick={() => setSchedule(preset)}
                 aria-pressed={schedule === preset}
                 className={cn(
-                  "select-none rounded-full border px-[14px] py-2 font-lv-display text-meta font-medium transition duration-500 ease-outquint active:scale-[0.98]",
+                  "min-h-11 select-none rounded-full border px-[14px] py-2 font-lv-display text-meta font-medium transition duration-500 ease-outquint active:scale-[0.98]",
                   schedule === preset
                     ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
                     : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
@@ -762,7 +773,7 @@ export function BusinessForm({
                           {option.title}
                         </span>
                         {"badge" in option && (
-                          <span className="inline-flex items-center gap-[4px] rounded-full bg-verde-400 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-verde-950">
+                          <span className="inline-flex items-center gap-[4px] rounded-full bg-verde-400 px-[8px] py-[2px] font-lv-display text-meta font-semibold text-verde-950">
                             <BadgeCheck size={12} strokeWidth={2} />
                             {option.badge}
                           </span>
@@ -850,8 +861,9 @@ export function BusinessForm({
 
   /* El asistente. La validación de cada paso vive aquí porque aquí vive el
      estado; el padre solo recibe el número de paso, para pintar la barra. */
-  const activeId = SECTION_ORDER[step]!;
-  const lastStep = SECTION_ORDER.length - 1;
+  const wizardSteps = wizardSections(skipPlan);
+  const activeId = wizardSteps[step]!;
+  const lastStep = wizardSteps.length - 1;
 
   function stepIssue(id: SectionId): FormError | null {
     if (id === "esencial")
@@ -967,19 +979,12 @@ export function BusinessForm({
               </h1>
             </header>
 
-            {/* La tarjeta y no el acordeón: en el asistente la sección ya está
-                abierta —es la pantalla entera—, así que el asa de plegar no
-                tendría a qué plegar. */}
-            <div
-              className={cn(
-                "flex flex-col gap-gap-md rounded-2xl border bg-white p-gap-md shadow-soft",
-                error?.sections.includes(activeId)
-                  ? "border-destructive/40 ring-1 ring-destructive/15"
-                  : "border-ink/5",
-              )}
-            >
-              {bodies[activeId]}
-            </div>
+            {/* Sin tarjeta envolvente: la pantalla entera ya es la sección, y
+                dentro van piezas que son tarjetas por sí mismas (el buscador y
+                el mapa de «Dónde está», las opciones de «Tu plan»). Envolverlas
+                dejaba tres niveles de borde en el ancho de un móvil. El error
+                lo anuncia el aviso del pie, que nombra la sección. */}
+            <div className="flex flex-col gap-gap-md">{bodies[activeId]}</div>
           </motion.div>
         </div>
 
@@ -999,16 +1004,6 @@ export function BusinessForm({
               </motion.p>
             )}
           </AnimatePresence>
-
-          {onSkip && (
-            <button
-              type="button"
-              onClick={onSkip}
-              className="mx-auto -mb-1 rounded-full px-3 py-1 font-lv-display text-small font-medium text-ink-soft/75 transition-colors duration-500 ease-outquint hover:text-verde-600"
-            >
-              Ahora no
-            </button>
-          )}
 
           <div className="flex gap-3">
             <button

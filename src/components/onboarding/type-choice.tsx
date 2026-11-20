@@ -18,16 +18,13 @@ interface TypeChoiceProps {
 }
 
 const CARD =
-  "group flex min-h-[176px] w-full flex-col justify-between gap-gap-md rounded-[24px] p-gap-lg text-left transition duration-500 ease-outquint active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 focus-visible:ring-offset-2";
+  "group flex min-h-[176px] w-full flex-col justify-between gap-gap-md rounded-2xl p-gap-lg text-left transition duration-500 ease-outquint active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 focus-visible:ring-offset-2";
 
 export function TypeChoice({ onChoose }: TypeChoiceProps) {
   return (
     <div className="flex flex-col gap-gap-md">
       <header className="mb-gap-xs">
-        <p className="font-lv-display text-meta font-semibold uppercase tracking-[0.12em] text-verde-600">
-          Antes de empezar
-        </p>
-        <h1 className="mt-gap-xs font-lv-display text-h2 font-bold leading-tight tracking-[-0.02em] text-ink">
+        <h1 className="font-lv-display text-h2 font-bold leading-tight tracking-[-0.02em] text-ink">
           ¿Cómo vas a usar La Verde?
         </h1>
         <p className="mt-gap-sm text-body leading-relaxed text-ink-soft/75">
@@ -47,7 +44,7 @@ export function TypeChoice({ onChoose }: TypeChoiceProps) {
           <Compass size={24} strokeWidth={1.8} />
         </span>
         <span className="flex flex-col gap-gap-xs">
-          <span className="font-lv-display text-[22px] font-bold leading-tight tracking-[-0.02em] text-ink">
+          <span className="font-lv-display text-h3 font-bold leading-tight tracking-[-0.02em] text-ink">
             Solo quiero explorar
           </span>
           <span className="text-small leading-relaxed text-ink-soft/75">
@@ -76,7 +73,7 @@ export function TypeChoice({ onChoose }: TypeChoiceProps) {
           <Store size={24} strokeWidth={1.8} />
         </span>
         <span className="flex flex-col gap-gap-xs">
-          <span className="font-lv-display text-[22px] font-bold leading-tight tracking-[-0.02em]">
+          <span className="font-lv-display text-h3 font-bold leading-tight tracking-[-0.02em]">
             Tengo un negocio
           </span>
           <span className="text-small leading-relaxed text-verde-950/75">

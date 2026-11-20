@@ -18,20 +18,3 @@ export function OnboardingShell({ children }: { children: ReactNode }) {
     </div>
   );
 }
-
-export function StatusBar() {
-  return (
-    <div className="flex justify-between items-center px-5 pt-2 pb-1 font-lv-display text-meta font-semibold text-ink-soft/75 flex-shrink-0 min-h-[36px]">
-      <span className="font-bold">9:41</span>
-      <div className="flex gap-1 items-center">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-4">
-          <path d="M19 10v4M15 8v6M11 12v2M7 6v8" />
-          <rect x="2" y="4" width="20" height="16" rx="2" />
-        </svg>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-4">
-          <path d="M1 9l4 4 4-4M13 9l4 4 4-4" />
-        </svg>
-      </div>
-    </div>
-  );
-}

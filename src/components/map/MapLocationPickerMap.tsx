@@ -93,6 +93,20 @@ export function MapLocationPickerMap({
         maxBounds: CUBA_BOUNDS,
         fadeDuration: 100,
         attributionControl: false,
+        /* El selector vive dentro de formularios con scroll (asistente de
+           alta, perfil, admin). Sin esto, un dedo sobre el mapa lo arrastraba
+           en vez de bajar la página y el móvil se quedaba atrapado. Con un dedo
+           hace scroll; con dos mueve el mapa. Tocar para colocar el pin sigue
+           funcionando con uno. */
+        cooperativeGestures: true,
+        locale: {
+          "CooperativeGesturesHandler.WindowsHelpText":
+            "Usa Ctrl + rueda para hacer zoom en el mapa",
+          "CooperativeGesturesHandler.MacHelpText":
+            "Usa ⌘ + rueda para hacer zoom en el mapa",
+          "CooperativeGesturesHandler.MobileHelpText":
+            "Usa dos dedos para mover el mapa",
+        },
       });
 
       map.addControl(

@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { type ButtonHTMLAttributes } from "react";
+import { useId, useState } from "react";
 import { CUBA_PROVINCES } from "@/lib/user-preferences-store";
 
 /* Las 16 provincias del país, de `CUBA_PROVINCES`: la misma lista que usa el
@@ -21,30 +21,45 @@ interface LocationPickerProps {
   gpsDetected?: boolean;
   /** Nombre de la provincia detectada por GPS (se muestra junto al check). */
   gpsLabel?: string;
-  onUseGPS: () => void;
+  onUseGPS: () => void | Promise<void>;
 }
 
+/* Radio nativo escondido dentro de la etiqueta, el mismo patrón que la sección
+   de plan del alta. Antes era un `<button role="radio">`: se anunciaba como
+   radio pero no se movía con flechas y cada provincia era una parada de Tab
+   (16). El nativo da las flechas, una sola parada y el anuncio correcto. */
 function LocationOption({
+  name,
+  value,
   selected,
   label,
-  ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  onSelect,
+}: {
+  name: string;
+  value: string;
   selected: boolean;
   label: string;
+  onSelect: (value: string) => void;
 }) {
   return (
-    <button
-      role="radio"
-      aria-checked={selected}
+    <label
       className={cn(
-        "flex items-center gap-3 p-3 border rounded-2xl shadow-soft transition duration-500 ease-outquint text-left w-full",
+        "relative flex min-h-12 cursor-pointer items-center gap-3 p-3 border rounded-2xl shadow-soft transition duration-500 ease-outquint focus-within:ring-2 focus-within:ring-verde-400/40",
         selected
           ? "border-verde-400 bg-verde-50"
           : "border-ink/5 bg-white hover:border-verde-300 hover:bg-verde-50",
       )}
-      {...props}
     >
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        checked={selected}
+        onChange={() => onSelect(value)}
+        className="sr-only"
+      />
       <span
+        aria-hidden="true"
         className={cn(
           "size-3 rounded-full border-2 flex-shrink-0 transition duration-500",
           selected
@@ -53,50 +68,55 @@ function LocationOption({
         )}
       />
       <span className="font-lv-display text-body font-semibold text-ink">{label}</span>
-    </button>
+    </label>
   );
 }
 
 export function LocationPicker({ selected, onSelect, gpsDetected, gpsLabel, onUseGPS }: LocationPickerProps) {
-  return (
-    <div className="flex flex-col gap-3">
-      {/* Dieciséis provincias no caben de una vez en la pantalla del móvil, así
-          que la lista se desplaza dentro del paso y el botón del GPS —que es la
-          otra forma de responder— se queda a la vista. */}
-      <div
-        role="radiogroup"
-        aria-label="Provincia"
-        className="flex flex-col gap-2 max-h-[42vh] overflow-y-auto pr-1 -mr-1"
-      >
-        {CUBA_PROVINCES.map((province) => (
-          <LocationOption
-            key={province.value}
-            selected={selected === province.value}
-            label={province.label}
-            onClick={() => onSelect(province.value)}
-          />
-        ))}
-      </div>
+  /* El GPS puede tardar segundos; sin esto el botón no daba señal de vida. */
+  const [buscando, setBuscando] = useState(false);
+  const radioName = useId();
 
+  async function usarGPS() {
+    if (buscando) return;
+    setBuscando(true);
+    try {
+      await onUseGPS();
+    } finally {
+      setBuscando(false);
+    }
+  }
+
+  return (
+    /* El GPS va primero y la lista sigue el scroll del paso. Antes la lista
+       tenía su propio scroll (`max-h-[42vh]`) dentro de un paso que también
+       se desplaza: en un móvil de 667 px el dedo se atascaba entre los dos y
+       el botón del GPS quedaba debajo del pliegue. */
+    <div className="flex flex-col gap-3 pb-4">
       <button
-        onClick={onUseGPS}
+        type="button"
+        onClick={() => void usarGPS()}
+        disabled={buscando}
+        aria-busy={buscando}
         className={cn(
-          "flex items-center justify-center gap-2 w-full py-3 border-2 rounded-full cursor-pointer font-lv-display text-small font-semibold transition duration-500 ease-outquint mt-1",
+          "flex min-h-12 items-center justify-center gap-2 w-full py-3 border-2 rounded-full cursor-pointer font-lv-display text-small font-semibold transition duration-500 ease-outquint disabled:cursor-wait disabled:opacity-60",
           gpsDetected
             ? "border-solid border-verde-300 text-verde-600"
             : "border-dashed border-ink/10 text-ink-soft/75 hover:border-verde-300 hover:text-verde-600",
         )}
       >
-        {gpsDetected ? (
+        {buscando ? (
+          "Buscando tu ubicación…"
+        ) : gpsDetected ? (
           <>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-4">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-4" aria-hidden="true">
               <path d="M20 6L9 17l-5-5" />
             </svg>
             Ubicación detectada: {gpsLabel ?? "tu zona"}
           </>
         ) : (
           <>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-[18px]" aria-hidden="true">
               <circle cx="12" cy="12" r="3" />
               <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
             </svg>
@@ -104,6 +124,20 @@ export function LocationPicker({ selected, onSelect, gpsDetected, gpsLabel, onUs
           </>
         )}
       </button>
+
+      <fieldset className="flex min-w-0 flex-col gap-2">
+        <legend className="sr-only">Provincia</legend>
+        {CUBA_PROVINCES.map((province) => (
+          <LocationOption
+            key={province.value}
+            name={radioName}
+            value={province.value}
+            selected={selected === province.value}
+            label={province.label}
+            onSelect={onSelect}
+          />
+        ))}
+      </fieldset>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   searchAddress,
   searchCubaAreas,
   reverseGeocode,
+  conservarEntreCalles,
   type AreaSuggestion,
   type GeocodeSuggestion,
   type ResolvedLocation,
@@ -39,8 +40,16 @@ export interface LocationPoint {
 interface MapLocationPickerProps {
   value: LocationPoint | null;
   onChange: (point: LocationPoint | null) => void;
-  /** Se llama cuando se detecta la dirección del punto (búsqueda o reverse). */
-  onResolved?: (resolved: ResolvedLocation | null) => void;
+  /**
+   * Se llama cuando se detecta la dirección del punto (búsqueda o reverse), y
+   * con `null` cuando el punto nuevo no tiene calle conocida o la consulta
+   * falla. `anterior` es lo último que se emitió: con `campoResuelto` el
+   * formulario sabe qué rellenó el selector y qué escribió el usuario.
+   */
+  onResolved?: (
+    resolved: ResolvedLocation | null,
+    anterior: ResolvedLocation | null,
+  ) => void;
   className?: string;
 }
 
@@ -69,6 +78,8 @@ function suggestionToResolved(s: GeocodeSuggestion): ResolvedLocation {
     address: base.join(", "),
     barrio: s.district ?? s.city ?? "",
     label: [streetParts || s.district, s.city].filter(Boolean).join(" · "),
+    street: s.street || undefined,
+    between: s.between,
   };
 }
 
@@ -106,21 +117,34 @@ export function MapLocationPicker({
     };
   }, []);
 
+  /* Lo último que se le pasó al formulario. Viaja como `anterior` para que el
+     formulario distinga su relleno automático de lo escrito a mano. */
+  const ultimo = useRef<ResolvedLocation | null>(null);
+  const emitir = useCallback(
+    (r: ResolvedLocation | null) => {
+      setResolved(r);
+      onResolved?.(r, ultimo.current);
+      ultimo.current = r;
+    },
+    [onResolved],
+  );
+
   const runReverse = useCallback(
     (lat: number, lng: number) => {
       const seq = ++reverseSeq.current;
       reverseGeocode(lat, lng)
         .then((r) => {
           if (seq !== reverseSeq.current) return; // respuesta vieja
-          setResolved(r);
-          onResolved?.(r);
+          emitir(conservarEntreCalles(r, ultimo.current));
         })
         .catch(() => {
           if (seq !== reverseSeq.current) return;
-          setResolved(null);
+          /* Antes solo se borraba la tarjeta: el formulario se quedaba con la
+             calle del punto anterior, que ya no es la del pin. */
+          emitir(null);
         });
     },
-    [onResolved],
+    [emitir],
   );
 
   // Punto elegido por toque/arrastre del mapa → confirma calle con Nominatim.
@@ -143,11 +167,9 @@ export function MapLocationPicker({
       setFlyZoom(17); // acercar a nivel calle para verificar el punto
       onChange({ lat: s.lat, lng: s.lng });
       reverseSeq.current++; // invalida cualquier reverse previo
-      const r = suggestionToResolved(s);
-      setResolved(r);
-      onResolved?.(r);
+      emitir(suggestionToResolved(s));
     },
-    [onChange, onResolved],
+    [onChange, emitir],
   );
 
   const handleAddressInput = useCallback(
@@ -285,6 +307,9 @@ export function MapLocationPicker({
                 setAreaQuery(e.target.value);
               }}
               onFocus={() => setShowSuggestions(true)}
+              aria-label="Buscar dirección, calle o lugar"
+              enterKeyHint="search"
+              autoComplete="off"
               placeholder="Buscar dirección, calle o lugar…"
               className={cn(FIELD, "pl-11 pr-10")}
             />

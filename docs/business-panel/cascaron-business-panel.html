@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cascarón Business Panel</title>
+<!--
+  Cascarón estático del Business Panel de La Verde.
+  Sin backend: los datos son de ejemplo. Sirve para revisar el diseño de cada
+  sección sin hacer capturas. Fuente de verdad: src/components/business/*.
+  Barra superior: cambiar sección, vista móvil/escritorio y tema claro/oscuro.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --verde-50:#EAF7EF;--verde-100:#CEEEDB;--verde-200:#9FDDB9;--verde-300:#67C792;--verde-400:#35AF6D;--verde-500:#18954F;--verde-600:#0F7A41;--verde-700:#0C6136;--verde-950:#052017;
+  --ink:#08130D;--ink-soft:#1B2A21;--muted:rgba(27,42,33,.75);--muted2:rgba(27,42,33,.55);
+  --sand:#F6F3EC;--sand-warm:#FBF9F4;--sand-deep:#EAE4D6;--card:#FFFFFF;--line:rgba(8,19,13,.06);--line2:rgba(8,19,13,.1);
+  --red:#C2362B;--red-bg:rgba(194,54,43,.1);--amber-bg:rgba(240,170,40,.12);--amber-line:rgba(240,170,40,.4);
+  --orange-50:#FFF7ED;--orange-200:#FED7AA;--orange-700:#C2410C;--orange-900:#7C2D12;
+  --shadow:0 1px 2px rgba(8,19,13,.05),0 8px 24px -12px rgba(8,19,13,.12);
+  --display:"Space Grotesk","DM Sans",system-ui,sans-serif;--body:"DM Sans",system-ui,sans-serif;
+}
+html[data-theme="dark"]{
+  --ink:#EDF7F0;--ink-soft:#D5E3DA;--muted:rgba(213,227,218,.72);--muted2:rgba(213,227,218,.5);
+  --sand:#0E1720;--sand-warm:#121D27;--sand-deep:#1A2833;--card:#16222C;--line:rgba(237,247,240,.06);--line2:rgba(237,247,240,.12);
+  --verde-50:rgba(53,175,109,.14);--verde-100:rgba(53,175,109,.2);--verde-200:rgba(53,175,109,.32);--verde-600:#67C792;--verde-700:#9FDDB9;
+  --red:#F08A80;--red-bg:rgba(240,138,128,.12);
+  --orange-50:rgba(249,115,22,.12);--orange-200:rgba(249,115,22,.35);--orange-700:#FDBA74;--orange-900:#FED7AA;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -12px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+body{margin:0;background:#2b2f2c;font-family:var(--body);color:var(--ink);font-size:16px;line-height:1.55}
+button,input,select,textarea{font:inherit;color:inherit}
+/* ── Barra de herramientas del cascarón (no forma parte del producto) ── */
+.tool{position:sticky;top:0;z-index:100;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 16px;background:#111;color:#eee;font-size:13px}
+.tool b{font-family:var(--display)}
+.tool button{background:#2a2a2a;border:1px solid #444;color:#eee;border-radius:999px;padding:6px 12px;cursor:pointer}
+.tool button.on{background:#35AF6D;color:#052017;border-color:#35AF6D}
+.tool .sp{flex:1}
+.stage{display:flex;justify-content:center;padding:16px}
+.frame{width:100%;max-width:1360px;height:calc(100vh - 80px);border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4);transition:max-width .3s}
+.frame.mobile{max-width:390px}
+/* ── Panel ── */
+.panel{height:100%;display:flex;flex-direction:column;background:var(--sand)}
+.top{height:64px;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 16px;background:color-mix(in srgb,var(--sand-warm) 90%,transparent);border-bottom:1px solid var(--line);backdrop-filter:blur(16px)}
+.icon-btn{width:44px;height:44px;border-radius:999px;display:grid;place-items:center;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.icon-btn:hover{background:var(--verde-50);color:var(--verde-600)}
+.brand{font-family:var(--display);font-weight:700;font-size:18px;letter-spacing:-.02em;white-space:nowrap}
+.brand span{color:var(--verde-600);font-weight:500}
+.avatar{width:36px;height:36px;border-radius:999px;background:var(--verde-400);color:var(--verde-950);display:grid;place-items:center;font-weight:700;font-family:var(--display)}
+.shell{flex:1;display:flex;min-height:0}
+.side{width:260px;flex-shrink:0;background:var(--card);border-right:1px solid var(--line);padding:16px 12px;display:flex;flex-direction:column;gap:2px;overflow:auto}
+.nav{display:flex;align-items:center;gap:12px;width:100%;padding:12px 16px;border-radius:999px;border:0;background:transparent;color:var(--muted);font-family:var(--display);font-size:14px;font-weight:500;cursor:pointer;text-align:left}
+.nav.sec{color:var(--muted2)}
+.nav:hover{background:var(--sand)}
+.nav.active{background:var(--verde-50);color:var(--verde-700);font-weight:600}
+.nav svg{width:20px;height:20px;flex-shrink:0}
+.sep{height:1px;background:var(--line);margin:6px 16px}
+.bizcard{margin:auto 8px 8px;padding:16px;background:var(--sand);border:1px solid var(--line);border-radius:16px;font-size:12px;color:var(--muted)}
+.bizcard b{display:block;font-family:var(--display);font-size:14px;color:var(--ink);margin-bottom:4px}
+.dot{display:inline-block;width:6px;height:6px;border-radius:999px;background:var(--verde-400);margin-right:6px}
+.main{flex:1;min-width:0;overflow-y:auto}
+.content{padding:32px;display:flex;flex-direction:column;gap:16px;max-width:1100px}
+.mobile .side{display:none}
+.mobile .content{padding:12px 12px 16px}
+.desk-only{}
+.mobile .desk-only{display:none}
+.mob-only{display:none}
+.mobile .mob-only{display:grid}
+/* Cajón móvil */
+.drawer-bg{position:absolute;inset:0;background:rgba(0,0,0,.4);display:none;z-index:60}
+.drawer{position:absolute;top:0;right:0;bottom:0;width:100%;max-width:320px;background:var(--card);z-index:61;display:none;flex-direction:column}
+.drawer.open,.drawer-bg.open{display:flex}
+.drawer .hd{display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid var(--line);font-family:var(--display);font-weight:600}
+.drawer nav{padding:16px;overflow:auto;flex:1}
+.drawer .nav{border-radius:12px;font-size:16px}
+.drawer .ft{padding:16px;border-top:1px solid var(--line);text-align:center;font-size:12px;color:var(--muted)}
+.frame{position:relative}
+/* Piezas comunes */
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+.h2{display:flex;align-items:center;gap:8px;font-family:var(--display);font-weight:600;font-size:16px;margin:0}
+.h2 svg{width:18px;height:18px;color:var(--verde-600)}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.between{justify-content:space-between}
+.meta{font-size:12px;color:var(--muted);letter-spacing:.02em}
+.small{font-size:14px}
+.muted{color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-family:var(--display);font-size:12px;font-weight:600;border:1px solid var(--line2);background:var(--sand);color:var(--muted)}
+.chip.on{border-color:var(--verde-200);background:var(--verde-50);color:var(--verde-700)}
+.chip.red{border-color:transparent;background:var(--red-bg);color:var(--red)}
+.chip.amber{border-color:var(--amber-line);background:var(--amber-bg);color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:44px;padding:0 18px;border-radius:999px;font-family:var(--display);font-size:14px;font-weight:600;cursor:pointer;border:1px solid var(--line2);background:var(--card);color:var(--ink);white-space:nowrap}
+.btn:hover{border-color:var(--verde-300);color:var(--verde-600)}
+.btn.primary{background:var(--verde-400);color:var(--verde-950);border-color:transparent;box-shadow:0 0 0 4px rgba(53,175,109,.12)}
+.btn.primary:hover{background:var(--verde-300)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.btn.danger{border-color:transparent;background:transparent;color:var(--red)}
+.btn.sm{height:36px;font-size:12px;padding:0 12px}
+.btn svg{width:16px;height:16px}
+.input{height:44px;width:100%;border-radius:12px;border:1px solid var(--line2);background:var(--card);padding:0 14px;outline:none;min-width:0}
+.input:focus{border-color:var(--verde-400);box-shadow:0 0 0 3px rgba(53,175,109,.2)}
+textarea.input{height:auto;padding:10px 14px;min-height:72px;resize:vertical}
+label.l{display:block;font-family:var(--display);font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mobile .grid2{grid-template-columns:1fr}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.mobile .grid4{grid-template-columns:1fr 1fr}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.mobile .grid3{grid-template-columns:1fr}
+.switch{width:44px;height:26px;border-radius:999px;background:var(--sand-deep);position:relative;flex-shrink:0;cursor:pointer;border:0}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:999px;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.switch.on{background:var(--verde-400)}
+.switch.on::after{left:21px}
+.togrow{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:12px;margin-top:16px}
+.info-link{align-self:flex-end;font-size:12px;color:var(--muted2);text-decoration:none}
+.alert-amber{border:1px solid var(--amber-line);background:var(--amber-bg);border-radius:12px;padding:7px 12px;font-size:12px;font-weight:500}
+.alert-green{border:1px solid var(--verde-200);background:var(--verde-50);border-radius:16px;padding:12px 16px}
+.savebar{position:sticky;bottom:16px;display:flex;justify-content:flex-end;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px}
+.mobile .savebar{flex-direction:column-reverse;align-items:stretch}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{border-radius:999px;padding:8px 14px;font-family:var(--display);font-size:13px;font-weight:600;border:1px solid var(--line2);background:var(--card);color:var(--muted);cursor:pointer}
+.tab.on{background:var(--ink);color:var(--sand);border-color:var(--ink)}
+.switcher{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);border-radius:999px;padding:6px 14px 6px 6px;background:var(--card);font-size:13px}
+.switcher .lg{width:28px;height:28px;border-radius:999px;background:var(--verde-100);display:grid;place-items:center;font-weight:700;color:var(--verde-700);font-family:var(--display)}
+/* Inicio */
+.eyebrow{display:flex;align-items:center;gap:8px;font-family:var(--display);font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--verde-700)}
+.eyebrow i{width:7px;height:7px;border-radius:999px;background:var(--verde-500);box-shadow:0 0 0 4px rgba(24,149,79,.1)}
+.h1{font-family:var(--display);font-weight:700;font-size:32px;line-height:1.12;letter-spacing:-.03em;margin:6px 0 0}
+.mobile .h1{font-size:26px}
+.hero{position:relative;overflow:hidden;border-radius:26px;background:linear-gradient(116deg,#0e2a1e 0%,#153e2c 72%,#1d5238 100%);color:#fff;padding:24px}
+.hero .glow{position:absolute;right:-90px;top:-220px;width:350px;height:350px;border-radius:999px;background:radial-gradient(circle,rgba(91,224,143,.23),rgba(91,224,143,0) 68%)}
+.hero .logo{width:68px;height:68px;border-radius:20px;background:#fff;display:grid;place-items:center;color:#0C6136;font-family:var(--display);font-weight:700;font-size:22px;flex-shrink:0}
+.hero .k{font-family:var(--display);font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#9FDDB9}
+.hero h2{font-family:var(--display);font-size:25px;margin:4px 0 0;letter-spacing:-.02em}
+.hero .pub{font-family:var(--display);font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;border:1px solid rgba(103,199,146,.35);background:rgba(53,175,109,.15);color:#CEEEDB;border-radius:999px;padding:5px 9px}
+.hero .st{font-family:var(--display);font-size:10px;font-weight:600;border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:4px 9px;color:rgba(255,255,255,.8);background:rgba(255,255,255,.08);cursor:pointer}
+.hero .see{background:#fff;color:#052017;border-radius:13px;padding:12px 16px;font-family:var(--display);font-weight:700;font-size:14px;text-decoration:none}
+.hero .foot{border-top:1px solid rgba(255,255,255,.1);margin-top:16px;padding-top:12px;display:flex;flex-wrap:wrap;gap:6px 24px;font-size:12px;color:rgba(206,238,219,.7)}
+.stat .v{font-family:var(--display);font-size:28px;font-weight:700;line-height:1;margin:10px 0 4px;font-variant-numeric:tabular-nums}
+.stat .ic{width:32px;height:32px;border-radius:10px;background:var(--verde-50);color:var(--verde-600);display:grid;place-items:center}
+.stat .ic svg{width:16px;height:16px}
+.bar{height:6px;border-radius:999px;background:var(--sand-deep);margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--verde-400)}
+.qr{width:110px;height:110px;border-radius:12px;background:repeating-conic-gradient(var(--ink) 0 25%,var(--card) 0 50%) 0 0/14px 14px;border:6px solid var(--card);outline:1px solid var(--line2);flex-shrink:0}
+/* Catálogo */
+.prod{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:start}
+.mobile .prod{grid-template-columns:56px 1fr}
+.ph{width:64px;height:64px;border-radius:12px;background:var(--sand-deep);display:grid;place-items:center;color:var(--muted2)}
+.ph svg{width:20px;height:20px}
+.mobile .ph{width:56px;height:56px}
+/* Pedidos */
+.order{border-left:0}
+.order .code{font-family:var(--display);font-weight:700}
+.items{margin:8px 0;padding:0;list-style:none;font-size:14px}
+.items li{display:flex;justify-content:space-between;border-bottom:1px dashed var(--line2);padding:4px 0}
+/* Editar: acordeón */
+details.sec{background:var(--card);border:1px solid var(--line);border-radius:16px}
+details.sec summary{list-style:none;cursor:pointer;padding:16px;display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:600}
+details.sec summary::-webkit-details-marker{display:none}
+details.sec summary svg{width:18px;height:18px;color:var(--verde-600)}
+details.sec summary .chev{margin-left:auto;color:var(--muted2);transition:.2s}
+details.sec[open] summary .chev{transform:rotate(180deg)}
+details.sec .bd{padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+.photos{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.mobile .photos{grid-template-columns:repeat(3,1fr)}
+.photos div{aspect-ratio:1;border-radius:12px;background:var(--sand-deep)}
+.map{height:180px;border-radius:12px;background:linear-gradient(135deg,var(--verde-50),var(--sand-deep));display:grid;place-items:center;color:var(--muted)}
+/* Frecuentes */
+.stamps{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}
+.stamps i{aspect-ratio:1;border-radius:999px;border:2px dashed var(--verde-200)}
+.stamps i.f{background:var(--verde-400);border-style:solid;border-color:var(--verde-400)}
+.client{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.client:last-child{border:0}
+.av{width:40px;height:40px;border-radius:999px;background:var(--verde-50);color:var(--verde-700);display:grid;place-items:center;font-family:var(--display);font-weight:700;flex-shrink:0}
+/* Ofertas */
+.offer-prev{position:relative;overflow:hidden;border-radius:16px;border:1px solid var(--orange-200);background:linear-gradient(135deg,var(--orange-50),#FFFBEB,#FFF1F2);padding:16px}
+html[data-theme="dark"] .offer-prev{background:linear-gradient(135deg,rgba(249,115,22,.14),rgba(245,158,11,.1),rgba(244,63,94,.12))}
+.offer-prev .pill{display:inline-flex;gap:6px;border-radius:999px;background:linear-gradient(90deg,#C2410C,#DC2626);color:#fff;font-family:var(--display);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:4px 10px}
+.offer-prev .t{font-family:var(--display);font-weight:700;color:var(--orange-900);margin:10px 0 0}
+.offer-prev .pr{border-top:1px dashed rgba(251,146,60,.4);margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;align-items:flex-end}
+.offer-prev .now{font-family:var(--display);font-size:28px;font-weight:700;color:var(--orange-700);line-height:1}
+/* Planes */
+.plan{display:flex;flex-direction:column;gap:8px}
+.plan.hl{background:var(--ink);color:var(--sand);border-color:var(--ink)}
+.plan.hl .muted{color:rgba(246,243,236,.7)}
+.price{font-family:var(--display);font-size:32px;font-weight:700;letter-spacing:-.02em}
+.plan ul{margin:4px 0 8px;padding-left:18px;font-size:14px}
+/* Modal */
+.modal-bg{position:absolute;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:80;padding:16px}
+.modal-bg.open{display:flex}
+.modal{background:var(--card);border-radius:20px;padding:20px;width:100%;max-width:440px;max-height:calc(100% - 32px);overflow:auto;display:flex;flex-direction:column;gap:12px}
+.modal h3{font-family:var(--display);margin:0;font-size:20px}
+.view{display:none;flex-direction:column;gap:16px}
+.view.on{display:flex}
+.section-title{font-family:var(--display);font-weight:600;font-size:16px;margin:8px 0 0}
+</style>
+</head>
+<body>
+
+<div class="tool">
+  <b>Cascarón · Business Panel</b>
+  <span style="opacity:.6">Datos de ejemplo, sin backend</span>
+  <span class="sp"></span>
+  <button id="tDesk" class="on" type="button">Escritorio</button>
+  <button id="tMob" type="button">Móvil 390</button>
+  <button id="tTheme" type="button">Tema: claro</button>
+</div>
+
+<div class="stage">
+<div class="frame" id="frame">
+<div class="panel">
+
+  <header class="top">
+    <button class="icon-btn" type="button" aria-label="Volver al inicio"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+    <div class="brand">La Verde <span>Panel</span></div>
+    <div style="flex:1"></div>
+    <span class="chip on desk-only">Publicado en La Verde</span>
+    <div class="avatar" title="Menú de usuario">M</div>
+    <button class="icon-btn mob-only" type="button" id="openDrawer" aria-label="Abrir menú"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+  </header>
+
+  <div class="shell">
+    <aside class="side" id="side"></aside>
+    <div class="main" id="main">
+      <div class="content">
+
+<!-- ═════════════ INICIO ═════════════ -->
+<section class="view" data-view="dashboard">
+  <div class="row between" style="align-items:flex-end">
+    <div>
+      <div class="eyebrow"><i></i>Panel del negocio</div>
+      <h1 class="h1">Paladar El Sabroso</h1>
+    </div>
+    <span class="switcher"><span class="lg">PS</span>Estás en <b>Paladar El Sabroso</b> ▾</span>
+  </div>
+
+  <div class="hero">
+    <span class="glow"></span>
+    <div class="row" style="position:relative">
+      <div class="logo">PS</div>
+      <div>
+        <div class="k">Así te ven en La Verde</div>
+        <div class="row" style="gap:8px"><h2>Paladar El Sabroso</h2><span class="pub">✓ Publicada</span></div>
+        <div style="font-size:14px;color:rgba(206,238,219,.75)">Restaurante · Vista Alegre</div>
+      </div>
+    </div>
+    <div class="row between" style="margin-top:12px;position:relative">
+      <span class="st">● Abierto ▾</span>
+      <a class="see" href="#">Ver mi ficha ↗</a>
+    </div>
+    <div class="foot">
+      <span>📍 Calle 12 #45, entre 7 y 9</span><span>🕑 10:00 – 22:00</span><span>👁 Visible en el mapa y catálogo</span>
+    </div>
+  </div>
+
+  <div class="row between"><h2 class="h2">Actividad este mes</h2><span class="chip">Este mes</span></div>
+  <div class="grid4">
+    <div class="card stat"><div class="ic">↗</div><div class="v">1.284</div><div class="small">Clics a tu negocio</div><div class="meta">Ficha y menú, este mes</div></div>
+    <div class="card stat"><div class="ic">⌕</div><div class="v">312</div><div class="small">Búsquedas</div><div class="meta">Apareciste como opción</div></div>
+    <div class="card stat"><div class="ic">▣</div><div class="v">42</div><div class="small">Productos</div><div class="meta">En tu catálogo</div></div>
+    <div class="card stat"><div class="ic">📣</div><div class="v">2 / 3</div><div class="small">Publicaciones</div><div class="meta">Quedan 1 esta semana</div><div class="bar"><i style="width:66%"></i></div></div>
+  </div>
+
+  <div class="card">
+    <div class="row between"><h2 class="h2" style="font-size:14px">Clics en los últimos 7 días</h2><span class="chip">Ficha y catálogo</span></div>
+    <div class="grid2" style="margin-top:12px;grid-template-columns:1fr 1fr">
+      <div><div class="meta">Ficha</div><div class="price" style="font-size:22px">187</div></div>
+      <div><div class="meta">Catálogo</div><div class="price" style="font-size:22px">264</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row between"><h2 class="h2">Tu menú online</h2><span class="chip on">Activo</span></div>
+    <p class="small muted" style="margin:6px 0 12px">Compártelo directamente o deja el QR a la vista de tus clientes.</p>
+    <div class="row" style="align-items:flex-start">
+      <div class="qr"></div>
+      <div style="flex:1;min-width:180px">
+        <b class="small">Tu carta está lista</b>
+        <div class="meta">Un enlace para compartir tu catálogo.</div>
+        <input class="input" style="margin:10px 0" value="laverde.cu/m/paladar-el-sabroso" readonly />
+        <div class="row"><button class="btn primary" type="button">Compartir</button><button class="btn" type="button">Ver mi carta</button><button class="btn ghost" type="button">Descargar QR</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row between"><h2 class="h2">Precios mixtos: tus tasas</h2><span class="chip on">Actualizada hoy</span></div>
+    <p class="small muted" style="margin:6px 0 12px">Tus clientes tocan una moneda en tu ficha y ven la carta con tu tasa.</p>
+    <div class="grid2">
+      <div><label class="l">¿A cómo está el USD hoy?</label><input class="input" placeholder="Ej: 350" value="390" /></div>
+      <div><label class="l">¿A cómo está el EUR hoy?</label><input class="input" placeholder="Ej: 380" /></div>
+      <div><label class="l">¿A cómo está la USD Clásica hoy?</label><input class="input" placeholder="Ej: 300" /></div>
+      <div><label class="l">Recargo por transferencia (%)</label><input class="input" placeholder="Ej: 10" /></div>
+    </div>
+    <div class="row" style="margin-top:12px"><span class="meta">Redondeo:</span><span class="chip on">5 CUP</span><span class="chip">10 CUP</span><span class="chip">Sin redondeo</span><span style="flex:1"></span><button class="btn primary" type="button">Guardar tasa</button></div>
+  </div>
+
+  <div class="card">
+    <div class="row between"><h2 class="h2">¿Tu negocio necesita personal?</h2><span class="chip">Kynari Empleos</span></div>
+    <p class="small muted" style="margin:6px 0 12px">Publica tu oferta y llega a profesionales que buscan empleo en Cuba. La oferta aparece también en tu ficha de La Verde.</p>
+    <div class="row"><button class="btn primary" type="button">Publica gratis</button><button class="btn" type="button">Ver Kynari</button></div>
+  </div>
+
+  <div class="card">
+    <div class="row between"><h2 class="h2">Tu plan</h2><span class="chip on">Esencial</span></div>
+    <p class="small muted" style="margin:6px 0 12px">Tu plan actual · Pedidos por WhatsApp, Menú Pro, Reservas. Los planes y servicios suman más.</p>
+    <button class="btn" type="button" data-go="planes">Ver todos los planes</button>
+  </div>
+</section>
+
+<!-- ═════════════ CATÁLOGO ═════════════ -->
+<section class="view" data-view="catalogo">
+  <a class="info-link" href="#">¿Qué hace esto? ↗</a>
+  <div class="alert-green row between"><span class="small">Recuperado el catálogo sin guardar</span><span class="row"><button class="btn primary sm" type="button">Recuperar</button><button class="btn ghost sm" type="button">Descartar</button></span></div>
+  <div class="row">
+    <input class="input" style="flex:1;min-width:180px" placeholder="Buscar por nombre, descripción o categoría" />
+    <button class="btn" type="button" data-modal="mCsv">Importar CSV</button>
+    <button class="btn primary" type="button">+ Añadir producto</button>
+  </div>
+  <div class="tabs"><span class="tab on">Todas</span><span class="tab">Platos fuertes</span><span class="tab">Bebidas</span><span class="tab">Postres</span><span class="tab">Agotados · 1</span></div>
+
+  <div class="section-title">Platos fuertes <span class="meta">· 2 productos</span></div>
+  <div class="card prod">
+    <div class="ph">▣</div>
+    <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+      <input class="input" value="Ropa Vieja de Res" aria-label="Nombre del producto" />
+      <input class="input" value="Carne deshilachada con sofrito cubano, arroz y plátanos" />
+      <div class="row"><input class="input" style="flex:1;min-width:120px" value="Platos fuertes" /><input class="input" style="width:100px" value="8.50" /><select class="input" style="width:110px"><option>USD</option><option>CUP</option><option>EUR</option></select></div>
+      <div class="meta">≈ 3.315 CUP con tu tasa</div>
+      <div class="row"><span class="chip on">Disponible</span><button class="btn sm" type="button">Marcar agotado</button><button class="btn sm" type="button">Agotado hasta mañana</button></div>
+    </div>
+    <div class="row" style="flex-direction:column"><button class="icon-btn" type="button" title="Ocultar de la ficha">👁</button><button class="icon-btn" type="button" title="Eliminar">🗑</button></div>
+  </div>
+  <div class="card prod">
+    <div class="ph">▣</div>
+    <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+      <input class="input" value="Lechón Asado" />
+      <input class="input" value="Cerdo asado lentamente con mojo criollo, yuca y ensalada" />
+      <div class="row"><input class="input" style="flex:1;min-width:120px" value="Platos fuertes" /><input class="input" style="width:100px" value="3–5" /><select class="input" style="width:110px"><option>USD</option></select></div>
+      <div class="meta" style="color:var(--red)">Este precio no se suma en el carrito. Escribe solo una cifra, por ejemplo «3.50».</div>
+      <div class="row"><span class="chip red">Agotado</span><button class="btn sm" type="button">Marcar disponible</button></div>
+    </div>
+    <div class="row" style="flex-direction:column"><button class="icon-btn" type="button">👁</button><button class="icon-btn" type="button">🗑</button></div>
+  </div>
+  <div class="section-title">Bebidas <span class="meta">· 1 producto</span></div>
+  <div class="card prod">
+    <div class="ph">▣</div>
+    <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+      <input class="input" value="Mojito de la Casa" />
+      <input class="input" value="Ron fresco, hierbabuena, lima y soda. Receta de la casa." />
+      <div class="row"><input class="input" style="flex:1" value="Bebidas" /><input class="input" style="width:100px" value="3" /><select class="input" style="width:110px"><option>USD</option></select></div>
+      <div class="row"><span class="chip on">Disponible</span><span class="chip">Popular</span></div>
+    </div>
+    <div class="row" style="flex-direction:column"><button class="icon-btn" type="button">👁</button><button class="icon-btn" type="button">🗑</button></div>
+  </div>
+  <div class="savebar"><span class="meta">Cambios sin guardar</span><button class="btn ghost" type="button">Descartar cambios</button><button class="btn primary" type="button">Guardar catálogo</button></div>
+</section>
+
+<!-- ═════════════ PEDIDOS ═════════════ -->
+<section class="view" data-view="pedidos">
+  <a class="info-link" href="#">¿Qué hace esto? ↗</a>
+  <div class="tabs"><span class="tab on">Pendientes · 2</span><span class="tab">Programados · 1</span><span class="tab">Entregados · 18</span><span class="tab">Cancelados · 1</span></div>
+  <div class="row"><input class="input" style="flex:1;min-width:160px" placeholder="Código #XXXXX…" /><button class="btn" type="button">↻ Actualizar</button></div>
+
+  <div class="card order">
+    <div class="row between"><span class="code">#K7Q2M</span><span class="row"><span class="chip amber">Pendiente</span><span class="meta">hace 4 min</span></span></div>
+    <div class="meta" style="margin-top:4px">Ana Pérez · +53 5 123 4567 · <b>A domicilio</b> · Vista Alegre (300 CUP)</div>
+    <ul class="items"><li><span>2 × Ropa Vieja de Res</span><span>17.00 USD</span></li><li><span>2 × Mojito de la Casa</span><span>6.00 USD</span></li></ul>
+    <div class="row between"><b>Total 23.00 USD</b><span class="chip">Pago: Transferencia</span></div>
+    <div class="alert-amber" style="margin-top:10px">Revisar · Un producto está agotado</div>
+    <div class="row" style="margin-top:12px"><button class="btn primary sm" type="button">Entregado</button><button class="btn sm" type="button">Avisar al cliente</button><button class="btn sm" type="button">Sello a mano</button><button class="btn danger sm" type="button">Cancelar</button></div>
+  </div>
+  <div class="card order">
+    <div class="row between"><span class="code">#P3ZX9</span><span class="row"><span class="chip amber">Pendiente</span><span class="chip">Fuera de horario</span></span></div>
+    <div class="meta" style="margin-top:4px">Luis · <b>Recogida en local</b></div>
+    <ul class="items"><li><span>1 × Lechón Asado</span><span>3–5 USD</span></li></ul>
+    <div class="row between"><b>Total a convenir</b><span class="chip on">Premio listo · Canjear</span></div>
+    <div class="row" style="margin-top:12px"><button class="btn primary sm" type="button">Entregado</button><button class="btn sm" type="button">Avisar al cliente</button><button class="btn danger sm" type="button">Cancelar</button></div>
+  </div>
+  <button class="btn" type="button" style="align-self:center">Ver pedidos anteriores</button>
+
+  <div class="card">
+    <div class="row between"><h2 class="h2">Cocina abierta</h2><button class="btn sm" type="button">Pausar cocina</button></div>
+    <p class="meta" style="margin:6px 0 10px">Al pausar: elige motivo y hasta cuándo. Los clientes ven que no hay pedidos ahora.</p>
+    <div class="row"><span class="chip">Sin luz</span><span class="chip">Sin inventario</span><span class="chip">Sin personal</span><span class="chip">Otro motivo</span><span class="chip">Hasta mañana</span><span class="chip">Sin límite</span></div>
+    <div class="section-title" style="font-size:14px">Horario de cocina</div>
+    <div class="meta">Sin horario, acepta pedidos siempre.</div>
+    <div class="grid2" style="margin-top:8px"><input class="input" value="12:00" /><input class="input" value="21:30" /></div>
+    <div class="row" style="margin-top:8px"><span class="chip on">L</span><span class="chip on">M</span><span class="chip on">X</span><span class="chip on">J</span><span class="chip on">V</span><span class="chip on">S</span><span class="chip">D</span><span style="flex:1"></span><button class="btn primary sm" type="button">Guardar</button></div>
+  </div>
+  <div class="card">
+    <div class="row between"><h2 class="h2">Pedidos programados</h2><span class="chip on">Activo</span></div>
+    <div class="grid2" style="margin-top:12px">
+      <div><label class="l">Duración de franja</label><select class="input"><option>30 min</option><option>1 hora</option></select></div>
+      <div><label class="l">Límite por horario</label><input class="input" placeholder="Sin límite" /></div>
+      <div><label class="l">Antelación mínima</label><select class="input"><option>2 horas</option></select></div>
+      <div><label class="l">Días que aceptas</label><input class="input" value="L–S" /></div>
+    </div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" type="button">Guardar ajustes</button></div>
+  </div>
+</section>
+
+<!-- ═════════════ EDITAR ═════════════ -->
+<section class="view" data-view="editor">
+  <div class="alert-green row between"><span class="small">Nos quedó una ficha sin guardar de la última vez. ¿La recuperas?</span><span class="row"><button class="btn primary sm" type="button">Recuperar</button><button class="btn ghost sm" type="button">Descartar</button></span></div>
+
+  <details class="sec"><summary>🖼 Fotos del lugar<span class="chev">▾</span></summary><div class="bd">
+    <div class="row"><div class="av" style="width:72px;height:72px;font-size:22px">PS</div><div><b class="small">Logo</b><div class="meta">Círculo de la ficha, miniatura y pin del mapa.</div><button class="btn sm" type="button" style="margin-top:6px">Cambiar logo</button></div></div>
+    <div class="photos"><div></div><div></div><div></div><div></div><div></div><div style="display:grid;place-items:center;color:var(--muted)">+</div></div>
+    <div class="meta">Cada foto: sección «Local» o «Trabajos», reordenar y borrar.</div>
+  </div></details>
+
+  <details class="sec" open><summary>🏪 Información del negocio<span class="chev">▾</span></summary><div class="bd">
+    <div class="grid2">
+      <div><label class="l">Nombre del negocio</label><input class="input" value="Paladar El Sabroso" /></div>
+      <div><label class="l">Categoría</label><select class="input"><option>Restaurante</option></select></div>
+      <div><label class="l">Barrio / Municipio</label><input class="input" placeholder="Ej: Centro histórico, Vista Alegre…" value="Vista Alegre" /></div>
+      <div><label class="l">Dirección</label><input class="input" value="Calle 12 #45, entre 7 y 9" /></div>
+      <div><label class="l">Teléfono</label><input class="input" placeholder="Ej: +53 5 123 4567" /></div>
+    </div>
+    <div><label class="l">Descripción</label><textarea class="input" placeholder="Describe el negocio para que la IA lo recomiende mejor…"></textarea></div>
+  </div></details>
+
+  <details class="sec"><summary>☎ Contacto<span class="chev">▾</span></summary><div class="bd"><div class="grid2">
+    <div><label class="l">Sitio web</label><input class="input" placeholder="Ej: laverde.cu" /></div>
+    <div><label class="l">WhatsApp</label><input class="input" placeholder="Ej: +53 5 123 4567" /></div>
+    <div><label class="l">Instagram</label><input class="input" placeholder="https://instagram.com/laverde" /></div>
+    <div><label class="l">Facebook</label><input class="input" placeholder="https://facebook.com/laverde" /></div>
+  </div></div></details>
+
+  <details class="sec"><summary>📍 Ubicación en el mapa<span class="chev">▾</span></summary><div class="bd"><input class="input" placeholder="Buscar calle o lugar…" /><div class="map">Mapa: arrastra el pin o usa tu ubicación</div><button class="btn sm" type="button" style="align-self:flex-start">Usar mi ubicación</button></div></details>
+
+  <details class="sec"><summary>✦ Icono del negocio<span class="chev">▾</span></summary><div class="bd"><div class="row"><span class="chip on">🍽</span><span class="chip">☕</span><span class="chip">🍕</span><span class="chip">🍰</span><span class="chip">🛒</span><span class="chip">💇</span><span class="chip">🔧</span></div></div></details>
+
+  <details class="sec"><summary>🕑 Horario<span class="chev">▾</span></summary><div class="bd">
+    <div><label class="l">Horario (texto)</label><input class="input" placeholder="Ej: 10:00 – 22:00" /></div>
+    <div class="meta">Horario por días (abre/cierra el estado solo):</div>
+    <div class="row"><span class="chip on" style="width:44px;justify-content:center">Lun</span><input class="input" style="width:110px" value="10:00" /><input class="input" style="width:110px" value="22:00" /><button class="switch on" type="button"></button></div>
+    <div class="row"><span class="chip" style="width:44px;justify-content:center">Dom</span><span class="meta">Cerrado</span><button class="switch" type="button"></button></div>
+  </div></details>
+
+  <details class="sec"><summary>💳 Métodos de pago<span class="chev">▾</span></summary><div class="bd"><div class="row"><span class="chip on">CUP efectivo</span><span class="chip on">Transferencia</span><span class="chip on">USD</span><span class="chip">EUR</span><span class="chip">USD Clásica</span><span class="chip">Zelle</span></div></div></details>
+
+  <details class="sec"><summary>▦ Tipo de negocio y bloques<span class="chev">▾</span></summary><div class="bd"><select class="input"><option>Restaurante / paladar</option></select><div class="meta">Bloques de la ficha:</div><div class="row"><span class="chip on">Carta</span><span class="chip on">Reservas</span><span class="chip">Especial del día</span><span class="chip on">Cómo comprar</span><span class="chip">Galería de trabajos</span></div></div></details>
+
+  <details class="sec"><summary>✓ Qué tiene el negocio<span class="chev">▾</span></summary><div class="bd"><div class="row"><span class="chip on">Climatizado</span><span class="chip on">Terraza</span><span class="chip">Parqueo</span><span class="chip">Wifi</span><span class="chip">Acceso silla de ruedas</span></div></div></details>
+
+  <details class="sec"><summary>🎨 Color de marca<span class="chev">▾</span></summary><div class="bd"><div class="row"><span style="width:44px;height:44px;border-radius:12px;background:#35AF6D;display:inline-block"></span><input class="input" style="width:140px" value="#35AF6D" /><button class="btn ghost sm" type="button">Restablecer</button></div></div></details>
+
+  <details class="sec"><summary>✉ Mensaje de cierre<span class="chev">▾</span></summary><div class="bd"><input class="input" placeholder="Ej: Cerrado por vacaciones, volvemos el lunes" /></div></details>
+
+  <details class="sec"><summary>⚡ Energía de respaldo<span class="chev">▾</span></summary><div class="bd"><div class="grid2"><div><label class="l">Respaldo</label><select class="input"><option>Planta eléctrica</option><option>Paneles solares</option><option>Prefiero no decirlo</option></select></div><div><label class="l">Cómo lo llevas (opcional)</label><input class="input" placeholder="Ej: la planta cubre el salón y la cocina" /></div></div></div></details>
+
+  <details class="sec"><summary>● Estado del negocio<span class="chev">▾</span></summary><div class="bd"><label class="l">Estado</label><select class="input"><option>Abierto</option><option>Cerrado temporalmente</option><option>Cerrado</option></select></div></details>
+
+  <div class="savebar"><span class="meta">Cambios sin guardar</span><button class="btn ghost" type="button">Descartar cambios</button><button class="btn" type="button">👁 Ver ficha</button><button class="btn primary" type="button">💾 Guardar cambios</button></div>
+</section>
+
+<!-- ═════════════ AJUSTES ═════════════ -->
+<section class="view" data-view="settings">
+  <div class="card">
+    <div class="row between"><h2 class="h2">💬 Pedidos por WhatsApp</h2><span class="chip on">Activo</span></div>
+    <p class="small muted" style="margin:6px 0 0">Tus clientes piden desde la carta y el pedido te llega por WhatsApp.</p>
+    <div class="togrow"><div><div class="small" style="font-weight:500">Recibir pedidos en mi carta</div><div class="meta">El carrito aparece en tu menú.</div></div><button class="switch on" type="button"></button></div>
+  </div>
+  <div class="card">
+    <div class="row between"><h2 class="h2">🪙 Precios mixtos</h2><span class="chip">Desactivado</span></div>
+    <p class="small muted" style="margin:6px 0 0">Tus clientes ven la carta en la moneda con la que van a pagar.</p>
+    <div class="togrow"><div><div class="small" style="font-weight:500">Mostrar mi carta en varias monedas</div><div class="meta">Tu carta se ve con los precios que escribiste.</div></div><button class="switch" type="button"></button></div>
+  </div>
+  <div class="card">
+    <div class="row between"><h2 class="h2">📅 Reservas por WhatsApp</h2><span class="chip on">Activo</span></div>
+    <p class="small muted" style="margin:6px 0 0">Rellenan el formulario en tu ficha y la reserva te llega por WhatsApp.</p>
+    <div class="togrow"><div><div class="small" style="font-weight:500">Aceptar reservas</div><div class="meta">El botón aparece en tu ficha y en tu catálogo.</div></div><button class="switch on" type="button"></button></div>
+    <details style="margin-top:12px"><summary class="btn" style="width:100%;justify-content:space-between">Configurar la reserva <span class="meta">Mesa · 8 por reserva · 40 al día</span></summary>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
+        <div><label class="l">Qué se reserva</label><select class="input"><option>Mesa</option><option>Cita</option><option>Apartado</option></select></div>
+        <div class="grid2"><div><label class="l">Aforo máximo (opcional)</label><input class="input" placeholder="Ej: 8" /></div><div><label class="l">Cupo diario (opcional)</label><input class="input" placeholder="Ej: 40" /><div class="meta" style="margin-top:4px">Se recarga cada día. Al llenarse, el formulario no deja reservar ese día.</div></div></div>
+        <div class="card" style="background:var(--sand)"><b class="small">Cupo de un día</b><div class="row" style="margin-top:8px"><input class="input" type="date" style="width:170px" /><span class="meta">26 de 40 apuntadas</span><button class="btn sm" type="button">Liberar ese día</button></div></div>
+        <div><label class="l">Mensaje que te llega</label><textarea class="input">Hola, quiero reservar mesa para {personas} el {fecha} a las {hora}. Soy {nombre}.</textarea></div>
+        <div class="row" style="justify-content:flex-end"><button class="btn primary" type="button">Guardar reservas</button></div>
+      </div>
+    </details>
+  </div>
+  <div class="card">
+    <div class="row between"><h2 class="h2">👥 Avisos a seguidores</h2><span class="chip on">128 seguidores</span></div>
+    <p class="small muted" style="margin:6px 0 0">Quien te sigue recibe un aviso corto cuando publicas algo nuevo.</p>
+    <div class="togrow" style="flex-direction:column;align-items:stretch">
+      <p class="small" style="margin:0">Avisos enviados esta semana: <b>4</b>. Sin límite; los cambios que hagas seguidos les llegan juntos en un solo mensaje, como mucho uno cada media hora.</p>
+      <div class="row"><input class="input" style="flex:1" value="t.me/LaVerdeBot?start=ps" readonly /><button class="btn" type="button">Copiar</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="row between"><h2 class="h2">🚚 Domicilio y zonas</h2><span class="chip on">Activo</span></div>
+    <p class="small muted" style="margin:6px 0 0">Cómo reciben tus clientes el pedido, y cuánto cobras por llevarlo a cada barrio.</p>
+    <div class="togrow"><div class="small" style="font-weight:500">Pueden pasar a recoger</div><button class="switch on" type="button"></button></div>
+    <div class="togrow"><div class="small" style="font-weight:500">Hago entregas a domicilio</div><button class="switch on" type="button"></button></div>
+    <div style="margin-top:12px">
+      <div class="client"><div style="flex:1"><b class="small">Vista Alegre</b><div class="meta">300 CUP</div></div><button class="switch on" type="button"></button><button class="btn ghost sm" type="button" data-modal="mZona">Editar</button></div>
+      <div class="client"><div style="flex:1"><b class="small">Reparto Sueño</b><div class="meta">Gratis</div></div><button class="switch on" type="button"></button><button class="btn ghost sm" type="button" data-modal="mZona">Editar</button></div>
+    </div>
+    <button class="btn" type="button" data-modal="mZona">+ Añadir zona</button>
+    <div class="grid2" style="margin-top:12px"><div><label class="l">Pedido mínimo</label><div class="row" style="flex-wrap:nowrap"><input class="input" placeholder="p. ej. 500" /><select class="input" style="width:100px"><option>CUP</option></select></div></div><div><label class="l">Nota de entrega</label><input class="input" placeholder="Entregamos de 10 a. m. a 6 p. m." /></div></div>
+  </div>
+  <dl class="card" style="margin:0">
+    <div class="row between" style="border-bottom:1px solid var(--line);padding:6px 0"><dt class="muted">Plan actual</dt><dd style="margin:0;font-weight:500">Esencial</dd></div>
+    <div class="row between" style="padding:6px 0"><dt class="muted">Soporte</dt><dd style="margin:0" class="row"><button class="btn sm" type="button">💬 WhatsApp</button><a class="meta" href="#" style="color:var(--verde-700);font-weight:600">soporte@laverde.cu</a></dd></div>
+  </dl>
+  <button class="btn danger" type="button" style="align-self:flex-start">⇥ Cerrar sesión</button>
+</section>
+
+<!-- ═════════════ FRECUENTES ═════════════ -->
+<section class="view" data-view="clientes">
+  <a class="info-link" href="#">¿Qué hace esto? ↗</a>
+  <div class="card">
+    <div class="row between"><h2 class="h2">🎟 Tarjeta de sellos</h2><span class="row"><span class="chip on">Activa</span><button class="btn sm" type="button">Editar tarjeta</button></span></div>
+    <div class="grid2" style="margin-top:12px">
+      <div class="card" style="background:var(--verde-50)">
+        <div class="meta">Así la ve tu cliente</div>
+        <b>Tarjeta de cliente frecuente</b>
+        <div class="stamps"><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="meta" style="margin-top:8px">10 sellos · Premio: un postre gratis · Compra mínima 5 USD</div>
+      </div>
+      <div class="meta">Al editar: nombre, sellos por tarjeta, premios (hasta varias metas, «Completa la tarjeta y empieza una nueva» o «Se canjea sin perder los sellos»), compra mínima. Botones: Añadir otro premio, Descartar cambios, Guardar tarjeta.</div>
+    </div>
+  </div>
+  <div class="grid3"><div class="card"><div class="price" style="font-size:24px">86</div><div class="meta">Clientes</div></div><div class="card"><div class="price" style="font-size:24px">412</div><div class="meta">Sellos dados</div></div><div class="card"><div class="price" style="font-size:24px">5</div><div class="meta">Premio listo</div></div></div>
+  <div class="row" style="flex-wrap:nowrap">
+    <input class="input" style="flex:1" placeholder="Buscar…" aria-label="Buscar por teléfono o nombre" />
+    <button class="btn" type="button" data-modal="mSello">Dar sello</button>
+    <button class="btn primary" type="button" data-modal="mNuevo" style="margin-left:auto">+ Nuevo</button>
+  </div>
+  <div class="tabs"><span class="tab on">Todos</span><span class="tab">Premio listo</span><span class="tab">Recientes</span></div>
+  <div class="card">
+    <div class="client"><div class="av">AP</div><div style="flex:1"><b class="small">Ana Pérez</b><div class="meta">+53 5 123 4567 · 7 / 10 sellos</div></div><span class="chip on">Premio listo</span></div>
+    <div class="client"><div class="av">LM</div><div style="flex:1"><b class="small">Luis Martínez</b><div class="meta">+53 5 987 6543 · 3 / 10 sellos</div></div></div>
+    <div class="client"><div class="av">CR</div><div style="flex:1"><b class="small">Carla Rodríguez</b><div class="meta">+53 5 222 3344 · Nuevo</div></div></div>
+  </div>
+  <div class="card">
+    <div class="row between"><b>Detalle del cliente · Ana Pérez</b><span class="row"><button class="btn sm" type="button">Enviar tarjeta por WhatsApp</button><button class="btn sm" type="button">Ver como el cliente</button></span></div>
+    <h2 class="h2" style="font-size:14px;margin-top:12px">Ajustar sellos</h2>
+    <div class="row" style="margin-top:8px"><input class="input" style="width:90px" value="1" /><input class="input" style="flex:1;min-width:160px" placeholder="Motivo (obligatorio)" /><button class="btn sm" type="button">Sumar</button><button class="btn sm" type="button">Restar</button></div>
+    <h2 class="h2" style="font-size:14px;margin-top:12px">Historial</h2>
+    <div class="meta" style="margin-top:6px">20 nov · Pedido #K7Q2M · +1 sello<br />18 nov · Sello a mano · +1<br />12 nov · Ajuste · −1 (pedido cancelado)</div>
+    <div class="row" style="margin-top:12px"><button class="btn primary sm" type="button">Canjear premio</button><button class="btn danger sm" type="button">Borrar cliente</button></div>
+  </div>
+</section>
+
+<!-- ═════════════ OFERTAS ═════════════ -->
+<section class="view" data-view="ofertas">
+  <a class="info-link" href="#">¿Qué hace esto? ↗</a>
+  <div class="card">
+    <div class="row between"><h2 class="h2">🏷 Ofertas flash</h2><span class="chip">2 / 3 · tope del plan</span></div>
+    <p class="small muted" style="margin:6px 0 0">Rebaja un producto de tu carta por tiempo limitado. Sale en tu ficha con «Oferta» en la tarjeta y en el pin del mapa.</p>
+  </div>
+  <div class="card">
+    <div class="row between"><b>20% en el café de la casa</b><span class="chip on">En curso</span></div>
+    <div class="meta">Café cubano · 1.00 → 0.80 USD · termina el 24 nov, 19:30</div>
+    <div class="row" style="margin-top:8px"><button class="btn sm" type="button">Editar</button><button class="btn danger sm" type="button">Quitar</button></div>
+  </div>
+  <div class="card">
+    <div class="row between"><b>Mojito a 2 USD</b><span class="chip amber">Programada</span></div>
+    <div class="meta">Mojito de la Casa · empieza el 28 nov</div>
+  </div>
+  <div class="card">
+    <h2 class="h2">Nueva oferta</h2>
+    <div class="grid2" style="margin-top:12px">
+      <div><label class="l">Producto</label><select class="input"><option>Elige uno</option><option>Ropa Vieja de Res</option></select></div>
+      <div><label class="l">Título</label><input class="input" placeholder="Ej: 20% en el café de la casa" /></div>
+    </div>
+    <div style="margin-top:12px"><label class="l">Descripción (opcional)</label><input class="input" placeholder="Ej: solo por la mañana, hasta agotar el tostado del día" /></div>
+    <div class="row" style="margin-top:12px"><span class="tab on">Por ciento</span><span class="tab">Precio nuevo</span><input class="input" style="width:110px" value="30" /></div>
+    <div class="grid2" style="margin-top:12px"><div><label class="l">Empieza</label><input class="input" type="datetime-local" /></div><div><label class="l">Termina</label><input class="input" type="datetime-local" /></div></div>
+    <div class="meta" style="margin:12px 0 6px">Vista previa en la ficha:</div>
+    <div class="offer-prev">
+      <span class="pill">🏷 Oferta</span>
+      <p class="t">20% en el café de la casa</p>
+      <div class="pr"><div><div class="meta" style="text-decoration:line-through;color:var(--orange-900)">10.00 USD</div><div class="now">7.00 USD</div></div><span class="chip" style="border-color:rgba(251,146,60,.4);color:var(--orange-700);font-weight:700">−30 %</span></div>
+      <div class="meta" style="margin-top:10px;color:var(--orange-900)">🕑 Termina el 24 de noviembre, 19:30</div>
+    </div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn ghost" type="button">Cancelar</button><button class="btn primary" type="button">Guardar oferta</button></div>
+  </div>
+</section>
+
+<!-- ═════════════ PUBLICAR ═════════════ -->
+<section class="view" data-view="publicaciones">
+  <div class="card">
+    <div class="row between"><h2 class="h2">📣 Publicar en Facebook</h2><span class="chip">2 / 3 esta semana</span></div>
+    <div style="margin-top:12px"><label class="l">Producto del catálogo</label><button class="btn" type="button" style="width:100%;justify-content:space-between">Ropa Vieja de Res <span class="meta">Toca para cambiar</span></button></div>
+    <div class="row" style="margin-top:8px"><span class="tab on">Directa</span><span class="tab">Antojo</span></div>
+    <div style="margin-top:12px"><textarea class="input" placeholder="Escribe tu prompt: qué quieres contar, el plato, la oferta, el tono…"></textarea></div>
+    <div class="row" style="margin-top:8px"><button class="btn primary" type="button">✨ Generar con IA</button><span class="meta">Completa tu ficha y te saldrán mejores publicaciones.</span></div>
+    <div class="grid3" style="margin-top:12px">
+      <div class="card" style="background:var(--sand)"><div class="small">«¿Hambre de algo de casa? Nuestra Ropa Vieja…»</div><button class="btn sm" type="button" style="margin-top:8px">Usar esta</button></div>
+      <div class="card" style="background:var(--sand)"><div class="small">«Vista Alegre, hoy toca sabor cubano…»</div><button class="btn sm" type="button" style="margin-top:8px">Usar esta</button></div>
+      <div class="card" style="background:var(--sand)"><div class="small">«La receta de la abuela, en tu mesa…»</div><button class="btn sm" type="button" style="margin-top:8px">Usar esta</button></div>
+    </div>
+    <div style="margin-top:12px"><label class="l">Texto del post</label><textarea class="input" placeholder="Elige una variante de arriba o escríbelo a mano."></textarea></div>
+    <div class="row" style="margin-top:8px"><button class="btn" type="button">🖼 Añadir foto o flyer</button><span style="flex:1"></span><button class="btn primary" type="button">Enviar a la cola</button></div>
+  </div>
+  <div class="card">
+    <h2 class="h2">En cola esta semana</h2>
+    <div class="client"><div style="flex:1"><b class="small">«¿Hambre de algo de casa?…»</b><div class="meta">En cola · Ropa Vieja de Res</div></div><button class="icon-btn" type="button" aria-label="Eliminar publicación">🗑</button></div>
+    <div class="client"><div style="flex:1"><b class="small">«Mojitos a 2 USD este viernes»</b><div class="meta">Publicada · 18 nov</div></div></div>
+  </div>
+</section>
+
+<!-- ═════════════ ASISTENTE ═════════════ -->
+<section class="view" data-view="telegram">
+  <div class="card">
+    <div class="row between"><h2 class="h2">🤖 Asistente de Telegram</h2><span class="chip">Sin vincular</span></div>
+    <p class="small muted" style="margin:6px 0 12px">Háblale al bot para marcar agotados, abrir el día o cambiar precios.</p>
+    <div class="card" style="background:var(--sand);text-align:center"><div class="meta">Tu código</div><div class="price" style="letter-spacing:.2em">LV-4821</div><button class="btn sm" type="button">Copiar</button></div>
+    <div class="row" style="margin-top:12px"><button class="btn primary" type="button">Abrir en Telegram</button><button class="btn" type="button">Generar otro</button></div>
+    <div class="alert-amber" style="margin-top:12px">Con IA: «se acabó el lechón», «sube el mojito a 3». Sin IA: botones.</div>
+  </div>
+</section>
+
+<!-- ═════════════ EQUIPO ═════════════ -->
+<section class="view" data-view="equipo">
+  <div class="card">
+    <h2 class="h2">Añadir o invitar</h2>
+    <div style="margin-top:12px"><label class="l">Correo del trabajador</label><div class="row" style="flex-wrap:nowrap"><input class="input" placeholder="correo@ejemplo.com" /><button class="btn primary" type="button">Añadir</button></div></div>
+    <div class="meta" style="margin:12px 0 6px">Permisos:</div>
+    <div class="row"><span class="chip on">Catálogo</span><span class="chip on">Pedidos</span><span class="chip">Ficha</span><span class="chip">Telegram</span></div>
+    <button class="btn" type="button" style="margin-top:12px">Generar enlace de invitación</button>
+    <div class="meta" style="margin-top:6px">Vale 7 días y una sola vez. Mándalo a la persona que va a trabajar contigo.</div>
+  </div>
+  <div class="card">
+    <h2 class="h2">En el equipo</h2>
+    <div class="client"><div class="av">JR</div><div style="flex:1"><b class="small">jorge@correo.cu</b><div class="row" style="gap:4px;margin-top:4px"><span class="chip on">Pedidos</span><span class="chip on">Catálogo</span></div></div><button class="btn danger sm" type="button">Quitar</button></div>
+  </div>
+</section>
+
+<!-- ═════════════ PLANES ═════════════ -->
+<section class="view" data-view="planes">
+  <div class="card"><h2 class="h2">Lo que ya tienes</h2><p class="small muted" style="margin:6px 0 0">Incluido en cualquier negocio de La Verde, con o sin plan: ficha, mapa, catálogo con QR, búsquedas con IA, estadísticas.</p></div>
+  <div class="alert-amber">Tasa de referencia: 1 USD = 390 CUP. Precios en USD, se pagan en CUP al cambio del día.</div>
+  <div class="section-title">Packs completos</div>
+  <div class="meta">Las funciones de siempre, juntas y con descuento.</div>
+  <div class="grid3">
+    <div class="card plan"><b>Esencial</b><div class="muted small">Para vender sin perder clientes.</div><div class="price">3.5 <span class="meta">USD/mes</span></div><ul><li>Pedidos y reservas</li><li>Menú Pro</li></ul><button class="btn" type="button">Es el que tienes</button></div>
+    <div class="card plan"><b>Publicidad Max</b><div class="muted small">Para que te vean.</div><div class="price">6 <span class="meta">USD/mes</span></div><ul><li>Facebook ×3</li><li>Eventos</li></ul><button class="btn primary" type="button">Pagar 1 mes</button></div>
+    <div class="card plan hl"><div class="row between"><b>Pro</b><span class="chip on">Más popular</span></div><div class="muted small">Todo, sin depender de nadie.</div><div class="price">10 <span class="meta" style="color:inherit">USD/mes</span></div><ul><li>Todo lo anterior</li><li>Cliente frecuente</li><li>Agente de Telegram (IA)</li></ul><button class="btn primary" type="button">Pagar 1 mes</button></div>
+  </div>
+  <div class="section-title">Servicios por separado</div>
+  <div class="meta">Se contrata el que haga falta, al mes.</div>
+  <div class="grid3">
+    <div class="card"><b class="small">Menú Pro</b><div class="meta">Tu carta, sin nuestra marca.</div><div class="row between" style="margin-top:8px"><b>1 USD</b><button class="btn sm" type="button">Contratar por 1 mes</button></div></div>
+    <div class="card"><b class="small">Reservas y pedidos</b><div class="meta">Que te pidan sin preguntar.</div><div class="row between" style="margin-top:8px"><b>1.5 USD</b><button class="btn sm" type="button">Contratar por 1 mes</button></div></div>
+    <div class="card"><b class="small">Facebook</b><div class="meta">Tu negocio en los grupos de tu zona.</div><div class="row between" style="margin-top:8px"><b>1 USD</b><button class="btn sm" type="button">Contratar por 1 mes</button></div></div>
+    <div class="card"><b class="small">Eventos</b><div class="meta">Llena lo que montes.</div><div class="row between" style="margin-top:8px"><b>3 USD</b><button class="btn sm" type="button">Contratar por 1 mes</button></div></div>
+    <div class="card"><b class="small">Pedidos programados</b><div class="meta">Que te pidan para cuando puedes.</div><div class="row between" style="margin-top:8px"><b>1 USD</b><button class="btn sm" type="button">Contratar por 1 mes</button></div></div>
+    <div class="card"><b class="small">Cliente frecuente</b><div class="meta">Su tarjeta de sellos, ahora en el móvil.</div><div class="row between" style="margin-top:8px"><b>1.5 USD</b><button class="btn sm" type="button">Contratar por 1 mes</button></div></div>
+    <div class="card"><b class="small">Agente de Telegram</b><div class="meta">Tu menú desde el móvil, con botones.</div><div class="row between" style="margin-top:8px"><b>1 USD</b><button class="btn sm" type="button">Contratar por 1 mes</button></div></div>
+    <div class="card"><b class="small">Agente de Telegram (IA)</b><div class="meta">Escríbele como a una persona.</div><div class="row between" style="margin-top:8px"><b>2.5 USD</b><button class="btn sm" type="button">Contratar por 1 mes</button></div></div>
+    <div class="card"><b class="small">Facebook ×3</b><div class="meta">Tres veces más veces visto.</div><div class="row between" style="margin-top:8px"><b>3 USD</b><button class="btn sm" type="button">Contratar por 1 mes</button></div></div>
+  </div>
+  <div class="card">
+    <div class="row between"><h2 class="h2">Pack a medida</h2><span class="chip amber">En revisión</span></div>
+    <p class="small muted" style="margin:6px 0 12px">¿Ningún pack te encaja? Dinos qué necesitas y el equipo de La Verde te arma un precio justo.</p>
+    <button class="btn primary" type="button" data-modal="mPack">Solicitar pack a medida</button>
+  </div>
+  <div class="card"><b class="small">Al pagar</b><div class="row" style="margin-top:8px"><button class="btn primary" type="button">Pagar con QvaPay</button><button class="btn" type="button">Transferir en CUP por WhatsApp</button></div><div class="meta" style="margin-top:6px">Bajar de plan no borra nada.</div></div>
+</section>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Cajón móvil -->
+  <div class="drawer-bg" id="drawerBg"></div>
+  <div class="drawer" id="drawer" role="dialog" aria-label="Secciones">
+    <div class="hd">Secciones <button class="icon-btn" type="button" id="closeDrawer" aria-label="Cerrar menú">✕</button></div>
+    <nav id="drawerNav"></nav>
+    <div class="ft">Paladar El Sabroso</div>
+  </div>
+
+  <!-- Modales -->
+  <div class="modal-bg" id="mNuevo"><div class="modal"><h3>Nuevo cliente</h3><div><label class="l">Teléfono</label><input class="input" placeholder="+53 5 123 4567" /></div><div><label class="l">Nombre</label><input class="input" /></div><div><label class="l">Sellos que ya tiene</label><input class="input" style="width:110px" value="0" /></div><div><label class="l">Nota</label><input class="input" placeholder="De la tarjeta impresa" /></div><div class="row" style="justify-content:flex-end"><button class="btn ghost" type="button" data-close>Cancelar</button><button class="btn primary" type="button" data-close>Crear tarjeta</button></div></div></div>
+  <div class="modal-bg" id="mSello"><div class="modal"><h3>Dar sello</h3><div class="tabs"><span class="tab on">Por teléfono</span><span class="tab">Por código de pedido</span></div><input class="input" placeholder="Teléfono del cliente" /><div class="row" style="justify-content:flex-end"><button class="btn ghost" type="button" data-close>Cancelar</button><button class="btn primary" type="button" data-close>Sumar sello</button></div></div></div>
+  <div class="modal-bg" id="mCsv"><div class="modal"><h3>Importar catálogo</h3><p class="small muted" style="margin:0">Sube un CSV con nombre, descripción, categoría, precio y moneda. Se suma a lo guardado.</p><div class="map" style="height:120px">Arrastra el archivo o toca para elegir</div><div class="row" style="justify-content:flex-end"><button class="btn ghost" type="button" data-close>Cerrar</button><button class="btn primary" type="button" data-close>Importar</button></div></div></div>
+  <div class="modal-bg" id="mZona"><div class="modal"><h3>Nueva zona</h3><p class="small muted" style="margin:0">El nombre que ven los clientes y cuánto cobras por llevar el pedido allí.</p><div><label class="l">Nombre</label><input class="input" placeholder="Vista Alegre, Reparto Sueño…" /></div><div><label class="l">Costo</label><div class="row" style="flex-wrap:nowrap"><input class="input" placeholder="0" /><select class="input" style="width:100px"><option>CUP</option></select></div></div><div class="row between"><span class="small">Zona activa</span><button class="switch on" type="button"></button></div><div class="row" style="justify-content:flex-end"><button class="btn ghost" type="button" data-close>Cancelar</button><button class="btn primary" type="button" data-close>Añadir zona</button></div></div></div>
+  <div class="modal-bg" id="mPack"><div class="modal"><h3>¿Qué necesitas?</h3><p class="small muted" style="margin:0">Marca los que te interesan y el equipo te manda un precio en menos de 24 horas.</p><div class="meta">Packs completos</div><div class="row"><span class="chip on">Esencial</span><span class="chip">Publicidad Max</span><span class="chip">Pro</span></div><div class="meta">Módulos sueltos</div><div class="row"><span class="chip on">Cliente frecuente</span><span class="chip">Eventos</span><span class="chip">Facebook ×3</span></div><textarea class="input" placeholder="Cuéntanos tu negocio (opcional)"></textarea><div class="row" style="justify-content:flex-end"><button class="btn ghost" type="button" data-close>Cancelar</button><button class="btn primary" type="button" data-close>Pedir precio a medida</button></div></div></div>
+
+</div>
+</div>
+</div>
+
+<script>
+/* Navegación del cascarón: mismo orden y grupos que panel-shell.tsx. */
+const PRIMARY=[["dashboard","Inicio","M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"],["catalogo","Catálogo","M4 3v18M8 3v6a4 4 0 0 1-8 0M16 3c-2 2-2 6 0 8v10"],["pedidos","Pedidos","M9 4h6v3H9zM6 6h12v15H6zM9 11h6M9 15h6"],["editor","Editar","M4 20h4L19 9l-4-4L4 16zM14 6l4 4"],["settings","Ajustes","M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19 12l2-1-2-4-2 1-2-2V4h-4v2l-2 2-2-1-2 4 2 1v0l-2 1 2 4 2-1 2 2v2h4v-2l2-2 2 1 2-4z"]];
+const SECONDARY=[["clientes","Frecuentes","M5 5h14v10H5zM8 19h8M12 15v4"],["ofertas","Ofertas","M3 12l9-9h9v9l-9 9zM16 8h.01"],["publicaciones","Publicar","M3 11v2l13 5V6zM16 9a3 3 0 0 1 0 6"],["telegram","Asistente","M5 8h14v10H5zM12 4v4M9 13h.01M15 13h.01"],["equipo","Equipo","M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 12 0v1M17 11a3 3 0 1 0 0-6M22 21v-1a5 5 0 0 0-4-5"],["planes","Planes","M12 3l2.5 6L21 10l-5 4 1.5 7L12 17l-5.5 4L8 14l-5-4 6.5-1z"]];
+const svg=d=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+const btn=([id,label,d],sec)=>`<button type="button" class="nav${sec?" sec":""}" data-go="${id}">${svg(d)}<span>${label}</span></button>`;
+const navHtml=PRIMARY.map(i=>btn(i)).join("")+'<div class="sep"></div>'+SECONDARY.map(i=>btn(i,1)).join("");
+document.getElementById("side").innerHTML=navHtml+'<div class="sep"></div><div class="bizcard"><b>Paladar El Sabroso</b><span class="dot"></span>Activo en La Verde</div>';
+document.getElementById("drawerNav").innerHTML=navHtml;
+
+const drawer=document.getElementById("drawer"),bg=document.getElementById("drawerBg");
+function closeDrawer(){drawer.classList.remove("open");bg.classList.remove("open")}
+function go(view){
+  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("on",v.dataset.view===view));
+  document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.go===view));
+  document.getElementById("main").scrollTop=0;
+  closeDrawer();
+  history.replaceState(null,"","#"+view);
+}
+document.addEventListener("click",e=>{
+  const g=e.target.closest("[data-go]");if(g){go(g.dataset.go);return}
+  const m=e.target.closest("[data-modal]");if(m){document.getElementById(m.dataset.modal).classList.add("open");return}
+  if(e.target.closest("[data-close]")||e.target.classList.contains("modal-bg")){document.querySelectorAll(".modal-bg.open").forEach(x=>x.classList.remove("open"));return}
+  const s=e.target.closest(".switch");if(s){s.classList.toggle("on");return}
+  const t=e.target.closest(".tab");if(t&&t.parentElement.classList.contains("tabs")){t.parentElement.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===t))}
+});
+document.getElementById("openDrawer").onclick=()=>{drawer.classList.add("open");bg.classList.add("open")};
+document.getElementById("closeDrawer").onclick=closeDrawer;bg.onclick=closeDrawer;
+
+const frame=document.getElementById("frame"),tD=document.getElementById("tDesk"),tM=document.getElementById("tMob"),tT=document.getElementById("tTheme");
+tD.onclick=()=>{frame.classList.remove("mobile");tD.classList.add("on");tM.classList.remove("on")};
+tM.onclick=()=>{frame.classList.add("mobile");tM.classList.add("on");tD.classList.remove("on")};
+tT.onclick=()=>{const d=document.documentElement.dataset.theme==="dark";document.documentElement.dataset.theme=d?"light":"dark";tT.textContent="Tema: "+(d?"claro":"oscuro")};
+
+const ids=[...PRIMARY,...SECONDARY].map(i=>i[0]);
+go(ids.includes(location.hash.slice(1))?location.hash.slice(1):"dashboard");
+</script>
+</body>
+</html>

@@ -97,6 +97,7 @@ import {
   MapLocationPicker,
   type LocationPoint,
 } from "@/components/map/MapLocationPicker";
+import { campoResuelto } from "@/lib/map/geocode";
 import { registrarGuarda } from "@/lib/unsaved-guard";
 import { usePlaces } from "@/providers/places-provider";
 import type { TipoNegocio, ModuloFicha, ComoComprar, ComoAtiende, EspecialDelDia } from "@/lib/ficha/tipos";
@@ -1757,14 +1758,10 @@ function EditorView({
           <MapLocationPicker
             value={location}
             onChange={setLocation}
-            onResolved={(r) => {
-              if (!r) return;
-              setAddress((prev) =>
-                prev.trim() === "" || !/e\/|entre/i.test(prev)
-                  ? r.address
-                  : prev,
-              );
-              setBarrio((prev) => (prev.trim() ? prev : r.barrio));
+            onResolved={(r, anterior) => {
+              /* Lo escrito a mano no se pisa; el relleno automático sigue al pin. */
+              setAddress((prev) => campoResuelto(prev, r?.address, anterior?.address));
+              setBarrio((prev) => campoResuelto(prev, r?.barrio, anterior?.barrio));
             }}
           />
         </FormSection>

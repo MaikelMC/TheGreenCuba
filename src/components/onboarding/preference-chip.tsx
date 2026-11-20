@@ -12,8 +12,10 @@ interface PreferenceChipProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export function PreferenceChip({ selected, icon, label, className, ...props }: PreferenceChipProps) {
   return (
     <button
+      type="button"
+      aria-pressed={selected ?? false}
       className={cn(
-        "inline-flex items-center gap-2 px-[18px] py-2.5 rounded-full border font-lv-display text-small font-medium transition duration-500 ease-outquint select-none active:scale-[0.98]",
+        "inline-flex min-h-11 items-center gap-2 px-[18px] py-2.5 rounded-full border font-lv-display text-small font-medium transition duration-500 ease-outquint select-none active:scale-[0.98]",
         selected
           ? "border-verde-400 bg-verde-400 text-verde-950"
           : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
@@ -21,7 +23,7 @@ export function PreferenceChip({ selected, icon, label, className, ...props }: P
       )}
       {...props}
     >
-      {icon && <span className="size-[18px] flex-shrink-0">{icon}</span>}
+      {icon && <span aria-hidden="true" className="size-[18px] flex-shrink-0">{icon}</span>}
       {label}
     </button>
   );

@@ -34,6 +34,10 @@ export interface ResolvedLocation {
   barrio: string;
   /** Etiqueta corta para la tarjeta del picker, ej: "Calle Heredia · Centro histórico". */
   label: string;
+  /** Nombre de la vía tal cual viene de OSM, para comparar tramos. */
+  street?: string;
+  /** Entre-calles «A y B», solo si las escribió el usuario. */
+  between?: string;
 }
 
 export interface AreaSuggestion {
@@ -436,6 +440,44 @@ export async function searchCubaAreas(
     .filter((area) => area.name.length > 0);
 }
 
+/**
+ * Convierte el `address` de Nominatim en lo que rellena el formulario.
+ *
+ * Los nombres se copian **tal cual** de OSM. Antes se les quitaban los dígitos
+ * del principio para «limpiar números de casa», pero Nominatim manda el número
+ * aparte (`house_number`), así que lo único que se quitaba era parte del
+ * nombre: «5ta Avenida» salía «ta Avenida» y el reparto «30 de Noviembre»,
+ * «de Noviembre». Una dirección inventada por recorte.
+ *
+ * Las entre-calles no salen de aquí: Nominatim no las da y no se deducen. Solo
+ * aparecen si el usuario las escribe («e/ A y B»).
+ *
+ * Exportada para poder probarla sin red.
+ */
+export function resolverNominatim(
+  addr: Record<string, string> | undefined,
+): ResolvedLocation | null {
+  if (!addr || addr.country_code !== "cu") return null;
+
+  const street = (addr.road ?? addr.pedestrian ?? addr.footway ?? "").trim();
+  const barrio = (
+    addr.suburb ??
+    addr.neighbourhood ??
+    addr.quarter ??
+    addr.city_district ??
+    addr.district ??
+    ""
+  ).trim();
+  const city =
+    addr.city ?? addr.town ?? addr.village ?? addr.municipality ?? "";
+  if (!street && !barrio) return null;
+
+  const uniq = (xs: string[]) => [...new Set(xs.filter(Boolean))];
+  const address = uniq([street, barrio, city]).join(", ");
+  const label = uniq([street || barrio, city]).join(" · ");
+  return { address, barrio, label, street: street || undefined };
+}
+
 /** Reverse: confirma calle y barrio reales del punto usando Nominatim. */
 export async function reverseGeocode(
   lat: number,
@@ -445,26 +487,48 @@ export async function reverseGeocode(
   const data = (await fetchJson(url)) as {
     address?: Record<string, string>;
   } | null;
-  const addr = data?.address;
-  if (!addr || addr.country_code !== "cu") return null;
+  return resolverNominatim(data?.address);
+}
 
-  const street = addr.road ?? addr.pedestrian ?? addr.footway ?? "";
-  const barrio =
-    addr.suburb ??
-    addr.neighbourhood ??
-    addr.quarter ??
-    addr.city_district ??
-    addr.district ??
-    "";
-  const city =
-    addr.city ?? addr.town ?? addr.village ?? addr.municipality ?? "";
-  if (!street && !barrio) return null;
+/**
+ * Mantiene las entre-calles que el usuario escribió al buscar cuando después
+ * solo ajusta el pin **en la misma calle**. Si el pin pasa a otra calle, las
+ * entre-calles de la anterior ya no son de este punto y se descartan.
+ */
+export function conservarEntreCalles(
+  nueva: ResolvedLocation | null,
+  anterior: ResolvedLocation | null,
+): ResolvedLocation | null {
+  if (!nueva?.street || nueva.between || !anterior?.between) return nueva;
+  if (sinTildes(nueva.street) !== sinTildes(anterior.street ?? "")) return nueva;
+  return {
+    ...nueva,
+    between: anterior.between,
+    address: nueva.address.replace(
+      nueva.street,
+      `${nueva.street}, e/ ${anterior.between}`,
+    ),
+  };
+}
 
-  const clean = (s: string) => s.replace(/^\d+\s*/, "").trim();
-  const streetC = clean(street);
-  const barrioC = clean(barrio);
-  const uniq = (xs: string[]) => [...new Set(xs.filter(Boolean))];
-  const address = uniq([streetC, barrioC, city]).join(", ");
-  const label = uniq([streetC || barrioC, city]).join(" · ");
-  return { address, barrio: barrioC, label };
+/**
+ * Qué valor queda en un campo del formulario (dirección o barrio) cuando el
+ * selector resuelve un punto nuevo.
+ *
+ * - Lo que el usuario escribió o ya venía guardado **no se pisa nunca**.
+ * - Lo que rellenó el selector antes se sustituye por lo del punto nuevo.
+ * - Si el punto nuevo no tiene calle conocida, o la consulta falla, el
+ *   relleno automático anterior se vacía: era de otro sitio, y dejarlo
+ *   mostraría una calle que no es la del pin.
+ *
+ * `anterior` es el último valor que el propio selector rellenó.
+ */
+export function campoResuelto(
+  actual: string,
+  nuevo: string | undefined,
+  anterior: string | undefined,
+): string {
+  const escritoAMano = actual.trim() !== "" && actual !== anterior;
+  if (escritoAMano) return actual;
+  return nuevo ?? "";
 }

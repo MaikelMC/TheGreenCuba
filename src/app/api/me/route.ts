@@ -336,11 +336,20 @@ export async function POST(request: NextRequest) {
       ...(nextLocation === null && nextLocationName === null
         ? {}
         : { locationCity: nextLocation || nextLocationName || null }),
-      preferences: {
-        interests: nextInterests.length > 0 ? nextInterests : undefined,
-        moods: nextMoods.length > 0 ? nextMoods : undefined,
-        currencies: nextCurrencies.length > 0 ? nextCurrencies : undefined,
-      },
+      /* Mismo criterio que la ubicación: las preferencias solo se escriben si
+         el cuerpo trae alguna. La ventana del teléfono, los términos y el
+         consentimiento de marketing mandan un cuerpo parcial, y antes cada uno
+         de esos guardados dejaba intereses, ambientes y monedas vacíos. */
+      ...("interests" in payload || "moods" in payload || "currencies" in payload
+        ? {
+            preferences: {
+              interests: nextInterests.length > 0 ? nextInterests : undefined,
+              moods: nextMoods.length > 0 ? nextMoods : undefined,
+              currencies:
+                nextCurrencies.length > 0 ? nextCurrencies : undefined,
+            },
+          }
+        : {}),
       ...(nextOnboarding === null ? {} : { onboardingCompleted: nextOnboarding }),
       /* Solo se sella si la versión que llega es la vigente, y con la hora del
          **servidor**: la del navegador la elige quien acepta, así que una

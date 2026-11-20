@@ -60,6 +60,7 @@ import {
   MapLocationPicker,
   type LocationPoint,
 } from "@/components/map/MapLocationPicker";
+import { campoResuelto } from "@/lib/map/geocode";
 import { CUBA_PROVINCES } from "@/lib/user-preferences-store";
 import { usePlaces } from "@/providers/places-provider";
 import type {
@@ -631,15 +632,10 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
           <MapLocationPicker
             value={location}
             onChange={setLocation}
-            onResolved={(r) => {
-              if (!r) return;
-              // No pisa una dirección escrita con entre-calles ("e/ A y B").
-              setAddress((prev) =>
-                prev.trim() === "" || !/e\/|entre/i.test(prev)
-                  ? r.address
-                  : prev,
-              );
-              setBarrio((prev) => (prev.trim() ? prev : r.barrio));
+            onResolved={(r, anterior) => {
+              // Lo escrito a mano no se pisa; el relleno automático sigue al pin.
+              setAddress((prev) => campoResuelto(prev, r?.address, anterior?.address));
+              setBarrio((prev) => campoResuelto(prev, r?.barrio, anterior?.barrio));
             }}
           />
         </FormSection>
