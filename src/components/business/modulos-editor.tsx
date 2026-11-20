@@ -1,6 +1,9 @@
 "use client";
 
+import { useId } from "react";
 import { cn } from "@/lib/utils";
+import { INPUT } from "@/components/business/ui/clases";
+import { Switch } from "@/components/business/ui/switch";
 import {
   TIPOS_NEGOCIO,
   TIPO_NEGOCIO_LABEL,
@@ -24,8 +27,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const INPUT =
-  "rounded-xl border-ink/10 bg-white text-ink placeholder:text-ink-soft/75 focus-visible:border-verde-400 focus-visible:ring-offset-0 focus-visible:ring-verde-400/30";
 
 const MODULO_ICONS: Record<ModuloFicha, string> = {
   domicilio: "🛵",
@@ -34,6 +35,7 @@ const MODULO_ICONS: Record<ModuloFicha, string> = {
   servicios: "✂️",
 };
 
+/** Fila de interruptor con su rótulo: tocar el texto también lo cambia. */
 function Toggle({
   checked,
   onChange,
@@ -43,32 +45,18 @@ function Toggle({
   onChange: (v: boolean) => void;
   label: string;
 }) {
+  const id = useId();
   return (
     <label
+      htmlFor={id}
       className="flex min-h-11 cursor-pointer items-center gap-gap-sm"
-      onClick={() => onChange(!checked)}
     >
-      <span
-        role="checkbox"
-        aria-checked={checked}
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key !== " " && e.key !== "Enter") return;
-          e.preventDefault();
-          onChange(!checked);
-        }}
-        className={cn(
-          "relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400",
-          checked ? "bg-verde-500" : "bg-ink/15",
-        )}
-      >
-        <span
-          className={cn(
-            "pointer-events-none inline-block size-5 rounded-full bg-white shadow-md transition-transform duration-300",
-            checked ? "translate-x-5" : "translate-x-0",
-          )}
-        />
-      </span>
+      <Switch
+        id={id}
+        tamano="sm"
+        checked={checked}
+        onToggle={() => onChange(!checked)}
+      />
       <span className="text-small text-ink">{label}</span>
     </label>
   );

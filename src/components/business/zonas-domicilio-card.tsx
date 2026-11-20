@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Lock, MapPin, Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { Loader2, MapPin, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { registrarGuarda } from "@/lib/unsaved-guard";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/business/ui/switch";
+import { CandadoPlan } from "@/components/business/ui/candado-plan";
 import { bloqueoDe, type Funcion } from "@/lib/plans";
 import { useCatalogo } from "@/providers/catalogo-provider";
 import { Input } from "@/components/ui/input";
@@ -38,42 +40,6 @@ function fmtMonto(monto: number, moneda: string): string {
   return `${monto % 1 === 0 ? monto.toFixed(0) : monto.toFixed(2)} ${moneda}`;
 }
 
-/** Interruptor de fila, igual que el del panel. */
-function Switch({
-  checked,
-  onToggle,
-  label,
-  disabled,
-}: {
-  checked: boolean;
-  onToggle: () => void;
-  label: string;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      onClick={onToggle}
-      className={cn(
-        /* El carril mide 24 px; el pseudoelemento estira el área tocable a
-           44 sin cambiar el dibujo, como el interruptor del panel. */
-        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent after:absolute after:inset-x-0 after:-inset-y-[10px] after:content-[''] transition-colors duration-300 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 disabled:pointer-events-none disabled:opacity-50",
-        checked ? "bg-verde-400" : "bg-ink/15",
-      )}
-    >
-      <span
-        className={cn(
-          "zonas-switch-thumb pointer-events-none block size-5 rounded-full bg-white shadow-sm transition-transform duration-300 ease-outquint",
-          checked ? "translate-x-5" : "translate-x-0",
-        )}
-      />
-    </button>
-  );
-}
 
 export function ZonasDomicilioCard({
   placeId,
@@ -334,21 +300,7 @@ export function ZonasDomicilioCard({
         </p>
 
       {bloqueo ? (
-        <div className="mt-gap-md flex flex-wrap items-center gap-gap-sm">
-          {onVerPlanes && (
-            <button
-              type="button"
-              onClick={onVerPlanes}
-              className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
-            >
-              Ver los planes
-            </button>
-          )}
-          <p className="inline-flex items-center gap-[6px] text-meta text-ink-soft/75">
-            <Lock size={13} strokeWidth={2} className="shrink-0" aria-hidden />
-            {bloqueo}
-          </p>
-        </div>
+        <CandadoPlan onVerPlanes={onVerPlanes} texto={bloqueo} candadoEnTexto />
       ) : (
         <>
         {/* Guardan al tocarlos, como el resto de interruptores de Ajustes. */}
@@ -356,6 +308,7 @@ export function ZonasDomicilioCard({
           <div className="flex items-center justify-between gap-gap-sm">
             <span className="text-small font-medium text-ink">Pueden pasar a recoger</span>
             <Switch
+              tamano="sm"
               checked={recogida}
               onToggle={() => void alternarModo("recogida")}
               label="Pueden pasar a recoger"
@@ -365,6 +318,7 @@ export function ZonasDomicilioCard({
           <div className="flex items-center justify-between gap-gap-sm">
             <span className="text-small font-medium text-ink">Hago entregas a domicilio</span>
             <Switch
+              tamano="sm"
               checked={domicilio}
               onToggle={() => void alternarModo("domicilio")}
               label="Hago entregas a domicilio"
@@ -559,6 +513,7 @@ export function ZonasDomicilioCard({
             <div className="flex items-center justify-between gap-gap-sm">
               <span className="text-small text-ink">Zona activa</span>
               <Switch
+                tamano="sm"
                 checked={znActiva}
                 onToggle={() => setZnActiva((v) => !v)}
                 label="Zona activa"

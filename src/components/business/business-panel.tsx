@@ -99,6 +99,11 @@ import {
 } from "@/components/map/MapLocationPicker";
 import { campoResuelto } from "@/lib/map/geocode";
 import { registrarGuarda } from "@/lib/unsaved-guard";
+import { INPUT } from "@/components/business/ui/clases";
+import { BotonPrimario } from "@/components/business/ui/botones";
+import { Chapita, FilaAjuste, TarjetaAjuste } from "@/components/business/ui/tarjeta";
+import { CandadoPlan } from "@/components/business/ui/candado-plan";
+import { Switch } from "@/components/business/ui/switch";
 import { usePlaces } from "@/providers/places-provider";
 import type { TipoNegocio, ModuloFicha, ComoComprar, ComoAtiende, EspecialDelDia } from "@/lib/ficha/tipos";
 import type { EntregaConfig } from "@/lib/ficha/entrega";
@@ -154,10 +159,6 @@ const STATUS_OPTIONS: { value: PlaceStatus; label: string; hint: string }[] = [
     hint: "La ficha se sigue viendo, marcada como cerrada.",
   },
 ];
-
-/* Mismas clases que el resto de formularios del proyecto. */
-const INPUT =
-  "rounded-xl border-ink/10 bg-white text-ink placeholder:text-ink-soft/75 focus-visible:border-verde-400 focus-visible:ring-offset-0 focus-visible:ring-verde-400/30";
 
 /* `verde-600` del sistema, aquí porque el selector de color nativo necesita un
    valor concreto cuando la ficha todavía no tiene marca. */
@@ -2122,19 +2123,14 @@ function EditorView({
             <Eye size={16} strokeWidth={1.8} />
             Ver ficha
           </a>
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="inline-flex h-12 cursor-pointer items-center justify-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
-          >
+          <BotonPrimario alto="lg" onClick={save} disabled={saving}>
             {saving ? (
               <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
             ) : (
               <Save size={16} strokeWidth={1.8} />
             )}
             {saving ? "Guardando…" : "Guardar cambios"}
-          </button>
+          </BotonPrimario>
         </div>
       </div>
     </>
@@ -2465,66 +2461,38 @@ function SettingsView({
             carta. Los dos interruptores se enseñan siempre, también cuando el
             plan no llega: si no, el dueño no se entera de que la función
             existe. */}
-        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md">
-          <div className="flex flex-wrap items-center justify-between gap-gap-sm">
-            <h2 className="flex items-center gap-gap-xs font-lv-display text-body font-semibold text-ink">
-              <MessageCircle
-                size={18}
-                strokeWidth={1.8}
-                className="text-verde-600"
-              />
-              Pedidos por WhatsApp
-            </h2>
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-meta font-semibold",
-                bloqueo
-                  ? "border border-ink/10 bg-sand text-ink-soft/75"
-                  : pedidos
-                    ? "border border-verde-200 bg-verde-50 text-verde-700"
-                    : "border border-ink/10 bg-sand text-ink-soft/75",
-              )}
-            >
+        <TarjetaAjuste
+          icono={MessageCircle}
+          titulo="Pedidos por WhatsApp"
+          estado={
+            <Chapita tono={bloqueo ? "candado" : pedidos ? "activa" : "neutra"}>
               {bloqueo ?? (pedidos ? "Activo" : "Desactivado")}
-            </span>
-          </div>
-
-          <p className="mt-gap-xs max-w-[62ch] text-small text-ink-soft/75">
-            Tus clientes piden desde la carta y el pedido te llega por WhatsApp.
-          </p>
-
+            </Chapita>
+          }
+          apoyo="Tus clientes piden desde la carta y el pedido te llega por WhatsApp."
+        >
           {bloqueo ? (
-            <div className="mt-gap-md flex flex-wrap items-center gap-gap-sm">
-              <button
-                type="button"
-                onClick={onVerPlanes}
-                className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
-              >
-                Ver los planes
-              </button>
-              <p className="text-meta text-ink-soft/75">
-                Tu carta se comparte igual; solo le falta el carrito.
-              </p>
-            </div>
+            <CandadoPlan
+              onVerPlanes={onVerPlanes}
+              texto="Tu carta se comparte igual; solo le falta el carrito."
+            />
           ) : (
             <>
-              <div className="mt-gap-md flex items-center justify-between gap-gap-sm border-t border-ink/5 pt-gap-sm">
-                <div className="min-w-0 flex-1">
-                  <div className="text-small font-medium text-ink">
-                    Recibir pedidos en mi carta
-                  </div>
-                  <div className="text-meta text-ink-soft/75">
-                    {pedidos
-                      ? "El carrito aparece en tu menú."
-                      : "El carrito está oculto; tus productos se siguen viendo."}
-                  </div>
-                </div>
-                <Switch
-                  checked={pedidos}
-                  onToggle={() => void alternarPedidos()}
-                  label="Recibir pedidos en mi catálogo"
-                />
-              </div>
+              <FilaAjuste
+                titulo="Recibir pedidos en mi carta"
+                detalle={
+                  pedidos
+                    ? "El carrito aparece en tu menú."
+                    : "El carrito está oculto; tus productos se siguen viendo."
+                }
+                control={
+                  <Switch
+                    checked={pedidos}
+                    onToggle={() => void alternarPedidos()}
+                    label="Recibir pedidos en mi catálogo"
+                  />
+                }
+              />
 
               {/* Con el plan puesto y los pedidos encendidos, el único motivo
                   por el que el carrito no sale es que falte el número. Se dice
@@ -2538,115 +2506,76 @@ function SettingsView({
               )}
             </>
           )}
-        </section>
+        </TarjetaAjuste>
 
         {/* ── Precios mixtos ──────────────────────────────────────────────
             Sin plan: lo tiene cualquier negocio. Encendido, el Dashboard
             pide las tasas y la ficha deja ver la carta en otra moneda. */}
-        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md">
-          <div className="flex flex-wrap items-center justify-between gap-gap-sm">
-            <h2 className="flex items-center gap-gap-xs font-lv-display text-body font-semibold text-ink">
-              <Coins size={18} strokeWidth={1.8} className="text-verde-600" />
-              Precios mixtos
-            </h2>
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-meta font-semibold",
-                mixtos
-                  ? "border border-verde-200 bg-verde-50 text-verde-700"
-                  : "border border-ink/10 bg-sand text-ink-soft/75",
-              )}
-            >
+        <TarjetaAjuste
+          icono={Coins}
+          titulo="Precios mixtos"
+          estado={
+            <Chapita tono={mixtos ? "activa" : "neutra"}>
               {mixtos ? "Activo" : "Desactivado"}
-            </span>
-          </div>
-          <p className="mt-gap-xs max-w-[62ch] text-small text-ink-soft/75">
-            Tus clientes ven la carta en la moneda con la que van a pagar.
-          </p>
-          <div className="mt-gap-md flex items-center justify-between gap-gap-sm border-t border-ink/5 pt-gap-sm">
-            <div className="min-w-0 flex-1">
-              <div className="text-small font-medium text-ink">
-                Mostrar mi carta en varias monedas
-              </div>
-              <div className="text-meta text-ink-soft/75">
-                {mixtos
-                  ? "Pon tus tasas en el Dashboard."
-                  : "Tu carta se ve con los precios que escribiste."}
-              </div>
-            </div>
-            <Switch
-              checked={mixtos}
-              onToggle={() => void alternarMixtos()}
-              label="Mostrar mi carta en varias monedas"
-            />
-          </div>
-        </section>
+            </Chapita>
+          }
+          apoyo="Tus clientes ven la carta en la moneda con la que van a pagar."
+        >
+          <FilaAjuste
+            titulo="Mostrar mi carta en varias monedas"
+            detalle={
+              mixtos
+                ? "Pon tus tasas en el Dashboard."
+                : "Tu carta se ve con los precios que escribiste."
+            }
+            control={
+              <Switch
+                checked={mixtos}
+                onToggle={() => void alternarMixtos()}
+                label="Mostrar mi carta en varias monedas"
+              />
+            }
+          />
+        </TarjetaAjuste>
 
         {/* ── Reservas por WhatsApp ───────────────────────────────────────
             Mismo reparto que los pedidos: el plan (Pro) enciende la función y
             el dueño la enciende o la apaga. Sin plan, la tarjeta se enseña
             bloqueada para que se sepa que existe y qué plan la abre. */}
-        <section className="rounded-2xl border border-ink/5 bg-white p-gap-md">
-          <div className="flex flex-wrap items-center justify-between gap-gap-sm">
-            <h2 className="flex items-center gap-gap-xs font-lv-display text-body font-semibold text-ink">
-              <CalendarDays
-                size={18}
-                strokeWidth={1.8}
-                className="text-verde-600"
-              />
-              Reservas por WhatsApp
-            </h2>
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full px-[10px] py-[3px] font-lv-display text-meta font-semibold",
-                bloqueoReservas
-                  ? "border border-ink/10 bg-sand text-ink-soft/75"
-                  : reservas
-                    ? "border border-verde-200 bg-verde-50 text-verde-700"
-                    : "border border-ink/10 bg-sand text-ink-soft/75",
-              )}
+        <TarjetaAjuste
+          icono={CalendarDays}
+          titulo="Reservas por WhatsApp"
+          estado={
+            <Chapita
+              tono={bloqueoReservas ? "candado" : reservas ? "activa" : "neutra"}
             >
               {bloqueoReservas ?? (reservas ? "Activo" : "Desactivado")}
-            </span>
-          </div>
-
-          <p className="mt-gap-xs max-w-[62ch] text-small text-ink-soft/75">
-            Rellenan el formulario en tu ficha y la reserva te llega por
-            WhatsApp.
-          </p>
-
+            </Chapita>
+          }
+          apoyo="Rellenan el formulario en tu ficha y la reserva te llega por WhatsApp."
+        >
           {bloqueoReservas ? (
-            <div className="mt-gap-md flex flex-wrap items-center gap-gap-sm">
-              <button
-                type="button"
-                onClick={onVerPlanes}
-                className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
-              >
-                Ver los planes
-              </button>
-              <p className="text-meta text-ink-soft/75">
-                Tu ficha se comparte igual; solo le falta el botón de reservar.
-              </p>
-            </div>
+            <CandadoPlan
+              onVerPlanes={onVerPlanes}
+              texto="Tu ficha se comparte igual; solo le falta el botón de reservar."
+            />
           ) : (
             <>
-              <div className="mt-gap-md flex items-center justify-between gap-gap-sm border-t border-ink/5 pt-gap-sm">
-                <div className="min-w-0 flex-1">
-                  <div className="text-small font-medium text-ink">
-                    Aceptar reservas
-                  </div>
-                  <div className="text-meta text-ink-soft/75">
-                    {reservas
-                      ? "El botón aparece en tu ficha y en tu catálogo."
-                      : "El botón está oculto; el resto de la ficha se ve igual."}
-                  </div>
-                </div>
-                <Switch
-                  checked={reservas}
-                  onToggle={() => void alternarReservas()}
-                  label="Aceptar reservas"
-                />
-              </div>
+              <FilaAjuste
+                titulo="Aceptar reservas"
+                detalle={
+                  reservas
+                    ? "El botón aparece en tu ficha y en tu catálogo."
+                    : "El botón está oculto; el resto de la ficha se ve igual."
+                }
+                control={
+                  <Switch
+                    checked={reservas}
+                    onToggle={() => void alternarReservas()}
+                    label="Aceptar reservas"
+                  />
+                }
+              />
 
               {/* Con el plan puesto y las reservas encendidas, el único motivo
                   por el que el botón no sale es que falte el número. */}
@@ -2857,11 +2786,10 @@ function SettingsView({
                     )}
                   </AnimatePresence>
 
-                  <button
-                    type="button"
+                  <BotonPrimario
                     onClick={() => void guardarReservas()}
                     disabled={guardandoReservas}
-                    className="inline-flex h-11 cursor-pointer items-center gap-gap-xs self-start rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+                    className="self-start"
                   >
                     {guardandoReservas ? (
                       <>
@@ -2874,12 +2802,12 @@ function SettingsView({
                         Guardar reservas
                       </>
                     )}
-                  </button>
+                  </BotonPrimario>
                 </div>
               </details>
             </>
           )}
-        </section>
+        </TarjetaAjuste>
 
         {/* ── Avisos a seguidores ─────────────────────────────────────────
             La tarjeta vive en su propio archivo —con su lectura y su estado—
@@ -2953,42 +2881,5 @@ function SettingsView({
         </button>
       </div>
     </>
-  );
-}
-
-/** Interruptor del sistema. Estaba duplicado, con las mismas clases, en el
-    bloque de oferta y en `ToggleRow`. */
-function Switch({
-  checked,
-  onToggle,
-  label,
-}: {
-  checked: boolean;
-  onToggle: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      className={cn(
-        /* El carril mide 28 px de alto, por debajo de los 44 que pide un dedo.
-           En vez de engordarlo —que cambiaría el dibujo del sistema—, el
-           pseudoelemento estira el área tocable 8 px por arriba y por abajo:
-           44 justos, invisible. */
-        "relative h-[28px] w-[48px] shrink-0 cursor-pointer rounded-full border-none p-0 transition-colors duration-500 ease-outquint after:absolute after:inset-x-0 after:-inset-y-2 after:content-['']",
-        checked ? "bg-verde-400" : "bg-ink/10",
-      )}
-    >
-      <span
-        className={cn(
-          "absolute left-[3px] top-[3px] size-[22px] rounded-full bg-white shadow-soft transition-transform duration-500 ease-outquint",
-          checked && "translate-x-5",
-        )}
-      />
-    </button>
   );
 }

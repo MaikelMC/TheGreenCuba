@@ -327,10 +327,10 @@
     color: #9be3b4 !important;
   }
 
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-white,
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-sand,
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-sand-warm,
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-sand-deep {
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .bg-white,
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .bg-sand,
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .bg-sand-warm,
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .bg-sand-deep {
     background-color: #0e1720 !important;
   }
 
@@ -340,7 +340,7 @@
      `#0e1720` sigue siendo la página y `#16212b` (el tono que el sistema ya
      usaba para realce) es la tarjeta. En oscuro la profundidad va por luz de
      superficie, no por sombra. */
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-surface {
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .bg-surface {
     background-color: #16212b !important;
   }
 
@@ -349,34 +349,34 @@
      solo se veía por el borde discontinuo. Ahora lo cubre la tanda translúcida
      de abajo, que le da un escalón. */
 
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-verde-50 {
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .bg-verde-50 {
     background-color: #173522 !important;
   }
 
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .bg-verde-100 {
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .bg-verde-100 {
     background-color: #21442e !important;
   }
 
   html[data-theme="dark"]
-    :is(.admin-panel, .business-panel)
+    :is(.admin-panel, .business-panel, .panel-portal)
     [class~="hover:bg-verde-50"]:hover,
   html[data-theme="dark"]
-    :is(.admin-panel, .business-panel)
+    :is(.admin-panel, .business-panel, .panel-portal)
     [class~="hover:bg-sand"]:hover {
     background-color: #173522 !important;
   }
 
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .border-ink\/5,
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .border-ink\/10 {
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .border-ink\/5,
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .border-ink\/10 {
     border-color: rgba(237, 247, 240, 0.14) !important;
   }
 
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .border-verde-200 {
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .border-verde-200 {
     border-color: rgba(103, 199, 146, 0.3) !important;
   }
 
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .text-verde-600,
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .text-verde-700 {
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .text-verde-600,
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .text-verde-700 {
     color: #9be3b4 !important;
   }
 
@@ -391,19 +391,19 @@
      lista de `.bg-white`, `.bg-sand`, `.bg-surface` de arriba), el texto
      heredado queda oscuro sobre fondo oscuro. Se corrige token a token para
      las clases que realmente usan el panel. */
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .text-foreground {
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .text-foreground {
     color: #edf7f0 !important;
   }
 
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .text-muted-foreground {
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .text-muted-foreground {
     color: rgba(237, 247, 240, 0.6) !important;
   }
 
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) [class~="placeholder:text-muted-foreground"]::placeholder {
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) [class~="placeholder:text-muted-foreground"]::placeholder {
     color: rgba(237, 247, 240, 0.35) !important;
   }
 
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .border-input {
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .border-input {
     border-color: rgba(237, 247, 240, 0.14) !important;
   }
 
@@ -432,15 +432,28 @@
 
   /* ── Sección «Domicilio y zonas» del panel de ajustes ─────────────────── */
 
-  /* El pulgar del switch siempre es claro — el track cambia de color, no el
-     pulgar, igual que iOS. Sin esto el override global de bg-white lo
-     oscurecía y desaparecía sobre el track. */
-  html[data-theme="dark"] .zonas-switch-thumb {
+  /* El pulgar del `Switch` del panel (`business/ui/switch.tsx`) siempre es
+     claro — el track cambia de color, no el pulgar, igual que iOS. Sin esto el
+     override de `.bg-white` dentro del panel lo pintaba del color del fondo y
+     desaparecía sobre el track. Antes solo lo tenía el de zonas
+     (`.zonas-switch-thumb`), y ni ese ganaba: la regla del panel
+     (`:is(.business-panel…) .bg-white`) tiene un selector más y pesaba más. El
+     `.bg-white` de aquí iguala ese peso y, al ir después, gana. */
+  html[data-theme="dark"] .panel-switch-thumb.bg-white {
     background-color: #f0f7f2 !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
   }
 
   /* Selects de moneda: fondo elevado + borde sutil + flecha legible. */
+  /* Hojas y diálogos del panel (`HojaPanel`). `shadow-card` está teñida de
+     tinta y sobre el fondo oscuro no se ve: la hoja se separa por un filo claro
+     muy tenue y una sombra negra, no por el halo de tinta. */
+  html[data-theme="dark"] .panel-portal.shadow-card {
+    box-shadow:
+      0 0 0 1px rgba(237, 247, 240, 0.06),
+      0 16px 40px -16px rgba(0, 0, 0, 0.6) !important;
+  }
+
   html[data-theme="dark"] .zonas-select {
     background-color: #1b2922 !important;
     border-color: rgba(237, 247, 240, 0.12) !important;
@@ -466,7 +479,7 @@
 
   /* `border-verde-300` sin clase propia dentro del panel (el track del Switch
      apagado y otros bordes sueltos). Mismo suavizado que verde-200. */
-  html[data-theme="dark"] :is(.admin-panel, .business-panel) .border-verde-300 {
+  html[data-theme="dark"] :is(.admin-panel, .business-panel, .panel-portal) .border-verde-300 {
     border-color: rgba(103, 199, 146, 0.35) !important;
   }
 
@@ -1288,6 +1301,36 @@
 
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Barra fina para las zonas con scroll vertical del panel (hojas, listas
+     largas). La de serie es gruesa y, en oscuro, una franja blanca. El color
+     es la tinta translúcida en claro y el texto claro translúcido en oscuro. */
+  .scrollbar-fino {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(8, 19, 13, 0.2) transparent;
+  }
+
+  .scrollbar-fino::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-fino::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background-color: rgba(8, 19, 13, 0.2);
+  }
+
+  .scrollbar-fino::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  html[data-theme="dark"] .scrollbar-fino {
+    scrollbar-color: rgba(237, 247, 240, 0.2) transparent;
+  }
+
+  html[data-theme="dark"] .scrollbar-fino::-webkit-scrollbar-thumb {
+    background-color: rgba(237, 247, 240, 0.2);
   }
 
   /* La fila de categorías de la carta se desliza en horizontal y nada lo decía:

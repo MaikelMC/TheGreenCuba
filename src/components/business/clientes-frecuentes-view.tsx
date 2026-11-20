@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { INPUT_NATIVO_ANILLO as INPUT } from "@/components/business/ui/clases";
+import { Switch } from "@/components/business/ui/switch";
 import {
   estadoTarjeta,
   MAX_METAS,
@@ -111,8 +113,6 @@ const BTN_GHOST =
 const BTN_VERDE =
   "inline-flex h-11 cursor-pointer items-center gap-[5px] rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-300 ease-outquint hover:bg-verde-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40";
 
-const INPUT =
-  "h-11 w-full rounded-xl border border-ink/10 bg-white px-gap-sm font-lv-display text-body text-ink outline-none placeholder:text-ink-soft/70 focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 
 function inicial(nombre: string | null, telefono: string): string {
   const base = nombre?.trim();
@@ -437,28 +437,13 @@ function EditorTarjeta({
           <p id="tarjeta-activa-titulo" className="text-small font-semibold text-ink">Tarjeta activa</p>
           <p id="tarjeta-activa-desc" className="text-meta text-ink-soft/70">Tus clientes podrán dejar su teléfono al pedir y sumar sellos</p>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={borrador.activo}
-          aria-labelledby="tarjeta-activa-titulo"
-          aria-describedby="tarjeta-activa-desc"
-          onClick={() => setBorrador((b) => ({ ...b, activo: !b.activo }))}
-          className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/50 focus-visible:ring-offset-2"
-        >
-          <span
-            aria-hidden="true"
-            className={cn(
-              "relative inline-flex h-6 w-11 items-center rounded-full border-2 border-transparent transition-colors duration-300 ease-outquint",
-              borrador.activo ? "bg-verde-400" : "bg-ink/25",
-            )}
-          >
-            <span className={cn(
-              "pointer-events-none inline-block size-5 rounded-full bg-white shadow-md ring-0 transition-transform duration-300 ease-outquint motion-reduce:transition-none",
-              borrador.activo ? "translate-x-5" : "translate-x-0",
-            )} />
-          </span>
-        </button>
+        <Switch
+          tamano="sm"
+          checked={borrador.activo}
+          labelledBy="tarjeta-activa-titulo"
+          describedBy="tarjeta-activa-desc"
+          onToggle={() => setBorrador((b) => ({ ...b, activo: !b.activo }))}
+        />
       </div>
 
       {/* Nombre */}

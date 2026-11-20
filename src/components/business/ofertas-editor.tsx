@@ -20,12 +20,12 @@ import {
   validarOferta,
 } from "@/lib/ofertas";
 import type { UserPlaceMenuItem, UserPlaceOferta } from "@/lib/places-store";
+import { INPUT as INPUT_PANEL } from "@/components/business/ui/clases";
 
 /* `min-w-0`: el `datetime-local` de Android trae un ancho mínimo propio que
    `w-full` no puede bajar; sin esto el control empuja la tarjeta y se sale de
    ella en pantallas estrechas. */
-const INPUT =
-  "min-w-0 rounded-xl border-ink/10 bg-white text-ink placeholder:text-ink-soft/75 focus-visible:border-verde-400 focus-visible:ring-offset-0 focus-visible:ring-verde-400/30";
+const INPUT = `min-w-0 ${INPUT_PANEL}`;
 
 const DIA_MS = 86_400_000;
 

@@ -1,8 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bot, Check, Copy, Lock, RefreshCw } from "lucide-react";
+import { Bot, Check, Copy, RefreshCw } from "lucide-react";
+import { clsx } from "clsx";
 import { cn } from "@/lib/utils";
+import { ALTO_BOTON, BOTON_PRIMARIO } from "@/components/business/ui/clases";
+import { BotonPrimario } from "@/components/business/ui/botones";
+import { CandadoPlan } from "@/components/business/ui/candado-plan";
 import { bloqueoDe, type Funcion } from "@/lib/plans";
 import { useCatalogo } from "@/providers/catalogo-provider";
 import type { UserPlace } from "@/lib/places-store";
@@ -147,20 +151,11 @@ export function AsistenteCard({
       </p>
 
       {bloqueo ? (
-        <div className="mt-gap-md flex flex-wrap items-center gap-gap-sm">
-          <button
-            type="button"
-            onClick={onVerPlanes}
-            className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
-          >
-            <Lock size={15} strokeWidth={1.8} />
-            Ver los planes
-          </button>
-          <p className="text-meta text-ink-soft/75">
-            Tu ficha se ve igual; solo te falta poder gestionarla desde el
-            móvil.
-          </p>
-        </div>
+        <CandadoPlan
+          onVerPlanes={onVerPlanes}
+          iconoEnBoton
+          texto="Tu ficha se ve igual; solo te falta poder gestionarla desde el móvil."
+        />
       ) : (
         <div className="mt-gap-md flex flex-col gap-gap-md border-t border-ink/5 pt-gap-sm">
           {error && (
@@ -227,7 +222,7 @@ export function AsistenteCard({
                     href={estado.enlace}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
+                    className={clsx(BOTON_PRIMARIO, ALTO_BOTON.md)}
                   >
                     <Bot size={15} strokeWidth={1.8} />
                     Abrir en Telegram
@@ -249,15 +244,14 @@ export function AsistenteCard({
               </div>
             </>
           ) : (
-            <button
-              type="button"
+            <BotonPrimario
               onClick={() => void generar()}
               disabled={generando || !estado}
-              className="inline-flex h-11 w-fit cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+              className="w-fit"
             >
               <Bot size={15} strokeWidth={1.8} />
               {generando ? "Generando…" : "Generar código"}
-            </button>
+            </BotonPrimario>
           )}
 
           {!estado?.codigo && estado?.bot && (

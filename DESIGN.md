@@ -70,8 +70,9 @@ Paleta oscura de referencia:
 
 | Token Tailwind | Familia | Uso |
 |---|---|---|
-| `font-lv-display` | DM Sans / var(--font-lv-display) | **Principal en la app**: títulos, labels, botones, chips, nombres |
-| `font-body` / `font-lv` | Source Sans 3 | Cuerpo de texto largo |
+| `font-lv-display` | Space Grotesk (`var(--font-lv-display)`, `src/lib/fonts.ts`) | **Principal en la app**: títulos, labels, botones, chips, nombres |
+| `font-lv` | Plus Jakarta Sans (`var(--font-lv-sans)`) | Cuerpo del panel de negocio (`.business-panel … font-lv`) |
+| `font-display` / `font-body` | DM Sans / Source Sans 3 por nombre literal | Probablemente caen a la fuente del sistema: `next/font/local` no registra esos nombres y nadie lee `--font-display` / `--font-body`. No usar en UI nueva |
 | `.lv-mono` (clase CSS) | ui-monospace | Micro-labels en uppercase, categorías |
 
 ### Escala de tamaños
@@ -223,8 +224,8 @@ Exporta `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `Ca
 **Archivo**: `src/components/ui/dialog.tsx`
 Tokens correctos: `bg-white border-ink/5 shadow-card rounded-4xl`.
 Overlay: `bg-ink/40 backdrop-blur-sm`.
-Botón cierre: `size-9 rounded-full hover:bg-sand-deep`.
-Focus: `ring-verde-400/30`.
+Botón cierre: `size-11 rounded-full hover:bg-sand-deep` (el del `Sheet` inferior mide `size-9`; `hideClose` lo quita).
+Focus: `ring-verde-400/40`.
 
 **Mejor ejemplo**: `src/components/ui/image-crop-dialog.tsx`.
 
@@ -280,6 +281,25 @@ Tarjeta plegable. Abierta: `border-verde-500 ring-verde-200/70`. Cerrada: `borde
 Inválida: `border-destructive/40 ring-destructive/15`. Contenido animado con `motion` height.
 
 **Mejor ejemplo**: editor de ficha en `/business`.
+
+### Componentes base del panel de negocio
+**Carpeta**: `src/components/business/ui/`. Úsalos en todo lo nuevo del panel en vez
+de copiar clases. Combinan con `clsx`, **no** con `cn`: `tailwind-merge` no conoce
+`text-small`/`text-meta`/`text-body` y los borra si detrás va un color de texto.
+
+| Pieza | Archivo | Notas |
+|---|---|---|
+| `INPUT`, `INPUT_NATIVO`, `INPUT_NATIVO_ANILLO`, `INPUT_NATIVO_HOLGADO`, `INPUT_COMPACTO` | `clases.ts` | `INPUT` va sobre `ui/input.tsx`; los demás, sobre `<input>`/`<textarea>` nativos |
+| `BotonPrimario` / `BOTON_PRIMARIO` | `botones.tsx` / `clases.ts` | `bg-verde-400 text-verde-950 shadow-primary-halo`, `alto="md"` (h-11) o `"lg"` (h-12). Nunca texto blanco sobre verde |
+| `BotonSecundario`, `BotonTexto`, `BotonIcono` | `botones.tsx` | `BotonIcono` exige `aria-label`, 44 px y foco visible |
+| `TarjetaPanel`, `TarjetaAjuste`, `FilaAjuste`, `Chapita` | `tarjeta.tsx` | Tarjeta de ajuste = título con icono + chapita + apoyo + fila con hairline. `Chapita` tonos `activa`, `neutra`, `ambar`, `candado` |
+| `Switch` | `switch.tsx` | Único interruptor. `tamano="md"` (48×28) o `"sm"` (44×24); área táctil de 44 px; pulgar `panel-switch-thumb`, claro en los dos temas |
+| `CandadoPlan` | `candado-plan.tsx` | «Ver los planes» + línea meta. El texto de `bloqueoDe` va en la `Chapita` de la cabecera |
+| `HojaPanel` | `hoja-panel.tsx` | `Sheet` inferior en móvil, `Dialog` en escritorio (≥ 1024 px). Lleva `panel-portal` y aspa de 44 px |
+
+**Portales**: todo `SheetContent`, `DialogContent` o `SelectContent` abierto desde el
+panel lleva la clase `panel-portal`; `globals.css` le extiende los overrides
+oscuros de `.business-panel`. Scroll vertical fino: `scrollbar-fino`.
 
 ### PanelShell
 **Archivo**: `src/components/business/panel-shell.tsx`

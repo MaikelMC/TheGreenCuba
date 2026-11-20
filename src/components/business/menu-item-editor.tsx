@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { cn, menuTagFallback, menuTagStyles } from "@/lib/utils";
+import { INPUT_COMPACTO as INPUT } from "@/components/business/ui/clases";
 import { preciosDeItem, type ConfigTasa } from "@/lib/precios";
 import { prepareImage } from "@/lib/storage/compress";
 import { mensajeDeRed } from "@/lib/errores-red";
@@ -62,8 +63,6 @@ const DEFAULT_ITEMS: MenuItemData[] = [
   { id: "3", name: "Mojito de la Casa", description: "Ron fresco, hierbabuena, lima y soda. Receta de la casa.", price: "5", currency: "MLC", tag: "2x1", gradient: "linear-gradient(135deg, #F6F3EC, #EAE4D6)" },
 ];
 
-const INPUT =
-  "px-gap-sm border rounded-xl font-lv text-small bg-white text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 
 /* Botón de «Hoy hay»: circular y con el icono solo, el nombre en `title`. Va en
    la columna de acciones de la fila del producto, donde un botón con texto no

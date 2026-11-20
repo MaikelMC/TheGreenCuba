@@ -5,6 +5,11 @@ import { Link2, Loader2, Plus, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
+  ALTO_BOTON,
+  BOTON_PRIMARIO as BOTON_PRIMARIO_PANEL,
+  INPUT_NATIVO as INPUT,
+} from "@/components/business/ui/clases";
+import {
   PERMISOS_NEGOCIO,
   type PermisoNegocio,
 } from "@/lib/permisos-negocio";
@@ -30,14 +35,10 @@ interface Trabajador {
   permisos: PermisoNegocio[];
 }
 
-const BOTON_PRIMARIO =
-  "inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60";
+const BOTON_PRIMARIO = `${BOTON_PRIMARIO_PANEL} ${ALTO_BOTON.md}`;
 
 const BOTON_SECUNDARIO =
   "inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-lg font-lv-display text-small font-semibold text-ink transition duration-500 ease-outquint hover:border-verde-300 hover:text-verde-600 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60";
-
-const INPUT =
-  "h-11 w-full px-gap-sm border border-ink/10 rounded-xl font-lv text-body bg-white text-ink outline-none transition-colors duration-500 ease-outquint focus-visible:border-verde-400";
 
 export function EquipoView({ placeId }: { placeId: string }) {
   const [lista, setLista] = useState<Trabajador[] | null>(null);

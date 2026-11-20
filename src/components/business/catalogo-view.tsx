@@ -26,6 +26,8 @@ import {
   X,
 } from "lucide-react";
 import { cn, menuTagFallback, menuTagStyles } from "@/lib/utils";
+import { INPUT_NATIVO } from "@/components/business/ui/clases";
+import { BotonPrimario } from "@/components/business/ui/botones";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -65,8 +67,7 @@ const AGOTADOS = `${SIN_CATEGORIA}agotados`;
    escritorio baja a 14 px, que es lo que pide la densidad de la lista. El anillo
    de foco lo pone `Input` —el del sistema—, así que aquí solo se cambia el color
    del borde al enfocar. */
-const INPUT =
-  "h-11 w-full px-gap-sm border border-ink/10 rounded-xl font-lv text-body bg-white text-ink outline-none transition-colors duration-500 ease-outquint focus-visible:border-verde-400 sm:text-small";
+const INPUT = `${INPUT_NATIVO} sm:text-small`;
 
 const BOTON =
   "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full font-lv-display text-small font-semibold transition duration-500 ease-outquint active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2";
@@ -1091,11 +1092,10 @@ export function CatalogoView({
           >
             Descartar
           </button>
-          <button
-            type="button"
+          <BotonPrimario
             onClick={() => void guardar()}
             disabled={saving}
-            className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2"
+            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2"
           >
             {saving ? (
               <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
@@ -1103,7 +1103,7 @@ export function CatalogoView({
               <Save size={16} strokeWidth={1.8} />
             )}
             {saving ? "Guardando…" : "Guardar catálogo"}
-          </button>
+          </BotonPrimario>
         </div>
       )}
     </div>

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lock, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CandadoPlan } from "@/components/business/ui/candado-plan";
 import { CopyLink } from "@/components/profile/copy-link";
 import { bloqueoDe, type Funcion } from "@/lib/plans";
 import { useCatalogo } from "@/providers/catalogo-provider";
@@ -107,19 +108,11 @@ export function SeguidoresCard({
       </p>
 
       {bloqueo ? (
-        <div className="mt-gap-md flex flex-wrap items-center gap-gap-sm">
-          <button
-            type="button"
-            onClick={onVerPlanes}
-            className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
-          >
-            <Lock size={15} strokeWidth={1.8} />
-            Ver los planes
-          </button>
-          <p className="text-meta text-ink-soft/75">
-            Tu ficha se comparte igual; solo le falta el botón de avisarte.
-          </p>
-        </div>
+        <CandadoPlan
+          onVerPlanes={onVerPlanes}
+          iconoEnBoton
+          texto="Tu ficha se comparte igual; solo le falta el botón de avisarte."
+        />
       ) : (
         <div className="mt-gap-md flex flex-col gap-gap-md border-t border-ink/5 pt-gap-sm">
           {/* Sin tope semanal. Lo que se explica es el ritmo: los cambios

@@ -4,6 +4,7 @@ import { ArrowRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { lemaDe, nombreDe, type ClaveModulo, type Plan } from "@/lib/plans";
 import { useCatalogo } from "@/providers/catalogo-provider";
+import { BotonPrimario } from "@/components/business/ui/botones";
 
 /** Cuántos puntos de la lista se enseñan. Los demás se cuentan. */
 const VISIBLES = 6;
@@ -126,14 +127,10 @@ export function PlanCard({
         </div>
 
         <div className="relative mt-gap-md flex flex-wrap items-center gap-gap-sm">
-          <button
-            type="button"
-            onClick={onVerPlanes}
-            className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
-          >
+          <BotonPrimario onClick={onVerPlanes}>
             Ver todos los planes
             <ArrowRight size={16} strokeWidth={1.8} />
-          </button>
+          </BotonPrimario>
           {ocultos > 0 ? (
             <p className="text-meta text-ink-soft/75">Y {ocultos} más.</p>
           ) : !dePago ? (

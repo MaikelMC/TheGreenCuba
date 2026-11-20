@@ -4,10 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { CalendarClock, Loader2, Lock, Save } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/business/ui/switch";
+import { INPUT_NATIVO_HOLGADO as INPUT } from "@/components/business/ui/clases";
 import { PROGRAMADOS_DEFAULT, type ProgramadosConfig } from "@/lib/ficha/entrega";
 
-const INPUT =
-  "h-11 w-full rounded-xl border border-ink/10 bg-white px-4 text-body text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
 
 /**
@@ -83,23 +83,12 @@ export function ProgramadosAjustes({
             <span className="font-lv-display text-meta font-semibold text-ink-soft/75">
               {config.activo ? "Activo" : "Inactivo"}
             </span>
-            {/* toggle */}
-            <span
-              role="switch"
-              aria-checked={config.activo}
-              onClick={() => setConfig((c) => ({ ...c, activo: !c.activo }))}
-              className={cn(
-                "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-300 ease-outquint focus-visible:outline-none",
-                config.activo ? "bg-verde-400" : "bg-ink/15",
-              )}
-            >
-              <span
-                className={cn(
-                  "pointer-events-none inline-block size-5 rounded-full bg-white shadow-md ring-0 transition-transform duration-300 ease-outquint",
-                  config.activo ? "translate-x-5" : "translate-x-0",
-                )}
-              />
-            </span>
+            <Switch
+              tamano="sm"
+              checked={config.activo}
+              onToggle={() => setConfig((c) => ({ ...c, activo: !c.activo }))}
+              label="Pedidos programados"
+            />
           </label>
         )}
       </div>

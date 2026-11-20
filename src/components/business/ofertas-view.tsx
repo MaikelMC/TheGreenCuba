@@ -13,6 +13,7 @@ import { registrarGuarda } from "@/lib/unsaved-guard";
 import { useCatalogo } from "@/providers/catalogo-provider";
 import { usePlaces } from "@/providers/places-provider";
 import type { UserPlace, UserPlaceOferta } from "@/lib/places-store";
+import { BotonPrimario } from "@/components/business/ui/botones";
 
 /**
  * Ofertas flash, con sección propia.
@@ -203,13 +204,7 @@ export function OfertasView({
                 del mapa.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={onVerPlanes}
-              className="inline-flex h-11 cursor-pointer items-center rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
-            >
-              Ver planes
-            </button>
+            <BotonPrimario onClick={onVerPlanes}>Ver planes</BotonPrimario>
           </div>
         )}
 
@@ -234,11 +229,10 @@ export function OfertasView({
           mismo que ya está en la base es ruido. */}
       {sucio && (
         <div className="sticky bottom-4 z-40 mt-gap-lg flex justify-end">
-          <button
-            type="button"
+          <BotonPrimario
+            alto="lg"
             onClick={() => void save(ofertas)}
             disabled={saving}
-            className="inline-flex h-12 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
           >
             {saving ? (
               <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
@@ -246,7 +240,7 @@ export function OfertasView({
               <Save size={16} strokeWidth={1.8} />
             )}
             {saving ? "Guardando…" : "Guardar ofertas"}
-          </button>
+          </BotonPrimario>
         </div>
       )}
     </div>
