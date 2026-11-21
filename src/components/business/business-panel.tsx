@@ -23,11 +23,9 @@ import {
   Loader2,
   MapPin,
   Megaphone,
-  MousePointerClick,
   Package,
   Pencil,
   Save,
-  Search,
   Settings,
   Sparkles,
   Stamp,
@@ -71,7 +69,9 @@ import {
 } from "@/components/business/ajustes-tarjetas";
 import { HorarioCocinaCard } from "@/components/business/cocina-panel";
 import { MasView } from "@/components/business/mas-view";
-import { DashboardStats } from "@/components/business/dashboard-stats";
+import { HoyView } from "@/components/business/hoy-view";
+import { AvisosPedidosCard } from "@/components/business/avisos-pedidos-card";
+import type { AvisoHoy } from "@/lib/hoy-server";
 import { LogoUpload } from "@/components/business/logo-upload";
 import { PhotoGrid } from "@/components/business/photo-grid";
 import { PaymentChips } from "@/components/business/payment-chips";
@@ -80,8 +80,6 @@ import { PedidosView } from "@/components/business/pedidos-view";
 import { ClientesFrecuentesView } from "@/components/business/clientes-frecuentes-view";
 import { ProgramadosAjustes } from "@/components/business/programados-ajustes";
 import { OfertasView } from "@/components/business/ofertas-view";
-import { MenuLinkCard } from "@/components/business/menu-link-card";
-import { PlanCard } from "@/components/business/plan-card";
 import { PlansSection } from "@/components/business/plans-section";
 import { PublicacionesView } from "@/components/business/publicaciones-view";
 import { AsistenteCard } from "@/components/business/asistente-card";
@@ -180,6 +178,7 @@ export function BusinessPanel({
   packMedida = null,
   descuentoPct = null,
   destinoInicial = INICIO,
+  avisos = [],
 }: {
   /** Id del usuario de la sesión. Solo se usa para nombrar el snapshot offline. */
   userId: string;
@@ -230,6 +229,8 @@ export function BusinessPanel({
   descuentoPct?: number | null;
   /** La pantalla que pide la URL (`?seccion=&sub=`), leída en el servidor. */
   destinoInicial?: Destino;
+  /** «Necesita tu atención», calculado en el servidor (`avisosHoy`). */
+  avisos?: AvisoHoy[];
 }) {
   /* Copia de lectura para el modo offline. Se reescribe cuando cambia algo de
      la ficha, de las métricas o del plan; el panel se resuelve en el servidor,
@@ -380,6 +381,7 @@ export function BusinessPanel({
         lateral={lateral}
         grupos={grupos}
         estado={<PildoraEstado />}
+        vigilarPedidos={puede("pedidos") && tiene("whatsapp_pedido")}
         hojas={<HojaEstado />}
       >
         {(destino) => (
@@ -402,6 +404,7 @@ export function BusinessPanel({
             configTasa={configTasa}
             packMedida={packMedida}
             descuentoPct={descuentoPct}
+            avisos={avisos}
           />
         )}
       </PanelShell>
@@ -429,6 +432,7 @@ function VistaPanel({
   configTasa,
   packMedida,
   descuentoPct,
+  avisos,
 }: {
   destino: Destino;
   dock: Destino[];
@@ -448,6 +452,7 @@ function VistaPanel({
   configTasa: import("@/lib/precios").ConfigTasa | null;
   packMedida: PackMedidaResumen | null;
   descuentoPct: number | null;
+  avisos: AvisoHoy[];
 }) {
   const nav = usePanelNav();
   const tiene = (funcion: Funcion) => funciones.includes(funcion);
@@ -464,17 +469,16 @@ function VistaPanel({
   switch (destino.seccion) {
     case "dashboard":
       return (
-        <DashboardView
+        <HoyView
           place={place}
           stats={stats}
           visitas={visitas}
           publicaciones={publicaciones}
           menuUrl={menuUrl}
-          plan={plan}
           funciones={funciones}
-          modulos={modulos}
           esDueno={esDueno}
-          onVerPlanes={onVerPlanes}
+          permisos={permisos}
+          avisos={avisos}
         />
       );
     case "catalogo":
@@ -505,6 +509,7 @@ function VistaPanel({
               funciones={funciones}
               onVerPlanes={onVerPlanes}
             />
+            {tiene("whatsapp_pedido") && <AvisosPedidosCard />}
             <ZonasDomicilioCard
               key={`zonas-${place.id}`}
               placeId={place.id}
@@ -532,25 +537,24 @@ function VistaPanel({
          propiedad en cada lectura y escritura. */
       return (
         <div className="flex flex-col gap-gap-md">
-          <h1 className="sr-only">Pedidos</h1>
-          <FranjaCocina />
-          <div className="flex flex-wrap items-center justify-between gap-gap-sm">
-            {nav.puedeAbrir({ seccion: "pedidos", sub: "ajustes" }) ? (
+          {/* Arriba: el título, los ajustes (fuera de la lista: nada de
+              configuración bajo los pedidos) y la franja de la cocina. */}
+          <header className="flex flex-wrap items-center justify-between gap-gap-sm">
+            <h1 className="font-lv-display text-h2 font-bold text-ink">Pedidos</h1>
+            {nav.puedeAbrir({ seccion: "pedidos", sub: "ajustes" }) && (
               <BotonSecundario onClick={() => nav.ir({ seccion: "pedidos", sub: "ajustes" })}>
                 <Settings size={16} strokeWidth={1.8} />
                 Ajustes de pedidos
               </BotonSecundario>
-            ) : (
-              <span />
             )}
-            <InfoServicio href="/servicios/flujo-atencion-pedidos" />
-          </div>
+          </header>
+          <FranjaCocina />
+          <InfoServicio href="/servicios/flujo-atencion-pedidos" />
           <PedidosView
             key={place.id}
             placeId={place.id}
             funciones={funciones}
             onVerPlanes={onVerPlanes}
-            onVerClientes={() => nav.ir({ seccion: "clientes", sub: null })}
           />
         </div>
       );
@@ -645,6 +649,7 @@ function VistaPanel({
           place={place}
           funciones={funciones}
           onVerPlanes={onVerPlanes}
+          seccionInicial={destino.sub}
         />
       );
     case "ofertas":
@@ -707,191 +712,10 @@ function InfoServicio({ href }: { href: string }) {
  * Aquí había un `ViewLead`: un encabezado por sección con el título visible y un
  * subtítulo. Sobraba por los dos lados. El título repetía lo que ya dice el
  * navbar —la barra lateral en escritorio, el dock en móvil—, y el subtítulo
- * repetía lo que ya dice el selector de negocio de arriba. Las secciones
- * empiezan en su contenido con un `h1` en `sr-only`, para no romper el orden de
- * encabezados que leen los lectores de pantalla.
- *
- * El dashboard es la excepción: abre con un saludo visible porque es la
- * pantalla de entrada y resume el negocio entero, no una sección más.
+ * repetía lo que ya dice el selector de negocio de arriba. Ahora las
+ * subpantallas llevan su título junto a la flecha de volver (lo pinta el
+ * armazón) y las principales abren con su propio `h1`: «Hoy», «Pedidos».
  */
-
-/**
- * Aviso de que la ficha todavía no está publicada.
- *
- * Va en el panel y no solo en el perfil a propósito: el dueño entra aquí a
- * rellenar su negocio y es donde se preguntaría por qué no aparece en el mapa.
- * Decirlo aquí responde a la pregunta en el sitio donde se la hace.
- */
-function DashboardView({
-  place,
-  stats,
-  visitas,
-  publicaciones,
-  menuUrl,
-  plan,
-  funciones,
-  modulos,
-  esDueno,
-  onVerPlanes,
-}: {
-  place: UserPlace;
-  stats: PlaceStats;
-  visitas: VisitasPanel;
-  publicaciones: { usadas: number; tope: number };
-  menuUrl: string;
-  plan: Plan;
-  funciones: Funcion[];
-  modulos: ClaveModulo[];
-  /** La tarjeta del plan solo se enseña a quien puede cambiarlo. */
-  esDueno: boolean;
-  onVerPlanes: () => void;
-}) {
-  return (
-    <>
-      {/* Cabecera de página. Es la única vista que se titula: la barra lateral
-          ya nombra las demás secciones, y este saludo es lo que el dueño lee
-          al abrir el panel. */}
-      <header className="mb-gap-lg flex flex-wrap items-end justify-between gap-gap-md">
-        <div>
-          <p className="flex items-center gap-gap-xs font-lv-display text-[11px] font-semibold uppercase tracking-[0.16em] text-verde-700">
-            <span
-              aria-hidden
-              className="size-[7px] shrink-0 rounded-full bg-verde-500 shadow-[0_0_0_4px_rgba(24,149,79,0.1)]"
-            />
-            {place.name}
-          </p>
-          {/* «Hoy» es el nombre de esta pantalla en el dock y en la barra
-              lateral. El estado del negocio vive en la píldora de la barra
-              superior, no aquí. */}
-          <h1 className="mt-gap-xs font-lv-display text-[26px] font-bold leading-[1.12] tracking-[-0.03em] text-ink sm:text-[32px]">
-            Hoy
-          </h1>
-        </div>
-      </header>
-
-      {/* Cabecera de la sección, como en el rediseño: un título que dice qué
-          se está mirando y el periodo, en vez de la palabra «Estadísticas». */}
-      <div className="mb-gap-sm flex flex-wrap items-end justify-between gap-gap-sm">
-        <h2 className="font-lv-display text-body font-semibold text-ink">
-          Actividad este mes
-        </h2>
-        <span className="rounded-full border border-ink/10 bg-white px-[11px] py-[7px] font-lv-display text-meta font-semibold text-ink-soft/70">
-          Este mes
-        </span>
-      </div>
-
-      {/* Cuatro cifras y ninguna inventada. Aquí había «342 visitas esta semana,
-          +18%», «87 clics en Cómo llegar» y «156 recomendaciones IA»: no existe
-          ninguna tabla que registre esas cosas, así que estaban escritas a mano.
-          Las de ahora salen todas de la base —una métrica que no se puede
-          comprobar no es una métrica—.
-
-          Los clics son la suma de ficha y carta (`TIPOS_VISTA`): cuentan también
-          al visitante que llega por WhatsApp o por el QR, sin cuenta en La
-          Verde. Las búsquedas son las veces que un resultado con IA lo eligió;
-          los productos, los activos del catálogo. La tarjeta de publicaciones se
-          apaga entera cuando el plan no incluye ninguna. */}
-      <DashboardStats
-        stats={[
-          {
-            label: "Clics a tu negocio",
-            value: visitas.resumen.mes.toLocaleString("es-CU"),
-            hint: "Ficha y menú, este mes",
-            icon: MousePointerClick,
-          },
-          {
-            label: "Búsquedas",
-            value: stats.aiMatches.toLocaleString("es-CU"),
-            hint: "Apareciste como opción",
-            icon: Search,
-          },
-          {
-            label: "Productos",
-            /* El catálogo de verdad es el jsonb `places.menu`; la tabla
-               `place_menu_items` quedó sin uso. Se cuenta aquí, sin consulta:
-               la ficha ya viene cargada con su carta. */
-            value: place.menu.length.toLocaleString("es-CU"),
-            hint: "En tu catálogo",
-            icon: Package,
-          },
-          {
-            label: "Publicaciones",
-            value:
-              publicaciones.tope > 0
-                ? `${publicaciones.usadas} / ${publicaciones.tope}`
-                : "—",
-            hint:
-              publicaciones.tope > 0
-                ? `Quedan ${Math.max(publicaciones.tope - publicaciones.usadas, 0)} esta semana`
-                : "No incluido en tu plan",
-            icon: Megaphone,
-            progress:
-              publicaciones.tope > 0
-                ? (publicaciones.usadas / publicaciones.tope) * 100
-                : undefined,
-            dimmed: publicaciones.tope === 0,
-          },
-        ]}
-      />
-
-      {/* Los clics de la última semana, separados por dónde entró la gente: la
-          ficha (llegó al negocio) y la carta (abrió el menú). La cifra del mes
-          cambia poco; estas dos se mueven a diario y son las que se miran al
-          abrir el panel. */}
-      <section className="mt-gap-md rounded-2xl border border-ink/5 bg-white p-gap-md">
-        <div className="flex flex-wrap items-center justify-between gap-gap-sm">
-          <h2 className="flex items-center gap-gap-xs font-lv-display text-small font-semibold text-ink">
-            <MousePointerClick
-              size={18}
-              strokeWidth={1.8}
-              className="text-verde-600"
-            />
-            Clics en los últimos 7 días
-          </h2>
-          <span className="rounded-full bg-sand-deep px-[10px] py-[3px] font-lv-display text-meta text-ink-soft/75">
-            Ficha y catálogo
-          </span>
-        </div>
-        <dl className="mt-gap-sm grid grid-cols-2 gap-gap-md">
-          <div className="flex flex-col gap-[2px]">
-            <dt className="text-meta text-ink-soft/75">Ficha</dt>
-            <dd className="font-lv-display text-h3 font-bold tabular-nums leading-none text-ink">
-              {visitas.resumen.ficha7.toLocaleString("es-CU")}
-            </dd>
-          </div>
-          <div className="flex flex-col gap-[2px]">
-            <dt className="text-meta text-ink-soft/75">Catálogo</dt>
-            <dd className="font-lv-display text-h3 font-bold tabular-nums leading-none text-ink">
-              {visitas.resumen.catalogo7.toLocaleString("es-CU")}
-            </dd>
-          </div>
-        </dl>
-      </section>
-
-      {/* Cada sección con su cabecera y su tarjeta, como en el rediseño: ya no
-          van en una rejilla de dos columnas porque ambos ocupan el ancho
-          completo, y meterlas en una rejilla era lo que dejaba los huecos. */}
-      <div className="mt-gap-md flex flex-col gap-gap-lg">
-        {/* El QR con o sin la marca de La Verde lo decide una función. Se lee
-            de `funciones` y no se consulta al servidor: es cosmético, no un
-            permiso que escriba nada, y las funciones ya vienen resueltas desde
-            `/business/page.tsx`. */}
-        <MenuLinkCard
-          placeId={place.id}
-          placeName={place.name}
-          url={menuUrl}
-          sinMarca={funciones.includes("qr_sin_marca")}
-        />
-
-        {/* Un trabajador no paga ni elige plan: la tarjeta sería un botón que no
-            lleva a ningún sitio. La sección «Planes» tampoco está en su barra. */}
-        {esDueno && (
-          <PlanCard plan={plan} modulos={modulos} onVerPlanes={onVerPlanes} />
-        )}
-      </div>
-    </>
-  );
-}
 
 /** Lo que queda en `localStorage` cuando se sale de la ficha sin guardar. */
 interface BorradorFicha {
@@ -933,10 +757,13 @@ function EditorView({
   place,
   funciones,
   onVerPlanes,
+  seccionInicial = null,
 }: {
   place: UserPlace;
   funciones: Funcion[];
   onVerPlanes: () => void;
+  /** La `FormSection` que se abre al entrar (`?seccion=editor&sub=horario`). */
+  seccionInicial?: string | null;
 }) {
   const router = useRouter();
   const { categories, updatePlace } = usePlaces();
@@ -1007,7 +834,9 @@ function EditorView({
      necesita abrir la sección que falla y llevar el cursor a su campo, y con el
      acordeón cerrado ese campo no existe en el DOM. */
   const [pendiente, setPendiente] = useState(false);
-  const [seccionAbierta, setSeccionAbierta] = useState<string | null>(null);
+  const [seccionAbierta, setSeccionAbierta] = useState<string | null>(
+    seccionInicial,
+  );
   const [seccionInvalida, setSeccionInvalida] = useState<string | null>(null);
   const [enfocarCampo, setEnfocarCampo] = useState<string | null>(null);
 
@@ -1471,6 +1300,7 @@ function EditorView({
 
       <FormSections openId={seccionAbierta} onOpenChange={setSeccionAbierta}>
         <FormSection
+          id="fotos"
           title="Fotos del lugar"
           icon={<ImageIcon size={18} strokeWidth={1.8} />}
         >

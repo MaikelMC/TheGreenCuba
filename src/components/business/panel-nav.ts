@@ -24,9 +24,27 @@ export type PanelView =
   | "equipo"
   | "planes";
 
-export type SubVista = "ajustes" | "reservas" | "precios" | "avisos" | "hoy-hay";
+/** Las secciones plegables del editor de la ficha (`FormSection` con `id`). */
+export const SECCIONES_FICHA = [
+  "fotos",
+  "basico",
+  "contacto",
+  "ubicacion",
+  "horario",
+  "tipo",
+  "marca",
+] as const;
+export type SeccionFicha = (typeof SECCIONES_FICHA)[number];
 
-export type HojaId = "estado" | "negocios";
+export type SubVista =
+  | "ajustes"
+  | "reservas"
+  | "precios"
+  | "avisos"
+  | "hoy-hay"
+  | SeccionFicha;
+
+export type HojaId = "estado" | "negocios" | "tasa" | "sello" | "oferta" | "acciones";
 
 export interface Destino {
   seccion: PanelView;
@@ -54,9 +72,12 @@ const SUBS: Partial<Record<PanelView, readonly SubVista[]>> = {
   /* `hoy-hay` es el modo del catálogo que llega con su rediseño (sesión 4).
      Se acepta ya para que el atajo del manifest no pierda el parámetro. */
   catalogo: ["hoy-hay"],
+  /* Con `sub`, el editor entra con esa sección abierta: es como «Tu ficha está
+     al 80 %» lleva al dueño justo a lo que falta. */
+  editor: SECCIONES_FICHA,
 };
 
-const HOJAS: readonly HojaId[] = ["estado", "negocios"];
+const HOJAS: readonly HojaId[] = ["estado", "negocios", "tasa", "sello", "oferta", "acciones"];
 
 export const INICIO: Destino = { seccion: "dashboard", sub: null };
 
@@ -141,7 +162,7 @@ const TITULOS: Record<string, string> = {
 
 /** El título de una subpantalla, que va junto a la flecha. */
 export function tituloDe(d: Destino): string {
-  return TITULOS[claveDestino(d)] ?? "";
+  return TITULOS[claveDestino(d)] ?? TITULOS[d.seccion] ?? "";
 }
 
 /* ── La última sección usada, por negocio ──────────────────────────────────

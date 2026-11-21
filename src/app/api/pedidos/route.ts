@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { avisarPedidoNuevo } from "@/lib/pedidos-aviso-server";
 import { and, desc, eq, lt } from "drizzle-orm";
 import { canManagePlace } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
@@ -361,20 +362,28 @@ export async function POST(req: NextRequest) {
     programadoPara,
   };
 
+  /* El código con el que quedó guardado, o `null` si no se insertó nada (el
+     mismo pedido reenviado: `onConflictDoNothing` no devuelve fila). Solo un
+     pedido nuevo de verdad avisa por push. */
+  let guardadoCon: string | null = null;
   try {
-    await db
+    const filas = await db
       .insert(pedidos)
       .values({ id: idCliente, codigo: codigoCliente, ...valoresBase })
-      .onConflictDoNothing({ target: pedidos.id });
+      .onConflictDoNothing({ target: pedidos.id })
+      .returning({ id: pedidos.id });
+    if (filas.length > 0) guardadoCon = codigoCliente;
   } catch (err) {
     /* Colisión del unique index (place_id, codigo): añadir sufijo y reintentar. */
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("pedidos_place_codigo_idx")) {
       const codigoAlt = `${codigoCliente.slice(0, 4)}${Math.floor(Math.random() * 10)}`;
-      await db
+      const filas = await db
         .insert(pedidos)
         .values({ id: idCliente, codigo: codigoAlt, ...valoresBase })
-        .onConflictDoNothing({ target: pedidos.id });
+        .onConflictDoNothing({ target: pedidos.id })
+        .returning({ id: pedidos.id });
+      if (filas.length > 0) guardadoCon = codigoAlt;
     }
     /* Cualquier otro error: el pedido salió por WhatsApp igual; no romper.
        Pero sí dejar rastro: antes se tragaba sin más y un pedido que no
@@ -387,6 +396,14 @@ export async function POST(req: NextRequest) {
         error: msg,
       });
     }
+  }
+
+  /* El aviso al dueño va **después** de contestar: el cliente ya mandó su
+     pedido por WhatsApp y no puede esperar a que salgan los push, ni quedarse
+     sin respuesta si fallan. `avisarPedidoNuevo` no lanza nunca. */
+  if (guardadoCon) {
+    const codigoGuardado = guardadoCon;
+    after(() => avisarPedidoNuevo(negocioId, idCliente, codigoGuardado));
   }
 
   return NextResponse.json({ ok: true });

@@ -3,7 +3,8 @@
 import { useCallback, useRef } from "react";
 import Link from "next/link";
 import QRCode from "react-qr-code";
-import { ArrowUpRight, Download, Share2 } from "lucide-react";
+import { ArrowUpRight, Download, QrCode, Share2 } from "lucide-react";
+import { TarjetaPanel } from "@/components/business/ui/tarjeta";
 import { toast } from "sonner";
 import { sharePlace } from "@/lib/share";
 import { slugify } from "@/lib/utils";
@@ -344,6 +345,7 @@ export function MenuLinkCard({
   placeName,
   url,
   sinMarca = false,
+  compacta = false,
 }: {
   placeId: string;
   placeName: string;
@@ -351,6 +353,12 @@ export function MenuLinkCard({
   url: string;
   /** `true` si el negocio tiene Menú Pro: quita la marca de La Verde del QR. */
   sinMarca?: boolean;
+  /**
+   * Una fila con Compartir, Ver mi carta y Descargar QR, para Hoy. El QR se
+   * dibuja igual (oculto) porque la descarga lo rasteriza desde el DOM, y la
+   * marca sigue la misma regla de `qr_sin_marca`.
+   */
+  compacta?: boolean;
 }) {
   const qrBoxRef = useRef<HTMLDivElement>(null);
   /* Ruta relativa derivada de la URL absoluta: la comparte `sharePlace`, que le
@@ -414,6 +422,44 @@ export function MenuLinkCard({
       URL.revokeObjectURL(svgUrl);
     }
   }, [placeId, placeName, sinMarca]);
+
+  const compartir = () =>
+    void sharePlace(placeId, placeName, {
+      path,
+      campaign: "menu_share",
+      text: `Mira la carta de ${placeName}`,
+    });
+
+  if (compacta) {
+    return (
+      <TarjetaPanel className="flex flex-wrap items-center justify-between gap-gap-sm">
+        <div className="min-w-0">
+          <h2 className="flex items-center gap-gap-xs font-lv-display text-body font-semibold text-ink">
+            <QrCode size={18} strokeWidth={1.8} className="text-verde-600" />
+            Tu menú online
+          </h2>
+          <p className="mt-[2px] text-meta text-ink-soft/75">Se abre sin pedir cuenta.</p>
+        </div>
+        <div className="flex flex-wrap gap-gap-xs">
+          <button type="button" onClick={compartir} className={BTN}>
+            <Share2 size={15} strokeWidth={1.8} />
+            Compartir
+          </button>
+          <Link href={`${path}?volver=panel`} target="_blank" className={BTN}>
+            <ArrowUpRight size={15} strokeWidth={1.8} />
+            Ver mi carta
+          </Link>
+          <button type="button" onClick={() => void downloadPng()} className={BTN}>
+            <Download size={15} strokeWidth={1.8} />
+            Descargar QR
+          </button>
+        </div>
+        <div ref={qrBoxRef} aria-hidden className="hidden">
+          <QRCode value={url} size={148} level="M" fgColor={INK} />
+        </div>
+      </TarjetaPanel>
+    );
+  }
 
   return (
     <section>

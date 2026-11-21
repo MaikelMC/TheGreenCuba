@@ -9,6 +9,7 @@ import { accesoNegocio } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { getPlaceById, ownerPlaces, placeStats } from "@/lib/db/queries";
 import { statsVisitas } from "@/lib/eventos-server";
+import { avisosHoy } from "@/lib/hoy-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { DEV_PLACE_ID, devPlace, ownsDevPlace } from "@/lib/dev-place";
 import {
@@ -142,7 +143,21 @@ export default async function BusinessPage({
      que deciden hasta dónde se consulta: un negocio Gratis no paga las otras
      consultas y lo que no tiene contratado no llega a salir de la base. Ver
      `statsVisitas`. */
-  const visitas = await statsVisitas(place.id, funciones);
+  /* «Necesita tu atención» de Hoy va en paralelo con las estadísticas: sus
+     consultas son conteos baratos y solo de lo que el negocio tiene activo
+     (ver `avisosHoy`). Sin publicar no hay panel, así que no se calcula. */
+  const [visitas, avisos] = await Promise.all([
+    statsVisitas(place.id, funciones),
+    place.isActive
+      ? avisosHoy({
+          place,
+          funciones: [...funciones],
+          esDueno: acceso.esDueno,
+          permisos: acceso.permisos,
+          packMedida,
+        })
+      : Promise.resolve([]),
+  ]);
 
   /* El panel se abre cuando un administrador aprueba la solicitud, no al
      enviarla. Antes se abría al momento —el dueño podía rellenar su ficha
@@ -232,6 +247,7 @@ export default async function BusinessPage({
         packMedida={packMedida}
         descuentoPct={descuentoPct}
         destinoInicial={destinoInicial}
+        avisos={avisos}
       />
     </CatalogoProvider>
   );

@@ -12,6 +12,10 @@ export interface MobileDockItem {
   href?: string;
   onSelect?: () => void;
   active?: boolean;
+  /** Un contador sobre el icono (pedidos pendientes). Sin él, no se pinta nada. */
+  badge?: number;
+  /** Qué cuenta el contador, para el lector de pantalla: «pendientes». */
+  badgeLabel?: string;
 }
 
 /**
@@ -44,7 +48,7 @@ export function MobileDock({
       className={cn("fixed inset-x-3 bottom-dock-bottom z-50 lg:hidden", className)}
     >
       <div className="flex items-center gap-1 rounded-full border border-ink/5 bg-white/70 p-1.5 shadow-card backdrop-blur-[20px]">
-        {items.map(({ key, label: text, icon: Icon, href, onSelect, active }) => {
+        {items.map(({ key, label: text, icon: Icon, href, onSelect, active, badge, badgeLabel }) => {
           const itemClass = cn(
             "flex min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-[2px] rounded-full py-2",
             "font-lv-display text-[10px] font-medium transition-colors duration-500 ease-outquint",
@@ -55,8 +59,25 @@ export function MobileDock({
           );
           const content = (
             <>
-              <Icon size={20} strokeWidth={1.8} />
+              {/* `flex` y no `inline`: así el icono no hereda el alto de línea y
+                  el dock mide lo mismo que antes en perfil y proyectos. */}
+              <span className="relative flex">
+                <Icon size={20} strokeWidth={1.8} />
+                {badge ? (
+                  <span
+                    aria-hidden
+                    className="absolute -right-2.5 -top-1.5 min-w-[18px] rounded-full bg-verde-400 px-1 text-center font-lv-display text-[10px] font-bold leading-[18px] text-verde-950"
+                  >
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                ) : null}
+              </span>
               <span className="max-w-full truncate">{text}</span>
+              {badge ? (
+                <span className="sr-only">
+                  {`: ${badge} ${badgeLabel ?? ""}`}
+                </span>
+              ) : null}
             </>
           );
 

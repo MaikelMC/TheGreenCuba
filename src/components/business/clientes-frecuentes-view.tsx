@@ -29,6 +29,8 @@ import {
 } from "@/lib/fidelidad";
 import { enmascararTelefono } from "@/lib/telefono";
 import type { Funcion } from "@/lib/plans";
+import { HojaPanel } from "@/components/business/ui/hoja-panel";
+import { DarSello } from "@/components/business/dar-sello";
 import type { PermisoNegocio } from "@/lib/permisos-negocio";
 import type { Estadisticas } from "@/lib/fidelidad-server";
 import {
@@ -680,9 +682,6 @@ export function ClientesFrecuentesView({
   const [altaAbierta, setAltaAbierta] = useState(false);
   const [selloAbierto, setSelloAbierto] = useState(false);
   const [alta, setAlta] = useState({ telefono: "", nombre: "", sellos: "0", nota: "" });
-  const [selloManual, setSelloManual] = useState<{ modo: "telefono" | "codigo"; valor: string; nota: string }>(
-    { modo: "telefono", valor: "", nota: "" },
-  );
   const [ajuste, setAjuste] = useState({ cantidad: "1", nota: "" });
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
 
@@ -834,41 +833,6 @@ export function ClientesFrecuentesView({
       toast.success("Tarjeta creada.");
       setAltaAbierta(false);
       setAlta({ telefono: "", nombre: "", sellos: "0", nota: "" });
-      void cargar(busqueda);
-    } finally {
-      setOcupado(false);
-    }
-  }
-
-  async function darSelloManual() {
-    if (ocupado) return;
-    const valor = selloManual.valor.trim();
-    if (!valor) {
-      toast.error(selloManual.modo === "telefono" ? "Escribe el teléfono." : "Escribe el código del pedido.");
-      return;
-    }
-    setOcupado(true);
-    try {
-      const res = await fetch(`/api/places/${placeId}/fidelidad/sello`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          selloManual.modo === "telefono"
-            ? { telefono: valor, nota: selloManual.nota.trim() || null }
-            : { codigo: valor },
-        ),
-      });
-      const data = (await res.json().catch(() => null)) as { error?: string; resultado?: { estado: string } } | null;
-      if (!res.ok) { toast.error(data?.error ?? "No se pudo dar el sello."); return; }
-      const estado = data?.resultado?.estado;
-      if (estado === "sumado") toast.success("Sello sumado.");
-      else if (estado === "duplicado") toast.info("Ese pedido ya tenía su sello.");
-      else if (estado === "sin_comprobar") toast.info("No se pudo comprobar la compra mínima.");
-      else if (estado === "bajo_minimo") toast.info("El pedido no llega a la compra mínima.");
-      else if (estado === "sin_telefono") toast.info("Ese pedido no tiene teléfono.");
-      else toast.info("No se sumó el sello.");
-      setSelloAbierto(false);
-      setSelloManual({ modo: "telefono", valor: "", nota: "" });
       void cargar(busqueda);
     } finally {
       setOcupado(false);
@@ -1446,68 +1410,20 @@ export function ClientesFrecuentesView({
       </Dialog>
 
       {/* ── Sello a mano ────────────────────────────────────────────────── */}
-      <Dialog open={selloAbierto} onOpenChange={setSelloAbierto}>
-        <DialogContent className="flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Dar un sello a mano</DialogTitle>
-            <DialogDescription>
-              Para cuando el pedido no quedó guardado. Con el código, el sello pasa por el mismo camino que marcar entregado: no suma dos veces.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex gap-gap-xs">
-            {(["telefono", "codigo"] as const).map((modo) => (
-              <button
-                key={modo}
-                type="button"
-                onClick={() => setSelloManual((s) => ({ ...s, modo, valor: "" }))}
-                aria-pressed={selloManual.modo === modo}
-                className={cn(
-                  "h-11 flex-1 rounded-full border font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/50 focus-visible:ring-offset-2",
-                  selloManual.modo === modo
-                    ? "border-verde-400 bg-verde-400 text-verde-950"
-                    : "border-ink/10 bg-white text-ink",
-                )}
-              >
-                {modo === "telefono" ? "Por teléfono" : "Por código"}
-              </button>
-            ))}
-          </div>
-
-          <input
-            type={selloManual.modo === "telefono" ? "tel" : "text"}
-            value={selloManual.valor}
-            onChange={(e) =>
-              setSelloManual((s) => ({
-                ...s,
-                valor: s.modo === "codigo" ? e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") : e.target.value,
-              }))
-            }
-            placeholder={selloManual.modo === "telefono" ? "+53 5 123 4567" : "Código #XXXXX"}
-            maxLength={20}
-            className={INPUT}
-          />
-
-          {selloManual.modo === "telefono" && (
-            <input
-              type="text"
-              value={selloManual.nota}
-              maxLength={300}
-              aria-label="Nota del sello"
-              placeholder="Nota (opcional)"
-              onChange={(e) => setSelloManual((s) => ({ ...s, nota: e.target.value }))}
-              className={INPUT}
-            />
-          )}
-
-          <DialogFooter>
-            <button type="button" onClick={() => void darSelloManual()} disabled={ocupado} className={cn(BTN_VERDE, "justify-center")}>
-              {ocupado && <Loader2 size={13} className="animate-spin" />}
-              Dar sello
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <HojaPanel
+        open={selloAbierto}
+        onOpenChange={setSelloAbierto}
+        titulo="Dar un sello a mano"
+        descripcion="Busca la tarjeta por teléfono o nombre, o usa el código del pedido."
+      >
+        <DarSello
+          placeId={placeId}
+          onHecho={() => {
+            setSelloAbierto(false);
+            void cargar(busqueda, true);
+          }}
+        />
+      </HojaPanel>
     </div>
   );
 }

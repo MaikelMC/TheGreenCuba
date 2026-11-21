@@ -33,6 +33,7 @@ import { SUPPORT_WHATSAPP } from "@/lib/legal";
 import { BotonIcono } from "./ui/botones";
 import { HojaPanel } from "./ui/hoja-panel";
 import { ListaNegocios, type NegocioPanel } from "./business-switcher";
+import { PendientesProvider, usePedidosPendientes } from "./pedidos-pendientes";
 import {
   COOKIE_ULTIMA,
   INICIO,
@@ -122,6 +123,11 @@ interface PanelShellProps {
   grupos: { titulo: string; items: ItemNav[] }[];
   /** La píldora de estado, bajo el nombre. */
   estado: ReactNode;
+  /**
+   * Si se vigilan los pedidos nuevos desde el armazón (permiso `pedidos` y
+   * función `whatsapp_pedido`): contador, título de la pestaña y sonido.
+   */
+  vigilarPedidos: boolean;
   /** Hojas que dependen de la navegación y se montan dentro del armazón. */
   hojas?: ReactNode;
   children: (destino: Destino) => ReactNode;
@@ -139,6 +145,7 @@ export function PanelShell({
   lateral,
   grupos,
   estado,
+  vigilarPedidos,
   hojas,
   children,
 }: PanelShellProps) {
@@ -278,6 +285,13 @@ export function PanelShell({
 
   return (
     <NavCtx.Provider value={nav}>
+      <PendientesProvider
+        key={negocioId}
+        placeId={negocioId}
+        activo={vigilarPedidos}
+        enPedidos={esPedidos(destino)}
+        onVerPedidos={() => ir({ seccion: "pedidos", sub: null })}
+      >
       <div className="business-panel flex h-dvh flex-col bg-sand font-lv text-ink">
         {/* Barra superior: el negocio (con su estado debajo) a la izquierda y la
             cuenta a la derecha. «Volver al inicio» pasó al menú de la cuenta
@@ -386,16 +400,7 @@ export function PanelShell({
 
         {/* Móvil y tablet: el mismo dock flotante que el perfil y los proyectos.
             Sustituye a la hamburguesa y al cajón lateral. */}
-        <MobileDock
-          label="Secciones del panel"
-          items={dock.map((item) => ({
-            key: claveDestino(item.destino),
-            label: item.label,
-            icon: item.icon,
-            active: marcadoDock === claveDestino(item.destino),
-            onSelect: () => ir(item.destino),
-          }))}
-        />
+        <DockPanel dock={dock} marcado={marcadoDock} ir={ir} />
 
         {variosNegocios && (
           <HojaPanel
@@ -415,7 +420,49 @@ export function PanelShell({
         )}
         {hojas}
       </div>
+      </PendientesProvider>
     </NavCtx.Provider>
+  );
+}
+
+const esPedidos = (d: Destino) => d.seccion === "pedidos" && d.sub === null;
+
+/** El contador de pedidos pendientes junto a «Pedidos» en la barra lateral. */
+function ContadorPedidos({ destino }: { destino: Destino }) {
+  const { pendientes } = usePedidosPendientes();
+  if (!esPedidos(destino) || !pendientes) return null;
+  return (
+    <span className="relative z-10 ml-auto min-w-[22px] rounded-full bg-verde-400 px-[7px] py-[1px] text-center font-lv-display text-meta font-bold text-verde-950">
+      {pendientes > 99 ? "99+" : pendientes}
+      <span className="sr-only"> pendientes</span>
+    </span>
+  );
+}
+
+/** El dock, con el contador de pedidos pendientes sobre «Pedidos». */
+function DockPanel({
+  dock,
+  marcado,
+  ir,
+}: {
+  dock: ItemNav[];
+  marcado: string;
+  ir: (d: Destino) => void;
+}) {
+  const { pendientes } = usePedidosPendientes();
+  return (
+    <MobileDock
+      label="Secciones del panel"
+      items={dock.map((item) => ({
+        key: claveDestino(item.destino),
+        label: item.label,
+        icon: item.icon,
+        active: marcado === claveDestino(item.destino),
+        onSelect: () => ir(item.destino),
+        badge: esPedidos(item.destino) ? (pendientes ?? undefined) : undefined,
+        badgeLabel: "pendientes",
+      }))}
+    />
   );
 }
 
@@ -472,6 +519,7 @@ function BotonLateral({
       )}
       <Icon size={20} strokeWidth={1.8} className="relative z-10 shrink-0" />
       <span className="relative z-10">{item.label}</span>
+      <ContadorPedidos destino={item.destino} />
     </button>
   );
 }

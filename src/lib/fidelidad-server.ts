@@ -1036,6 +1036,83 @@ export async function listarClientes(
   });
 }
 
+export interface ClienteConPremio {
+  clienteId: string;
+  nombre: string | null;
+  telefonoEnmascarado: string;
+  premio: string;
+  /** La meta que se canjea (`canjearMeta`). */
+  metaIndice: number;
+}
+
+/**
+ * Los clientes con un premio listo y sin canjear, para el aviso de Hoy.
+ *
+ * Barato a propósito: solo mira las tarjetas que ya llegan a la meta más baja
+ * (filtro en la base, por el índice de negocio), las 20 más recientes, y sus
+ * canjes del ciclo en una segunda consulta. Devuelve hasta `limite`.
+ */
+export async function clientesConPremio(
+  placeId: string,
+  config: FidelidadConfig,
+  limite = 3,
+): Promise<ClienteConPremio[]> {
+  if (!config.metas.length) return [];
+  const metaMasBaja = Math.min(...config.metas.map((m) => m.sellos));
+
+  const filas = await db
+    .select()
+    .from(clientesFrecuentes)
+    .where(
+      and(
+        eq(clientesFrecuentes.placeId, placeId),
+        sql`${clientesFrecuentes.sellos} >= ${metaMasBaja}`,
+      ),
+    )
+    .orderBy(desc(clientesFrecuentes.actualizadoEn))
+    .limit(20);
+  if (filas.length === 0) return [];
+
+  const canjes = await db
+    .select({
+      clienteId: movimientosSellos.clienteId,
+      ciclo: movimientosSellos.ciclo,
+      meta: movimientosSellos.metaIndice,
+    })
+    .from(movimientosSellos)
+    .where(
+      and(
+        eq(movimientosSellos.placeId, placeId),
+        eq(movimientosSellos.tipo, "canje"),
+        inArray(
+          movimientosSellos.clienteId,
+          filas.map((f) => f.id),
+        ),
+      ),
+    );
+
+  const listos: ClienteConPremio[] = [];
+  for (const fila of filas) {
+    const cliente = aClienteTarjeta(fila);
+    const canjeadas = canjes
+      .filter((c) => c.clienteId === cliente.id && c.ciclo === cliente.ciclo)
+      .map((c) => c.meta)
+      .filter((meta): meta is number => meta !== null && meta >= 0);
+    const tarjeta = estadoTarjeta(config, cliente.sellos, cliente.ciclo, canjeadas);
+    const indice = tarjeta.metas.findIndex((m) => m.alcanzada && !m.canjeada);
+    if (indice < 0) continue;
+    listos.push({
+      clienteId: cliente.id,
+      nombre: cliente.nombre,
+      telefonoEnmascarado: enmascararTelefono(cliente.telefono) ?? cliente.telefono,
+      premio: tarjeta.metas[indice]!.premio,
+      metaIndice: indice,
+    });
+    if (listos.length >= limite) break;
+  }
+  return listos;
+}
+
 export interface MovimientoVista {
   id: string;
   tipo: "sello" | "ajuste" | "canje" | "reversion";

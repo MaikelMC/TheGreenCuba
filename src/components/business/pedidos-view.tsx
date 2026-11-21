@@ -7,9 +7,11 @@ import {
   ChevronRight,
   ClipboardList,
   Clock,
+  Ellipsis,
   Gift,
   Loader2,
   MapPin,
+  MessageCircle,
   RefreshCw,
   Search,
   ShoppingBag,
@@ -22,8 +24,14 @@ import { cn, currencyLabel, formatMenuPrice } from "@/lib/utils";
 import { totalDePedido, type LineaPedido } from "@/lib/pedido";
 import { bloqueoDe, type Funcion } from "@/lib/plans";
 import { useCatalogo } from "@/providers/catalogo-provider";
+import { BotonPrimario, BotonSecundario } from "@/components/business/ui/botones";
+import { HojaPanel } from "@/components/business/ui/hoja-panel";
+import { DarSello } from "@/components/business/dar-sello";
+import { usePanelNav } from "@/components/business/panel-shell";
+import { usePedidosPendientes } from "@/components/business/pedidos-pendientes";
 
 type EstadoPedido = "nuevo" | "completado" | "cancelado";
+type Pestana = "pendientes" | "todos" | "programados";
 
 interface Pedido {
   id: string;
@@ -184,18 +192,27 @@ function Metrica({
 
 /* ── tarjeta de pedido ──────────────────────────────────────────────────── */
 
+/**
+ * Un pedido. Una acción principal —«Marcar entregado», a todo el ancho, que
+ * pasa a `completado` y con eso suma el sello solo (`alCompletarPedido`)—, una
+ * secundaria —«Avisar» por WhatsApp— y el resto en «⋯»: sello a mano, canjear
+ * y cancelar (con confirmación; cancelar descuenta el sello).
+ */
 function TarjetaPedido({
   pedido,
   actualizando,
-  onCambiar,
-  onCanjear,
-  onDarSello,
+  resaltado,
+  onEntregado,
+  onAvisar,
+  onMas,
 }: {
   pedido: Pedido;
   actualizando: boolean;
-  onCambiar: (id: string, estado: EstadoPedido) => void;
-  onCanjear: (pedido: Pedido) => void;
-  onDarSello: () => void;
+  /** El pedido que pidió la URL (`&pedido=`): se marca un momento. */
+  resaltado: boolean;
+  onEntregado: () => void;
+  onAvisar: () => void;
+  onMas: () => void;
 }) {
   const total = totalDePedido(pedido.lineas);
   const esProgramado = Boolean(pedido.programadoPara);
@@ -203,11 +220,13 @@ function TarjetaPedido({
 
   return (
     <li
+      id={`pedido-${pedido.id}`}
       className={cn(
         "overflow-hidden rounded-2xl border border-ink/5 bg-white shadow-soft transition-opacity duration-300",
         "border-l-[3px]",
         BORDE_ESTADO[pedido.estado],
         actualizando && "opacity-60",
+        resaltado && "ring-2 ring-verde-400",
       )}
     >
       {/* Banner de programado */}
@@ -366,56 +385,44 @@ function TarjetaPedido({
             ) : null}
           </div>
 
-          {esPendiente && (
-            <div className="flex flex-wrap items-center gap-[6px]">
-              {pedido.tarjeta?.premio && (
-                <button
-                  type="button"
-                  onClick={() => onCanjear(pedido)}
-                  disabled={actualizando}
-                  className={BTN_GHOST}
-                >
-                  <Gift size={13} strokeWidth={1.8} />
-                  Canjear
-                </button>
-              )}
-              {pedido.telefonoCliente && (
-                <button
-                  type="button"
-                  onClick={onDarSello}
-                  disabled={actualizando}
-                  className={BTN_GHOST}
-                  title="Si el pedido ya estaba entregado y no sumó sello"
-                >
-                  <Stamp size={13} strokeWidth={1.8} />
-                  Sello a mano
-                </button>
-              )}
+          <div className="flex items-center gap-[6px]">
+            {pedido.telefonoCliente && (
               <button
                 type="button"
-                onClick={() => onCambiar(pedido.id, "completado")}
-                disabled={actualizando}
-                className="inline-flex h-11 cursor-pointer items-center gap-[5px] rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-300 ease-outquint hover:bg-verde-300 disabled:pointer-events-none disabled:opacity-40"
-              >
-                {actualizando ? (
-                  <Loader2 size={13} strokeWidth={1.8} className="animate-spin" />
-                ) : (
-                  <Check size={13} strokeWidth={2.5} />
-                )}
-                Entregado
-              </button>
-              <button
-                type="button"
-                onClick={() => onCambiar(pedido.id, "cancelado")}
+                onClick={onAvisar}
                 disabled={actualizando}
                 className={BTN_GHOST}
               >
-                <X size={13} strokeWidth={2} />
-                Cancelar
+                <MessageCircle size={13} strokeWidth={1.8} />
+                Avisar
               </button>
-            </div>
-          )}
+            )}
+            <button
+              type="button"
+              onClick={onMas}
+              disabled={actualizando}
+              aria-label={`Más acciones del pedido${pedido.codigo ? ` #${pedido.codigo}` : ""}`}
+              className={cn(BTN_GHOST, "w-11 justify-center px-0")}
+            >
+              <Ellipsis size={16} strokeWidth={1.8} />
+            </button>
+          </div>
         </div>
+
+        {esPendiente && (
+          <BotonPrimario
+            onClick={onEntregado}
+            disabled={actualizando}
+            className="mt-gap-sm w-full"
+          >
+            {actualizando ? (
+              <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
+            ) : (
+              <Check size={16} strokeWidth={2.5} />
+            )}
+            Marcar entregado
+          </BotonPrimario>
+        )}
       </div>
     </li>
   );
@@ -427,16 +434,16 @@ export function PedidosView({
   placeId,
   funciones,
   onVerPlanes,
-  onVerClientes,
 }: {
   placeId: string;
   funciones: Funcion[];
   onVerPlanes: () => void;
-  /** Lleva a «Frecuentes» para dar un sello a mano o canjear. */
-  onVerClientes?: () => void;
 }) {
   const cat = useCatalogo();
+  const nav = usePanelNav();
+  const { pendientes: pendientesArmazon, ultimoId } = usePedidosPendientes();
   const bloqueo = bloqueoDe(funciones, "whatsapp_pedido", cat);
+  const tieneSellos = funciones.includes("cliente_frecuente");
 
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [fidelidad, setFidelidad] = useState<{
@@ -454,13 +461,23 @@ export function PedidosView({
   pedidosRef.current = pedidos;
   const [cargandoMas, setCargandoMas] = useState(false);
   const [actualizando, setActualizando] = useState<string | null>(null);
-  const [tab, setTab] = useState<"todos" | "programados">("todos");
+  const [tab, setTab] = useState<Pestana>("todos");
+  /* La pestaña se decide una vez, con la primera carga: Pendientes si hay
+     alguno (es lo que viene a atender quien abre Pedidos), Todos si no. */
+  const pestanaElegida = useRef(false);
   const [busqueda, setBusqueda] = useState("");
+  /* El pedido del menú «⋯» y el teléfono para «Sello a mano». */
+  const [seleccionado, setSeleccionado] = useState<Pedido | null>(null);
+  const [telefonoSello, setTelefonoSello] = useState("");
+  /* El pedido que pide la URL (`&pedido=`, desde el push): se abre y se
+     resalta un momento. */
+  const [resaltado, setResaltado] = useState<string | null>(null);
 
   /**
    * Carga la primera página. `silencioso` es el refresco de fondo: no pinta el
-   * esqueleto ni borra un error a medias, conserva las páginas anteriores que
-   * el dueño ya abrió y avisa si entró algún pedido nuevo.
+   * esqueleto ni borra un error a medias y conserva las páginas anteriores que
+   * el dueño ya abrió. El aviso de «pedido nuevo» ya no sale de aquí: lo da el
+   * armazón, en cualquier pantalla (`pedidos-pendientes.tsx`).
    */
   const cargar = useCallback(async (silencioso = false) => {
     if (!silencioso) {
@@ -483,19 +500,16 @@ export function PedidosView({
       if (!silencioso) {
         setPedidos(pagina);
       } else {
-        /* Se lee de la ref y no dentro de `setPedidos(prev => …)`: el aviso es
-           un efecto, y React ejecuta dos veces esa función en desarrollo. */
-        const prev = pedidosRef.current;
-        const conocidos = new Set(prev.map((p) => p.id));
-        const nuevos = pagina.filter((p) => !conocidos.has(p.id)).length;
         /* La página fresca manda; detrás, lo más antiguo que ya estaba
            cargado y que esta página no cubre. */
+        const prev = pedidosRef.current;
         const ultima = pagina.at(-1)?.createdAt;
         const antiguos = ultima ? prev.filter((p) => p.createdAt < ultima) : [];
         setPedidos([...pagina, ...antiguos]);
-        if (nuevos > 0 && prev.length > 0) {
-          toast.success(nuevos === 1 ? "Ha entrado un pedido nuevo" : `Han entrado ${nuevos} pedidos nuevos`);
-        }
+      }
+      if (!pestanaElegida.current) {
+        pestanaElegida.current = true;
+        if (pagina.some((p) => p.estado === "nuevo")) setTab("pendientes");
       }
       if (!silencioso) setHayMas(data.hayMas ?? false);
       setPuede(data.puede ?? false);
@@ -533,21 +547,68 @@ export function PedidosView({
 
   useEffect(() => { void cargar(); }, [cargar]);
 
-  /* Al volver de WhatsApp (o de cualquier pestaña) y cada minuto con el panel
-     a la vista: en la tienda el panel se queda abierto y un pedido nuevo no se
-     veía hasta tocar algo. En silencio, para no hacer parpadear la lista. Un
-     minuto de sondeo son unos pocos KB: cabe en cualquier plan de datos. */
+  /* La lista se recarga en silencio cuando el armazón ve que algo cambió (un
+     pedido nuevo, o uno atendido desde otro teléfono). El armazón pregunta
+     cada minuto y al volver a la pestaña con unos pocos bytes; la lista entera
+     solo se baja cuando hace falta. La primera lectura no recarga: la lista ya
+     se acaba de pedir. */
+  const vistoArmazon = useRef(false);
   useEffect(() => {
-    const refresh = () => {
-      if (document.visibilityState === "visible") void cargar(true);
-    };
-    document.addEventListener("visibilitychange", refresh);
-    const intervalo = setInterval(refresh, 60_000);
-    return () => {
-      document.removeEventListener("visibilitychange", refresh);
-      clearInterval(intervalo);
-    };
-  }, [cargar]);
+    if (pendientesArmazon === null) return;
+    if (!vistoArmazon.current) {
+      vistoArmazon.current = true;
+      return;
+    }
+    void cargar(true);
+  }, [pendientesArmazon, ultimoId, cargar]);
+
+  /* `&pedido=` en la URL (el push de «pedido nuevo» lleva ahí): en cuanto el
+     pedido está en la lista, se enseña en Todos, se lleva a la vista y se
+     resalta. El parámetro se quita para que no vuelva a saltar al navegar. */
+  useEffect(() => {
+    if (cargando) return;
+    const url = new URL(window.location.href);
+    const id = url.searchParams.get("pedido");
+    if (!id) return;
+    url.searchParams.delete("pedido");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    if (!pedidosRef.current.some((p) => p.id === id)) return;
+    setTab("todos");
+    setResaltado(id);
+    window.setTimeout(() => {
+      document.getElementById(`pedido-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+    const t = window.setTimeout(() => setResaltado(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [cargando]);
+
+  function abrirAcciones(pedido: Pedido) {
+    setSeleccionado(pedido);
+    nav.abrirHoja("acciones");
+  }
+
+  function abrirSello(pedido: Pedido) {
+    setTelefonoSello(pedido.telefonoCliente ?? "");
+    nav.abrirHoja("sello");
+  }
+
+  /* Un enlace directo a `&hoja=acciones` no trae pedido: no hay nada que enseñar. */
+  useEffect(() => {
+    if (nav.hoja === "acciones" && !seleccionado) nav.cerrarHoja();
+  }, [nav, seleccionado]);
+
+  /** WhatsApp al cliente, con el código del pedido ya escrito. */
+  function avisarPorWhatsapp(pedido: Pedido) {
+    const telefono = pedido.telefonoCliente?.replace(/\D/g, "");
+    if (!telefono) return;
+    const negocio = fidelidad.negocioNombre;
+    const texto = `Hola, te escribimos${negocio ? ` de ${negocio}` : ""} por tu pedido${pedido.codigo ? ` #${pedido.codigo}` : ""}. `;
+    window.open(
+      `https://wa.me/${telefono}?text=${encodeURIComponent(texto)}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }
 
   /**
    * El mensaje para avisar al cliente de su sello.
@@ -604,7 +665,8 @@ export function PedidosView({
       const sello = data?.sello;
       if (sello?.estado === "sumado" && sello.tarjeta) {
         const meta = sello.tarjeta.siguiente ?? sello.tarjeta.metaFinal;
-        const texto = `Sello sumado · ${sello.telefonoEnmascarado ?? ""} · ${sello.tarjeta.sellos} de ${meta.sellos}`;
+        const quien = pedido?.tarjeta?.nombre?.trim() || sello.telefonoEnmascarado || "el cliente";
+        const texto = `Entregado · +1 sello para ${quien} · ${sello.tarjeta.sellos} de ${meta.sellos}`;
         const puedeAvisar = Boolean(pedido?.telefonoCliente && fidelidad.slug);
         toast.success(texto, {
           action:
@@ -619,16 +681,19 @@ export function PedidosView({
            «X de Y sellos» de la ficha enseñen el saldo de ahora. */
         void cargar();
       } else if (sello?.estado === "sin_comprobar") {
-        toast.info("No sumó sello: no se pudo comprobar la compra mínima", {
-          action: onVerClientes
-            ? { label: "Dar sello a mano", onClick: onVerClientes }
-            : undefined,
+        toast.info("Entregado. No sumó sello: no se pudo comprobar la compra mínima", {
+          action:
+            pedido && tieneSellos
+              ? { label: "Dar sello a mano", onClick: () => abrirSello(pedido) }
+              : undefined,
         });
       } else if (sello?.estado === "bajo_minimo") {
         const minimo = sello.minimo;
         toast.info(
-          `No llega a la compra mínima (${minimo?.monto ?? ""} ${currencyLabel(minimo?.moneda ?? "")})`,
+          `Entregado. Bajo la compra mínima (${minimo?.monto ?? ""} ${currencyLabel(minimo?.moneda ?? "")}): no suma sello`,
         );
+      } else if (sello?.estado === "sin_telefono") {
+        toast.info("Entregado. Sin teléfono: no suma sello");
       } else if (sello?.estado === "duplicado") {
         toast.success("Pedido marcado como entregado. Ese pedido ya tenía su sello.");
         void cargar();
@@ -654,6 +719,9 @@ export function PedidosView({
       toast.info("Ese premio no está disponible.");
       return;
     }
+    /* El canje no tiene inversa: se pregunta antes. */
+    const quien = tarjeta.nombre?.trim() || tarjeta.telefonoEnmascarado;
+    if (!window.confirm(`¿Canjear «${premio.premio}» para ${quien}?`)) return;
     try {
       const res = await fetch(
         `/api/places/${placeId}/clientes-frecuentes/${tarjeta.clienteId}/canje`,
@@ -684,15 +752,27 @@ export function PedidosView({
   /* ── lista filtrada ───────────────────────────────────────────────────── */
 
   const lista = pedidos
-    .filter((p) => tab === "programados" ? Boolean(p.programadoPara) : true)
+    .filter((p) =>
+      tab === "pendientes"
+        ? p.estado === "nuevo"
+        : tab === "programados"
+          ? Boolean(p.programadoPara)
+          : true,
+    )
     .filter((p) => !busqueda || Boolean(p.codigo?.includes(busqueda)));
+
+  const pestanas: { id: Pestana; label: string; n: number }[] = [
+    { id: "pendientes", label: "Pendientes", n: nuevos.length },
+    { id: "todos", label: "Todos", n: pedidos.length },
+    ...(hayProgramados
+      ? [{ id: "programados" as const, label: "Programados", n: pedidos.filter((p) => p.programadoPara).length }]
+      : []),
+  ];
 
   /* ── render ───────────────────────────────────────────────────────────── */
 
   return (
     <div className="flex flex-1 flex-col gap-gap-md">
-      <h1 className="sr-only">Pedidos</h1>
-
       {/* ── Métricas ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-gap-sm sm:grid-cols-4">
         <Metrica
@@ -717,7 +797,7 @@ export function PedidosView({
           icon={X}
           valor={pedidos.filter((p) => p.estado === "cancelado").length}
           label="Cancelados"
-          color="bg-destructive/8 text-destructive/70"
+          color="bg-destructive/10 text-destructive/70"
         />
       </div>
 
@@ -748,25 +828,32 @@ export function PedidosView({
 
       {/* ── Controles: tabs + búsqueda + actualizar ──────────────────── */}
       <div className="flex flex-wrap items-center gap-gap-sm">
-        {hayProgramados && (
-          <div className="flex gap-[6px]">
-            {(["todos", "programados"] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTab(t)}
-                className={cn(
-                  "h-11 rounded-full border px-gap-sm font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint",
-                  tab === t
-                    ? "border-verde-400 bg-verde-400 text-verde-950"
-                    : "border-ink/10 bg-white text-ink hover:border-verde-300",
-                )}
-              >
-                {t === "todos" ? "Todos" : "Programados"}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Fila que se desliza en horizontal en el móvil, sin barra visible y
+            hasta el borde, para que se note que hay más. */}
+        <div
+          role="tablist"
+          aria-label="Qué pedidos ver"
+          className="scrollbar-hide -mx-gap-sm flex max-w-full gap-[6px] overflow-x-auto px-gap-sm sm:mx-0 sm:px-0"
+        >
+          {pestanas.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "inline-flex h-11 shrink-0 cursor-pointer items-center gap-[6px] rounded-full border px-gap-sm font-lv-display text-meta font-semibold transition-colors duration-300 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40",
+                tab === t.id
+                  ? "border-verde-400 bg-verde-400 text-verde-950"
+                  : "border-ink/10 bg-white text-ink hover:border-verde-300",
+              )}
+            >
+              {t.label}
+              <span className="tabular-nums opacity-75">{t.n}</span>
+            </button>
+          ))}
+        </div>
 
         <div className="relative ml-auto">
           <Search
@@ -823,7 +910,9 @@ export function PedidosView({
               ? "Ningún pedido coincide con esa búsqueda"
               : tab === "programados"
                 ? "No hay pedidos programados aún"
-                : puede
+                : tab === "pendientes"
+                  ? "No hay pedidos pendientes"
+                  : puede
                   ? "Todavía no hay pedidos"
                   : "Sin pedidos registrados"}
           </p>
@@ -840,9 +929,10 @@ export function PedidosView({
               key={pedido.id}
               pedido={pedido}
               actualizando={actualizando === pedido.id}
-              onCambiar={(id, estado) => void cambiarEstado(id, estado)}
-              onCanjear={(p) => void canjearPremio(p)}
-              onDarSello={() => onVerClientes?.()}
+              resaltado={resaltado === pedido.id}
+              onEntregado={() => void cambiarEstado(pedido.id, "completado")}
+              onAvisar={() => avisarPorWhatsapp(pedido)}
+              onMas={() => abrirAcciones(pedido)}
             />
           ))}
         </ul>
@@ -861,6 +951,88 @@ export function PedidosView({
           {cargandoMas && <Loader2 size={15} strokeWidth={1.8} className="animate-spin" aria-hidden />}
           {cargandoMas ? "Cargando…" : "Ver pedidos anteriores"}
         </button>
+      )}
+
+      {/* «⋯» de un pedido: lo que no es lo de todos los días. */}
+      <HojaPanel
+        open={nav.hoja === "acciones" && seleccionado !== null}
+        onOpenChange={(open) => {
+          if (!open) nav.cerrarHoja();
+        }}
+        titulo={seleccionado?.codigo ? `Pedido #${seleccionado.codigo}` : "Pedido"}
+      >
+        {seleccionado && (
+          <div className="flex flex-col gap-gap-xs">
+            {tieneSellos && seleccionado.telefonoCliente && (
+              <BotonSecundario
+                className="w-full !justify-start"
+                onClick={() => abrirSello(seleccionado)}
+              >
+                <Stamp size={16} strokeWidth={1.8} />
+                Sello a mano
+              </BotonSecundario>
+            )}
+            {seleccionado.tarjeta?.premio && seleccionado.estado === "nuevo" && (
+              <BotonSecundario
+                className="w-full !justify-start"
+                onClick={() => {
+                  nav.cerrarHoja();
+                  void canjearPremio(seleccionado);
+                }}
+              >
+                <Gift size={16} strokeWidth={1.8} />
+                Canjear «{seleccionado.tarjeta.premio}»
+              </BotonSecundario>
+            )}
+            {seleccionado.estado === "nuevo" && (
+              <BotonSecundario
+                className="w-full !justify-start !text-destructive"
+                onClick={() => {
+                  if (
+                    !window.confirm(
+                      seleccionado.tarjeta
+                        ? "¿Cancelar este pedido? Si sumó sello, se le descuenta."
+                        : "¿Cancelar este pedido?",
+                    )
+                  ) {
+                    return;
+                  }
+                  nav.cerrarHoja();
+                  void cambiarEstado(seleccionado.id, "cancelado");
+                }}
+              >
+                <X size={16} strokeWidth={2} />
+                Cancelar pedido
+              </BotonSecundario>
+            )}
+            {seleccionado.estado !== "nuevo" && !(tieneSellos && seleccionado.telefonoCliente) && (
+              <p className="text-meta text-ink-soft/75">
+                Este pedido ya está {seleccionado.estado === "completado" ? "entregado" : "cancelado"}.
+              </p>
+            )}
+          </div>
+        )}
+      </HojaPanel>
+
+      {tieneSellos && (
+        <HojaPanel
+          open={nav.hoja === "sello"}
+          onOpenChange={(open) => {
+            if (!open) nav.cerrarHoja();
+          }}
+          titulo="Sello a mano"
+          descripcion="Para cuando el pedido ya estaba entregado y no sumó sello."
+        >
+          <DarSello
+            key={telefonoSello}
+            placeId={placeId}
+            telefonoInicial={telefonoSello}
+            onHecho={() => {
+              nav.cerrarHoja();
+              void cargar(true);
+            }}
+          />
+        </HojaPanel>
       )}
     </div>
   );

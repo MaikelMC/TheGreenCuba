@@ -297,6 +297,16 @@ de copiar clases. Combinan con `clsx`, **no** con `cn`: `tailwind-merge` no cono
 | `CandadoPlan` | `candado-plan.tsx` | «Ver los planes» + línea meta. El texto de `bloqueoDe` va en la `Chapita` de la cabecera |
 | `HojaPanel` | `hoja-panel.tsx` | `Sheet` inferior en móvil, `Dialog` en escritorio (≥ 1024 px). Lleva `panel-portal` y aspa de 44 px |
 
+Piezas de pantalla reutilizables (en `src/components/business/`):
+
+| Pieza | Archivo | Notas |
+|---|---|---|
+| `DarSello` | `dar-sello.tsx` | Sello a mano por teléfono/nombre (búsqueda mientras se escribe, «Deshacer» 6 s) o por código. Hoy, Pedidos y Clientes |
+| `OfertaRapida` | `oferta-rapida.tsx` | Producto + rebaja + duración, con `validarOferta` y el tope del plan |
+| `AvisosPedidosCard` | `avisos-pedidos-card.tsx` | Sonido/vibración (por teléfono) y alta de push con botón explícito |
+| `PendientesProvider` / `usePedidosPendientes` | `pedidos-pendientes.tsx` | Sondeo ligero de pedidos pendientes en el armazón: contador, título y sonido |
+| Fila de aviso de Hoy | `hoy-view.tsx` | Disco de icono 40 px + título + detalle + `BotonSecundario` con la acción; ámbar `bg-lv-amber/10` para lo urgente |
+
 **Portales**: todo `SheetContent`, `DialogContent` o `SelectContent` abierto desde el
 panel lleva la clase `panel-portal`; `globals.css` le extiende los overrides
 oscuros de `.business-panel`. Scroll vertical fino: `scrollbar-fino`.

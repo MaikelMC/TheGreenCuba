@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Store } from "lucide-react";
 import { clsx } from "clsx";
@@ -48,6 +49,30 @@ export function ListaNegocios({
 }) {
   const router = useRouter();
 
+  /* Lo que espera en cada negocio: sus pedidos pendientes, con el mismo
+     endpoint ligero que el contador del dock. Se pregunta al abrir la hoja (la
+     lista solo se monta entonces), uno por negocio —una cuenta tiene dos o
+     tres—. Sin permiso de pedidos en un negocio, ese no dice nada. */
+  const [pendientes, setPendientes] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let vivo = true;
+    for (const negocio of negocios) {
+      void fetch(`/api/pedidos/pendientes?placeId=${encodeURIComponent(negocio.id)}`)
+        .then((res) => (res.ok ? (res.json() as Promise<{ pendientes?: number }>) : null))
+        .then((data) => {
+          if (vivo && data?.pendientes) {
+            setPendientes((p) => ({ ...p, [negocio.id]: data.pendientes ?? 0 }));
+          }
+        })
+        .catch(() => {
+          /* Sin red, sin cifra: la lista sigue sirviendo para cambiar. */
+        });
+    }
+    return () => {
+      vivo = false;
+    };
+  }, [negocios]);
+
   const cambiar = (id: string) => {
     if (id === seleccionado) {
       onCerrar();
@@ -88,6 +113,9 @@ export function ListaNegocios({
                 </span>
                 <span className="block text-meta text-ink-soft/75">
                   {negocio.esPrueba ? "Negocio de prueba" : "Tu negocio"}
+                  {pendientes[negocio.id]
+                    ? ` · ${pendientes[negocio.id]} ${pendientes[negocio.id] === 1 ? "pedido pendiente" : "pedidos pendientes"}`
+                    : ""}
                 </span>
               </span>
               {activo && (
