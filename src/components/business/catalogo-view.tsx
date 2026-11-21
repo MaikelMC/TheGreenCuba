@@ -11,23 +11,39 @@ import {
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { clsx } from "clsx";
 import { mensajeDeRed } from "@/lib/errores-red";
 import {
+  Ellipsis,
   Eye,
   EyeOff,
   FileUp,
   Image as ImageIcon,
   Loader2,
   Lock,
+  Megaphone,
+  Pencil,
   Plus,
   Save,
   Search,
+  Tag,
   Trash2,
   X,
 } from "lucide-react";
 import { cn, menuTagFallback, menuTagStyles } from "@/lib/utils";
-import { INPUT_NATIVO } from "@/components/business/ui/clases";
-import { BotonPrimario } from "@/components/business/ui/botones";
+import { INPUT_NATIVO, TONO_CHAPITA } from "@/components/business/ui/clases";
+import {
+  BotonIcono,
+  BotonPrimario,
+  BotonSecundario,
+  BotonTexto,
+} from "@/components/business/ui/botones";
+import { Chapita, TarjetaPanel } from "@/components/business/ui/tarjeta";
+import { CandadoPlan } from "@/components/business/ui/candado-plan";
+import { Switch } from "@/components/business/ui/switch";
+import { HojaPanel } from "@/components/business/ui/hoja-panel";
+import { OfertaRapida } from "@/components/business/oferta-rapida";
+import { usePanelNav } from "@/components/business/panel-shell";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -36,7 +52,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { aGuardar, conIds, diferenciasCatalogo, huella } from "@/lib/catalogo";
+import {
+  aGuardar,
+  conIds,
+  diferenciasCatalogo,
+  huella,
+  type OperacionesCatalogo,
+} from "@/lib/catalogo";
 import { convertirPrecio } from "@/lib/productos";
 import { DEV_PLACE_ID } from "@/lib/dev-place-id";
 import { AvailabilityControl } from "@/components/business/menu-item-editor";
@@ -45,8 +67,8 @@ import { usePlaces } from "@/providers/places-provider";
 import { useCatalogo } from "@/providers/catalogo-provider";
 import { prepareImage } from "@/lib/storage/compress";
 import { pruneMenuImages } from "@/lib/menu-images";
-import { estaAgotado, type Disponibilidad } from "@/lib/disponibilidad";
-import { limiteDe, type Funcion } from "@/lib/plans";
+import { estaAgotado, hastaManana, type Disponibilidad } from "@/lib/disponibilidad";
+import { bloqueoDe, limiteDe, type Funcion } from "@/lib/plans";
 import { registrarGuarda } from "@/lib/unsaved-guard";
 import type { UserPlace, UserPlaceMenuItem } from "@/lib/places-store";
 import { preciosDeItem, type ConfigTasa } from "@/lib/precios";
@@ -72,8 +94,8 @@ const INPUT = `${INPUT_NATIVO} sm:text-small`;
 const BOTON =
   "inline-flex items-center justify-center gap-gap-xs h-11 px-gap-lg rounded-full font-lv-display text-small font-semibold transition duration-500 ease-outquint active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2";
 
-/** Clave del borrador del catálogo en curso, por negocio. */
-function claveBorrador(placeId: string): string {
+/** El borrador del catálogo entero de antes del guardado por producto. */
+function claveBorradorViejo(placeId: string): string {
   return `la-verde:catalogo-borrador:${placeId}`;
 }
 
@@ -82,133 +104,145 @@ function limpiarPrecio(valor: string): string {
   return valor.replace(/[^\d.,\s]/g, "").slice(0, 14);
 }
 
+const OPS_VACIAS: OperacionesCatalogo = { crear: [], actualizar: [], borrar: [] };
+
 /**
- * Cuántos productos se han tocado desde el último guardado: altas, bajas y
- * cambios de campo. `huella()` ya dice **si** hay cambios; esto dice cuántos,
- * que es lo que necesita el aviso de la barra.
+ * Las mismas operaciones, aplicadas sobre la lista en el navegador. Solo para el
+ * negocio de prueba, que guarda su carta entera con el `PATCH` de la ficha.
  */
-function contarCambios(
-  actual: UserPlaceMenuItem[],
-  guardado: UserPlaceMenuItem[],
-): number {
-  const antes = new Map(
-    guardado.map((item) => [item.id, JSON.stringify(item)]),
-  );
-  let cambios = 0;
-  for (const item of actual) {
-    if (antes.get(item.id) !== JSON.stringify(item)) cambios += 1;
-    antes.delete(item.id);
-  }
-  return cambios + antes.size;
+function aplicarLocal(
+  items: UserPlaceMenuItem[],
+  ops: OperacionesCatalogo,
+): UserPlaceMenuItem[] {
+  const lista = items
+    .filter((item) => !ops.borrar.includes(item.id ?? ""))
+    .map((item) => {
+      const op = ops.actualizar.find((o) => o.id === item.id);
+      if (!op) return item;
+      const fusion: Record<string, unknown> = { ...item };
+      for (const [campo, valor] of Object.entries(op.cambios)) {
+        if (valor === null || valor === undefined) delete fusion[campo];
+        else fusion[campo] = valor;
+      }
+      return fusion as unknown as UserPlaceMenuItem;
+    });
+  for (const { idTemporal, item } of ops.crear) lista.push({ ...item, id: idTemporal });
+  return lista;
+}
+
+type Resultado =
+  | {
+      ok: true;
+      productos: UserPlaceMenuItem[];
+      conflictos: { id: string; actual: UserPlaceMenuItem | null }[];
+    }
+  | { ok: false; error: string };
+
+interface Edicion {
+  /** `null` = producto nuevo. */
+  original: UserPlaceMenuItem | null;
+  /** Con lo que se abrió la hoja: decide si hay cambios sin guardar. */
+  inicial: UserPlaceMenuItem;
+  draft: UserPlaceMenuItem;
+  /** Otro lo cambió desde el móvil: `null` si ya no existe. */
+  conflicto?: UserPlaceMenuItem | null;
 }
 
 /**
- * El catálogo, en su propia sección.
+ * El catálogo, con dos modos:
  *
- * Antes esto vivía dentro de «Editar ficha», como una lista más entre el horario
- * y las ofertas. Y no son la misma cosa: la ficha se rellena una vez y se deja
- * quieta; el catálogo se cambia cada semana, se busca un plato concreto, se
- * marca lo que se acabó. Aquí está con lo que eso pide —buscador, filtro por
- * categoría, grupos— y con la importación por CSV, que hasta ahora solo existía
- * en administración.
+ * - **Hoy hay** (por defecto en el móvil): la lista corta para el día a día,
+ *   con el interruptor Hay/Agotado de cada producto. Guarda al momento por la
+ *   ruta de disponibilidad y el aviso trae «Deshacer». «⋯» → agotado hasta
+ *   mañana.
+ * - **Editar carta**: la lista con miniaturas. Tocar un producto lo abre en una
+ *   hoja con su propio «Guardar», que manda **una sola operación** a
+ *   `POST /api/places/[id]/productos`: los cambios de ese producto con su
+ *   versión. El servidor fusiona solo esos campos sobre la fila actual y, si
+ *   otro la cambió mientras tanto (Telegram, otro trabajador), devuelve un
+ *   conflicto en vez de pisarla: la hoja avisa «cambió desde el móvil».
  *
- * La lista se guarda entera con el mismo `PATCH` de la ficha, en su propia
- * barra: el editor ya no manda `menu`, así que guardar la ficha no puede pisar
- * lo que se cambie aquí. Y lo que no se ha guardado no se pierde porque la
- * pantalla se cierre: queda un borrador en `localStorage` que se ofrece al
- * volver, además del aviso antes de salir de la sección.
+ * Con el guardado por producto ya no hay barra global de guardar ni borrador de
+ * la carta entera. El negocio de prueba, que no tiene filas en `productos`,
+ * guarda igual por producto pero con el `PATCH` de la ficha y la carta entera.
  */
 export function CatalogoView({
   place,
   funciones,
   configTasa = null,
   onVerPlanes,
+  modoInicial = null,
 }: {
   place: UserPlace;
   funciones: Funcion[];
   configTasa?: ConfigTasa | null;
   onVerPlanes: () => void;
+  /** `sub` de la URL: `hoy-hay`, `editar` o sin elegir (depende de la pantalla). */
+  modoInicial?: "hoy-hay" | "editar" | null;
 }) {
   const router = useRouter();
   const cat = useCatalogo();
+  const nav = usePanelNav();
   const { updatePlace } = usePlaces();
 
   const canHoyHay = funciones.includes("hoy_hay");
+  const conOfertas = funciones.includes("ofertas_flash");
   const tope = limiteDe(new Set(funciones), "productos_max", cat);
+  const bloqueoHoyHay = bloqueoDe(funciones, "hoy_hay", cat);
 
-  /* El estado se siembra del negocio y manda a partir de aquí, como el editor:
-     sincronizarlo en cada `router.refresh()` borraría lo que se está
-     escribiendo. `guardado` es la última versión que está en la base —lo que
-     decide si hay cambios sin guardar y qué fotos sobran—. */
-  const [items, setItems] = useState<UserPlaceMenuItem[]>(() =>
-    conIds(place.menu),
-  );
-  /* La referencia guardada pasa por `conIds` igual que el estado. Sin eso, una
-     carta con productos sin id —los guardados antes de que el id existiera—
-     nacería marcada como «sin guardar» y la barra de guardar saldría sola. */
-  const guardado = useRef<UserPlaceMenuItem[]>(conIds(place.menu));
+  /* La lista es la de la base: ya no hay cambios locales sin guardar, así que
+     se vuelve a sembrar cada vez que el servidor trae la carta nueva. */
+  const [items, setItems] = useState<UserPlaceMenuItem[]>(() => conIds(place.menu));
+  useEffect(() => setItems(conIds(place.menu)), [place.menu]);
+
+  /* Sin modo en la URL, el móvil abre en «Hoy hay» y el escritorio en «Editar
+     carta». Se decide tras montar: el servidor no sabe el ancho. */
+  const [modo, setModo] = useState<"hoy-hay" | "editar">(modoInicial ?? "hoy-hay");
+  useEffect(() => {
+    if (modoInicial) return;
+    if (window.matchMedia("(min-width: 1024px)").matches) setModo("editar");
+  }, [modoInicial]);
+
+  /* El borrador de la carta entera era del guardado viejo: se limpia. */
+  useEffect(() => {
+    try {
+      window.localStorage.removeItem(claveBorradorViejo(place.id));
+    } catch {
+      /* Sin almacén, nada que limpiar. */
+    }
+  }, [place.id]);
 
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  /* El error del tope va aparte porque se pinta pegado al botón que lo provoca:
-     al fondo de la pantalla no lo ve nadie y el botón se lee como roto. */
+  /* El error del tope va aparte porque se pinta pegado al botón que lo provoca. */
   const [errorTope, setErrorTope] = useState<string | null>(null);
-  /* El borrador sin guardar que quedó de la visita anterior. Se enseña como
-     aviso y no se aplica solo: el dueño decide si lo recupera. */
-  const [borrador, setBorrador] = useState<UserPlaceMenuItem[] | null>(null);
-
-  /* El producto recién creado: se lleva el foco para que el cursor caiga en su
-     nombre sin tener que buscarlo en la lista. */
-  const [nuevoId, setNuevoId] = useState<string | null>(null);
-  const [subiendoId, setSubiendoId] = useState<string | null>(null);
-  const [busyEstado, setBusyEstado] = useState<string | null>(null);
   const [errorEstado, setErrorEstado] = useState<string | null>(null);
-  const [puedeReintentarGuardado, setPuedeReintentarGuardado] = useState(false);
-  /* Los productos que otro cambió mientras el panel estaba abierto (Telegram,
-     otro trabajador). El guardado no los pisa: se marcan y se ofrece cargar
-     la versión que hay en la base. `null` = el producto ya no existe. */
-  const [conflictos, setConflictos] = useState<Map<string, UserPlaceMenuItem | null>>(
-    () => new Map(),
-  );
-  /* La última acción de disponibilidad que falló, para reintentarla sin que el
-     dueño tenga que volver a buscar el producto. */
   const reintentarEstado = useRef<(() => void) | null>(null);
+  const [busyEstado, setBusyEstado] = useState<string | null>(null);
+  const [masAbierto, setMasAbierto] = useState<string | null>(null);
   const [mostrarImport, setMostrarImport] = useState(false);
-  /* Una importación escribe directamente en la base, así que la lista de aquí
-     se queda vieja. Se vuelve a sembrar cuando el `refresh` trae el menú nuevo
-     —comparando la referencia, que cambia en cada lectura del servidor—. */
-  const [reesembrar, setReesembrar] = useState(false);
-  const menuPrevio = useRef<UserPlaceMenuItem[]>(place.menu);
+
+  const [edicion, setEdicion] = useState<Edicion | null>(null);
+  const [guardandoProducto, setGuardandoProducto] = useState(false);
+  const [errorProducto, setErrorProducto] = useState<string | null>(null);
+  const [subiendoId, setSubiendoId] = useState<string | null>(null);
+  /* El producto del menú «⋯» y el de «Poner en oferta». */
+  const [menuDe, setMenuDe] = useState<UserPlaceMenuItem | null>(null);
+  const [ofertaDe, setOfertaDe] = useState<string | null>(null);
+
+  /* Selección múltiple (Editar carta). `null` = apagada. */
+  const [seleccion, setSeleccion] = useState<Set<string> | null>(null);
+  const [categoriaLote, setCategoriaLote] = useState("");
+  const [enLote, setEnLote] = useState(false);
+
+  /* Las fotos de un producto borrado se podan pasados los 7 s del «Deshacer». */
+  const podasPendientes = useRef(new Map<string, number>());
 
   const inputFoto = useRef<HTMLInputElement>(null);
   const objetivoFoto = useRef<string | null>(null);
   const categoriaListId = useId();
 
-  useEffect(() => {
-    if (!reesembrar) return;
-    if (place.menu === menuPrevio.current) return;
-    menuPrevio.current = place.menu;
-    guardado.current = conIds(place.menu);
-    setItems(conIds(place.menu));
-    setReesembrar(false);
-  }, [reesembrar, place.menu]);
-
-  /* El foco del producto recién creado se pide una sola vez. La fila cambia de
-     nodo cuando su categoría deja de ser la del grupo en el que está, y
-     `autoFocus` se dispara en cada montaje: sin esto, ponerle categoría a un
-     producto nuevo devolvía el cursor a su nombre a media edición. */
-  useEffect(() => {
-    if (nuevoId) setNuevoId(null);
-  }, [nuevoId]);
-
   /* ── Derivados ─────────────────────────────────────────────────────────── */
-
-  const sucio = useMemo(
-    () => huella(items) !== huella(guardado.current),
-    [items],
-  );
 
   const categorias = useMemo(() => {
     const cuenta = new Map<string, number>();
@@ -219,108 +253,18 @@ export function CatalogoView({
     return [...cuenta.entries()].map(([clave, n]) => ({ clave, n }));
   }, [items]);
 
-  /* Cuántos hay agotados **ahora**: `estaAgotado` resuelve además las fechas de
-     vuelta ya vencidas, así que uno marcado «hasta mañana» deja de contar solo,
-     sin tocar nada. */
-  const agotados = useMemo(
-    () => items.filter((item) => estaAgotado(item)).length,
-    [items],
-  );
+  const agotados = useMemo(() => items.filter((item) => estaAgotado(item)).length, [items]);
 
-  /* Y el filtro de agotados se apaga solo cuando ya no queda ninguno: dejarlo
-     puesto escondería la carta entera detrás de una pastilla que ha dejado de
-     existir —se pinta solo si hay agotados— y la lista quedaría vacía sin nada
-     que pulsar. */
   useEffect(() => {
     if (filtro === AGOTADOS && agotados === 0) setFiltro(null);
   }, [filtro, agotados]);
 
-  /* ── El borrador y la salida ─────────────────────────────────────────────
-
-     El trabajo largo —una carta entera— no puede depender de que nadie cierre
-     la pantalla. Tres redes, de la más barata a la más cara: el borrador se
-     escribe en cada cambio, al cerrar la pestaña el navegador pregunta, y al
-     cambiar de sección el armazón consulta la guardia de aquí abajo. */
-
-  /* El borrador se lee una sola vez, al montar, y solo se ofrece si de verdad
-     hay algo distinto de lo guardado: un borrador igual que la base es ruido. */
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const crudo = window.localStorage.getItem(claveBorrador(place.id));
-      if (!crudo) return;
-      const parsed = JSON.parse(crudo) as unknown;
-      if (!Array.isArray(parsed) || parsed.length === 0) return;
-      const recuperado = conIds(parsed as UserPlaceMenuItem[]);
-      if (huella(recuperado) === huella(guardado.current)) {
-        window.localStorage.removeItem(claveBorrador(place.id));
-        return;
-      }
-      setBorrador(recuperado);
-    } catch {
-      /* Sin `localStorage` o con el JSON roto se sigue sin borrador: la barra de
-         guardar y el aviso de salida siguen ahí. */
-    }
-  }, [place.id]);
-
-  /* Saber si el borrador se escribió **en esta visita**: al montar, `sucio` es
-     falso porque el estado acaba de sembrarse de la base, y borrar el archivo
-     ahí se llevaba por delante el borrador que el aviso de arriba está
-     ofreciendo. Solo se borra después de haberlo escrito. */
-  const borradorEscrito = useRef(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      if (sucio) {
-        borradorEscrito.current = true;
-        window.localStorage.setItem(
-          claveBorrador(place.id),
-          JSON.stringify(items),
-        );
-      } else if (borradorEscrito.current) {
-        borradorEscrito.current = false;
-        window.localStorage.removeItem(claveBorrador(place.id));
-      }
-    } catch {
-      /* Se llenó el almacén: el aviso de guardar sigue siendo la red. */
-    }
-  }, [items, sucio, place.id]);
-
-  /* La guardia vive en un módulo porque el que pregunta —`PanelShell`— es padre
-     de esta pantalla y no puede leer su estado. Se registra solo con cambios sin
-     guardar y se retira sola en cuanto se guarda. */
-  useEffect(() => {
-    if (!sucio) return;
-    const bajaGuarda = registrarGuarda(() =>
-      window.confirm(
-        "Tienes cambios sin guardar en el catálogo. Si sales ahora se descartan. ¿Salir igual?",
-      ),
-    );
-    /* Cerrar la pestaña o recargar no pasa por el armazón: para eso está el
-       aviso del propio navegador. */
-    const alCerrar = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", alCerrar);
-    return () => {
-      bajaGuarda();
-      window.removeEventListener("beforeunload", alCerrar);
-    };
-  }, [sucio]);
-
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
     return items.filter((item) => {
-      /* Agotados y categoría se excluyen: se eligen desde la misma fila y una
-         pastilla activa es la única que manda. */
       if (filtro === AGOTADOS) {
         if (!estaAgotado(item)) return false;
-      } else if (
-        filtro !== null &&
-        (item.category?.trim() || SIN_CATEGORIA) !== filtro
-      ) {
+      } else if (filtro !== null && (item.category?.trim() || SIN_CATEGORIA) !== filtro) {
         return false;
       }
       if (!q) return true;
@@ -348,383 +292,430 @@ export function CatalogoView({
     return orden;
   }, [visibles]);
 
-  const nombreCategoria = (clave: string) =>
-    clave === SIN_CATEGORIA ? "Sin categoría" : clave;
+  const nombreCategoria = (clave: string) => (clave === SIN_CATEGORIA ? "Sin categoría" : clave);
 
-  /* Los productos sin nombre. Se marcan antes de guardar para que el aviso diga
-     cuáles y no «hay un producto», que obliga a buscarlo a ojo por toda la
-     lista. */
-  const sinNombre = useMemo(
-    () =>
-      new Set(items.filter((item) => !item.name.trim()).map((item) => item.id)),
-    [items],
-  );
-
-  const cambios = useMemo(
-    () => contarCambios(items, guardado.current),
-    [items],
-  );
-
-  /* Las categorías ya usadas, sin el centinela: se ofrecen en pastillas dentro
-     de la fila, que es el camino que sí existe en Safari de iOS —ahí `datalist`
-     no pinta nada y el campo se quedaba sin sugerencias—. */
   const categoriasUsadas = useMemo(
-    () =>
-      categorias.map((c) => c.clave).filter((clave) => clave !== SIN_CATEGORIA),
+    () => categorias.map((c) => c.clave).filter((clave) => clave !== SIN_CATEGORIA),
     [categorias],
   );
 
-  /* ── Mutaciones ────────────────────────────────────────────────────────── */
+  const sucioProducto = edicion !== null && huella([edicion.draft]) !== huella([edicion.inicial]);
 
-  const patch = useCallback(
-    (id: string, campos: Partial<UserPlaceMenuItem>) => {
-      setItems((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, ...campos } : item)),
-      );
-    },
-    [],
-  );
+  /* Con un producto a medio editar, salir de la sección pregunta. Cerrar la
+     hoja también (ver `cerrarEditor`). */
+  useEffect(() => {
+    if (!sucioProducto) return;
+    return registrarGuarda(() =>
+      window.confirm("Tienes cambios sin guardar en este producto. Si sales se descartan. ¿Salir igual?"),
+    );
+  }, [sucioProducto]);
 
-  const añadir = useCallback(() => {
-    if (tope !== null && items.length >= tope) {
-      setErrorTope(
-        `Tu plan permite hasta ${tope} productos y ya tienes ${items.length}. Quita alguno o mejora tu plan.`,
-      );
-      return;
+  /* Si la hoja se cerró por otro camino (atrás del sistema), se suelta la
+     edición. */
+  useEffect(() => {
+    if (nav.hoja !== "producto" && edicion) {
+      setEdicion(null);
+      setErrorProducto(null);
     }
-    setErrorTope(null);
-    setError(null);
-    /* Con el filtro de agotados puesto, se quita: el producto nuevo nace
-       disponible, así que no saldría en la lista y «Añadir» parecería no hacer
-       nada. */
-    if (filtro === AGOTADOS) setFiltro(null);
-    const id = `new-${Date.now()}`;
-    const nuevo: UserPlaceMenuItem = {
-      id,
-      name: "",
-      description: "",
-      price: "",
-      currency: "MLC",
-      /* Si hay una categoría filtrada, el producto nace en ella: es lo que el
-         dueño está mirando cuando pulsa «añadir». El filtro de agotados no es
-         una categoría, así que no se hereda. */
-      category:
-        filtro && filtro !== SIN_CATEGORIA && filtro !== AGOTADOS
-          ? filtro
-          : undefined,
-    };
-    setItems((prev) => [nuevo, ...prev]);
-    setNuevoId(id);
-    setBusqueda("");
-  }, [items, filtro, tope]);
+    if (nav.hoja !== "acciones" && menuDe) setMenuDe(null);
+  }, [nav.hoja, edicion, menuDe]);
 
-  const eliminar = useCallback((id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
-  }, []);
+  /* ── Escritura ─────────────────────────────────────────────────────────── */
 
-  const elegirFoto = useCallback((id: string) => {
-    objetivoFoto.current = id;
-    inputFoto.current?.click();
-  }, []);
-
-  const subirFoto = useCallback(
-    async (file: File | undefined) => {
-      const id = objetivoFoto.current;
-      objetivoFoto.current = null;
-      if (!file || !id) return;
-
-      setSubiendoId(id);
-      setError(null);
-      try {
-        /* Se comprime antes de salir del navegador: aquí los datos son caros. */
-        const preparada = await prepareImage(file);
-        const form = new FormData();
-        form.append("file", preparada.blob, preparada.name);
-
-        const res = await fetch(`/api/places/${place.id}/menu-image`, {
-          method: "POST",
-          body: form,
-        });
-        if (!res.ok) {
-          const data = (await res.json().catch(() => null)) as {
-            error?: string;
-          } | null;
-          throw new Error(data?.error ?? "No se pudo subir la foto.");
+  /** Manda unas operaciones y devuelve la carta del servidor y los conflictos. */
+  const enviar = useCallback(
+    async (ops: OperacionesCatalogo): Promise<Resultado> => {
+      if (place.id === DEV_PLACE_ID) {
+        const lista = aGuardar(aplicarLocal(items, ops));
+        const guardado = await updatePlace(place.id, { menu: lista });
+        if (!guardado) {
+          return { ok: false, error: "No se pudo guardar. Revisa la conexión: no se cambió nada." };
         }
-        const creada = (await res.json()) as { url: string };
-        patch(id, { image: creada.url });
-      } catch (e) {
-        setError(mensajeDeRed(e, "No se pudo subir la foto."));
-      } finally {
-        setSubiendoId(null);
+        return { ok: true, productos: conIds(guardado.menu ?? lista), conflictos: [] };
       }
-    },
-    [place.id, patch],
-  );
-
-  /**
-   * «Hoy hay» escribe al momento, como en el editor: el dueño marca «agotado»
-   * cuando se le acaba el plato, no al final de un formulario. El servidor
-   * decide —comprueba el plan— y aquí solo se refleja su respuesta.
-   */
-  const setEstado = useCallback(
-    async (id: string, estado: Disponibilidad, hasta?: number | null) => {
-      setBusyEstado(id);
-      setErrorEstado(null);
-      try {
-        const res = await fetch(`/api/places/${place.id}/disponibilidad`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            productoId: id,
-            estado,
-            hasta: hasta ?? null,
-          }),
-        });
-        if (!res.ok) {
-          const data = (await res.json().catch(() => null)) as {
-            error?: string;
-          } | null;
-          throw new Error(
-            data?.error ?? "No se pudo cambiar la disponibilidad.",
-          );
-        }
-        /* La API ya lo escribió: se vuelca también en `guardado`, o la carta
-           queda marcada como «sin guardar» por un cambio que el servidor ya
-           tiene —y eso, además de la barra, desactiva «Importar CSV»—. */
-        const respuesta = (await res.json().catch(() => null)) as {
-          version?: number;
-        } | null;
-        const campos = {
-          disponibilidad: estado,
-          agotadoHasta: estado === "agotado" ? (hasta ?? null) : null,
-          /* La versión nueva que dio el servidor: sin ella, el siguiente
-             guardado de este producto chocaría con su propio cambio. */
-          ...(typeof respuesta?.version === "number" ? { version: respuesta.version } : {}),
-        };
-        patch(id, campos);
-        guardado.current = guardado.current.map((item) =>
-          item.id === id ? { ...item, ...campos } : item,
-        );
-        /* El aviso confirma **qué** acción se hizo, no solo que respondió el
-           servidor: «agotado» y «agotado hasta mañana» dejan la fila igual a
-           simple vista, y sin este texto no hay forma de saber cuál se pulsó. */
-        reintentarEstado.current = null;
-        const nombre = guardado.current.find((item) => item.id === id)?.name;
-        const accion =
-          estado === "disponible"
-            ? "marcado como disponible"
-            : hasta != null
-              ? "agotado hasta mañana"
-              : "marcado como agotado";
-        toast.success(nombre ? `«${nombre}» ${accion}` : `Producto ${accion}`);
-      } catch (e) {
-        setErrorEstado(mensajeDeRed(e, "No se pudo cambiar la disponibilidad."));
-        reintentarEstado.current = () => void setEstado(id, estado, hasta);
-      } finally {
-        setBusyEstado(null);
-      }
-    },
-    [place.id, patch],
-  );
-
-  /** Recupera el borrador que quedó sin guardar en la visita anterior. */
-  const recuperarBorrador = useCallback(() => {
-    if (!borrador) return;
-    setItems(borrador);
-    setBorrador(null);
-    setError(null);
-    toast.success("Recuperado el catálogo sin guardar");
-  }, [borrador]);
-
-  /** Tira el borrador: el catálogo se queda como está en la base. */
-  const descartarBorrador = useCallback(() => {
-    setBorrador(null);
-    try {
-      window.localStorage.removeItem(claveBorrador(place.id));
-    } catch {
-      /* Nada que limpiar si el almacén no está. */
-    }
-  }, [place.id]);
-
-  /** Carga la versión de la base de un producto en conflicto y descarta la
-      edición local de ese producto (solo de ese). */
-  const recargarProducto = useCallback(
-    (id: string) => {
-      const actual = conflictos.get(id) ?? null;
-      setItems((prev) =>
-        actual
-          ? prev.map((item) => (item.id === id ? actual : item))
-          : prev.filter((item) => item.id !== id),
-      );
-      setConflictos((prev) => {
-        const siguiente = new Map(prev);
-        siguiente.delete(id);
-        return siguiente;
-      });
-    },
-    [conflictos],
-  );
-
-  /** Vuelve la lista a la última versión guardada, sin salir de la sección. */
-  const descartarCambios = useCallback(() => {
-    if (
-      !window.confirm(
-        "Se descarta lo que no has guardado y el catálogo vuelve a como estaba. ¿Seguir?",
-      )
-    ) {
-      return;
-    }
-    setItems(guardado.current);
-    setBusqueda("");
-    setFiltro(null);
-    setError(null);
-    setErrorTope(null);
-    setNuevoId(null);
-  }, []);
-
-  const guardar = useCallback(async () => {
-    const faltan = items.filter((item) => !item.name.trim());
-    if (faltan.length > 0) {
-      setError(
-        faltan.length === 1
-          ? "Hay un producto sin nombre —está marcado en rojo—. Ponle uno o bórralo antes de guardar."
-          : `Hay ${faltan.length} productos sin nombre —están marcados en rojo—. Ponles uno o bórralos antes de guardar.`,
-      );
-      return;
-    }
-    setError(null);
-    setPuedeReintentarGuardado(false);
-    setSaving(true);
-
-    /* La lista blanca vive en `aGuardar`, con su prueba al lado: aquí dentro no
-       se ve cuál de estos campos se queda fuera hasta que ya no está. */
-    const limpio = aGuardar(items);
-
-    /* El negocio de prueba no tiene filas en `productos`: su carta es una copia
-       personal y se sigue guardando entera con el PATCH de la ficha. */
-    if (place.id === DEV_PLACE_ID) {
-      const saved = await updatePlace(place.id, { menu: limpio });
-      setSaving(false);
-      if (!saved) {
-        setError("No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada.");
-        setPuedeReintentarGuardado(true);
-        return;
-      }
-      pruneMenuImages(place.id, guardado.current, limpio);
-      guardado.current = limpio;
-      setItems(limpio);
-    } else {
-      /* Fase C: solo viaja lo que cambió desde la última lectura, producto a
-         producto y con la versión de cada uno. Lo que el panel no tocó no se
-         reescribe, y lo que otro cambió mientras tanto vuelve como conflicto. */
-      const ops = diferenciasCatalogo(guardado.current, limpio);
-      let respuesta: {
-        productos: UserPlaceMenuItem[];
-        conflictos: { id: string; actual: UserPlaceMenuItem | null }[];
-      };
       try {
         const res = await fetch(`/api/places/${place.id}/productos`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(ops),
         });
-        const data = (await res.json().catch(() => null)) as
-          | (typeof respuesta & { error?: string })
-          | null;
-        if (!res.ok || !data) throw new Error(data?.error ?? "No se pudo guardar.");
-        respuesta = data;
+        const cuerpo = (await res.json().catch(() => null)) as {
+          productos?: UserPlaceMenuItem[];
+          conflictos?: { id: string; actual: UserPlaceMenuItem | null }[];
+          error?: string;
+        } | null;
+        if (!res.ok || !cuerpo?.productos) {
+          return { ok: false, error: cuerpo?.error ?? "No se pudo guardar." };
+        }
+        return { ok: true, productos: conIds(cuerpo.productos), conflictos: cuerpo.conflictos ?? [] };
       } catch (e) {
-        setSaving(false);
-        setError(mensajeDeRed(e, "No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada."));
-        setPuedeReintentarGuardado(true);
-        return;
+        return {
+          ok: false,
+          error: mensajeDeRed(e, "No se pudo guardar. Revisa la conexión: no se cambió nada."),
+        };
       }
-      setSaving(false);
+    },
+    [items, place.id, updatePlace],
+  );
 
-      const servidor = conIds(respuesta.productos);
-      const enConflicto = new Map(respuesta.conflictos.map((c) => [c.id, c.actual]));
-      pruneMenuImages(place.id, guardado.current, servidor);
-      guardado.current = servidor;
-      /* Lo que entró queda como lo devuelve el servidor —con su versión y sus
-         ids definitivos—; lo que chocó conserva lo que escribió el dueño, que
-         sigue contando como «sin guardar» hasta que decida. */
-      const locales = new Map(limpio.map((item) => [item.id, item]));
-      setItems(
-        servidor.map((item) =>
-          enConflicto.has(item.id ?? "")
-            ? { ...(locales.get(item.id) ?? item), version: item.version }
-            : item,
-        ),
-      );
-      setConflictos(enConflicto);
-      if (enConflicto.size > 0) {
-        setNuevoId(null);
-        toast.warning(
-          enConflicto.size === 1
-            ? "Un producto cambió desde el móvil mientras editabas. Revísalo antes de volver a guardar."
-            : `${enConflicto.size} productos cambiaron desde el móvil mientras editabas. Revísalos antes de volver a guardar.`,
+  /** Vuelca la carta del servidor y refresca la ficha pública. */
+  const adoptar = useCallback(
+    (productos: UserPlaceMenuItem[], podar = true) => {
+      if (podar) pruneMenuImages(place.id, items, productos);
+      setItems(productos);
+      router.refresh();
+    },
+    [items, place.id, router],
+  );
+
+  /**
+   * «Hoy hay» escribe al momento: el dueño marca «agotado» cuando se le acaba el
+   * plato, no al final de un formulario. El servidor comprueba el plan. El aviso
+   * trae «Deshacer», que vuelve al estado anterior por la misma ruta.
+   */
+  const setEstado = useCallback(
+    async (id: string, estado: Disponibilidad, hasta?: number | null, deshacible = true) => {
+      const previo = items.find((item) => item.id === id);
+      setBusyEstado(id);
+      setErrorEstado(null);
+      try {
+        const res = await fetch(`/api/places/${place.id}/disponibilidad`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productoId: id, estado, hasta: hasta ?? null }),
+        });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(data?.error ?? "No se pudo cambiar la disponibilidad.");
+        }
+        const respuesta = (await res.json().catch(() => null)) as { version?: number } | null;
+        const campos = {
+          disponibilidad: estado,
+          agotadoHasta: estado === "agotado" ? (hasta ?? null) : null,
+          /* La versión nueva: sin ella, el siguiente guardado de este producto
+             chocaría con su propio cambio. */
+          ...(typeof respuesta?.version === "number" ? { version: respuesta.version } : {}),
+        };
+        setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...campos } : item)));
+        setEdicion((e) =>
+          e && e.draft.id === id
+            ? {
+                ...e,
+                original: e.original && { ...e.original, ...campos },
+                inicial: { ...e.inicial, ...campos },
+                draft: { ...e.draft, ...campos },
+              }
+            : e,
         );
+        reintentarEstado.current = null;
+        const accion =
+          estado === "disponible"
+            ? "marcado como disponible"
+            : hasta != null
+              ? "agotado hasta mañana"
+              : "marcado como agotado";
+        const estabaAgotado = previo ? estaAgotado(previo) : false;
+        toast.success(previo?.name ? `«${previo.name}» ${accion}` : `Producto ${accion}`, {
+          action:
+            deshacible && previo
+              ? {
+                  label: "Deshacer",
+                  onClick: () =>
+                    void setEstado(
+                      id,
+                      estabaAgotado ? "agotado" : "disponible",
+                      estabaAgotado ? (previo.agotadoHasta ?? null) : null,
+                      false,
+                    ),
+                }
+              : undefined,
+        });
         router.refresh();
+      } catch (e) {
+        setErrorEstado(mensajeDeRed(e, "No se pudo cambiar la disponibilidad."));
+        reintentarEstado.current = () => void setEstado(id, estado, hasta, deshacible);
+      } finally {
+        setBusyEstado(null);
+      }
+    },
+    [items, place.id, router],
+  );
+
+  /* ── La hoja de un producto ────────────────────────────────────────────── */
+
+  const abrirEditor = useCallback(
+    (item: UserPlaceMenuItem | null) => {
+      if (!item && tope !== null && items.length >= tope) {
+        setErrorTope(
+          `Tu plan permite hasta ${tope} productos y ya tienes ${items.length}. Quita alguno o mejora tu plan.`,
+        );
         return;
       }
-    }
+      setErrorTope(null);
+      setErrorProducto(null);
+      const base: UserPlaceMenuItem = item ?? {
+        id: `new-${Date.now()}`,
+        name: "",
+        description: "",
+        price: "",
+        currency: "MLC",
+        /* Si hay una categoría filtrada, el producto nace en ella: es lo que el
+           dueño está mirando cuando pulsa «Añadir». */
+        category: filtro && filtro !== SIN_CATEGORIA && filtro !== AGOTADOS ? filtro : undefined,
+      };
+      setEdicion({ original: item, inicial: base, draft: base });
+      nav.abrirHoja("producto");
+    },
+    [filtro, items.length, nav, tope],
+  );
 
-    setNuevoId(null);
-    /* Guardado es que ya no hay nada que recuperar. */
-    setBorrador(null);
-    try {
-      window.localStorage.removeItem(claveBorrador(place.id));
-    } catch {
-      /* Sin almacén no hay borrador que limpiar. */
+  const cerrarEditor = useCallback(() => {
+    if (sucioProducto && !window.confirm("Hay cambios sin guardar en este producto. ¿Descartarlos?")) {
+      return;
     }
-    toast.success("Catálogo guardado");
-    /* El catálogo público y el panel son de servidor: sin esto siguen leyendo
-       la carta vieja hasta que caduque la caché. */
-    router.refresh();
-  }, [items, place.id, updatePlace, router]);
+    setEdicion(null);
+    nav.cerrarHoja();
+  }, [nav, sucioProducto]);
+
+  const patchDraft = useCallback((_id: string, campos: Partial<UserPlaceMenuItem>) => {
+    setEdicion((e) => (e ? { ...e, draft: { ...e.draft, ...campos } } : e));
+  }, []);
+
+  const guardarProducto = useCallback(async () => {
+    if (!edicion || guardandoProducto) return;
+    if (!edicion.draft.name.trim()) {
+      setErrorProducto("Ponle un nombre al producto antes de guardar.");
+      return;
+    }
+    const [limpio] = aGuardar([edicion.draft]);
+    if (!limpio) return;
+    let ops: OperacionesCatalogo;
+    if (!edicion.original) {
+      ops = { ...OPS_VACIAS, crear: [{ idTemporal: limpio.id ?? "", item: limpio }] };
+    } else {
+      const [original] = aGuardar([edicion.original]);
+      const diferencias = diferenciasCatalogo([original ?? edicion.original], [limpio]);
+      if (diferencias.actualizar.length === 0) {
+        setEdicion(null);
+        nav.cerrarHoja();
+        return;
+      }
+      ops = { ...OPS_VACIAS, actualizar: diferencias.actualizar };
+    }
+    setErrorProducto(null);
+    setGuardandoProducto(true);
+    const resultado = await enviar(ops);
+    setGuardandoProducto(false);
+    if (!resultado.ok) {
+      setErrorProducto(resultado.error);
+      return;
+    }
+    const choque = edicion.original
+      ? resultado.conflictos.find((c) => c.id === edicion.original?.id)
+      : undefined;
+    if (choque) {
+      /* No se pisa lo de otro: se adopta la carta (con su versión del
+         producto) y la hoja se queda abierta con lo que escribió el dueño. */
+      adoptar(resultado.productos, false);
+      setEdicion((e) => (e ? { ...e, conflicto: choque.actual } : e));
+      return;
+    }
+    adoptar(resultado.productos);
+    toast.success(edicion.original ? "Producto guardado" : "Producto añadido");
+    setEdicion(null);
+    nav.cerrarHoja();
+  }, [adoptar, edicion, enviar, guardandoProducto, nav]);
+
+  /** Carga en la hoja la versión que hay en la base, tras un conflicto. */
+  const recargarProducto = useCallback(() => {
+    if (!edicion) return;
+    if (edicion.conflicto === null) {
+      toast.info("Ese producto ya no está en la carta.");
+      setEdicion(null);
+      nav.cerrarHoja();
+      return;
+    }
+    if (edicion.conflicto) {
+      const actual = edicion.conflicto;
+      setEdicion({ original: actual, inicial: actual, draft: actual });
+    }
+  }, [edicion, nav]);
+
+  const elegirFoto = useCallback((id: string) => {
+    objetivoFoto.current = id;
+    inputFoto.current?.click();
+  }, []);
+
+  /* La foto se sube al momento (el servidor guarda el archivo) y queda en el
+     borrador del producto: se guarda con su «Guardar». */
+  const subirFoto = useCallback(
+    async (file: File | undefined) => {
+      const id = objetivoFoto.current;
+      objetivoFoto.current = null;
+      if (!file || !id) return;
+      setSubiendoId(id);
+      setErrorProducto(null);
+      try {
+        const preparada = await prepareImage(file);
+        const form = new FormData();
+        form.append("file", preparada.blob, preparada.name);
+        const res = await fetch(`/api/places/${place.id}/menu-image`, { method: "POST", body: form });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(data?.error ?? "No se pudo subir la foto.");
+        }
+        const creada = (await res.json()) as { url: string };
+        patchDraft(id, { image: creada.url });
+      } catch (e) {
+        setErrorProducto(mensajeDeRed(e, "No se pudo subir la foto."));
+      } finally {
+        setSubiendoId(null);
+      }
+    },
+    [place.id, patchDraft],
+  );
+
+  /* ── Acciones sobre un producto guardado ───────────────────────────────── */
+
+  const restaurar = useCallback(
+    async (item: UserPlaceMenuItem) => {
+      const poda = podasPendientes.current.get(item.id ?? "");
+      if (poda) window.clearTimeout(poda);
+      podasPendientes.current.delete(item.id ?? "");
+      const [limpio] = aGuardar([item]);
+      if (!limpio) return;
+      const resultado = await enviar({ ...OPS_VACIAS, crear: [{ idTemporal: item.id ?? "", item: limpio }] });
+      if (!resultado.ok) {
+        toast.error(resultado.error);
+        return;
+      }
+      adoptar(resultado.productos, false);
+      toast.success(`«${item.name}» vuelve a la carta`);
+    },
+    [adoptar, enviar],
+  );
+
+  /** Borra al momento, con «Deshacer» 6 s. La foto se poda pasado ese tiempo. */
+  const eliminar = useCallback(
+    async (item: UserPlaceMenuItem) => {
+      if (!item.id) return;
+      const resultado = await enviar({ ...OPS_VACIAS, borrar: [item.id] });
+      if (!resultado.ok) {
+        toast.error(resultado.error);
+        return;
+      }
+      adoptar(resultado.productos, false);
+      if (item.image) {
+        const id = item.id;
+        podasPendientes.current.set(
+          id,
+          window.setTimeout(() => {
+            podasPendientes.current.delete(id);
+            pruneMenuImages(place.id, [item], []);
+          }, 7000),
+        );
+      }
+      toast.success(`«${item.name || "Producto"}» eliminado`, {
+        duration: 6000,
+        action: { label: "Deshacer", onClick: () => void restaurar(item) },
+      });
+    },
+    [adoptar, enviar, place.id, restaurar],
+  );
+
+  /** Ocultar o mostrar en la ficha, al momento, con su versión. */
+  const alternarOculto = useCallback(
+    async (item: UserPlaceMenuItem, deshacible = true) => {
+      if (!item.id) return;
+      const oculto = !item.oculto;
+      const resultado = await enviar({
+        ...OPS_VACIAS,
+        actualizar: [
+          {
+            id: item.id,
+            ...(item.version !== undefined ? { version: item.version } : {}),
+            cambios: { oculto },
+          },
+        ],
+      });
+      if (!resultado.ok) {
+        toast.error(resultado.error);
+        return;
+      }
+      adoptar(resultado.productos, false);
+      if (resultado.conflictos.length > 0) {
+        toast.warning("Ese producto cambió desde el móvil. Vuelve a intentarlo con la versión de ahora.");
+        return;
+      }
+      const ahora = resultado.productos.find((p) => p.id === item.id);
+      toast.success(oculto ? `«${item.name}» oculto en tu ficha` : `«${item.name}» visible en tu ficha`, {
+        action:
+          deshacible && ahora
+            ? { label: "Deshacer", onClick: () => void alternarOculto(ahora, false) }
+            : undefined,
+      });
+    },
+    [adoptar, enviar],
+  );
+
+  /** Una acción sobre los seleccionados: una operación por producto. */
+  const aplicarLote = useCallback(
+    async (cambios: Partial<UserPlaceMenuItem>, texto: string) => {
+      if (!seleccion || seleccion.size === 0 || enLote) return;
+      setEnLote(true);
+      const actualizar = items
+        .filter((item) => item.id && seleccion.has(item.id))
+        .map((item) => ({
+          id: item.id!,
+          ...(item.version !== undefined ? { version: item.version } : {}),
+          cambios,
+        }));
+      const resultado = await enviar({ ...OPS_VACIAS, actualizar });
+      setEnLote(false);
+      if (!resultado.ok) {
+        toast.error(resultado.error);
+        return;
+      }
+      adoptar(resultado.productos, false);
+      const hechos = actualizar.length - resultado.conflictos.length;
+      if (resultado.conflictos.length > 0) {
+        toast.warning(
+          `${hechos} ${hechos === 1 ? "producto" : "productos"} ${texto}. ${resultado.conflictos.length} cambiaron desde el móvil y no se tocaron.`,
+        );
+      } else {
+        toast.success(`${hechos} ${hechos === 1 ? "producto" : "productos"} ${texto}`);
+      }
+      setSeleccion(null);
+      setCategoriaLote("");
+    },
+    [adoptar, enLote, enviar, items, seleccion],
+  );
+
+  const alternarSeleccion = (id: string) =>
+    setSeleccion((s) => {
+      const siguiente = new Set(s ?? []);
+      if (siguiente.has(id)) siguiente.delete(id);
+      else siguiente.add(id);
+      return siguiente;
+    });
 
   const alcanzoTope = tope !== null && items.length >= tope;
 
+  const cambiarModo = (m: "hoy-hay" | "editar") => {
+    setModo(m);
+    setSeleccion(null);
+    /* La URL lo recuerda (`&sub=`), sin remontar la pantalla. */
+    const url = new URL(window.location.href);
+    url.searchParams.set("sub", m);
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  };
+
+  /* ── Render ────────────────────────────────────────────────────────────── */
+
   return (
-    /* El relleno de abajo es el sitio de la barra de guardado: sin él, con
-       cambios sin guardar, la barra flotaba sobre la última fila y tapaba su
-       control de disponibilidad. */
-    <div className={cn("flex flex-col", sucio && "pb-[92px]")}>
+    <div className={cn("flex flex-col", seleccion && seleccion.size > 0 && "pb-[92px]")}>
       <h1 className="sr-only">Catálogo</h1>
 
-      {/* El borrador de la visita anterior, si lo hay. Va arriba del todo porque
-          es lo primero que hay que decidir: recuperarlo o tirarlo. */}
-      {borrador && (
-        <div
-          role="status"
-          className="mb-gap-md flex flex-wrap items-center gap-gap-sm rounded-2xl border border-verde-200 bg-verde-50 px-gap-md py-gap-sm"
-        >
-          <p className="min-w-0 flex-1 text-small text-ink">
-            Nos quedó un catálogo sin guardar de la última vez con{" "}
-            {borrador.length} producto{borrador.length === 1 ? "" : "s"}. ¿Lo
-            recuperas?
-          </p>
-          <div className="flex shrink-0 items-center gap-gap-sm">
-            <button
-              type="button"
-              onClick={recuperarBorrador}
-              className="cursor-pointer rounded-full bg-verde-400 px-gap-md py-2 font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-500 ease-outquint hover:bg-verde-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
-            >
-              Recuperar
-            </button>
-            <button
-              type="button"
-              onClick={descartarBorrador}
-              className="cursor-pointer font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
-            >
-              Descartar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Un solo input para toda la lista: cada producto lleva una sola foto. */}
       <input
         ref={inputFoto}
         type="file"
@@ -737,20 +728,41 @@ export function CatalogoView({
         }}
       />
 
-      {/* Sugerencias y no lista cerrada: la categoría la inventa el dueño. Los
-          productos sin categoría no salen aquí: su clave es un centinela y
-          ofrecerlo era invitar a crear una categoría llamada «Sin categoría»
-          —dos grupos con el mismo encabezado en la misma carta—. */}
+      {/* Sugerencias y no lista cerrada: la categoría la inventa el dueño. */}
       <datalist id={categoriaListId}>
-        {categorias
-          .filter((c) => c.clave !== SIN_CATEGORIA)
-          .map((c) => (
-            <option key={c.clave} value={c.clave} />
-          ))}
+        {categoriasUsadas.map((clave) => (
+          <option key={clave} value={clave} />
+        ))}
       </datalist>
 
+      {/* ── Modo ─────────────────────────────────────────────────────────── */}
+      <div role="tablist" aria-label="Modo del catálogo" className="flex gap-gap-xs">
+        {(
+          [
+            { id: "hoy-hay", label: "Hoy hay" },
+            { id: "editar", label: "Editar carta" },
+          ] as const
+        ).map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            role="tab"
+            aria-selected={modo === m.id}
+            onClick={() => cambiarModo(m.id)}
+            className={clsx(
+              "inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-full border px-gap-md font-lv-display text-small font-semibold transition-colors duration-500 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 sm:flex-none",
+              modo === m.id
+                ? TONO_CHAPITA.activa
+                : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:text-verde-600",
+            )}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
       {/* ── Buscador y acciones ─────────────────────────────────────────── */}
-      <div className="flex flex-col gap-gap-sm sm:flex-row sm:items-center">
+      <div className="mt-gap-md flex flex-col gap-gap-sm sm:flex-row sm:items-center">
         <div className="relative min-w-0 flex-1">
           <Search
             size={16}
@@ -766,50 +778,32 @@ export function CatalogoView({
             className={cn(INPUT, "pl-9 font-lv-display")}
           />
         </div>
-        <div className="flex flex-wrap items-center gap-gap-sm">
-          <button
-            type="button"
-            /* Con cambios sin guardar no se abre: la importación escribe en el
-               servidor sobre la carta **guardada** y al volver a leerla se
-               llevaría por delante lo que hay en pantalla sin guardar. Se
-               explica debajo, que es lo que hace que un botón apagado no
-               parezca roto. */
-            disabled={sucio && !mostrarImport}
-            onClick={() => {
-              setError(null);
-              setMostrarImport((v) => !v);
-            }}
-            aria-expanded={mostrarImport}
-            className={cn(
-              BOTON,
-              "bg-white border border-ink/10 text-ink hover:border-verde-300 hover:text-verde-600",
-            )}
-          >
-            <FileUp size={16} strokeWidth={1.8} />
-            Importar CSV
-          </button>
-          <button
-            type="button"
-            onClick={añadir}
-            aria-describedby={errorTope ? "catalogo-tope" : undefined}
-            disabled={alcanzoTope}
-            className={cn(
-              BOTON,
-              "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300",
-            )}
-          >
-            {alcanzoTope ? (
-              <Lock size={16} strokeWidth={1.8} />
-            ) : (
-              <Plus size={16} strokeWidth={1.8} />
-            )}
-            Añadir producto
-          </button>
-        </div>
+        {modo === "editar" && (
+          <div className="flex flex-wrap items-center gap-gap-sm">
+            <button
+              type="button"
+              onClick={() => setMostrarImport((v) => !v)}
+              aria-expanded={mostrarImport}
+              className={cn(
+                BOTON,
+                "bg-white border border-ink/10 text-ink hover:border-verde-300 hover:text-verde-600",
+              )}
+            >
+              <FileUp size={16} strokeWidth={1.8} />
+              Importar CSV
+            </button>
+            <BotonPrimario
+              onClick={() => abrirEditor(null)}
+              aria-describedby={errorTope ? "catalogo-tope" : undefined}
+              disabled={alcanzoTope}
+            >
+              {alcanzoTope ? <Lock size={16} strokeWidth={1.8} /> : <Plus size={16} strokeWidth={1.8} />}
+              Añadir producto
+            </BotonPrimario>
+          </div>
+        )}
       </div>
 
-      {/* El aviso del tope, pegado al botón que lo provoca: al fondo de la
-          pantalla llegaba después de toda la lista, o no llegaba. */}
       {errorTope && (
         <p
           id="catalogo-tope"
@@ -820,52 +814,29 @@ export function CatalogoView({
         </p>
       )}
 
-      {sucio && !mostrarImport && (
-        <p className="mt-gap-sm text-meta text-ink-soft/75">
-          Guarda el catálogo para poder importar: el CSV se suma a lo guardado.
-        </p>
-      )}
-
       {/* ── Resumen y filtros ───────────────────────────────────────────── */}
       <div className="mt-gap-md flex flex-col gap-gap-sm">
-        <p className="text-meta text-ink-soft/75" aria-live="polite">
-          {items.length} producto{items.length === 1 ? "" : "s"}
-          {tope !== null
-            ? ` de ${tope} — el tope de tu plan`
-            : " en el catálogo"}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-gap-sm">
+          <p className="text-meta text-ink-soft/75" aria-live="polite">
+            {items.length} producto{items.length === 1 ? "" : "s"}
+            {tope !== null ? ` de ${tope} — el tope de tu plan` : " en el catálogo"}
+          </p>
+          {modo === "editar" && items.length > 0 && (
+            <BotonTexto onClick={() => setSeleccion((s) => (s ? null : new Set()))}>
+              {seleccion ? "Terminar selección" : "Seleccionar varios"}
+            </BotonTexto>
+          )}
+        </div>
 
-        {/* Una sola fila que se desliza, como la de la carta pública: los
-            filtros llevan `shrink-0` y `whitespace-nowrap` sobre un alto fijo,
-            así que quedan todos a la misma altura y ninguno parte su nombre en
-            dos líneas, que era lo que descuadraba la fila.
-
-            `carta-filtros-scroll` es el degradado de la carta y no un CSS
-            nuevo: el aviso de «hay más a la derecha» es el mismo problema y se
-            resuelve igual. El relleno vertical, con su margen negativo, es lo
-            que deja sitio a la sombra de la pastilla activa: `overflow-x`
-            recorta también en vertical y el desenfoque saldría cortado a media
-            altura. */}
         {categorias.length > 0 && (
           <div className="carta-filtros-scroll scrollbar-hide -my-[6px] flex flex-nowrap items-center gap-[6px] overflow-x-auto py-[6px]">
-            <Filtro
-              activo={filtro === null}
-              onClick={() => setFiltro(null)}
-              cuenta={items.length}
-            >
+            <Filtro activo={filtro === null} onClick={() => setFiltro(null)} cuenta={items.length}>
               Todas
             </Filtro>
-            {/* Los agotados van pegados a «Todas», antes de las categorías: no
-                es una categoría de la carta, es el «¿qué se me acabó?», y se
-                busca con prisa. Solo se pinta cuando hay alguno —con cero
-                llevaría a una lista vacía— y por eso el filtro se apaga solo si
-                se queda sin ninguno. */}
             {agotados > 0 && (
               <Filtro
                 activo={filtro === AGOTADOS}
-                onClick={() =>
-                  setFiltro((prev) => (prev === AGOTADOS ? null : AGOTADOS))
-                }
+                onClick={() => setFiltro((prev) => (prev === AGOTADOS ? null : AGOTADOS))}
                 cuenta={agotados}
               >
                 Agotados
@@ -875,9 +846,7 @@ export function CatalogoView({
               <Filtro
                 key={c.clave}
                 activo={filtro === c.clave}
-                onClick={() =>
-                  setFiltro((prev) => (prev === c.clave ? null : c.clave))
-                }
+                onClick={() => setFiltro((prev) => (prev === c.clave ? null : c.clave))}
                 cuenta={c.n}
               >
                 {nombreCategoria(c.clave)}
@@ -890,8 +859,7 @@ export function CatalogoView({
       {alcanzoTope && (
         <div className="mt-gap-sm flex flex-wrap items-center gap-gap-sm rounded-xl border border-ink/10 bg-sand-deep/50 px-gap-md py-gap-sm">
           <p className="min-w-0 flex-1 text-meta text-ink-soft/75">
-            Llegaste a los {tope} productos de tu plan. Para pasar de ahí hay
-            que subir de plan.
+            Llegaste a los {tope} productos de tu plan. Para pasar de ahí hay que subir de plan.
           </p>
           {onVerPlanes && (
             <button
@@ -905,13 +873,26 @@ export function CatalogoView({
         </div>
       )}
 
+      {modo === "hoy-hay" && !canHoyHay && bloqueoHoyHay && (
+        <TarjetaPanel className="mt-gap-md">
+          <div className="flex flex-wrap items-center justify-between gap-gap-sm">
+            <p className="font-lv-display text-small font-semibold text-ink">
+              Marca lo agotado y lo que vuelve a haber
+            </p>
+            <Chapita tono="candado">{bloqueoHoyHay}</Chapita>
+          </div>
+          <CandadoPlan
+            onVerPlanes={onVerPlanes}
+            texto="Tu carta se ve igual; solo falta poder decir qué se acabó."
+          />
+        </TarjetaPanel>
+      )}
+
       {/* ── Importación ─────────────────────────────────────────────────── */}
-      {mostrarImport && (
+      {mostrarImport && modo === "editar" && (
         <section className="mt-gap-md">
           <div className="mb-gap-sm flex items-center justify-between gap-gap-sm">
-            <h2 className="font-lv-display text-body font-semibold text-ink">
-              Importar catálogo
-            </h2>
+            <h2 className="font-lv-display text-body font-semibold text-ink">Importar catálogo</h2>
             <button
               type="button"
               onClick={() => setMostrarImport(false)}
@@ -923,18 +904,10 @@ export function CatalogoView({
           <ImportarCatalogo
             key={place.id}
             placeId={place.id}
-            existentes={items.map((i) => ({
-              nombre: i.name,
-              categoria: i.category,
-            }))}
-            /* Al importar y al deshacer, no al «volver»: las dos escriben en la
-               base mientras esta pantalla sigue con su copia, y entre una cosa
-               y la otra se puede guardar esa copia encima. Releer al momento
-               cierra esa ventana. */
-            onCartaCambiada={() => {
-              setReesembrar(true);
-              router.refresh();
-            }}
+            existentes={items.map((i) => ({ nombre: i.name, categoria: i.category }))}
+            /* La importación escribe en la base: al refrescar, la lista se
+               vuelve a sembrar con la carta nueva. */
+            onCartaCambiada={() => router.refresh()}
             onVolver={() => setMostrarImport(false)}
           />
         </section>
@@ -946,17 +919,15 @@ export function CatalogoView({
           titulo="Tu catálogo está vacío"
           texto="Añade tu primer producto —o sube el catálogo entero desde un CSV— y aparecerá en tu ficha y en tu menú público."
           accion={
-            <button
-              type="button"
-              onClick={añadir}
-              className={cn(
-                BOTON,
-                "bg-verde-400 text-verde-950 shadow-primary-halo hover:bg-verde-300",
-              )}
+            <BotonPrimario
+              onClick={() => {
+                cambiarModo("editar");
+                abrirEditor(null);
+              }}
             >
               <Plus size={16} strokeWidth={1.8} />
               Añadir producto
-            </button>
+            </BotonPrimario>
           }
         />
       ) : visibles.length === 0 ? (
@@ -970,10 +941,7 @@ export function CatalogoView({
                 setBusqueda("");
                 setFiltro(null);
               }}
-              className={cn(
-                BOTON,
-                "bg-white border border-ink/10 text-ink hover:border-verde-300",
-              )}
+              className={cn(BOTON, "bg-white border border-ink/10 text-ink hover:border-verde-300")}
             >
               Quitar filtros
             </button>
@@ -982,131 +950,417 @@ export function CatalogoView({
       ) : (
         <div className="mt-gap-lg flex flex-col gap-gap-lg">
           {grupos.map((grupo, i) => {
-            /* El id ata el grupo a su encabezado: un lector de pantalla anuncia
-               «Tragos, region, 6 productos» al entrar en la sección, en vez de
-               dejar el conteo suelto. */
             const idGrupo = `catalogo-grupo-${i}`;
             return (
-              <section
-                key={grupo.clave}
-                aria-labelledby={idGrupo}
-                className="flex flex-col"
-              >
+              <section key={grupo.clave} aria-labelledby={idGrupo} className="flex flex-col">
                 <h2
                   id={idGrupo}
                   className="mb-gap-xs flex items-baseline gap-gap-xs font-lv-display text-body font-semibold text-ink"
                 >
                   {nombreCategoria(grupo.clave)}
-                  <span className="text-meta font-medium text-ink-soft/75">
-                    {grupo.items.length}
-                  </span>
+                  <span className="text-meta font-medium text-ink-soft/75">{grupo.items.length}</span>
                 </h2>
-                <div className="rounded-2xl border border-ink/5 bg-white px-gap-md">
-                  {grupo.items.map((item) => (
-                    <FilaProducto
-                      key={item.id}
-                      item={item}
-                      recienCreado={item.id === nuevoId}
-                      subiendo={subiendoId === item.id}
-                      canHoyHay={canHoyHay}
-                      /* «Hoy hay» escribe al momento contra el producto que ya
-                       está en la base: en uno recién añadido y sin guardar
-                       contestaba «Producto no encontrado». Se pregunta por
-                       `guardado`, que es justo la lista que sí está guardada. */
-                      persistido={guardado.current.some(
-                        (p) => p.id === item.id,
-                      )}
-                      busyEstado={busyEstado === item.id}
-                      listaCategorias={categoriaListId}
-                      categoriasUsadas={categoriasUsadas}
-                      sinNombre={sinNombre.has(item.id)}
-                      onPatch={patch}
-                      onEliminar={eliminar}
-                      onElegirFoto={elegirFoto}
-                      onSetEstado={setEstado}
-                      configTasa={configTasa}
-                      conflicto={conflictos.has(item.id ?? "")}
-                      onRecargar={recargarProducto}
-                    />
-                  ))}
-                </div>
+                <ul className="divide-y divide-ink/5 rounded-2xl border border-ink/5 bg-white px-gap-md">
+                  {grupo.items.map((item) =>
+                    modo === "hoy-hay" ? (
+                      <FilaHoyHay
+                        key={item.id}
+                        item={item}
+                        puede={canHoyHay}
+                        busy={busyEstado === item.id}
+                        masAbierto={masAbierto === item.id}
+                        onAlternarMas={() => setMasAbierto((m) => (m === item.id ? null : (item.id ?? null)))}
+                        onSet={(estado, hasta) => {
+                          setMasAbierto(null);
+                          void setEstado(item.id ?? "", estado, hasta);
+                        }}
+                      />
+                    ) : (
+                      <FilaCarta
+                        key={item.id}
+                        item={item}
+                        seleccionando={seleccion !== null}
+                        seleccionado={Boolean(item.id && seleccion?.has(item.id))}
+                        onAbrir={() =>
+                          seleccion !== null ? alternarSeleccion(item.id ?? "") : abrirEditor(item)
+                        }
+                        onMenu={() => {
+                          setMenuDe(item);
+                          nav.abrirHoja("acciones");
+                        }}
+                      />
+                    ),
+                  )}
+                </ul>
               </section>
             );
           })}
         </div>
       )}
 
-      {/* Los errores van juntos y **arriba de la barra**: al pulsar «Guardar» se
-          está abajo, así que ahí sí se leen. Cada uno con su canal —guardado y
-          disponibilidad— en vez de compartir un solo hueco. */}
-      {(error || errorEstado) && (
-        <div className="mt-gap-md flex flex-col gap-gap-xs">
-          {error && (
-            <div
-              role="alert"
-              className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
-            >
-              <span className="flex-1">{error}</span>
-              {puedeReintentarGuardado && (
-                <button
-                  type="button"
-                  onClick={() => void guardar()}
-                  className="rounded-full border border-destructive/25 bg-white px-3 py-[5px] font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
-                >
-                  Reintentar
-                </button>
-              )}
-            </div>
-          )}
-          {errorEstado && (
-            <div
-              role="alert"
-              className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
-            >
-              <span className="flex-1">{errorEstado}</span>
-              <button
-                type="button"
-                onClick={() => reintentarEstado.current?.()}
-                className="rounded-full border border-destructive/25 bg-white px-3 py-[5px] font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
-              >
-                Reintentar
-              </button>
-            </div>
-          )}
+      {errorEstado && (
+        <div
+          role="alert"
+          className="mt-gap-md flex flex-wrap items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-destructive"
+        >
+          <span className="flex-1">{errorEstado}</span>
+          <button
+            type="button"
+            onClick={() => reintentarEstado.current?.()}
+            className="rounded-full border border-destructive/25 bg-white px-3 py-[5px] font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:text-verde-700"
+          >
+            Reintentar
+          </button>
         </div>
       )}
 
-      {/* La barra solo aparece con algo que guardar: si no, es un botón que no
-          hace nada ocupando sitio en cada visita. Dice cuántos cambios hay y
-          deja descartarlos sin recargar, que es lo que antes obligaba a salir y
-          volver. */}
-      {sucio && (
-        <div className="sticky bottom-above-nav lg:bottom-4 z-40 mt-gap-lg flex flex-wrap items-center justify-end gap-gap-sm rounded-full bg-sand-warm/90 px-gap-sm py-[6px] backdrop-blur-[8px]">
-          <p className="mr-auto pl-gap-sm font-lv-display text-meta font-medium text-ink-soft/75">
-            {cambios} cambio{cambios === 1 ? "" : "s"} sin guardar
+      {/* ── Barra de la selección múltiple ──────────────────────────────── */}
+      {seleccion && seleccion.size > 0 && (
+        <div className="sticky bottom-above-nav z-40 mt-gap-lg flex flex-col gap-gap-xs rounded-2xl border border-ink/5 bg-white p-gap-sm shadow-card lg:bottom-4">
+          <p className="font-lv-display text-meta font-semibold text-ink">
+            {seleccion.size} {seleccion.size === 1 ? "seleccionado" : "seleccionados"}
           </p>
-          <button
-            type="button"
-            onClick={descartarCambios}
-            className="h-11 cursor-pointer rounded-full px-gap-md font-lv-display text-small font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-white hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
-          >
-            Descartar
-          </button>
-          <BotonPrimario
-            onClick={() => void guardar()}
-            disabled={saving}
-            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40 focus-visible:ring-offset-2"
-          >
-            {saving ? (
-              <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
-            ) : (
-              <Save size={16} strokeWidth={1.8} />
+          <div className="scrollbar-hide flex gap-gap-xs overflow-x-auto">
+            {canHoyHay && (
+              <>
+                <BotonSecundario
+                  className="shrink-0"
+                  disabled={enLote}
+                  onClick={() => void aplicarLote({ disponibilidad: "agotado", agotadoHasta: null }, "marcados como agotados")}
+                >
+                  Agotar
+                </BotonSecundario>
+                <BotonSecundario
+                  className="shrink-0"
+                  disabled={enLote}
+                  onClick={() => void aplicarLote({ disponibilidad: "disponible", agotadoHasta: null }, "marcados como disponibles")}
+                >
+                  Disponible
+                </BotonSecundario>
+              </>
             )}
-            {saving ? "Guardando…" : "Guardar catálogo"}
-          </BotonPrimario>
+            <BotonSecundario
+              className="shrink-0"
+              disabled={enLote}
+              onClick={() => void aplicarLote({ oculto: true }, "ocultos en tu ficha")}
+            >
+              Ocultar
+            </BotonSecundario>
+            <BotonSecundario
+              className="shrink-0"
+              disabled={enLote}
+              onClick={() => void aplicarLote({ oculto: false }, "visibles en tu ficha")}
+            >
+              Mostrar
+            </BotonSecundario>
+          </div>
+          <div className="flex gap-gap-xs">
+            <input
+              type="text"
+              value={categoriaLote}
+              list={categoriaListId}
+              onChange={(e) => setCategoriaLote(e.target.value)}
+              placeholder="Nueva categoría"
+              aria-label="Nueva categoría para los seleccionados"
+              className={cn(INPUT, "min-w-0 flex-1")}
+            />
+            <BotonSecundario
+              className="shrink-0"
+              disabled={enLote || !categoriaLote.trim()}
+              onClick={() =>
+                void aplicarLote({ category: categoriaLote.trim() }, `movidos a «${categoriaLote.trim()}»`)
+              }
+            >
+              Cambiar categoría
+            </BotonSecundario>
+          </div>
         </div>
       )}
+
+      {/* ── Hoja: editar o añadir un producto ───────────────────────────── */}
+      <HojaPanel
+        open={nav.hoja === "producto" && edicion !== null}
+        onOpenChange={(open) => {
+          if (!open) cerrarEditor();
+        }}
+        titulo={edicion?.original ? "Editar producto" : "Nuevo producto"}
+      >
+        {edicion && (
+          <div className="flex flex-col gap-gap-sm">
+            {edicion.conflicto !== undefined && (
+              <div
+                role="status"
+                className="flex flex-wrap items-center gap-gap-sm rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-3 py-[7px] text-meta font-medium text-ink"
+              >
+                <span className="min-w-0 flex-1">
+                  {edicion.conflicto === null
+                    ? "Este producto se borró desde el móvil mientras lo editabas."
+                    : "Este producto cambió desde el móvil mientras lo editabas. Guarda otra vez para quedarte con lo tuyo, o carga lo de ahora."}
+                </span>
+                <button
+                  type="button"
+                  onClick={recargarProducto}
+                  className="cursor-pointer font-lv-display font-semibold text-verde-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+                >
+                  {edicion.conflicto === null ? "Cerrar" : "Cargar lo de ahora"}
+                </button>
+              </div>
+            )}
+            <FilaProducto
+              item={edicion.draft}
+              recienCreado={!edicion.original}
+              subiendo={subiendoId === edicion.draft.id}
+              canHoyHay={canHoyHay}
+              persistido={Boolean(edicion.original)}
+              busyEstado={busyEstado === edicion.draft.id}
+              listaCategorias={categoriaListId}
+              categoriasUsadas={categoriasUsadas}
+              sinNombre={Boolean(errorProducto) && !edicion.draft.name.trim()}
+              configTasa={configTasa}
+              onPatch={patchDraft}
+              onEliminar={() => {
+                const original = edicion.original;
+                setEdicion(null);
+                nav.cerrarHoja();
+                if (original) void eliminar(original);
+              }}
+              onElegirFoto={elegirFoto}
+              onSetEstado={(id, estado, hasta) => void setEstado(id, estado, hasta)}
+            />
+            {errorProducto && (
+              <p
+                role="alert"
+                className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-[7px] text-meta font-medium text-ink"
+              >
+                {errorProducto}
+              </p>
+            )}
+            <BotonPrimario
+              alto="lg"
+              className="w-full"
+              disabled={guardandoProducto || Boolean(subiendoId)}
+              onClick={() => void guardarProducto()}
+            >
+              {guardandoProducto ? (
+                <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
+              ) : (
+                <Save size={16} strokeWidth={1.8} />
+              )}
+              {guardandoProducto ? "Guardando…" : edicion.original ? "Guardar producto" : "Añadir a la carta"}
+            </BotonPrimario>
+          </div>
+        )}
+      </HojaPanel>
+
+      {/* ── Hoja: «⋯» de un producto ────────────────────────────────────── */}
+      <HojaPanel
+        open={nav.hoja === "acciones" && menuDe !== null}
+        onOpenChange={(open) => {
+          if (!open) nav.cerrarHoja();
+        }}
+        titulo={menuDe?.name || "Producto"}
+      >
+        {menuDe && (
+          <div className="flex flex-col gap-gap-xs">
+            <BotonSecundario className="w-full !justify-start" onClick={() => abrirEditor(menuDe)}>
+              <Pencil size={16} strokeWidth={1.8} />
+              Editar
+            </BotonSecundario>
+            {conOfertas && menuDe.id && !menuDe.oculto && !estaAgotado(menuDe) && (
+              <BotonSecundario
+                className="w-full !justify-start"
+                onClick={() => {
+                  setOfertaDe(menuDe.id ?? null);
+                  nav.abrirHoja("oferta");
+                }}
+              >
+                <Tag size={16} strokeWidth={1.8} />
+                Poner en oferta
+              </BotonSecundario>
+            )}
+            {menuDe.id && nav.puedeAbrir({ seccion: "publicaciones", sub: null }) && (
+              <BotonSecundario
+                className="w-full !justify-start"
+                onClick={() => nav.ir({ seccion: "publicaciones", sub: null }, { producto: menuDe.id ?? "" })}
+              >
+                <Megaphone size={16} strokeWidth={1.8} />
+                Publicar en Facebook
+              </BotonSecundario>
+            )}
+            <BotonSecundario
+              className="w-full !justify-start"
+              onClick={() => {
+                const item = menuDe;
+                nav.cerrarHoja();
+                void alternarOculto(item);
+              }}
+            >
+              {menuDe.oculto ? <Eye size={16} strokeWidth={1.8} /> : <EyeOff size={16} strokeWidth={1.8} />}
+              {menuDe.oculto ? "Mostrar en la ficha" : "Ocultar de la ficha"}
+            </BotonSecundario>
+            <BotonSecundario
+              className="w-full !justify-start !text-destructive"
+              onClick={() => {
+                const item = menuDe;
+                nav.cerrarHoja();
+                void eliminar(item);
+              }}
+            >
+              <Trash2 size={16} strokeWidth={1.8} />
+              Eliminar
+            </BotonSecundario>
+          </div>
+        )}
+      </HojaPanel>
+
+      {conOfertas && (
+        <HojaPanel
+          open={nav.hoja === "oferta" && ofertaDe !== null}
+          onOpenChange={(open) => {
+            if (!open) nav.cerrarHoja();
+          }}
+          titulo="Poner en oferta"
+          descripcion="Sale en tu ficha y en tu carta con el precio tachado."
+        >
+          {ofertaDe && (
+            <OfertaRapida
+              key={ofertaDe}
+              place={place}
+              funciones={funciones}
+              productoInicial={ofertaDe}
+              onHecho={nav.cerrarHoja}
+            />
+          )}
+        </HojaPanel>
+      )}
     </div>
+  );
+}
+
+/** Una fila de «Hoy hay»: nombre, categoría y precio, y el interruptor. */
+function FilaHoyHay({
+  item,
+  puede,
+  busy,
+  masAbierto,
+  onAlternarMas,
+  onSet,
+}: {
+  item: UserPlaceMenuItem;
+  puede: boolean;
+  busy: boolean;
+  masAbierto: boolean;
+  onAlternarMas: () => void;
+  onSet: (estado: Disponibilidad, hasta?: number | null) => void;
+}) {
+  const agotado = estaAgotado(item);
+  const nombre = item.name || "Producto sin nombre";
+  return (
+    <li className="py-gap-xs">
+      <div className="flex min-h-11 items-center gap-gap-sm">
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-lv-display text-small font-semibold text-ink">{nombre}</p>
+          <p className="truncate text-meta text-ink-soft/75">
+            {[item.category, item.price ? `${item.price} ${item.currency}` : null]
+              .filter(Boolean)
+              .join(" · ")}
+            {agotado && item.agotadoHasta ? " · vuelve mañana" : ""}
+            {item.oculto ? " · oculto" : ""}
+          </p>
+        </div>
+        <span
+          className={clsx(
+            "shrink-0 font-lv-display text-meta font-semibold",
+            agotado ? "text-ink-soft/75" : "text-verde-700",
+          )}
+        >
+          {agotado ? "Agotado" : "Hay"}
+        </span>
+        {puede && (
+          <>
+            <Switch
+              checked={!agotado}
+              disabled={busy}
+              label={`${nombre}: ${agotado ? "agotado" : "hay"}`}
+              onToggle={() => onSet(agotado ? "disponible" : "agotado")}
+            />
+            <BotonIcono
+              aria-label={`Más opciones de ${nombre}`}
+              aria-expanded={masAbierto}
+              onClick={onAlternarMas}
+            >
+              <Ellipsis size={18} strokeWidth={1.8} />
+            </BotonIcono>
+          </>
+        )}
+      </div>
+      {puede && masAbierto && (
+        <div className="flex flex-wrap gap-gap-xs pb-gap-xs">
+          <BotonSecundario disabled={busy} onClick={() => onSet("agotado", hastaManana())}>
+            Agotado hasta mañana
+          </BotonSecundario>
+        </div>
+      )}
+    </li>
+  );
+}
+
+/** Una fila de «Editar carta»: miniatura, datos y «⋯». Tocarla abre la hoja. */
+function FilaCarta({
+  item,
+  seleccionando,
+  seleccionado,
+  onAbrir,
+  onMenu,
+}: {
+  item: UserPlaceMenuItem;
+  seleccionando: boolean;
+  seleccionado: boolean;
+  onAbrir: () => void;
+  onMenu: () => void;
+}) {
+  const nombre = item.name || "Producto sin nombre";
+  return (
+    <li className="flex items-center gap-gap-sm py-gap-xs">
+      <button
+        type="button"
+        onClick={onAbrir}
+        aria-pressed={seleccionando ? seleccionado : undefined}
+        className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-gap-sm rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40"
+      >
+        {seleccionando && (
+          <input
+            type="checkbox"
+            checked={seleccionado}
+            readOnly
+            tabIndex={-1}
+            aria-hidden
+            className="size-5 shrink-0 accent-verde-500"
+          />
+        )}
+        <span className="relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-ink/5 bg-sand text-verde-400">
+          {item.image ? (
+            <Image src={item.image} alt="" fill sizes="48px" className="object-cover" />
+          ) : (
+            <ImageIcon size={18} strokeWidth={1.8} />
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-lv-display text-small font-semibold text-ink">{nombre}</span>
+          <span className="block truncate text-meta text-ink-soft/75">
+            {item.price ? `${item.price} ${item.currency}` : "Sin precio"}
+            {item.description ? ` · ${item.description}` : ""}
+          </span>
+        </span>
+        {item.oculto && <Chapita tono="neutra">Oculto</Chapita>}
+        {estaAgotado(item) && <Chapita tono="ambar">Agotado</Chapita>}
+      </button>
+      {!seleccionando && (
+        <BotonIcono aria-label={`Más opciones de ${nombre}`} onClick={onMenu}>
+          <Ellipsis size={18} strokeWidth={1.8} />
+        </BotonIcono>
+      )}
+    </li>
   );
 }
 

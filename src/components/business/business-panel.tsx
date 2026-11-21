@@ -493,6 +493,9 @@ function VistaPanel({
             funciones={funciones}
             configTasa={configTasa ?? undefined}
             onVerPlanes={onVerPlanes}
+            modoInicial={
+              destino.sub === "hoy-hay" || destino.sub === "editar" ? destino.sub : null
+            }
           />
         </div>
       );

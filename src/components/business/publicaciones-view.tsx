@@ -126,6 +126,17 @@ export function PublicacionesView({
   const [loading, setLoading] = useState(true);
   const [texto, setTexto] = useState("");
   const [productoId, setProductoId] = useState("");
+  /* «Publicar en Facebook» desde un producto del catálogo llega con
+     `&producto=<id>`: se elige ese producto y el parámetro se quita. */
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const pedido = url.searchParams.get("producto");
+    if (!pedido) return;
+    url.searchParams.delete("producto");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    if (menu.some((item) => item.id === pedido)) setProductoId(pedido);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [elegirAbierto, setElegirAbierto] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [prompt, setPrompt] = useState("");

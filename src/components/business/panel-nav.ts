@@ -42,9 +42,10 @@ export type SubVista =
   | "precios"
   | "avisos"
   | "hoy-hay"
+  | "editar"
   | SeccionFicha;
 
-export type HojaId = "estado" | "negocios" | "tasa" | "sello" | "oferta" | "acciones";
+export type HojaId = "estado" | "negocios" | "tasa" | "sello" | "oferta" | "acciones" | "producto";
 
 export interface Destino {
   seccion: PanelView;
@@ -71,13 +72,13 @@ const SUBS: Partial<Record<PanelView, readonly SubVista[]>> = {
   mas: ["reservas", "precios", "avisos"],
   /* `hoy-hay` es el modo del catálogo que llega con su rediseño (sesión 4).
      Se acepta ya para que el atajo del manifest no pierda el parámetro. */
-  catalogo: ["hoy-hay"],
+  catalogo: ["hoy-hay", "editar"],
   /* Con `sub`, el editor entra con esa sección abierta: es como «Tu ficha está
      al 80 %» lleva al dueño justo a lo que falta. */
   editor: SECCIONES_FICHA,
 };
 
-const HOJAS: readonly HojaId[] = ["estado", "negocios", "tasa", "sello", "oferta", "acciones"];
+const HOJAS: readonly HojaId[] = ["estado", "negocios", "tasa", "sello", "oferta", "acciones", "producto"];
 
 export const INICIO: Destino = { seccion: "dashboard", sub: null };
 
@@ -128,7 +129,10 @@ const PRINCIPALES: readonly PanelView[] = [
  * la barra. El modo «Hoy hay» del catálogo sigue siendo el catálogo.
  */
 export function esPrincipal(d: Destino): boolean {
-  return PRINCIPALES.includes(d.seccion) && (d.sub === null || d.sub === "hoy-hay");
+  /* El catálogo es una sola pantalla con dos modos («Hoy hay» y «Editar
+     carta»): con cualquiera de los dos sigue siendo principal. */
+  if (d.seccion === "catalogo") return true;
+  return PRINCIPALES.includes(d.seccion) && d.sub === null;
 }
 
 /**
@@ -137,7 +141,8 @@ export function esPrincipal(d: Destino): boolean {
  * de origen.
  */
 export function padreDe(d: Destino): Destino {
-  if (esPrincipal(d)) return d;
+  /* Sin la subsección: así «Hoy hay» y «Editar carta» marcan «Catálogo» en la barra. */
+  if (esPrincipal(d)) return { seccion: d.seccion, sub: null };
   if (d.seccion === "pedidos") return { seccion: "pedidos", sub: null };
   return { seccion: "mas", sub: null };
 }

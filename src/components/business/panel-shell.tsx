@@ -69,7 +69,7 @@ interface PanelNav {
   destino: Destino;
   hoja: HojaId | null;
   /** Ir a otra pantalla. Pasa por la guardia de trabajo sin guardar. */
-  ir: (destino: Destino) => void;
+  ir: (destino: Destino, extras?: Record<string, string>) => void;
   /** La flecha de las subpantallas: vuelve a la de origen. */
   volver: () => void;
   abrirHoja: (hoja: HojaId) => void;
@@ -86,7 +86,16 @@ export function usePanelNav(): PanelNav {
   return nav;
 }
 
-function urlCon(destino: Destino, hoja: HojaId | null): string {
+/**
+ * La URL de un destino, partiendo de la actual (conserva `negocio`).
+ * `extras` añade parámetros que lee la pantalla de destino y que ella misma
+ * quita al usarlos (`&producto=` para Publicar, `&pedido=` del push).
+ */
+function urlCon(
+  destino: Destino,
+  hoja: HojaId | null,
+  extras?: Record<string, string>,
+): string {
   const url = new URL(window.location.href);
   if (destino.seccion === "dashboard" && !destino.sub) url.searchParams.delete("seccion");
   else url.searchParams.set("seccion", destino.seccion);
@@ -96,6 +105,7 @@ function urlCon(destino: Destino, hoja: HojaId | null): string {
   else url.searchParams.delete("hoja");
   /* `ultima` solo sirve en la primera carga, tras el acceso. */
   url.searchParams.delete("ultima");
+  for (const [clave, valor] of Object.entries(extras ?? {})) url.searchParams.set(clave, valor);
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
@@ -195,12 +205,12 @@ export function PanelShell({
   }, []);
 
   const ir = useCallback(
-    (d: Destino) => {
+    (d: Destino, extras?: Record<string, string>) => {
       if (!puedeAbrir(d)) return;
       const cambia = !mismoDestino(d, destinoRef.current);
       if (!cambia && !hojaRef.current) return;
       if (cambia && !puedeSalir()) return;
-      window.history.pushState({ lv: true }, "", urlCon(d, null));
+      window.history.pushState({ lv: true }, "", urlCon(d, null, extras));
       setDestino(d);
       setHoja(null);
       if (cambia) guardarUltima(d);
