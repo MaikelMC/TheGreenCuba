@@ -17,10 +17,10 @@ import {
   ArrowLeft,
   ChevronDown,
   ExternalLink,
-  Home,
+  Map as IconoMapa,
+  Store,
   MessageCircle,
   MoonStar,
-  Store,
   SunMedium,
   type LucideIcon,
 } from "lucide-react";
@@ -290,7 +290,7 @@ export function PanelShell({
   const nav: PanelNav = { destino, hoja, ir, volver, abrirHoja, cerrarHoja, puedeAbrir };
 
   const variosNegocios = negocios.length > 1;
-  const extras = useEntradasMenu(negocioId, variosNegocios ? () => abrirHoja("negocios") : null);
+  const extras = useEntradasMenu(negocioId);
   const principal = esPrincipal(destino);
 
   return (
@@ -305,7 +305,8 @@ export function PanelShell({
       <div className="business-panel flex h-dvh flex-col bg-sand font-lv text-ink">
         {/* Barra superior: el negocio (con su estado debajo) a la izquierda y la
             cuenta a la derecha. «Volver al inicio» pasó al menú de la cuenta
-            como «Ir a La Verde», y «Publicado en La Verde» a la pantalla Hoy. */}
+            como «Ir al mapa», y «Publicado en La Verde» a la pantalla Hoy. El tema
+            va en su propio botón, a la izquierda de la cuenta. */}
         <header className="safe-top sticky top-0 z-50 flex h-header shrink-0 items-center gap-gap-xs border-b border-ink/5 bg-sand-warm/90 px-3 backdrop-blur-[16px] sm:gap-gap-sm sm:px-gap-md">
           <Marca nombre={businessName} logoUrl={logoUrl} />
           <div className="flex min-w-0 flex-1 flex-col items-start gap-[2px]">
@@ -326,6 +327,7 @@ export function PanelShell({
             )}
             {estado}
           </div>
+          <BotonTema />
           <UserMenu extras={extras} antesDeSalir={puedeSalir} />
         </header>
 
@@ -534,39 +536,42 @@ function BotonLateral({
   );
 }
 
-/**
- * Las entradas del panel en el menú de la cuenta: «Ir a La Verde» (pasa por la
- * guardia), «Ver mi ficha», cambiar de negocio, el tema —dentro del panel no
- * había conmutador— y el soporte. «Cerrar sesión» ya lo trae el menú.
- */
-function useEntradasMenu(negocioId: string, cambiarNegocio: (() => void) | null): EntradaMenu[] {
-  const router = useRouter();
+/** Claro / oscuro, en la barra superior junto al menú de la cuenta. */
+function BotonTema() {
   const { resolvedTheme, setTheme } = useTheme();
   /* En el servidor `resolvedTheme` no existe: sin la guarda, el primer render
-     del cliente pintaría el rótulo contrario al del HTML. */
+     del cliente pintaría el icono contrario al del HTML. */
   const [montado, setMontado] = useState(false);
   useEffect(() => setMontado(true), []);
   const oscuro = montado && resolvedTheme === "dark";
+  const Icono = oscuro ? SunMedium : MoonStar;
+  return (
+    <BotonIcono
+      aria-label={oscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+      onClick={() => setTheme(oscuro ? "light" : "dark")}
+    >
+      <Icono size={20} strokeWidth={1.8} aria-hidden />
+    </BotonIcono>
+  );
+}
 
+/**
+ * Las entradas del panel en el menú de la cuenta: «Ir al mapa» (pasa por la
+ * guardia), «Ver mi ficha» y el soporte. Cambiar de negocio va en el nombre de
+ * la barra y el tema en su botón. «Cerrar sesión» ya lo trae el menú.
+ */
+function useEntradasMenu(negocioId: string): EntradaMenu[] {
+  const router = useRouter();
   return [
     {
-      key: "ir-la-verde",
-      label: "Ir a La Verde",
-      icon: Home,
+      key: "ir-mapa",
+      label: "Ir al mapa",
+      icon: IconoMapa,
       onSelect: () => {
         if (puedeSalir()) router.push("/home");
       },
     },
     { key: "ficha", label: "Ver mi ficha", icon: ExternalLink, href: `/place/${negocioId}` },
-    ...(cambiarNegocio
-      ? [{ key: "negocios", label: "Cambiar de negocio", icon: Store, onSelect: cambiarNegocio }]
-      : []),
-    {
-      key: "tema",
-      label: oscuro ? "Modo claro" : "Modo oscuro",
-      icon: oscuro ? SunMedium : MoonStar,
-      onSelect: () => setTheme(oscuro ? "light" : "dark"),
-    },
     {
       key: "soporte",
       label: "Soporte por WhatsApp",
