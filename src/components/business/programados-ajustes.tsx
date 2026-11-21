@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { CalendarClock, Loader2, Lock, Save } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CalendarClock, Loader2, Lock } from "lucide-react";
+import { AvisoGuardado, useEstadoGuardado } from "@/components/business/ui/estado-guardado";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/business/ui/switch";
@@ -27,7 +28,6 @@ export function ProgramadosAjustes({
 }) {
   const [config, setConfig] = useState<ProgramadosConfig>(PROGRAMADOS_DEFAULT);
   const [cargando, setCargando] = useState(true);
-  const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
     if (!tieneFuncion) {
@@ -48,26 +48,45 @@ export function ProgramadosAjustes({
     return () => { alive = false; };
   }, [placeId, tieneFuncion]);
 
-  const guardar = useCallback(async () => {
-    setGuardando(true);
-    try {
-      const res = await fetch(`/api/places/${placeId}/programados`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
+  /* Guardado automático: el interruptor y la duración guardan al cambiar; los
+     números, al salir del campo. Si el servidor falla, todo vuelve a lo último
+     guardado (`guardadoRef`) y un aviso lo dice. */
+  const { estado, guardar: guardarConEstado } = useEstadoGuardado();
+  const guardadoRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!cargando && guardadoRef.current === null) guardadoRef.current = JSON.stringify(config);
+  }, [cargando, config]);
+
+  const guardar = useCallback(
+    async (siguiente: ProgramadosConfig = config) => {
+      const previo = guardadoRef.current;
+      if (previo === JSON.stringify(siguiente)) return;
+      const ok = await guardarConEstado(async () => {
+        try {
+          const res = await fetch(`/api/places/${placeId}/programados`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(siguiente),
+          });
+          if (!res.ok) {
+            const data = (await res.json().catch(() => ({}))) as { error?: string };
+            toast.error(data.error ?? "No se pudo guardar: no se cambió nada.");
+            return false;
+          }
+          return true;
+        } catch {
+          toast.error("No se pudo guardar. Revisa la conexión: no se cambió nada.");
+          return false;
+        }
       });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        toast.error(data.error ?? "No se pudo guardar.");
+      if (!ok) {
+        if (previo) setConfig(JSON.parse(previo) as ProgramadosConfig);
         return;
       }
-      toast.success("Ajustes de pedidos programados guardados.");
-    } catch {
-      toast.error("No se pudo guardar. Revisa la conexión.");
-    } finally {
-      setGuardando(false);
-    }
-  }, [placeId, config]);
+      guardadoRef.current = JSON.stringify(siguiente);
+    },
+    [placeId, config, guardarConEstado],
+  );
 
   return (
     <div>
@@ -86,7 +105,11 @@ export function ProgramadosAjustes({
             <Switch
               tamano="sm"
               checked={config.activo}
-              onToggle={() => setConfig((c) => ({ ...c, activo: !c.activo }))}
+              onToggle={() => {
+                const siguiente = { ...config, activo: !config.activo };
+                setConfig(siguiente);
+                void guardar(siguiente);
+              }}
               label="Pedidos programados"
             />
           </label>
@@ -127,6 +150,7 @@ export function ProgramadosAjustes({
                 max={7}
                 value={config.diasMax}
                 onChange={(e) => setConfig((c) => ({ ...c, diasMax: Math.min(7, Math.max(1, Number(e.target.value))) }))}
+                onBlur={() => void guardar()}
                 className={INPUT}
               />
             </div>
@@ -142,6 +166,7 @@ export function ProgramadosAjustes({
                 min={0}
                 value={config.antelacionMin}
                 onChange={(e) => setConfig((c) => ({ ...c, antelacionMin: Math.max(0, Number(e.target.value)) }))}
+                onBlur={() => void guardar()}
                 className={INPUT}
               />
             </div>
@@ -154,7 +179,11 @@ export function ProgramadosAjustes({
               <select
                 id="pg-franjaMin"
                 value={config.franjaMin}
-                onChange={(e) => setConfig((c) => ({ ...c, franjaMin: Number(e.target.value) as 30 | 60 }))}
+                onChange={(e) => {
+                  const siguiente = { ...config, franjaMin: Number(e.target.value) as 30 | 60 };
+                  setConfig(siguiente);
+                  void guardar(siguiente);
+                }}
                 className={cn(INPUT, "cursor-pointer")}
               >
                 <option value={30}>30 minutos</option>
@@ -179,11 +208,12 @@ export function ProgramadosAjustes({
                   }))
                 }
                 placeholder="Sin límite"
+                onBlur={() => void guardar()}
                 className={INPUT}
               />
             </div>
 
-            {/* Aviso Telegram + botón guardar */}
+            {/* Aviso Telegram + estado del guardado */}
             <div className="flex items-end justify-between gap-gap-sm col-span-2">
               <div className="flex w-36 flex-col gap-gap-xs">
                 <label htmlFor="pg-aviso" className={LABEL}>
@@ -195,22 +225,14 @@ export function ProgramadosAjustes({
                   min={0}
                   value={config.avisoMin}
                   onChange={(e) => setConfig((c) => ({ ...c, avisoMin: Math.max(0, Number(e.target.value)) }))}
+                  onBlur={() => void guardar()}
                   className={INPUT}
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => void guardar()}
-                disabled={guardando}
-                className="inline-flex h-11 shrink-0 cursor-pointer items-center gap-gap-xs rounded-xl bg-verde-400 px-gap-md font-lv-display text-meta font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 disabled:pointer-events-none disabled:opacity-60"
-              >
-                {guardando ? (
-                  <Loader2 size={14} strokeWidth={1.8} className="animate-spin" />
-                ) : (
-                  <Save size={14} strokeWidth={1.8} />
-                )}
-                {guardando ? "Guardando…" : "Guardar ajustes"}
-              </button>
+              <div className="flex flex-col items-end gap-gap-xs pb-gap-xs text-right">
+                <AvisoGuardado estado={estado} />
+                <p className="text-meta text-ink-soft/75">Se guarda al salir de cada campo.</p>
+              </div>
             </div>
           </div>
         </div>

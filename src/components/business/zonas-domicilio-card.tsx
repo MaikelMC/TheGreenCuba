@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Loader2, MapPin, Pencil, Plus, Save, Trash2 } from "lucide-react";
-import { registrarGuarda } from "@/lib/unsaved-guard";
+import { useRef, useState } from "react";
+import { Loader2, MapPin, Pencil, Plus, Trash2 } from "lucide-react";
+import { AvisoGuardado, useEstadoGuardado } from "@/components/business/ui/estado-guardado";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/business/ui/switch";
@@ -69,31 +69,17 @@ export function ZonasDomicilioCard({
      para que la configuración fusionada sea válida. */
   const [hayEntrega, setHayEntrega] = useState(Boolean(entregaInicial));
 
-  /* Lo único que sigue yendo con botón: los dos textos, que se escriben a
-     medias. `textosGuardados` es la última versión que la base confirmó. */
-  const textosActuales = JSON.stringify([pedidoMinStr.trim(), pedidoMinMoneda, notaEntrega.trim()]);
-  const textosGuardados = useRef(textosActuales);
-  const textosSucios = textosActuales !== textosGuardados.current;
-
-  /* Misma red que Ofertas y el Catálogo: el armazón pregunta antes de cambiar
-     de sección y el navegador antes de cerrar la pestaña. */
-  useEffect(() => {
-    if (!textosSucios) return;
-    const bajaGuarda = registrarGuarda(() =>
-      window.confirm(
-        "Tienes el pedido mínimo o la nota de entrega sin guardar. Si sales ahora se descartan. ¿Salir igual?",
-      ),
-    );
-    const alCerrar = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", alCerrar);
-    return () => {
-      bajaGuarda();
-      window.removeEventListener("beforeunload", alCerrar);
-    };
-  }, [textosSucios]);
+  /* Los dos textos se guardan solos al salir del campo (la moneda, al
+     cambiarla). `textosGuardados` es la última versión que la base confirmó:
+     decide si hay algo que mandar y a qué se vuelve si falla. */
+  const textosGuardados = useRef({
+    min: pedidoMinStr.trim(),
+    moneda: pedidoMinMoneda,
+    nota: notaEntrega.trim(),
+  });
+  const { estado: estadoTextos, guardar: guardarConEstado } = useEstadoGuardado();
+  const pedidoMinNum = pedidoMinStr.trim() ? parseFloat(pedidoMinStr.replace(",", ".")) : null;
+  const pedidoMinMal = pedidoMinNum !== null && !(Number.isFinite(pedidoMinNum) && pedidoMinNum >= 0);
 
   /**
    * Los interruptores de recoger y domicilio guardan al momento, como los del
@@ -254,33 +240,38 @@ export function ZonasDomicilioCard({
   }
 
   /* ── Guardar los textos ──────────────────────────────────────────────── */
-  async function guardar() {
-    if (guardando) return;
-    setGuardando(true);
-    const pedidoMinimo =
-      pedidoMinStr.trim()
-        ? (() => {
-            const v = parseFloat(pedidoMinStr.replace(",", "."));
-            return Number.isFinite(v) && v >= 0
-              ? { monto: v, moneda: pedidoMinMoneda }
-              : null;
-          })()
-        : null;
+  /** Un mínimo que no es número se marca y no se envía. */
+  async function guardarTextos(moneda: string = pedidoMinMoneda) {
+    if (pedidoMinMal) return;
+    const siguiente = { min: pedidoMinStr.trim(), moneda, nota: notaEntrega.trim() };
+    const previo = textosGuardados.current;
+    if (
+      previo.min === siguiente.min &&
+      previo.moneda === siguiente.moneda &&
+      previo.nota === siguiente.nota
+    ) {
+      return;
+    }
 
     /* Solo los dos textos: los interruptores y las zonas ya se guardaron al
        tocarlos. `null` explícito: con el merge del servidor, una clave ausente
        se conserva, así que vaciar el mínimo o la nota tiene que viajar como
        «borra esto» y no como «no lo toques». */
-    const ok = await enviar({
-      pedidoMinimo,
-      notaEntrega: notaEntrega.trim() ? notaEntrega.trim().slice(0, 300) : null,
-      ...(hayEntrega ? {} : { costo: { modo: "consultar" }, tiempo: { min: 0, max: 0 } }),
-    });
-    setGuardando(false);
-    if (!ok) return;
+    const ok = await guardarConEstado(() =>
+      enviar({
+        pedidoMinimo: pedidoMinNum !== null ? { monto: pedidoMinNum, moneda } : null,
+        notaEntrega: siguiente.nota ? siguiente.nota.slice(0, 300) : null,
+        ...(hayEntrega ? {} : { costo: { modo: "consultar" }, tiempo: { min: 0, max: 0 } }),
+      }),
+    );
+    if (!ok) {
+      setPedidoMinStr(previo.min);
+      setPedidoMinMoneda(previo.moneda);
+      setNotaEntrega(previo.nota);
+      return;
+    }
     setHayEntrega(true);
-    textosGuardados.current = textosActuales;
-    toast.success("Pedido mínimo y nota guardados.");
+    textosGuardados.current = siguiente;
   }
 
   /* ── Render ──────────────────────────────────────────────────────────── */
@@ -400,12 +391,17 @@ export function ZonasDomicilioCard({
                 placeholder="p. ej. 500"
                 value={pedidoMinStr}
                 onChange={(e) => setPedidoMinStr(e.target.value)}
+                onBlur={() => void guardarTextos()}
+                aria-invalid={pedidoMinMal || undefined}
                 className="mt-[4px]"
               />
             </div>
             <select
               value={pedidoMinMoneda}
-              onChange={(e) => setPedidoMinMoneda(e.target.value)}
+              onChange={(e) => {
+                setPedidoMinMoneda(e.target.value);
+                void guardarTextos(e.target.value);
+              }}
               aria-label="Moneda del pedido mínimo"
               className="zonas-select h-11 rounded-xl border border-ink/10 bg-white px-gap-sm text-small text-ink focus:border-verde-400 focus:outline-none sm:w-24"
             >
@@ -423,34 +419,22 @@ export function ZonasDomicilioCard({
               placeholder="Entregamos de 10 a. m. a 6 p. m."
               value={notaEntrega}
               onChange={(e) => setNotaEntrega(e.target.value)}
+              onBlur={() => void guardarTextos()}
               maxLength={300}
               className="mt-[4px]"
             />
           </div>
         </div>
 
-        {/* ── Guardar los textos ────────────────────────────────────────
-            Solo aparece con cambios: los interruptores y las zonas ya se
-            guardaron al tocarlos, y un botón que guarda lo que ya está en la
-            base es ruido. */}
-        {textosSucios && (
-          <div className="mt-gap-sm flex flex-wrap items-center gap-gap-sm">
-            <button
-              type="button"
-              onClick={() => void guardar()}
-              disabled={guardando}
-              className="inline-flex h-11 w-fit cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-md font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition-colors duration-300 ease-outquint hover:bg-verde-300 disabled:pointer-events-none disabled:opacity-60"
-            >
-              {guardando ? (
-                <Loader2 size={16} strokeWidth={1.8} className="animate-spin" aria-hidden />
-              ) : (
-                <Save size={16} strokeWidth={1.8} aria-hidden />
-              )}
-              {guardando ? "Guardando…" : "Guardar mínimo y nota"}
-            </button>
-            <span className="text-meta text-ink-soft/75">Tienes cambios sin guardar.</span>
-          </div>
+        {pedidoMinMal && (
+          <p className="mt-gap-xs text-meta text-destructive">
+            Escribe un número válido en el pedido mínimo o déjalo vacío.
+          </p>
         )}
+        <div className="mt-gap-sm flex flex-wrap items-center justify-between gap-gap-sm">
+          <p className="text-meta text-ink-soft/75">Se guarda al salir de cada campo.</p>
+          <AvisoGuardado estado={estadoTextos} />
+        </div>
         </>
       )}
       </section>

@@ -511,6 +511,7 @@ export function HoyView({
             tasaEurInicial={place.tasaEurCup}
             tasaMlcInicial={place.tasaMlcCup}
             transferenciaPctInicial={place.transferenciaPct}
+            plegable={false}
           />
         </HojaPanel>
       )}

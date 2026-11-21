@@ -296,6 +296,7 @@ de copiar clases. Combinan con `clsx`, **no** con `cn`: `tailwind-merge` no cono
 | `Switch` | `switch.tsx` | Único interruptor. `tamano="md"` (48×28) o `"sm"` (44×24); área táctil de 44 px; pulgar `panel-switch-thumb`, claro en los dos temas |
 | `CandadoPlan` | `candado-plan.tsx` | «Ver los planes» + línea meta. El texto de `bloqueoDe` va en la `Chapita` de la cabecera |
 | `HojaPanel` | `hoja-panel.tsx` | `Sheet` inferior en móvil, `Dialog` en escritorio (≥ 1024 px). Lleva `panel-portal` y aspa de 44 px |
+| `AvisoGuardado` + `useEstadoGuardado` | `estado-guardado.tsx` | Guardado automático de tarjetas de ajustes: «Guardando…» → «Guardado ✓» en `role="status"`. Interruptores y selectores guardan al cambiar; texto y número al salir del campo; si falla, vuelve a lo guardado y toast |
 
 Piezas de pantalla reutilizables (en `src/components/business/`):
 

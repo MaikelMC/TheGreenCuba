@@ -15,7 +15,7 @@
  * incompleto.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
@@ -50,7 +50,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { INPUT } from "@/components/business/ui/clases";
-import { BotonPrimario } from "@/components/business/ui/botones";
+import { AvisoGuardado, useEstadoGuardado } from "@/components/business/ui/estado-guardado";
 import { Chapita, FilaAjuste, TarjetaAjuste } from "@/components/business/ui/tarjeta";
 import { CandadoPlan } from "@/components/business/ui/candado-plan";
 import { Switch } from "@/components/business/ui/switch";
@@ -262,7 +262,6 @@ export function TarjetaReservas({
     place.aforoDiarioPersonas ? String(place.aforoDiarioPersonas) : "",
   );
   const [cambiandoReservas, setCambiandoReservas] = useState(false);
-  const [guardandoReservas, setGuardandoReservas] = useState(false);
   const [errorReservas, setErrorReservas] = useState<string | null>(null);
   /* Qué campo tiene la culpa, para marcar solo ese y unirle el mensaje.
      `null` con un error de red, que no es de ningún campo. */
@@ -318,60 +317,69 @@ export function TarjetaReservas({
     );
   }
 
+  /* Lo último que confirmó el servidor: decide si hay algo que mandar y a qué
+     se vuelve si el guardado falla. */
+  const { estado: estadoReservas, guardar: guardarConEstado } = useEstadoGuardado();
+  const reservasGuardadas = useRef({ tipo: reservaTipo, aforo, cupoDia, plantilla });
+
   /**
-   * El tipo, el aforo y la plantilla se guardan de una vez.
+   * Guardado automático de la configuración de reservas.
    *
-   * No escriben al teclear: la plantilla es un texto largo que se escribe a
-   * medias y mandar cada pulsación dejaría a los clientes leyendo un mensaje
-   * incompleto mientras el dueño lo redacta.
+   * El tipo guarda al elegirlo; el aforo, el cupo y la plantilla al salir del
+   * campo, **nunca mientras se escribe**: la plantilla es el mensaje que lee el
+   * cliente y no puede quedar a medias. Un número inválido se marca y no se
+   * envía. Si el servidor falla, todo vuelve a lo último guardado.
    */
-  async function guardarReservas() {
-    const aforoNum = aforo.trim() === "" ? null : Number(aforo);
-    if (
-      aforoNum !== null &&
-      (!Number.isInteger(aforoNum) || aforoNum < 1 || aforoNum > 1000)
-    ) {
-      setErrorReservas(
-        "El aforo tiene que ser un número entero de personas, o quedar vacío.",
-      );
+  async function guardarReservas(
+    cambio: Partial<{ tipo: TipoReserva; aforo: string; cupoDia: string; plantilla: string }> = {},
+  ) {
+    const v = { tipo: reservaTipo, aforo, cupoDia, plantilla, ...cambio };
+    const aforoNum = v.aforo.trim() === "" ? null : Number(v.aforo);
+    if (aforoNum !== null && (!Number.isInteger(aforoNum) || aforoNum < 1 || aforoNum > 1000)) {
+      setErrorReservas("El aforo tiene que ser un número entero de personas, o quedar vacío.");
       setCampoErrorReservas("aforo");
-      document.getElementById("ajAforo")?.focus();
       return;
     }
-
-    const cupoNum = cupoDia.trim() === "" ? null : Number(cupoDia);
-    if (
-      cupoNum !== null &&
-      (!Number.isInteger(cupoNum) || cupoNum < 1 || cupoNum > 1000)
-    ) {
-      setErrorReservas(
-        "El cupo diario tiene que ser un número entero de personas, o quedar vacío.",
-      );
+    const cupoNum = v.cupoDia.trim() === "" ? null : Number(v.cupoDia);
+    if (cupoNum !== null && (!Number.isInteger(cupoNum) || cupoNum < 1 || cupoNum > 1000)) {
+      setErrorReservas("El cupo diario tiene que ser un número entero de personas, o quedar vacío.");
       setCampoErrorReservas("cupo");
-      document.getElementById("ajCupoDia")?.focus();
       return;
     }
-
     setErrorReservas(null);
     setCampoErrorReservas(null);
-    setGuardandoReservas(true);
-    const guardado = await updatePlace(place.id, {
-      tipoReserva: reservaTipo,
-      /* El aforo y el cupo solo tienen sentido con mesa: al cambiar de tipo se
-         limpian, para no dejar un tope olvidado que el formulario ya no enseña. */
-      aforoMaxPersonas: reservaTipo === "mesa" ? aforoNum : null,
-      aforoDiarioPersonas: reservaTipo === "mesa" ? cupoNum : null,
-      plantillaReserva: plantilla.trim() || null,
-    });
-    setGuardandoReservas(false);
 
-    if (!guardado) {
-      setErrorReservas(
-        "No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada.",
-      );
+    const previo = reservasGuardadas.current;
+    if (
+      previo.tipo === v.tipo &&
+      previo.aforo === v.aforo &&
+      previo.cupoDia === v.cupoDia &&
+      previo.plantilla === v.plantilla
+    ) {
       return;
     }
-    toast.success("Reservas guardadas");
+    const ok = await guardarConEstado(async () => {
+      const guardado = await updatePlace(place.id, {
+        tipoReserva: v.tipo,
+        /* El aforo y el cupo solo tienen sentido con mesa: al cambiar de tipo
+           se limpian, para no dejar un tope que el formulario ya no enseña. */
+        aforoMaxPersonas: v.tipo === "mesa" ? aforoNum : null,
+        aforoDiarioPersonas: v.tipo === "mesa" ? cupoNum : null,
+        plantillaReserva: v.plantilla.trim() || null,
+      });
+      if (!guardado) {
+        toast.error("No se pudieron guardar las reservas. Revisa la conexión: no se cambió nada.");
+      }
+      return Boolean(guardado);
+    });
+    if (!ok) {
+      setReservaTipo(previo.tipo);
+      setAforo(previo.aforo);
+      setCupoDia(previo.cupoDia);
+      setPlantilla(previo.plantilla);
+      return;
+    }
+    reservasGuardadas.current = v;
   }
 
   /** Lee el cupo gastado por fecha. Best-effort: sin red no se pinta cifra. */
@@ -529,7 +537,10 @@ export function TarjetaReservas({
                       <Label htmlFor="ajReservaTipo">Qué se reserva</Label>
                       <Select
                         value={reservaTipo}
-                        onValueChange={(v) => setReservaTipo(v as TipoReserva)}
+                        onValueChange={(v) => {
+                          setReservaTipo(v as TipoReserva);
+                          void guardarReservas({ tipo: v as TipoReserva });
+                        }}
                       >
                         <SelectTrigger id="ajReservaTipo">
                           <SelectValue />
@@ -558,6 +569,7 @@ export function TarjetaReservas({
                           }
                           value={aforo}
                           onChange={(e) => setAforo(e.target.value)}
+                          onBlur={() => void guardarReservas()}
                           placeholder="Ej: 8"
                           className={INPUT}
                         />
@@ -582,6 +594,7 @@ export function TarjetaReservas({
                         }
                         value={cupoDia}
                         onChange={(e) => setCupoDia(e.target.value)}
+                        onBlur={() => void guardarReservas()}
                         placeholder="Ej: 40"
                         className={INPUT}
                       />
@@ -663,6 +676,7 @@ export function TarjetaReservas({
                       rows={3}
                       value={plantilla}
                       onChange={(e) => setPlantilla(e.target.value)}
+                      onBlur={() => void guardarReservas()}
                       placeholder={PLANTILLA_POR_DEFECTO[reservaTipo]}
                       className={cn(
                         INPUT,
@@ -682,6 +696,11 @@ export function TarjetaReservas({
                   <p className="whitespace-pre-wrap rounded-2xl border border-ink/5 bg-sand-warm px-4 py-3 text-small leading-relaxed text-ink-soft">
                     {plantillaEfectiva(reservaTipo, plantilla)}
                   </p>
+
+                  <div className="flex flex-wrap items-center justify-between gap-gap-sm">
+                    <p className="text-meta text-ink-soft/75">Se guarda al salir de cada campo.</p>
+                    <AvisoGuardado estado={estadoReservas} />
+                  </div>
 
                   <AnimatePresence>
                     {errorReservas && (
@@ -703,23 +722,6 @@ export function TarjetaReservas({
                     )}
                   </AnimatePresence>
 
-                  <BotonPrimario
-                    onClick={() => void guardarReservas()}
-                    disabled={guardandoReservas}
-                    className="self-start"
-                  >
-                    {guardandoReservas ? (
-                      <>
-                        <Loader2 size={16} className="animate-spin" />
-                        Guardando…
-                      </>
-                    ) : (
-                      <>
-                        <Save size={16} strokeWidth={1.8} />
-                        Guardar reservas
-                      </>
-                    )}
-                  </BotonPrimario>
                 </div>
               </details>
             </>
