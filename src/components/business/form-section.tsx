@@ -3,8 +3,10 @@
 import { createContext, useContext, useEffect, useId, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ChevronDown } from "lucide-react";
+import { clsx } from "clsx";
 import { cn } from "@/lib/utils";
 import { EASE } from "@/lib/motion";
+import { CHAPITA, TONO_CHAPITA } from "@/components/business/ui/clases";
 
 interface FormSectionProps {
   title: string;
@@ -34,6 +36,10 @@ interface FormSectionProps {
    * tener que adivinar qué abrir.
    */
   autoOpen?: boolean;
+  /** Lo que hay dentro, en una línea, mientras la sección está cerrada. */
+  resumen?: React.ReactNode;
+  /** El resumen es un aviso («Sin fotos todavía»): se pinta en ámbar. */
+  resumenAviso?: boolean;
 }
 
 /* Acordeón de una sola hoja abierta.
@@ -117,6 +123,8 @@ export function FormSection({
   id: clave,
   invalid = false,
   autoOpen = false,
+  resumen,
+  resumenAviso = false,
 }: FormSectionProps) {
   const group = useContext(SectionsContext);
   /* Fuera de un `FormSections` la sección sigue funcionando sola. */
@@ -185,16 +193,29 @@ export function FormSection({
               `bg-destructive/5` daba 4,08:1 a 16 px, por debajo de AA. El rojo
               lo dice el fondo teñido, el borde, el anillo, el icono y la
               flecha; el texto, que es lo que hay que leer, se queda legible. */}
-          <span
-            id={tituloId}
-            className="font-lv-display text-body font-semibold flex items-center gap-gap-xs text-ink"
-          >
-            {icon && (
-              <span className={invalid ? "text-destructive" : "text-verde-600"}>
-                {icon}
-              </span>
+          <span className="flex min-w-0 flex-col items-start gap-[2px] text-left">
+            <span
+              id={tituloId}
+              className="font-lv-display text-body font-semibold flex items-center gap-gap-xs text-ink"
+            >
+              {icon && (
+                <span className={invalid ? "text-destructive" : "text-verde-600"}>
+                  {icon}
+                </span>
+              )}
+              {title}
+            </span>
+            {/* Cerrada, una línea dice qué hay dentro: el dueño ve la ficha
+                entera sin abrir nada. Lo que falta va en ámbar. */}
+            {!open && resumen && (
+              resumenAviso ? (
+                <span className={clsx(CHAPITA, TONO_CHAPITA.ambar, "max-w-full truncate")}>
+                  {resumen}
+                </span>
+              ) : (
+                <span className="max-w-full truncate text-meta text-ink-soft/75">{resumen}</span>
+              )
             )}
-            {title}
           </span>
           <motion.span
             animate={{ rotate: open ? 0 : -90 }}

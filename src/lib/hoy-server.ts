@@ -7,6 +7,7 @@ import { DIAS_AVISO_PAGO, DIAS_GRACIA_VENCIDO, diasHastaPago } from "@/lib/recor
 import { estaAgotado } from "@/lib/disponibilidad";
 import { ofertasVigentes } from "@/lib/ofertas";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
+import { completitud } from "@/lib/ficha/completitud";
 import type { Funcion } from "@/lib/plans";
 import type { PermisoNegocio } from "@/lib/permisos-negocio";
 import type { UserPlace } from "@/lib/places-store";
@@ -47,46 +48,18 @@ function diaCuba(fecha: Date | number): string {
   return FORMATO_DIA.format(typeof fecha === "number" ? new Date(fecha) : fecha);
 }
 
-/**
- * Qué le falta a la ficha, en el orden en que se le pide al dueño. Cada punto
- * apunta a la `FormSection` del editor que lo resuelve.
- */
+/** La completitud de la ficha guardada (ver `src/lib/ficha/completitud.ts`). */
 function completitudFicha(place: UserPlace): { pct: number; seccion: string; falta: string } | null {
-  const puntos: { ok: boolean; seccion: string; falta: string }[] = [
-    {
-      ok: Boolean(place.logoUrl || place.photos?.length),
-      seccion: "fotos",
-      falta: "Faltan fotos o el logo",
-    },
-    {
-      ok: (place.description ?? "").trim().length >= 30,
-      seccion: "basico",
-      falta: "Falta una descripción",
-    },
-    {
-      ok: Boolean(place.horario || place.schedule?.trim()),
-      seccion: "horario",
-      falta: "Falta el horario",
-    },
-    {
-      ok: Boolean(place.lat && place.lng),
-      seccion: "ubicacion",
-      falta: "Falta marcarla en el mapa",
-    },
-    {
-      ok: Boolean(place.whatsapp?.trim() || place.phone?.trim()),
-      seccion: "contacto",
-      falta: "Falta un teléfono o WhatsApp",
-    },
-  ];
-  const hechos = puntos.filter((p) => p.ok).length;
-  const primero = puntos.find((p) => !p.ok);
-  if (!primero) return null;
-  return {
-    pct: Math.round((hechos / puntos.length) * 100),
-    seccion: primero.seccion,
-    falta: primero.falta,
-  };
+  return completitud({
+    logoUrl: place.logoUrl,
+    fotos: place.photos?.length ?? 0,
+    description: place.description,
+    tieneHorario: Boolean(place.horario || place.schedule?.trim()),
+    lat: place.lat,
+    lng: place.lng,
+    whatsapp: place.whatsapp,
+    phone: place.phone,
+  });
 }
 
 /**

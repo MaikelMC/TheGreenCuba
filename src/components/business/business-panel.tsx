@@ -102,7 +102,11 @@ import { campoResuelto } from "@/lib/map/geocode";
 import { registrarGuarda } from "@/lib/unsaved-guard";
 import { INPUT } from "@/components/business/ui/clases";
 import { BotonPrimario, BotonSecundario } from "@/components/business/ui/botones";
-import { TarjetaPanel } from "@/components/business/ui/tarjeta";
+import { Chapita, TarjetaPanel } from "@/components/business/ui/tarjeta";
+import { CHAPITA, TONO_CHAPITA } from "@/components/business/ui/clases";
+import { MIN_DESCRIPCION, puntosFicha } from "@/lib/ficha/completitud";
+import { TIPO_NEGOCIO_LABEL } from "@/lib/ficha/tipos";
+import { clsx } from "clsx";
 import { usePlaces } from "@/providers/places-provider";
 import type { TipoNegocio, ModuloFicha, ComoComprar, ComoAtiende, EspecialDelDia } from "@/lib/ficha/tipos";
 import type { EntregaConfig } from "@/lib/ficha/entrega";
@@ -1269,8 +1273,138 @@ function EditorView({
     setSeccionInvalida(null);
   }, [name, location, whatsapp]);
 
+  /* Cuánto le falta a la ficha, con lo que se está escribiendo. Es el mismo
+     cálculo que el aviso de Hoy (`src/lib/ficha/completitud.ts`). Las fotos se
+     cuentan de la ficha guardada: las gestiona su propia rejilla. */
+  const fotos = place.photos?.length ?? 0;
+  const puntos = puntosFicha({
+    logoUrl,
+    fotos,
+    description,
+    tieneHorario: Boolean(horario || schedule.trim()),
+    lat: location?.lat,
+    lng: location?.lng,
+    whatsapp,
+    phone,
+  });
+  const hechos = puntos.filter((p) => p.ok).length;
+  const pct = Math.round((hechos / puntos.length) * 100);
+
+  /* Lo que se lee de cada sección cerrada: una línea, y en ámbar lo que falta. */
+  const resumen = {
+    basico: {
+      texto:
+        description.trim().length < MIN_DESCRIPCION
+          ? "Falta una descripción"
+          : [categoryLabel, barrio.trim()].filter(Boolean).join(" · "),
+      aviso: description.trim().length < MIN_DESCRIPCION,
+    },
+    fotos: {
+      texto:
+        fotos === 0 && !logoUrl
+          ? "Sin fotos todavía"
+          : `${fotos} ${fotos === 1 ? "foto" : "fotos"}${logoUrl ? " y logo" : ""}`,
+      aviso: fotos === 0 && !logoUrl,
+    },
+    horario: {
+      texto: schedule.trim()
+        ? `Horario: ${schedule.trim()}`
+        : horario
+          ? "Horario por días"
+          : "Sin horario",
+      aviso: !schedule.trim() && !horario,
+    },
+    ubicacion: {
+      texto: location ? address.trim() || "Marcada en el mapa" : "Sin marcar en el mapa",
+      aviso: !location,
+    },
+    contacto: {
+      texto: whatsapp.trim()
+        ? `WhatsApp ${whatsapp.trim()}`
+        : phone.trim()
+          ? `Teléfono ${phone.trim()}`
+          : "Sin teléfono ni WhatsApp",
+      aviso: !whatsapp.trim() && !phone.trim(),
+    },
+    pagos: {
+      texto:
+        payments.length === 0
+          ? "Sin métodos de pago"
+          : `${payments.length} ${payments.length === 1 ? "método" : "métodos"}`,
+      aviso: payments.length === 0,
+    },
+    atributos: {
+      texto:
+        atributos.length === 0
+          ? "Nada marcado"
+          : `${atributos.length} ${atributos.length === 1 ? "marcado" : "marcados"}`,
+      aviso: false,
+    },
+    energia: {
+      texto: energia === "sin" ? "Sin indicar" : ENERGIA_LABEL[energia],
+      aviso: false,
+    },
+    icono: { texto: icon ? "Elegido a mano" : "El de su categoría", aviso: false },
+    marca: { texto: colorMarca.trim() || "El verde de La Verde", aviso: false },
+    tipo: {
+      texto: tipoNegocio
+        ? `${TIPO_NEGOCIO_LABEL[tipoNegocio]} · ${modulosActivos.length} ${modulosActivos.length === 1 ? "bloque" : "bloques"}`
+        : "Sin elegir",
+      aviso: false,
+    },
+  };
+
+  const abrirSeccion = (seccion: string) => {
+    setSeccionAbierta(seccion);
+    window.setTimeout(() => {
+      document.getElementById(`${seccion}-titulo`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  };
+
   return (
     <>
+      {/* Cuánto le falta a la ficha, con un enlace a cada sección pendiente. */}
+      <TarjetaPanel className="mb-gap-md">
+        <div className="flex flex-wrap items-center justify-between gap-gap-sm">
+          <p className="font-lv-display text-small font-semibold text-ink">
+            {pct === 100 ? "Tu ficha está completa" : `Tu ficha está al ${pct} %`}
+          </p>
+          {pct === 100 && <Chapita tono="activa">Completa</Chapita>}
+        </div>
+        <div
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={pct}
+          aria-label="Completitud de la ficha"
+          className="mt-gap-xs h-2 overflow-hidden rounded-full bg-ink/10"
+        >
+          <div
+            className="h-full rounded-full bg-verde-400 transition-[width] duration-500 ease-outquint"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        {pct < 100 && (
+          <div className="mt-gap-sm flex flex-wrap gap-gap-xs">
+            {puntos
+              .filter((p) => !p.ok)
+              .map((p) => (
+                <button
+                  key={p.seccion}
+                  type="button"
+                  onClick={() => abrirSeccion(p.seccion)}
+                  className={clsx(
+                    CHAPITA,
+                    TONO_CHAPITA.ambar,
+                    "min-h-11 cursor-pointer px-gap-md transition-colors duration-500 ease-outquint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/40",
+                  )}
+                >
+                  {p.falta}
+                </button>
+              ))}
+          </div>
+        )}
+      </TarjetaPanel>
 
       {/* El borrador de la visita anterior, si lo hay. Va arriba del todo porque
           es lo primero que hay que decidir: recuperarlo o tirarlo. */}
@@ -1303,26 +1437,10 @@ function EditorView({
 
       <FormSections openId={seccionAbierta} onOpenChange={setSeccionAbierta}>
         <FormSection
-          id="fotos"
-          title="Fotos del lugar"
-          icon={<ImageIcon size={18} strokeWidth={1.8} />}
-        >
-          {/* El logo va antes de la rejilla, como en el formulario de
-              administración: es el que más se ve —círculo de la ficha,
-              miniatura de las tarjetas y disco del pin— y la rejilla ocupa
-              varios renglones, así que debajo quedaba enterrado. */}
-          <LogoUpload
-            placeId={place.id}
-            value={logoUrl}
-            onChange={setLogoUrl}
-            className="mb-gap-lg"
-          />
-          <PhotoGrid placeId={place.id} placeName={name || place.name} />
-        </FormSection>
-
-        <FormSection
           id="basico"
           title="Información del negocio"
+          resumen={resumen.basico.texto}
+          resumenAviso={resumen.basico.aviso}
           icon={<Store size={18} strokeWidth={1.8} />}
           invalid={seccionInvalida === "basico"}
           autoOpen
@@ -1408,8 +1526,123 @@ function EditorView({
         </FormSection>
 
         <FormSection
+          id="fotos"
+          title="Fotos del lugar"
+          resumen={resumen.fotos.texto}
+          resumenAviso={resumen.fotos.aviso}
+          icon={<ImageIcon size={18} strokeWidth={1.8} />}
+        >
+          {/* El logo va antes de la rejilla, como en el formulario de
+              administración: es el que más se ve —círculo de la ficha,
+              miniatura de las tarjetas y disco del pin— y la rejilla ocupa
+              varios renglones, así que debajo quedaba enterrado. */}
+          <LogoUpload
+            placeId={place.id}
+            value={logoUrl}
+            onChange={setLogoUrl}
+            className="mb-gap-lg"
+          />
+          <PhotoGrid placeId={place.id} placeName={name || place.name} />
+        </FormSection>
+
+        <FormSection
+          id="horario"
+          title="Horario"
+          resumen={resumen.horario.texto}
+          resumenAviso={resumen.horario.aviso}
+          icon={<Clock size={18} strokeWidth={1.8} />}
+          invalid={seccionInvalida === "horario"}
+        >
+          {/* Texto libre: etiqueta de respaldo y referencia rápida en el
+              directorio («10:00 – 22:00», «24 horas»). Lo usa `EstadoApertura`
+              cuando no hay horario estructurado. */}
+          <div className="flex flex-col gap-gap-xs">
+            <Label htmlFor="bizSchedule">Horario (texto)</Label>
+            <p className="text-meta text-ink-soft/70">
+              Aparece en el directorio. Si rellenas el horario por día de abajo,
+              ese es el que usa la ficha y este texto pasa a ser solo referencia.
+            </p>
+            <Input
+              id="bizSchedule"
+              className={INPUT}
+              value={schedule}
+              onChange={(e) => setSchedule(e.target.value)}
+              placeholder="Ej: 10:00 – 22:00"
+            />
+            <div className="flex flex-wrap gap-[6px]">
+              {SCHEDULE_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setSchedule(preset)}
+                  aria-pressed={schedule === preset}
+                  className={cn(
+                    "min-h-11 cursor-pointer select-none rounded-full border px-[14px] py-2 font-lv-display text-meta font-medium transition-colors duration-500 ease-outquint active:scale-[0.98]",
+                    schedule === preset
+                      ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
+                      : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
+                  )}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Separador */}
+          <div className="my-gap-md border-t border-ink/5" />
+
+          {/* Horario estructurado: la ficha lo usa para mostrar «Abierto» /
+              «Cerrado» con la hora exacta y recalcularlo cada minuto. */}
+          <div className="flex flex-col gap-gap-xs">
+            <p className="font-lv-display text-small font-semibold text-ink">
+              Horario por día
+            </p>
+            <p className="text-meta text-ink-soft/70">
+              La ficha muestra «Abierto» o «Cerrado» con la hora exacta, actualizado
+              cada minuto. Si lo rellenas, no hace falta tocar el texto de arriba.
+            </p>
+            <HorarioEditor value={horario} onChange={setHorario} />
+            {horario && (
+              <button
+                type="button"
+                onClick={() => setHorario(null)}
+                className="mt-gap-xs inline-flex min-h-11 cursor-pointer items-center self-start font-lv-display text-meta text-ink-soft/75 hover:text-ink"
+              >
+                Borrar horario por día
+              </button>
+            )}
+          </div>
+        </FormSection>
+
+        <FormSection
+          id="ubicacion"
+          title="Ubicación en el mapa"
+          resumen={resumen.ubicacion.texto}
+          resumenAviso={resumen.ubicacion.aviso}
+          icon={<MapPin size={18} strokeWidth={1.8} />}
+          invalid={seccionInvalida === "ubicacion"}
+        >
+          <p className="mb-gap-sm text-meta text-ink-soft/75">
+            Busca tu dirección, elige la coincidencia y ajusta el pin. Ese punto
+            es el que ven los usuarios cuando piden cómo llegar.
+          </p>
+          <MapLocationPicker
+            value={location}
+            onChange={setLocation}
+            onResolved={(r, anterior) => {
+              /* Lo escrito a mano no se pisa; el relleno automático sigue al pin. */
+              setAddress((prev) => campoResuelto(prev, r?.address, anterior?.address));
+              setBarrio((prev) => campoResuelto(prev, r?.barrio, anterior?.barrio));
+            }}
+          />
+        </FormSection>
+
+        <FormSection
           id="contacto"
           title="Contacto"
+          resumen={resumen.contacto.texto}
+          resumenAviso={resumen.contacto.aviso}
           icon={<AtSign size={18} strokeWidth={1.8} />}
           invalid={seccionInvalida === "contacto"}
         >
@@ -1481,123 +1714,9 @@ function EditorView({
         </FormSection>
 
         <FormSection
-          id="ubicacion"
-          title="Ubicación en el mapa"
-          icon={<MapPin size={18} strokeWidth={1.8} />}
-          invalid={seccionInvalida === "ubicacion"}
-        >
-          <p className="mb-gap-sm text-meta text-ink-soft/75">
-            Busca tu dirección, elige la coincidencia y ajusta el pin. Ese punto
-            es el que ven los usuarios cuando piden cómo llegar.
-          </p>
-          <MapLocationPicker
-            value={location}
-            onChange={setLocation}
-            onResolved={(r, anterior) => {
-              /* Lo escrito a mano no se pisa; el relleno automático sigue al pin. */
-              setAddress((prev) => campoResuelto(prev, r?.address, anterior?.address));
-              setBarrio((prev) => campoResuelto(prev, r?.barrio, anterior?.barrio));
-            }}
-          />
-        </FormSection>
-
-        <FormSection
-          title="Icono del negocio"
-          icon={
-            <CategoryIcon icon={resolvedIcon} size={18} strokeWidth={1.8} />
-          }
-        >
-          <p className="mb-gap-sm text-meta text-ink-soft/75">
-            Es el dibujo que llevas en el pin del mapa, en el popup y en tu
-            tarjeta. Mientras no elijas uno llevas el de tu categoría.
-          </p>
-          <IconPicker
-            value={resolvedIcon}
-            onChange={setIcon}
-            label="Icono del negocio"
-            preview={name || "Tu negocio"}
-          />
-          {icon !== null && (
-            <button
-              type="button"
-              onClick={() => setIcon(null)}
-              className="mt-gap-sm inline-flex min-h-11 cursor-pointer items-center self-start font-lv-display text-meta font-semibold text-verde-600 transition-colors duration-500 ease-outquint hover:text-verde-700"
-            >
-              Usar el de mi categoría
-            </button>
-          )}
-        </FormSection>
-
-        <FormSection
-          id="horario"
-          title="Horario"
-          icon={<Clock size={18} strokeWidth={1.8} />}
-          invalid={seccionInvalida === "horario"}
-        >
-          {/* Texto libre: etiqueta de respaldo y referencia rápida en el
-              directorio («10:00 – 22:00», «24 horas»). Lo usa `EstadoApertura`
-              cuando no hay horario estructurado. */}
-          <div className="flex flex-col gap-gap-xs">
-            <Label htmlFor="bizSchedule">Horario (texto)</Label>
-            <p className="text-meta text-ink-soft/70">
-              Aparece en el directorio. Si rellenas el horario por día de abajo,
-              ese es el que usa la ficha y este texto pasa a ser solo referencia.
-            </p>
-            <Input
-              id="bizSchedule"
-              className={INPUT}
-              value={schedule}
-              onChange={(e) => setSchedule(e.target.value)}
-              placeholder="Ej: 10:00 – 22:00"
-            />
-            <div className="flex flex-wrap gap-[6px]">
-              {SCHEDULE_PRESETS.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setSchedule(preset)}
-                  aria-pressed={schedule === preset}
-                  className={cn(
-                    "min-h-11 cursor-pointer select-none rounded-full border px-[14px] py-2 font-lv-display text-meta font-medium transition-colors duration-500 ease-outquint active:scale-[0.98]",
-                    schedule === preset
-                      ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
-                      : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600",
-                  )}
-                >
-                  {preset}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Separador */}
-          <div className="my-gap-md border-t border-ink/5" />
-
-          {/* Horario estructurado: la ficha lo usa para mostrar «Abierto» /
-              «Cerrado» con la hora exacta y recalcularlo cada minuto. */}
-          <div className="flex flex-col gap-gap-xs">
-            <p className="font-lv-display text-small font-semibold text-ink">
-              Horario por día
-            </p>
-            <p className="text-meta text-ink-soft/70">
-              La ficha muestra «Abierto» o «Cerrado» con la hora exacta, actualizado
-              cada minuto. Si lo rellenas, no hace falta tocar el texto de arriba.
-            </p>
-            <HorarioEditor value={horario} onChange={setHorario} />
-            {horario && (
-              <button
-                type="button"
-                onClick={() => setHorario(null)}
-                className="mt-gap-xs inline-flex min-h-11 cursor-pointer items-center self-start font-lv-display text-meta text-ink-soft/75 hover:text-ink"
-              >
-                Borrar horario por día
-              </button>
-            )}
-          </div>
-        </FormSection>
-
-        <FormSection
           title="Métodos de pago"
+          resumen={resumen.pagos.texto}
+          resumenAviso={resumen.pagos.aviso}
           icon={<CreditCard size={18} strokeWidth={1.8} />}
         >
           <p className="mb-gap-sm text-meta text-ink-soft/75">
@@ -1610,37 +1729,11 @@ function EditorView({
           <PaymentChips value={payments} onChange={setPayments} />
         </FormSection>
 
-        {/* ── Tipo de negocio y módulos ──────────────────────────────── */}
-        <FormSection
-          id="tipo"
-          title="Tipo de negocio y bloques"
-          icon={<Store size={18} strokeWidth={1.8} />}
-          invalid={seccionInvalida === "tipo"}
-        >
-          <p className="mb-gap-sm text-meta text-ink-soft/75">
-            El tipo define los valores por defecto de la ficha. Los bloques
-            añaden secciones específicas —domicilio, tienda, servicios— que
-            el visitante verá con sus precios y condiciones.
-          </p>
-          <ModulosEditor
-            tipoNegocio={tipoNegocio}
-            onTipoChange={setTipoNegocio}
-            modulosActivos={modulosActivos}
-            onModulosChange={setModulosActivos}
-            entrega={entrega}
-            onEntregaChange={setEntrega}
-            comoComprar={comoComprar}
-            onComoComprarChange={setComoComprar}
-            comoAtiende={comoAtiende}
-            onComoAtiendeChange={setComoAtiende}
-            especialDia={especialDia}
-            onEspecialDiaChange={setEspecialDia}
-          />
-        </FormSection>
-
         {/* ── Atributos ─────────────────────────────────────────────── */}
         <FormSection
           title="Qué tiene el negocio"
+          resumen={resumen.atributos.texto}
+          resumenAviso={resumen.atributos.aviso}
           icon={<Package size={18} strokeWidth={1.8} />}
         >
           <p className="mb-gap-sm text-meta text-ink-soft/75">
@@ -1655,48 +1748,10 @@ function EditorView({
           />
         </FormSection>
 
-        {/* ── Marca ─────────────────────────────────────────────────── */}
-        <FormSection
-          id="marca"
-          title="Color de marca"
-          icon={<Eye size={18} strokeWidth={1.8} />}
-          invalid={seccionInvalida === "marca"}
-        >
-          <p className="mb-gap-sm text-meta text-ink-soft/75">
-            Se usa como fondo de la portada cuando no tienes fotos, y como
-            color del monograma. Escribe un color en formato hex (#RRGGBB).
-          </p>
-          <div className="flex items-center gap-gap-md">
-            <input
-              type="color"
-              aria-label="Color de marca"
-              value={colorMarca || COLOR_MARCA_POR_DEFECTO}
-              onChange={(e) => setColorMarca(e.target.value)}
-              className="h-11 w-16 cursor-pointer rounded-lg border border-ink/10 p-1"
-            />
-            <Input
-              id="bizColorHex"
-              aria-label="Color de marca en hexadecimal"
-              className="h-11 w-32 rounded-xl border-ink/10 bg-white font-mono text-body"
-              value={colorMarca}
-              onChange={(e) => setColorMarca(e.target.value)}
-              placeholder={COLOR_MARCA_POR_DEFECTO}
-              maxLength={7}
-            />
-            {colorMarca && (
-              <button
-                type="button"
-                onClick={() => setColorMarca("")}
-                className="inline-flex min-h-11 cursor-pointer items-center font-lv-display text-meta text-ink-soft/75 hover:text-ink"
-              >
-                Quitar
-              </button>
-            )}
-          </div>
-        </FormSection>
-
         <FormSection
           title="Energía de respaldo"
+          resumen={resumen.energia.texto}
+          resumenAviso={resumen.energia.aviso}
           icon={<Zap size={18} strokeWidth={1.8} />}
         >
           <p className="mb-gap-sm text-meta text-ink-soft/75">
@@ -1739,6 +1794,115 @@ function EditorView({
               />
             </div>
           </div>
+        </FormSection>
+
+        {/* ── Apariencia ────────────────────────────────────────────────
+            Icono, color de marca y tipo de negocio: lo que decide cómo se ve
+            la ficha. Siguen siendo tres secciones con sus ids, porque la
+            validación del guardado abre `marca` y `tipo` por su nombre. */}
+        <p className="px-gap-xs pt-gap-sm font-lv-display text-small font-semibold text-ink-soft/75">
+          Apariencia
+        </p>
+
+        <FormSection
+          title="Icono del negocio"
+          resumen={resumen.icono.texto}
+          resumenAviso={resumen.icono.aviso}
+          icon={
+            <CategoryIcon icon={resolvedIcon} size={18} strokeWidth={1.8} />
+          }
+        >
+          <p className="mb-gap-sm text-meta text-ink-soft/75">
+            Es el dibujo que llevas en el pin del mapa, en el popup y en tu
+            tarjeta. Mientras no elijas uno llevas el de tu categoría.
+          </p>
+          <IconPicker
+            value={resolvedIcon}
+            onChange={setIcon}
+            label="Icono del negocio"
+            preview={name || "Tu negocio"}
+          />
+          {icon !== null && (
+            <button
+              type="button"
+              onClick={() => setIcon(null)}
+              className="mt-gap-sm inline-flex min-h-11 cursor-pointer items-center self-start font-lv-display text-meta font-semibold text-verde-600 transition-colors duration-500 ease-outquint hover:text-verde-700"
+            >
+              Usar el de mi categoría
+            </button>
+          )}
+        </FormSection>
+
+        {/* ── Marca ─────────────────────────────────────────────────── */}
+        <FormSection
+          id="marca"
+          title="Color de marca"
+          resumen={resumen.marca.texto}
+          resumenAviso={resumen.marca.aviso}
+          icon={<Eye size={18} strokeWidth={1.8} />}
+          invalid={seccionInvalida === "marca"}
+        >
+          <p className="mb-gap-sm text-meta text-ink-soft/75">
+            Se usa como fondo de la portada cuando no tienes fotos, y como
+            color del monograma. Escribe un color en formato hex (#RRGGBB).
+          </p>
+          <div className="flex items-center gap-gap-md">
+            <input
+              type="color"
+              aria-label="Color de marca"
+              value={colorMarca || COLOR_MARCA_POR_DEFECTO}
+              onChange={(e) => setColorMarca(e.target.value)}
+              className="h-11 w-16 cursor-pointer rounded-lg border border-ink/10 p-1"
+            />
+            <Input
+              id="bizColorHex"
+              aria-label="Color de marca en hexadecimal"
+              className="h-11 w-32 rounded-xl border-ink/10 bg-white font-mono text-body"
+              value={colorMarca}
+              onChange={(e) => setColorMarca(e.target.value)}
+              placeholder={COLOR_MARCA_POR_DEFECTO}
+              maxLength={7}
+            />
+            {colorMarca && (
+              <button
+                type="button"
+                onClick={() => setColorMarca("")}
+                className="inline-flex min-h-11 cursor-pointer items-center font-lv-display text-meta text-ink-soft/75 hover:text-ink"
+              >
+                Quitar
+              </button>
+            )}
+          </div>
+        </FormSection>
+
+        {/* ── Tipo de negocio y módulos ──────────────────────────────── */}
+        <FormSection
+          id="tipo"
+          title="Tipo de negocio y bloques"
+          resumen={resumen.tipo.texto}
+          resumenAviso={resumen.tipo.aviso}
+          icon={<Store size={18} strokeWidth={1.8} />}
+          invalid={seccionInvalida === "tipo"}
+        >
+          <p className="mb-gap-sm text-meta text-ink-soft/75">
+            El tipo define los valores por defecto de la ficha. Los bloques
+            añaden secciones específicas —domicilio, tienda, servicios— que
+            el visitante verá con sus precios y condiciones.
+          </p>
+          <ModulosEditor
+            tipoNegocio={tipoNegocio}
+            onTipoChange={setTipoNegocio}
+            modulosActivos={modulosActivos}
+            onModulosChange={setModulosActivos}
+            entrega={entrega}
+            onEntregaChange={setEntrega}
+            comoComprar={comoComprar}
+            onComoComprarChange={setComoComprar}
+            comoAtiende={comoAtiende}
+            onComoAtiendeChange={setComoAtiende}
+            especialDia={especialDia}
+            onEspecialDiaChange={setEspecialDia}
+          />
         </FormSection>
 
         <AnimatePresence>
