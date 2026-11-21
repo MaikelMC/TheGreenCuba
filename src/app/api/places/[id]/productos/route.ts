@@ -1,8 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { eq } from "drizzle-orm";
 import { canManagePlace } from "@/lib/admin-server";
+import { avisarNovedadesDeNegocio } from "@/lib/avisos-app-server";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
 import { CAMPOS_PANEL, type OperacionesCatalogo } from "@/lib/catalogo";
+import { db } from "@/lib/db";
+import { places } from "@/lib/db/schema";
+import { cambiosDeCarta } from "@/lib/novedades";
+import { productosDe } from "@/lib/productos-server";
 import { aplicarCatalogo } from "@/lib/productos-escritura";
+import { avisosPorCambios } from "@/lib/seguidores";
+import { avisarCambios } from "@/lib/seguidores-server";
 import type { UserPlaceMenuItem } from "@/lib/places-store";
 
 type Params = { params: Promise<{ id: string }> };
@@ -18,6 +26,14 @@ type Params = { params: Promise<{ id: string }> };
  *
  * Quien puede: `canManagePlace` con el permiso de catálogo. Las reglas del
  * plan, el precio numérico y la caché los aplica `aplicarCatalogo`.
+ *
+ * Los avisos salen de aquí y no de `aplicarCatalogo`: esta ruta es el guardado
+ * normal del dueño, y es la que debe avisar a quien marcó «Avísame» —bandeja y
+ * push— y a los seguidores de Telegram. Las importaciones y los cambios
+ * masivos del asistente escritos por la misma función no avisan (o el aviso ya
+ * lo da el propio bot). La comparación antes/después usa la misma
+ * `cambiosDeCarta` que el PATCH de la ficha, para que un alta o un precio
+ * nuevo cuenten igual venga de donde venga.
  */
 
 const MAX_OPERACIONES = 2000;
@@ -121,10 +137,69 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
+  const cartaAntes = await productosDe(id);
   const resultado = await aplicarCatalogo(id, ops);
   if (!resultado.ok) {
     return NextResponse.json({ error: resultado.error }, { status: resultado.status });
   }
+
+  /* Los avisos van con `after()` y después de escribir: el dueño está guardando
+     su carta, no esperando a que salga un push. `avisarNovedadesDeNegocio` e
+     `avisarCambios` no lanzan nunca; un aviso que no sale no puede tumbar un
+     guardado que sí entró. */
+  const { productosNuevos, cambiosPrecio } = cambiosDeCarta(
+    cartaAntes,
+    resultado.productos,
+  );
+  if (productosNuevos.length > 0 || cambiosPrecio.length > 0) {
+    const titulares = [
+      ...productosNuevos.map((producto) => `Nuevo en la carta: ${producto.nombre}`),
+      ...cambiosPrecio.map((producto) => `${producto.nombre} cambió de precio`),
+    ];
+
+    after(async () => {
+      try {
+        const [lugar] = await db
+          .select({
+            name: places.name,
+            province: places.province,
+            city: places.city,
+            isActive: places.isActive,
+          })
+          .from(places)
+          .where(eq(places.id, id))
+          .limit(1);
+        if (!lugar) return;
+
+        await avisarNovedadesDeNegocio({
+          negocioId: id,
+          nombre: lugar.name,
+          provincia: lugar.province?.trim() || lugar.city?.trim() || null,
+          titulares,
+          visible: lugar.isActive,
+        });
+
+        /* Telegram solo habla de lo que `avisosPorCambios` contempla:
+           productos nuevos. Un cambio de precio se queda en la bandeja y el
+           push, como ya pasaba al guardar la ficha por el PATCH. */
+        if (productosNuevos.length > 0) {
+          const avisos = avisosPorCambios({
+            negocio: lugar.name,
+            ofertasNuevas: [],
+            productosNuevos: productosNuevos.map((producto) => producto.nombre),
+            reabre: false,
+          });
+          if (avisos.length > 0) await avisarCambios(id, avisos);
+        }
+      } catch (error) {
+        console.error(
+          "[catalogo] no se pudieron avisar los cambios:",
+          error instanceof Error ? error.message : error,
+        );
+      }
+    });
+  }
+
   return NextResponse.json({
     creados: resultado.creados,
     conflictos: resultado.conflictos,
