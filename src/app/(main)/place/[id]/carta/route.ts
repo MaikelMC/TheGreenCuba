@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { publicOrigin } from "@/lib/auth/public-origin";
 import { getPlaceById } from "@/lib/db/queries";
 import { DEV_PLACE_ID } from "@/lib/dev-place";
 
@@ -30,8 +31,10 @@ export async function GET(
   if (!place) {
     return new NextResponse("Menú no encontrado", { status: 404 });
   }
+  /* Base pública, no `request.url`: en el contenedor ese URL lleva el host
+     interno (`0.0.0.0:3000`) y el 308 mandaría ahí. */
   return NextResponse.redirect(
-    new URL(`/m/${place.slug}`, request.url),
+    new URL(`/m/${place.slug}`, publicOrigin(request)),
     308,
   );
 }

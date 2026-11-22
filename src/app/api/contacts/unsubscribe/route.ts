@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { publicOrigin } from "@/lib/auth/public-origin";
 import { getAppUser } from "@/lib/auth/user";
 import { setMarketingOptIn } from "@/lib/contacts";
 
@@ -15,13 +16,16 @@ import { setMarketingOptIn } from "@/lib/contacts";
  * con la sesión ya abierta, o el enlace lleva al login y desde ahí se vuelve.
  */
 export async function GET(request: NextRequest) {
+  /* Base pública, no `request.url`: en el contenedor ese URL lleva el host
+     interno (`0.0.0.0:3000`). Ver `publicOrigin`. */
+  const origin = publicOrigin(request);
   const user = await getAppUser();
 
   if (!user) {
-    return NextResponse.redirect(new URL("/login?next=/home", request.url));
+    return NextResponse.redirect(new URL("/login?next=/home", origin));
   }
 
   await setMarketingOptIn(user.id, user.email, false);
 
-  return NextResponse.redirect(new URL("/home?marketingOff=1", request.url));
+  return NextResponse.redirect(new URL("/home?marketingOff=1", origin));
 }

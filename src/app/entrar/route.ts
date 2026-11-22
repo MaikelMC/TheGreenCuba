@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { businessOwners, places } from "@/lib/db/schema";
+import { publicOrigin } from "@/lib/auth/public-origin";
 import { getAppUser } from "@/lib/auth/user";
 import { ownsDevPlace } from "@/lib/dev-place";
 
@@ -18,7 +19,12 @@ import { ownsDevPlace } from "@/lib/dev-place";
  * redireccionamiento, sin ningún viaje más desde el navegador.
  */
 export async function GET(request: NextRequest) {
-  const origin = request.nextUrl.origin;
+  /* El origen NO sale de `request.nextUrl.origin`: este es un route handler, el
+     proxy corre antes que él y su `forcePublicRedirect` no llega a este
+     `Location`. Dentro del contenedor `nextUrl.origin` es el host interno
+     (`0.0.0.0:3000`), así que la redirección mandaba al navegador ahí. Se
+     resuelve el origen público igual que en `google-auth-complete`. */
+  const origin = publicOrigin(request);
   const user = await getAppUser();
 
   if (user) {
