@@ -118,7 +118,7 @@ export function Header() {
                   <SheetClose key={link.href} asChild>
                     <a
                       href={link.href}
-                      className="landing-mobile-nav-link flex min-h-11 items-center text-[17px] font-medium text-foreground transition-colors hover:text-accent"
+                      className="landing-mobile-nav-link flex min-h-11 items-center text-[17px] font-medium text-ink transition-colors hover:text-verde-700"
                     >
                       {link.label}
                     </a>

@@ -67,11 +67,12 @@ export const CATEGORIAS: readonly CategoriaServicios[] = [
     pack: {
       nombre: "Base + asistente",
       lema: "La carta sin nuestra marca y tu menú editable desde Telegram.",
-      modulos: ["menu_pro", "asistente_telegram"],
+      modulos: ["menu_pro", "asistente_telegram", "cliente_frecuente"],
       completa: [
         "Carta ilimitada, sin la marca de La Verde y con «Hoy hay»",
         "Precios con la tasa del día en CUP",
         "Edita tu menú desde Telegram sin abrir el panel",
+        "Tarjeta de sellos digital para los clientes que repiten",
         "Avisos a seguidores incluidos en el plan Esencial",
       ],
     },
@@ -93,6 +94,12 @@ export const CATEGORIAS: readonly CategoriaServicios[] = [
       { nombre: "Avisos a seguidores", estado: "ya", plan: "esencial" },
       FACEBOOK("Publicaciones en grupos de Facebook (1 o 3 por semana)"),
       { nombre: "Asistente de Telegram", estado: "ya", modulo: "asistente_telegram" },
+      {
+        nombre: "Cliente frecuente: tarjeta de sellos digital",
+        estado: "ya",
+        modulo: "cliente_frecuente",
+        ficha: "cliente-frecuente",
+      },
       { nombre: "Ranking mensual", estado: "ya", plan: "pro" },
       { nombre: "Flyers automáticos", estado: "proximo" },
       { nombre: "Reporte mensual", estado: "proximo" },

@@ -18,14 +18,11 @@ export function CTASection() {
           />
 
           <div className="lv-accent-on-dark relative mx-auto max-w-3xl">
-            <p className="lv-mono text-[11px] uppercase tracking-[0.2em] text-verde-300">
-              Empieza
-            </p>
             <Reveal
               as="h2"
               text="¿Listo para estar en la verde?"
               accent="la verde"
-              className="mt-4 font-lv-display text-[clamp(34px,5.5vw,60px)] font-bold leading-[1.02] tracking-[-0.04em] text-white text-balance"
+              className="font-lv-display text-[clamp(34px,5.5vw,60px)] font-bold leading-[1.02] tracking-[-0.04em] text-white text-balance"
             />
             <Reveal
               as="p"

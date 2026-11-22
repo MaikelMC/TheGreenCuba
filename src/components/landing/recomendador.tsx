@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Sparkles, Loader2, AlertCircle, MessageCircle } from "lucide-react";
+import { SUPPORT_WHATSAPP } from "@/lib/legal";
+import { whatsappHref } from "@/lib/contact-links";
 import type {
   RespuestaRecomendacion,
-  ServicioRecomendado,
   ServicioRecomendadoYa,
   ServicioRecomendadoProximo,
 } from "@/app/api/recomendar-servicios/route";
@@ -90,13 +91,13 @@ export function Recomendador() {
       <div className="mx-auto w-full max-w-container px-gutter md:px-gutter-lg">
         {/* Encabezado */}
         <div className="mb-10 max-w-2xl">
-          <p className="lv-mono text-[11px] uppercase tracking-[0.2em] text-verde-600 dark:text-verde-400">
+          <p className="lv-mono text-[11px] uppercase tracking-[0.2em] text-verde-700">
             Diagnóstico gratuito
           </p>
-          <h2 className="mt-3 font-lv-display text-[clamp(28px,4.5vw,48px)] font-bold leading-[1.08] tracking-[-0.03em] text-ink dark:text-white text-balance">
+          <h2 className="mt-3 font-lv-display text-[clamp(28px,4.5vw,48px)] font-bold leading-[1.08] tracking-[-0.03em] text-ink text-balance">
             ¿Qué necesita exactamente tu negocio?
           </h2>
-          <p className="mt-4 text-base leading-relaxed text-ink/60 dark:text-white/55 text-pretty">
+          <p className="mt-4 text-base leading-relaxed text-ink-soft/75 text-pretty">
             Cuéntanos cómo funciona y la IA analiza nuestros servicios para armar
             el pack ideal para ti.
           </p>
@@ -106,7 +107,7 @@ export function Recomendador() {
           {/* Formulario */}
           <div
             className={[
-              "rounded-2xl border border-verde-100 bg-white p-6 shadow-sm dark:border-verde-900/60 dark:bg-ink-soft sm:p-8",
+              "rounded-3xl border border-ink/10 bg-white p-6 shadow-soft sm:p-8",
               estado === "resultado" ? "lg:self-start" : "",
             ].join(" ")}
           >
@@ -116,7 +117,7 @@ export function Recomendador() {
                 <div className="flex flex-col gap-1.5">
                   <label
                     htmlFor="recom-categoria"
-                    className="text-sm font-medium text-ink dark:text-white/80"
+                    className="text-sm font-medium text-ink"
                   >
                     Categoría del negocio
                   </label>
@@ -125,7 +126,7 @@ export function Recomendador() {
                     required
                     value={categoriaSlug}
                     onChange={(e) => setCategoriaSlug(e.target.value as Slug)}
-                    className="rounded-xl border border-verde-200 bg-white px-4 py-2.5 text-sm text-ink transition focus:border-verde-400 focus:outline-none focus:ring-2 focus:ring-verde-400/20 dark:border-verde-800 dark:bg-ink dark:text-white dark:focus:border-verde-500"
+                    className="rounded-xl border border-ink/10 bg-white px-4 py-2.5 text-sm text-ink transition focus:border-verde-400 focus:outline-none focus:ring-2 focus:ring-verde-400/20 dark:border-white/10"
                   >
                     <option value="" disabled>
                       Elige una categoría…
@@ -142,7 +143,7 @@ export function Recomendador() {
                 <div className="flex flex-col gap-1.5">
                   <label
                     htmlFor="recom-descripcion"
-                    className="text-sm font-medium text-ink dark:text-white/80"
+                    className="text-sm font-medium text-ink"
                   >
                     ¿Cómo funciona tu negocio?
                   </label>
@@ -155,7 +156,7 @@ export function Recomendador() {
                     value={descripcion}
                     onChange={(e) => setDescripcion(e.target.value)}
                     placeholder="Ej: Tenemos un restaurante familiar con menú fijo, atendemos a domicilio y en el local…"
-                    className="resize-none rounded-xl border border-verde-200 bg-white px-4 py-2.5 text-sm text-ink placeholder:text-ink/35 transition focus:border-verde-400 focus:outline-none focus:ring-2 focus:ring-verde-400/20 dark:border-verde-800 dark:bg-ink dark:text-white dark:placeholder:text-white/25 dark:focus:border-verde-500"
+                    className="resize-none rounded-xl border border-ink/10 bg-white px-4 py-2.5 text-sm text-ink placeholder:text-ink-soft/55 transition focus:border-verde-400 focus:outline-none focus:ring-2 focus:ring-verde-400/20 dark:border-white/10 dark:placeholder:text-white/35"
                   />
                 </div>
 
@@ -163,7 +164,7 @@ export function Recomendador() {
                 <div className="flex flex-col gap-1.5">
                   <label
                     htmlFor="recom-problemas"
-                    className="text-sm font-medium text-ink dark:text-white/80"
+                    className="text-sm font-medium text-ink"
                   >
                     ¿Qué problemas quieres resolver?
                   </label>
@@ -176,7 +177,7 @@ export function Recomendador() {
                     value={problemas}
                     onChange={(e) => setProblemas(e.target.value)}
                     placeholder="Ej: Los clientes no saben qué tenemos disponible hoy, tardamos en responder pedidos por WhatsApp…"
-                    className="resize-none rounded-xl border border-verde-200 bg-white px-4 py-2.5 text-sm text-ink placeholder:text-ink/35 transition focus:border-verde-400 focus:outline-none focus:ring-2 focus:ring-verde-400/20 dark:border-verde-800 dark:bg-ink dark:text-white dark:placeholder:text-white/25 dark:focus:border-verde-500"
+                    className="resize-none rounded-xl border border-ink/10 bg-white px-4 py-2.5 text-sm text-ink placeholder:text-ink-soft/55 transition focus:border-verde-400 focus:outline-none focus:ring-2 focus:ring-verde-400/20 dark:border-white/10 dark:placeholder:text-white/35"
                   />
                 </div>
 
@@ -190,7 +191,7 @@ export function Recomendador() {
                 <button
                   type="submit"
                   disabled={estado === "cargando"}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-verde-500 px-6 py-3 text-sm font-semibold text-white transition duration-300 ease-outquint hover:bg-verde-400 active:scale-[0.98] disabled:opacity-50 dark:bg-verde-600 dark:hover:bg-verde-500"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 text-sm font-semibold text-white transition duration-300 ease-outquint hover:bg-ink-soft active:scale-[0.98] disabled:opacity-50"
                 >
                   {estado === "cargando" ? (
                     <>
@@ -209,24 +210,24 @@ export function Recomendador() {
               /* Resumen del negocio analizado */
               <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-2">
-                  <Sparkles size={15} className="text-verde-500" aria-hidden />
-                  <span className="text-sm font-medium text-ink dark:text-white/80">
+                  <Sparkles size={15} className="text-verde-600" aria-hidden />
+                  <span className="text-sm font-medium text-ink">
                     Negocio analizado
                   </span>
                 </div>
-                <div className="space-y-1 text-sm text-ink/70 dark:text-white/50">
+                <div className="space-y-1 text-sm text-ink-soft/75">
                   <p>
-                    <span className="font-medium text-ink dark:text-white/80">Categoría:</span>{" "}
+                    <span className="font-medium text-ink">Categoría:</span>{" "}
                     {categoriaLabel}
                   </p>
                   <p className="line-clamp-2">
-                    <span className="font-medium text-ink dark:text-white/80">Descripción:</span>{" "}
+                    <span className="font-medium text-ink">Descripción:</span>{" "}
                     {descripcion}
                   </p>
                 </div>
                 <button
                   onClick={resetear}
-                  className="text-left text-xs font-medium text-verde-600 underline-offset-2 hover:underline dark:text-verde-400"
+                  className="text-left text-xs font-medium text-verde-700 underline-offset-2 hover:underline"
                 >
                   Cambiar datos
                 </button>
@@ -237,18 +238,18 @@ export function Recomendador() {
           {/* Resultados */}
           <div>
             {estado === "idle" && (
-              <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-verde-200 p-10 dark:border-verde-900/60">
-                <p className="text-center text-sm text-ink/40 dark:text-white/30">
+              <div className="flex h-full items-center justify-center rounded-3xl border border-dashed border-ink/15 p-10">
+                <p className="text-center text-sm text-ink-soft/60">
                   Completa el formulario y la IA armará tu pack ideal.
                 </p>
               </div>
             )}
 
             {estado === "cargando" && (
-              <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-verde-200 p-10 dark:border-verde-900/60">
+              <div className="flex h-full items-center justify-center rounded-3xl border border-dashed border-ink/15 p-10">
                 <div className="flex flex-col items-center gap-3">
-                  <Loader2 size={24} className="animate-spin text-verde-500" aria-hidden />
-                  <p className="text-sm text-ink/50 dark:text-white/40">
+                  <Loader2 size={24} className="animate-spin text-verde-600" aria-hidden />
+                  <p className="text-sm text-ink-soft/70">
                     Analizando tu negocio…
                   </p>
                 </div>
@@ -256,8 +257,8 @@ export function Recomendador() {
             )}
 
             {estado === "error" && (
-              <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-red-200 p-10 dark:border-red-900/50">
-                <p className="text-center text-sm text-ink/50 dark:text-white/35">
+              <div className="flex h-full items-center justify-center rounded-3xl border border-dashed border-red-200 p-10 dark:border-red-900/50">
+                <p className="text-center text-sm text-ink-soft/70">
                   No se pudo generar la recomendación. Inténtalo de nuevo.
                 </p>
               </div>
@@ -277,6 +278,15 @@ function ResultadoRecomendacion({ resultado }: { resultado: RespuestaRecomendaci
   const hayProximos = resultado.servicios.some((s) => s.esProximo);
   const serviciosYa = resultado.servicios.filter((s): s is ServicioRecomendadoYa => !s.esProximo);
 
+  /* Los módulos del pack recomendado viajan a onboarding en la URL, igual que
+     el selector de servicios y las tarjetas de plan. Sin esto, el diagnóstico
+     se perdía al registrarse y el usuario llegaba a onboarding en blanco. */
+  const modulos = [...new Set(serviciosYa.map((s) => s.claveModulo))];
+  const registerHref =
+    modulos.length > 0
+      ? `/register?next=${encodeURIComponent(`/onboarding?modulos=${modulos.join(",")}`)}`
+      : "/register";
+
   return (
     <div className="flex flex-col gap-4">
       {/* Tarjetas de servicios */}
@@ -289,27 +299,27 @@ function ResultadoRecomendacion({ resultado }: { resultado: RespuestaRecomendaci
       )}
 
       {/* Pack price + CTA */}
-      <div className="mt-2 rounded-2xl border border-verde-200 bg-verde-50 px-6 py-5 dark:border-verde-800/60 dark:bg-verde-950/30">
+      <div className="mt-2 rounded-2xl border border-verde-200 bg-verde-50 px-6 py-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-verde-700 dark:text-verde-400">
+            <p className="text-xs font-medium uppercase tracking-wider text-verde-700">
               Pack recomendado
             </p>
             {serviciosYa.length > 0 ? (
               <>
-                <p className="mt-1 font-lv-display text-2xl font-bold text-ink dark:text-white">
+                <p className="mt-1 font-lv-display text-2xl font-bold text-ink">
                   ${precioStr(resultado.totalUsd)}
-                  <span className="ml-1 text-sm font-normal text-ink/50 dark:text-white/40">
+                  <span className="ml-1 text-sm font-normal text-ink-soft/60">
                     / mes
                   </span>
                 </p>
-                <p className="mt-0.5 text-xs text-ink/50 dark:text-white/35">
+                <p className="mt-0.5 text-xs text-ink-soft/60">
                   {serviciosYa.length} servicio{serviciosYa.length !== 1 ? "s" : ""} activos
                   {hayProximos && " · más al contactar al equipo"}
                 </p>
               </>
             ) : (
-              <p className="mt-1 text-sm text-ink/60 dark:text-white/50">
+              <p className="mt-1 text-sm text-ink-soft/75">
                 Todos los servicios recomendados están en desarrollo.
                 <br />
                 Contáctanos para reservar tu lugar.
@@ -317,8 +327,8 @@ function ResultadoRecomendacion({ resultado }: { resultado: RespuestaRecomendaci
             )}
           </div>
           <Link
-            href="/register"
-            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-verde-500 px-6 py-3 text-sm font-semibold text-white transition duration-300 ease-outquint hover:bg-verde-400 active:scale-[0.98] dark:bg-verde-600 dark:hover:bg-verde-500"
+            href={registerHref}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-verde-400 px-6 py-3 text-sm font-semibold text-verde-950 transition duration-300 ease-outquint hover:bg-verde-300 active:scale-[0.98]"
           >
             Empezar ahora
             <ArrowRight size={15} aria-hidden />
@@ -327,13 +337,13 @@ function ResultadoRecomendacion({ resultado }: { resultado: RespuestaRecomendaci
       </div>
 
       {/* Plan gratis — siempre disponible */}
-      <div className="rounded-xl border border-verde-100 bg-white px-5 py-4 dark:border-verde-900/40 dark:bg-ink-soft/50">
-        <p className="text-sm text-ink/70 dark:text-white/50">
-          <span className="font-medium text-ink dark:text-white/80">Plan gratis incluido:</span>{" "}
+      <div className="rounded-2xl border border-ink/10 bg-sand/40 px-5 py-4">
+        <p className="text-sm text-ink-soft/75">
+          <span className="font-medium text-ink">Plan gratis incluido:</span>{" "}
           pin en el mapa, ficha completa, búsqueda con IA y catálogo hasta 15 productos.{" "}
           <Link
             href="/register"
-            className="font-medium text-verde-600 underline-offset-2 hover:underline dark:text-verde-400"
+            className="font-medium text-verde-700 underline-offset-2 hover:underline"
           >
             Todos los negocios lo disfrutan desde el primer día.
           </Link>
@@ -345,28 +355,28 @@ function ResultadoRecomendacion({ resultado }: { resultado: RespuestaRecomendaci
 
 function TarjetaYa({ servicio }: { servicio: ServicioRecomendadoYa }) {
   return (
-    <div className="rounded-2xl border border-verde-100 bg-white p-5 shadow-sm dark:border-verde-900/60 dark:bg-ink-soft">
+    <div className="rounded-2xl border border-ink/10 bg-white p-5 shadow-soft">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-lv-display text-sm font-semibold text-ink dark:text-white">
+        <span className="font-lv-display text-sm font-semibold text-ink">
           {servicio.nombre}
         </span>
         {servicio.esIncluido ? (
-          <span className="rounded-full bg-sand-warm px-2 py-0.5 text-[11px] font-medium text-ink/60 dark:bg-white/10 dark:text-white/50">
+          <span className="rounded-full bg-sand-deep px-2 py-0.5 text-[11px] font-medium text-ink-soft/70">
             Incluido en {servicio.nombreModulo}
           </span>
         ) : (
-          <span className="rounded-full bg-verde-100 px-2 py-0.5 text-[11px] font-medium text-verde-700 dark:bg-verde-900/50 dark:text-verde-300">
+          <span className="rounded-full bg-verde-100 px-2 py-0.5 text-[11px] font-medium text-verde-700">
             ${precioStr(servicio.precioUsd)}/mes
           </span>
         )}
       </div>
-      <p className="mt-1.5 text-sm leading-relaxed text-ink/60 dark:text-white/50">
+      <p className="mt-1.5 text-sm leading-relaxed text-ink-soft/75">
         {servicio.explicacion}
       </p>
       {servicio.ficha && (
         <Link
           href={`/servicios/${servicio.ficha}`}
-          className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-verde-600 underline-offset-2 hover:underline dark:text-verde-400"
+          className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-verde-700 underline-offset-2 hover:underline"
         >
           Ver cómo funciona
           <ArrowRight size={11} aria-hidden />
@@ -377,21 +387,19 @@ function TarjetaYa({ servicio }: { servicio: ServicioRecomendadoYa }) {
 }
 
 function TarjetaProximo({ servicio }: { servicio: ServicioRecomendadoProximo }) {
-  const mensaje = encodeURIComponent(
-    `Hola, me interesa implementar "${servicio.nombre}" en mi negocio a través de La Verde. ¿Podemos hablar?`,
-  );
-  const whatsappUrl = `https://wa.me/5355336238?text=${mensaje}`;
+  const texto = `Hola, me interesa implementar "${servicio.nombre}" en mi negocio a través de La Verde. ¿Podemos hablar?`;
+  const whatsappUrl = `${whatsappHref(SUPPORT_WHATSAPP)}?text=${encodeURIComponent(texto)}`;
 
   return (
-    <div className="rounded-2xl border border-dashed border-verde-200 bg-white p-5 dark:border-verde-800/50 dark:bg-ink-soft/60">
+    <div className="rounded-2xl border border-dashed border-ink/15 bg-white p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-lv-display text-sm font-semibold text-ink dark:text-white">
+            <span className="font-lv-display text-sm font-semibold text-ink">
               {servicio.nombre}
             </span>
           </div>
-          <p className="mt-1.5 text-sm leading-relaxed text-ink/60 dark:text-white/50">
+          <p className="mt-1.5 text-sm leading-relaxed text-ink-soft/75">
             {servicio.explicacion}
           </p>
         </div>
@@ -400,7 +408,7 @@ function TarjetaProximo({ servicio }: { servicio: ServicioRecomendadoProximo }) 
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-verde-200 px-3 py-1.5 text-[11px] font-semibold text-verde-700 transition hover:bg-verde-50 dark:border-verde-800 dark:text-verde-400 dark:hover:bg-verde-900/30"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-ink/10 px-3 py-1.5 text-[11px] font-semibold text-verde-700 transition hover:bg-verde-50"
         >
           <MessageCircle size={12} aria-hidden />
           Contactar al equipo

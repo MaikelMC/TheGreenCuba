@@ -1,6 +1,5 @@
 import {
   ArrowRight,
-  CalendarDays,
   Check,
   MapPin,
   QrCode,
@@ -79,19 +78,26 @@ function OrdersVisual() {
   );
 }
 
-function EventVisual() {
+function FacebookVisual() {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-ink/10 bg-sand p-3">
-      <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-ink text-center text-white">
-        <span className="lv-mono text-[9px] uppercase tracking-[0.12em] opacity-70">Oct</span>
-        <span className="-mt-1 text-sm font-bold leading-none">24</span>
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-xs font-semibold text-ink">Noche de son</p>
-        <p className="mt-0.5 flex items-center gap-1 text-[11px] text-ink-soft/65">
-          <CalendarDays size={11} aria-hidden /> Evento publicado
-        </p>
+    <div className="space-y-2 rounded-2xl border border-ink/10 bg-sand p-3">
+      <div className="flex items-center gap-2">
+        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-ink text-[11px] font-bold text-white">
+          La
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-[11px] font-semibold text-ink">Tu negocio</p>
+          <p className="lv-mono text-[9px] uppercase tracking-[0.12em] text-ink-soft/60">
+            Grupos de tu zona
+          </p>
+        </div>
       </div>
+      <p className="text-[11px] leading-snug text-ink-soft/75">
+        Hoy hay dulces recién hechos. Pasa por el local o pide a domicilio.
+      </p>
+      <span className="inline-flex items-center gap-1 rounded-full bg-verde-100 px-2.5 py-1 text-[10px] font-semibold text-verde-700">
+        <Check size={10} aria-hidden /> Publicado
+      </span>
     </div>
   );
 }
@@ -165,14 +171,11 @@ export function Bento() {
     >
       <div className="mx-auto w-full max-w-container px-gutter md:px-gutter-lg">
         <div className="max-w-2xl">
-          <p className="lv-mono text-[11px] uppercase tracking-[0.2em] text-verde-700">
-            Producto
-          </p>
           <Reveal
             as="h2"
             text="Todo lo que tu negocio necesita para que lo encuentren."
             accent="encuentren"
-            className="mt-4 font-lv-display text-[clamp(32px,5vw,52px)] font-bold leading-[1.02] tracking-[-0.04em] text-ink text-balance"
+            className="font-lv-display text-[clamp(32px,5vw,52px)] font-bold leading-[1.02] tracking-[-0.04em] text-ink text-balance"
           />
           <Reveal
             as="p"
@@ -209,9 +212,9 @@ export function Bento() {
             className="lg:col-span-2"
           />
           <BentoCard
-            title="Facebook y Eventos"
-            body="Publicaciones y eventos que llevan gente a tu puerta."
-            visual={<EventVisual />}
+            title="Facebook"
+            body="Una publicación semanal en los grupos de tu zona, que lleva gente a tu puerta."
+            visual={<FacebookVisual />}
             className="lg:col-span-2"
           />
           <BentoCard

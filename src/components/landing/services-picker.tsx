@@ -76,7 +76,7 @@ export function ServicesPicker({ catalogo }: { catalogo: Catalogo }) {
         </DialogTrigger>
       </div>
 
-      <DialogContent className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:max-h-[85dvh]">
+      <DialogContent className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden overflow-y-hidden p-0 sm:max-h-[85dvh]">
         <DialogHeader className="shrink-0 px-6 pb-4 pt-6">
           <DialogTitle className="font-lv-display text-xl font-bold tracking-[-0.02em]">
             Arma tu plan
