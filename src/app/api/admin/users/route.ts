@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { hashPassword } from "better-auth/crypto";
 import { isAdminRequest } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
@@ -187,40 +189,35 @@ export async function POST(request: NextRequest) {
     .where(eq(users.id, id))
     .limit(1);
   if (!target) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
-  if (!target.authUserId) return NextResponse.json({ error: "La cuenta no está vinculada a Neon Auth." }, { status: 409 });
-
-  const current = await getAppUser();
-  if (current) {
-    const [currentAuth] = await db
-      .select({ authUserId: users.authUserId })
-      .from(users)
-      .where(eq(users.id, current.id))
-      .limit(1);
-    if (currentAuth?.authUserId) {
-      await db.execute(sql`
-        UPDATE neon_auth.user
-        SET role = 'admin', "updatedAt" = now()
-        WHERE id = ${currentAuth.authUserId}::uuid
-      `);
-    }
+  if (!target.authUserId) {
+    return NextResponse.json(
+      { error: "La cuenta no está vinculada a la autenticación." },
+      { status: 409 },
+    );
   }
 
-  const response = await fetch(new URL("/api/auth/admin/set-user-password", request.url), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(request.headers.get("cookie") ? { Cookie: request.headers.get("cookie")! } : {}),
-    },
-    body: JSON.stringify({
-      userId: target.authUserId,
-      newPassword,
-    }),
-  });
+  /* El hash lo genera Better Auth, no esta ruta: así la contraseña que escribe
+     administración se verifica después con el mismo scrypt que la del alta.
+     `UPDATE` primero y `INSERT` solo si la cuenta no tenía fila `credential`
+     —una cuenta de Google que aún no tiene contraseña—. */
+  const hash = await hashPassword(newPassword);
+  const updated = await db.execute<{ id: string }>(sql`
+    UPDATE neon_auth."account"
+    SET password = ${hash}, "updatedAt" = now()
+    WHERE "userId" = ${target.authUserId}::uuid AND "providerId" = 'credential'
+    RETURNING id
+  `);
 
-  if (!response.ok) {
-    const details = await response.text().catch(() => "");
-    console.error("No se pudo cambiar la contraseña:", details);
-    return NextResponse.json({ error: details || "No se pudo cambiar la contraseña." }, { status: 502 });
+  if ((updated.rows ?? []).length === 0) {
+    await db.execute(sql`
+      INSERT INTO neon_auth."account" (
+        id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt"
+      )
+      VALUES (
+        ${randomUUID()}, ${target.authUserId}, 'credential',
+        ${target.authUserId}::uuid, ${hash}, now(), now()
+      )
+    `);
   }
 
   await db.insert(notifications).values({

@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
-import { forcePublicRedirect, publicOrigin } from "@/lib/auth/public-origin";
-import { auth } from "@/lib/auth/server";
+import { publicOrigin } from "@/lib/auth/public-origin";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -9,14 +8,9 @@ import { TERMS_VERSION } from "@/lib/legal";
 import { safeNext } from "@/lib/session";
 
 export async function GET(request: NextRequest) {
-  /* Esta ruta es una API route: bypasea el proxy, que es quien normalmente
-     intercambia el neon_auth_session_verifier por la cookie de sesión.
-     Sin este intercambio, auth.getSession() devuelve null y nunca se crea
-     la fila en users. Se aplica aquí el mismo guard que en src/proxy.ts. */
-  if (request.nextUrl.searchParams.has("neon_auth_session_verifier")) {
-    const exchanged = await auth.middleware({ loginUrl: "/login" })(request);
-    return forcePublicRedirect(exchanged, request);
-  }
+  /* Better Auth deja la cookie de sesión en la vuelta de Google y esta ruta es
+     una API route: bypasea el proxy, pero `getAppUser()` sí puede leer la
+     sesión desde aquí. */
 
   /* El origen no sale de `request.url`: dentro del contenedor ese URL lleva el
      host interno (`0.0.0.0:3000`) cuando el proxy no reenvía `Host`. Ver

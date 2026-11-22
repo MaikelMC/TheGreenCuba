@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Download, Share, X } from "lucide-react";
 
 import { pwaActiva } from "@/lib/pwa/flag";
@@ -23,6 +24,7 @@ const CLAVE_DESCARTADO = "la-verde:pwa-install-dismissed";
  */
 export function InstallPrompt() {
   const { puede, ios, instalada } = useInstalacionPwa();
+  const pathname = usePathname();
   /* Arranca descartado para no parpadear antes de leer el almacenamiento. */
   const [descartado, setDescartado] = useState(true);
 
@@ -50,7 +52,21 @@ export function InstallPrompt() {
     descartar();
   };
 
-  if (!pwaActiva() || instalada || descartado || (!ios && !puede)) return null;
+  /* En la carta online y en la tarjeta de sellos el manifiesto de la página es
+     el del negocio, no el de La Verde: este aviso instalaría esa copia y su
+     texto —«Ten La Verde a mano»— mentiría. Ahí la instalación se hace desde el
+     menú del navegador, que es el gesto que el manifiesto de la página resuelve. */
+  const esFichaDelNegocio = pathname?.startsWith("/m/") ?? false;
+
+  if (
+    !pwaActiva() ||
+    esFichaDelNegocio ||
+    instalada ||
+    descartado ||
+    (!ios && !puede)
+  ) {
+    return null;
+  }
 
   return (
     <div

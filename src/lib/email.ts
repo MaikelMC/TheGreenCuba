@@ -779,3 +779,91 @@ export function paymentReminderEmailHtml(
 </body>
 </html>`;
 }
+
+/**
+ * Marco común de los dos correos de acceso.
+ *
+ * Son los únicos que manda la app a alguien que todavía no ha entrado, así que
+ * no pueden depender del estado de su cuenta ni llevar datos suyos más allá del
+ * correo: un código y un enlace, nada más.
+ */
+function correoAuthHtml(input: { titulo: string; cuerpo: string }): string {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${input.titulo} - La Verde</title>
+</head>
+<body style="margin:0;padding:0;background:#F6F3EC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.5;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F6F3EC;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#FFFFFF;border-radius:20px;border:1px solid rgba(8,19,13,0.06);overflow:hidden;">
+          <tr>
+            <td style="padding:28px 32px;background:linear-gradient(135deg,#35AF6D 0%,#2D9B5E 100%);">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="width:44px;height:44px;border-radius:12px;background:#FFFFFF;text-align:center;vertical-align:middle;">
+                    <span style="display:inline-block;line-height:44px;font-size:18px;font-weight:800;color:#35AF6D;letter-spacing:-0.5px;">LV</span>
+                  </td>
+                  <td style="padding-left:14px;color:#FFFFFF;">
+                    <div style="font-size:16px;font-weight:700;">La Verde</div>
+                    <div style="font-size:12px;opacity:0.9;margin-top:1px;">Tu cuenta</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#08130D;letter-spacing:-0.4px;">${input.titulo}</h1>
+              ${input.cuerpo}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px 26px;background:#F8FDF9;border-top:1px solid rgba(8,19,13,0.04);">
+              <p style="margin:0;font-size:12px;color:#94A39B;text-align:center;">Correo automático de La Verde. No respondas a este mensaje.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+/**
+ * El código de seis dígitos del alta o del acceso.
+ *
+ * Va en un bloque grande y con separación entre cifras para que se pueda copiar
+ * de un vistazo desde la notificación del móvil, que es donde se lee.
+ */
+export function codigoVerificacionEmailHtml(input: {
+  codigo: string;
+  titulo: string;
+}): string {
+  return correoAuthHtml({
+    titulo: input.titulo,
+    cuerpo: `<p style="margin:0 0 20px;font-size:15px;color:#5B6B62;line-height:1.6;">Escribe este código en La Verde:</p>
+      <div style="margin:0 0 20px;padding:18px;border-radius:14px;background:#F8FDF9;border:1px solid rgba(53,175,109,0.18);text-align:center;font-size:32px;font-weight:700;letter-spacing:0.28em;color:#08130D;font-variant-numeric:tabular-nums;">${input.codigo}</div>
+      <p style="margin:0;font-size:13px;color:#94A39B;line-height:1.6;">Caduca en 5 minutos y solo se puede usar una vez. Si no lo pediste, ignora este correo.</p>`,
+  });
+}
+
+/** El enlace para crear una contraseña nueva. */
+export function enlaceResetEmailHtml(input: { url: string }): string {
+  return correoAuthHtml({
+    titulo: "Elige una contraseña nueva",
+    cuerpo: `<p style="margin:0 0 24px;font-size:15px;color:#5B6B62;line-height:1.6;">Pulsa el botón para crear una contraseña nueva. El enlace caduca pronto y solo se puede usar una vez.</p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
+        <tr>
+          <td align="center">
+            <a href="${input.url}" style="display:inline-block;padding:15px 30px;background:#35AF6D;color:#FFFFFF;font-size:15px;font-weight:700;border-radius:12px;text-decoration:none;">Crear contraseña</a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:0;font-size:13px;color:#94A39B;line-height:1.6;">Si no lo pediste, ignora este correo: tu contraseña actual sigue valiendo.</p>`,
+  });
+}

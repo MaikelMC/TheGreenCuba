@@ -26,8 +26,8 @@ const ENDPOINT = (process.env.AWS_ENDPOINT_URL_S3 ?? "").replace(/\/+$/, "");
 export const S3_BUCKET = process.env.S3_BUCKET_NAME ?? "la-verde-images";
 
 export const s3Client = new S3Client({
-  /* Neon exige una región de verdad. R2 aceptaba `auto`; aquí eso no es una
-     región y la firma no valida. */
+  /* La región va en la firma: Neon exige la de verdad, R2 acepta `auto` y
+     MinIO usa `us-east-1` por defecto. */
   region: process.env.AWS_REGION || "us-east-2",
   endpoint: ENDPOINT,
   forcePathStyle: true,
@@ -56,26 +56,31 @@ export const s3Client = new S3Client({
 export const S3_PUBLIC_URL = ENDPOINT ? `${ENDPOINT}/${S3_BUCKET}` : "";
 
 /**
- * Forma del endpoint de una rama: un id de rama, el servicio, la celda, la
- * región y el dominio de Neon.
+ * Cualquier servicio compatible con S3 (Neon, R2, MinIO en el VPS…): basta una
+ * URL http(s) sin plantilla. Antes se exigía la forma exacta de un endpoint de
+ * Neon; con el paso a infraestructura propia eso bloquearía las subidas.
  *
- * La comprobación existe por un error que ya costó un rato con R2. Un endpoint
- * de plantilla **resuelve en DNS** porque el proveedor contesta al comodín, y
- * luego se cae en el saludo TLS con un `SSL alert number 40` que no menciona la
- * configuración por ninguna parte. Se parece a un problema de red y se va a
- * buscar ahí. Comprobar la forma aquí convierte ese callejón sin salida en un
- * mensaje que dice qué falta.
+ * Lo que se sigue cazando es el endpoint de plantilla (`xxx`, `<…>`): resuelve
+ * en DNS porque el proveedor contesta al comodín y luego cae en el saludo TLS
+ * con un error que no menciona la configuración.
  */
-const ENDPOINT_SHAPE =
-  /^https:\/\/[a-z0-9-]+\.storage\.c-\d+\.[a-z0-9-]+\.aws\.neon\.tech$/;
+function endpointValido(endpoint: string): boolean {
+  if (/xxx|<|>/.test(endpoint)) return false;
+  try {
+    const u = new URL(endpoint);
+    return u.protocol === "https:" || u.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
 
 /** Qué le falta a la configuración, o `null` si está completa. */
 export function s3ConfigProblem(): string | null {
-  if (!ENDPOINT_SHAPE.test(ENDPOINT)) {
-    return "AWS_ENDPOINT_URL_S3 no es un endpoint de almacenamiento de Neon. Cópialo de la consola, en Branch → Storage: termina en `<rama>.storage.c-N.<región>.aws.neon.tech`.";
+  if (!endpointValido(ENDPOINT)) {
+    return "AWS_ENDPOINT_URL_S3 no es una URL válida de un servicio S3 (Neon, R2, MinIO…), o sigue siendo la de plantilla.";
   }
-  if (!process.env.AWS_REGION || process.env.AWS_REGION === "auto") {
-    return "Falta AWS_REGION, o vale `auto`. Neon necesita la región de verdad de la rama (`us-east-2`, `us-east-1`, `eu-central-1`, `ap-southeast-1`).";
+  if (!process.env.AWS_REGION) {
+    return "Falta AWS_REGION (la región del bucket; `auto` en R2, `us-east-1` en MinIO).";
   }
   if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
     return "Faltan AWS_ACCESS_KEY_ID o AWS_SECRET_ACCESS_KEY.";

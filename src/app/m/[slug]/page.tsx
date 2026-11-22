@@ -171,10 +171,38 @@ export async function generateMetadata({
     : `${place.name}, ${place.category} en ${where}.`;
   const cover = place.logoUrl ?? place.photos?.[0]?.url;
 
+  /* La carta online se puede añadir a la pantalla de inicio igual que la app y
+     que la tarjeta de sellos. Aquí se sobreescribe el manifiesto global por el
+     de la carta: así la app instalada abre en `/m/{slug}` —no en `/home`— y el
+     icono es el logo del negocio con la insignia de menú. Safari lee el link al
+     parsear el HTML, antes de que corra cualquier JS, así que tiene que salir
+     del servidor y no de un swap en el cliente. */
   return {
     title,
     description,
     alternates: { canonical: `/m/${place.slug}` },
+    manifest: `/api/menu/${place.slug}/manifest`,
+    /* iOS Safari usa `<link rel="apple-touch-icon">` para el icono de pantalla
+       de inicio, no los `icons` del manifiesto. No sirve apuntarlo al logo
+       guardado: es WebP, vive en el bucket y el iPhone exige un PNG cuadrado y
+       opaco. La ruta lo entrega con la insignia ya puesta. */
+    icons: {
+      apple: [
+        {
+          url: `/api/menu/${place.slug}/icono/180`,
+          sizes: "180x180",
+          type: "image/png",
+        },
+      ],
+    },
+    /* La etiqueta del icono en iOS. Se queda el nombre del negocio: la insignia
+       del icono ya dice «menú», y así no se corta ni se confunde con la tarjeta
+       de sellos («Sellos · …») del mismo negocio. */
+    appleWebApp: {
+      capable: true,
+      title: place.name,
+      statusBarStyle: "default",
+    },
     openGraph: {
       type: "website",
       title,

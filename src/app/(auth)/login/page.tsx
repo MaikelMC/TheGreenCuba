@@ -95,6 +95,9 @@ export default async function LoginPage({
       next={next}
       aviso={cambiada ? "Contraseña cambiada. Entra con la nueva." : null}
       correoInicial={cambiada && typeof params.email === "string" ? params.email : ""}
+      googleEnabled={Boolean(
+        process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim(),
+      )}
     />
   );
 }

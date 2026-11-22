@@ -51,20 +51,6 @@ import { AUTH_USER_HEADER, isProtected, needsAppUser } from "@/lib/session";
  * camino deja de valer. Está contado en `src/lib/referral.ts`.
  */
 export async function proxy(request: NextRequest) {
-  // OAuth verifier exchange: after Google auth, Neon redirects to callbackURL with
-  // ?neon_auth_session_verifier=xxx. That param must be exchanged for a session
-  // cookie before the page renders — auth.getSession() below can't do it.
-  // auth.middleware() runs processAuthMiddleware which handles the exchange and
-  // redirects back to the same URL without the verifier, with the session cookie set.
-  if (request.nextUrl.searchParams.has("neon_auth_session_verifier")) {
-    const exchanged = await auth.middleware({ loginUrl: "/login" })(request);
-    /* El middleware devuelve la misma URL sin el verificador, construida desde
-       `request.url`. En el contenedor ese URL puede llevar el host interno
-       (`0.0.0.0:3000`) y el navegador acabaría ahí, con la sesión ya emitida.
-       Ver `publicOrigin` en `src/lib/auth/public-origin.ts`. */
-    return forcePublicRedirect(exchanged, request);
-  }
-
   const response = forcePublicRedirect(await handle(request), request);
   dropDevAccess(response, request);
   return carryReferralCode(response, request);
@@ -161,26 +147,20 @@ async function handle(request: NextRequest) {
 
   /* La sesión se resuelve aquí y no dentro del render, que no puede escribir
      cookies. Ver `AUTH_USER_HEADER` en `src/lib/session.ts`. */
-  const { data: session } = await auth.getSession();
+  const session = await auth.api.getSession({ headers: request.headers });
   const user = session?.user ?? null;
   headers.set(AUTH_USER_HEADER, user ? encodeUser(user) : "");
 
   if (!isProtected(pathname)) return NextResponse.next({ request: { headers } });
 
-  /* Sesión abierta pero correo sin verificar. No es «no ha entrado»: Neon emite
-     la sesión en el alta aunque exija verificar el correo, así que sin esta
-     comprobación el registro no tendría puerta —la sesión ya existe y las rutas
-     privadas se abrirían antes de que nadie demuestre que el correo es suyo—.
+  /* Sesión abierta pero correo sin verificar. El alta emite sesión aunque el
+     correo esté pendiente, así que sin esta comprobación el registro no tendría
+     puerta —la sesión ya existe y las rutas privadas se abrirían antes de que
+     nadie demuestre que el correo es suyo—.
 
      Va aquí, sobre la sesión que se acaba de resolver, y no en el layout de cada
      zona: es la misma pregunta que la de arriba y cuesta una línea. Quien entró
-     con Google no pasa por esto —`emailVerified` lo pone el proveedor—.
-
-     Ojo con la caché de la cookie de sesión: `verifyEmailOTP` la reescribe al
-     verificar, siempre que quien verifica tenga esa misma sesión abierta. Si no
-     la tiene —el caso del acceso, donde el intento anterior no llegó a abrir
-     sesión— verificará y volverá a entrar, y en ese acceso la sesión nace ya al
-     día. */
+     con Google no pasa por esto —`emailVerified` lo pone el proveedor—. */
   if (user && !user.emailVerified) {
     const url = request.nextUrl.clone();
     url.pathname = "/verify-email";

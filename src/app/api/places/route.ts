@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { eq } from "drizzle-orm";
-import { NEON_AUTH_SESSION_COOKIE_NAME } from "@neondatabase/auth/server";
 import { isAdminRequest } from "@/lib/admin-server";
 import { avisarNegocioNuevo } from "@/lib/avisos-app-server";
 import { getAppUser } from "@/lib/auth/user";
@@ -49,19 +48,11 @@ export async function GET(req: NextRequest) {
   /* Quién pregunta, pero **solo para el negocio de prueba**: el catálogo se
      sirve igual a todo el mundo y esto no es una puerta.
 
-     La sesión se lee únicamente si la petición trae la cookie de sesión. Sin
-     ella no hay usuario que resolver, y preguntarlo de todos modos costaría una
-     ida y vuelta al servidor de auth de Neon en **cada** carga del catálogo
-     —y quien más lo carga es un anónimo, porque la ficha se comparte por
-     WhatsApp y desde ella se pide esta ruta—. Con la cookie delante, la sesión
-     va firmada dentro y se valida en memoria, sin salir a la red.
-
-     El nombre de la cookie se importa y no se escribe a mano: es de Neon, no
-     nuestro, y una copia literal dejaría de valer en cuanto el paquete lo
-     cambie —en silencio, que es la peor forma—. */
-  const email = req.cookies.has(NEON_AUTH_SESSION_COOKIE_NAME)
-    ? (await getAppUser())?.email
-    : null;
+     Sin cookie de sesión, `getSession` devuelve `null` sin tocar la base, así
+     que preguntarlo en cada carga del catálogo no cuesta una consulta: quien
+     más lo carga es un anónimo, porque la ficha se comparte por WhatsApp y
+     desde ella se pide esta ruta. */
+  const email = (await getAppUser())?.email ?? null;
 
   /* Qué respuestas puede servir el borde. El catálogo público es idéntico para
      todo el mundo y sale sin tocar la función; las otras dos no:

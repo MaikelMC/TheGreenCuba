@@ -13,6 +13,8 @@ import {
   MapPin,
   ChevronDown,
   Clock,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePlaces } from "@/providers/places-provider";

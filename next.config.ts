@@ -5,19 +5,17 @@ const isProd = process.env.NODE_ENV === "production";
 /* `connect-src 'self'` se queda como estaba, y conviene dejar dicho por qué,
    porque es contraintuitivo.
 
-   Aquí hubo un añadido que abría el connect-src al origen de Neon Auth. Estaba
-   mal y se quitó: el cliente del navegador (`src/lib/auth/client.ts`) no habla
-   con Neon. `createAuthClient()` se construye sin URL, el adaptador acaba
-   pasando `baseURL: undefined` a Better Auth, y Better Auth, sin baseURL, usa
-   el **origen actual**. Todas sus llamadas van a `/api/auth/*` en este mismo
-   dominio, y quien habla con Neon es nuestro catch-all `[...path]`, en el
-   servidor, que es justo lo que significa "proxy them to the Neon Auth" en su
-   documentación.
+      Aquí hubo un añadido que abría el connect-src al origen de Neon Auth. Estaba
+   mal y se quitó, y sigue estando mal con Better Auth autoalojado: el cliente
+   del navegador (`src/lib/auth/client.ts`) no habla con ningún servicio
+   externo. `createAuthClient()` se construye sin URL, así que Better Auth usa
+   el **origen actual** y todas sus llamadas van a `/api/auth/*` en este mismo
+   dominio; el catch-all `[...path]` las atiende en el servidor contra el
+   Postgres del VPS.
 
-   Si algún día alguien añade algo que sí llame a Neon desde el navegador —los
-   componentes de `@neondatabase/auth-ui`, por ejemplo, que aquí no se usan—,
-   esto es lo primero que hay que tocar, o el navegador lo bloqueará en
-   producción con un error que no menciona el CSP por ninguna parte.
+   Si algún día alguien añade algo que sí llame a un servicio externo desde el
+   navegador, esto es lo primero que hay que tocar, o el navegador lo bloqueará
+   en producción con un error que no menciona el CSP por ninguna parte.
 
    Los dos geocoders sí van aparte, y aquí está el motivo. `src/lib/map/geocode.ts`
    se escribió para llamarse desde el navegador —lo dice su cabecera— y así lo
@@ -123,6 +121,25 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "**.neon.tech",
       },
+      /* El almacenamiento propio (MinIO en el VPS, R2…): su host sale de la
+         misma variable que usa el cliente S3. Se lee al construir, así que
+         cambiar de almacenamiento pide un build nuevo. La entrada de Neon de
+         arriba se queda mientras haya fotos guardadas con esas URL. */
+      ...(() => {
+        try {
+          const u = new URL(process.env.AWS_ENDPOINT_URL_S3 ?? "");
+          if (u.hostname.endsWith(".neon.tech")) return [];
+          return [
+            {
+              protocol: u.protocol.replace(":", "") as "http" | "https",
+              hostname: u.hostname,
+              port: u.port,
+            },
+          ];
+        } catch {
+          return [];
+        }
+      })(),
       {
         protocol: "https",
         hostname: "images.unsplash.com",

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, sql } from "drizzle-orm";
-import { auth } from "@/lib/auth/server";
 import { getAppUser } from "@/lib/auth/user";
 import {
   isGoogleAccount,
@@ -434,9 +433,9 @@ export async function POST(request: NextRequest) {
  *   en pie justo después de haber dicho que se borraron, que es el peor final
  *   posible.
  *
- * La segunda mitad pasa por `borrarCuentaDeNeon()`: prueba la vía del SDK y, si
- * la fila sigue en la tabla, la borra como ya hace el panel de administración.
- * La respuesta lleva `accountDeleted` **comprobado** contra `neon_auth.user`, y
+ * La segunda mitad pasa por `borrarCuentaDeNeon()`, que borra la fila como ya
+ * hace el panel de administración. La respuesta lleva `accountDeleted`
+ * **comprobado** contra `neon_auth.user`, y
  * no lo que diga el SDK, porque de eso dependen las dos cosas que se prometen
  * aquí: que la contraseña deje de valer y que el correo quede libre para un alta
  * nueva.
@@ -516,22 +515,15 @@ async function cuentaDeNeonExiste(authUserId: string): Promise<boolean> {
 /**
  * Deja sin fila la cuenta de acceso, o dice que no pudo.
  *
- * La primera vía es la del SDK, `auth.deleteUser()`: es la que sabe qué más hay
- * que limpiar fuera de las tablas. La segunda existe porque esa primera puede
- * rechazar la petición —`delete-user` admite pedir contraseña o un token según
- * cómo esté configurado el servicio, y aquí no se manda ninguno— y quedarse ahí
- * significa que el correo sigue ocupado y la contraseña sigue valiendo, o sea
- * justo lo que este borrado promete quitar.
- *
- * El `DELETE` directo es el mismo que ya usa el panel de administración. De
+ * Es el mismo `DELETE` directo que usa el panel de administración. De
  * `neon_auth.user` cuelgan en cascada `account` —la contraseña o el vínculo con
  * Google—, `session`, `member` e `invitation`, así que con la fila se van las
  * credenciales y las sesiones abiertas, y el correo queda libre para un alta
  * nueva. Es lo que hace que, después de borrar, entrar falle y registrarse otra
  * vez con el mismo correo funcione.
  *
- * Se responde con la comprobación y no con el resultado del SDK: un `error` del
- * servicio se leería como «no se borró» aunque la fila ya no estuviera, y el
+ * Se responde con la comprobación y no con el resultado del `DELETE`: un error
+ * a mitad se leería como «no se borró» aunque la fila ya no estuviera, y el
  * aviso que vería la persona diría algo falso.
  */
 async function borrarCuentaDeNeon(authUserId: string | null): Promise<boolean> {
@@ -539,17 +531,6 @@ async function borrarCuentaDeNeon(authUserId: string | null): Promise<boolean> {
      hay correo ocupado del que hablar. Un id que no es uuid tampoco puede ser
      una fila de `neon_auth.user`, cuyo id es uuid. */
   if (!authUserId || !UUID_RE.test(authUserId)) return true;
-
-  try {
-    const result = await auth.deleteUser();
-    if (result?.error) {
-      console.error("El SDK no borró la cuenta de Neon:", result.error);
-    }
-  } catch (error) {
-    console.error("El SDK no borró la cuenta de Neon:", error);
-  }
-
-  if (!(await cuentaDeNeonExiste(authUserId))) return true;
 
   try {
     await db.execute(sql`

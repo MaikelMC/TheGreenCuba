@@ -12,10 +12,10 @@ import { generateId } from "@/lib/utils";
 import { AUTH_USER_HEADER, type Role } from "@/lib/session";
 
 /**
- * Puente entre la cuenta de Neon y el perfil del proyecto.
+ * Puente entre la cuenta de acceso y el perfil del proyecto.
  *
- * Son dos cosas distintas y conviene no mezclarlas. Neon Managed Auth guarda
- * **quién eres** —correo y contraseña, en su esquema `neon_auth`— y esta tabla
+ * Son dos cosas distintas y conviene no mezclarlas. Better Auth guarda
+ * **quién eres** —correo y contraseña, en el esquema `neon_auth`— y esta tabla
  * guarda **lo que haces en la app**: tu ciudad, tus preferencias, tu rol y las
  * relaciones con `saved_places`, `reviews` y `business_owners`.
  *
@@ -96,27 +96,27 @@ function bootstrapRole(email: string): Role {
   return "user";
 }
 
-interface NeonIdentity {
+interface AuthIdentity {
   id: string;
   email: string;
   name: string;
 }
 
 /**
- * Quién dice Neon que eres, o `null`.
+ * Quién dice Better Auth que eres, o `null`.
  *
  * La cabecera la pone el proxy y siempre está en las rutas que pasan por él
  * —vacía cuando no hay sesión, que es distinto de que no haya cabecera—. Si no
  * está, la petición no pasó por el proxy: son las rutas de API, excluidas del
- * matcher, y esas sí pueden llamar a `auth.getSession()` porque corren en fase
- * `action`.
+ * matcher, y esas sí pueden preguntar por la sesión desde aquí.
  */
-async function readNeonIdentity(): Promise<NeonIdentity | null> {
-  const fromProxy = (await headers()).get(AUTH_USER_HEADER);
+async function readAuthIdentity(): Promise<AuthIdentity | null> {
+  const incoming = await headers();
+  const fromProxy = incoming.get(AUTH_USER_HEADER);
   if (fromProxy !== null) {
     if (!fromProxy) return null;
     try {
-      return JSON.parse(decodeURIComponent(fromProxy)) as NeonIdentity;
+      return JSON.parse(decodeURIComponent(fromProxy)) as AuthIdentity;
     } catch {
       /* Cabecera ilegible. Mejor quedarse sin sesión que fiarse de un valor
          a medio parsear. */
@@ -134,7 +134,11 @@ async function readNeonIdentity(): Promise<NeonIdentity | null> {
     return DEV_IDENTITY;
   }
 
-  const { data: session } = await auth.getSession();
+  /* `getSession` pide `Headers`; la variante de solo lectura de Next no es
+     asignable sin copiarla. */
+  const session = await auth.api.getSession({
+    headers: new Headers(incoming as unknown as HeadersInit),
+  });
   const user = session?.user;
   if (!user) return null;
   return { id: user.id, email: user.email ?? "", name: user.name ?? "" };
@@ -191,17 +195,17 @@ function toAppUser(row: typeof users.$inferSelect): AppUser {
  * administración a la vez, que pasan por `isAdminRequest`.
  */
 export async function getAppUser(): Promise<AppUser | null> {
-  const neonUser = await readNeonIdentity();
-  if (!neonUser) return null;
+  const identity = await readAuthIdentity();
+  if (!identity) return null;
 
   const [existing] = await db
     .select()
     .from(users)
-    .where(eq(users.authUserId, neonUser.id))
+    .where(eq(users.authUserId, identity.id))
     .limit(1);
 
   if (existing) {
-    const desiredRole = bootstrapRole(neonUser.email);
+    const desiredRole = bootstrapRole(identity.email);
     /* La fila puede existir desde antes de que este correo estuviera en
        `AUTH_BOOTSTRAP_ROLES` o antes de que alguien cambiara la configuración.
        Cuando la configuración dice que este correo debe ser `owner` o `admin`,
@@ -234,17 +238,17 @@ export async function getAppUser(): Promise<AppUser | null> {
      La sesión de desarrollo no tiene fila en `neon_auth` porque es local a
      propósito (ver `src/lib/dev-access.ts`), y excluirla es lo que impide que
      esta guarda cierre también esa puerta. */
-  if (neonUser.id !== DEV_IDENTITY.id) {
+  if (identity.id !== DEV_IDENTITY.id) {
     const account = await db.execute<{ ok: number }>(sql`
       SELECT 1 AS ok
       FROM neon_auth.user
-      WHERE id = ${neonUser.id}::uuid
+      WHERE id = ${identity.id}::uuid
       LIMIT 1
     `);
     if ((account.rows ?? []).length === 0) return null;
   }
 
-  const email = neonUser.email;
+  const email = identity.email;
   /* Se atribuye **aquí**, en la rama que crea la fila, y no en cada camino de
      alta. Esta función es el único sitio por el que pasa todo el mundo la primera
      vez, así que esto cubre por igual el alta con contraseña, la de Google y la
@@ -257,9 +261,9 @@ export async function getAppUser(): Promise<AppUser | null> {
     .insert(users)
     .values({
       id: generateId(),
-      authUserId: neonUser.id,
+      authUserId: identity.id,
       email,
-      name: neonUser.name || null,
+      name: identity.name || null,
       role: bootstrapRole(email),
       referredBy,
     })
@@ -303,7 +307,7 @@ export async function getAppUser(): Promise<AppUser | null> {
   const [raced] = await db
     .select()
     .from(users)
-    .where(eq(users.authUserId, neonUser.id))
+    .where(eq(users.authUserId, identity.id))
     .limit(1);
 
   return raced ? toAppUser(raced) : null;

@@ -191,12 +191,18 @@ export function AuthCard({
   next,
   aviso = null,
   correoInicial = "",
+  googleEnabled = true,
 }: {
   mode: AuthMode;
   next: string | null;
   /** Confirmación que trae la URL, p. ej. tras cambiar la contraseña. */
   aviso?: string | null;
   correoInicial?: string;
+  /** Si el servidor tiene Google OAuth configurado (`GOOGLE_CLIENT_ID` +
+      `GOOGLE_CLIENT_SECRET`). Sin credenciales se oculta el botón de Google y el
+      aviso solo ofrece crear contraseña: un botón que lleva a `oauthError` no
+      ayuda a nadie. Lo calcula el componente de servidor que monta esto. */
+  googleEnabled?: boolean;
 }) {
   const copy = COPY[mode];
 
@@ -644,7 +650,8 @@ export function AuthCard({
             Google. */}
         {mode === "login" && (
           <p className="rounded-xl border border-ink/10 bg-sand-warm px-gap-sm py-gap-xs text-meta leading-relaxed text-ink-soft/80">
-            ¿Te registraste con Google? Entra con Google o crea una contraseña
+            ¿Te registraste con Google?{" "}
+            {googleEnabled ? "Entra con Google o crea" : "Crea"} una contraseña
             desde{" "}
             <Link
               href="/forgot-password"
@@ -655,6 +662,12 @@ export function AuthCard({
           </p>
         )}
 
+        {/* Vía de Google: solo si el servidor tiene credenciales. Sin ellas, el
+            separador y el botón desaparecen enteros —un botón que redirige a
+            `oauthError=google` sería una trampa—. Reaparece solo al configurar
+            `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`. */}
+        {googleEnabled && (
+        <>
         <div
           className="flex items-center gap-gap-sm text-meta text-ink-soft/75"
           aria-hidden="true"
@@ -704,6 +717,8 @@ export function AuthCard({
               ? "Iniciar sesión con Google"
               : "Registrarse con Google"}
         </button>
+        </>
+        )}
       </form>
 
       <Link

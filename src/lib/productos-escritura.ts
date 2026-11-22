@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, lote } from "@/lib/db";
 import { ofertas, places, productos } from "@/lib/db/schema";
 import { invalidarCatalogo } from "@/lib/db/queries";
 import { limite, puede } from "@/lib/plans-server";
@@ -153,9 +153,9 @@ export async function aplicarCatalogo(
     /* Las ofertas del producto se van con él. Con la clave foránea de la fase
        C esto lo hace la base sola; se deja explícito para que no dependa de
        que la migración de la FK ya esté aplicada. */
-    await db.batch([
-      db.delete(ofertas).where(and(eq(ofertas.negocioId, placeId), inArray(ofertas.productoId, borrar))),
-      db.delete(productos).where(and(eq(productos.placeId, placeId), inArray(productos.id, borrar))),
+    await lote((q) => [
+      q.delete(ofertas).where(and(eq(ofertas.negocioId, placeId), inArray(ofertas.productoId, borrar))),
+      q.delete(productos).where(and(eq(productos.placeId, placeId), inArray(productos.id, borrar))),
     ]);
   }
 
@@ -181,16 +181,17 @@ export async function aplicarCatalogo(
   /* ── Orden ──────────────────────────────────────────────────────────── */
   if (ops.orden) {
     const ids = ops.orden.map((id) => creados[id] ?? id);
-    const consultas = ids.map((id, orden) =>
-      db
-        .update(productos)
-        .set({ orden })
-        .where(and(eq(productos.placeId, placeId), eq(productos.id, id))),
-    );
     /* Reordenar no sube la versión: mover filas no choca con un agotado
        puesto por Telegram mientras el panel estaba abierto. */
-    if (consultas.length > 0) {
-      await db.batch(consultas as unknown as Parameters<typeof db.batch>[0]);
+    if (ids.length > 0) {
+      await lote((q) =>
+        ids.map((id, orden) =>
+          q
+            .update(productos)
+            .set({ orden })
+            .where(and(eq(productos.placeId, placeId), eq(productos.id, id))),
+        ),
+      );
     }
   }
 

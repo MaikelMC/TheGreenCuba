@@ -23,7 +23,7 @@ import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { eq, getTableColumns, type Table } from "drizzle-orm";
-import { db, schema } from "@/lib/db";
+import { db, lote, schema } from "@/lib/db";
 
 const DIRECTORIO = join(process.cwd(), "backups", "negocios");
 const APLICAR = process.argv.includes("--aplicar");
@@ -120,7 +120,9 @@ async function main() {
   if (!ficha) throw new Error("La copia no trae la ficha del negocio.");
   const { id: _id, ...campos } = ficha;
 
-  const consultas = [
+  /* En una transacción (`lote`): o se restaura entero o no se toca nada. El
+     `db` de dentro es el de la transacción. */
+  await lote((db) => [
     db
       .insert(schema.places)
       .values(ficha as typeof schema.places.$inferInsert)
@@ -142,9 +144,7 @@ async function main() {
     ...(tablas.ofertas.length
       ? [db.insert(schema.ofertas).values(revivir(schema.ofertas, tablas.ofertas) as never)]
       : []),
-  ];
-
-  await db.batch(consultas as unknown as Parameters<typeof db.batch>[0]);
+  ]);
   console.log(`\nRestaurado «${copia.nombre}» desde ${archivo}.`);
   console.log("La carta pública está cacheada: el cambio se ve al caducar la caché o al guardar algo en el panel.");
 }

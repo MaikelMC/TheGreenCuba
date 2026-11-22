@@ -1,5 +1,5 @@
 import { and, asc, eq, getTableColumns, inArray, lte, ne, notInArray, or, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, lote, type Tx } from "@/lib/db";
 import { novedades, ofertas, places, productos } from "@/lib/db/schema";
 import { DEV_PLACE_ID, devPlace } from "@/lib/dev-place";
 import { generateId } from "@/lib/utils";
@@ -196,8 +196,8 @@ const CAMBIO = sql.raw(`(${tupla('"productos"')}) is distinct from (${tupla("exc
 /** `excluded."columna"`: el valor que traía el insert que chocó. */
 const ex = (columna: string) => sql.raw(`excluded."${columna}"`);
 
-function upsert(filas: FilaProducto[]) {
-  return db
+function upsert(q: Tx, filas: FilaProducto[]) {
+  return q
     .insert(productos)
     .values(filas)
     .onConflictDoUpdate({
@@ -304,29 +304,29 @@ export async function sincronizarNegocio(
   }
 
   const ids = negocio.filas.map((fila) => fila.id);
-  const consultas = [
+  /* En una transacción: el remapeo, el volcado y la limpieza van juntos. */
+  await lote((q) => [
     ...plan.remapeoOfertas.map((r) =>
-      db
+      q
         .update(ofertas)
         .set({ productoId: r.a })
         .where(and(eq(ofertas.id, r.id), eq(ofertas.productoId, r.de))),
     ),
     ...plan.remapeoNovedades.map((r) =>
-      db
+      q
         .update(novedades)
         .set({ productoId: r.a })
         .where(and(eq(novedades.id, r.id), eq(novedades.productoId, r.de))),
     ),
-    ...(negocio.filas.length > 0 ? [upsert(negocio.filas)] : []),
-    db
+    ...(negocio.filas.length > 0 ? [upsert(q, negocio.filas)] : []),
+    q
       .delete(productos)
       .where(
         ids.length > 0
           ? and(eq(productos.placeId, placeId), notInArray(productos.id, ids))
           : eq(productos.placeId, placeId),
       ),
-  ];
-  await db.batch(consultas as unknown as Parameters<typeof db.batch>[0]);
+  ]);
 
   return {
     ok: true,

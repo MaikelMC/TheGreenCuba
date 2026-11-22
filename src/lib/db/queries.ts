@@ -585,6 +585,45 @@ export const getPlaceBySlug = cached(
   "places:get-by-slug",
 );
 
+/**
+ * Nombre, `slug` y logo de un negocio, por `slug`.
+ *
+ * Es lo único que necesitan el manifiesto y el icono de pantalla de inicio de la
+ * carta online. Pasan por aquí en vez de por `getPlaceBySlug` porque esa lectura
+ * trae fotos, ofertas y la carta entera: para pintar un icono de 512 px no se
+ * justifica, y el navegador pide el manifiesto y los iconos por separado, así
+ * que serían tres lecturas completas por instalación.
+ *
+ * El negocio de prueba entra por la misma puerta que en `getPlaceBySlug`: su
+ * `slug` es su id y así `/m/dev-cafe-la-ceiba` también se puede instalar en
+ * local sin una fila real detrás.
+ */
+export const getPlaceBrandBySlug = cached(async (slug: string) => {
+  if (slug === DEV_PLACE_ID) {
+    if (!devPlaceEnabled()) return null;
+    const dev = devPlace();
+    return {
+      id: dev.id,
+      name: dev.name,
+      slug: dev.slug,
+      logoUrl: dev.logoUrl ?? null,
+    };
+  }
+
+  const [row] = await db
+    .select({
+      id: places.id,
+      name: places.name,
+      slug: places.slug,
+      logoUrl: places.logoUrl,
+    })
+    .from(places)
+    .where(eq(places.slug, slug))
+    .limit(1);
+
+  return row ?? null;
+}, "places:brand-by-slug");
+
 /** Clave foránea a partir de la etiqueta («Restaurante»). `null` si no existe. */
 export async function resolveCategoryId(
   label: string | null | undefined,

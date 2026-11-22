@@ -708,6 +708,11 @@ function documentoCacheable(response, url) {
 function claveDocumento(url) {
   if (url.pathname === "/home") return "/home";
   if (url.pathname.startsWith("/place/")) return url.pathname;
+  /* La carta online instalada abre en `/m/{slug}` sin query, mientras que el
+     enlace que se reparte por WhatsApp puede llevar parámetros de seguimiento.
+     Guardar la copia por camino hace que el arranque sin red la encuentre. La
+     tarjeta de sellos no entra aquí: tiene su propia caché (`lv-tarjetas-`). */
+  if (/^\/m\/[^/]+\/?$/.test(url.pathname)) return url.pathname;
   return null;
 }
 

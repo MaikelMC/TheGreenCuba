@@ -33,10 +33,15 @@ export async function aplicarDerecho(pago: FilaPago): Promise<void> {
     where ${pagos.id} = ${pago.id} and ${pagos.estado} <> 'pagado'
   )`;
 
-  const marcaPagado = db
-    .update(pagos)
-    .set({ estado: "pagado", pagadoEn: sql`now()` })
-    .where(and(eq(pagos.id, pago.id), sql`${pagos.estado} <> 'pagado'`));
+  /* Cada caso va en una transacción (antes `db.batch` de Neon; `node-postgres`
+     no tiene lotes): las sentencias se aplican todas o ninguna. Por eso se
+     construyen con `tx` y no con `db`, que iría por otra conexión. */
+  type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+  const marcaPagado = (tx: Tx) =>
+    tx
+      .update(pagos)
+      .set({ estado: "pagado", pagadoEn: sql`now()` })
+      .where(and(eq(pagos.id, pago.id), sql`${pagos.estado} <> 'pagado'`));
 
   if (pago.tipo === "pack_medida") {
     const packId = pago.packMedidaId ?? pago.clave;
@@ -54,12 +59,12 @@ export async function aplicarDerecho(pago: FilaPago): Promise<void> {
       venceEnActual: pack?.venceEn ?? null,
     });
 
-    await db.batch([
-      db
+    await db.transaction(async (tx) => {
+      await tx
         .update(packsMedida)
         .set({ estado: "pagado", pagadoEn: ahora, venceEn })
-        .where(and(eq(packsMedida.id, packId), sql`${packsMedida.estado} <> 'pagado'`)),
-      db
+        .where(and(eq(packsMedida.id, packId), sql`${packsMedida.estado} <> 'pagado'`));
+      await tx
         .update(suscripciones)
         .set({ trialHasta: null })
         .where(
@@ -67,15 +72,15 @@ export async function aplicarDerecho(pago: FilaPago): Promise<void> {
             eq(suscripciones.negocioId, pago.negocioId),
             sql`${suscripciones.trialHasta} > now()`,
           ),
-        ),
-      marcaPagado,
-    ]);
+        );
+      await marcaPagado(tx);
+    });
     return;
   }
 
   if (pago.tipo === "plan") {
-    await db.batch([
-      db
+    await db.transaction(async (tx) => {
+      await tx
         .insert(suscripciones)
         .values({
           id: generateId(),
@@ -103,9 +108,9 @@ export async function aplicarDerecho(pago: FilaPago): Promise<void> {
             end`,
           },
           setWhere: sigueCobrable,
-        }),
-      marcaPagado,
-    ]);
+        });
+      await marcaPagado(tx);
+    });
     return;
   }
 
@@ -150,11 +155,11 @@ export async function aplicarDerecho(pago: FilaPago): Promise<void> {
     end)
   ))`;
 
-  await db.batch([
-    db
+  await db.transaction(async (tx) => {
+    await tx
       .update(suscripciones)
       .set({ modulos })
-      .where(and(eq(suscripciones.negocioId, pago.negocioId), sigueCobrable)),
-    marcaPagado,
-  ]);
+      .where(and(eq(suscripciones.negocioId, pago.negocioId), sigueCobrable));
+    await marcaPagado(tx);
+  });
 }

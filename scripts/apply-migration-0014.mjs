@@ -1,22 +1,19 @@
-import { neon, neonConfig } from "@neondatabase/serverless";
+import pg from "pg";
 
-neonConfig.fetchFunction = async (input, init) => {
-  const retryDelays = [500, 1500, 4000, 8000, 12000];
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      return await fetch(input, init);
-    } catch (error) {
-      const code = error?.cause?.code ?? error?.code;
-      const retryable = ["UND_ERR_CONNECT_TIMEOUT", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN"].includes(code);
-      const delay = retryDelays[attempt];
-      if (!retryable || delay === undefined || init?.signal?.aborted) throw error;
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  }
-};
-
+/* Postgres estándar (VPS) o Neon con URL directa. Sin interpolaciones: estas
+   migraciones son SQL fijo, así que la etiqueta solo une el texto. */
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL no está definida.");
-const sql = neon(process.env.DATABASE_URL);
+const url = new URL(process.env.DATABASE_URL);
+const conSsl = url.searchParams.get("sslmode") === "require";
+url.searchParams.delete("sslmode");
+url.searchParams.delete("channel_binding");
+const pool = new pg.Pool({
+  connectionString: url.toString(),
+  ssl: conSsl ? { rejectUnauthorized: false } : undefined,
+  max: 1,
+  allowExitOnIdle: true,
+});
+const sql = async (partes) => (await pool.query(partes.join(""))).rows;
 
 async function main() {
   await sql`ALTER TABLE "project_requests" ADD COLUMN IF NOT EXISTS "image_urls" text[] DEFAULT '{}'::text[] NOT NULL`;
