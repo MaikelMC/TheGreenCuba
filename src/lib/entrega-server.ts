@@ -19,6 +19,7 @@
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema";
+import { invalidarCatalogo } from "@/lib/db/queries";
 import { CATALOGO, funcionesDe } from "@/lib/plans";
 import { suscripcionDe } from "@/lib/plans-server";
 import {
@@ -123,6 +124,12 @@ export async function escribirEntregaParcial(
   if (!actualizada) {
     return { ok: false, code: "no_encontrado", error: "Negocio no encontrado." };
   }
+
+  /* `entrega` viaja en `UserPlace` (`toUserPlace`): la sirven la ficha, la carta
+     y el panel desde la caché del catálogo. Esta es la puerta única de escritura
+     parcial —zonas, pausa, horario y programados pasan por aquí—, así que invalidar
+     en este punto cubre a todas y ningún llamador puede olvidarlo. */
+  invalidarCatalogo();
 
   return {
     ok: true,

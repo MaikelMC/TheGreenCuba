@@ -10,10 +10,8 @@
  */
 
 import { eq } from "drizzle-orm";
-import { revalidateTag } from "next/cache";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema";
-import { CATALOG_TAG } from "@/lib/db/queries";
 import { estadoCocina, type EstadoCocina } from "@/lib/ficha/cocina";
 import type { EntregaConfig, ProgramadosConfig } from "@/lib/ficha/entrega";
 import { escribirEntregaParcial } from "@/lib/entrega-server";
@@ -90,7 +88,7 @@ export async function actualizarPausa(
   });
   if (!resultado.ok) return null;
 
-  revalidateTag(CATALOG_TAG, { expire: 0 });
+  /* La invalidación la hace `escribirEntregaParcial`, puerta única de escritura. */
   return aperturaManual;
 }
 
@@ -106,8 +104,7 @@ export async function actualizarHorarioCocina(
 ): Promise<void> {
   const resultado = await escribirEntregaParcial(negocioId, { horario });
   if (!resultado.ok) return;
-
-  revalidateTag(CATALOG_TAG, { expire: 0 });
+  /* `escribirEntregaParcial` ya invalidó el catálogo. */
 }
 
 /**
@@ -124,6 +121,5 @@ export async function actualizarProgramados(
     programados: programados ?? null,
   });
   if (!resultado.ok) return;
-
-  revalidateTag(CATALOG_TAG, { expire: 0 });
+  /* `escribirEntregaParcial` ya invalidó el catálogo. */
 }

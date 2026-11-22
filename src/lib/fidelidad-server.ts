@@ -24,6 +24,7 @@ import { randomBytes } from "node:crypto";
 import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { rows } from "@/lib/analytics/sql";
 import { db } from "@/lib/db";
+import { invalidarCatalogo } from "@/lib/db/queries";
 import {
   clientesFrecuentes,
   movimientosSellos,
@@ -87,6 +88,11 @@ export async function guardarConfigFidelidad(
   if (actualizada.length === 0) {
     return { success: false, code: "no_encontrado", error: "Negocio no encontrado." };
   }
+
+  /* La carta pública lee la tarjeta con `configFidelidadDe` dentro de una página
+     ISR (revalidate 300). Sin invalidar, activar o editar la tarjeta no se veía
+     en la carta hasta 5 min después. */
+  invalidarCatalogo();
   return { success: true };
 }
 

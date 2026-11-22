@@ -14,6 +14,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema";
+import { invalidarCatalogo } from "@/lib/db/queries";
 import { REDONDEOS_PERMITIDOS, type ConfigTasa, type Redondeo } from "@/lib/precios";
 import { trackEvent } from "@/lib/analytics/events";
 
@@ -138,6 +139,11 @@ export async function actualizarTasa(
   if (Object.keys(valores).length === 0) return { success: true };
 
   await db.update(places).set(valores).where(eq(places.id, negocioId));
+
+  /* La tasa viaja en `UserPlace` (`toUserPlace`), así que la sirven la ficha, la
+     carta, el panel y el mapa desde la caché del catálogo. Sin esto, un cambio
+     de tasa no se veía hasta que caducaba la entrada (5 min en producción). */
+  invalidarCatalogo();
 
   trackEvent({
     type: "tasa_actualizada",
