@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { pushSubscriptions } from "@/lib/db/schema";
-import { rateLimit } from "@/lib/rate-limit";
+import { vapidConfigurado } from "@/lib/push-server";
+import { rateLimitKey } from "@/lib/rate-limit";
 import { generateId } from "@/lib/utils";
 
 /**
@@ -79,7 +80,24 @@ export async function POST(request: NextRequest) {
   const user = await getAppUser();
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const limitado = rateLimit(request, LIMITE_ALTAS, VENTANA_ALTAS_MS);
+  /* Sin VAPID el servidor no puede firmar ningún envío: aceptar el alta haría
+     creer que los avisos están activos mientras cada push se omite. Es un
+     fallo de despliegue y se dice como tal, no se esconde. */
+  if (!vapidConfigurado()) {
+    return NextResponse.json(
+      { error: "Los avisos push no están configurados en el servidor." },
+      { status: 503 },
+    );
+  }
+
+  /* Por usuario y no por IP: la app reenvía el alta al abrir, y los móviles de
+     una misma operadora comparten salida (CGNAT), así que un cubo por IP
+     dejaría sin sincronizar a todos los que estén detrás de la misma. */
+  const limitado = rateLimitKey(
+    `usuario:${user.id}:push-subscribe`,
+    LIMITE_ALTAS,
+    VENTANA_ALTAS_MS,
+  );
   if (!limitado.ok) {
     return NextResponse.json(
       { error: "Demasiados intentos seguidos. Espera un momento." },

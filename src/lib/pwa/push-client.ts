@@ -65,6 +65,82 @@ export type ResultadoAltaPush =
       mensaje?: string;
     };
 
+let sincronizadoEnEstaCarga = false;
+
+/**
+ * Guarda en el servidor una suscripción que este navegador ya tiene.
+ *
+ * El alta es idempotente (`onConflictDoUpdate` sobre `endpoint`), así que
+ * reenviarla no crea filas de más: solo asegura que la copia del servidor
+ * existe y apunta al dueño actual.
+ */
+async function guardarEnServidor(
+  datos: PushSubscriptionJSON,
+): Promise<{ ok: true } | { ok: false; mensaje: string }> {
+  if (!datos.endpoint || !datos.keys?.p256dh || !datos.keys?.auth) {
+    return {
+      ok: false,
+      mensaje: "El navegador devolvió una suscripción incompleta.",
+    };
+  }
+
+  try {
+    const response = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...datos, userAgent: navigator.userAgent }),
+    });
+
+    if (response.ok) return { ok: true };
+
+    const data = (await response.json().catch(() => null)) as { error?: string } | null;
+    return {
+      ok: false,
+      mensaje: data?.error ?? "No se pudieron activar los avisos. Inténtalo otra vez.",
+    };
+  } catch {
+    return {
+      ok: false,
+      mensaje: "No se pudieron activar los avisos. Inténtalo otra vez.",
+    };
+  }
+}
+
+/**
+ * Vuelve a dar de alta en el servidor la suscripción que ya existe en este
+ * dispositivo.
+ *
+ * El navegador guarda la suscripción y el servidor guarda el endpoint, pero son
+ * **dos copias**. Si la tabla `push_subscriptions` se pierde —un borrado, una
+ * migración de base de datos a otro servidor—, el dispositivo sigue teniendo su
+ * suscripción y el perfil la enseña como «activa» mientras el servidor no tiene
+ * a quién enviar. Nada volvía a registrar ese endpoint hasta que el usuario
+ * desactivaba y reactivaba los avisos a mano.
+ *
+ * Se llama al abrir la app: repara ese hueco sola y además refresca el endpoint
+ * si el servicio push lo renovó mientras la app estaba cerrada.
+ */
+export async function sincronizarPushDispositivo(): Promise<boolean> {
+  if (sincronizadoEnEstaCarga) return true;
+  if (!soportaPush() || !clavePublicaVapid()) return false;
+  if (Notification.permission !== "granted") return false;
+
+  /* `ready` no llega si el service worker no está registrado; el tope evita que
+     la comprobación se quede esperando para siempre. */
+  const registro = await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ESPERA_SW_MS)),
+  ]).catch(() => null);
+  if (!registro) return false;
+
+  const suscripcion = await registro.pushManager.getSubscription().catch(() => null);
+  if (!suscripcion) return false;
+
+  const guardado = await guardarEnServidor(suscripcion.toJSON());
+  sincronizadoEnEstaCarga = guardado.ok;
+  return guardado.ok;
+}
+
 /**
  * Pide el permiso (si hace falta), suscribe este navegador y guarda el endpoint.
  *
@@ -101,29 +177,11 @@ export async function altaPushDispositivo(): Promise<ResultadoAltaPush> {
       applicationServerKey: claveAVBytes(clave),
     }));
 
-  const datos = suscripcion.toJSON();
-  if (!datos.endpoint || !datos.keys?.p256dh || !datos.keys?.auth) {
-    return {
-      ok: false,
-      motivo: "error",
-      mensaje: "El navegador devolvió una suscripción incompleta.",
-    };
+  const guardado = await guardarEnServidor(suscripcion.toJSON());
+  if (!guardado.ok) {
+    return { ok: false, motivo: "error", mensaje: guardado.mensaje };
   }
 
-  const response = await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...datos, userAgent: navigator.userAgent }),
-  });
-
-  if (!response.ok) {
-    const data = (await response.json().catch(() => null)) as { error?: string } | null;
-    return {
-      ok: false,
-      motivo: "error",
-      mensaje: data?.error ?? "No se pudieron activar los avisos. Inténtalo otra vez.",
-    };
-  }
-
+  sincronizadoEnEstaCarga = true;
   return { ok: true };
 }

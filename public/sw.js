@@ -1550,14 +1550,46 @@ self.addEventListener("pushsubscriptionchange", (event) => {
   event.waitUntil(
     (async () => {
       try {
+        /* El servicio push puede renovar el endpoint por su cuenta, y lo hace
+           justo cuando la app no está abierta. Primero se reutiliza la que ya
+           haya; si no, se renueva con las opciones de la anterior. */
+        const actual = await self.registration.pushManager.getSubscription();
         const anterior = event.oldSubscription;
-        if (!anterior) return;
+        const opciones = anterior && anterior.options;
+
+        const suscripcion =
+          actual ??
+          (opciones && opciones.applicationServerKey
+            ? await self.registration.pushManager.subscribe(opciones)
+            : null);
+
         /* Sin `applicationServerKey` no se puede renovar: se avisa a la página
            para que ofrezca volver a activar el aviso. */
-        const suscripcion = await self.registration.pushManager.subscribe(
-          anterior.options,
-        );
+        if (!suscripcion) {
+          const clientes = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+          for (const cliente of clientes) {
+            cliente.postMessage({ type: "PUSH_SUBSCRIPTION_FAILED" });
+          }
+          return;
+        }
+
         const json = suscripcion.toJSON();
+
+        /* Se guarda desde aquí y no solo avisando a la página: si la app está
+           cerrada —el caso normal en este evento— no hay ninguna ventana que
+           reciba el mensaje y el endpoint nuevo se perdería para siempre,
+           porque el servidor seguiría con el viejo. */
+        try {
+          await fetch("/api/push/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...json, userAgent: self.navigator.userAgent }),
+          });
+        } catch {
+          /* Sin red o sin sesión: la sincronización de la próxima apertura lo
+             reintenta. */
+        }
+
         const clientes = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
         for (const cliente of clientes) {
           cliente.postMessage({ type: "PUSH_SUBSCRIPTION_CHANGED", subscription: json });

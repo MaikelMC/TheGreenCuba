@@ -1,3 +1,5 @@
+import { createECDH } from "node:crypto";
+
 import { inArray, sql } from "drizzle-orm";
 import webpush from "web-push";
 
@@ -74,27 +76,71 @@ const OPCIONES_ENVIO = {
 let configurado: boolean | null = null;
 
 /**
+ * La clave pública que corresponde a una privada VAPID.
+ *
+ * Las dos forman un par P-256: la pública se puede recalcular desde la privada
+ * y con eso el envío deja de depender de `NEXT_PUBLIC_VAPID_PUBLIC_KEY`. Esa
+ * variable se incrusta en el bundle en tiempo de build, así que un contenedor
+ * construido sin el `--build-arg` la tiene vacía aunque el runtime la reciba;
+ * con la derivación basta `VAPID_PRIVATE_KEY` en el entorno. Devuelve `null` si
+ * la privada no tiene la forma de una clave P-256.
+ */
+function clavePublicaDe(privada: string): string | null {
+  try {
+    const ecdh = createECDH("prime256v1");
+    ecdh.setPrivateKey(Buffer.from(privada, "base64url"));
+    return ecdh.getPublicKey().toString("base64url");
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Configura VAPID una sola vez por proceso.
  *
- * Devuelve `false` si falta alguna variable. Nunca se imprime su valor: como
- * mucho, el nombre de la que falta.
+ * Solo hacen falta `VAPID_PRIVATE_KEY` y `VAPID_SUBJECT`: la pública se toma de
+ * `VAPID_PUBLIC_KEY` si está —útil para fijarla a mano— o se deriva de la
+ * privada. Nunca se imprime el valor de ninguna: como mucho, el nombre de la
+ * que falta.
  */
 function configurarVapid(): boolean {
   if (configurado !== null) return configurado;
 
-  const publica = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
   const privada = process.env.VAPID_PRIVATE_KEY?.trim();
   const asunto = process.env.VAPID_SUBJECT?.trim();
 
-  if (!publica || !privada || !asunto) {
+  if (!privada || !asunto) {
     const faltan = [
-      !publica && "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
       !privada && "VAPID_PRIVATE_KEY",
       !asunto && "VAPID_SUBJECT",
     ].filter(Boolean);
     console.warn(`[push] Sin configurar: faltan ${faltan.join(", ")}. No se envían avisos push.`);
     configurado = false;
     return false;
+  }
+
+  const declarada = (
+    process.env.VAPID_PUBLIC_KEY ??
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ??
+    ""
+  ).trim();
+  const publica = declarada || clavePublicaDe(privada);
+
+  if (!publica) {
+    console.warn(
+      "[push] VAPID_PRIVATE_KEY no es una clave P-256 válida. No se envían avisos push.",
+    );
+    configurado = false;
+    return false;
+  }
+
+  /* Si la clave que se incrustó en el bundle no es la del par que firma, las
+     suscripciones guardadas se crearon con otra y el servicio push contestará
+     403 en cada envío. Se avisa una vez para que el motivo quede en el log. */
+  if (declarada && clavePublicaDe(privada) !== declarada) {
+    console.warn(
+      "[push] La clave pública configurada no corresponde a VAPID_PRIVATE_KEY. Revisa las dos.",
+    );
   }
 
   try {
@@ -108,6 +154,14 @@ function configurarVapid(): boolean {
   }
 
   return configurado;
+}
+
+/**
+ * ¿Puede este proceso firmar envíos? Lo consulta el alta de suscripciones para
+ * no dar por activo un dispositivo que el servidor no va a poder avisar.
+ */
+export function vapidConfigurado(): boolean {
+  return configurarVapid();
 }
 
 function statusDe(error: unknown): number | undefined {

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { HardDrive, RefreshCw, WifiOff } from "lucide-react";
 
 import { pwaActiva } from "@/lib/pwa/flag";
+import { sincronizarPushDispositivo } from "@/lib/pwa/push-client";
 import { asegurarPersistencia, estadoAlmacenamiento } from "@/lib/offline/storage-status";
 import { procesarCola } from "@/lib/offline/cola";
 
@@ -124,6 +125,13 @@ export function PwaRegister() {
         registro = reg;
         if (reg !== previo) reg.addEventListener("updatefound", vigilarEsperando);
         vigilarEsperando();
+
+        /* El servidor tiene que conocer el endpoint de este dispositivo. Se
+           reenvía en cada apertura y de forma idempotente: si la tabla de
+           suscripciones se perdió en una migración de la base, o el servicio
+           push renovó el endpoint sin la app abierta, esto lo repara sin que
+           el usuario toque nada. */
+        void sincronizarPushDispositivo();
 
         /* Detección de despliegue. Antes era `update()` con un tope de 30 min:
            cada llamada baja los 60 KB de `sw.js`, así que no se podía hacer a
