@@ -345,7 +345,7 @@ export function BusinessList() {
                             void asignarTipo(p, e.target.value as TipoNegocio);
                         }}
                         className={cn(
-                          "shrink-0 h-6 rounded-full border px-[8px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.1em] outline-none cursor-pointer transition-colors disabled:opacity-50 appearance-none",
+                          "min-w-0 max-w-full truncate h-6 rounded-full border px-[8px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.1em] outline-none cursor-pointer transition-colors disabled:opacity-50 appearance-none",
                           p.tipoNegocio
                             ? "border-sand-deep bg-sand-deep text-ink-soft/70 hover:border-ink/20"
                             : "border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-400",
