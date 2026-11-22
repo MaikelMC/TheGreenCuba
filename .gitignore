@@ -80,3 +80,13 @@ skill_PWA.md
 
 # Copias locales de negocios (scripts/backup-negocio.ts): datos de producción, fuera de git
 /backups/
+
+# informes y prompts locales de rediseño: notas de trabajo, no del proyecto
+INFORME-REDISENO.md
+RECONOCIMIENTO-DISENO.md
+prompt-reconocimiento-diseno.md
+prompt-rediseno-business-panel.md
+
+# scripts sueltos de prueba/diagnóstico local, no del proyecto
+scripts/consulta-rapida.mjs
+scripts/probar-tunel.mjs
