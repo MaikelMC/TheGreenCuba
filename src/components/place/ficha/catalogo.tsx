@@ -27,6 +27,7 @@ import {
   Sandwich,
   Search,
   Soup,
+  Sparkles,
   Utensils,
   Wine,
   type LucideIcon,
@@ -732,6 +733,28 @@ function FilaServicio({
         agotado && "opacity-60",
       )}
     >
+      {/* La foto del servicio le da atractivo a la ficha igual que la carta.
+          Sin foto va el cuadro con un icono sugerente, como el resto de vistas.
+          Genérico `Sparkles`: un servicio no tiene icono de plato que le pegue. */}
+      <div className="relative size-14 shrink-0 overflow-hidden rounded-[12px] bg-sand-deep">
+        {item.image ? (
+          <Image
+            src={item.image}
+            alt={item.name}
+            fill
+            sizes="56px"
+            className={cn("object-cover", agotado && "grayscale")}
+            loading="lazy"
+          />
+        ) : (
+          <SinFoto
+            nombre={item.name}
+            generico={Sparkles}
+            size={24}
+            className={cn(agotado && "grayscale")}
+          />
+        )}
+      </div>
       <div className="min-w-0 flex-1">
         <p className="truncate font-lv-display text-[15px] font-bold text-[#1C2620]">
           {item.name}
