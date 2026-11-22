@@ -154,6 +154,22 @@ export function BusinessList() {
     [removePlace],
   );
 
+  const toggleActivo = useCallback(
+    async (p: UserPlace) => {
+      const updated = await updatePlace(p.id, { isActive: !p.isActive });
+      if (!updated) {
+        toast.error(`No se pudo cambiar la visibilidad de "${p.name}".`);
+        return;
+      }
+      toast.success(
+        p.isActive
+          ? `"${p.name}" ya no aparece en el mapa`
+          : `"${p.name}" ahora aparece en el mapa`,
+      );
+    },
+    [updatePlace],
+  );
+
   const toggleBoost = useCallback(
     async (p: UserPlace) => {
       const updated = await updatePlace(p.id, { isBoosted: !p.isBoosted });
@@ -317,32 +333,33 @@ export function BusinessList() {
                       <span className="font-lv-display text-small font-semibold text-ink truncate">
                         {p.name}
                       </span>
-                      {/* Badge de tipo — o selector rápido si no tiene */}
-                      {p.tipoNegocio ? (
-                        <span className="shrink-0 inline-flex rounded-full bg-sand-deep px-[7px] py-[2px] font-lv-display text-[10px] font-semibold text-ink-soft/70 uppercase tracking-[0.1em]">
-                          {TIPO_NEGOCIO_LABEL[p.tipoNegocio]}
-                        </span>
-                      ) : (
-                        <select
-                          aria-label={`Asignar tipo a ${p.name}`}
-                          disabled={asignandoTipo === p.id}
-                          onChange={(e) => {
-                            if (e.target.value)
-                              void asignarTipo(p, e.target.value as TipoNegocio);
-                          }}
-                          className="h-6 rounded-full border border-amber-200 bg-amber-50 px-[8px] font-lv-display text-[10px] font-semibold text-amber-700 outline-none cursor-pointer hover:border-amber-400 transition-colors disabled:opacity-50"
-                          defaultValue=""
-                        >
-                          <option value="" disabled>
-                            Sin tipo
+                      {/* Selector de tipo — siempre editable. Sin tipo: ámbar
+                          de aviso. Con tipo: píldora sobria, pero sigue siendo
+                          un selector para corregirlo a mano. */}
+                      <select
+                        aria-label={`Tipo de negocio de ${p.name}`}
+                        disabled={asignandoTipo === p.id}
+                        value={p.tipoNegocio ?? ""}
+                        onChange={(e) => {
+                          if (e.target.value)
+                            void asignarTipo(p, e.target.value as TipoNegocio);
+                        }}
+                        className={cn(
+                          "shrink-0 h-6 rounded-full border px-[8px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.1em] outline-none cursor-pointer transition-colors disabled:opacity-50 appearance-none",
+                          p.tipoNegocio
+                            ? "border-sand-deep bg-sand-deep text-ink-soft/70 hover:border-ink/20"
+                            : "border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-400",
+                        )}
+                      >
+                        <option value="" disabled>
+                          Sin tipo
+                        </option>
+                        {TIPOS_NEGOCIO.map((t) => (
+                          <option key={t} value={t}>
+                            {TIPO_NEGOCIO_LABEL[t]}
                           </option>
-                          {TIPOS_NEGOCIO.map((t) => (
-                            <option key={t} value={t}>
-                              {TIPO_NEGOCIO_LABEL[t]}
-                            </option>
-                          ))}
-                        </select>
-                      )}
+                        ))}
+                      </select>
                       {/* Todo negocio nuevo arranca con 30 días de prueba de
                           Pro, eligiera lo que eligiera en el alta. Mientras la
                           prueba vive, eso es lo que hay contratado de verdad y
@@ -395,6 +412,31 @@ export function BusinessList() {
                   </span>
 
                   <div className="flex items-center gap-[6px]">
+                    <motion.button
+                      type="button"
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => toggleActivo(p)}
+                      className={cn(
+                        ICON_BTN,
+                        p.isActive
+                          ? "border-verde-400 bg-verde-50 text-verde-600"
+                          : "border-ink/10 text-ink-soft/75 hover:border-verde-300 hover:text-verde-600 hover:bg-verde-50",
+                      )}
+                      aria-label={
+                        p.isActive
+                          ? `Ocultar "${p.name}" del mapa`
+                          : `Mostrar "${p.name}" en el mapa`
+                      }
+                      title={
+                        p.isActive ? "Visible en el mapa" : "Oculto del mapa"
+                      }
+                    >
+                      {p.isActive ? (
+                        <Eye size={16} strokeWidth={1.8} />
+                      ) : (
+                        <EyeOff size={16} strokeWidth={1.8} />
+                      )}
+                    </motion.button>
                     <motion.button
                       type="button"
                       whileTap={{ scale: 0.9 }}
