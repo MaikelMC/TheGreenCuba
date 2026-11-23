@@ -44,6 +44,10 @@ export function CTASection() {
                 Ver el mapa
               </ViewMapLink>
             </div>
+
+            <p className="mt-5 text-sm text-white/55">
+              Gratis para empezar. Sin tarjeta. Cambias de plan cuando quieras.
+            </p>
           </div>
         </div>
       </div>

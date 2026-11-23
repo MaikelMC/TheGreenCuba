@@ -7,6 +7,7 @@ import {
   PlaceStrip,
   CTASection,
   Recomendador,
+  FAQ,
 } from "@/components/landing";
 import { Footer } from "@/components/layout/footer";
 import { siteConfig } from "@/config/site";
@@ -109,6 +110,7 @@ export default async function LandingPage() {
           <PlaceStrip places={await loadStripPlaces()} />
           <Pricing catalogo={catalogo} />
           <Recomendador />
+          <FAQ />
           <CTASection />
         </main>
 

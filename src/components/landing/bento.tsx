@@ -187,39 +187,39 @@ export function Bento() {
 
         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
           <BentoCard
-            title="Pin en el mapa"
+            title="Que te encuentren"
             body="Apareces donde la gente busca, con dirección, horario y las monedas que aceptas."
             visual={<MapVisual />}
             className="lg:col-span-3"
           />
           <BentoCard
             id="ejemplos"
-            title="Buscador con IA"
+            title="Te buscan con sus palabras"
             body="Búsquedas en lenguaje natural que entienden barrios, monedas y costumbres cubanas."
             visual={<SearchVisual />}
             className="lg:col-span-3"
           />
           <BentoCard
-            title="Menú QR"
+            title="Tu carta, al día y sin imprimir"
             body="Tu carta online, lista para escanear sin descargar nada."
             visual={<QrVisual />}
             className="lg:col-span-2"
           />
           <BentoCard
-            title="Pedidos y reservas"
+            title="Pedidos sin llamadas"
             body="Recibe pedidos y reservas conectados a tu catálogo."
             visual={<OrdersVisual />}
             className="lg:col-span-2"
           />
           <BentoCard
-            title="Facebook"
-            body="Una publicación semanal en los grupos de tu zona, que lleva gente a tu puerta."
+            title="Que tu barrio se entere"
+            body="Una publicación semanal en los grupos de Facebook de tu zona, que lleva gente a tu puerta."
             visual={<FacebookVisual />}
             className="lg:col-span-2"
           />
           <BentoCard
-            title="Asistente Telegram"
-            body="Tu menú y tu negocio, desde el móvil, hablando. Sin entrar al panel."
+            title="Edita tu negocio hablando"
+            body="Tu menú y tu negocio, desde el móvil, por Telegram. Sin entrar al panel."
             visual={<TelegramVisual />}
             className="lg:col-span-6"
             wide

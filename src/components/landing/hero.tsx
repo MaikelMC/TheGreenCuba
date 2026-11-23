@@ -106,9 +106,9 @@ export function Hero() {
 
           <Reveal
             as="p"
-            text="Tu negocio en el mapa, tu menú en un QR y tu asistente en Telegram."
+            text="Que te encuentren, te pidan y vuelvan. Tu carta, tus pedidos y tu lugar en el mapa de Cuba, en una app ligera que funciona con pocos datos."
             delay={240}
-            className="mx-auto mt-6 max-w-[46ch] text-base leading-relaxed text-ink-soft/75 text-pretty sm:text-lg"
+            className="mx-auto mt-6 max-w-[48ch] text-base leading-relaxed text-ink-soft/75 text-pretty sm:text-lg"
           />
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -124,6 +124,10 @@ export function Hero() {
               Ver el mapa
             </ViewMapLink>
           </div>
+
+          <p className="mt-4 text-sm text-ink-soft/60">
+            Gratis para empezar. Sin tarjeta.
+          </p>
         </div>
 
         <BrowserMockup />

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Yoyi Sabor · ficha (datos reales)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --page:#08130d; --card:#0e1720; --ink:#edf7f0; --soft:rgba(237,247,240,0.78);
+    --line:rgba(237,247,240,0.10); --line2:rgba(237,247,240,0.16); --chipBg:#16212b;
+    --green50:#173522; --green200:#28533a; --green600:#9be3b4; --green700:#9be3b4;
+    --red:#ffb4ae; --halo:0 18px 40px -16px rgba(53,175,109,0.45);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#05100b;display:flex;justify-content:center;
+    font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+  h1,h2,h3{font-family:'Space Grotesk','Plus Jakarta Sans',system-ui,sans-serif}
+  .sin-barra{scrollbar-width:none;-ms-overflow-style:none}
+  .sin-barra::-webkit-scrollbar{display:none}
+  .frame{width:390px;max-width:100vw;height:844px;max-height:100dvh;position:relative;
+    overflow:hidden;background:var(--page);color:var(--ink)}
+  button{font-family:inherit}
+  .ph{background-size:cover;background-position:center}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="sin-barra" style="position:absolute;inset:0;overflow-y:auto;padding-bottom:110px">
+
+    <!-- Portada -->
+    <div class="ph" style="position:relative;height:210px;background-color:#6B4A2B;background-image:url('https://br-proud-thunder-ax3s88r2.storage.c-4.us-east-2.aws.neon.tech/la-verde-images/places/E4gQYp3LOVI-/L-N7CjpZ_TJN.jpg')">
+      <button data-ev="volver" aria-label="Volver" style="position:absolute;top:14px;left:14px;width:44px;height:44px;border-radius:999px;border:none;background:rgba(8,19,13,0.55);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg></button>
+      <div style="position:absolute;top:14px;right:14px;display:flex;gap:8px">
+        <button data-ev="compartir" aria-label="Compartir" style="width:44px;height:44px;border-radius:999px;border:none;background:rgba(8,19,13,0.55);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l6 6-6 6"></path><path d="M21 11H11a7 7 0 0 0-7 7v1"></path></svg></button>
+        <button data-ev="mas" aria-label="Más acciones" style="width:44px;height:44px;border-radius:999px;border:none;background:rgba(8,19,13,0.55);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+      </div>
+      <button data-ev="fotos" style="position:absolute;bottom:12px;right:14px;height:32px;padding:0 12px;border-radius:999px;border:none;background:rgba(8,19,13,0.55);color:#fff;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer">1 / 9 fotos</button>
+    </div>
+
+    <!-- Cabecera -->
+    <div style="display:flex;flex-direction:column;align-items:center;padding:0 20px;text-align:center">
+      <div class="ph" style="width:112px;height:112px;margin-top:-56px;border-radius:50%;border:4px solid var(--page);background-color:#3B2A1E;background-image:url('https://br-proud-thunder-ax3s88r2.storage.c-4.us-east-2.aws.neon.tech/la-verde-images/places/E4gQYp3LOVI-/logo/U6raa4Xp_5IQ.jpg')"></div>
+      <h1 style="margin:12px 0 0;font-size:28px;font-weight:600;letter-spacing:-0.4px">Yoyi Sabor</h1>
+      <div style="margin-top:2px;font-size:14px;color:var(--soft)">Comida a domicilio · Santiago de Cuba</div>
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px 10px;font-size:14px;font-weight:600">
+        <span style="display:inline-flex;align-items:center;gap:6px;color:var(--green600)"><span style="width:8px;height:8px;border-radius:50%;background:#35AF6D"></span>Abierto · 9:00 – 18:00</span>
+      </div>
+      <p id="intro" style="margin:12px 0 0;font-size:15px;line-height:1.5;max-width:330px;white-space:pre-line"></p>
+      <button data-ev="intro" id="introBtn" style="margin-top:2px;min-height:36px;padding:0 8px;border:none;background:transparent;color:var(--soft);font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Ver más</button>
+    </div>
+
+    <!-- Acciones -->
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 48px;gap:8px;padding:10px 16px 0">
+      <button data-ev="irMenu" style="height:48px;border-radius:999px;border:none;background:#35AF6D;color:#052017;box-shadow:var(--halo);font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><path d="M3 6h18"></path><path d="M16 10a4 4 0 0 1-8 0"></path></svg>Pedir</button>
+      <a href="https://wa.me/5359004318" target="_blank" rel="noopener" style="height:48px;border-radius:999px;border:1px solid var(--line2);background:var(--card);color:var(--ink);font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;text-decoration:none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.6A8.4 8.4 0 1 1 21 11.5z"></path></svg>WhatsApp</a>
+      <button data-ev="mas" aria-label="Más acciones" style="height:48px;border-radius:999px;border:1px solid var(--line2);background:var(--card);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+    </div>
+
+    <!-- Pestañas -->
+    <div style="position:sticky;top:0;z-index:4;margin-top:16px;background:var(--page);border-bottom:1px solid var(--line)">
+      <div role="tablist" class="sin-barra" id="tabs" style="display:flex;gap:6px;overflow-x:auto;padding:10px 16px"></div>
+    </div>
+
+    <div id="panel"></div>
+  </div>
+
+  <!-- Barra del pedido -->
+  <div id="cartbar" style="display:none;position:absolute;left:12px;right:12px;bottom:16px;z-index:6">
+    <button data-ev="enviar" style="width:100%;height:56px;padding:0 8px 0 20px;border-radius:999px;border:none;background:#35AF6D;color:#052017;box-shadow:var(--halo);font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+      <span id="cartcount">Ver pedido</span>
+      <span id="carttotal" style="height:40px;padding:0 14px;border-radius:999px;background:rgba(5,32,23,0.12);display:flex;align-items:center"></span>
+    </button>
+  </div>
+
+  <!-- Hoja de acciones -->
+  <div id="sheet" style="display:none;position:absolute;inset:0;z-index:20">
+    <button data-ev="cerrarMas" aria-label="Cerrar" style="position:absolute;inset:0;border:none;background:rgba(8,19,13,0.42);cursor:pointer"></button>
+    <div role="dialog" aria-label="Más acciones" style="position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:24px 24px 0 0;padding:10px 16px 24px;display:flex;flex-direction:column;gap:4px">
+      <div style="width:40px;height:5px;border-radius:999px;background:var(--line2);align-self:center;margin-bottom:8px"></div>
+      <button data-ev="toast" data-msg="Se abriría el mapa con la ruta" style="display:flex;align-items:center;min-height:52px;padding:0 8px;border:none;border-radius:12px;background:transparent;color:var(--ink);font-size:15px;font-weight:600;text-align:left;cursor:pointer">Cómo llegar</button>
+      <button data-ev="toast" data-msg="Guardado en tus lugares" style="display:flex;align-items:center;min-height:52px;padding:0 8px;border:none;border-radius:12px;background:transparent;color:var(--ink);font-size:15px;font-weight:600;text-align:left;cursor:pointer">Guardar en mis lugares</button>
+      <button data-ev="toast" data-msg="Te avisaremos de sus novedades" style="display:flex;align-items:center;min-height:52px;padding:0 8px;border:none;border-radius:12px;background:transparent;color:var(--ink);font-size:15px;font-weight:600;text-align:left;cursor:pointer">Avísame de sus ofertas</button>
+      <button data-ev="toast" data-msg="Enlace de la ficha copiado" style="display:flex;align-items:center;min-height:52px;padding:0 8px;border:none;border-radius:12px;background:transparent;color:var(--ink);font-size:15px;font-weight:600;text-align:left;cursor:pointer">Compartir</button>
+    </div>
+  </div>
+
+  <div id="toast" role="status" style="display:none;position:absolute;left:12px;right:12px;bottom:16px;min-height:48px;padding:10px 16px;border-radius:14px;background:#16212b;color:#edf7f0;border:1px solid var(--line2);font-size:14px;font-weight:600;align-items:center;z-index:30"></div>
+</div>
+
+<script>
+const PROD = [{"id":"p0","name":"Tacos de Cerdo","desc":"Ración de 3 tacos. Tortillas rellenas de cerdo, con vegetales de estación.","cat":"Tacos","precio":2100},{"id":"p1","name":"Tacos de Res","desc":"Ración de 3 tacos. Tortillas rellenas de res, con vegetales de estación.","cat":"Tacos","precio":2100},{"id":"p2","name":"Tacos Volcán","desc":"Ración de 3 tacos. Tortillas rellenas de jamón, pollo o cerdo y queso rallado, con vegetales de estación.","cat":"Tacos","precio":2800},{"id":"p3","name":"Tacos de Jamón","desc":"Ración de 3 tacos. Tortillas rellenas de jamón, con vegetales de estación.","cat":"Tacos","precio":1800},{"id":"p4","name":"Quesadilla de Jamón (Queso Blanco)","desc":"Ración de 2 unidades. Tortillas rellenas de jamón, salteadas con vegetales de estación y queso rallado. Con queso blanco.","cat":"Quesadillas","precio":1700},{"id":"p5","name":"Quesadilla de Atún (Queso Blanco)","desc":"Ración de 2 unidades. Tortillas rellenas de atún, salteadas con vegetales de estación y queso rallado. Con queso blanco.","cat":"Quesadillas","precio":1700},{"id":"p6","name":"Quesadilla de Cerdo (Queso Blanco)","desc":"Ración de 2 unidades. Tortillas rellenas de cerdo, salteadas con vegetales de estación y queso rallado. Con queso blanco.","cat":"Quesadillas","precio":2100},{"id":"p7","name":"Quesadilla de Jamón (Queso Gouda)","desc":"Ración de 2 unidades. Tortillas rellenas de jamón, salteadas con vegetales de estación y queso rallado. Con queso gouda.","cat":"Quesadillas","precio":2400},{"id":"p8","name":"Quesadilla de Atún (Queso Gouda)","desc":"Ración de 2 unidades. Tortillas rellenas de atún, salteadas con vegetales de estación y queso rallado. Con queso gouda.","cat":"Quesadillas","precio":2600},{"id":"p9","name":"Quesadilla de Cerdo (Queso Gouda)","desc":"Ración de 2 unidades. Tortillas rellenas de cerdo, salteadas con vegetales de estación y queso rallado. Con queso gouda.","cat":"Quesadillas","precio":2750},{"id":"p10","name":"Empanada de Cerdo y Queso (Queso Blanco)","desc":"Empanada de 20 cm, 1 unidad. Con queso blanco.","cat":"Empanadas","precio":2200},{"id":"p11","name":"Empanada de Atún y Queso (Queso Blanco)","desc":"Empanada de 20 cm, 1 unidad. Con queso blanco.","cat":"Empanadas","precio":1800},{"id":"p12","name":"Empanada de Jamón y Queso (Queso Blanco)","desc":"Empanada de 20 cm, 1 unidad. Con queso blanco.","cat":"Empanadas","precio":1450},{"id":"p13","name":"Empanada de Conserva y Queso (Queso Blanco)","desc":"Empanada de 20 cm, 1 unidad. Con queso blanco.","cat":"Empanadas","precio":1400},{"id":"p14","name":"Empanada de Cerdo","desc":"Empanada de 20 cm, 1 unidad.","cat":"Empanadas","precio":1800},{"id":"p15","name":"Empanada de Res","desc":"Empanada de 20 cm, 1 unidad.","cat":"Empanadas","precio":1800},{"id":"p16","name":"Empanada de Atún","desc":"Empanada de 20 cm, 1 unidad.","cat":"Empanadas","precio":1350},{"id":"p17","name":"Empanada de Jamón","desc":"Empanada de 20 cm, 1 unidad.","cat":"Empanadas","precio":1250},{"id":"p18","name":"Empanada de Queso Blanco","desc":"Empanada de 20 cm, 1 unidad.","cat":"Empanadas","precio":1250},{"id":"p19","name":"Empanada de Leche Condensada","desc":"Empanada de 20 cm, 1 unidad.","cat":"Empanadas","precio":1100},{"id":"p20","name":"Empanada de Picadillo","desc":"Empanada de 20 cm, 1 unidad.","cat":"Empanadas","precio":1100},{"id":"p21","name":"Empanada de Conserva","desc":"Empanada de 20 cm, 1 unidad.","cat":"Empanadas","precio":950},{"id":"p22","name":"Empanada de Ahumado y Queso (Queso Gouda)","desc":"Empanada de 20 cm, 1 unidad. Con queso gouda.","cat":"Empanadas","precio":2550},{"id":"p23","name":"Empanada de Cerdo y Queso (Queso Gouda)","desc":"Empanada de 20 cm, 1 unidad. Con queso gouda.","cat":"Empanadas","precio":2450},{"id":"p24","name":"Empanada de Atún y Queso (Queso Gouda)","desc":"Empanada de 20 cm, 1 unidad. Con queso gouda.","cat":"Empanadas","precio":2250},{"id":"p25","name":"Empanada de Jamón y Queso (Queso Gouda)","desc":"Empanada de 20 cm, 1 unidad. Con queso gouda.","cat":"Empanadas","precio":2350},{"id":"p26","name":"Empanada de Conserva y Queso (Queso Gouda)","desc":"Empanada de 20 cm, 1 unidad. Con queso gouda.","cat":"Empanadas","precio":2050},{"id":"p27","name":"Empanada de Queso Gouda","desc":"Empanada de 20 cm, 1 unidad.","cat":"Empanadas","precio":1950},{"id":"p28","name":"Tequeños Yoyi'Sabor (Queso Blanco)","desc":"Ración de 6 unidades. Con queso blanco.","cat":"Tequeños","precio":2200},{"id":"p29","name":"Mixtos de Jamón (Queso Blanco)","desc":"Ración de 6 unidades. Con queso blanco.","cat":"Tequeños","precio":1900},{"id":"p30","name":"Mixtos de Conserva (Queso Blanco)","desc":"Ración de 6 unidades. Con queso blanco.","cat":"Tequeños","precio":1800},{"id":"p31","name":"Mixtos de Salchicha (Queso Blanco)","desc":"Ración de 6 unidades. Con queso blanco.","cat":"Tequeños","precio":1850},{"id":"p32","name":"Tequeños Simples (Queso Blanco)","desc":"Ración de 6 unidades. Con queso blanco.","cat":"Tequeños","precio":1700},{"id":"p33","name":"Tequeños Yoyi'Sabor (Queso Gouda)","desc":"Ración de 6 unidades. Con queso gouda.","cat":"Tequeños","precio":3000},{"id":"p34","name":"Mixtos de Jamón (Queso Gouda)","desc":"Ración de 6 unidades. Con queso gouda.","cat":"Tequeños","precio":2800},{"id":"p35","name":"Mixtos de Conserva (Queso Gouda)","desc":"Ración de 6 unidades. Con queso gouda.","cat":"Tequeños","precio":2450},{"id":"p36","name":"Tequeños Simples (Queso Gouda)","desc":"Ración de 6 unidades. Con queso gouda.","cat":"Tequeños","precio":2350},{"id":"p37","name":"Burrito de Res (Queso Blanco)","desc":"Ración de 2 unidades. Con queso blanco.","cat":"Burritos","precio":2800},{"id":"p38","name":"Burrito de Cerdo (Queso Blanco)","desc":"Ración de 2 unidades. Con queso blanco.","cat":"Burritos","precio":2800},{"id":"p39","name":"Burrito de Jamón (Queso Blanco)","desc":"Ración de 2 unidades. Con queso blanco.","cat":"Burritos","precio":2300},{"id":"p40","name":"Burrito de Atún (Queso Blanco)","desc":"Ración de 2 unidades. Con queso blanco.","cat":"Burritos","precio":3100},{"id":"p41","name":"Burrito Yoyi'Sabor (Queso Blanco)","desc":"Ración de 2 unidades. Con queso blanco.","cat":"Burritos","precio":3800},{"id":"p42","name":"Burrito de Res (Queso Gouda)","desc":"Ración de 2 unidades. Con queso gouda.","cat":"Burritos","precio":3300},{"id":"p43","name":"Burrito de Cerdo (Queso Gouda)","desc":"Ración de 2 unidades. Con queso gouda.","cat":"Burritos","precio":3300},{"id":"p44","name":"Burrito de Jamón (Queso Gouda)","desc":"Ración de 2 unidades. Con queso gouda.","cat":"Burritos","precio":2850},{"id":"p45","name":"Burrito Yoyi'Sabor (Queso Gouda)","desc":"Ración de 2 unidades. Con queso gouda.","cat":"Burritos","precio":4400},{"id":"p46","name":"Agregado de Queso Gouda","desc":"","cat":"Agregados","precio":1100},{"id":"p47","name":"Agregado de Queso Blanco","desc":"","cat":"Agregados","precio":800},{"id":"p48","name":"Agregado de Jamón","desc":"","cat":"Agregados","precio":800},{"id":"p49","name":"Agregado de Maíz","desc":"","cat":"Agregados","precio":700},{"id":"p50","name":"Agregado de Cerdo","desc":"","cat":"Agregados","precio":1300},{"id":"p51","name":"Agregado de Camarón","desc":"","cat":"Agregados","precio":1750},{"id":"p52","name":"Malta Guajira 1.5 L","desc":"","cat":"Bebidas","precio":2100},{"id":"p53","name":"Malta Guajira 330 ml","desc":"","cat":"Bebidas","precio":700},{"id":"p54","name":"Cerveza Parranda 500 ml","desc":"","cat":"Bebidas","precio":700},{"id":"p55","name":"Néctar de Manzana","desc":"","cat":"Bebidas","precio":800}];
+const AGO = [{"name":"Tacos de Camarones","cat":"Tacos"},{"name":"Tacos Ahumados","cat":"Tacos"},{"name":"Tacos de Atún","cat":"Tacos"},{"name":"Tacos de Pollo","cat":"Tacos"},{"name":"Quesadilla de Ahumado (Queso Blanco)","cat":"Quesadillas"},{"name":"Quesadilla de Camarón (Queso Blanco)","cat":"Quesadillas"},{"name":"Quesadilla de Ahumado (Queso Gouda)","cat":"Quesadillas"},{"name":"Quesadilla de Camarón (Queso Gouda)","cat":"Quesadillas"},{"name":"Empanada de Ahumado y Queso (Queso Blanco)","cat":"Empanadas"},{"name":"Empanada de Camarón","cat":"Empanadas"},{"name":"Empanada de Lomo Ahumado","cat":"Empanadas"},{"name":"Empanada de Pollo","cat":"Empanadas"},{"name":"Empanada de Vegetales","cat":"Empanadas"},{"name":"Empanada Caprese (Queso Gouda)","cat":"Empanadas"},{"name":"Tequeños Ahumados (Queso Blanco)","cat":"Tequeños"},{"name":"Tequeños Ahumados (Queso Gouda)","cat":"Tequeños"},{"name":"Mixtos de Salchicha (Queso Gouda)","cat":"Tequeños"},{"name":"Burrito de Camarón (Queso Blanco)","cat":"Burritos"},{"name":"Burrito de Ahumado (Queso Blanco)","cat":"Burritos"},{"name":"Burrito de Pollo (Queso Blanco)","cat":"Burritos"},{"name":"Burrito de Camarón (Queso Gouda)","cat":"Burritos"},{"name":"Burrito de Ahumado (Queso Gouda)","cat":"Burritos"},{"name":"Burrito de Pollo (Queso Gouda)","cat":"Burritos"},{"name":"Burrito de Atún (Queso Gouda)","cat":"Burritos"},{"name":"Agregado de Ahumado","cat":"Agregados"},{"name":"Agregado de Pollo","cat":"Agregados"},{"name":"Néctar de Pera 330 ml","cat":"Bebidas"},{"name":"Refresco de lata 330 ml","cat":"Bebidas"},{"name":"Refresco 1.5 L","cat":"Bebidas"}];
+const CATS = ["Tacos","Quesadillas","Empanadas","Tequeños","Burritos","Agregados","Bebidas"];
+const FOTOS = ["https://br-proud-thunder-ax3s88r2.storage.c-4.us-east-2.aws.neon.tech/la-verde-images/places/E4gQYp3LOVI-/L-N7CjpZ_TJN.jpg","https://br-proud-thunder-ax3s88r2.storage.c-4.us-east-2.aws.neon.tech/la-verde-images/places/E4gQYp3LOVI-/iVwq4D7FGQdj.jpg","https://br-proud-thunder-ax3s88r2.storage.c-4.us-east-2.aws.neon.tech/la-verde-images/places/E4gQYp3LOVI-/KbHj0Q-7TU2k.jpg","https://br-proud-thunder-ax3s88r2.storage.c-4.us-east-2.aws.neon.tech/la-verde-images/places/E4gQYp3LOVI-/XzfmXWtJRwz0.jpg","https://br-proud-thunder-ax3s88r2.storage.c-4.us-east-2.aws.neon.tech/la-verde-images/places/E4gQYp3LOVI-/fAMEWOtMEORW.jpg","https://br-proud-thunder-ax3s88r2.storage.c-4.us-east-2.aws.neon.tech/la-verde-images/places/E4gQYp3LOVI-/n3Ak3UijnBrG.jpg","https://br-proud-thunder-ax3s88r2.storage.c-4.us-east-2.aws.neon.tech/la-verde-images/places/E4gQYp3LOVI-/dPaY7u40LlNM.jpg","https://br-proud-thunder-ax3s88r2.storage.c-4.us-east-2.aws.neon.tech/la-verde-images/places/E4gQYp3LOVI-/A51pdWxBhMR8.jpg","https://br-proud-thunder-ax3s88r2.storage.c-4.us-east-2.aws.neon.tech/la-verde-images/places/E4gQYp3LOVI-/aLEuwchLWQ4o.jpg"];
+const TILES = ['#5a3f27','#6b4a2b','#4d3a2a','#7a5534','#5e4630','#694f36'];
+const INTRO_FULL = "🍽️ ¡Delicias que enamoran! 🍽️\n\n¡Bienvenidos al paraíso de los sabores! 🌮🔥  \n\nAquí encontrarás las empanadas más crocantes, los tacos más jugosos  y los tequeños más irresistibles… ¡y mucho más! 🥟🌯🧀  \n\n✨ ¿Hambre? Nosotros tenemos la solución:\n✅ Productos frescos y hechos con amor  \n✅ Sabores explosivos que te harán volver por más  \n✅ Pedidos rápidos y entregas puntuales  \n\n📲 Manda tu pedido ahora y disfruta de una experiencia gastronómica única.¡Tu paladar nos lo agradecerá! 😋";
+const INTRO_SHORT = "🍽️ ¡Delicias que enamoran! 🍽️ ¡Bienvenidos al paraíso de los sabores! 🌮🔥 Aquí encontrarás la…";
+const WA = "5359004318";
+const FID = {"metas":[{"premio":"Un agregado Gratis","sellos":5},{"premio":"2 agregados gratis","sellos":10},{"premio":"1 empanada gratis","sellos":15},{"premio":"Bolso Yoyi’Sabor","sellos":20}],"activo":true,"nombre":"Tarjeta de Fidelidad Yoyi’Sabor","compraMinima":{"monto":1000,"moneda":"CUP"}};
+const DIR = "San Bartolomé #314 int entre San Germán y Trinidad, Santiago de Cuba";
+const TIEMPO = "20–45 min";
+const AGO_N = 29;
+
+const st = { tab:'todo', cat:'Todas', qty:{}, introOpen:false, showAgot:false };
+const fmt = (n)=> n.toLocaleString('es-ES').replace(/,/g,' ') + ' CUP';
+const money = (n)=> new Intl.NumberFormat('es-ES').format(n).replace(/\./g,' ');
+function tile(i){ return TILES[i % TILES.length]; }
+
+function chips(list){ return list.map(s=>'<span style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;border:1px solid var(--line2);background:var(--chipBg);color:var(--soft);font-family:\'Space Grotesk\',sans-serif;font-size:12px;font-weight:600">'+s+'</span>').join(''); }
+
+const SERVICIOS = ['A domicilio','Pedidos por WhatsApp','Apartar por WhatsApp','Tarjeta de fidelidad','Funciona sin corriente'];
+
+function resumenRow(svg, html){
+  return '<div style="display:flex;gap:14px;align-items:flex-start"><svg style="flex-shrink:0;color:var(--soft)" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+svg+'</svg><div style="font-size:15px;line-height:1.4">'+html+'</div></div>';
+}
+
+function menuRow(p){
+  const q = st.qty[p.id]||0;
+  const ctl = q>0
+    ? '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0;padding:2px;border-radius:999px;background:var(--green50)"><button data-add="'+p.id+'" data-d="-1" style="width:40px;height:40px;border-radius:999px;border:none;background:var(--card);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"></path></svg></button><span style="min-width:18px;text-align:center;font-weight:700">'+q+'</span><button data-add="'+p.id+'" data-d="1" style="width:40px;height:40px;border-radius:999px;border:none;background:#35AF6D;color:#052017;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></button></div>'
+    : '<button data-add="'+p.id+'" data-d="1" aria-label="Añadir '+p.name+'" style="width:44px;height:44px;flex-shrink:0;border-radius:999px;border:none;background:#35AF6D;color:#052017;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></button>';
+  return '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line)"><div style="width:56px;height:56px;border-radius:12px;background:'+tile(p._i)+';flex-shrink:0"></div><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><div style="font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.name+'</div><div style="font-size:13px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(p.desc||p.cat)+'</div><div style="font-size:14px;font-weight:600">'+fmt(p.precio)+'</div></div>'+ctl+'</div>';
+}
+
+function panelTodo(){
+  const rows =
+    resumenRow('<circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path>','<b style="color:var(--green600);font-weight:600">Abierto ahora</b> · '+"9:00 – 18:00") +
+    resumenRow('<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0z"></path><circle cx="12" cy="10" r="3"></circle>', DIR) +
+    resumenRow('<circle cx="5.5" cy="17.5" r="3.5"></circle><circle cx="18.5" cy="17.5" r="3.5"></circle><path d="M15 6h2l3 11.5"></path><path d="M5.5 17.5L9 9h6l-3 8.5"></path>','A domicilio en '+TIEMPO+' · envío a consultar por WhatsApp') +
+    resumenRow('<rect x="2" y="6" width="20" height="13" rx="2"></rect><path d="M2 10h20"></path><path d="M6 15h4"></path>','Aceptan CUP, USD (efectivo) y transferencia') +
+    resumenRow('<path d="M13 2L4 14h7l-1 8 9-12h-7z"></path>','Tiene planta: funciona sin corriente');
+  const dest = PROD.slice(0,6).map(p=>{
+    return '<div style="flex-shrink:0;width:150px;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column"><div style="height:104px;background:'+tile(p._i)+'"></div><div style="padding:10px;display:flex;flex-direction:column;gap:4px"><div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+p.name+'</div><div style="font-size:13px;color:var(--soft)">'+fmt(p.precio)+'</div><button data-add="'+p.id+'" data-d="1" style="margin-top:4px;height:36px;border-radius:999px;border:1px solid var(--green200);background:var(--green50);color:var(--green700);font-family:\'Space Grotesk\',sans-serif;font-size:13px;font-weight:600;cursor:pointer">'+(st.qty[p.id]>0?('En tu pedido · '+st.qty[p.id]):'Añadir')+'</button></div></div>';
+  }).join('');
+  const prev = FOTOS.slice(0,6).map(u=>'<div class="ph" style="aspect-ratio:1;background-color:#5a3f27;background-image:url(\''+u+'\')"></div>').join('');
+  return '<div style="padding:16px;display:flex;flex-direction:column;gap:16px">'+
+    '<div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:14px"><div style="display:flex;align-items:center;justify-content:space-between"><h2 style="margin:0;font-size:20px;font-weight:600">Resumen</h2><button data-ev="irInfo" style="min-height:44px;padding:0 4px;border:none;background:transparent;color:var(--green600);font-family:\'Space Grotesk\',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Ver todo</button></div>'+rows+'<div style="display:flex;flex-wrap:wrap;gap:6px;padding-top:2px">'+chips(SERVICIOS)+'</div></div>'+
+    '<div style="display:flex;flex-direction:column;gap:10px"><div style="display:flex;align-items:center;justify-content:space-between"><h2 style="margin:0;font-size:20px;font-weight:600">Del menú</h2><button data-ev="irMenu" style="min-height:44px;padding:0 4px;border:none;background:transparent;color:var(--green600);font-family:\'Space Grotesk\',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Ver menú</button></div><div class="sin-barra" style="display:flex;gap:10px;overflow-x:auto;margin:0 -16px;padding:0 16px">'+dest+'</div></div>'+
+    '<div style="display:flex;flex-direction:column;gap:10px"><div style="display:flex;align-items:center;justify-content:space-between"><h2 style="margin:0;font-size:20px;font-weight:600">Fotos</h2><button data-ev="fotos" style="min-height:44px;padding:0 4px;border:none;background:transparent;color:var(--green600);font-family:\'Space Grotesk\',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Ver las '+FOTOS.length+'</button></div><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;border-radius:16px;overflow:hidden">'+prev+'</div></div>'+
+    '<div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;align-items:center;justify-content:space-between"><h2 style="margin:0;font-size:20px;font-weight:600">Reseñas</h2><button data-ev="toast" data-msg="Se abriría el formulario de reseña" style="height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--line2);background:var(--card);color:var(--ink);font-family:\'Space Grotesk\',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Opinar</button></div><div style="font-size:15px;font-weight:600">Todavía no hay reseñas</div><div style="font-size:14px;color:var(--soft)">Cuéntale a los demás cómo te pareció este lugar.</div></div>'+
+  '</div>';
+}
+
+function panelMenu(){
+  const list = PROD.filter(p=> st.cat==='Todas' || p.cat===st.cat);
+  const cs = ['Todas'].concat(CATS).map(c=>{
+    const sel = st.cat===c;
+    return '<button data-cat="'+c+'" style="flex-shrink:0;height:40px;padding:0 16px;border-radius:999px;border:1px solid '+(sel?'var(--green200)':'var(--line2)')+';background:'+(sel?'var(--green50)':'var(--card)')+';color:'+(sel?'var(--green700)':'var(--ink)')+';font-family:\'Space Grotesk\',sans-serif;font-size:14px;font-weight:600;cursor:pointer">'+c+'</button>';
+  }).join('');
+  const rows = list.length ? list.map(menuRow).join('') : '<div style="padding:18px 14px;font-size:14px;color:var(--soft)">Hoy no queda nada de esta categoría.</div>';
+  let ago = '';
+  if(st.showAgot){
+    ago = '<div style="background:var(--card);border:1px solid var(--line);border-radius:16px;display:flex;flex-direction:column;opacity:0.65">'+
+      AGO.slice(0,8).map(a=>'<div style="display:flex;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)"><span style="font-size:14px;font-weight:600">'+a.name+'</span><span style="font-size:12px;font-weight:600;color:var(--red)">Agotado</span></div>').join('')+
+      (AGO.length>8?'<div style="padding:12px 14px;font-size:13px;color:var(--soft)">y '+(AGO.length-8)+' productos más</div>':'')+'</div>';
+  }
+  return '<div style="padding:16px;display:flex;flex-direction:column;gap:12px">'+
+    '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px"><h2 style="margin:0;font-size:20px;font-weight:600">Menú</h2><span style="font-size:12px;color:var(--soft)">'+PROD.length+' disponibles</span></div>'+
+    '<div class="sin-barra" style="display:flex;gap:6px;overflow-x:auto;margin:0 -16px;padding:0 16px">'+cs+'</div>'+
+    '<div style="background:var(--card);border:1px solid var(--line);border-radius:16px;display:flex;flex-direction:column">'+rows+'</div>'+
+    '<button data-ev="toggleAgot" style="display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:0 14px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-family:\'Space Grotesk\',sans-serif;font-size:14px;font-weight:600;cursor:pointer"><span>Agotado por hoy · '+AGO_N+'</span><span style="color:var(--soft)">'+(st.showAgot?'Ocultar':'Ver')+'</span></button>'+ago+
+  '</div>';
+}
+
+function panelFotos(){
+  const g = FOTOS.map(u=>'<div class="ph" style="aspect-ratio:1;background-color:#5a3f27;background-image:url(\''+u+'\')"></div>').join('');
+  return '<div style="padding:16px;display:flex;flex-direction:column;gap:12px"><h2 style="margin:0;font-size:20px;font-weight:600">Fotos · El local</h2><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;border-radius:16px;overflow:hidden">'+g+'</div></div>';
+}
+
+function panelResenas(){
+  return '<div style="padding:16px"><div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center"><svg style="color:var(--green600)" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"></path></svg><div style="font-size:17px;font-weight:600">Todavía no hay reseñas</div><div style="font-size:14px;color:var(--soft);max-width:260px">Sé el primero en contar cómo te fue con Yoyi Sabor.</div><button data-ev="toast" data-msg="Se abriría el formulario de reseña" style="margin-top:6px;height:48px;padding:0 24px;border-radius:999px;border:none;background:#35AF6D;color:#052017;box-shadow:var(--halo);font-family:\'Space Grotesk\',sans-serif;font-size:15px;font-weight:600;cursor:pointer">Escribir una reseña</button></div></div>';
+}
+
+function panelInfo(){
+  const pagos = '<span style="padding:4px 10px;border-radius:999px;border:1px solid var(--green200);background:var(--green50);color:var(--green700);font-family:\'Space Grotesk\',sans-serif;font-size:12px;font-weight:600">CUP</span><span style="padding:4px 10px;border-radius:999px;border:1px solid var(--line2);background:var(--chipBg);color:var(--soft);font-family:\'Space Grotesk\',sans-serif;font-size:12px;font-weight:600">USD (efectivo)</span><span style="padding:4px 10px;border-radius:999px;border:1px solid var(--line2);background:var(--chipBg);color:var(--soft);font-family:\'Space Grotesk\',sans-serif;font-size:12px;font-weight:600">Transferencia</span>';
+  let fid = '';
+  if(FID && FID.activo){
+    const metas = FID.metas.map(m=>'<div style="display:flex;justify-content:space-between;gap:10px;font-size:14px"><span style="color:var(--soft)">'+m.sellos+' sellos</span><span style="font-weight:600">'+m.premio+'</span></div>').join('');
+    const min = FID.compraMinima ? ('Un sello por cada compra desde '+money(FID.compraMinima.monto)+' '+FID.compraMinima.moneda+'.') : '';
+    fid = '<div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;align-items:center;gap:10px"><svg style="color:var(--green600)" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 10h18"></path></svg><h3 style="margin:0;font-size:16px;font-weight:600">'+FID.nombre+'</h3></div><div style="display:flex;flex-direction:column;gap:6px">'+metas+'</div>'+(min?'<div style="font-size:13px;color:var(--soft)">'+min+'</div>':'')+'</div>';
+  }
+  return '<div style="padding:16px;display:flex;flex-direction:column;gap:14px">'+
+    '<div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px"><h3 style="margin:0;font-size:16px;font-weight:600">Ubicación</h3><div style="height:120px;border-radius:12px;background:var(--chipBg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--soft);font-size:13px;font-weight:600">Mapa del lugar</div><div style="font-size:15px;line-height:1.4">'+DIR+'</div><button data-ev="toast" data-msg="Se abriría el mapa con la ruta" style="height:44px;border-radius:999px;border:1px solid var(--line2);background:var(--card);color:var(--ink);font-family:\'Space Grotesk\',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Cómo llegar</button></div>'+
+    '<div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:8px"><h3 style="margin:0;font-size:16px;font-weight:600">Horario</h3><div style="font-size:15px"><b style="color:var(--green600);font-weight:600">Abierto ahora</b> · '+"9:00 – 18:00"+'</div></div>'+
+    '<div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px"><h3 style="margin:0;font-size:16px;font-weight:600">Pedidos a domicilio</h3><div style="display:flex;justify-content:space-between;font-size:14px"><span style="color:var(--soft)">Tiempo</span><span style="font-weight:600">'+TIEMPO+'</span></div><div style="display:flex;justify-content:space-between;font-size:14px"><span style="color:var(--soft)">Envío</span><span style="font-weight:600">A consultar por WhatsApp</span></div></div>'+
+    fid+
+    '<div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px"><h3 style="margin:0;font-size:16px;font-weight:600">Contacto</h3><div style="display:flex;gap:8px"><a href="https://wa.me/'+WA+'" target="_blank" rel="noopener" style="flex:1;height:44px;border-radius:999px;border:1px solid var(--line2);background:var(--card);color:var(--ink);font-family:\'Space Grotesk\',sans-serif;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;text-decoration:none">WhatsApp</a><a href="tel:+'+WA+'" style="flex:1;height:44px;border-radius:999px;border:1px solid var(--line2);background:var(--card);color:var(--ink);font-family:\'Space Grotesk\',sans-serif;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;text-decoration:none">Llamar</a></div></div>'+
+    '<div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px"><h3 style="margin:0;font-size:16px;font-weight:600">Pagos y servicios</h3><div style="display:flex;flex-wrap:wrap;gap:6px">'+pagos+'</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+chips(SERVICIOS)+'</div></div>'+
+  '</div>';
+}
+
+const TABS = [['todo','Todo'],['menu','Menú'],['fotos','Fotos'],['resenas','Reseñas'],['info','Información']];
+PROD.forEach((p,i)=> p._i=i);
+
+function render(){
+  document.getElementById('intro').textContent = st.introOpen ? INTRO_FULL : INTRO_SHORT;
+  document.getElementById('introBtn').textContent = st.introOpen ? 'Ver menos' : 'Ver más';
+  document.getElementById('tabs').innerHTML = TABS.map(d=>{
+    const sel = st.tab===d[0];
+    return '<button data-tab="'+d[0]+'" role="tab" aria-selected="'+sel+'" style="flex-shrink:0;height:40px;padding:0 16px;border-radius:999px;border:none;background:'+(sel?'var(--green50)':'transparent')+';color:'+(sel?'var(--green700)':'var(--soft)')+';font-family:\'Space Grotesk\',sans-serif;font-size:15px;font-weight:600;cursor:pointer">'+d[1]+'</button>';
+  }).join('');
+  const panels = { todo:panelTodo, menu:panelMenu, fotos:panelFotos, resenas:panelResenas, info:panelInfo };
+  document.getElementById('panel').innerHTML = panels[st.tab]();
+  let cuenta=0, total=0;
+  for(const p of PROD){ const q=st.qty[p.id]||0; cuenta+=q; total+=q*p.precio; }
+  const bar=document.getElementById('cartbar');
+  if(cuenta>0){ bar.style.display='block'; document.getElementById('cartcount').textContent='Ver pedido · '+(cuenta===1?'1 producto':cuenta+' productos'); document.getElementById('carttotal').textContent=fmt(total); }
+  else bar.style.display='none';
+}
+
+let toastT;
+function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.style.display='flex'; clearTimeout(toastT); toastT=setTimeout(()=>el.style.display='none',3200); }
+
+document.addEventListener('click',(e)=>{
+  const t = e.target.closest('[data-tab],[data-cat],[data-add],[data-ev]');
+  if(!t) return;
+  if(t.dataset.tab){ st.tab=t.dataset.tab; st.showAgot=false; render(); return; }
+  if(t.dataset.cat){ st.cat=t.dataset.cat; render(); return; }
+  if(t.dataset.add){ const id=t.dataset.add; st.qty[id]=Math.max(0,(st.qty[id]||0)+Number(t.dataset.d)); render(); return; }
+  const ev=t.dataset.ev;
+  if(ev==='intro'){ st.introOpen=!st.introOpen; render(); }
+  else if(ev==='irMenu'){ st.tab='menu'; render(); }
+  else if(ev==='irInfo'){ st.tab='info'; render(); }
+  else if(ev==='fotos'){ st.tab='fotos'; render(); }
+  else if(ev==='toggleAgot'){ st.showAgot=!st.showAgot; render(); }
+  else if(ev==='mas'){ document.getElementById('sheet').style.display='block'; }
+  else if(ev==='cerrarMas'){ document.getElementById('sheet').style.display='none'; }
+  else if(ev==='volver'){ toast('Volverías al mapa de La Verde'); }
+  else if(ev==='compartir'){ toast('Enlace de la ficha copiado'); }
+  else if(ev==='toast'){ document.getElementById('sheet').style.display='none'; toast(t.dataset.msg); }
+  else if(ev==='enviar'){
+    const items = PROD.filter(p=>st.qty[p.id]>0).map(p=> st.qty[p.id]+' x '+p.name+' ('+fmt(p.precio*st.qty[p.id])+')');
+    let total=0; for(const p of PROD){ total += (st.qty[p.id]||0)*p.precio; }
+    const texto = 'Hola Yoyi Sabor, quiero pedir:%0A'+items.join('%0A')+'%0A%0ATotal: '+fmt(total);
+    window.open('https://wa.me/'+WA+'?text='+texto,'_blank');
+  }
+});
+render();
+</script>
+</body></html>

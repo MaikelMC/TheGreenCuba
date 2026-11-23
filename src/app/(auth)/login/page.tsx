@@ -34,6 +34,7 @@ export default async function LoginPage({
     motivo?: string;
     cambiada?: string;
     email?: string;
+    oauthError?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -95,6 +96,11 @@ export default async function LoginPage({
       next={next}
       aviso={cambiada ? "Contraseña cambiada. Entra con la nueva." : null}
       correoInicial={cambiada && typeof params.email === "string" ? params.email : ""}
+      errorInicial={
+        params.oauthError === "google"
+          ? "No se pudo continuar con Google. Inténtalo de nuevo o entra con tu correo."
+          : null
+      }
       googleEnabled={Boolean(
         process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim(),
       )}

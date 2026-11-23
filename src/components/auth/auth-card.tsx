@@ -190,6 +190,7 @@ export function AuthCard({
   mode,
   next,
   aviso = null,
+  errorInicial = null,
   correoInicial = "",
   googleEnabled = true,
 }: {
@@ -197,6 +198,11 @@ export function AuthCard({
   next: string | null;
   /** Confirmación que trae la URL, p. ej. tras cambiar la contraseña. */
   aviso?: string | null;
+  /** Error que trae la URL, p. ej. `?oauthError=google` tras un fallo del
+      proveedor. Sin esto, el botón de Google mandaba a `/login?oauthError=google`
+      y la pantalla no decía nada: el usuario volvía al formulario sin saber por
+      qué. Lo calcula el componente de servidor que monta esto. */
+  errorInicial?: string | null;
   correoInicial?: string;
   /** Si el servidor tiene Google OAuth configurado (`GOOGLE_CLIENT_ID` +
       `GOOGLE_CLIENT_SECRET`). Sin credenciales se oculta el botón de Google y el
@@ -230,7 +236,7 @@ export function AuthCard({
   /* «Quiero recibir novedades». Opcional y sin marcar: es una decisión, no un
      peaje para entrar. Solo la usa el alta. */
   const [wantsNews, setWantsNews] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(errorInicial);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 

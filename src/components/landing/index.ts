@@ -5,3 +5,4 @@ export { Pricing } from "./pricing";
 export { PlaceStrip } from "./place-strip";
 export { CTASection } from "./cta-section";
 export { Recomendador } from "./recomendador";
+export { FAQ } from "./faq";
