@@ -1,14 +1,25 @@
 "use client";
 
-import { useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { ShoppingCart } from "lucide-react";
+import {
+  createContext,
+  useContext,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import { Moon, ShoppingCart, Sun } from "lucide-react";
 import { iconoDeProducto } from "@/lib/ficha/iconos-producto";
 import { convertirPrecio, type MonedaVista } from "@/lib/precios";
 
 /**
- * Ficha demo estilo Facebook, modo oscuro. Diseño fijo (no depende del tema de
- * la app): paleta oscura propia en estilos en línea, para que se vea igual en
- * cualquier dispositivo y sea fácil de compartir con el negocio.
+ * Ficha demo estilo Facebook. Diseño fijo (no depende del tema de la app):
+ * paleta propia en estilos en línea, para que se vea igual en cualquier
+ * dispositivo y sea fácil de compartir con el negocio.
+ *
+ * Tiene dos paletas con los tokens reales del sistema —clara y oscura— y el
+ * botón de sol/luna de la portada cambia entre ellas. Arranca en oscuro, que es
+ * como se comparte la demo.
  *
  * Toda la data entra por props desde el servidor (`/demo/yoyi`), que la lee de
  * la base. Aquí solo va la interacción: pestañas, carrito y pedido por WhatsApp.
@@ -56,22 +67,74 @@ export interface FichaDemoData {
   } | null;
 }
 
-const T = {
-  page: "#08130d",
-  card: "#0e1720",
-  ink: "#edf7f0",
-  soft: "rgba(237,247,240,0.78)",
+/**
+ * Las dos paletas de la ficha, con los tokens reales del sistema
+ * (`tailwind.config.ts` y la sección de dark mode de `DESIGN.md`). El botón de
+ * sol/luna alterna entre ellas sin tocar el tema de la app: la demo es una
+ * página aparte y se enseña con el modo que se quiera.
+ */
+interface Paleta {
+  page: string;
+  card: string;
+  ink: string;
+  soft: string;
+  line: string;
+  line2: string;
+  chipBg: string;
+  green50: string;
+  green200: string;
+  green: string;
+  red: string;
+  halo: string;
+  accent: string;
+  accentInk: string;
+  sombraLogo: string;
+}
+
+const PALETA_CLARA: Paleta = {
+  page: "#FBF9F4", // sand-warm, el fondo de la ficha real
+  card: "#FFFFFF", // superficie
+  ink: "#08130D", // ink
+  soft: "rgba(27,42,33,0.75)", // ink-soft/75
+  line: "rgba(8,19,13,0.08)", // separadores: entre border-ink/5 y /10
+  line2: "rgba(8,19,13,0.16)", // border-ink/15
+  chipBg: "#EAE4D6", // sand-deep
+  green50: "#EAF7EF", // verde-50
+  green200: "#9FDDB9", // verde-200
+  green: "#0C6136", // verde-700: texto de acento sobre sand o blanco
+  red: "#8A2F1F",
+  halo: "0 18px 40px -12px rgba(53,175,109,0.6)", // shadow-primary-halo
+  accent: "#35AF6D", // verde-400
+  accentInk: "#052017", // verde-950
+  sombraLogo: "0 0 0 1px rgba(8,19,13,0.08), 0 12px 28px -10px rgba(8,19,13,0.28)",
+};
+
+const PALETA_OSCURA: Paleta = {
+  page: "#08130d", // fondo de página oscuro
+  card: "#0e1720", // superficie oscura
+  ink: "#edf7f0", // texto claro
+  soft: "rgba(237,247,240,0.75)",
   line: "rgba(237,247,240,0.10)",
   line2: "rgba(237,247,240,0.16)",
-  chipBg: "#16212b",
-  green50: "#173522",
-  green200: "#28533a",
-  green: "#9be3b4",
+  chipBg: "#16212b", // superficie elevada
+  green50: "#173522", // verde-50 oscuro
+  green200: "#28533a", // borde verde oscuro (entre verde-100 y verde-200)
+  green: "#9be3b4", // verde de acento oscuro
   red: "#ffb4ae",
-  halo: "0 18px 40px -16px rgba(53,175,109,0.45)",
+  halo: "0 18px 40px -12px rgba(53,175,109,0.6)",
   accent: "#35AF6D",
   accentInk: "#052017",
+  sombraLogo: "0 0 0 1px rgba(237,247,240,0.16), 0 12px 28px -10px rgba(0,0,0,0.6)",
 };
+
+/**
+ * El tema activo, para los componentes pequeños (`Chip`, `MiniaturaProducto`)
+ * que no reciben la paleta por props. El valor por defecto es el oscuro, que es
+ * como se comparte la demo.
+ */
+const TemaCtx = createContext<Paleta>(PALETA_OSCURA);
+const useTema = () => useContext(TemaCtx);
+
 const DISPLAY = "'Space Grotesk', system-ui, sans-serif";
 
 const nf = new Intl.NumberFormat("es-ES");
@@ -163,44 +226,48 @@ const ICON = {
   ),
 };
 
-const s = {
-  round: (bg: string, border?: string): CSSProperties => ({
-    width: 44,
-    height: 44,
-    borderRadius: 999,
-    border: border ? `1px solid ${border}` : "none",
-    background: bg,
-    color: "#fff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-  }),
-  card: (): CSSProperties => ({
-    background: T.card,
-    border: `1px solid ${T.line}`,
-    borderRadius: 16,
-    padding: 16,
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-  }),
-  h2: (): CSSProperties => ({ margin: 0, fontSize: 20, fontWeight: 600, fontFamily: DISPLAY }),
-  h3: (): CSSProperties => ({ margin: 0, fontSize: 16, fontWeight: 600, fontFamily: DISPLAY }),
-  link: (): CSSProperties => ({
-    minHeight: 44,
-    padding: "0 4px",
-    border: "none",
-    background: "transparent",
-    color: T.green,
-    fontFamily: DISPLAY,
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: "pointer",
-  }),
-};
+/** Estilos base de la ficha, resueltos con la paleta del modo activo. */
+function estilos(T: Paleta) {
+  return {
+    round: (bg: string, border?: string): CSSProperties => ({
+      width: 44,
+      height: 44,
+      borderRadius: 999,
+      border: border ? `1px solid ${border}` : "none",
+      background: bg,
+      color: "#fff",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      cursor: "pointer",
+    }),
+    card: (): CSSProperties => ({
+      background: T.card,
+      border: `1px solid ${T.line}`,
+      borderRadius: 16,
+      padding: 16,
+      display: "flex",
+      flexDirection: "column",
+      gap: 10,
+    }),
+    h2: (): CSSProperties => ({ margin: 0, fontSize: 20, fontWeight: 600, fontFamily: DISPLAY }),
+    h3: (): CSSProperties => ({ margin: 0, fontSize: 16, fontWeight: 600, fontFamily: DISPLAY }),
+    link: (): CSSProperties => ({
+      minHeight: 44,
+      padding: "0 4px",
+      border: "none",
+      background: "transparent",
+      color: T.green,
+      fontFamily: DISPLAY,
+      fontSize: 14,
+      fontWeight: 600,
+      cursor: "pointer",
+    }),
+  };
+}
 
 function Chip({ children, strong = false }: { children: ReactNode; strong?: boolean }) {
+  const T = useTema();
   return (
     <span
       style={{
@@ -253,6 +320,7 @@ function MiniaturaProducto({
   radius?: number;
   iconSize?: number;
 }) {
+  const T = useTema();
   const base: CSSProperties = { width, height, borderRadius: radius, flexShrink: 0 };
   if (image) {
     return (
@@ -274,13 +342,13 @@ function MiniaturaProducto({
       style={{
         ...base,
         background: T.green50,
-        color: "rgba(155,227,180,0.8)",
+        color: T.green,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <Icono size={iconSize} strokeWidth={1.5} />
+      <Icono size={iconSize} strokeWidth={1.5} style={{ opacity: 0.85 }} />
     </div>
   );
 }
@@ -304,7 +372,12 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
   const [moneda, setMoneda] = useState("CUP");
   const [sheet, setSheet] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  /* Arranca en oscuro, que es como se comparte la demo; el botón de la portada
+     cambia a claro sin tocar el tema de la app. */
+  const [modo, setModo] = useState<"oscuro" | "claro">("oscuro");
   const carouselRef = useRef<HTMLDivElement | null>(null);
+  const T = modo === "claro" ? PALETA_CLARA : PALETA_OSCURA;
+  const s = estilos(T);
 
   /* Precio en la moneda elegida, con la tasa del negocio (como la carta real).
      CUP, o sin tasa, se muestra tal cual; el resto se convierte. */
@@ -372,6 +445,7 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
   );
 
   return (
+    <TemaCtx.Provider value={T}>
     <div style={{ minHeight: "100dvh", background: T.page, color: T.ink, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
       <div style={{ maxWidth: 440, margin: "0 auto", position: "relative", paddingBottom: cuenta > 0 ? 96 : 24 }}>
         {/* Portada: carrusel de fotos, se pasan con el dedo */}
@@ -396,6 +470,14 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
           </button>
         </div>
         <div style={{ position: "absolute", top: 14, right: 14, display: "flex", gap: 8 }}>
+          <button
+            onClick={() => setModo((m) => (m === "oscuro" ? "claro" : "oscuro"))}
+            aria-label={modo === "oscuro" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+            aria-pressed={modo === "claro"}
+            style={s.round("rgba(8,19,13,0.55)")}
+          >
+            {modo === "oscuro" ? <Sun size={20} strokeWidth={1.8} /> : <Moon size={20} strokeWidth={1.8} />}
+          </button>
           <button onClick={() => aviso("Enlace de la ficha copiado")} aria-label="Compartir" style={s.round("rgba(8,19,13,0.55)")}>
             <Icon d={ICON.share} />
           </button>
@@ -416,7 +498,7 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "0 20px", textAlign: "center" }}>
           <Photo
             url={data.logoUrl}
-            style={{ width: 112, height: 112, marginTop: -56, borderRadius: "50%", border: `4px solid ${T.page}`, backgroundColor: "#3B2A1E", position: "relative", zIndex: 2, boxShadow: `0 0 0 1px ${T.line2}, 0 12px 28px -10px rgba(0,0,0,0.6)` } as CSSProperties}
+            style={{ width: 112, height: 112, marginTop: -56, borderRadius: "50%", border: `4px solid ${T.page}`, backgroundColor: "#3B2A1E", position: "relative", zIndex: 2, boxShadow: T.sombraLogo } as CSSProperties}
           />
           <h1 style={{ margin: "12px 0 0", fontSize: 28, fontWeight: 600, letterSpacing: "-0.4px", fontFamily: DISPLAY }}>{data.name}</h1>
           <div style={{ marginTop: 2, fontSize: 14, color: T.soft }}>Comida a domicilio · {data.city}</div>
@@ -799,8 +881,11 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
 
       {/* Aviso */}
       {toast && (
-        <div role="status" style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: cuenta > 0 ? 84 : 16, width: "min(100% - 24px, 416px)", minHeight: 48, padding: "10px 16px", borderRadius: 14, background: T.chipBg, color: T.ink, border: `1px solid ${T.line2}`, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", zIndex: 30 }}>{toast}</div>
+        /* Como el toaster de la app: pastilla oscura y texto blanco en los dos
+           temas, no un color de superficie que cambia con el modo. */
+        <div role="status" style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: cuenta > 0 ? 84 : 16, width: "min(100% - 24px, 416px)", minHeight: 48, padding: "10px 16px", borderRadius: 14, background: "#08130D", color: "#FFFFFF", border: "1px solid rgba(237,247,240,0.16)", fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", zIndex: 30 }}>{toast}</div>
       )}
     </div>
+    </TemaCtx.Provider>
   );
 }
