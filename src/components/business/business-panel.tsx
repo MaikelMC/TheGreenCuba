@@ -773,7 +773,7 @@ function EditorView({
   seccionInicial?: string | null;
 }) {
   const router = useRouter();
-  const { categories, updatePlace } = usePlaces();
+  const { categories, updatePlace, ultimoError } = usePlaces();
 
   /* El estado se siembra del negocio y no se vuelve a sincronizar: a partir de
      aquí manda lo que escriba el dueño. Sincronizarlo con el `place` que llega
@@ -1067,8 +1067,13 @@ function EditorView({
     setSaving(false);
 
     if (!saved) {
+      /* Si el servidor explicó el fallo —una validación, un permiso, el plan—,
+         ese texto es el que hay que leer. «Revisa la conexión» era mentira para
+         todos esos casos y mandaba a mirar la red cuando el problema estaba en
+         el cuerpo. El mensaje de red se queda para cuando no hubo respuesta. */
       setError(
-        "No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada.",
+        ultimoError() ??
+          "No se pudo guardar. Revisa la conexión e inténtalo otra vez: no se cambió nada.",
       );
       return;
     }
@@ -1107,6 +1112,7 @@ function EditorView({
     huella,
     place.id,
     updatePlace,
+    ultimoError,
     router,
   ]);
 

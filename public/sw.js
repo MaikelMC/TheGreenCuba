@@ -358,6 +358,34 @@ self.addEventListener("message", (event) => {
     return;
   }
 
+  /* El documento de la carta online se guarda cuando el SW se registra desde
+     ella (`PwaRegister`): esa visita es la primera navegación controlada, y sin
+     copia el icono de la pantalla de inicio no tenía nada que abrir cuando la
+     red no contestaba. Solo se aceptan rutas públicas del propio origen. */
+  if (data.type === "PRECACHE_PAGE") {
+    event.waitUntil(
+      (async () => {
+        let url = null;
+        try {
+          const candidata = new URL(String(data.url), self.location.origin);
+          if (
+            candidata.origin === self.location.origin &&
+            esRutaPublica(candidata)
+          ) {
+            url = candidata;
+          }
+        } catch {
+          /* Sin URL válida no hay nada que guardar. */
+        }
+        if (!url) return;
+
+        const cache = await caches.open(PAGES_CACHE);
+        await precachearPagina(cache, claveDocumento(url) ?? url.pathname);
+      })(),
+    );
+    return;
+  }
+
   if (data.type === "PURGE_PRIVATE") {
     event.waitUntil(
       (async () => {
@@ -799,10 +827,24 @@ async function navegacion(event, request, url) {
   /* Sin caché y sin red. Si es una ruta distinta a /home y /home está en
      caché, redirigir con el aviso offline. Si /home tampoco está o ya
      estamos en /home, ir directo a offline.html para no caer en un bucle
-     de redirecciones infinitas. */
-  if (url.pathname !== "/home") {
+     de redirecciones infinitas.
+
+     La carta online instalada —y la tarjeta de sellos— no se manda **nunca** a
+     la portada: quien toca su icono quiere el menú del negocio, y acabar en el
+     mapa de La Verde es justo lo que no pidió. Sin copia se le enseña
+     `offline.html`, que además dice qué hay guardado en el dispositivo.
+
+     El destino va **absoluto**: `Response.redirect` exige una URL completa y
+     con una ruta relativa lanza un `TypeError`, así que la navegación se
+     quedaba sin respuesta y el navegador enseñaba su propia página de error. */
+  if (url.pathname !== "/home" && !/^\/m\/[^/]+/.test(url.pathname)) {
     const homeEnCache = await cache.match("/home", { ignoreSearch: true });
-    if (homeEnCache) return Response.redirect("/home?desde=pagina", 302);
+    if (homeEnCache) {
+      return Response.redirect(
+        new URL("/home?desde=pagina", self.location.origin).toString(),
+        302,
+      );
+    }
   }
   const offline = await caches.match("/offline.html");
   if (offline) return offline;

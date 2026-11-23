@@ -154,15 +154,30 @@ export async function uploadImage(
      foto nunca sirve la vieja aunque la anterior siga en alguna caché. */
   const key = `${prefix}${generateId()}.${EXTENSION[contentType]}`;
 
-  await s3Client.send(
-    new PutObjectCommand({
-      Bucket: S3_BUCKET,
-      Key: key,
-      Body: bytes,
-      ContentType: contentType,
-      CacheControl: "public, max-age=31536000, immutable",
-    }),
-  );
+  /* El fallo del bucket se devuelve como error explicado y no se deja escapar.
+     Antes, un 403 de las credenciales o del endpoint subía como excepción: la
+     ruta contestaba con un 500 sin cuerpo JSON —o con el HTML del error— y el
+     formulario solo podía decir «No se pudo subir la imagen.», sin pista del
+     motivo. El detalle se queda en el log del servidor. */
+  try {
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: key,
+        Body: bytes,
+        ContentType: contentType,
+        CacheControl: "public, max-age=31536000, immutable",
+      }),
+    );
+  } catch (error) {
+    console.error(`No se pudo guardar ${key} en el bucket:`, error);
+    return {
+      ok: false,
+      error:
+        "No se pudo guardar la imagen en el almacenamiento. Revisa las credenciales y el bucket, y vuelve a intentarlo.",
+      status: 502,
+    };
+  }
 
   return { ok: true, url: publicUrl(key), form };
 }

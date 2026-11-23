@@ -79,6 +79,27 @@ export async function escribirEntregaParcial(
   negocioId: string,
   parche: unknown,
 ): Promise<ResultadoEntregaParcial> {
+  /* Los editores de la ficha mandan `entrega: null` cuando el negocio no tiene
+     configuración de entrega: el campo viaja siempre en su lista blanca, con
+     el valor que haya. `null` no es un parche —no hay clave que fusionar ni
+     que borrar— y rechazarlo tumbaba el guardado **entero** de la ficha
+     (logo, descripción, horario…) con un 400 que el panel contaba como «revisa
+     la conexión». Se trata como lo que declara, «no traigo entrega», y se
+     devuelve la que hubiera. */
+  if (parche === null || parche === undefined) {
+    const [fila] = await db
+      .select({ entrega: places.entrega })
+      .from(places)
+      .where(eq(places.id, negocioId))
+      .limit(1);
+
+    if (!fila) {
+      return { ok: false, code: "no_encontrado", error: "Negocio no encontrado." };
+    }
+
+    return { ok: true, entrega: (fila.entrega as EntregaConfig | null) ?? null };
+  }
+
   if (!esParcheEntrega(parche)) {
     return { ok: false, code: "validacion", error: "Configuración de entrega inválida." };
   }

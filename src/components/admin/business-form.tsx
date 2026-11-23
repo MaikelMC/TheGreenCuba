@@ -117,7 +117,7 @@ interface BusinessFormProps {
 
 export function BusinessForm({ initial, onDone }: BusinessFormProps) {
   const router = useRouter();
-  const { categories, addPlace, updatePlace, error: storeError } = usePlaces();
+  const { categories, addPlace, updatePlace, ultimoError } = usePlaces();
 
   const initialCategoryValue =
     categories.find((c) => c.label === initial?.category)?.value ??
@@ -359,7 +359,8 @@ export function BusinessForm({ initial, onDone }: BusinessFormProps) {
 
     if (!saved) {
       setFormError(
-        storeError ?? "No se pudo guardar. Revisa la conexión e inténtalo otra vez.",
+        ultimoError() ??
+          "No se pudo guardar. Revisa la conexión e inténtalo otra vez.",
       );
       return;
     }

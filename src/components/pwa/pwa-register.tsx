@@ -126,6 +126,27 @@ export function PwaRegister() {
         if (reg !== previo) reg.addEventListener("updatefound", vigilarEsperando);
         vigilarEsperando();
 
+        /* La carta online instalada tiene que abrir la carta, no la portada.
+           Su documento no puede ir en el precaché estático —depende del
+           negocio— y la primera apertura desde el icono es también la primera
+           navegación controlada por el service worker: sin copia, una conexión
+           mala la dejaba sin nada que enseñar. Al registrarse desde `/m/{slug}`
+           se le pide al SW que guarde ese documento, y el icono abre la carta
+           también sin red. */
+        if (window.location.pathname.startsWith("/m/")) {
+          const documento = window.location.pathname;
+          void navigator.serviceWorker.ready
+            .then((listo) => {
+              (listo.active ?? reg.active)?.postMessage({
+                type: "PRECACHE_PAGE",
+                url: documento,
+              });
+            })
+            .catch(() => {
+              /* Sin SW activo no hay copia que guardar: la carta se ve por red. */
+            });
+        }
+
         /* El servidor tiene que conocer el endpoint de este dispositivo. Se
            reenvía en cada apertura y de forma idempotente: si la tabla de
            suscripciones se perdió en una migración de la base, o el servicio

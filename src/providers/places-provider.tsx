@@ -50,6 +50,8 @@ interface PlacesContextValue {
   hydrated: boolean;
   /** Mensaje del último fallo. Los paneles lo pintan tal cual. */
   error: string | null;
+  /** El último fallo, sin esperar al render. `null` si no hubo. */
+  ultimoError: () => string | null;
   /**
    * Cuándo se trajo el catálogo por última vez, en epoch ms.
    *
@@ -246,6 +248,19 @@ export function PlacesProvider({
   );
   const [hydrated, setHydrated] = useState(hasInitialData);
   const [error, setError] = useState<string | null>(null);
+  /* El mismo mensaje que `error`, legible en el acto.
+     Las mutaciones devuelven `null` cuando fallan, y quien llama necesita
+     contar **por qué** sin esperar al siguiente render: el estado de React que
+     acaba de cambiar sigue siendo el viejo en la continuación del `await`. Sin
+     esto, un 400 del servidor («Configuración de entrega inválida.») se pintaba
+     como «revisa la conexión», que manda a mirar la red cuando el problema
+     está en el cuerpo. */
+  const errorRef = useRef<string | null>(null);
+  const anotarError = useCallback((mensaje: string | null) => {
+    errorRef.current = mensaje;
+    setError(mensaje);
+  }, []);
+  const ultimoError = useCallback(() => errorRef.current, []);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [fromCache, setFromCache] = useState(false);
 
@@ -296,10 +311,10 @@ export function PlacesProvider({
       if (placesResult.ok) {
         setPlaces(placesResult.data);
         anotarSincronia(placesResult);
-      } else setError(placesResult.error);
+      } else anotarError(placesResult.error);
 
       if (categoriesResult.ok) setCategories(categoriesResult.data);
-      else setError(categoriesResult.error);
+      else anotarError(categoriesResult.error);
 
       setHydrated(true);
     })();
@@ -329,9 +344,9 @@ export function PlacesProvider({
     const result = await request<UserPlace[]>(`/api/places${placesQuery}`);
     if (result.ok) {
       setPlaces(result.data);
-      setError(null);
+      anotarError(null);
       anotarSincronia(result);
-    } else setError(result.error);
+    } else anotarError(result.error);
   }, [placesQuery, anotarSincronia]);
 
   /* Al recuperar la conexión se refresca una vez sola. No hay bucle: el permiso
@@ -357,10 +372,10 @@ export function PlacesProvider({
   const addPlace = useCallback(async (input: NewUserPlace) => {
     const result = await request<UserPlace>("/api/places", json("POST", input));
     if (!result.ok) {
-      setError(result.error);
+      anotarError(result.error);
       return null;
     }
-    setError(null);
+    anotarError(null);
     setPlaces((prev) => [...prev, result.data]);
     return result.data;
   }, []);
@@ -368,10 +383,10 @@ export function PlacesProvider({
   const updatePlace = useCallback(async (id: string, patch: UserPlacePatch) => {
     const result = await request<UserPlace>(`/api/places/${encodeURIComponent(id)}`, json("PATCH", patch));
     if (!result.ok) {
-      setError(result.error);
+      anotarError(result.error);
       return null;
     }
-    setError(null);
+    anotarError(null);
     setPlaces((prev) => prev.map((p) => (p.id === id ? result.data : p)));
     return result.data;
   }, []);
@@ -382,10 +397,10 @@ export function PlacesProvider({
       json("DELETE", { message }),
     );
     if (!result.ok) {
-      setError(result.error);
+      anotarError(result.error);
       return false;
     }
-    setError(null);
+    anotarError(null);
     setPlaces((prev) => prev.filter((p) => p.id !== id));
     return true;
   }, []);
@@ -393,10 +408,10 @@ export function PlacesProvider({
   const addCategory = useCallback(async (input: CategoryInput) => {
     const result = await request<BusinessCategory>("/api/categories", json("POST", input));
     if (!result.ok) {
-      setError(result.error);
+      anotarError(result.error);
       return null;
     }
-    setError(null);
+    anotarError(null);
     setCategories((prev) => [...prev, result.data]);
     return result.data;
   }, []);
@@ -411,10 +426,10 @@ export function PlacesProvider({
         json("PATCH", patch),
       );
       if (!result.ok) {
-        setError(result.error);
+        anotarError(result.error);
         return false;
       }
-      setError(null);
+      anotarError(null);
       /* Se casa por el valor viejo: si el cambio era justo la clave, el nuevo
          no coincide con nada de la lista y la fila se quedaría sin actualizar. */
       setCategories((prev) =>
@@ -431,10 +446,10 @@ export function PlacesProvider({
       { method: "DELETE" },
     );
     if (!result.ok) {
-      setError(result.error);
+      anotarError(result.error);
       return false;
     }
-    setError(null);
+    anotarError(null);
     setCategories((prev) => prev.filter((c) => c.value !== value));
     return true;
   }, []);
@@ -445,6 +460,7 @@ export function PlacesProvider({
       categories,
       hydrated,
       error,
+      ultimoError,
       lastSyncedAt,
       fromCache,
       refreshPlaces,
@@ -460,6 +476,7 @@ export function PlacesProvider({
       categories,
       hydrated,
       error,
+      ultimoError,
       lastSyncedAt,
       fromCache,
       refreshPlaces,
