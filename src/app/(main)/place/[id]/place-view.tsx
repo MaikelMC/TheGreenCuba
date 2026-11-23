@@ -27,6 +27,29 @@ function placeState(p: UserPlace): PlaceState {
 }
 
 /**
+ * El botón de retroceder de la ficha.
+ *
+ * La ficha se comparte por fuera —WhatsApp, un buscador, otra web—, así que
+ * mucha gente entra directo sin haber pasado por La Verde. Para ellos
+ * `router.back()` saldría del sitio (o no haría nada): se les lleva al home.
+ * A quien sí venía de una página de La Verde se le retrocede normal, al mapa o
+ * la lista de donde salió.
+ */
+function volverAtras(router: ReturnType<typeof useRouter>) {
+  let interno = false;
+  try {
+    interno =
+      window.history.length > 1 &&
+      !!document.referrer &&
+      new URL(document.referrer).origin === window.location.origin;
+  } catch {
+    interno = false;
+  }
+  if (interno) router.back();
+  else router.push("/home");
+}
+
+/**
  * La ficha, en el navegador.
  *
  * `initialPlace` llega ya resuelto del servidor, y con él la página se pinta
@@ -87,7 +110,7 @@ export function PlaceView({
       key={place.id}
       place={userPlaceToPlaceData(place)}
       state={placeState(place)}
-      onBack={() => router.back()}
+      onBack={() => volverAtras(router)}
       onShare={() => sharePlace(place.id, place.name)}
       onNavigate={() => navegar(`/home?lugar=${place.id}`, router.push)}
       nowIso={nowIso}

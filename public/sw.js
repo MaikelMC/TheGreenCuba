@@ -76,8 +76,14 @@ try { importScripts("/sw-version.js"); } catch { /* sin sw-version.js: solo la d
    cada build) y detecta el cambio sin que CACHE_VERSION tenga que moverse.
    Cuando la lógica del SW cambie de forma que requiera invalidar las cachés
    existentes (nueva estructura de datos, cambio de estrategia), se sube a
-   mano: lv-v10, lv-v11, etc. */
-const CACHE_VERSION = "lv-v9";
+   mano: lv-v10, lv-v11, etc.
+
+   v10: la carta online (`/m/{slug}`) pasa a una caché dedicada (`lv-menus-`),
+   con su propia estrategia de navegación —igual que la tarjeta de sellos— en vez
+   de compartir `lv-pages`. Se guarda calentando sus estáticos, con límite propio
+   y sin que las fichas de `/place/` la recorten. Al subir a v10 se purgan las
+   cartas que quedaron en `lv-pages-v9`; se reconstruyen al volver a abrirlas. */
+const CACHE_VERSION = "lv-v10";
 
 const STATIC_CACHE = `lv-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `lv-pages-${CACHE_VERSION}`;
@@ -88,6 +94,11 @@ const TILES_CACHE = `lv-tiles-${CACHE_VERSION}`;
    persona, pero no es una página privada al uso: se guarda para que el cliente
    la vea sin red. Solo entran respuestas 200 de una tarjeta válida. */
 const TARJETAS_CACHE = `lv-tarjetas-${CACHE_VERSION}`;
+/* Cartas online: caché propia, aparte de lv-pages. La carta es pública (la misma
+   para todos) pero merece el mismo trato que la tarjeta de sellos: se guarda para
+   abrirla sin red desde el icono instalado, con su propio límite y sin que las
+   fichas de `/place/` la recorten. Solo entran respuestas 200 sin `Set-Cookie`. */
+const MENUS_CACHE = `lv-menus-${CACHE_VERSION}`;
 /* Catálogo de servicios: caché propia. Su documento es público —la página es
    la misma para todos—, pero Next lo marca dinámico al leer la sesión para
    decidir a dónde lleva cada CTA, así que `sePuedeCachear` lo descartaría. Es
@@ -101,6 +112,7 @@ const CURRENT_CACHES = new Set([
   IMAGES_CACHE,
   TILES_CACHE,
   TARJETAS_CACHE,
+  MENUS_CACHE,
   CATALOGO_CACHE,
 ]);
 
@@ -207,6 +219,10 @@ const NAV_CACHE_GRACE_MS = 1200;
 /* Una tarjeta espera 4 s a la red y, si no llega, enseña la copia guardada. */
 const TARJETA_TIMEOUT_MS = 4000;
 const TARJETAS_MAX_ENTRIES = 5;
+/* Una carta online espera lo mismo; se guardan más porque es normal mirar varias
+   (negocios distintos) y pesan poco. */
+const MENU_TIMEOUT_MS = 4000;
+const MENUS_MAX_ENTRIES = 20;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -300,6 +316,7 @@ self.addEventListener("activate", (event) => {
       try {
         const pagesCache = await caches.open(PAGES_CACHE);
         const tarjetasCache = await caches.open(TARJETAS_CACHE);
+        const menusCache = await caches.open(MENUS_CACHE);
         const catalogoCache = await caches.open(CATALOGO_CACHE);
         const clientList = await self.clients.matchAll({ type: "window" });
         await Promise.allSettled(
@@ -322,6 +339,13 @@ self.addEventListener("activate", (event) => {
                 await catalogoCache
                   .put(claveCatalogo(client.url), res)
                   .catch(() => {});
+                await calentarDocumento(copia);
+              }
+            } else if (esMenu(clientUrl)) {
+              const res = await fetch(client.url).catch(() => null);
+              if (res && res.status === 200 && !res.headers.get("Set-Cookie")) {
+                const copia = res.clone();
+                await menusCache.put(claveMenu(client.url), res).catch(() => {});
                 await calentarDocumento(copia);
               }
             } else if (esRutaPublica(clientUrl)) {
@@ -379,6 +403,12 @@ self.addEventListener("message", (event) => {
         }
         if (!url) return;
 
+        /* La carta online va a su caché dedicada; el resto, a la de páginas. */
+        if (esMenu(url)) {
+          await precachearMenu(url);
+          return;
+        }
+
         const cache = await caches.open(PAGES_CACHE);
         await precachearPagina(cache, claveDocumento(url) ?? url.pathname);
       })(),
@@ -403,6 +433,7 @@ self.addEventListener("message", (event) => {
                 name.startsWith("lv-api-") ||
                 name.startsWith("lv-images-") ||
                 name.startsWith("lv-tarjetas-") ||
+                name.startsWith("lv-menus-") ||
                 name.startsWith("lv-catalogo-") ||
                 name.startsWith("lv-tiles-"),
             )
@@ -491,6 +522,13 @@ self.addEventListener("fetch", (event) => {
       return;
     }
 
+    /* La carta online: caché dedicada (`lv-menus-`), red primero con copia de
+       respaldo, igual que la tarjeta. Va antes de la navegación general. */
+    if (esMenu(url)) {
+      event.respondWith(navegacionMenu(event, request));
+      return;
+    }
+
     event.respondWith(
       esDocumentoPrivado(request, url)
         ? navegacionPrivada(request, url)
@@ -557,6 +595,11 @@ function esTarjeta(url) {
   return /^\/m\/[^/]+\/tarjeta\/[^/]+\/?$/.test(url.pathname);
 }
 
+/** La carta online de un negocio: `/m/{slug}` exacto, no la tarjeta ni subrutas. */
+function esMenu(url) {
+  return /^\/m\/[^/]+\/?$/.test(url.pathname);
+}
+
 /** El catálogo de servicios y sus fichas. */
 function esCatalogo(url) {
   return url.pathname === "/servicios" || url.pathname.startsWith("/servicios/");
@@ -578,6 +621,15 @@ function claveTarjeta(url) {
 
 /** La misma clave limpia para el catálogo: no usa query propia. */
 function claveCatalogo(url) {
+  return claveTarjeta(url);
+}
+
+/**
+ * La misma clave limpia para la carta online. El enlace de WhatsApp lleva
+ * parámetros de seguimiento; el icono instalado abre `/m/{slug}` sin query. Sin
+ * limpiarla, la copia guardada con la query no la encontraría la apertura limpia.
+ */
+function claveMenu(url) {
   return claveTarjeta(url);
 }
 
@@ -736,11 +788,8 @@ function documentoCacheable(response, url) {
 function claveDocumento(url) {
   if (url.pathname === "/home") return "/home";
   if (url.pathname.startsWith("/place/")) return url.pathname;
-  /* La carta online instalada abre en `/m/{slug}` sin query, mientras que el
-     enlace que se reparte por WhatsApp puede llevar parámetros de seguimiento.
-     Guardar la copia por camino hace que el arranque sin red la encuentre. La
-     tarjeta de sellos no entra aquí: tiene su propia caché (`lv-tarjetas-`). */
-  if (/^\/m\/[^/]+\/?$/.test(url.pathname)) return url.pathname;
+  /* La carta online no entra aquí: tiene su propia caché (`lv-menus-`), igual
+     que la tarjeta de sellos (`lv-tarjetas-`). */
   return null;
 }
 
@@ -1045,6 +1094,127 @@ async function refrescarTarjeta(red, cache, clave) {
     await trimCache(TARJETAS_CACHE, TARJETAS_MAX_ENTRIES).catch(() => {});
   } catch {
     /* Sin red: la copia guardada sigue siendo la válida. */
+  }
+}
+
+/**
+ * La carta online de un negocio.
+ *
+ * Misma estrategia que la tarjeta de sellos, con su propia caché (`lv-menus-`):
+ * red primero, acotada a `NAV_CACHE_GRACE_MS` si ya hay copia —nada si la
+ * conexión se anuncia lenta o caída—, y si la red no llega se pinta la copia
+ * guardada mientras se refresca por detrás. Sin copia se espera
+ * `MENU_TIMEOUT_MS`; si tampoco hay respuesta, `offline.html`.
+ *
+ * Al guardar una respuesta buena se calientan sus estáticos (CSS, chunks, logo):
+ * en iOS la primera apertura desde el icono instalado puede ser sin red, y un
+ * documento sin sus recursos se ve roto. Un 404/410 borra la copia: el negocio
+ * o su carta ya no existen.
+ *
+ * El documento es público —la misma carta para todos— y `revalidate`, así que
+ * solo se exige 200 y la ausencia de `Set-Cookie`, nunca datos de una persona.
+ */
+async function navegacionMenu(event, request) {
+  const cache = await caches.open(MENUS_CACHE);
+  const clave = claveMenu(request.url);
+  const guardada = await cache.match(clave);
+  const red = fetch(request);
+
+  if (guardada) {
+    if (sinRedOLenta()) {
+      event.waitUntil(refrescarMenu(red, cache, clave));
+      return guardada;
+    }
+
+    try {
+      const response = await conTimeout(red, NAV_CACHE_GRACE_MS);
+      if (response) {
+        if (response.status === 404 || response.status === 410) {
+          await cache.delete(clave).catch(() => {});
+        } else if (response.status === 200 && !response.headers.get("Set-Cookie")) {
+          event.waitUntil(guardarMenu(cache, clave, response.clone()));
+        }
+        return response;
+      }
+    } catch {
+      event.waitUntil(refrescarMenu(red, cache, clave));
+    }
+    return guardada;
+  }
+
+  let response = null;
+  try {
+    response = await conTimeout(red, MENU_TIMEOUT_MS);
+  } catch {
+    response = null;
+  }
+
+  if (response) {
+    if (response.status === 404 || response.status === 410) {
+      await cache.delete(clave).catch(() => {});
+      return response;
+    }
+    if (response.status === 200 && !response.headers.get("Set-Cookie")) {
+      event.waitUntil(guardarMenu(cache, clave, response.clone()));
+    }
+    return response;
+  }
+
+  const copia = await cache.match(clave);
+  if (copia) return copia;
+
+  const offline = await caches.match("/offline.html");
+  if (offline) return offline;
+
+  return respuestaSinConexion();
+}
+
+/**
+ * Guarda la carta y calienta sus estáticos; recorta a `MENUS_MAX_ENTRIES`.
+ * `responseClone` es un clon que esta función consume al guardar.
+ */
+async function guardarMenu(cache, clave, responseClone) {
+  try {
+    const copia = responseClone.clone();
+    await cache.put(clave, responseClone);
+    await trimCache(MENUS_CACHE, MENUS_MAX_ENTRIES);
+    await calentarDocumento(copia);
+  } catch {
+    /* Sin almacenamiento: la carta ya se sirvió por red. */
+  }
+}
+
+/** Refresco en segundo plano de una carta guardada. 404/410 borra la copia. */
+async function refrescarMenu(red, cache, clave) {
+  try {
+    const response = await red;
+    if (!response) return;
+    if (response.status === 404 || response.status === 410) {
+      await cache.delete(clave).catch(() => {});
+      return;
+    }
+    if (response.status !== 200 || response.headers.get("Set-Cookie")) return;
+    await guardarMenu(cache, clave, response.clone());
+  } catch {
+    /* Sin red: la copia guardada sigue siendo la válida. */
+  }
+}
+
+/**
+ * Guarda la carta al registrarse el SW desde ella (`PRECACHE_PAGE`).
+ *
+ * Es la primera navegación controlada: sin esto, una conexión mala dejaba el
+ * icono instalado sin nada que abrir. Se pide con `reload` para no tomar una
+ * copia de la caché HTTP del navegador.
+ */
+async function precachearMenu(url) {
+  try {
+    const cache = await caches.open(MENUS_CACHE);
+    const response = await fetch(url.href, { cache: "reload" });
+    if (response.status !== 200 || response.headers.get("Set-Cookie")) return;
+    await guardarMenu(cache, claveMenu(url), response);
+  } catch {
+    /* Sin red al registrar: se guarda en la primera navegación controlada. */
   }
 }
 
