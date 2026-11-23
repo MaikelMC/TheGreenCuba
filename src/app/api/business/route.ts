@@ -260,7 +260,7 @@ export async function POST(req: NextRequest) {
     placeId,
   });
 
-  /* Aviso por correo al equipo de administración. Best-effort: si Resend no
+  /* Aviso por correo al equipo de administración. Best-effort: si el correo no
      está configurado o falla, la solicitud ya está guardada y aparece en el
      panel — el correo acelera la revisión, no la garantiza. */
   void notifyAdminsBusinessSubmission({

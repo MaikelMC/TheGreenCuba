@@ -20,7 +20,7 @@ import { LoadingState } from "@/components/ui/loading";
  *
  * Lista los tickets que la app acumula desde Configuración → "Reportar un
  * error", con filtros por estado y búsqueda por texto. Responder guarda la
- * respuesta y la envía por correo al usuario (Resend); el panel avisa si el
+ * respuesta y la envía por correo al usuario (SMTP); el panel avisa si el
  * correo no pudo salir, y permite seguir moviendo el estado sin reenviar.
  */
 
@@ -108,7 +108,7 @@ export function SupportPanel() {
       toast.success(
         data.emailSent
           ? "Respuesta enviada al correo del usuario."
-          : "Respuesta guardada, pero el correo no pudo enviarse (Resend sin configurar o rechazado).",
+          : "Respuesta guardada, pero el correo no pudo enviarse (SMTP sin configurar o rechazado).",
         { duration: 6000 },
       );
       setTickets((current) =>

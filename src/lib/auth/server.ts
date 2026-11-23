@@ -26,8 +26,8 @@ import {
  * mismo scrypt (`salt:hash`) que usa esta versión.
  *
  * Lo que cambia es quién manda el correo. Neon lo enviaba por su cuenta; ahora
- * los códigos y los enlaces salen por el mismo Resend que el resto de la app
- * (`src/lib/email.ts`), así que un `RESEND_API_KEY` sin configurar deja la
+ * los códigos y los enlaces salen por el mismo SMTP que el resto de la app
+ * (`src/lib/email.ts`), así que una configuración SMTP incompleta deja la
  * verificación y la recuperación sin correo, igual que los avisos de negocio.
  *
  * Las dos variables nuevas no tienen valor por defecto a propósito: con una

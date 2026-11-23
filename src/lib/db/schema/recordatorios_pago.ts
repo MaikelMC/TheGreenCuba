@@ -17,7 +17,7 @@ import { places } from "./places";
  * negocio y deben salir como avisos independientes.
  *
  * `push_enviado_en` y `email_enviado_en` se guardan por separado a propósito. Un
- * push sin VAPID configurado o un Resend sin clave no son «enviado»: dejarlos en
+ * push sin VAPID configurado o un SMTP sin configurar no son «enviado»: dejarlos en
  * nulo permite que el canal salga en cuanto se configure, sin reenviar el otro
  * canal que ya había llegado.
  */

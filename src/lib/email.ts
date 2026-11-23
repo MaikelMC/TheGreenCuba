@@ -1,24 +1,51 @@
-import { Resend } from "resend";
+import nodemailer, { type Transporter } from "nodemailer";
 
 /**
- * Envío de correo transaccional con Resend.
+ * Envío de correo transaccional por SMTP (nodemailer).
  *
- * Sin `RESEND_API_KEY` todo queda en no-op y se registra en el log del
- * servidor: las funciones críticas (alta de negocio, ticket de soporte) no
- * dependen del correo para responder — el correo es un aviso, no la escritura.
+ * Sin la configuración SMTP el envío queda en no-op y se registra un **error**
+ * en el log del servidor (no un aviso silencioso): las funciones críticas
+ * (alta de negocio, ticket de soporte, verificación de cuenta) no dependen del
+ * correo para responder, pero un correo que no sale tiene que verse en el log.
  *
- * **Sobre el remitente:** Resend solo envía desde dominios verificados en su
- * panel, y `gmail.com` no se puede verificar. Mientras se verifica un dominio
- * propio (p. ej. `laverde.cu`, cuyo DNS ya controla el equipo), el remitente
- * sale del sandbox `onboarding@resend.dev` — que solo entrega a correos de la
- * cuenta de Resend — y el `Reply-To` apunta a `soporte@laverde.cu`, así
- * que toda respuesta del correo cae en el buzón de soporte. Con el dominio
- * verificado, basta con `RESEND_FROM="La Verde <avisos@laverde.cu>"`.
+ * **Variables SMTP:** `SMTP_HOST`, `SMTP_PORT` (587 por defecto), `SMTP_SECURE`
+ * (`"true"` para 465), `SMTP_USER`, `SMTP_PASS` y `MAIL_FROM` (el remitente,
+ * p. ej. `"La Verde <avisos@laverde.cu>"`). El `Reply-To` sale de
+ * `SUPPORT_REPLY_TO` (p. ej. `soporte@laverde.cu`) salvo que la plantilla pida
+ * otro, así que toda respuesta cae en el buzón de soporte.
  *
- * Los destinatarios de administración salen de `RESEND_NOTIFY_EMAILS` (lista
- * separada por comas) o, si no existe, se extraen de `AUTH_BOOTSTRAP_ROLES`,
- * que ya nombra a los dos administradores del sistema.
+ * Los destinatarios de administración salen de `NOTIFY_EMAILS` (lista separada
+ * por comas) o, si no existe, se extraen de `AUTH_BOOTSTRAP_ROLES`, que ya
+ * nombra a los dos administradores del sistema.
  */
+
+/** Lee la configuración SMTP del entorno. `null` si falta algo imprescindible. */
+function configSmtp() {
+  const host = process.env.SMTP_HOST?.trim();
+  const user = process.env.SMTP_USER?.trim();
+  const pass = process.env.SMTP_PASS?.trim();
+  if (!host || !user || !pass) return null;
+  return {
+    host,
+    port: Number(process.env.SMTP_PORT?.trim() || "587"),
+    secure: process.env.SMTP_SECURE?.trim() === "true",
+    auth: { user, pass },
+  };
+}
+
+/* Un único transporte por proceso, reutilizado por la app, los crons y los
+   scripts. Se guarda en `globalThis` porque el recargado en caliente de Next
+   vuelve a evaluar el módulo y, sin esto, abriría un transporte nuevo cada vez. */
+const global = globalThis as unknown as { __lvMailer?: Transporter };
+
+function getTransporte(): Transporter | null {
+  if (global.__lvMailer) return global.__lvMailer;
+  const config = configSmtp();
+  if (!config) return null;
+  const transporte = nodemailer.createTransport(config);
+  global.__lvMailer = transporte;
+  return transporte;
+}
 
 export interface OutgoingEmail {
   to: string[];
@@ -29,7 +56,7 @@ export interface OutgoingEmail {
 }
 
 function adminRecipients(): string[] {
-  const configured = process.env.RESEND_NOTIFY_EMAILS?.trim();
+  const configured = process.env.NOTIFY_EMAILS?.trim();
   if (configured) {
     return configured
       .split(",")
@@ -45,7 +72,7 @@ function adminRecipients(): string[] {
 }
 
 export function emailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY?.trim());
+  return configSmtp() !== null && Boolean(process.env.MAIL_FROM?.trim());
 }
 
 /**
@@ -62,7 +89,7 @@ function appUrl(): string | null {
 /**
  * Texto plano de un correo, derivado de su HTML.
  *
- * Resend pide las dos versiones y las plantillas de aquí solo escriben HTML.
+ * El correo lleva las dos versiones y las plantillas de aquí solo escriben HTML.
  * Esto no es un parser: quita las etiquetas, conserva los saltos de bloque y
  * deshace las entidades que usan las plantillas. Basta para que el correo se
  * lea en un buzón sin HTML y para que los filtros vean contenido real.
@@ -127,7 +154,7 @@ function deshacerEntidades(texto: string): string {
 /**
  * Texto plano de un correo, derivado de su HTML.
  *
- * Resend pide las dos versiones y las plantillas de aquí solo escriben HTML.
+ * El correo lleva las dos versiones y las plantillas de aquí solo escriben HTML.
  * Esto no es un parser: quita las etiquetas, conserva los saltos de bloque y
  * deshace las entidades que usan las plantillas. Basta para que el correo se
  * lea en un buzón sin HTML y para que los filtros vean contenido real.
@@ -146,12 +173,14 @@ export function htmlATexto(html: string): string {
     .trim();
 }
 
-/** Envía un correo. Devuelve el id de Resend, o `null` si no se envió. */
+/** Envía un correo. Devuelve el `messageId` de SMTP, o `null` si no se envió. */
 export async function sendEmail(email: OutgoingEmail): Promise<string | null> {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  if (!apiKey) {
-    console.warn(
-      "[email] RESEND_API_KEY no configurada: correo no enviado —",
+  const transporte = getTransporte();
+  const from = process.env.MAIL_FROM?.trim();
+
+  if (!transporte || !from) {
+    console.error(
+      "[email] SMTP sin configurar (faltan SMTP_HOST/SMTP_USER/SMTP_PASS/MAIL_FROM): correo NO enviado —",
       email.subject,
     );
     return null;
@@ -161,14 +190,11 @@ export async function sendEmail(email: OutgoingEmail): Promise<string | null> {
     return null;
   }
 
-  const resend = new Resend(apiKey);
-  const from =
-    process.env.RESEND_FROM?.trim() || "La Verde <onboarding@resend.dev>";
   const replyTo =
     email.replyTo?.trim() || process.env.SUPPORT_REPLY_TO?.trim() || undefined;
 
   try {
-    const { data, error } = await resend.emails.send({
+    const info = await transporte.sendMail({
       from,
       to: email.to,
       subject: email.subject,
@@ -177,18 +203,13 @@ export async function sendEmail(email: OutgoingEmail): Promise<string | null> {
          de pantalla de correo se queda con un mensaje vacío. Si la plantilla la
          trae se respeta; si no, se deriva del HTML. */
       text: email.text ?? htmlATexto(email.html),
-      ...(replyTo ? { reply_to: replyTo } : {}),
+      ...(replyTo ? { replyTo } : {}),
     });
 
-    if (error) {
-      console.error("[email] Resend rechazó el envío:", error);
-      return null;
-    }
-
-    return data?.id ?? null;
+    return info.messageId ?? null;
   } catch (error) {
     console.error(
-      "[email] Falló el envío:",
+      "[email] Falló el envío SMTP:",
       error instanceof Error ? error.message : error,
     );
     return null;

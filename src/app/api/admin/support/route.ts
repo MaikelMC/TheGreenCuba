@@ -11,7 +11,7 @@ import { sendEmail, adminNoticeHtml } from "@/lib/email";
  * `GET` lista con filtros por estado y texto. `PATCH` actualiza el estado y
  * opcionalmente guarda una respuesta que **se envía por correo al usuario**
  * con el remitente y plantilla de La Verde. El envío es best-effort: si
- * Resend falla, la respuesta queda guardada igual y el panel lo indica.
+ * el correo falla, la respuesta queda guardada igual y el panel lo indica.
  */
 export async function GET(request: NextRequest) {
   if (!(await isAdminRequest(request))) {
@@ -88,7 +88,7 @@ export async function PATCH(request: NextRequest) {
   let emailSent = false;
   if (reply && updated) {
     /* Respuesta al usuario por correo con la plantilla de La Verde. Best-effort:
-       si Resend falla, la respuesta ya está guardada y el panel lo indica. */
+       si el correo falla, la respuesta ya está guardada y el panel lo indica. */
     const id = await sendEmail({
       to: [updated.email],
       subject: `Respuesta a tu ticket: ${updated.subject}`,

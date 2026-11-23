@@ -53,9 +53,9 @@ export interface ResumenRecordatorios {
   avisados: number;
   /** Push entregados (una suscripción de navegador cada uno). */
   push: number;
-  /** Correos aceptados por Resend. */
+  /** Correos aceptados por el servidor SMTP. */
   emails: number;
-  /** Canales que se dejaron para otro día: sin VAPID, sin Resend o sin dueño. */
+  /** Canales que se dejaron para otro día: sin VAPID, sin SMTP o sin dueño. */
   pendientes: number;
 }
 
