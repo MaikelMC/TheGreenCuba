@@ -73,6 +73,9 @@ export default async function DemoYoyiPage() {
     desc: (m.description || "").replace(/\s+/g, " ").trim(),
     cat: m.category || "Otros",
     precio: Math.round(Number(m.price) || 0),
+    /* La foto viaja para que la demo enseñe lo mismo que la ficha real; cuando
+       no hay, el componente pinta el icono sugerente del producto. */
+    image: m.image ?? null,
   }));
   const categorias = [...new Set(productos.map((p) => p.cat))];
 

@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { ShoppingCart } from "lucide-react";
+import { iconoDeProducto } from "@/lib/ficha/iconos-producto";
 import { convertirPrecio, type MonedaVista } from "@/lib/precios";
 
 /**
@@ -22,7 +24,15 @@ export interface FichaDemoData {
   intro: string;
   tiempo: string;
   fotos: string[];
-  productos: { id: string; name: string; desc: string; cat: string; precio: number }[];
+  productos: {
+    id: string;
+    name: string;
+    desc: string;
+    cat: string;
+    precio: number;
+    /** Foto del producto. Sin ella, el hueco lleva el icono sugerente. */
+    image?: string | null;
+  }[];
   agotados: string[];
   categorias: string[];
   pagos: string[];
@@ -62,12 +72,10 @@ const T = {
   accent: "#35AF6D",
   accentInk: "#052017",
 };
-const TILES = ["#5a3f27", "#6b4a2b", "#4d3a2a", "#7a5534", "#5e4630", "#694f36"];
 const DISPLAY = "'Space Grotesk', system-ui, sans-serif";
 
 const nf = new Intl.NumberFormat("es-ES");
 const fmt = (n: number) => nf.format(n).replace(/\./g, " ") + " CUP";
-const tile = (i: number) => TILES[i % TILES.length];
 
 function Icon({ d, fill = false, size = 20 }: { d: ReactNode; fill?: boolean; size?: number }) {
   return (
@@ -224,6 +232,59 @@ function Photo({ url, style }: { url: string; style: CSSProperties }) {
   );
 }
 
+/**
+ * La foto de un producto o, si no la tiene, el mismo hueco con icono sugerente
+ * de la ficha real: un café no se parece a una pizza. El icono se elige por el
+ * nombre con `iconoDeProducto`, compartido con la carta pública, para que la
+ * demo no invente una segunda lista de palabras.
+ */
+function MiniaturaProducto({
+  nombre,
+  image,
+  width,
+  height,
+  radius = 0,
+  iconSize = 30,
+}: {
+  nombre: string;
+  image?: string | null;
+  width: number | string;
+  height: number;
+  radius?: number;
+  iconSize?: number;
+}) {
+  const base: CSSProperties = { width, height, borderRadius: radius, flexShrink: 0 };
+  if (image) {
+    return (
+      <div
+        aria-hidden
+        style={{
+          ...base,
+          backgroundImage: `url(${image})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      />
+    );
+  }
+  const Icono = iconoDeProducto(nombre);
+  return (
+    <div
+      aria-hidden
+      style={{
+        ...base,
+        background: T.green50,
+        color: "rgba(155,227,180,0.8)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Icono size={iconSize} strokeWidth={1.5} />
+    </div>
+  );
+}
+
 const TABS: [string, string][] = [
   ["todo", "Todo"],
   ["menu", "Menú"],
@@ -243,8 +304,6 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
   const [sheet, setSheet] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const carouselRef = useRef<HTMLDivElement | null>(null);
-
-  const idx = Object.fromEntries(data.productos.map((p, i) => [p.id, i]));
 
   /* Precio en la moneda elegida, con la tasa del negocio (como la carta real).
      CUP, o sin tasa, se muestra tal cual; el resto se convierte. */
@@ -425,13 +484,14 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
                 <button onClick={() => setTab("menu")} style={s.link()}>Ver menú</button>
               </div>
               <div style={{ display: "flex", gap: 10, overflowX: "auto", margin: "0 -16px", padding: "0 16px", scrollbarWidth: "none" }}>
-                {data.productos.slice(0, 8).map((p, i) => (
+                {data.productos.slice(0, 8).map((p) => (
                   <div key={p.id} style={{ flexShrink: 0, width: 150, background: T.card, border: `1px solid ${T.line}`, borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                    <div style={{ height: 104, background: tile(i) }} />
+                    <MiniaturaProducto nombre={p.name} image={p.image} width="100%" height={104} iconSize={38} />
                     <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 4 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
                       <div style={{ fontSize: 13, color: T.soft }}>{precioFmt(p.precio)}</div>
-                      <button onClick={() => add(p.id, 1)} style={{ marginTop: 4, height: 36, borderRadius: 999, border: `1px solid ${T.green200}`, background: T.green50, color: T.green, fontFamily: DISPLAY, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                      <button onClick={() => add(p.id, 1)} style={{ marginTop: 4, height: 36, borderRadius: 999, border: `1px solid ${T.green200}`, background: T.green50, color: T.green, fontFamily: DISPLAY, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                        <ShoppingCart size={14} strokeWidth={2} />
                         {(qty[p.id] ?? 0) > 0 ? `En tu pedido · ${qty[p.id] ?? 0}` : "Añadir"}
                       </button>
                     </div>
@@ -524,15 +584,18 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
                               const q = qty[p.id] || 0;
                               return (
                                 <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderBottom: i === pg.length - 1 ? "none" : `1px solid ${T.line}` }}>
-                                  <div style={{ width: 56, height: 56, borderRadius: 12, background: tile(idx[p.id] ?? i), flexShrink: 0 }} />
+                                  <MiniaturaProducto nombre={p.name} image={p.image} width={56} height={56} radius={12} iconSize={26} />
                                   <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
                                     <div style={{ fontSize: 15, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
                                     <div style={{ fontSize: 13, color: T.soft, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.desc || p.cat}</div>
                                     <div style={{ fontSize: 14, fontWeight: 600 }}>{precioFmt(p.precio)}</div>
                                   </div>
                                   {q === 0 ? (
-                                    <button onClick={() => add(p.id, 1)} aria-label={`Añadir ${p.name}`} style={{ width: 44, height: 44, flexShrink: 0, borderRadius: 999, border: "none", background: T.accent, color: T.accentInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                                      <Icon d={ICON.plus} size={20} />
+                                    /* Carrito y la palabra «Añadir», como la ficha real: el «+»
+                                       suelto no decía a dónde iba el producto. */
+                                    <button onClick={() => add(p.id, 1)} aria-label={`Añadir ${p.name} al pedido`} style={{ height: 44, padding: "0 14px", flexShrink: 0, borderRadius: 999, border: "none", background: T.accent, color: T.accentInk, fontFamily: DISPLAY, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                                      <ShoppingCart size={17} strokeWidth={2} />
+                                      Añadir
                                     </button>
                                   ) : (
                                     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, padding: 2, borderRadius: 999, background: T.green50 }}>

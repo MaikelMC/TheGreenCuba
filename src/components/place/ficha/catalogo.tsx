@@ -6,35 +6,22 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowUpRight,
-  Beef,
-  Beer,
-  Cake,
   ChevronLeft,
   ChevronRight,
-  Coffee,
-  Cookie,
-  Croissant,
-  CupSoda,
-  Fish,
-  IceCream,
   MessageCircle,
   Minus,
   Package,
-  Pizza,
   Plus,
   ShoppingCart,
-  Salad,
-  Sandwich,
   Search,
-  Soup,
   Sparkles,
   Utensils,
-  Wine,
   type LucideIcon,
 } from "lucide-react";
 import { cn, formatMenuPrice, menuTagFallback, menuTagStyles } from "@/lib/utils";
 import { estaAgotado, separarAgotados } from "@/lib/disponibilidad";
 import { preciosDeItem, type ConfigTasa } from "@/lib/precios";
+import { iconoDeProducto } from "@/lib/ficha/iconos-producto";
 import type { PlaceMenu, PlacePhoto } from "@/lib/ficha/place-data";
 import { familiaDe, type EspecialDelDia, type ExistenciasModo, type MenuCategoria, type ModuloFicha, type TipoNegocio } from "@/lib/ficha/tipos";
 import { ordenarCategorias, COPY } from "@/config/ficha";
@@ -59,35 +46,6 @@ const PAGE_BTN =
   "grid size-9 place-items-center rounded-full border border-ink/10 bg-white text-ink transition-colors duration-300 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-600 disabled:opacity-35 disabled:pointer-events-none cursor-pointer";
 
 /* ── Helpers ───────────────────────────────────────────────────────────── */
-
-/* El icono de un producto sin foto. Se elige por lo que dice el nombre —un café
-   no se parece a una pizza— y, si no reconoce nada, cae al genérico de la vista:
-   cubiertos en las cartas de comida y una caja en la tienda. Va por palabra, sin
-   acentos, para que «Café» y «cafe» den lo mismo. */
-const ICONOS_PRODUCTO: [RegExp, LucideIcon][] = [
-  [/\b(cafe|capuchino|cortadito|espresso|te|infusion|chocolate)\b/, Coffee],
-  [/\b(pizza|pizzeta|calzone)\b/, Pizza],
-  [/\b(helado|granizado)\b/, IceCream],
-  [/\b(pastel|cake|flan|postre|torta|bizcocho|dulce)\b/, Cake],
-  [/\b(galleta|galletas|churro|churros|panetela)\b/, Cookie],
-  [/\b(pan|croissant|tostada|tostadas|desayuno)\b/, Croissant],
-  [/\b(cerveza|cervezas|bucanero|cristal|mojito)\b/, Beer],
-  [/\b(vino|ron|cocktail|coctel|trago|copa)\b/, Wine],
-  [/\b(refresco|jugo|zumo|malta|cola|agua|limonada|batido)\b/, CupSoda],
-  [/\b(hamburguesa|sandwich|sandwiches|perro|bocadillo|toston|croqueta|croquetas)\b/, Sandwich],
-  [/\b(ensalada|vegetal|vegetales|vegetariano)\b/, Salad],
-  [/\b(sopa|caldo|ajiaco|potaje|crema)\b/, Soup],
-  [/\b(pescado|camaron|camarones|langosta|mariscos|marisco)\b/, Fish],
-  [/\b(carne|bistec|cerdo|res|chuleta|costilla|filete)\b/, Beef],
-];
-
-function iconoDeProducto(nombre: string, generico: LucideIcon): LucideIcon {
-  const limpio = nombre
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
-  return ICONOS_PRODUCTO.find(([patron]) => patron.test(limpio))?.[1] ?? generico;
-}
 
 /* El hueco de un producto sin foto: un icono sugerente en el color de marca, en
    vez de un cuadro vacío que se lee como algo roto. */
