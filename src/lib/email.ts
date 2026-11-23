@@ -19,18 +19,47 @@ import nodemailer, { type Transporter } from "nodemailer";
  * nombra a los dos administradores del sistema.
  */
 
-/** Lee la configuración SMTP del entorno. `null` si falta algo imprescindible. */
-function configSmtp() {
+/** Las variables sin las que no se puede enviar nada, en el orden en que se leen. */
+const VARS_OBLIGATORIAS = ["SMTP_HOST", "SMTP_USER", "SMTP_PASS", "MAIL_FROM"] as const;
+
+interface ConfigSmtp {
+  host: string;
+  port: number;
+  secure: boolean;
+  auth: { user: string; pass: string };
+}
+
+/**
+ * Las variables SMTP que faltan, con su nombre.
+ *
+ * El log tiene que decir **cuál** falta: «SMTP sin configurar» a secas, con seis
+ * variables en juego, deja el diagnóstico en adivinanzas.
+ */
+function variablesQueFaltan(): string[] {
+  return VARS_OBLIGATORIAS.filter((nombre) => !process.env[nombre]?.trim());
+}
+
+/**
+ * Lee la configuración SMTP del entorno. `null` si falta algo imprescindible.
+ *
+ * `SMTP_SECURE` es opcional: si no está, se deduce del puerto —465 es TLS
+ * directo, el resto empieza en claro y sube con STARTTLS—. Antes se tomaba como
+ * `false` sin más, y en un 465 eso no da error: la conexión se queda esperando
+ * un saludo en claro que nunca llega y agota el tiempo sin decir por qué.
+ */
+function configSmtp(): ConfigSmtp | null {
   const host = process.env.SMTP_HOST?.trim();
   const user = process.env.SMTP_USER?.trim();
   const pass = process.env.SMTP_PASS?.trim();
   if (!host || !user || !pass) return null;
-  return {
-    host,
-    port: Number(process.env.SMTP_PORT?.trim() || "587"),
-    secure: process.env.SMTP_SECURE?.trim() === "true",
-    auth: { user, pass },
-  };
+
+  const declarado = process.env.SMTP_PORT?.trim() || "587";
+  const leido = Number.parseInt(declarado, 10);
+  const port = Number.isFinite(leido) && leido > 0 ? leido : 587;
+  const seguro = process.env.SMTP_SECURE?.trim().toLowerCase();
+  const secure = seguro === "true" ? true : seguro === "false" ? false : port === 465;
+
+  return { host, port, secure, auth: { user, pass } };
 }
 
 /* Un único transporte por proceso, reutilizado por la app, los crons y los
@@ -42,9 +71,55 @@ function getTransporte(): Transporter | null {
   if (global.__lvMailer) return global.__lvMailer;
   const config = configSmtp();
   if (!config) return null;
-  const transporte = nodemailer.createTransport(config);
+
+  const transporte = nodemailer.createTransport({
+    ...config,
+    /* Sin estos límites, un puerto SMTP bloqueado por el proveedor del VPS deja
+       la petición colgada minutos y el fallo llega tarde y sin pista. */
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+  });
+
+  /* Una línea al crearse el transporte: en el log del contenedor se ve qué
+     configuración llegó de verdad al proceso, que es la mitad del diagnóstico
+     cuando el correo no sale. La contraseña no se escribe nunca. */
+  console.info(
+    `[email] SMTP ${config.host}:${config.port} secure=${config.secure} usuario=${config.auth.user}`,
+  );
+
   global.__lvMailer = transporte;
   return transporte;
+}
+
+/**
+ * La pista que acompaña al error en el log.
+ *
+ * Los códigos de nodemailer no dicen qué hacer: `EAUTH` es usuario o contraseña
+ * y `ETIMEDOUT` suele ser el puerto de salida bloqueado en el VPS. Sin esto, el
+ * log dice «falló» y el motivo hay que adivinarlo.
+ */
+function pistaErrorSmtp(codigo: string, mensaje: string): string {
+  const texto = `${codigo} ${mensaje}`.toUpperCase();
+  if (texto.includes("EAUTH") || texto.includes("535")) {
+    return "el servidor rechazó SMTP_USER/SMTP_PASS; revisa usuario y contraseña (muchos proveedores exigen una contraseña de aplicación).";
+  }
+  if (texto.includes("SELF_SIGNED") || texto.includes("CERT")) {
+    return "el certificado del servidor SMTP no es válido; revisa SMTP_HOST y el puerto.";
+  }
+  if (texto.includes("ENOTFOUND") || texto.includes("EAI_AGAIN")) {
+    return "SMTP_HOST no resuelve desde el servidor; revisa el nombre.";
+  }
+  if (
+    texto.includes("ETIMEDOUT") ||
+    texto.includes("ECONNREFUSED") ||
+    texto.includes("ESOCKET") ||
+    texto.includes("EHOSTUNREACH") ||
+    texto.includes("ECONNECTION")
+  ) {
+    return "no se pudo abrir la conexión; el proveedor del VPS puede tener bloqueada la salida a ese puerto, o SMTP_HOST/SMTP_PORT están mal.";
+  }
+  return "";
 }
 
 export interface OutgoingEmail {
@@ -72,7 +147,7 @@ function adminRecipients(): string[] {
 }
 
 export function emailConfigured(): boolean {
-  return configSmtp() !== null && Boolean(process.env.MAIL_FROM?.trim());
+  return variablesQueFaltan().length === 0;
 }
 
 /**
@@ -180,7 +255,7 @@ export async function sendEmail(email: OutgoingEmail): Promise<string | null> {
 
   if (!transporte || !from) {
     console.error(
-      "[email] SMTP sin configurar (faltan SMTP_HOST/SMTP_USER/SMTP_PASS/MAIL_FROM): correo NO enviado —",
+      `[email] SMTP sin configurar: faltan ${variablesQueFaltan().join(", ") || "MAIL_FROM"}. Correo NO enviado —`,
       email.subject,
     );
     return null;
@@ -208,9 +283,18 @@ export async function sendEmail(email: OutgoingEmail): Promise<string | null> {
 
     return info.messageId ?? null;
   } catch (error) {
+    const codigo = (error as { code?: string } | null)?.code ?? "";
+    const mensaje = error instanceof Error ? error.message : String(error);
+    const config = configSmtp();
+    const destino = config
+      ? `${config.host}:${config.port} secure=${config.secure}`
+      : "configuración incompleta";
+    const pista = pistaErrorSmtp(codigo, mensaje);
+
     console.error(
-      "[email] Falló el envío SMTP:",
-      error instanceof Error ? error.message : error,
+      `[email] Falló el envío SMTP (${destino}${codigo ? ` ${codigo}` : ""}) a ${email.to.join(", ")}:`,
+      mensaje,
+      pista ? `— ${pista}` : "",
     );
     return null;
   }

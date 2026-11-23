@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { emailOTP } from "better-auth/plugins";
 import { db } from "@/lib/db";
 import {
   codigoVerificacionEmailHtml,
+  emailConfigured,
   enlaceResetEmailHtml,
   sendEmail,
 } from "@/lib/email";
@@ -53,6 +55,39 @@ if (!baseURL) {
 }
 
 const APP_ORIGIN = baseURL.replace(/\/+$/, "");
+
+/* Un fallo de SMTP no puede pasar inadvertido: sin correo, nadie puede verificar
+   su cuenta ni recuperar la contraseña. Se avisa al arrancar, una vez, en el log
+   del contenedor. */
+if (!emailConfigured()) {
+  console.error(
+    "[auth] SMTP sin configurar: la verificación por código y la recuperación de contraseña NO podrán enviar correo.",
+  );
+}
+
+/**
+ * Envía un correo de acceso y **falla** si no salió.
+ *
+ * Better Auth responde 200 aunque el callback no mande nada, así que un
+ * `sendEmail` que devuelve `null` en silencio dejaba la pantalla diciendo «te
+ * enviamos un código» sin haber correo: el fallo era invisible para el usuario
+ * y solo quedaba una línea en el log. Aquí se convierte en un error del endpoint
+ * (503), y el formulario enseña que no se pudo enviar en vez de esperar un
+ * correo que no existe. El motivo real lo escribe `sendEmail`.
+ */
+async function enviarCorreoDeAcceso(input: {
+  to: string[];
+  subject: string;
+  html: string;
+}): Promise<void> {
+  const enviado = await sendEmail(input);
+  if (!enviado) {
+    throw new APIError("SERVICE_UNAVAILABLE", {
+      message:
+        "No se pudo enviar el correo. Inténtalo en un momento y, si sigue igual, avísanos.",
+    });
+  }
+}
 
 /* Better Auth rechaza con 403 («Invalid origin») toda petición cuyo `Origin` no
    case con `baseURL`. En el corte eso es justo lo que se quiere: la app vive en
@@ -124,7 +159,7 @@ export const auth = betterAuth({
     autoSignIn: true,
     sendResetPassword: async ({ user, token }) => {
       const url = `${APP_ORIGIN}/reset-password?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}`;
-      await sendEmail({
+      await enviarCorreoDeAcceso({
         to: [user.email],
         subject: "Tu contraseña nueva en La Verde",
         html: enlaceResetEmailHtml({ url }),
@@ -157,7 +192,7 @@ export const auth = betterAuth({
       overrideDefaultEmailVerification: true,
       sendVerificationOTP: async ({ email, otp, type }) => {
         const esAlta = type === "email-verification";
-        await sendEmail({
+        await enviarCorreoDeAcceso({
           to: [email],
           subject: esAlta
             ? "Tu código de verificación de La Verde"
