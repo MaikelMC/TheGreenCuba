@@ -121,7 +121,10 @@ interface PanelShellProps {
   logoUrl?: string | null;
   /** Si la ficha está publicada: decide el texto de la tarjeta lateral. */
   publicado: boolean;
-  /** Los negocios de la cuenta. Con dos o más, el nombre abre «Tus negocios». */
+  /**
+   * Los negocios que puede abrir la cuenta —todos los de la app si es
+   * administradora—. Con dos o más, el nombre abre la lista.
+   */
   negocios: NegocioPanel[];
   /** La pantalla que pide la URL, leída en el servidor. */
   destinoInicial: Destino;
@@ -290,6 +293,9 @@ export function PanelShell({
   const nav: PanelNav = { destino, hoja, ir, volver, abrirHoja, cerrarHoja, puedeAbrir };
 
   const variosNegocios = negocios.length > 1;
+  /* «Tus negocios» mientras la lista sea toda suya; en cuanto entra un negocio
+     ajeno —la lista completa de una cuenta administradora—, «Negocios». */
+  const tituloNegocios = negocios.some((n) => !n.esPropio) ? "Negocios" : "Tus negocios";
   const extras = useEntradasMenu(negocioId);
   const principal = esPrincipal(destino);
 
@@ -420,7 +426,7 @@ export function PanelShell({
             onOpenChange={(open) => {
               if (!open) cerrarHoja();
             }}
-            titulo="Tus negocios"
+            titulo={tituloNegocios}
           >
             <ListaNegocios
               negocios={negocios}

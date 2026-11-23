@@ -697,6 +697,22 @@ export async function ownerPlaces(userId: string): Promise<OwnedPlace[]> {
     .orderBy(asc(places.name));
 }
 
+/**
+ * Todos los negocios de la app, solo id y nombre, en orden alfabético.
+ *
+ * Lo usa el selector del panel para una cuenta administradora: puede abrir
+ * cualquier negocio y editarlo como si fuera su dueño (`accesoNegocio` ya le da
+ * `esDueno` sobre cualquiera). Devuelve la misma forma que `ownerPlaces` para
+ * que el selector no distinga el origen; sin caché porque la lista cambia cada
+ * vez que se da de alta un negocio y el admin necesita verlo al momento.
+ */
+export async function allPlaceNames(): Promise<OwnedPlace[]> {
+  return db
+    .select({ id: places.id, name: places.name })
+    .from(places)
+    .orderBy(asc(places.name));
+}
+
 export interface PlaceStats {
   saved: number;
   reviews: number;

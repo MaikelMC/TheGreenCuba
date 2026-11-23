@@ -214,7 +214,10 @@ export function BusinessPanel({
   planElegido?: Pack | null;
   /** Los servicios sueltos pulsados en la portada, por el mismo motivo. */
   modulosElegidos?: readonly ClaveModulo[];
-  /** Los negocios que esta cuenta puede abrir, para «Tus negocios». */
+  /**
+   * Los negocios que esta cuenta puede abrir, para el selector. Para una
+   * cuenta administradora es la lista entera de la app.
+   */
   negocios: NegocioPanel[];
   /**
    * Si quien mira es el dueño. Resuelto en el servidor con `accesoNegocio`.

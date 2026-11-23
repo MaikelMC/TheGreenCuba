@@ -7,7 +7,12 @@ import {
 } from "@/components/business/panel-nav";
 import { accesoNegocio } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
-import { getPlaceById, ownerPlaces, placeStats } from "@/lib/db/queries";
+import {
+  allPlaceNames,
+  getPlaceById,
+  ownerPlaces,
+  placeStats,
+} from "@/lib/db/queries";
 import { statsVisitas } from "@/lib/eventos-server";
 import { avisosHoy } from "@/lib/hoy-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
@@ -88,20 +93,49 @@ export default async function BusinessPage({
      tabla —ni en `places`— pero cuenta como suyo para la cuenta autorizada (y
      para cualquiera en desarrollo). Ver `dev-place.ts`. */
   const propios = await ownerPlaces(user.id);
+  /* Una cuenta administradora abre **cualquier** negocio: `accesoNegocio` ya le
+     da `esDueno` sobre todos, así que no hace falta asignarse como dueño —ni
+     quitarle el negocio a quien lo lleva— para revisarlo o corregirlo. La lista
+     completa sale de `places`; los propios van primero para que, sin
+     `?negocio=`, el panel abra en casa y no en el primer negocio ajeno por
+     orden alfabético. */
+  const esAdmin = user.role === "admin";
+  const disponibles = esAdmin ? await allPlaceNames() : propios;
+  const propiosIds = new Set(propios.map((p) => p.id));
+  const ordenados = esAdmin
+    ? [...disponibles].sort(
+        (a, b) => Number(propiosIds.has(b.id)) - Number(propiosIds.has(a.id)),
+      )
+    : disponibles;
   const negocios: NegocioPanel[] = [
-    ...propios.map((p) => ({ id: p.id, nombre: p.name, esPrueba: false })),
+    ...ordenados.map((p) => ({
+      id: p.id,
+      nombre: p.name,
+      esPrueba: false,
+      /* Si el negocio es suyo de verdad. Un admin no lo es de los ajenos y el
+         selector lo dice: «Tu negocio» o «Administración». */
+      esPropio: propiosIds.has(p.id),
+    })),
     /* `ownsDevPlace` y no `canViewDevPlace`: el selector es de **propiedad**, y
        en desarrollo `canViewDevPlace` contesta que sí a cualquiera, que es como
        el negocio de prueba acababa saliéndole en el panel a cuentas ajenas. */
     ...(ownsDevPlace(user.email)
-      ? [{ id: DEV_PLACE_ID, nombre: devPlace().name, esPrueba: true }]
+      ? [
+          {
+            id: DEV_PLACE_ID,
+            nombre: devPlace().name,
+            esPrueba: true,
+            esPropio: true,
+          },
+        ]
       : []),
   ];
 
-  /* Quién manda: el `?negocio=` **solo si es uno de los suyos**. Un id ajeno en
-     la URL no puede abrir la ficha de otro, así que se descarta y se cae al
-     primero. Sin query, el primero es el negocio propio si lo hay —el orden de
-     arriba—, que es el comportamiento de siempre para quien no tiene fixture. */
+  /* Quién manda: el `?negocio=` **solo si está entre los abribles**. Un id ajeno
+     en la URL no puede abrir la ficha de otro —salvo para un admin, que puede
+     con todos—, así que se descarta y se cae al primero. Sin query, el primero
+     es el negocio propio si lo hay —el orden de arriba—, que es el
+     comportamiento de siempre para quien no tiene fixture. */
   const elegido =
     negocios.find((n) => n.id === pedido) ?? negocios[0] ?? null;
   /* La entrada ahora ofrece los dos caminos de creación. El alta de negocio
@@ -174,8 +208,13 @@ export default async function BusinessPage({
      La excepción es `?seccion=planes`: quien elige un plan en la portada
      termina aquí antes de que lo aprueben, y el cobro no depende de la
      publicación —`/api/pagos/qvapay` comprueba propiedad, no `isActive`—. Se
-     enseña solo la sección de planes, sin el resto del panel. */
-  if (!place.isActive) {
+     enseña solo la sección de planes, sin el resto del panel.
+
+     **Administración pasa de largo**: la cuenta admin abre cualquier negocio
+     desde el selector, incluidos los que están sin publicar, justo para
+     revisarlos y corregirlos antes de aprobarlos. Sin esto, el enlace del
+     selector acababa en el perfil del admin sin explicar por qué. */
+  if (!place.isActive && !esAdmin) {
     /* Los planes y el pago son del dueño: un trabajador no tiene nada que hacer
        en un negocio que todavía no está aprobado. */
     if (seccion !== "planes" || !acceso.esDueno) {
