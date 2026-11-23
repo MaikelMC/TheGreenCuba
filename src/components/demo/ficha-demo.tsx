@@ -575,15 +575,20 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
                         const w = e.currentTarget.clientWidth || 1;
                         setMenuPage(Math.round(e.currentTarget.scrollLeft / w));
                       }}
-                      style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as CSSProperties}
+                      style={{ display: "flex", width: "100%", minWidth: 0, maxWidth: "100%", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as CSSProperties}
                     >
                       {paginas.map((pg, pi) => (
-                        <div key={pi} style={{ flex: "0 0 100%", scrollSnapAlign: "start", boxSizing: "border-box" }}>
-                          <div style={{ background: T.card, border: `1px solid ${T.line}`, borderRadius: 16, display: "flex", flexDirection: "column" }}>
+                        /* `minWidth: 0` es lo que hace que la página se quede en el
+                           ancho del móvil: sin él, el mínimo automático de un ítem
+                           flex lo marcan los textos con `nowrap` de cada producto
+                           y la página crece hacia la derecha, dejando el botón de
+                           añadir fuera de la pantalla. */
+                        <div key={pi} style={{ flex: "0 0 100%", width: "100%", maxWidth: "100%", minWidth: 0, scrollSnapAlign: "start", boxSizing: "border-box" }}>
+                          <div style={{ background: T.card, border: `1px solid ${T.line}`, borderRadius: 16, display: "flex", flexDirection: "column", minWidth: 0 }}>
                             {pg.map((p, i) => {
                               const q = qty[p.id] || 0;
                               return (
-                                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderBottom: i === pg.length - 1 ? "none" : `1px solid ${T.line}` }}>
+                                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, padding: "12px 14px", borderBottom: i === pg.length - 1 ? "none" : `1px solid ${T.line}` }}>
                                   <MiniaturaProducto nombre={p.name} image={p.image} width={56} height={56} radius={12} iconSize={26} />
                                   <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
                                     <div style={{ fontSize: 15, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
