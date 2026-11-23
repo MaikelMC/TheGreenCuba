@@ -300,6 +300,7 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
   const [introOpen, setIntroOpen] = useState(false);
   const [showAgot, setShowAgot] = useState(false);
   const [menuPage, setMenuPage] = useState(0);
+  const [foto, setFoto] = useState(0);
   const [moneda, setMoneda] = useState("CUP");
   const [sheet, setSheet] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -373,11 +374,22 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
   return (
     <div style={{ minHeight: "100dvh", background: T.page, color: T.ink, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
       <div style={{ maxWidth: 440, margin: "0 auto", position: "relative", paddingBottom: cuenta > 0 ? 96 : 24 }}>
-        {/* Portada */}
-        <Photo
-          url={data.fotos[0] ?? ""}
-          style={{ position: "relative", height: 210, backgroundColor: "#6B4A2B" } as CSSProperties}
-        />
+        {/* Portada: carrusel de fotos, se pasan con el dedo */}
+        <div
+          role="group"
+          aria-label="Fotos del negocio"
+          onScroll={(e) => {
+            const w = e.currentTarget.clientWidth || 1;
+            setFoto(Math.round(e.currentTarget.scrollLeft / w));
+          }}
+          style={{ display: "flex", width: "100%", minWidth: 0, maxWidth: "100%", height: 210, overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as CSSProperties}
+        >
+          {(data.fotos.length > 0 ? data.fotos : [""]).map((u, i) => (
+            <div key={i} style={{ flex: "0 0 100%", width: "100%", maxWidth: "100%", minWidth: 0, height: 210, scrollSnapAlign: "start", backgroundColor: "#6B4A2B" }}>
+              <Photo url={u} style={{ width: "100%", height: "100%" } as CSSProperties} />
+            </div>
+          ))}
+        </div>
         <div style={{ position: "absolute", top: 14, left: 14 }}>
           <button onClick={() => history.back()} aria-label="Volver" style={s.round("rgba(8,19,13,0.55)")}>
             <Icon d={ICON.back} />
@@ -391,12 +403,14 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
             <Icon d={ICON.dots} fill />
           </button>
         </div>
-        <button
-          onClick={() => setTab("fotos")}
-          style={{ position: "absolute", top: 196, right: 14, height: 32, padding: "0 12px", borderRadius: 999, border: "none", background: "rgba(8,19,13,0.55)", color: "#fff", fontFamily: DISPLAY, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-        >
-          1 / {data.fotos.length} fotos
-        </button>
+        {data.fotos.length > 0 && (
+          <button
+            onClick={() => setTab("fotos")}
+            style={{ position: "absolute", top: 196, right: 14, height: 32, padding: "0 12px", borderRadius: 999, border: "none", background: "rgba(8,19,13,0.55)", color: "#fff", fontFamily: DISPLAY, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          >
+            {Math.min(foto + 1, data.fotos.length)} / {data.fotos.length} fotos
+          </button>
+        )}
 
         {/* Cabecera */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "0 20px", textAlign: "center" }}>
@@ -667,7 +681,7 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
         {/* ===== FOTOS ===== */}
         {tab === "fotos" && (
           <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-            <h2 style={s.h2()}>Fotos · El local</h2>
+            <h2 style={s.h2()}>Fotos</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 4, borderRadius: 16, overflow: "hidden" }}>
               {data.fotos.map((u, i) => (
                 <Photo key={i} url={u} style={{ aspectRatio: "1", backgroundColor: "#5a3f27" } as CSSProperties} />
