@@ -1,1 +1,1 @@
-self.SW_VERSION = "lv-2026-11-23-21-10-28";
+self.SW_VERSION = "lv-2026-11-23-21-42-45";

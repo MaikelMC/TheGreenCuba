@@ -4,6 +4,9 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { places } from "@/lib/db/schema/places";
 import { getPlaceBySlug } from "@/lib/db/queries";
+import { cargarCatalogo } from "@/lib/catalogo-server";
+import { configTasaDe } from "@/lib/tasa-server";
+import { monedasVista, type ConfigTasa } from "@/lib/precios";
 import { estaAgotado } from "@/lib/disponibilidad";
 import { FichaDemo, type FichaDemoData } from "@/components/demo/ficha-demo";
 
@@ -86,6 +89,23 @@ export default async function DemoYoyiPage() {
   const fid =
     extra?.fidelidad && extra.fidelidad.activo ? extra.fidelidad : null;
 
+  /* Monedas y tasa para el cambio de precios, igual que la carta real. El
+     negocio dejó su tasa propia desactivada (`configTasaDe` → null), así que la
+     demo cae en la tasa de referencia del catálogo —un número real, no
+     inventado— para poder enseñar el cambio de moneda. Si el negocio activa su
+     tasa en el panel, manda la suya. */
+  const propia = await configTasaDe(place.id);
+  const tasaReferencia = propia === null;
+  const catalogo = tasaReferencia ? await cargarCatalogo() : null;
+  const tasa: ConfigTasa | null =
+    propia ??
+    (catalogo
+      ? { tasaUsdCup: catalogo.tasaCup, tasaRedondeo: 5, tasaActualizadaEn: null }
+      : null);
+  const monedas = tasa
+    ? monedasVista(extra?.paymentMethods ?? [], tasa)
+    : ["CUP" as const];
+
   const servicios: string[] = [
     "A domicilio",
     "Pedidos por WhatsApp",
@@ -112,6 +132,17 @@ export default async function DemoYoyiPage() {
     pagos,
     tienePlanta,
     servicios,
+    monedas,
+    tasaReferencia,
+    tasa: tasa
+      ? {
+          tasaUsdCup: tasa.tasaUsdCup,
+          tasaRedondeo: tasa.tasaRedondeo,
+          tasaEurCup: tasa.tasaEurCup ?? null,
+          tasaMlcCup: tasa.tasaMlcCup ?? null,
+          transferenciaPct: tasa.transferenciaPct ?? null,
+        }
+      : null,
     fidelidad: fid
       ? {
           nombre: fid.nombre,

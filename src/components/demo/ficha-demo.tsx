@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { convertirPrecio, type MonedaVista } from "@/lib/precios";
 
 /**
  * Ficha demo estilo Facebook, modo oscuro. Diseño fijo (no depende del tema de
@@ -27,6 +28,17 @@ export interface FichaDemoData {
   pagos: string[];
   tienePlanta: boolean;
   servicios: string[];
+  /** Monedas a las que se puede pasar la carta (incluye siempre "CUP"). */
+  monedas: string[];
+  /** La tasa usada no es la del negocio, sino la de referencia del catálogo. */
+  tasaReferencia: boolean;
+  tasa: {
+    tasaUsdCup: number;
+    tasaRedondeo: number;
+    tasaEurCup: number | null;
+    tasaMlcCup: number | null;
+    transferenciaPct: number | null;
+  } | null;
   fidelidad: {
     nombre: string;
     metas: { sellos: number; premio: string }[];
@@ -77,6 +89,7 @@ function Icon({ d, fill = false, size = 20 }: { d: ReactNode; fill?: boolean; si
 
 const ICON = {
   back: <path d="M15 18l-6-6 6-6" />,
+  fwd: <path d="M9 18l6-6-6-6" />,
   share: (
     <>
       <path d="M15 5l6 6-6 6" />
@@ -225,10 +238,40 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
   const [qty, setQty] = useState<Record<string, number>>({});
   const [introOpen, setIntroOpen] = useState(false);
   const [showAgot, setShowAgot] = useState(false);
+  const [menuPage, setMenuPage] = useState(0);
+  const [moneda, setMoneda] = useState("CUP");
   const [sheet, setSheet] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const carouselRef = useRef<HTMLDivElement | null>(null);
 
   const idx = Object.fromEntries(data.productos.map((p, i) => [p.id, i]));
+
+  /* Precio en la moneda elegida, con la tasa del negocio (como la carta real).
+     CUP, o sin tasa, se muestra tal cual; el resto se convierte. */
+  const config = data.tasa ? { ...data.tasa, tasaActualizadaEn: null } : null;
+  const precioFmt = (cup: number) => {
+    if (moneda === "CUP" || !config) return fmt(cup);
+    const conv = convertirPrecio(String(cup), "CUP", moneda as MonedaVista, config);
+    return conv == null ? fmt(cup) : `${conv} ${moneda}`;
+  };
+
+  const goPage = (delta: number) => {
+    const el = carouselRef.current;
+    if (el) el.scrollBy({ left: delta * (el.clientWidth || 1), behavior: "smooth" });
+  };
+  const arrow = (dis: boolean): CSSProperties => ({
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    border: `1px solid ${T.line2}`,
+    background: T.card,
+    color: dis ? T.soft : T.ink,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: dis ? "default" : "pointer",
+    opacity: dis ? 0.4 : 1,
+  });
   const add = (id: string, d: number) =>
     setQty((q) => ({ ...q, [id]: Math.max(0, (q[id] || 0) + d) }));
 
@@ -300,7 +343,7 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "0 20px", textAlign: "center" }}>
           <Photo
             url={data.logoUrl}
-            style={{ width: 112, height: 112, marginTop: -56, borderRadius: "50%", border: `4px solid ${T.page}`, backgroundColor: "#3B2A1E" } as CSSProperties}
+            style={{ width: 112, height: 112, marginTop: -56, borderRadius: "50%", border: `4px solid ${T.page}`, backgroundColor: "#3B2A1E", position: "relative", zIndex: 2, boxShadow: `0 0 0 1px ${T.line2}, 0 12px 28px -10px rgba(0,0,0,0.6)` } as CSSProperties}
           />
           <h1 style={{ margin: "12px 0 0", fontSize: 28, fontWeight: 600, letterSpacing: "-0.4px", fontFamily: DISPLAY }}>{data.name}</h1>
           <div style={{ marginTop: 2, fontSize: 14, color: T.soft }}>Comida a domicilio · {data.city}</div>
@@ -387,7 +430,7 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
                     <div style={{ height: 104, background: tile(i) }} />
                     <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 4 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
-                      <div style={{ fontSize: 13, color: T.soft }}>{fmt(p.precio)}</div>
+                      <div style={{ fontSize: 13, color: T.soft }}>{precioFmt(p.precio)}</div>
                       <button onClick={() => add(p.id, 1)} style={{ marginTop: 4, height: 36, borderRadius: 999, border: `1px solid ${T.green200}`, background: T.green50, color: T.green, fontFamily: DISPLAY, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                         {(qty[p.id] ?? 0) > 0 ? `En tu pedido · ${qty[p.id] ?? 0}` : "Añadir"}
                       </button>
@@ -427,49 +470,107 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
               <h2 style={s.h2()}>Menú</h2>
               <span style={{ fontSize: 12, color: T.soft }}>{data.productos.length} disponibles</span>
             </div>
+            {data.monedas.length > 1 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, color: T.soft }}>Precios en</span>
+                <div style={{ display: "flex", gap: 2, padding: 3, borderRadius: 999, background: T.chipBg, border: `1px solid ${T.line}` }}>
+                  {data.monedas.map((m) => {
+                    const sel = moneda === m;
+                    return (
+                      <button key={m} onClick={() => setMoneda(m)} aria-pressed={sel} style={{ height: 28, padding: "0 12px", borderRadius: 999, border: "none", background: sel ? T.green50 : "transparent", color: sel ? T.green : T.soft, fontFamily: DISPLAY, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                        {m}
+                      </button>
+                    );
+                  })}
+                </div>
+                {data.tasaReferencia && moneda !== "CUP" && (
+                  <span style={{ fontSize: 11, color: T.soft }}>tasa de referencia</span>
+                )}
+              </div>
+            )}
             <div style={{ display: "flex", gap: 6, overflowX: "auto", margin: "0 -16px", padding: "0 16px", scrollbarWidth: "none" }}>
               {["Todas", ...data.categorias].map((c) => {
                 const sel = cat === c;
                 return (
-                  <button key={c} onClick={() => setCat(c)} style={{ flexShrink: 0, height: 40, padding: "0 16px", borderRadius: 999, border: `1px solid ${sel ? T.green200 : T.line2}`, background: sel ? T.green50 : T.card, color: sel ? T.green : T.ink, fontFamily: DISPLAY, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                  <button key={c} onClick={() => { setCat(c); setMenuPage(0); }} style={{ flexShrink: 0, height: 40, padding: "0 16px", borderRadius: 999, border: `1px solid ${sel ? T.green200 : T.line2}`, background: sel ? T.green50 : T.card, color: sel ? T.green : T.ink, fontFamily: DISPLAY, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
                     {c}
                   </button>
                 );
               })}
             </div>
-            <div style={{ background: T.card, border: `1px solid ${T.line}`, borderRadius: 16, display: "flex", flexDirection: "column" }}>
-              {lista.length === 0 && (
-                <div style={{ padding: "18px 14px", fontSize: 14, color: T.soft }}>Hoy no queda nada de esta categoría.</div>
-              )}
-              {lista.map((p, i) => {
-                const q = qty[p.id] || 0;
+            {lista.length === 0 ? (
+              <div style={{ background: T.card, border: `1px solid ${T.line}`, borderRadius: 16, padding: "18px 14px", fontSize: 14, color: T.soft }}>Hoy no queda nada de esta categoría.</div>
+            ) : (
+              (() => {
+                /* Paginación deslizante: 8 productos por página, se cambia de página
+                   deslizando a los lados (scroll-snap horizontal). */
+                const paginas: Array<typeof lista> = [];
+                for (let i = 0; i < lista.length; i += 8) paginas.push(lista.slice(i, i + 8));
                 return (
-                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderBottom: i === lista.length - 1 ? "none" : `1px solid ${T.line}` }}>
-                    <div style={{ width: 56, height: 56, borderRadius: 12, background: tile(idx[p.id] ?? i), flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-                      <div style={{ fontSize: 15, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
-                      <div style={{ fontSize: 13, color: T.soft, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.desc || p.cat}</div>
-                      <div style={{ fontSize: 14, fontWeight: 600 }}>{fmt(p.precio)}</div>
+                  <>
+                    <div
+                      key={cat}
+                      ref={carouselRef}
+                      onScroll={(e) => {
+                        const w = e.currentTarget.clientWidth || 1;
+                        setMenuPage(Math.round(e.currentTarget.scrollLeft / w));
+                      }}
+                      style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" } as CSSProperties}
+                    >
+                      {paginas.map((pg, pi) => (
+                        <div key={pi} style={{ flex: "0 0 100%", scrollSnapAlign: "start", boxSizing: "border-box" }}>
+                          <div style={{ background: T.card, border: `1px solid ${T.line}`, borderRadius: 16, display: "flex", flexDirection: "column" }}>
+                            {pg.map((p, i) => {
+                              const q = qty[p.id] || 0;
+                              return (
+                                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderBottom: i === pg.length - 1 ? "none" : `1px solid ${T.line}` }}>
+                                  <div style={{ width: 56, height: 56, borderRadius: 12, background: tile(idx[p.id] ?? i), flexShrink: 0 }} />
+                                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+                                    <div style={{ fontSize: 15, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
+                                    <div style={{ fontSize: 13, color: T.soft, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.desc || p.cat}</div>
+                                    <div style={{ fontSize: 14, fontWeight: 600 }}>{precioFmt(p.precio)}</div>
+                                  </div>
+                                  {q === 0 ? (
+                                    <button onClick={() => add(p.id, 1)} aria-label={`Añadir ${p.name}`} style={{ width: 44, height: 44, flexShrink: 0, borderRadius: 999, border: "none", background: T.accent, color: T.accentInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                                      <Icon d={ICON.plus} size={20} />
+                                    </button>
+                                  ) : (
+                                    <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, padding: 2, borderRadius: 999, background: T.green50 }}>
+                                      <button onClick={() => add(p.id, -1)} aria-label={`Quitar uno de ${p.name}`} style={{ width: 40, height: 40, borderRadius: 999, border: "none", background: T.card, color: T.ink, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                                        <Icon d={ICON.minus} size={18} />
+                                      </button>
+                                      <span style={{ minWidth: 18, textAlign: "center", fontWeight: 700 }}>{q}</span>
+                                      <button onClick={() => add(p.id, 1)} aria-label={`Añadir otro ${p.name}`} style={{ width: 40, height: 40, borderRadius: 999, border: "none", background: T.accent, color: T.accentInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                                        <Icon d={ICON.plus} size={18} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    {q === 0 ? (
-                      <button onClick={() => add(p.id, 1)} aria-label={`Añadir ${p.name}`} style={{ width: 44, height: 44, flexShrink: 0, borderRadius: 999, border: "none", background: T.accent, color: T.accentInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                        <Icon d={ICON.plus} size={20} />
-                      </button>
-                    ) : (
-                      <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, padding: 2, borderRadius: 999, background: T.green50 }}>
-                        <button onClick={() => add(p.id, -1)} aria-label={`Quitar uno de ${p.name}`} style={{ width: 40, height: 40, borderRadius: 999, border: "none", background: T.card, color: T.ink, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                          <Icon d={ICON.minus} size={18} />
+                    {paginas.length > 1 && (
+                      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 10, paddingTop: 4 }}>
+                        <button onClick={() => goPage(-1)} disabled={menuPage === 0} aria-label="Página anterior" style={arrow(menuPage === 0)}>
+                          <Icon d={ICON.back} size={18} />
                         </button>
-                        <span style={{ minWidth: 18, textAlign: "center", fontWeight: 700 }}>{q}</span>
-                        <button onClick={() => add(p.id, 1)} aria-label={`Añadir otro ${p.name}`} style={{ width: 40, height: 40, borderRadius: 999, border: "none", background: T.accent, color: T.accentInk, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                          <Icon d={ICON.plus} size={18} />
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          {paginas.map((_, i) => (
+                            <span key={i} style={{ width: i === menuPage ? 20 : 7, height: 7, borderRadius: 999, background: i === menuPage ? T.green : T.line2, transition: "width .2s ease" }} />
+                          ))}
+                        </div>
+                        <button onClick={() => goPage(1)} disabled={menuPage === paginas.length - 1} aria-label="Página siguiente" style={arrow(menuPage === paginas.length - 1)}>
+                          <Icon d={ICON.fwd} size={18} />
                         </button>
                       </div>
                     )}
-                  </div>
+                  </>
                 );
-              })}
-            </div>
+              })()
+            )}
 
             {data.agotados.length > 0 && (
               <>
@@ -591,7 +692,7 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
         <div style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: 16, width: "min(100% - 24px, 416px)", zIndex: 6 }}>
           <button onClick={enviarPedido} style={{ width: "100%", height: 56, padding: "0 8px 0 20px", borderRadius: 999, border: "none", background: T.accent, color: T.accentInk, boxShadow: T.halo, fontFamily: DISPLAY, fontSize: 15, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
             <span>Ver pedido · {cuenta === 1 ? "1 producto" : `${cuenta} productos`}</span>
-            <span style={{ height: 40, padding: "0 14px", borderRadius: 999, background: "rgba(5,32,23,0.12)", display: "flex", alignItems: "center" }}>{fmt(total)}</span>
+            <span style={{ height: 40, padding: "0 14px", borderRadius: 999, background: "rgba(5,32,23,0.12)", display: "flex", alignItems: "center" }}>{precioFmt(total)}</span>
           </button>
         </div>
       )}
