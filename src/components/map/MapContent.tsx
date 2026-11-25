@@ -29,6 +29,7 @@ import { motivoMapa } from "@/lib/diagnostico/eventos";
 import {
   crearVigilanteMapa,
   detectarWebgl,
+  enviarDiagnostico,
   type VigilanteMapa,
 } from "@/lib/diagnostico/telemetria";
 import { MapaSinWebgl } from "./MapaSinWebgl";
@@ -217,6 +218,7 @@ export function MapContent({
     let cancelled = false;
     let mapaLocal: maplibregl.Map | null = null;
     let vigilante: VigilanteMapa | null = null;
+    let teselaRegistrada = false;
 
     async function init() {
       if (cancelled || !containerRef.current) return;
@@ -245,7 +247,16 @@ export function MapContent({
          WebGL sí se registra una vez y no se convierte en abandono. */
       map.on("error", (evento) => {
         const motivo = motivoMapa(String(evento.error?.message ?? ""));
-        if (motivo !== "teselas") vigilante?.registrarError(motivo);
+        if (motivo === "teselas") {
+          /* Una tesela caída no invalida la carga entera: se registra una vez
+             como error parcial y el mapa puede seguir hasta `load`. */
+          if (!teselaRegistrada) {
+            teselaRegistrada = true;
+            enviarDiagnostico("mapa_error", { motivo, parcial: true });
+          }
+          return;
+        }
+        vigilante?.registrarError(motivo);
       });
 
       /* Atribución compacta personalizada */

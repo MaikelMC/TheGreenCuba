@@ -86,7 +86,11 @@ function metricas(filas: Fila[], desde: number, hasta: number) {
   const erroresMapa = porTipo("mapa_error");
   const abandonados = porTipo("mapa_abandonado");
   const inicios = porTipo("mapa_inicio");
-  const totalCargas = cargados.length + erroresMapa.length + abandonados.length;
+  const erroresFatales = erroresMapa.filter(
+    (fila) => dato(fila, "parcial") !== true,
+  );
+  const totalCargas =
+    cargados.length + erroresFatales.length + abandonados.length;
   const tasaExito =
     totalCargas > 0
       ? Math.round((cargados.length / totalCargas) * 1000) / 10
