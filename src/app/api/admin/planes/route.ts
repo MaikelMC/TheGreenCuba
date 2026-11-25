@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
+import { eq, sql } from "drizzle-orm";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { catalogoPlanes, CATALOGO_ID } from "@/lib/db/schema";
@@ -27,12 +28,27 @@ import { invalidarCatalogo } from "@/lib/db/queries";
  * `x-admin-key`, igual que el resto de rutas de administración.
  */
 
+/**
+ * La versión del catálogo guardado: su `updated_at` en ISO, o `null` si nunca se
+ * guardó (rige el de fábrica). El editor la manda al guardar, en la cabecera
+ * `x-version`, para no pisar lo que otro administrador guardó mientras tanto.
+ */
+async function versionGuardada(): Promise<string | null> {
+  const [row] = await db
+    .select({ updatedAt: catalogoPlanes.updatedAt })
+    .from(catalogoPlanes)
+    .where(eq(catalogoPlanes.id, CATALOGO_ID))
+    .limit(1);
+  return row?.updatedAt.toISOString() ?? null;
+}
+
 export async function GET(req: NextRequest) {
   if (!(await isAdminRequest(req))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  return NextResponse.json({ catalogo: await cargarCatalogo() });
+  const [catalogo, version] = await Promise.all([cargarCatalogo(), versionGuardada()]);
+  return NextResponse.json({ catalogo, version });
 }
 
 export async function PUT(req: NextRequest) {
@@ -49,13 +65,42 @@ export async function PUT(req: NextRequest) {
 
   const catalogo = normalizarCatalogo(body);
 
-  await db
+  /* El catálogo se guarda entero: sin comprobar versión, el segundo de dos
+     administradores borraba en silencio lo que había guardado el primero. La
+     condición va dentro del upsert (`setWhere`), sin carrera entre leer y
+     escribir. `date_trunc` y `::timestamp` por lo mismo que en
+     `api/admin/suscripciones`: `defaultNow()` guarda microsegundos y drizzle
+     escribe el ISO en UTC. Sin cabecera (otro cliente, `x-admin-key`) no se
+     comprueba, como antes. */
+  const cabecera = req.headers.get("x-version");
+  const esperado = cabecera ? new Date(cabecera) : null;
+  if (esperado && Number.isNaN(esperado.getTime())) {
+    return NextResponse.json({ error: "Versión del catálogo no válida." }, { status: 400 });
+  }
+
+  const escritas = await db
     .insert(catalogoPlanes)
     .values({ id: CATALOGO_ID, datos: catalogo })
     .onConflictDoUpdate({
       target: catalogoPlanes.id,
       set: { datos: catalogo, updatedAt: new Date() },
-    });
+      ...(esperado
+        ? {
+            setWhere: sql`date_trunc('milliseconds', ${catalogoPlanes.updatedAt}) = ${esperado.toISOString()}::timestamp`,
+          }
+        : {}),
+    })
+    .returning({ updatedAt: catalogoPlanes.updatedAt });
+
+  if (escritas.length === 0) {
+    return NextResponse.json(
+      {
+        error:
+          "Otro administrador guardó el catálogo mientras lo editabas. No se guardó nada: recarga la página y repite tus cambios.",
+      },
+      { status: 409 },
+    );
+  }
 
   /* Las dos etiquetas: la del catálogo de planes y la del catálogo de lugares.
      Un negocio lleva suscripción dentro de la ficha cacheada, así que cambiar
@@ -68,5 +113,8 @@ export async function PUT(req: NextRequest) {
   /* Se devuelve el catálogo **vivo**, no el normalizado: el editor tiene que
      ver la misma tasa de mercado que verá el panel, no la manual que acaba de
      guardar como respaldo. */
-  return NextResponse.json({ catalogo: await cargarCatalogo() });
+  return NextResponse.json({
+    catalogo: await cargarCatalogo(),
+    version: escritas[0]!.updatedAt.toISOString(),
+  });
 }

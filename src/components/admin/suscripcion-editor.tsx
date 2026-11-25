@@ -5,8 +5,11 @@ import { toast } from "sonner";
 import { BadgeCheck, Loader2, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FormSection } from "@/components/business/form-section";
+import { Skeleton } from "@/components/ui/loading";
 import { PLAN_ORDER, MODULOS, nombreDe, usdDe, type ClaveModulo, type Plan } from "@/lib/plans";
 import { useCatalogo } from "@/providers/catalogo-provider";
+import { usePlaces } from "@/providers/places-provider";
+import { relojEn } from "@/lib/ficha/horario";
 
 /**
  * El plan de un negocio, para administración.
@@ -31,7 +34,38 @@ interface Suscripcion {
   modulos: { clave: string; desde: string; hasta: string | null }[] | null;
   /** Ya resuelto por el servidor: es el que manda de verdad ahora mismo. */
   planEfectivo: Plan;
+  /** La versión de la fila. Ausente si el negocio aún no tiene ninguna. */
+  updatedAt?: string;
 }
+
+/** Lo que enseña el formulario. Se compara contra la carga para mandar solo lo cambiado. */
+interface Formulario {
+  plan: Plan;
+  estado: "activa" | "cancelada";
+  trial: string;
+  vence: string;
+  descuento: string;
+  modulos: ClaveModulo[];
+}
+
+function aFormulario(row: Suscripcion): Formulario {
+  const ahora = Date.now();
+  return {
+    plan: row.plan,
+    estado: row.estado,
+    trial: paraInput(row.trialHasta),
+    vence: paraInput(row.venceEn),
+    descuento: row.descuentoPct === null ? "" : String(row.descuentoPct),
+    /* Solo los vigentes: un módulo vencido sigue en el `jsonb`, y marcarlo
+       aquí lo reactivaba al guardar cualquier otro campo. */
+    modulos: (row.modulos ?? [])
+      .filter((m) => !m.hasta || new Date(m.hasta).getTime() > ahora)
+      .map((m) => m.clave as ClaveModulo),
+  };
+}
+
+const mismosModulos = (a: ClaveModulo[], b: ClaveModulo[]) =>
+  [...a].sort().join() === [...b].sort().join();
 
 /* Las mismas clases del resto de formularios del proyecto, copiadas como en los
    demás sitios: dos usos no justifican un archivo compartido. */
@@ -39,9 +73,13 @@ const INPUT =
   "h-11 w-full rounded-xl border border-ink/10 bg-white px-4 text-body text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
 
-/** `2026-09-14T00:00:00.000Z` → `2026-09-14`, que es lo que come un `<input type="date">`. */
+/**
+ * Un instante → el día `YYYY-MM-DD` **en Cuba**, que es lo que come un
+ * `<input type="date">`. El servidor guarda el último milisegundo de ese día en
+ * `America/Havana`; cortar el ISO en UTC enseñaba el día siguiente.
+ */
 function paraInput(iso: string | null): string {
-  return iso ? iso.slice(0, 10) : "";
+  return iso ? relojEn(new Date(iso), "America/Havana").fecha : "";
 }
 
 function DescuentoPreview({ plan, descuento }: { plan: Plan; descuento: string }) {
@@ -68,33 +106,68 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
   const [descuento, setDescuento] = useState("");
   const [modulos, setModulos] = useState<ClaveModulo[]>([]);
   const [saving, setSaving] = useState(false);
+  const [fallo, setFallo] = useState(false);
+  const [inicial, setInicial] = useState<Formulario | null>(null);
+  const { refreshPlaces } = usePlaces();
+
+  /* Pone la fila en el formulario y la toma como punto de partida: lo que se
+     guarde después se compara contra esto. */
+  const aplicar = useCallback((row: Suscripcion) => {
+    const f = aFormulario(row);
+    setData(row);
+    setInicial(f);
+    setPlan(f.plan);
+    setEstado(f.estado);
+    setTrial(f.trial);
+    setVence(f.vence);
+    setDescuento(f.descuento);
+    setModulos(f.modulos);
+  }, []);
 
   useEffect(() => {
     let alive = true;
     fetch(`/api/admin/suscripciones?negocioId=${encodeURIComponent(placeId)}`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error())))
       .then((row: Suscripcion) => {
-        if (!alive) return;
-        setData(row);
-        setPlan(row.plan);
-        setEstado(row.estado);
-        setTrial(paraInput(row.trialHasta));
-        setVence(paraInput(row.venceEn));
-        setDescuento(row.descuentoPct === null ? "" : String(row.descuentoPct));
-        setModulos((row.modulos ?? []).map((m) => m.clave as ClaveModulo));
+        if (alive) aplicar(row);
       })
-      /* Sin respuesta se deja el formulario con los valores por defecto
-         —gratis— en vez de en blanco: guardar entonces crea la fila, que es
-         justo lo que hace falta para un negocio que aún no tiene ninguna. */
+      /* Sin respuesta **no** se deja guardar: el formulario está en sus valores
+         por defecto —gratis, sin fechas, sin módulos— y guardarlo bajaba a
+         gratis a un negocio que pagaba. Un negocio sin fila no llega aquí: el
+         GET le devuelve el estado por defecto con 200. */
       .catch(() => {
-        if (alive) setData((prev) => prev ?? null);
+        if (alive) setFallo(true);
       });
     return () => {
       alive = false;
     };
-  }, [placeId]);
+  }, [placeId, aplicar]);
 
   const save = useCallback(async () => {
+    if (!inicial) return;
+
+    /* Solo lo que cambió. Mandar el formulario entero reescribía las fechas
+       aunque nadie las tocara —y una fecha que puso un pago, con su hora, se
+       recortaba al día—. Lo que no viaja, el servidor no lo toca. */
+    const cambios: Record<string, unknown> = {};
+    if (plan !== inicial.plan) cambios.plan = plan;
+    if (estado !== inicial.estado) cambios.estado = estado;
+    /* Cadena vacía = «quítala». El servidor la lee como nulo, que es distinto
+       de no mandar el campo (eso sería «no lo toques»). */
+    if (trial !== inicial.trial) cambios.trialHasta = trial;
+    if (vence !== inicial.vence) cambios.venceEn = vence;
+    if (descuento !== inicial.descuento) {
+      cambios.descuentoPct = descuento === "" ? null : Number(descuento);
+    }
+    /* La lista entera, no un parche: el servidor conserva los vigentes tal
+       cual y pone la fecha de hoy a los nuevos. */
+    if (!mismosModulos(modulos, inicial.modulos)) cambios.modulos = modulos;
+
+    if (Object.keys(cambios).length === 0) {
+      toast("No hay cambios que guardar.");
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch("/api/admin/suscripciones", {
@@ -102,16 +175,10 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           negocioId: placeId,
-          plan,
-          estado,
-          /* Cadena vacía = «quítala». El servidor la lee como nulo, que es
-             distinto de no mandar el campo (eso sería «no lo toques»). */
-          trialHasta: trial,
-          venceEn: vence,
-          descuentoPct: descuento === "" ? null : Number(descuento),
-          /* La lista entera, no un parche: el servidor conserva el `desde` de
-             los que ya estaban y pone la fecha de hoy a los nuevos. */
-          modulos,
+          /* La versión que se vio al cargar: si la fila cambió desde entonces,
+             el servidor contesta 409 en vez de pisar el cambio. */
+          ...(data?.updatedAt ? { esperado: data.updatedAt } : {}),
+          ...cambios,
         }),
       });
 
@@ -122,18 +189,31 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
       }
 
       const row = (await res.json()) as Suscripcion;
-      setData(row);
+      aplicar(row);
       toast.success(`Plan guardado: ${nombreDe(row.planEfectivo, cat)}`);
+      /* La lista de negocios enseña el plan: que lo vea sin recargar. */
+      void refreshPlaces();
     } catch {
       toast.error("No hubo respuesta del servidor. No se cambió nada.");
     } finally {
       setSaving(false);
     }
-  }, [placeId, plan, estado, trial, vence, descuento, modulos]);
+  }, [placeId, inicial, data, plan, estado, trial, vence, descuento, modulos, aplicar, cat, refreshPlaces]);
 
   /* Mientras la prueba sigue viva, es lo que el negocio tiene de verdad: el
      plan contratado no entra hasta que vence. Se calcula con las fechas que ya
      trae esta pantalla, sin otra consulta. */
+  /* Hay cambios sin guardar: lo lee la página antes de navegar fuera. */
+  const sinGuardar = Boolean(
+    inicial &&
+      (plan !== inicial.plan ||
+        estado !== inicial.estado ||
+        trial !== inicial.trial ||
+        vence !== inicial.vence ||
+        descuento !== inicial.descuento ||
+        !mismosModulos(modulos, inicial.modulos)),
+  );
+
   const enPrueba = Boolean(
     data &&
       data.estado === "activa" &&
@@ -141,11 +221,36 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
       new Date(data.trialHasta).getTime() > Date.now(),
   );
 
+  /* Hasta tener la fila no se pinta el formulario: con sus valores por defecto
+     —Gratis, sin fechas— parecía el estado real del negocio. Esqueleto con la
+     misma forma (cuatro campos), sin salto al llegar los datos. */
+  if (!data) {
+    return (
+      <FormSection title="Plan y vigencia" icon={<BadgeCheck size={18} strokeWidth={1.8} />}>
+        {fallo ? (
+          <p role="alert" className="text-meta font-semibold text-destructive-ink">
+            No se pudo cargar el plan actual. Recarga la página antes de guardar.
+          </p>
+        ) : (
+          <div
+            className="grid grid-cols-1 gap-gap-md lg:grid-cols-2"
+            aria-busy="true"
+            aria-label="Cargando el plan"
+          >
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-11 rounded-xl" />
+            ))}
+          </div>
+        )}
+      </FormSection>
+    );
+  }
+
   return (
     <FormSection title="Plan y vigencia" icon={<BadgeCheck size={18} strokeWidth={1.8} />}>
+      {sinGuardar && <span data-sin-guardar="plan" hidden />}
       <p className="text-meta text-ink-soft/75">
-        Aquí se apunta el plan y sus fechas, y el plan entra solo. La prueba de
-        Pro manda sobre el plan contratado mientras siga viva.
+        Mientras dure la prueba de Pro, manda sobre el plan contratado.
       </p>
 
       {data && (
@@ -219,7 +324,7 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
             className={cn(INPUT, "cursor-text")}
           />
           <p className="text-meta text-ink-soft/75">
-            Vacío = sin vencimiento. Al pasar la fecha, el negocio cae a gratis.
+            Vacío = sin vencimiento. Vale hasta el final de ese día (hora de Cuba).
           </p>
         </div>
 
@@ -251,7 +356,7 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
           {(Object.keys(cat.modulos) as ClaveModulo[]).map((clave) => (
             <label
               key={clave}
-              className="flex cursor-pointer items-start gap-gap-xs text-small text-ink"
+              className="flex min-h-11 cursor-pointer items-start gap-gap-xs text-small text-ink"
             >
               <input
                 type="checkbox"

@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { packsMedida, pagos, suscripciones } from "@/lib/db/schema";
 import { crearSuscripcion } from "@/lib/plans-server";
+import { invalidarCatalogo } from "@/lib/db/queries";
 import { calcularVencimiento } from "@/lib/pack-medida";
 import { generateId } from "@/lib/utils";
 import {
@@ -27,13 +28,13 @@ type FilaPago = typeof pagos.$inferSelect;
  * (`DIAS_PRIMER_PAGO`). Las renovaciones —mismo pack aún vigente, módulo ya
  * contratado o pago tras vencer— vuelven al mes.
  */
-export async function aplicarDerecho(pago: FilaPago): Promise<void> {
+async function aplicarEnBase(pago: FilaPago): Promise<void> {
   const sigueCobrable = sql`exists (
     select 1 from ${pagos}
     where ${pagos.id} = ${pago.id} and ${pagos.estado} <> 'pagado'
   )`;
 
-  /* Cada caso va en una transacción (antes `db.batch` de Neon; `node-postgres`
+  /* Cada caso va en una transacción (`node-postgres`
      no tiene lotes): las sentencias se aplican todas o ninguna. Por eso se
      construyen con `tx` y no con `db`, que iría por otra conexión. */
   type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -162,4 +163,11 @@ export async function aplicarDerecho(pago: FilaPago): Promise<void> {
       .where(and(eq(suscripciones.negocioId, pago.negocioId), sigueCobrable));
     await marcaPagado(tx);
   });
+}
+
+export async function aplicarDerecho(pago: FilaPago): Promise<void> {
+  await aplicarEnBase(pago);
+  /* La ficha cacheada lleva la suscripción dentro (prueba, sello): sin esto el
+     mapa y la lista enseñan el plan de antes del pago hasta 5 minutos. */
+  invalidarCatalogo();
 }

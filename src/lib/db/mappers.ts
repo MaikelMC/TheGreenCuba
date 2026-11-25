@@ -12,6 +12,7 @@ import {
   CATALOGO,
   enTrial,
   funcionesDe,
+  packEfectivo,
   muestraSelloVerificado,
   type Catalogo,
   type Suscripcion,
@@ -23,7 +24,7 @@ import { conIds } from "@/lib/catalogo";
 import { whatsappDePedido } from "@/lib/contact-links";
 
 /**
- * Traducción entre las filas de Neon y los tipos que usa la app.
+ * Traducción entre las filas de la base y los tipos que usa la app.
  *
  * Los dos vocabularios no coinciden y no deberían: la base guarda `category_id`
  * (una clave foránea) y el cliente maneja la etiqueta «Restaurante», la base
@@ -234,6 +235,7 @@ export function toUserPlace(
        alta: todo negocio nuevo tiene 30 días de Pro, y durante ellos el panel
        enseña «Prueba gratis» en vez de «Plan de pago». */
     enPrueba: enTrial(row.suscripcion ?? null),
+    packVigente: packEfectivo(row.suscripcion ?? null, new Date(), cat),
     isActive: row.isActive,
     reviewStatus: row.reviewStatus,
     /* El sello son **dos cosas a la vez**: que la administración haya verificado

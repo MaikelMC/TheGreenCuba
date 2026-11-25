@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePlaces } from "@/providers/places-provider";
+import { useCatalogo } from "@/providers/catalogo-provider";
+import { nombreDe } from "@/lib/plans";
 import { placeIcon } from "@/lib/places";
 import { CategoryIcon } from "@/components/admin/category-icon";
 import {
@@ -35,7 +37,7 @@ import { LoadingState } from "@/components/ui/loading";
 
 /* El estado no se distingue por color de marca —el rótulo ya lo dice— pero
    "Cerrado" sí conserva el rojo semántico: es un aviso, no decoración. Antes
-   era lv-amber y lv-teal, que no existen en el sistema. */
+   era lv-amber y lv-teal; el ámbar se reserva para lo que pide acción. */
 function statusInfo(status: PlaceStatus): { label: string; cls: string } {
   switch (status) {
     case "closed":
@@ -95,6 +97,7 @@ const ICON_BTN =
 export function BusinessList() {
   const { places, categories, hydrated, removePlace, updatePlace } =
     usePlaces();
+  const cat = useCatalogo();
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -265,7 +268,7 @@ export function BusinessList() {
             className={cn(
               "w-full h-[42px] pl-4 pr-10 rounded-xl border bg-white font-lv-display text-small text-ink outline-none transition duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer appearance-none",
               tipoFilter === "sin_tipo"
-                ? "border-amber-300 text-amber-700"
+                ? "border-lv-amber/60 text-ink"
                 : "border-ink/10",
             )}
             aria-label="Filtrar por tipo de negocio"
@@ -348,7 +351,7 @@ export function BusinessList() {
                           "min-w-0 max-w-full truncate h-6 rounded-full border px-[8px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.1em] outline-none cursor-pointer transition-colors disabled:opacity-50 appearance-none",
                           p.tipoNegocio
                             ? "border-sand-deep bg-sand-deep text-ink-soft/70 hover:border-ink/20"
-                            : "border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-400",
+                            : "border-lv-amber/40 bg-lv-amber/10 text-ink hover:border-lv-amber",
                         )}
                       >
                         <option value="" disabled>
@@ -367,14 +370,23 @@ export function BusinessList() {
                           El plan sigue a la ficha después de aprobarla: si
                           solo se viera en solicitudes, aprobar parecería
                           borrarlo. */}
+                      {/* El plan de verdad sale de la suscripción
+                          (`packVigente`). `p.plan` es solo lo que eligió el
+                          dueño en el alta: se enseña como «pidió» cuando aún
+                          está en gratis, para no perder a quien hay que
+                          llamar. */}
                       {p.enPrueba ? (
                         <span className="inline-flex items-center gap-[4px] rounded-full border border-verde-200 bg-verde-50 px-[7px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] text-verde-700">
                           {PLAN_LABEL.trial}
                         </span>
+                      ) : p.packVigente && p.packVigente !== "gratis" ? (
+                        <span className="inline-flex items-center gap-[4px] rounded-full border border-verde-200 bg-verde-50 px-[7px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] text-verde-700">
+                          {nombreDe(p.packVigente, cat)}
+                        </span>
                       ) : (
-                        p.plan && (
-                          <span className="inline-flex items-center gap-[4px] rounded-full border border-verde-200 bg-verde-50 px-[7px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] text-verde-700">
-                            {PLAN_LABEL[p.plan]}
+                        p.plan === "paid" && (
+                          <span className="inline-flex items-center gap-[4px] rounded-full border border-ink/10 bg-sand px-[7px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-soft/75">
+                            Pidió plan de pago
                           </span>
                         )
                       )}

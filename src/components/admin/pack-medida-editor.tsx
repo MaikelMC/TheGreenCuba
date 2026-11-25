@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Package, Save, Send } from "lucide-react";
+import { Loader2, Package, Save, Send, Undo2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FormSection } from "@/components/business/form-section";
 import { MODULOS, PACKS, PACKS_ORDER, type ClaveModulo, type Pack } from "@/lib/plans";
@@ -36,6 +36,12 @@ const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
 const AREA =
   "w-full rounded-xl border border-ink/10 bg-white px-4 py-3 text-small text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 
+const BOTON_SECUNDARIO =
+  "inline-flex h-11 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-lg font-lv-display text-small font-semibold text-ink transition duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700 disabled:cursor-not-allowed disabled:opacity-60";
+/* Mismo contorno que «Quitar dueño» en `vinculo-editor.tsx`. */
+const BOTON_PELIGRO =
+  "inline-flex h-11 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-lg font-lv-display text-small font-semibold text-ink transition duration-500 ease-outquint hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60";
+
 /**
  * El editor de pack a medida para la página de administración de un negocio.
  *
@@ -54,27 +60,31 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
   const [oferta2x1, setOferta2x1] = useState(false);
   const [notaCliente, setNotaCliente] = useState("");
   const [notaInterna, setNotaInterna] = useState("");
-  const [saving, setSaving] = useState<"borrador" | "enviado" | null>(null);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [fallo, setFallo] = useState(false);
 
   const cargar = useCallback(() => {
-    fetch(`/api/admin/packs-medida?placeId=${placeId}`)
-      .then((r) => r.json())
+    fetch(`/api/admin/packs-medida?placeId=${encodeURIComponent(placeId)}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error())))
       .then((d: { packs?: PackAdmin[] }) => {
         /* Mostrar el primero en tramitación. */
         const activo =
           d.packs?.find((p) =>
             ["solicitado", "borrador", "enviado"].includes(p.estado),
           ) ?? null;
+        setFallo(false);
         setPack(activo);
-        if (activo) {
-          setServicios(activo.servicios);
-          setPrecioTexto(activo.precioUsd != null ? String(activo.precioUsd) : "");
-          setOferta2x1(activo.oferta2x1);
-          setNotaCliente(activo.notaCliente ?? "");
-          setNotaInterna(activo.notaInterna ?? "");
-        }
+        /* Con o sin pack: tras cancelar o rechazar, el formulario vuelve vacío
+           para crear uno nuevo, no con los datos del que se cerró. */
+        setServicios(activo?.servicios ?? []);
+        setPrecioTexto(activo?.precioUsd != null ? String(activo.precioUsd) : "");
+        setOferta2x1(activo?.oferta2x1 ?? false);
+        setNotaCliente(activo?.notaCliente ?? "");
+        setNotaInterna(activo?.notaInterna ?? "");
       })
-      .catch(() => setPack(null));
+      /* Un fallo de carga **no** se enseña como «no hay pack»: invitaba a crear
+         otro sobre uno que sí existía. */
+      .catch(() => setFallo(true));
   }, [placeId]);
 
   useEffect(() => { cargar(); }, [cargar]);
@@ -89,81 +99,114 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
     );
   }
 
-  async function guardar(nuevoEstado: "borrador" | "enviado") {
+  /** Un `PATCH`/`POST` y su aviso. `clave` marca qué botón gira. */
+  async function enviar(
+    clave: string,
+    body: Record<string, unknown>,
+    exito: string,
+  ): Promise<void> {
     if (saving) return;
+    setSaving(clave);
+    try {
+      const res = pack
+        ? await fetch(`/api/admin/packs-medida/${pack.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          })
+        : await fetch("/api/admin/packs-medida", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ negocioId: placeId, ...body }),
+          });
+
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) {
+        toast.error(data?.error ?? "No se pudo guardar. No se cambió nada.");
+        return;
+      }
+      toast.success(exito);
+      cargar();
+    } catch {
+      toast.error("No hubo respuesta del servidor. No se cambió nada.");
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  function guardar(nuevoEstado: "borrador" | "enviado") {
     if (!precioValido) {
       toast.error("El precio no es válido.");
       return;
     }
-    setSaving(nuevoEstado);
-    try {
-      let res: Response;
-      const body = {
+    void enviar(
+      nuevoEstado,
+      {
         servicios,
         precioUsd: precioFinal,
         oferta2x1,
         notaCliente: notaCliente.trim() || null,
         notaInterna: notaInterna.trim() || null,
         estado: nuevoEstado,
-      };
+      },
+      nuevoEstado === "enviado"
+        ? "Pack enviado al dueño. Ya puede pagarlo."
+        : "Borrador guardado.",
+    );
+  }
 
-      if (pack) {
-        /* Pack existente: PATCH. */
-        res = await fetch(`/api/admin/packs-medida/${pack.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-      } else {
-        /* Sin pack pendiente: crear borrador. */
-        res = await fetch("/api/admin/packs-medida", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ negocioId: placeId, ...body }),
-        });
-      }
+  /** Cerrar el pack (cancelar o rechazar). Pide confirmación: no se reabre. */
+  function cerrar(estado: "cancelado" | "rechazado", pregunta: string, exito: string) {
+    if (!window.confirm(pregunta)) return;
+    void enviar(estado, { estado }, exito);
+  }
 
-      const data = (await res.json().catch(() => null)) as {
-        pack?: PackAdmin;
-        error?: string;
-      } | null;
-
-      if (!res.ok) {
-        toast.error(data?.error ?? "No se pudo guardar.");
-        return;
-      }
-
-      toast.success(
-        nuevoEstado === "enviado"
-          ? "Pack enviado al dueño. Ya puede pagarlo."
-          : "Borrador guardado.",
-      );
-      cargar();
-    } catch {
-      toast.error("No hubo respuesta del servidor.");
-    } finally {
-      setSaving(null);
-    }
+  if (fallo) {
+    return (
+      <FormSection title="Pack a medida" icon={<Package size={18} strokeWidth={1.8} />}>
+        <p role="alert" className="text-meta font-semibold text-destructive-ink">
+          No se pudo cargar el pack. Recarga la página antes de crear o editar uno.
+        </p>
+      </FormSection>
+    );
   }
 
   if (pack === undefined) {
     return (
       <div className="flex justify-center py-8">
-        <Loader2 size={20} className="animate-spin text-ink-soft/40" />
+        <Loader2
+          size={20}
+          className="animate-spin text-ink-soft/40"
+          aria-label="Cargando el pack a medida"
+        />
       </div>
     );
   }
 
   const soloLectura = pack?.estado === "enviado";
 
+  /* Hay cambios sin guardar si el formulario difiere del pack cargado (o, sin
+     pack, si ya se escribió algo). Lo lee la página para avisar antes de salir. */
+  const sinGuardar =
+    JSON.stringify([servicios, precioTexto, oferta2x1, notaCliente, notaInterna]) !==
+    JSON.stringify([
+      pack?.servicios ?? [],
+      pack?.precioUsd != null ? String(pack.precioUsd) : "",
+      pack?.oferta2x1 ?? false,
+      pack?.notaCliente ?? "",
+      pack?.notaInterna ?? "",
+    ]);
+
   return (
     <FormSection title="Pack a medida" icon={<Package size={18} strokeWidth={1.8} />}>
+      {/* Marca que lee la página de edición antes de navegar fuera. */}
+      {sinGuardar && <span data-sin-guardar="pack" hidden />}
       {pack && (
         <p className="text-meta text-ink-soft/75">
           Estado:{" "}
           <span className="font-semibold text-ink capitalize">{pack.estado}</span>
           {pack.estado === "enviado" && (
-            <> · Enviado al dueño — puede pagarlo desde su panel.</>
+            <> · Enviado al dueño: puede pagarlo desde su panel.</>
           )}
         </p>
       )}
@@ -176,9 +219,9 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
 
       {/* Servicios solicitados por el dueño (readonly). */}
       {pack && pack.serviciosSolicitados.length > 0 && (
-        <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
-          <p className="text-meta font-semibold text-amber-700">El dueño pidió:</p>
-          <p className="mt-[2px] text-small text-amber-800">
+        <div className="rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-4 py-3">
+          <p className="text-meta font-semibold text-ink">El dueño pidió:</p>
+          <p className="mt-[2px] text-small text-ink">
             {pack.serviciosSolicitados.join(" · ")}
           </p>
         </div>
@@ -188,7 +231,7 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
         <span className={LABEL}>Módulos incluidos</span>
         <div className="grid grid-cols-1 gap-gap-xs sm:grid-cols-2">
           {SERVICIOS_MODULOS.map((clave) => (
-            <label key={clave} className={cn("flex cursor-pointer items-center gap-gap-xs text-small text-ink", soloLectura && "cursor-default opacity-60")}>
+            <label key={clave} className={cn("flex min-h-11 cursor-pointer items-center gap-gap-xs text-small text-ink", soloLectura && "cursor-default opacity-60")}>
               <input
                 type="checkbox"
                 checked={servicios.includes(clave)}
@@ -206,7 +249,7 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
         <span className={LABEL}>Packs estándar</span>
         <div className="grid grid-cols-1 gap-gap-xs sm:grid-cols-2">
           {SERVICIOS_PACKS.map((clave) => (
-            <label key={clave} className={cn("flex cursor-pointer items-center gap-gap-xs text-small text-ink", soloLectura && "cursor-default opacity-60")}>
+            <label key={clave} className={cn("flex min-h-11 cursor-pointer items-center gap-gap-xs text-small text-ink", soloLectura && "cursor-default opacity-60")}>
               <input
                 type="checkbox"
                 checked={servicios.includes(clave)}
@@ -239,7 +282,7 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
         </div>
 
         <div className="flex items-end">
-          <label className={cn("flex cursor-pointer items-center gap-gap-xs text-small text-ink", soloLectura && "cursor-default opacity-60")}>
+          <label className={cn("flex min-h-11 cursor-pointer items-center gap-gap-xs text-small text-ink", soloLectura && "cursor-default opacity-60")}>
             <input
               type="checkbox"
               checked={oferta2x1}
@@ -272,7 +315,7 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
           rows={2}
           value={notaInterna}
           onChange={(e) => setNotaInterna(e.target.value)}
-          placeholder="Solo para administración — no la ve el dueño."
+          placeholder="Solo para administración. El dueño no la ve."
           className={AREA}
         />
       </div>
@@ -296,7 +339,8 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
           <button
             type="button"
             onClick={() => void guardar("enviado")}
-            disabled={saving !== null || !precioFinal}
+            /* Sin servicios el dueño pagaría un pack que no da nada. */
+            disabled={saving !== null || !precioFinal || servicios.length === 0}
             className="inline-flex h-11 items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving === "enviado" ? (
@@ -305,6 +349,103 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
               <Send size={15} strokeWidth={1.8} />
             )}
             Enviar al dueño
+          </button>
+
+          {pack && (
+            <button
+              type="button"
+              onClick={() =>
+                pack.estado === "solicitado"
+                  ? cerrar(
+                      "rechazado",
+                      "¿Rechazar la solicitud del dueño? No se puede deshacer; podrás crear un pack nuevo.",
+                      "Solicitud rechazada.",
+                    )
+                  : cerrar(
+                      "cancelado",
+                      "¿Descartar este borrador? No se puede deshacer.",
+                      "Borrador descartado.",
+                    )
+              }
+              disabled={saving !== null}
+              className={BOTON_PELIGRO}
+            >
+              {saving === "rechazado" || saving === "cancelado" ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <XCircle size={15} strokeWidth={1.8} />
+              )}
+              {pack.estado === "solicitado" ? "Rechazar solicitud" : "Descartar borrador"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Enviado: el dueño puede estar pagándolo, así que los datos no se
+          tocan. Lo que sí se puede: devolverlo a borrador para corregirlo,
+          cancelarlo, o apuntar la nota interna (que el dueño no ve). */}
+      {soloLectura && pack && (
+        <div className="flex flex-wrap gap-gap-sm">
+          <button
+            type="button"
+            onClick={() =>
+              void enviar(
+                "nota",
+                { notaInterna: notaInterna.trim() },
+                "Nota interna guardada.",
+              )
+            }
+            disabled={saving !== null || notaInterna === (pack.notaInterna ?? "")}
+            className={BOTON_SECUNDARIO}
+          >
+            {saving === "nota" ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <Save size={15} strokeWidth={1.8} />
+            )}
+            Guardar nota interna
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                window.confirm(
+                  "¿Devolver a borrador? Se abre una copia para corregirla y el dueño deja de poder pagar este. Si ya había abierto el pago y lo completa, se activa lo que se le envió, no la corrección.",
+                )
+              ) {
+                void enviar("borrador", { estado: "borrador" }, "Pack devuelto a borrador.");
+              }
+            }}
+            disabled={saving !== null}
+            className={BOTON_SECUNDARIO}
+          >
+            {saving === "borrador" ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <Undo2 size={15} strokeWidth={1.8} />
+            )}
+            Devolver a borrador
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              cerrar(
+                "cancelado",
+                "¿Cancelar el pack enviado? No se puede deshacer. Si el dueño ya había abierto el pago y lo completa, el pack se activa igual: es dinero cobrado.",
+                "Pack cancelado.",
+              )
+            }
+            disabled={saving !== null}
+            className={BOTON_PELIGRO}
+          >
+            {saving === "cancelado" ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <XCircle size={15} strokeWidth={1.8} />
+            )}
+            Cancelar pack
           </button>
         </div>
       )}

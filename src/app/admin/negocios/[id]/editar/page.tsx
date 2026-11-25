@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { MapPin, ArrowLeft, Upload } from "lucide-react";
@@ -11,10 +12,27 @@ import { StateView } from "@/components/ui/state-view";
 import { LoadingState } from "@/components/ui/loading";
 import { usePlaces } from "@/providers/places-provider";
 
+/* Los editores de abajo (plan, pack, dueño) guardan aparte y dejan una marca
+   `data-sin-guardar` mientras tienen cambios pendientes. Se mira el DOM y no un
+   estado compartido: son tres componentes independientes y así no hace falta
+   cablearlos entre sí. */
+const haySinGuardar = () =>
+  typeof document !== "undefined" &&
+  document.querySelector("[data-sin-guardar]") !== null;
+
 export default function EditarNegocioPage() {
   const params = useParams();
   const router = useRouter();
   const { places, hydrated } = usePlaces();
+
+  /* Recargar o cerrar la pestaña con cambios pendientes: el aviso nativo. */
+  useEffect(() => {
+    const avisar = (e: BeforeUnloadEvent) => {
+      if (haySinGuardar()) e.preventDefault();
+    };
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, []);
 
   const id = typeof params.id === "string" ? params.id : "";
 
@@ -51,7 +69,19 @@ export default function EditarNegocioPage() {
       <BusinessForm
         key={place.id}
         initial={place}
-        onDone={() => router.push("/admin/negocios")}
+        /* Guardar la ficha volvía a la lista y se llevaba por delante lo que
+           hubiera sin guardar en el plan, el pack o el dueño. */
+        onDone={() => {
+          if (
+            haySinGuardar() &&
+            !window.confirm(
+              "La ficha se guardó, pero hay cambios sin guardar en el plan, el pack o el dueño. ¿Volver a la lista y perderlos?",
+            )
+          ) {
+            return;
+          }
+          router.push("/admin/negocios");
+        }}
       />
       {/* El plan va aparte del formulario de la ficha y no dentro: se guarda
           contra otra tabla y con otra ruta, así que meterlo en el `save` de la

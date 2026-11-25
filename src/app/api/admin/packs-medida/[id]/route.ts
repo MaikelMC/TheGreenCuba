@@ -7,6 +7,7 @@ import { packsMedida, places } from "@/lib/db/schema";
 import { funcionesDeServicios, precioSugeridoPack } from "@/lib/pack-medida";
 import { MODULOS, PACKS } from "@/lib/plans";
 import type { PackMedidaEstado } from "@/lib/db/schema/packs_medida";
+import { generateId } from "@/lib/utils";
 
 const SERVICIOS_VALIDOS = new Set([
   ...Object.keys(MODULOS),
@@ -25,7 +26,7 @@ const ESTADOS_ADMIN = new Set<string>(["borrador", "enviado", "cancelado", "rech
  * - Cambiar `servicios` recalcula `funciones` y `precioSugeridoUsd`.
  * - Pasar a `enviado` fija `enviadoEn` si aún no está.
  * - No se puede pasar a `pagado` ni `vencido` desde aquí; eso lo hace el webhook.
- * - Un pack en `pagado`, `vencido` o `cancelado` no se puede editar (409).
+ * - Un pack en `pagado`, `vencido`, `cancelado` o `rechazado` no se puede editar (409).
  */
 export async function PATCH(
   req: NextRequest,
@@ -52,12 +53,36 @@ export async function PATCH(
 
   if (!pack) return NextResponse.json({ error: "Pack no encontrado." }, { status: 404 });
 
-  /* Los finalizados no se editan. */
-  if (["pagado", "vencido"].includes(pack.estado)) {
+  /* Los finalizados no se editan. Cancelado y rechazado también: reabrir uno
+     chocaría con el índice de «uno en tramitación por negocio» si ya hay otro,
+     y el camino limpio es crear un pack nuevo. */
+  if (["pagado", "vencido", "cancelado", "rechazado"].includes(pack.estado)) {
     return NextResponse.json(
-      { error: "Un pack pagado o vencido no se puede editar." },
+      { error: "Este pack ya está cerrado y no se puede editar. Crea uno nuevo." },
       { status: 409 },
     );
+  }
+
+  /* Un pack enviado está **congelado**: el dueño puede tener una factura de
+     QvaPay abierta con ese precio, y el webhook activa las funciones que tenga
+     la fila al cobrar. Si se editara, pagaría un precio y recibiría otra cosa.
+     Solo se admite apuntar la nota interna (no afecta a nada de lo cobrado),
+     cancelarlo, o devolverlo a borrador, que en realidad es cancelarlo y
+     abrir una copia (ver abajo). */
+  if (pack.estado === "enviado") {
+    const extra = Object.keys(body).filter((k) => k !== "estado" && k !== "notaInterna");
+    if (extra.length > 0 || (body.estado !== undefined && body.estado !== "borrador" && body.estado !== "cancelado")) {
+      return NextResponse.json(
+        { error: "Un pack enviado no se edita: devuélvelo a borrador primero." },
+        { status: 409 },
+      );
+    }
+
+    if (body.estado === "borrador") {
+      const nuevoId = await devolverABorrador(id, body.notaInterna);
+      if (!nuevoId) return packCambio();
+      return responder(nuevoId);
+    }
   }
 
   const cambios: Partial<typeof packsMedida.$inferInsert> = {};
@@ -100,11 +125,84 @@ export async function PATCH(
     return NextResponse.json({ error: "Sin cambios." }, { status: 400 });
   }
 
-  await db
+  /* `estado = el que se leyó`: si entre la lectura y esta escritura llegó el
+     pago (`pagado`), cancelar no puede pisarlo y dejar sin pack a quien pagó. */
+  const escritas = await db
     .update(packsMedida)
     .set(cambios)
-    .where(and(eq(packsMedida.id, id), eq(packsMedida.negocioId, pack.negocioId)));
+    .where(
+      and(
+        eq(packsMedida.id, id),
+        eq(packsMedida.negocioId, pack.negocioId),
+        eq(packsMedida.estado, pack.estado),
+      ),
+    )
+    .returning({ id: packsMedida.id });
 
+  if (escritas.length === 0) return packCambio();
+
+  return responder(id);
+}
+
+/** 409 común: el pack cambió de estado mientras se editaba. */
+function packCambio() {
+  return NextResponse.json(
+    {
+      error:
+        "El pack cambió mientras lo editabas (quizá el dueño acaba de pagarlo). No se guardó nada: recarga la página.",
+    },
+    { status: 409 },
+  );
+}
+
+/**
+ * «Devolver a borrador» un pack enviado, sin tocar lo que se envió.
+ *
+ * El enviado pasa a `cancelado` tal cual —precio y funciones intactos— y se
+ * abre una copia en `borrador` para corregirla. Si el dueño ya tenía la
+ * factura abierta y la paga, el webhook activa el pack **que se le envió**,
+ * no la versión corregida. En una transacción y con el orden importante: el
+ * índice parcial admite un solo pack en tramitación por negocio, así que el
+ * enviado tiene que dejar de estarlo antes de insertar la copia.
+ *
+ * Devuelve el id de la copia, o `null` si el pack ya no estaba `enviado`
+ * (se pagó o se canceló entre la lectura y la escritura).
+ */
+async function devolverABorrador(
+  id: string,
+  notaInterna: unknown,
+): Promise<string | null> {
+  return db.transaction(async (tx) => {
+    const [original] = await tx
+      .update(packsMedida)
+      .set({ estado: "cancelado" })
+      .where(and(eq(packsMedida.id, id), eq(packsMedida.estado, "enviado")))
+      .returning();
+    if (!original) return null;
+
+    const nuevoId = generateId();
+    await tx.insert(packsMedida).values({
+      id: nuevoId,
+      negocioId: original.negocioId,
+      estado: "borrador",
+      serviciosSolicitados: original.serviciosSolicitados,
+      servicios: original.servicios,
+      funciones: original.funciones,
+      precioUsd: original.precioUsd,
+      precioSugeridoUsd: original.precioSugeridoUsd,
+      oferta2x1: original.oferta2x1,
+      notaCliente: original.notaCliente,
+      notaInterna:
+        typeof notaInterna === "string"
+          ? notaInterna.trim() || null
+          : original.notaInterna,
+    });
+    return nuevoId;
+  });
+}
+
+/** El pack tal como lo pinta el editor. */
+async function responder(id: string) {
   const [row] = await db
     .select({
       id: packsMedida.id,

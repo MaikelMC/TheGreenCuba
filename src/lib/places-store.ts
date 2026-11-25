@@ -2,7 +2,7 @@
  * Los tipos del catálogo tal como los usa la app.
  *
  * Aquí vivían además la lectura y la escritura en `localStorage`, con su
- * sembrado desde una lista del código. Se han ido con la migración a Neon: el
+ * sembrado desde una lista del código. Se han ido con la migración a Postgres: el
  * catálogo lo sirve `/api/places` y la base es la única fuente. Dejarlas habría
  * sido mantener dos verdades que se separan en cuanto una falla, sin forma de
  * saber cuál manda.
@@ -20,6 +20,7 @@ import type { TipoReserva } from "@/lib/reserva";
 import type { Acciones } from "@/lib/ficha/acciones";
 import type { EntregaConfig } from "@/lib/ficha/entrega";
 import type { Horario } from "@/lib/ficha/horario";
+import type { Plan } from "@/lib/plans";
 import type {
   CatalogoFuente,
   ComoAtiende,
@@ -416,6 +417,12 @@ export interface UserPlace {
    * el panel enseña esa píldora en vez del plan contratado.
    */
   enPrueba?: boolean;
+  /**
+   * El pack pagado y vigente ahora mismo, sin contar la prueba (eso es
+   * `enPrueba`). `gratis` si no paga o venció. Lo resuelve el servidor contra
+   * `suscripciones`; `plan` es solo lo que eligió el dueño en el alta.
+   */
+  packVigente?: Plan;
   /**
    * Si la ficha está publicada. `false` = pendiente de que un administrador la
    * apruebe, que es como nacen los negocios dados de alta desde el perfil.

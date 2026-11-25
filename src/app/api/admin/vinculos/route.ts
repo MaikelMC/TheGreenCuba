@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { businessOwners, places, users } from "@/lib/db/schema";
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
   }
 
   /* Sin distinguir mayúsculas: la dirección la escribe una persona y el correo
-     que guarda `users` es el que devolvió Neon, que no tiene por qué coincidir
+     que guarda `users` es el del registro, que no tiene por qué coincidir
      en caja. La columna está indexada, pero `lower()` tira el índice: se acepta
      —esto corre cuando un administrador vincula a mano, no en un bucle—. */
   const [owner] = await db
@@ -131,37 +131,46 @@ export async function POST(req: NextRequest) {
      `insert` para que el `unique (user_id, place_id)` no estorbe cuando la fila
      que se escribe es la del que ya estaba.
 
-     Solo las filas `owner`: vincular un dueño nuevo no puede vaciar el equipo
-     de trabajadores de ese negocio. */
-  await db
-    .delete(businessOwners)
-    .where(
-      and(
-        eq(businessOwners.placeId, negocioId),
-        eq(businessOwners.role, "owner"),
-      ),
-    );
+     Solo las filas `owner`, más la del propio dueño nuevo si ya era trabajador
+     de este negocio: vincular no puede vaciar el equipo, y la fila de trabajador
+     chocaría con el `unique (user_id, place_id)` del `insert`.
 
-  await db.insert(businessOwners).values({
-    id: generateId(),
-    userId: owner.id,
-    placeId: negocioId,
-    role: "owner",
-    /* Aceptada en el acto: aquí no hay invitación que aceptar, es el
-       administrador diciendo quién lleva el negocio. */
-    acceptedAt: new Date(),
+     Todo en una transacción: el borrado iba suelto y, si el `insert` fallaba,
+     el negocio se quedaba sin dueño. */
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(businessOwners)
+      .where(
+        and(
+          eq(businessOwners.placeId, negocioId),
+          or(
+            eq(businessOwners.role, "owner"),
+            eq(businessOwners.userId, owner.id),
+          ),
+        ),
+      );
+
+    await tx.insert(businessOwners).values({
+      id: generateId(),
+      userId: owner.id,
+      placeId: negocioId,
+      role: "owner",
+      /* Aceptada en el acto: aquí no hay invitación que aceptar, es el
+         administrador diciendo quién lleva el negocio. */
+      acceptedAt: new Date(),
+    });
+
+    /* Subir a `user` → `owner`, nunca bajar a nadie. `businessFor` (`/api/me`)
+       solo busca el negocio para `owner` y `admin`, así que sin esto el vínculo
+       no se ve en el menú y el dueño no llega a su panel. Y no se toca a quien ya
+       es `admin`: su rol no es una capacidad de negocio que se pueda sustituir. */
+    if (owner.role === "user") {
+      await tx
+        .update(users)
+        .set({ role: "owner", updatedAt: new Date() })
+        .where(eq(users.id, owner.id));
+    }
   });
-
-  /* Subir a `user` → `owner`, nunca bajar a nadie. `businessFor` (`/api/me`)
-     solo busca el negocio para `owner` y `admin`, así que sin esto el vínculo no
-     se ve en el menú y el dueño no llega a su panel. Y no se toca a quien ya es
-     `admin`: su rol no es una capacidad de negocio que se pueda sustituir. */
-  if (owner.role === "user") {
-    await db
-      .update(users)
-      .set({ role: "owner", updatedAt: new Date() })
-      .where(eq(users.id, owner.id));
-  }
 
   return NextResponse.json({
     /* Con la misma forma que el GET, para que quien llame pueda meter la

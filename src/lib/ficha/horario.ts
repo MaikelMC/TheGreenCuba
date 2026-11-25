@@ -373,6 +373,23 @@ export function relojEn(now: Date, tz: string): Reloj {
   };
 }
 
+/**
+ * El último milisegundo del día `YYYY-MM-DD` en la zona `tz`.
+ *
+ * «Pagado hasta el 14» tiene que valer todo el 14 en Cuba. Leer la fecha como
+ * medianoche UTC lo cortaba la víspera a las 19:00/20:00 hora de Cuba.
+ *
+ * Se parte de las 05:00 UTC del día siguiente (medianoche en Cuba sin horario
+ * de verano) y se resta lo que el reloj local marque pasada la medianoche: con
+ * horario de verano son las 01:00 y se retrocede una hora.
+ */
+export function finDelDiaEn(fecha: string, tz = "America/Havana"): Date {
+  const [y, m, d] = fecha.split("-").map(Number);
+  const guess = new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, (d ?? 1) + 1, 5));
+  const { minutos } = relojEn(guess, tz);
+  return new Date(guess.getTime() - minutos * 60_000 - 1);
+}
+
 /** Suma días a una fecha `YYYY-MM-DD` sin pasar por la zona horaria. */
 export function sumarDias(fecha: string, dias: number): string {
   const [y, m, d] = fecha.split("-").map(Number);

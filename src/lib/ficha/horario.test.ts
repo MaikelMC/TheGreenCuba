@@ -5,6 +5,7 @@ import {
   estadoApertura,
   estadoDesdeTexto,
   esHorario,
+  finDelDiaEn,
   type Horario,
 } from "@/lib/ficha/horario";
 
@@ -184,4 +185,11 @@ test("un horario mal formado se rechaza antes de guardarlo", () => {
     esHorario({ semana: {}, excepciones: [{ fecha: "2026-01-15" }] }),
     false,
   );
+});
+
+test("finDelDiaEn: el día entero en Cuba, con y sin horario de verano", () => {
+  /* Enero, UTC−5: el 14 termina a las 04:59:59.999 UTC del 15. */
+  assert.equal(finDelDiaEn("2026-01-14").toISOString(), "2026-01-15T04:59:59.999Z");
+  /* Julio, UTC−4: una hora antes. */
+  assert.equal(finDelDiaEn("2026-07-14").toISOString(), "2026-07-15T03:59:59.999Z");
 });

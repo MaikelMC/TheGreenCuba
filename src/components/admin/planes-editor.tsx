@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -32,7 +32,7 @@ import { useCatalogo } from "@/providers/catalogo-provider";
  *
  * Cambiar un precio o un texto era editar TypeScript y desplegar. Ahora se hace
  * aquí: el catálogo llega ya resuelto del layout de `/admin` —que es un
- * componente de servidor y ya lee Neon— y esto solo edita una copia en memoria.
+ * componente de servidor y ya lee la base— y esto solo edita una copia en memoria.
  *
  * **No se crea ni se borra nada.** Las claves —qué funciones, qué módulos, qué
  * packs existen— son el vocabulario del código: `qr_sin_marca` existe porque hay
@@ -50,7 +50,7 @@ import { useCatalogo } from "@/providers/catalogo-provider";
  */
 
 const INPUT =
-  "h-11 w-full rounded-xl border border-ink/10 bg-white px-4 text-body text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
+  "h-11 w-full rounded-xl border border-ink/10 bg-white px-4 text-body text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-destructive/20";
 const AREA =
   "w-full rounded-xl border border-ink/10 bg-white px-4 py-3 text-small text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
@@ -80,7 +80,7 @@ function Casillas({
       {claves.map((clave) => (
         <label
           key={clave}
-          className="flex cursor-pointer items-start gap-gap-xs text-small text-ink"
+          className="flex min-h-11 cursor-pointer items-start gap-gap-xs text-small text-ink"
         >
           <input
             type="checkbox"
@@ -105,16 +105,60 @@ export function PlanesEditor() {
   const [borrador, setBorrador] = useState<Catalogo>(cat);
   const [saving, setSaving] = useState(false);
 
+  /* La versión del catálogo guardado (`undefined` = aún no se sabe). Se manda
+     al guardar: si otro administrador guardó entretanto, el servidor contesta
+     409 en vez de pisarlo. Sin versión no se deja guardar. */
+  const [version, setVersion] = useState<string | null | undefined>(undefined);
+  const [falloVersion, setFalloVersion] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/admin/planes")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error())))
+      .then((d: { catalogo: Catalogo; version: string | null }) => {
+        if (!alive) return;
+        setVersion(d.version);
+        /* Si aún no se tocó nada, el borrador pasa a esta lectura: así versión
+           y datos son de la misma foto, aunque el catálogo de la página llegara
+           de una caché anterior. */
+        setBorrador((prev) => (prev === cat ? d.catalogo : prev));
+      })
+      .catch(() => {
+        if (alive) setFalloVersion(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [cat]);
+
   /* Los números se editan en texto aparte. Con un `value` numérico, vaciar el
      campo para reescribirlo lo convierte en un `0` que ya no se puede borrar.
      El texto vive aquí; el número, en el borrador. */
   const [numeros, setNumeros] = useState<Record<string, string>>({});
 
   const numero = (id: string, valor: number) => numeros[id] ?? String(valor);
+  /* Un texto que no es un número válido **no** se aplica: antes caía a 0 y se
+     guardaba, así que una errata dejaba un pack a 0 USD. Se queda el texto,
+     el campo se marca y guardar se bloquea hasta corregirlo. La tasa además
+     tiene que ser mayor que 0: con 0 todos los precios en CUP serían 0. */
+  const valido = (id: string, texto: string) => {
+    if (texto.trim() === "") return false;
+    const n = Number(texto.replace(",", "."));
+    return Number.isFinite(n) && (id === "tasa" ? n > 0 : n >= 0);
+  };
+  const malo = (id: string) => numeros[id] !== undefined && !valido(id, numeros[id]);
+  /* El porqué del rojo, enlazado al campo con `aria-describedby`: sin él un
+     lector de pantalla anuncia «no válido» sin decir qué escribir. */
+  const errorId = (id: string) => (malo(id) ? `${id}-error` : undefined);
+  const errorDe = (id: string) =>
+    malo(id) ? (
+      <p id={`${id}-error`} className="text-meta font-semibold text-destructive-ink">
+        {id === "tasa" ? "Escribe un número mayor que 0." : "Escribe un número, 0 o más."}
+      </p>
+    ) : null;
   const escribir = (id: string, texto: string, aplicar: (n: number) => void) => {
     setNumeros((prev) => ({ ...prev, [id]: texto }));
-    const n = Number(texto.replace(",", "."));
-    aplicar(Number.isFinite(n) && n >= 0 ? n : 0);
+    if (valido(id, texto)) aplicar(Number(texto.replace(",", ".")));
   };
 
   const setFuncion = (clave: Funcion, parche: Partial<FuncionCatalogo>) =>
@@ -136,16 +180,28 @@ export function PlanesEditor() {
     }));
 
   async function guardar() {
-    if (saving) return;
+    if (saving || version === undefined) return;
+    const conError = Object.keys(numeros).filter(malo).length;
+    if (conError > 0) {
+      toast.error(
+        conError === 1
+          ? "Hay un precio no válido (marcado en rojo). No se guardó nada."
+          : `Hay ${conError} precios no válidos (marcados en rojo). No se guardó nada.`,
+      );
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/admin/planes", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(version ? { "x-version": version } : {}),
+        },
         body: JSON.stringify(borrador),
       });
       const data = (await res.json().catch(() => null)) as
-        | { catalogo?: Catalogo; error?: string }
+        | { catalogo?: Catalogo; version?: string; error?: string }
         | null;
 
       if (!res.ok || !data?.catalogo) {
@@ -157,6 +213,7 @@ export function PlanesEditor() {
          no validó, aquí se ve lo que de verdad quedó guardado, no lo que se
          escribió. Se re-siembra con eso y se limpian los textos de los números. */
       setBorrador(data.catalogo);
+      setVersion(data.version ?? null);
       setNumeros({});
       toast.success("Catálogo guardado.");
       router.refresh();
@@ -206,6 +263,8 @@ export function PlanesEditor() {
               type="number"
               min={1}
               value={numero("tasa", borrador.tasaCup)}
+              aria-invalid={malo("tasa")}
+              aria-describedby={errorId("tasa")}
               onChange={(e) =>
                 escribir("tasa", e.target.value, (n) =>
                   setBorrador((d) => ({ ...d, tasaCup: n })),
@@ -213,6 +272,7 @@ export function PlanesEditor() {
               }
               className={cn(INPUT, "cursor-text sm:max-w-[200px]")}
             />
+            {errorDe("tasa")}
           </div>
         </FormSection>
 
@@ -322,6 +382,8 @@ export function PlanesEditor() {
                       min={0}
                       step={0.5}
                       value={numero(`m-${clave}`, m.usd)}
+                      aria-invalid={malo(`m-${clave}`)}
+                      aria-describedby={errorId(`m-${clave}`)}
                       onChange={(e) =>
                         escribir(`m-${clave}`, e.target.value, (n) =>
                           setModulo(clave, { usd: n }),
@@ -329,6 +391,7 @@ export function PlanesEditor() {
                       }
                       className={cn(INPUT, "cursor-text sm:max-w-[200px]")}
                     />
+                    {errorDe(`m-${clave}`)}
                     <p className="text-meta text-ink-soft/75">
                       {textoCup(m.usd, borrador)} al mes
                     </p>
@@ -405,6 +468,8 @@ export function PlanesEditor() {
                       min={0}
                       step={0.5}
                       value={numero(`p-${clave}`, p.usd)}
+                      aria-invalid={malo(`p-${clave}`)}
+                      aria-describedby={errorId(`p-${clave}`)}
                       onChange={(e) =>
                         escribir(`p-${clave}`, e.target.value, (n) =>
                           setPack(clave, { usd: n }),
@@ -412,6 +477,7 @@ export function PlanesEditor() {
                       }
                       className={cn(INPUT, "cursor-text sm:max-w-[200px]")}
                     />
+                    {errorDe(`p-${clave}`)}
                     <p className="text-meta text-ink-soft/75">
                       {textoCup(p.usd, borrador)} al mes
                     </p>
@@ -496,11 +562,16 @@ export function PlanesEditor() {
         </FormSection>
       </FormSections>
 
-      <div className="mt-gap-lg flex justify-end">
+      <div className="mt-gap-lg flex flex-wrap items-center justify-end gap-gap-sm">
+        {falloVersion && (
+          <p role="alert" className="text-meta font-semibold text-destructive-ink">
+            No se pudo leer la versión del catálogo. Recarga la página antes de guardar.
+          </p>
+        )}
         <button
           type="button"
           onClick={() => void guardar()}
-          disabled={saving}
+          disabled={saving || version === undefined}
           className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
         >
           {saving ? (

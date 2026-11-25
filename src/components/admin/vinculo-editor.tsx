@@ -57,6 +57,16 @@ export function VinculoEditor({ placeId }: { placeId: string }) {
   }, [placeId]);
 
   const vincular = useCallback(async () => {
+    /* Reemplazar quita el acceso al dueño actual en el acto: se confirma igual
+       que «Quitar dueño». Vincular a una ficha sin dueño no quita nada. */
+    if (
+      owner &&
+      !window.confirm(
+        `¿Reemplazar a ${owner.name} por ${email.trim()}? ${owner.name} dejará de poder editar este negocio.`,
+      )
+    ) {
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/admin/vinculos", {
@@ -80,7 +90,7 @@ export function VinculoEditor({ placeId }: { placeId: string }) {
     } finally {
       setSaving(false);
     }
-  }, [placeId, email]);
+  }, [placeId, email, owner]);
 
   const desvincular = useCallback(async () => {
     if (!owner) return;
@@ -119,6 +129,8 @@ export function VinculoEditor({ placeId }: { placeId: string }) {
       title="Dueño del negocio"
       icon={<Link2 size={18} strokeWidth={1.8} />}
     >
+      {/* Un correo escrito y sin vincular: la página avisa antes de salir. */}
+      {email.trim() !== "" && <span data-sin-guardar="dueño" hidden />}
       {owner ? (
         <>
           <p className="flex flex-wrap items-center gap-gap-xs text-meta text-ink-soft/75">
