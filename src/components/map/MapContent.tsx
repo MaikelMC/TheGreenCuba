@@ -25,6 +25,13 @@ import {
 import { placeIcon } from "@/lib/places";
 import { tieneRespaldo } from "@/lib/energia";
 import { hayOferta } from "@/lib/ofertas";
+import { motivoMapa } from "@/lib/diagnostico/eventos";
+import {
+  crearVigilanteMapa,
+  detectarWebgl,
+  type VigilanteMapa,
+} from "@/lib/diagnostico/telemetria";
+import { MapaSinWebgl } from "./MapaSinWebgl";
 import type { MapPlace, MapViewProps } from "./types";
 
 /* ── Constantes de capas y fuentes ─────────────────────────────────────── */
@@ -168,6 +175,7 @@ export function MapContent({
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapa, setMapa] = useState<maplibregl.Map | null>(null);
+  const [soporteWebgl, setSoporteWebgl] = useState<boolean | null>(null);
   const { resolvedTheme } = useTheme();
   const validPlaces = useMemo(() => filterValidPlaces(places), [places]);
 
@@ -191,14 +199,30 @@ export function MapContent({
   const lastViewKey = useRef<number | null>(null);
   const lastInitialCenter = useRef<string>("");
 
+  /* WebGL se comprueba antes de crear el mapa. Sin él no hay nada que
+     inicializar: se pinta la lista de cercanos y se registra el motivo. */
+  useEffect(() => {
+    const soporte = detectarWebgl();
+    setSoporteWebgl(soporte.webgl1);
+    if (!soporte.webgl1) {
+      const vigilante = crearVigilanteMapa(Date.now());
+      vigilante.registrarError("sin_webgl");
+    }
+  }, []);
+
   /* ── Inicializar mapa ──────────────────────────────────────────────────── */
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || soporteWebgl !== true) return;
 
     let cancelled = false;
+    let mapaLocal: maplibregl.Map | null = null;
+    let vigilante: VigilanteMapa | null = null;
 
     async function init() {
       if (cancelled || !containerRef.current) return;
+
+      const inicio = performance.now();
+      vigilante = crearVigilanteMapa(Date.now());
 
       const center: [number, number] = userLocation
         ? [userLocation.lng, userLocation.lat]
@@ -214,6 +238,14 @@ export function MapContent({
         maxBounds: CUBA_BOUNDS,
         fadeDuration: 100,
         attributionControl: false,
+      });
+      mapaLocal = map;
+
+      /* Un fallo de tesela no tumba el mapa; un fallo de estilo, de red o de
+         WebGL sí se registra una vez y no se convierte en abandono. */
+      map.on("error", (evento) => {
+        const motivo = motivoMapa(String(evento.error?.message ?? ""));
+        if (motivo !== "teselas") vigilante?.registrarError(motivo);
       });
 
       /* Atribución compacta personalizada */
@@ -244,6 +276,8 @@ export function MapContent({
 
       map.on("load", () => {
         if (cancelled) { map.remove(); return; }
+
+        vigilante?.registrarCargado(Math.round(performance.now() - inicio));
 
         /* Paleta La Verde sobre Liberty, luego dark mode encima si aplica */
         aplicarColoresLaVerde(map);
@@ -394,14 +428,19 @@ export function MapContent({
       });
     }
 
-    void init().catch(() => { /* sin red al montar: el contenedor queda en color de fondo */ });
+    void init().catch((error) => {
+      const motivo = motivoMapa(String(error));
+      vigilante?.registrarError(motivo);
+      if (motivo === "sin_webgl") setSoporteWebgl(false);
+    });
 
     return () => {
       cancelled = true;
-      mapa?.remove();
+      vigilante?.destruir();
+      mapaLocal?.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [soporteWebgl]);
 
   /* ── Vista 3D ─────────────────────────────────────────────────────────────
      Los gestos ya vienen activos de MapLibre (`dragRotate` y `touchPitch`), así
@@ -556,6 +595,19 @@ export function MapContent({
 
   /* ── Color de fondo antes de que cargue el mapa ─────────────────────────── */
   const mapBg = resolvedTheme === "dark" ? "#141B17" : "#F1F5EE";
+
+  if (soporteWebgl === false) {
+    return (
+      <MapaSinWebgl
+        places={validPlaces}
+        center={
+          userLocation
+            ? [userLocation.lat, userLocation.lng]
+            : [initialCenter[0], initialCenter[1]]
+        }
+      />
+    );
+  }
 
   return (
     <>

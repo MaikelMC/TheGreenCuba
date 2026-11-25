@@ -2,18 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 import { diagnosticos } from "@/lib/db/schema";
+import { limpiarDatosDiagnostico } from "@/lib/diagnostico/errores";
+import {
+  esTipoDiagnostico,
+  TIPOS_DIAGNOSTICO,
+} from "@/lib/diagnostico/eventos";
 import { lt } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
-const TIPOS_VALIDOS = new Set([
-  "navegador",
-  "error",
-  "mapa_cargado",
-  "mapa_lento",
-  "mapa_error",
-  "mapa_abandonado",
-]);
+const TIPOS_VALIDOS = new Set<string>(TIPOS_DIAGNOSTICO);
 
 const LIMITE_PETICIONES = 20;
 const VENTANA_MS = 60 * 60 * 1000; // 1 hora
@@ -82,7 +80,7 @@ export async function POST(req: NextRequest) {
 
   const { tipo, datos, id } = body as Record<string, unknown>;
 
-  if (typeof tipo !== "string" || !TIPOS_VALIDOS.has(tipo)) {
+  if (typeof tipo !== "string" || !esTipoDiagnostico(tipo) || !TIPOS_VALIDOS.has(tipo)) {
     return NextResponse.json(
       { ok: false, error: "Tipo no válido" },
       { status: 400 },
@@ -105,7 +103,7 @@ export async function POST(req: NextRequest) {
     await db.insert(diagnosticos).values({
       id: idFinal,
       tipo,
-      datos: datos as Record<string, unknown>,
+      datos: limpiarDatosDiagnostico(datos) as Record<string, unknown>,
     });
 
     /* Limpieza asíncrona: no bloquea la respuesta al cliente. */
