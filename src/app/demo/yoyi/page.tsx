@@ -8,6 +8,7 @@ import { cargarCatalogo } from "@/lib/catalogo-server";
 import { configTasaDe } from "@/lib/tasa-server";
 import { monedasVista, type ConfigTasa } from "@/lib/precios";
 import { estaAgotado } from "@/lib/disponibilidad";
+import { contactLinks } from "@/lib/contact-links";
 import { FichaDemo, type FichaDemoData } from "@/components/demo/ficha-demo";
 
 /**
@@ -57,6 +58,9 @@ export default async function DemoYoyiPage() {
     .select({
       fidelidad: places.fidelidad,
       paymentMethods: places.paymentMethods,
+      website: places.website,
+      instagram: places.instagram,
+      facebook: places.facebook,
     })
     .from(places)
     .where(eq(places.slug, SLUG))
@@ -109,6 +113,36 @@ export default async function DemoYoyiPage() {
     ? monedasVista(extra?.paymentMethods ?? [], tasa)
     : ["CUP" as const];
 
+  /* Redes y web: las reales si el negocio las rellenó. Si no, unas de ejemplo
+     sin enlace (`href: null`) para enseñar cómo quedaría la sección; la ficha
+     las marca como ejemplo y no abre nada. */
+  const links = contactLinks({
+    website: extra?.website ?? undefined,
+    instagram: extra?.instagram ?? undefined,
+    facebook: extra?.facebook ?? undefined,
+  });
+  const limpio = (u: string) =>
+    u.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/+$/, "");
+  const reales: FichaDemoData["redes"] = [
+    ...(links.website
+      ? [{ red: "web" as const, texto: limpio(links.website), href: links.website }]
+      : []),
+    ...(links.instagram
+      ? [{ red: "instagram" as const, texto: `@${limpio(links.instagram).split("/").pop()}`, href: links.instagram }]
+      : []),
+    ...(links.facebook
+      ? [{ red: "facebook" as const, texto: limpio(links.facebook), href: links.facebook }]
+      : []),
+  ];
+  const redesEjemplo = reales.length === 0;
+  const redes: FichaDemoData["redes"] = redesEjemplo
+    ? [
+        { red: "web", texto: "yoyisabor.com", href: null },
+        { red: "instagram", texto: "@yoyisabor", href: null },
+        { red: "facebook", texto: "facebook.com/yoyisabor", href: null },
+      ]
+    : reales;
+
   const servicios: string[] = [
     "A domicilio",
     "Pedidos por WhatsApp",
@@ -135,6 +169,8 @@ export default async function DemoYoyiPage() {
     pagos,
     tienePlanta,
     servicios,
+    redes,
+    redesEjemplo,
     monedas,
     tasaReferencia,
     tasa: tasa

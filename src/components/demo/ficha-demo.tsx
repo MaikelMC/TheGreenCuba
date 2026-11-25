@@ -8,7 +8,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { Moon, ShoppingCart, Sun } from "lucide-react";
+import { ChevronRight, Facebook, Globe, Instagram, Moon, ShoppingCart, Sun } from "lucide-react";
 import { iconoDeProducto } from "@/lib/ficha/iconos-producto";
 import { convertirPrecio, type MonedaVista } from "@/lib/precios";
 
@@ -49,6 +49,10 @@ export interface FichaDemoData {
   pagos: string[];
   tienePlanta: boolean;
   servicios: string[];
+  /** Sitio web y redes. `href: null` = dato de ejemplo, no abre nada. */
+  redes: { red: "web" | "instagram" | "facebook"; texto: string; href: string | null }[];
+  /** Las redes son de ejemplo: el negocio todavía no rellenó las suyas. */
+  redesEjemplo: boolean;
   /** Monedas a las que se puede pasar la carta (incluye siempre "CUP"). */
   monedas: string[];
   /** La tasa usada no es la del negocio, sino la de referencia del catálogo. */
@@ -353,6 +357,12 @@ function MiniaturaProducto({
   );
 }
 
+const RED = {
+  web: { label: "Sitio web", Icono: Globe },
+  instagram: { label: "Instagram", Icono: Instagram },
+  facebook: { label: "Facebook", Icono: Facebook },
+} as const;
+
 const TABS: [string, string][] = [
   ["todo", "Todo"],
   ["menu", "Menú"],
@@ -443,6 +453,18 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
       <div style={{ fontSize: 15, lineHeight: 1.4 }}>{body}</div>
     </div>
   );
+
+  /* Enlace real si hay `href`; si es de ejemplo, un botón que solo avisa. */
+  const enlaceRed = (r: FichaDemoData["redes"][number], style: CSSProperties, children: ReactNode, aria?: string) =>
+    r.href ? (
+      <a key={r.red} href={r.href} target="_blank" rel="noopener noreferrer" aria-label={aria} style={{ ...style, textDecoration: "none" }}>
+        {children}
+      </a>
+    ) : (
+      <button key={r.red} type="button" onClick={() => aviso(`Abriría su ${RED[r.red].label}`)} aria-label={aria} style={{ ...style, cursor: "pointer" }}>
+        {children}
+      </button>
+    );
 
   return (
     <TemaCtx.Provider value={T}>
@@ -572,6 +594,20 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
                   <Chip key={sv}>{sv}</Chip>
                 ))}
               </div>
+              {data.redes.length > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 10, borderTop: `1px solid ${T.line}` }}>
+                  <span style={{ flex: 1, fontSize: 14, color: T.soft }}>Síguelos</span>
+                  {data.redes.map((r) => {
+                    const { label, Icono } = RED[r.red];
+                    return enlaceRed(
+                      r,
+                      { width: 44, height: 44, borderRadius: 999, border: `1px solid ${T.line2}`, background: T.card, color: T.ink, display: "flex", alignItems: "center", justifyContent: "center" },
+                      <Icono size={20} strokeWidth={1.8} />,
+                      label,
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -834,6 +870,31 @@ export function FichaDemo({ data }: { data: FichaDemoData }) {
                 <a href={`tel:+${data.whatsapp}`} style={{ flex: 1, height: 44, borderRadius: 999, border: `1px solid ${T.line2}`, background: T.card, color: T.ink, fontFamily: DISPLAY, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>Llamar</a>
               </div>
             </div>
+            {data.redes.length > 0 && (
+              <div style={{ ...s.card(), gap: 0, paddingBottom: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, paddingBottom: 4 }}>
+                  <h3 style={s.h3()}>Redes y sitio web</h3>
+                  {data.redesEjemplo && <Chip>Ejemplo</Chip>}
+                </div>
+                {data.redes.map((r, i) => {
+                  const { label, Icono } = RED[r.red];
+                  return enlaceRed(
+                    r,
+                    { display: "flex", alignItems: "center", gap: 12, minHeight: 56, padding: 0, border: "none", borderTop: i === 0 ? "none" : `1px solid ${T.line}`, background: "transparent", color: T.ink, textAlign: "left", width: "100%", font: "inherit" },
+                    <>
+                      <span style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 999, background: T.green50, color: T.green, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Icono size={20} strokeWidth={1.8} />
+                      </span>
+                      <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+                        <span style={{ fontSize: 15, fontWeight: 600 }}>{label}</span>
+                        <span style={{ fontSize: 13, color: T.soft, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.texto}</span>
+                      </span>
+                      <ChevronRight size={18} strokeWidth={1.8} style={{ color: T.soft, flexShrink: 0 }} />
+                    </>,
+                  );
+                })}
+              </div>
+            )}
             <div style={s.card()}>
               <h3 style={s.h3()}>Pagos y servicios</h3>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
