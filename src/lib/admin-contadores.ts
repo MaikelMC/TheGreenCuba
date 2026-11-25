@@ -1,4 +1,15 @@
-import { and, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
+import {
+  and,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lt,
+  lte,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   diagnosticos,
@@ -28,6 +39,8 @@ export interface ContadoresAdmin {
   conversaciones: number;
   publicaciones: number;
   cobros: number;
+  pruebas: number;
+  fichas: number;
   diagnostico: number;
   admins: number;
 }
@@ -38,6 +51,8 @@ export const CONTADORES_VACIOS: ContadoresAdmin = {
   conversaciones: 0,
   publicaciones: 0,
   cobros: 0,
+  pruebas: 0,
+  fichas: 0,
   diagnostico: 0,
   admins: 0,
 };
@@ -47,6 +62,8 @@ const total = sql<number>`count(*)::int`;
 export async function contarPendientesAdmin(): Promise<ContadoresAdmin> {
   const desde = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const ahora = new Date();
+  const enSieteDias = new Date(ahora.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const haceTreintaDias = new Date(ahora.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   const [
     negociosPendientes,
@@ -55,6 +72,8 @@ export async function contarPendientesAdmin(): Promise<ContadoresAdmin> {
     colaPublicaciones,
     pagosPendientes,
     suscripcionesVencidas,
+    pruebasPorVencer,
+    fichasConProblemas,
     erroresMapa,
     admins,
   ] = await Promise.all([
@@ -84,6 +103,31 @@ export async function contarPendientesAdmin(): Promise<ContadoresAdmin> {
       ),
     db
       .select({ total })
+      .from(suscripciones)
+      .where(
+        and(
+          eq(suscripciones.estado, "activa"),
+          gte(suscripciones.trialHasta, ahora),
+          lte(suscripciones.trialHasta, enSieteDias),
+        ),
+      ),
+    db
+      .select({ total })
+      .from(places)
+      .where(
+        and(
+          eq(places.reviewStatus, "approved"),
+          eq(places.isActive, true),
+          eq(places.status, "active"),
+          or(
+            isNull(places.tipoNegocio),
+            sql`coalesce(array_length(${places.imageUrls}, 1), 0) = 0`,
+            lt(places.updatedAt, haceTreintaDias),
+          ),
+        ),
+      ),
+    db
+      .select({ total })
       .from(diagnosticos)
       .where(
         and(
@@ -100,14 +144,25 @@ export async function contarPendientesAdmin(): Promise<ContadoresAdmin> {
   const enCola = colaPublicaciones[0]?.total ?? 0;
   const cobros =
     (pagosPendientes[0]?.total ?? 0) + (suscripcionesVencidas[0]?.total ?? 0);
+  const pruebas = pruebasPorVencer[0]?.total ?? 0;
+  const fichas = fichasConProblemas[0]?.total ?? 0;
   const diagnostico = erroresMapa[0]?.total ?? 0;
 
   return {
-    pendientes: solicitudes + abiertas + enCola + cobros + diagnostico,
+    pendientes:
+      solicitudes +
+      abiertas +
+      enCola +
+      cobros +
+      pruebas +
+      fichas +
+      (diagnostico > 0 ? 1 : 0),
     solicitudes,
     conversaciones: abiertas,
     publicaciones: enCola,
     cobros,
+    pruebas,
+    fichas,
     diagnostico,
     admins: admins[0]?.total ?? 0,
   };

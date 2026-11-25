@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import {
@@ -38,16 +39,32 @@ interface Ticket {
 }
 
 const STATUS_META: Record<Ticket["status"], { label: string; cls: string }> = {
-  open: { label: "Abierto", cls: "bg-verde-50 text-verde-700 border-verde-200" },
-  in_progress: { label: "En curso", cls: "bg-sand text-ink-soft/75 border-ink/10" },
-  resolved: { label: "Resuelto", cls: "bg-verde-100 text-verde-700 border-verde-200" },
-  closed: { label: "Archivado", cls: "bg-sand-deep text-ink-soft/75 border-ink/10" },
+  open: {
+    label: "Abierto",
+    cls: "bg-verde-50 text-verde-700 border-verde-200",
+  },
+  in_progress: {
+    label: "En curso",
+    cls: "bg-sand text-ink-soft/75 border-ink/10",
+  },
+  resolved: {
+    label: "Resuelto",
+    cls: "bg-verde-100 text-verde-700 border-verde-200",
+  },
+  closed: {
+    label: "Archivado",
+    cls: "bg-sand-deep text-ink-soft/75 border-ink/10",
+  },
 };
 
 const FILTER =
   "h-[42px] px-3 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer";
 
 export function SupportPanel() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const ticketEnUrl = searchParams.get("ticket");
+  const [ticketAplicado, setTicketAplicado] = useState<string | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -76,6 +93,24 @@ export function SupportPanel() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /* Abrir una conversación concreta desde Pendientes (`?ticket=`). Se aplica
+     una sola vez por id: sin la marca, el efecto volvería a abrir el panel de
+     respuesta cada vez que la lista se refresca después de enviar. */
+  useEffect(() => {
+    if (!ticketEnUrl || ticketEnUrl === ticketAplicado) return;
+    const ticket = tickets.find((t) => t.id === ticketEnUrl);
+    if (!ticket) return;
+    setTicketAplicado(ticketEnUrl);
+    setReplying(ticket);
+    setReply(ticket.adminReply ?? "");
+  }, [ticketEnUrl, tickets, ticketAplicado]);
+
+  /* Cerrar deja la URL limpia para que recargar no reabra el mismo ticket. */
+  const cerrarRespuesta = useCallback(() => {
+    setReplying(null);
+    if (ticketEnUrl) router.replace("/admin/soporte", { scroll: false });
+  }, [router, ticketEnUrl]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -114,7 +149,7 @@ export function SupportPanel() {
       setTickets((current) =>
         current.map((t) => (t.id === data.ticket!.id ? data.ticket! : t)),
       );
-      setReplying(null);
+      cerrarRespuesta();
       setReply("");
     } finally {
       setSending(false);
@@ -127,7 +162,9 @@ export function SupportPanel() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: ticket.id, status }),
     });
-    const data = (await res.json().catch(() => null)) as { ticket?: Ticket } | null;
+    const data = (await res.json().catch(() => null)) as {
+      ticket?: Ticket;
+    } | null;
     if (!res.ok || !data?.ticket) {
       toast.error("No se pudo actualizar el estado.");
       return;
@@ -194,7 +231,10 @@ export function SupportPanel() {
                 key={ticket.id}
                 initial={false}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: Math.min(index * 0.03, 0.3), duration: 0.3 }}
+                transition={{
+                  delay: Math.min(index * 0.03, 0.3),
+                  duration: 0.3,
+                }}
                 className="rounded-2xl border border-ink/5 bg-white p-gap-md"
               >
                 <div className="flex flex-wrap items-start justify-between gap-gap-sm">
@@ -213,7 +253,8 @@ export function SupportPanel() {
                       </span>
                     </div>
                     <p className="text-meta text-ink-soft/75 mt-[2px]">
-                      {ticket.userSnapshot?.name ?? "Usuario"} · {ticket.userSnapshot?.email ?? ticket.email} ·{" "}
+                      {ticket.userSnapshot?.name ?? "Usuario"} ·{" "}
+                      {ticket.userSnapshot?.email ?? ticket.email} ·{" "}
                       {new Date(ticket.createdAt).toLocaleDateString("es-CU", {
                         day: "2-digit",
                         month: "2-digit",
@@ -254,7 +295,9 @@ export function SupportPanel() {
 
                 {ticket.adminReply && (
                   <div className="mt-gap-xs rounded-xl bg-verde-50 border border-verde-200 p-gap-sm text-small text-verde-700">
-                    <span className="font-lv-display font-semibold">Respuesta:</span>{" "}
+                    <span className="font-lv-display font-semibold">
+                      Respuesta:
+                    </span>{" "}
                     {ticket.adminReply}
                   </div>
                 )}
@@ -272,7 +315,7 @@ export function SupportPanel() {
           aria-modal="true"
           aria-label="Responder ticket"
           onClick={(e) => {
-            if (e.target === e.currentTarget && !sending) setReplying(null);
+            if (e.target === e.currentTarget && !sending) cerrarRespuesta();
           }}
         >
           <div className="w-full max-w-lg rounded-2xl bg-white p-gap-lg shadow-soft">
@@ -296,7 +339,7 @@ export function SupportPanel() {
             <div className="mt-gap-sm flex items-center justify-end gap-gap-xs">
               <button
                 type="button"
-                onClick={() => setReplying(null)}
+                onClick={cerrarRespuesta}
                 disabled={sending}
                 className="rounded-full border border-ink/10 px-gap-md py-[10px] text-small font-semibold text-ink-soft/75"
               >
@@ -308,7 +351,11 @@ export function SupportPanel() {
                 disabled={sending || reply.trim().length === 0}
                 className="inline-flex items-center gap-gap-xs rounded-full bg-verde-400 px-gap-md py-[10px] font-lv-display text-small font-semibold text-verde-950 disabled:opacity-50"
               >
-                {sending ? <Loader2 size={15} className="animate-spin" /> : <CheckCheck size={15} />}
+                {sending ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : (
+                  <CheckCheck size={15} />
+                )}
                 {sending ? "Enviando…" : "Enviar y marcar resuelto"}
               </button>
             </div>
