@@ -45,17 +45,29 @@ export const supportTickets = pgTable(
     adminReply: text("admin_reply"),
     repliedAt: timestamp("replied_at"),
 
+    /** Quién la atiende. `null` es «sin asignar»; se guarda aparte del estado
+        para que dos administradores sepan de quién es la conversación. */
+    assignedAdminId: text("assigned_admin_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    assignedAt: timestamp("assigned_at"),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
   },
   (table) => ({
     statusCreatedIdx: index("support_tickets_status_created_idx").on(table.status, table.createdAt),
+    assignedIdx: index("support_tickets_assigned_idx").on(table.assignedAdminId),
   }),
 );
 
 export const supportTicketsRelations = relations(supportTickets, ({ one }) => ({
   user: one(users, {
     fields: [supportTickets.userId],
+    references: [users.id],
+  }),
+  assignedAdmin: one(users, {
+    fields: [supportTickets.assignedAdminId],
     references: [users.id],
   }),
 }));

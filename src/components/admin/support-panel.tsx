@@ -2,366 +2,520 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion } from "motion/react";
-import { toast } from "sonner";
 import {
-  CheckCheck,
+  Clock3,
   LifeBuoy,
   Loader2,
   Search,
-  Send,
-  Wrench,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { StateView } from "@/components/ui/state-view";
+import { clsx } from "clsx";
+import { toast } from "sonner";
+import type {
+  AdminSoporte,
+  ConversacionSoporte,
+  DatosSoporteAdmin,
+  RespuestaGuardada,
+  TiempoMedioRespuesta,
+} from "@/lib/admin-soporte";
 import { LoadingState } from "@/components/ui/loading";
+import { ControlSegmentado } from "@/components/admin/ui/segmentado";
+import { ChapitaEstado } from "@/components/admin/ui/chapita";
+import { EstadoVacioAdmin } from "@/components/admin/ui/tarjeta";
+import { TARJETA_ADMIN } from "@/components/admin/ui/clases";
+import { ChatSoporte } from "./soporte/chat-soporte";
+import { ContextoSoporte } from "./soporte/contexto-soporte";
+import { RespuestasGuardadas } from "./soporte/respuestas-guardadas";
+import {
+  duracion,
+  ESTADO_CONVERSACION,
+  FECHA_HORA,
+  iniciales,
+} from "./soporte/comun";
+
+type FiltroEstado = "abiertas" | "resueltas" | "todas";
+
+const FILTROS: FiltroEstado[] = ["abiertas", "resueltas", "todas"];
 
 /**
- * Soporte: la mesa de ayuda del panel.
+ * La mesa de ayuda del panel.
  *
- * Lista los tickets que la app acumula desde Configuración → "Reportar un
- * error", con filtros por estado y búsqueda por texto. Responder guarda la
- * respuesta y la envía por correo al usuario (SMTP); el panel avisa si el
- * correo no pudo salir, y permite seguir moviendo el estado sin reenviar.
+ * Escritorio: conversaciones, chat y contexto en tres columnas. Móvil: la
+ * lista y, al abrir un ticket, el contexto arriba del chat con una flecha para
+ * volver. La conversación abierta vive en `?ticket=` para que el enlace se
+ * pueda compartir y el botón atrás del navegador tenga algo que deshacer.
+ *
+ * Responder, cerrar y asignar pasan por `/api/admin/support`; las respuestas
+ * guardadas tienen su ruta propia. Ningún botón queda sin acción.
  */
-
-interface Ticket {
-  id: string;
-  subject: string;
-  message: string;
-  status: "open" | "in_progress" | "resolved" | "closed";
-  adminReply: string | null;
-  repliedAt: string | null;
-  pagePath: string | null;
-  email: string;
-  userSnapshot: { name: string | null; email: string } | null;
-  createdAt: string;
-}
-
-const STATUS_META: Record<Ticket["status"], { label: string; cls: string }> = {
-  open: {
-    label: "Abierto",
-    cls: "bg-verde-50 text-verde-700 border-verde-200",
-  },
-  in_progress: {
-    label: "En curso",
-    cls: "bg-sand text-ink-soft/75 border-ink/10",
-  },
-  resolved: {
-    label: "Resuelto",
-    cls: "bg-verde-100 text-verde-700 border-verde-200",
-  },
-  closed: {
-    label: "Archivado",
-    cls: "bg-sand-deep text-ink-soft/75 border-ink/10",
-  },
-};
-
-const FILTER =
-  "h-[42px] px-3 rounded-xl border border-ink/10 bg-white font-lv-display text-small text-ink outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 cursor-pointer";
-
 export function SupportPanel() {
-  const searchParams = useSearchParams();
   const router = useRouter();
-  const ticketEnUrl = searchParams.get("ticket");
-  const [ticketAplicado, setTicketAplicado] = useState<string | null>(null);
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const searchParams = useSearchParams();
+  const ticketId = searchParams.get("ticket");
+  const estadoUrl = searchParams.get("estado");
+  const estado: FiltroEstado =
+    estadoUrl === "resueltas" || estadoUrl === "todas" ? estadoUrl : "abiertas";
+
+  const [tickets, setTickets] = useState<ConversacionSoporte[]>([]);
+  const [admins, setAdmins] = useState<AdminSoporte[]>([]);
+  const [yo, setYo] = useState<AdminSoporte | null>(null);
+  const [tiempo, setTiempo] = useState<TiempoMedioRespuesta | null>(null);
+  const [resumen, setResumen] = useState({
+    abiertas: 0,
+    sinAsignar: 0,
+    mias: 0,
+  });
+  const [respuestas, setRespuestas] = useState<RespuestaGuardada[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  /* El ticket abierto en el panel de respuesta. */
-  const [replying, setReplying] = useState<Ticket | null>(null);
-  const [reply, setReply] = useState("");
-  const [sending, setSending] = useState(false);
+  const [respuestasAbiertas, setRespuestasAbiertas] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const cargar = useCallback(async (silencioso = false) => {
+    if (!silencioso) setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (statusFilter !== "all") params.set("status", statusFilter);
-      const res = await fetch(`/api/admin/support?${params}`);
-      if (!res.ok) throw new Error(String(res.status));
-      const data = (await res.json()) as { tickets: Ticket[] };
-      setTickets(data.tickets);
-    } catch {
-      toast.error("No se pudieron cargar los tickets.");
+      const [respuestaTickets, respuestaGuardadas] = await Promise.all([
+        fetch("/api/admin/support", { cache: "no-store" }),
+        fetch("/api/admin/support/respuestas", { cache: "no-store" }),
+      ]);
+      const datos = (await respuestaTickets.json().catch(() => null)) as
+        | (DatosSoporteAdmin & { error?: string })
+        | null;
+      const guardadas = (await respuestaGuardadas.json().catch(() => null)) as
+        | { respuestas?: RespuestaGuardada[]; error?: string }
+        | null;
+
+      if (!respuestaTickets.ok || !datos) {
+        throw new Error(datos?.error ?? "No se pudieron cargar las conversaciones.");
+      }
+      if (!respuestaGuardadas.ok) {
+        throw new Error(
+          guardadas?.error ?? "No se pudieron cargar las respuestas guardadas.",
+        );
+      }
+
+      setTickets(datos.tickets);
+      setAdmins(datos.admins);
+      setYo(datos.yo);
+      setTiempo(datos.tiempoMedioRespuesta);
+      setResumen({
+        abiertas: datos.abiertas,
+        sinAsignar: datos.sinAsignar,
+        mias: datos.mias,
+      });
+      setRespuestas(guardadas?.respuestas ?? []);
+      setError(null);
+    } catch (fallo) {
+      const mensaje =
+        fallo instanceof Error
+          ? fallo.message
+          : "No se pudieron cargar las conversaciones.";
+      if (silencioso) toast.error(mensaje);
+      else setError(mensaje);
     } finally {
-      setLoading(false);
+      if (!silencioso) setLoading(false);
     }
-  }, [statusFilter]);
+  }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void cargar();
+  }, [cargar]);
 
-  /* Abrir una conversación concreta desde Pendientes (`?ticket=`). Se aplica
-     una sola vez por id: sin la marca, el efecto volvería a abrir el panel de
-     respuesta cada vez que la lista se refresca después de enviar. */
-  useEffect(() => {
-    if (!ticketEnUrl || ticketEnUrl === ticketAplicado) return;
-    const ticket = tickets.find((t) => t.id === ticketEnUrl);
-    if (!ticket) return;
-    setTicketAplicado(ticketEnUrl);
-    setReplying(ticket);
-    setReply(ticket.adminReply ?? "");
-  }, [ticketEnUrl, tickets, ticketAplicado]);
+  const seleccionada = useMemo(
+    () => tickets.find((ticket) => ticket.id === ticketId) ?? null,
+    [tickets, ticketId],
+  );
 
-  /* Cerrar deja la URL limpia para que recargar no reabra el mismo ticket. */
-  const cerrarRespuesta = useCallback(() => {
-    setReplying(null);
-    if (ticketEnUrl) router.replace("/admin/soporte", { scroll: false });
-  }, [router, ticketEnUrl]);
-
-  const visible = useMemo(() => {
+  const visibles = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return tickets;
-    return tickets.filter((t) =>
-      `${t.subject} ${t.message} ${t.userSnapshot?.name ?? ""} ${t.userSnapshot?.email ?? ""}`
+    return tickets.filter((ticket) => {
+      if (
+        estado === "abiertas" &&
+        ticket.status !== "open" &&
+        ticket.status !== "in_progress"
+      ) {
+        return false;
+      }
+      if (estado === "resueltas" && ticket.status !== "resolved") return false;
+      if (!q) return true;
+      return `${ticket.subject} ${ticket.message} ${ticket.userSnapshot?.name ?? ""} ${ticket.email}`
         .toLowerCase()
-        .includes(q),
-    );
-  }, [tickets, query]);
+        .includes(q);
+    });
+  }, [tickets, estado, query]);
 
-  async function sendReply() {
-    if (!replying || reply.trim().length === 0) return;
-    setSending(true);
+  const conteos = useMemo(
+    () => ({
+      abiertas: tickets.filter(
+        (ticket) =>
+          ticket.status === "open" || ticket.status === "in_progress",
+      ).length,
+      resueltas: tickets.filter((ticket) => ticket.status === "resolved").length,
+      todas: tickets.length,
+    }),
+    [tickets],
+  );
+
+  function cambiarFiltro(valor: FiltroEstado) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (valor === "abiertas") params.delete("estado");
+    else params.set("estado", valor);
+    const consulta = params.toString();
+    router.replace(consulta ? `/admin/soporte?${consulta}` : "/admin/soporte", {
+      scroll: false,
+    });
+  }
+
+  function abrirTicket(id: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("ticket", id);
+    router.push(`/admin/soporte?${params.toString()}`, { scroll: false });
+  }
+
+  function volverALista() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("ticket");
+    const consulta = params.toString();
+    router.replace(consulta ? `/admin/soporte?${consulta}` : "/admin/soporte", {
+      scroll: false,
+    });
+  }
+
+  function abrirFicha(negocioId: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("negocio", negocioId);
+    router.push(`/admin/soporte?${params.toString()}`, { scroll: false });
+  }
+
+  async function responder(reply: string): Promise<boolean> {
+    if (!seleccionada) return false;
     try {
-      const res = await fetch("/api/admin/support", {
+      const respuesta = await fetch("/api/admin/support", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: replying.id, reply }),
+        body: JSON.stringify({ id: seleccionada.id, reply }),
       });
-      const data = (await res.json().catch(() => null)) as {
-        ticket?: Ticket;
+      const datos = (await respuesta.json().catch(() => null)) as {
         emailSent?: boolean;
         error?: string;
       } | null;
-      if (!res.ok || !data?.ticket) {
-        toast.error(data?.error ?? "No se pudo responder el ticket.");
-        return;
+      if (!respuesta.ok) {
+        throw new Error(datos?.error ?? "No se pudo responder el ticket.");
       }
-      toast.success(
-        data.emailSent
-          ? "Respuesta enviada al correo del usuario."
-          : "Respuesta guardada, pero el correo no pudo enviarse (SMTP sin configurar o rechazado).",
-        { duration: 6000 },
+
+      if (datos?.emailSent) {
+        toast.success("Respuesta enviada al correo del usuario.");
+      } else {
+        toast.warning(
+          "Respuesta guardada, pero el correo no pudo enviarse (SMTP sin configurar o rechazado).",
+          { duration: 6000 },
+        );
+      }
+      await cargar(true);
+      return true;
+    } catch (fallo) {
+      toast.error(
+        fallo instanceof Error ? fallo.message : "No se pudo responder el ticket.",
       );
-      setTickets((current) =>
-        current.map((t) => (t.id === data.ticket!.id ? data.ticket! : t)),
-      );
-      cerrarRespuesta();
-      setReply("");
-    } finally {
-      setSending(false);
+      return false;
     }
   }
 
-  async function setStatus(ticket: Ticket, status: Ticket["status"]) {
-    const res = await fetch("/api/admin/support", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: ticket.id, status }),
-    });
-    const data = (await res.json().catch(() => null)) as {
-      ticket?: Ticket;
-    } | null;
-    if (!res.ok || !data?.ticket) {
-      toast.error("No se pudo actualizar el estado.");
-      return;
+  async function cambiarEstado(status: "open" | "closed") {
+    if (!seleccionada) return;
+    try {
+      const respuesta = await fetch("/api/admin/support", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: seleccionada.id, status }),
+      });
+      const datos = (await respuesta.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (!respuesta.ok) {
+        throw new Error(datos?.error ?? "No se pudo cambiar el estado.");
+      }
+      toast.success(
+        status === "closed" ? "Conversación cerrada." : "Conversación reabierta.",
+      );
+      await cargar(true);
+    } catch (fallo) {
+      toast.error(
+        fallo instanceof Error
+          ? fallo.message
+          : "No se pudo cambiar el estado.",
+      );
     }
-    setTickets((current) =>
-      current.map((t) => (t.id === data.ticket!.id ? data.ticket! : t)),
-    );
+  }
+
+  async function asignar(adminId: string | null) {
+    if (!seleccionada) return;
+    try {
+      const respuesta = await fetch("/api/admin/support", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: seleccionada.id,
+          assignedAdminId: adminId,
+        }),
+      });
+      const datos = (await respuesta.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (!respuesta.ok) {
+        throw new Error(datos?.error ?? "No se pudo asignar la conversación.");
+      }
+      const nombre =
+        adminId === null
+          ? "sin asignar"
+          : adminId === yo?.id
+            ? "a ti"
+            : `a ${admins.find((admin) => admin.id === adminId)?.nombre ?? "otro admin"}`;
+      toast.success(`Conversación asignada ${nombre}.`);
+      await cargar(true);
+    } catch (fallo) {
+      toast.error(
+        fallo instanceof Error
+          ? fallo.message
+          : "No se pudo asignar la conversación.",
+      );
+    }
+  }
+
+  async function aprobar(negocioId: string): Promise<boolean> {
+    try {
+      const respuesta = await fetch(`/api/places/${negocioId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: true, reviewStatus: "approved" }),
+      });
+      const datos = (await respuesta.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      if (!respuesta.ok) {
+        throw new Error(datos?.error ?? "No se pudo aprobar la ficha.");
+      }
+      toast.success("Ficha aprobada y publicada.");
+      await cargar(true);
+      return true;
+    } catch (fallo) {
+      toast.error(
+        fallo instanceof Error ? fallo.message : "No se pudo aprobar la ficha.",
+      );
+      return false;
+    }
+  }
+
+  async function recargarRespuestas() {
+    try {
+      const respuesta = await fetch("/api/admin/support/respuestas", {
+        cache: "no-store",
+      });
+      const datos = (await respuesta.json().catch(() => null)) as {
+        respuestas?: RespuestaGuardada[];
+        error?: string;
+      } | null;
+      if (!respuesta.ok) {
+        throw new Error(
+          datos?.error ?? "No se pudieron cargar las respuestas guardadas.",
+        );
+      }
+      setRespuestas(datos?.respuestas ?? []);
+    } catch (fallo) {
+      toast.error(
+        fallo instanceof Error
+          ? fallo.message
+          : "No se pudieron cargar las respuestas guardadas.",
+      );
+    }
   }
 
   return (
     <>
-      <div className="flex items-center justify-between gap-gap-sm mb-gap-md">
-        <h1 className="sr-only">Soporte</h1>
-        <p className="text-small text-ink-soft/75">
-          Tickets de los usuarios, ordenados del más reciente al más viejo
-        </p>
-      </div>
-
-      <div className="mb-gap-md flex flex-col gap-gap-sm sm:flex-row">
-        <div className="relative flex-1">
-          <Search
-            size={16}
-            strokeWidth={1.8}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft/75 pointer-events-none"
-          />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por asunto, mensaje o usuario…"
-            aria-label="Buscar tickets"
-            className={cn(FILTER, "w-full pl-9 text-body")}
-          />
+      <header className="mb-gap-md flex flex-col gap-gap-sm sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="font-lv-display text-h3 font-bold tracking-[-0.02em] text-ink">
+            Soporte
+          </h1>
+          <p className="mt-gap-xs text-small text-ink-soft/75">
+            {resumen.abiertas} abiertas · {resumen.sinAsignar} sin asignar ·{" "}
+            {resumen.mias} mías
+          </p>
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className={FILTER}
-          aria-label="Filtrar por estado"
-        >
-          <option value="all">Todos los estados</option>
-          <option value="open">Abiertos</option>
-          <option value="in_progress">En curso</option>
-          <option value="resolved">Resueltos</option>
-          <option value="closed">Archivados</option>
-        </select>
-      </div>
+        {tiempo && (
+          <p className="inline-flex items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm py-2 text-meta text-ink-soft/75">
+            <Clock3 size={15} strokeWidth={1.8} className="text-verde-600" />
+            Respuesta media: {duracion(tiempo.minutos)} · {tiempo.respuestas}{" "}
+            {tiempo.respuestas === 1 ? "respuesta" : "respuestas"} esta semana
+          </p>
+        )}
+      </header>
 
-      {loading ? (
-        <LoadingState label="Cargando tickets…" />
-      ) : visible.length === 0 ? (
-        <StateView
-          size="sm"
-          icon={LifeBuoy}
-          title="No hay tickets"
-          description="Cuando un usuario reporte un error desde Configuración, aparecerá aquí."
-          className="rounded-2xl border border-ink/5 bg-white"
-        />
-      ) : (
-        <div className="flex flex-col gap-gap-sm">
-          {visible.map((ticket, index) => {
-            const meta = STATUS_META[ticket.status];
-            return (
-              <motion.article
-                key={ticket.id}
-                initial={false}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: Math.min(index * 0.03, 0.3),
-                  duration: 0.3,
-                }}
-                className="rounded-2xl border border-ink/5 bg-white p-gap-md"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-gap-sm">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-gap-xs flex-wrap">
-                      <h3 className="font-lv-display text-small font-semibold text-ink">
-                        {ticket.subject}
-                      </h3>
-                      <span
-                        className={cn(
-                          "inline-flex items-center px-[8px] py-[2px] rounded-full border font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em]",
-                          meta.cls,
+      {error && (
+        <p
+          role="alert"
+          className="mb-gap-sm rounded-xl border border-destructive/20 bg-destructive/5 px-gap-sm py-gap-sm text-small text-destructive-ink"
+        >
+          {error}
+        </p>
+      )}
+
+      <div className="grid min-h-0 flex-1 gap-gap-sm lg:h-[calc(100dvh-11rem)] lg:min-h-[520px] lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)_minmax(260px,310px)]">
+        <section
+          className={clsx(
+            TARJETA_ADMIN,
+            "flex min-h-0 flex-col p-0",
+            seleccionada ? "hidden lg:flex" : "flex",
+          )}
+        >
+          <div className="border-b border-ink/5 p-gap-sm">
+            <div className="relative">
+              <Search
+                size={16}
+                strokeWidth={1.8}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft/60"
+              />
+              <input
+                value={query}
+                onChange={(evento) => setQuery(evento.target.value)}
+                placeholder="Buscar conversación…"
+                aria-label="Buscar conversaciones"
+                className="h-11 w-full rounded-xl border border-ink/10 bg-white pl-9 pr-3 font-lv-display text-small text-ink outline-none transition-colors focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20"
+              />
+            </div>
+            <ControlSegmentado
+              etiqueta="Filtrar conversaciones"
+              valor={estado}
+              onCambio={cambiarFiltro}
+              opciones={FILTROS.map((valor) => ({
+                valor,
+                etiqueta:
+                  valor === "abiertas"
+                    ? "Abiertas"
+                    : valor === "resueltas"
+                      ? "Resueltas"
+                      : "Todas",
+                contador: conteos[valor],
+              }))}
+              className="mt-gap-sm w-full"
+            />
+          </div>
+
+          <div className="scrollbar-fino min-h-0 flex-1 overflow-y-auto">
+            {loading ? (
+              <LoadingState label="Cargando conversaciones…" />
+            ) : visibles.length === 0 ? (
+              <EstadoVacioAdmin
+                icono={LifeBuoy}
+                titulo={query ? "Sin resultados" : "Todo al día"}
+                descripcion={
+                  query
+                    ? "Prueba con otro nombre, asunto o correo."
+                    : "Cuando un usuario reporte un problema, aparecerá aquí."
+                }
+              />
+            ) : (
+              visibles.map((ticket) => {
+                const meta = ESTADO_CONVERSACION[ticket.status];
+                const activa = ticket.id === ticketId;
+                return (
+                  <button
+                    key={ticket.id}
+                    type="button"
+                    onClick={() => abrirTicket(ticket.id)}
+                    aria-current={activa ? "true" : undefined}
+                    className={clsx(
+                      "block w-full border-b border-ink/5 px-gap-sm py-gap-sm text-left transition-colors duration-300 last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-verde-400/40",
+                      activa ? "bg-verde-50" : "hover:bg-sand",
+                    )}
+                  >
+                    <div className="flex items-start gap-gap-xs">
+                      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white font-lv-display text-meta font-bold text-verde-700">
+                        {iniciales(
+                          ticket.userSnapshot?.name ||
+                            ticket.userSnapshot?.email ||
+                            ticket.email,
                         )}
-                      >
-                        {meta.label}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-lv-display text-small font-semibold text-ink">
+                          {ticket.subject}
+                        </span>
+                        <span className="mt-[1px] block truncate text-meta text-ink-soft/75">
+                          {ticket.userSnapshot?.name || ticket.email}
+                        </span>
+                        <span className="mt-gap-xs block truncate text-meta text-ink-soft/65">
+                          {ticket.message}
+                        </span>
                       </span>
                     </div>
-                    <p className="text-meta text-ink-soft/75 mt-[2px]">
-                      {ticket.userSnapshot?.name ?? "Usuario"} ·{" "}
-                      {ticket.userSnapshot?.email ?? ticket.email} ·{" "}
-                      {new Date(ticket.createdAt).toLocaleDateString("es-CU", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                      })}
-                      {ticket.pagePath ? ` · ${ticket.pagePath}` : ""}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-[6px] shrink-0">
-                    {ticket.status === "open" && (
-                      <button
-                        type="button"
-                        onClick={() => void setStatus(ticket, "in_progress")}
-                        className="inline-flex items-center gap-[4px] rounded-full border border-ink/10 px-gap-sm py-2 font-lv-display text-meta font-semibold text-ink-soft/75 transition-colors duration-500 hover:border-verde-300 hover:text-verde-600"
+                    <div className="mt-gap-xs flex flex-wrap items-center gap-[5px] pl-10">
+                      <ChapitaEstado tono={meta.tono} punto={false}>
+                        {meta.etiqueta}
+                      </ChapitaEstado>
+                      <ChapitaEstado
+                        tono={ticket.assignedAdminId ? "info" : "aviso"}
+                        punto={false}
                       >
-                        <Wrench size={14} strokeWidth={1.8} />
-                        Atender
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setReplying(ticket);
-                        setReply(ticket.adminReply ?? "");
-                      }}
-                      className="inline-flex items-center gap-[4px] rounded-full bg-verde-400 px-gap-sm py-2 font-lv-display text-meta font-semibold text-verde-950 transition-colors duration-500 hover:bg-verde-300"
-                    >
-                      <Send size={14} strokeWidth={1.8} />
-                      {ticket.adminReply ? "Ver respuesta" : "Responder"}
-                    </button>
-                  </div>
-                </div>
-
-                <p className="mt-gap-xs text-small text-ink text-pretty whitespace-pre-wrap">
-                  {ticket.message}
-                </p>
-
-                {ticket.adminReply && (
-                  <div className="mt-gap-xs rounded-xl bg-verde-50 border border-verde-200 p-gap-sm text-small text-verde-700">
-                    <span className="font-lv-display font-semibold">
-                      Respuesta:
-                    </span>{" "}
-                    {ticket.adminReply}
-                  </div>
-                )}
-              </motion.article>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Panel de respuesta. Un dialog sencillo del sistema. */}
-      {replying && (
-        <div
-          className="fixed inset-0 z-[400] grid place-items-center bg-ink/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Responder ticket"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !sending) cerrarRespuesta();
-          }}
-        >
-          <div className="w-full max-w-lg rounded-2xl bg-white p-gap-lg shadow-soft">
-            <h3 className="font-lv-display text-body font-semibold text-ink">
-              Responder a {replying.userSnapshot?.name ?? replying.email}
-            </h3>
-            <p className="text-meta text-ink-soft/75 mt-[2px]">
-              Se envía por correo a {replying.email} y queda en el ticket.
-            </p>
-
-            <textarea
-              value={reply}
-              onChange={(e) => setReply(e.target.value)}
-              rows={5}
-              maxLength={3000}
-              placeholder="Escribe la respuesta para el usuario…"
-              aria-label="Respuesta al ticket"
-              className="mt-gap-sm min-h-[120px] w-full resize-y rounded-xl border border-ink/10 bg-sand-warm px-3 py-3 text-small text-ink outline-none transition-colors focus:border-verde-400 focus:bg-white focus:ring-2 focus:ring-verde-400/20"
-            />
-
-            <div className="mt-gap-sm flex items-center justify-end gap-gap-xs">
-              <button
-                type="button"
-                onClick={cerrarRespuesta}
-                disabled={sending}
-                className="rounded-full border border-ink/10 px-gap-md py-[10px] text-small font-semibold text-ink-soft/75"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => void sendReply()}
-                disabled={sending || reply.trim().length === 0}
-                className="inline-flex items-center gap-gap-xs rounded-full bg-verde-400 px-gap-md py-[10px] font-lv-display text-small font-semibold text-verde-950 disabled:opacity-50"
-              >
-                {sending ? (
-                  <Loader2 size={15} className="animate-spin" />
-                ) : (
-                  <CheckCheck size={15} />
-                )}
-                {sending ? "Enviando…" : "Enviar y marcar resuelto"}
-              </button>
-            </div>
+                        {ticket.assignedAdminName
+                          ? ticket.assignedAdminId === yo?.id
+                            ? "Mía"
+                            : ticket.assignedAdminName
+                          : "Sin asignar"}
+                      </ChapitaEstado>
+                      <span className="ml-auto text-[11px] text-ink-soft/55">
+                        {FECHA_HORA.format(new Date(ticket.createdAt))}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
-        </div>
-      )}
+        </section>
+
+        <section
+          className={clsx(
+            "min-h-0 overflow-hidden",
+            TARJETA_ADMIN,
+            "p-0",
+            seleccionada ? "flex" : "hidden lg:flex",
+          )}
+        >
+          <div className="flex min-h-0 w-full flex-col">
+            <ChatSoporte
+              conversacion={seleccionada}
+              respuestas={respuestas}
+              onVolver={volverALista}
+              onResponder={responder}
+              onCambiarEstado={cambiarEstado}
+              onAbrirRespuestas={() => setRespuestasAbiertas(true)}
+            />
+          </div>
+        </section>
+
+        <aside
+          className={clsx(
+            "scrollbar-fino min-h-0 lg:overflow-y-auto",
+            seleccionada ? "order-first lg:order-none" : "hidden lg:block",
+          )}
+        >
+          <ContextoSoporte
+            conversacion={seleccionada}
+            admins={admins}
+            yo={yo}
+            onAsignar={asignar}
+            onAbrirFicha={abrirFicha}
+            onAprobar={aprobar}
+          />
+        </aside>
+      </div>
+
+      <RespuestasGuardadas
+        abierta={respuestasAbiertas}
+        onCambiarAbierta={setRespuestasAbiertas}
+        respuestas={respuestas}
+        onCambiar={recargarRespuestas}
+      />
     </>
   );
 }

@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
+import { cargarSoporteAdmin } from "@/lib/admin-soporte";
 import { db } from "@/lib/db";
-import { supportTickets } from "@/lib/db/schema";
+import { supportTickets, users } from "@/lib/db/schema";
 import { sendEmail, adminNoticeHtml } from "@/lib/email";
 
 /**
  * Panel de administración de tickets de soporte.
  *
- * `GET` lista con filtros por estado y texto. `PATCH` actualiza el estado y
- * opcionalmente guarda una respuesta que **se envía por correo al usuario**
- * con el remitente y plantilla de La Verde. El envío es best-effort: si
- * el correo falla, la respuesta queda guardada igual y el panel lo indica.
+ * `GET` lista las conversaciones con el contexto real del negocio de cada
+ * persona, los administradores disponibles y el tiempo medio de respuesta de
+ * la semana. `PATCH` responde, cambia el estado o asigna la conversación. Toda
+ * mutación deja una entrada en Actividad.
  */
 export async function GET(request: NextRequest) {
   if (!(await isAdminRequest(request))) {
@@ -23,26 +24,18 @@ export async function GET(request: NextRequest) {
   const status = url.searchParams.get("status")?.trim() ?? "";
   const query = url.searchParams.get("q")?.trim().toLowerCase() ?? "";
 
-  const rows = await db
-    .select()
-    .from(supportTickets)
-    .orderBy(desc(supportTickets.createdAt))
-    .limit(200);
-
-  /* Los filtros van en memoria y no en SQL a propósito: son 200 filas como
-     mucho, y filtrar el texto en JS permite buscar en asunto, mensaje,
-     snapshot y respuesta sin un ILIKE por columna. */
-  const filtered = rows
-    .filter((row) => (status ? row.status === status : true))
-    .filter((row) =>
+  const datos = await cargarSoporteAdmin();
+  const tickets = datos.tickets
+    .filter((ticket) => (status ? ticket.status === status : true))
+    .filter((ticket) =>
       query
-        ? `${row.subject} ${row.message} ${row.userSnapshot?.name ?? ""} ${row.userSnapshot?.email ?? ""} ${row.adminReply ?? ""}`
+        ? `${ticket.subject} ${ticket.message} ${ticket.userSnapshot?.name ?? ""} ${ticket.userSnapshot?.email ?? ""} ${ticket.email}`
             .toLowerCase()
             .includes(query)
         : true,
     );
 
-  return NextResponse.json({ tickets: filtered });
+  return NextResponse.json({ ...datos, tickets });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -54,35 +47,87 @@ export async function PATCH(request: NextRequest) {
     id?: unknown;
     status?: unknown;
     reply?: unknown;
+    assignedAdminId?: unknown;
   } | null;
 
   const id = typeof body?.id === "string" ? body.id : "";
   if (!id) return NextResponse.json({ error: "Ticket inválido" }, { status: 400 });
 
-  const [ticket] = await db.select().from(supportTickets).where(eq(supportTickets.id, id)).limit(1);
+  const [ticket] = await db
+    .select()
+    .from(supportTickets)
+    .where(eq(supportTickets.id, id))
+    .limit(1);
   if (!ticket) return NextResponse.json({ error: "Ticket no encontrado" }, { status: 404 });
 
   const STATUS = ["open", "in_progress", "resolved", "closed"] as const;
   const status =
-    typeof body?.status === "string" && (STATUS as readonly string[]).includes(body.status)
+    typeof body?.status === "string" &&
+    (STATUS as readonly string[]).includes(body.status)
       ? (body.status as (typeof STATUS)[number])
       : undefined;
 
-  const reply = typeof body?.reply === "string" ? body.reply.trim().slice(0, 3000) : undefined;
-  if (!status && reply === undefined) {
+  const reply =
+    typeof body?.reply === "string" ? body.reply.trim().slice(0, 3000) : undefined;
+  if (reply !== undefined && reply.length === 0) {
+    return NextResponse.json(
+      { error: "La respuesta no puede quedar vacía" },
+      { status: 400 },
+    );
+  }
+
+  const traeAsignacion =
+    body !== null && Object.prototype.hasOwnProperty.call(body, "assignedAdminId");
+  if (
+    traeAsignacion &&
+    body?.assignedAdminId !== null &&
+    typeof body?.assignedAdminId !== "string"
+  ) {
+    return NextResponse.json({ error: "Asignación inválida" }, { status: 400 });
+  }
+
+  const asignadoId =
+    typeof body?.assignedAdminId === "string"
+      ? body.assignedAdminId.trim() || null
+      : null;
+  let asignado: { id: string; name: string | null; email: string } | null = null;
+  if (traeAsignacion && asignadoId) {
+    const [admin] = await db
+      .select({ id: users.id, name: users.name, email: users.email })
+      .from(users)
+      .where(and(eq(users.id, asignadoId), eq(users.role, "admin")))
+      .limit(1);
+    if (!admin) {
+      return NextResponse.json(
+        { error: "La cuenta indicada no es administradora" },
+        { status: 400 },
+      );
+    }
+    asignado = admin;
+  }
+
+  if (!status && reply === undefined && !traeAsignacion) {
     return NextResponse.json({ error: "Nada que actualizar" }, { status: 400 });
   }
 
   /* Responder marca resuelto salvo que el admin diga otra cosa: es el gesto
      natural — escribiste la respuesta, el caso está atendido. */
   const nextStatus = status ?? (reply !== undefined ? "resolved" : undefined);
+  const cambios: Partial<typeof supportTickets.$inferInsert> = {};
+
+  if (nextStatus) cambios.status = nextStatus;
+  if (reply !== undefined) {
+    cambios.adminReply = reply;
+    cambios.repliedAt = new Date();
+  }
+  if (traeAsignacion) {
+    cambios.assignedAdminId = asignado?.id ?? null;
+    cambios.assignedAt = asignado ? new Date() : null;
+  }
 
   const [updated] = await db
     .update(supportTickets)
-    .set({
-      ...(nextStatus ? { status: nextStatus } : {}),
-      ...(reply !== undefined ? { adminReply: reply, repliedAt: new Date() } : {}),
-    })
+    .set(cambios)
     .where(eq(supportTickets.id, id))
     .returning();
 
@@ -90,33 +135,61 @@ export async function PATCH(request: NextRequest) {
   if (reply && updated) {
     /* Respuesta al usuario por correo con la plantilla de La Verde. Best-effort:
        si el correo falla, la respuesta ya está guardada y el panel lo indica. */
-    const id = await sendEmail({
+    const emailId = await sendEmail({
       to: [updated.email],
       subject: `Respuesta a tu ticket: ${updated.subject}`,
       html: adminNoticeHtml(
         "Respondimos tu ticket",
         [
           ["Asunto", updated.subject],
-          ["Estado", updated.status === "resolved" ? "Resuelto" : updated.status],
+          [
+            "Estado",
+            updated.status === "resolved" ? "Resuelto" : updated.status,
+          ],
         ],
         reply,
       ),
       text: reply,
     });
-    emailSent = id !== null;
+    emailSent = emailId !== null;
   }
 
-  await registrarActividad({
-    accion:
-      reply !== undefined ? ACCION.responderSoporte : ACCION.cerrarConversacion,
-    objetoTipo: "soporte",
-    objetoId: id,
-    resumen:
-      reply !== undefined
-        ? `Respondió el ticket «${ticket.subject}»`
-        : `Cambió el estado del ticket «${ticket.subject}» a ${nextStatus}`,
-    datos: { estadoAnterior: ticket.status, estadoNuevo: nextStatus ?? ticket.status },
-  });
+  if (traeAsignacion) {
+    await registrarActividad({
+      accion: ACCION.asignarConversacion,
+      objetoTipo: "soporte",
+      objetoId: id,
+      resumen: asignado
+        ? `Asignó la conversación «${ticket.subject}» a ${asignado.name?.trim() || asignado.email}`
+        : `Dejó sin asignar la conversación «${ticket.subject}»`,
+      datos: {
+        asignadoAnterior: ticket.assignedAdminId,
+        asignadoNuevo: asignado?.id ?? null,
+      },
+    });
+  }
+
+  if (reply !== undefined) {
+    await registrarActividad({
+      accion: ACCION.responderSoporte,
+      objetoTipo: "soporte",
+      objetoId: id,
+      resumen: `Respondió el ticket «${ticket.subject}»`,
+      datos: {
+        estadoAnterior: ticket.status,
+        estadoNuevo: nextStatus ?? ticket.status,
+        correoEnviado: emailSent,
+      },
+    });
+  } else if (status) {
+    await registrarActividad({
+      accion: ACCION.cambiarEstadoSoporte,
+      objetoTipo: "soporte",
+      objetoId: id,
+      resumen: `Cambió el estado del ticket «${ticket.subject}» a ${nextStatus}`,
+      datos: { estadoAnterior: ticket.status, estadoNuevo: nextStatus },
+    });
+  }
 
   return NextResponse.json({ ticket: updated, emailSent });
 }

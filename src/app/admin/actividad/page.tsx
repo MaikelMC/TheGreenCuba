@@ -25,6 +25,7 @@ const ETIQUETA_OBJETO: Record<string, string> = {
   publicacion: "Publicación",
   usuario: "Usuario",
   soporte: "Soporte",
+  respuesta_guardada: "Respuesta guardada",
   plan: "Plan",
   suscripcion: "Suscripción",
   afiliado: "Afiliado",

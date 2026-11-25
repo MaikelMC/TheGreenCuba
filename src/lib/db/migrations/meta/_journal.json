@@ -449,6 +449,13 @@
       "when": 1795579912376,
       "tag": "0063_yielding_darkstar",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1795586104456,
+      "tag": "0064_goofy_lockheed",
+      "breakpoints": true
     }
   ]
 }
