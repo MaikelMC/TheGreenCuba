@@ -29,7 +29,7 @@ export type AuthMode = "login" | "register";
    aclarar de antemano.
 
    Aquí había un `endpoint` por modo («/api/auth/login», «/api/auth/register»).
-   Se fue con esas dos rutas: ahora el envío lo hace el cliente de Neon, que
+   Se fue con esas dos rutas: ahora el envío lo hace el cliente de Better Auth, que
    tiene su propia URL, y el `mode` solo elige qué método se llama. */
 const COPY: Record<
   AuthMode,
@@ -58,11 +58,11 @@ const COPY: Record<
  * Para credenciales malas se devuelve **uno solo** para los dos casos: decir
  * «ese correo no existe» por separado confirma qué correos están dados de alta.
  *
- * Los códigos de abajo son los que el backend de Neon Auth responde de verdad
+ * Los códigos de abajo son los que Better Auth responde de verdad
  * (comprobados contra su API): `PASSWORD_TOO_SHORT` y `VALIDATION_ERROR` con
  * HTTP 400 al crear la cuenta, `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL` con
  * HTTP 422 si el correo ya está, e `INVALID_EMAIL_OR_PASSWORD` con HTTP 401
- * al entrar. La longitud mínima la pone Neon (8), y como su mensaje no trae
+ * al entrar. La longitud mínima la pone Better Auth (8), y como su mensaje no trae
  * la cifra, el cliente la valida ANTES de enviar para poder decirla.
  */
 
@@ -297,7 +297,7 @@ export function AuthCard({
          del propio checkbox, con el mensaje del navegador. */
       /* El autocompletado del móvil deja un espacio al final del correo. Se
          recorta aquí y es este valor el que viaja: antes se validaba recortado
-         pero se enviaba tal cual, y Neon contestaba «correo o contraseña
+         pero se enviaba tal cual, y el servidor contestaba «correo o contraseña
          incorrectos» con la contraseña buena. */
       const emailTrimmed = email.trim();
       /* Gmail solo se exige al **crear** la cuenta. Al entrar no: las cuentas
@@ -420,7 +420,7 @@ export function AuthCard({
         }
 
         /* El alta no aterriza en la app sino en la pantalla del código. La
-           sesión ya está emitida —Neon la da aunque exija verificar— pero el
+           sesión ya está emitida —el servidor la da aunque exija verificar— pero el
            proxy no deja pasar a una ruta privada con el correo sin verificar,
            así que ir a `/onboarding` sería un rebote al mismo sitio. Se lleva
            donde toca, con el destino guardado para después del código.
@@ -433,7 +433,7 @@ export function AuthCard({
         }
 
         /* Carga completa del documento, no `router.replace`. La cookie la acaba
-           de escribir Neon en el navegador y el App Router guarda en caché el
+           de escribir el servidor en el navegador y el App Router guarda en caché el
            árbol de la ruta: navegando por cliente se corre el riesgo de pintar
            la versión sin sesión. Una carga limpia no deja lugar a ello. */
         /* Con `URL` y no concatenando: el destino puede traer ya su consulta

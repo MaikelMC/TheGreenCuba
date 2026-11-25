@@ -170,8 +170,8 @@ export default function TerminosPage() {
                   <td className={TD}>Correo y contraseña</td>
                   <td className={TD}>Al crear la cuenta</td>
                   <td className={TD}>
-                    En Neon Auth. La contraseña se guarda cifrada y no la vemos
-                    nunca. La tabla de La Verde no la copia.
+                    En la base de datos de La Verde, aparte del perfil. La
+                    contraseña se guarda cifrada y no la vemos nunca.
                   </td>
                 </tr>
                 <tr className="border-b border-ink/5">
@@ -327,21 +327,19 @@ export default function TerminosPage() {
         <section className="flex flex-col gap-gap-sm">
           <h2 className={H2}>Dónde se guardan y qué sale del país</h2>
           <p className={P}>
-            Los datos de la cuenta viven en una base de datos{" "}
-            <span className="font-semibold text-ink">Neon Postgres</span> alojada
-            en Estados Unidos, en la región <span className="font-mono">us-east-2</span>.
-            Las credenciales viven en el servicio de autenticación de Neon, aparte
-            de la base. Las fotos de los negocios, en un almacén de objetos de
-            Cloudflare.
+            Los datos de la cuenta y las credenciales viven en una base de datos
+            Postgres propia, en un servidor de{" "}
+            <span className="font-semibold text-ink">Hostinger</span>. Las fotos
+            de los negocios, en un almacén de objetos de Neon en Estados Unidos,
+            en la región <span className="font-mono">us-east-2</span>.
           </p>
           <p className={P}>
             Dicho claro:{" "}
             <span className="font-semibold text-ink">
               tus datos se guardan fuera de Cuba
             </span>
-            , en servidores de Estados Unidos. Es una consecuencia de las
-            herramientas con las que está construido esto, y preferimos decirlo
-            antes de que lo descubras tú.
+            . Es una consecuencia de las herramientas con las que está
+            construido esto, y preferimos decirlo antes de que lo descubras tú.
           </p>
         </section>
 
@@ -383,9 +381,10 @@ export default function TerminosPage() {
               allá de dos coordenadas.
             </Item>
             <Item>
-              <span className="font-semibold text-ink">Neon y Cloudflare</span>{" "}
-              alojan la base de datos, la autenticación y las fotos. Son quienes
-              guardan físicamente lo que se describe arriba.
+              <span className="font-semibold text-ink">Hostinger y Neon</span>{" "}
+              alojan la base de datos con la autenticación (Hostinger) y las
+              fotos (Neon). Son quienes guardan físicamente lo que se describe
+              arriba.
             </Item>
           </ul>
         </section>
@@ -399,9 +398,8 @@ export default function TerminosPage() {
             terceros.
           </p>
           <p className={P}>
-            No ponemos aquí cuánto dura porque no lo decidimos nosotros: la
-            duración de la sesión la gobierna el servicio de autenticación de
-            Neon. Cuando cierras sesión, la cookie se revoca de inmediato.
+            La sesión dura siete días. Cuando cierras sesión, la cookie se
+            revoca de inmediato.
           </p>
         </section>
 

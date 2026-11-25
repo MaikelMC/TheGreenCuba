@@ -40,10 +40,10 @@ import { PlaceView } from "./place-view";
  * Una sola consulta por petición.
  *
  * `generateMetadata` y el componente piden el mismo lugar, y sin esto serían dos
- * viajes a Neon para la misma fila. `cache` de React deduplica dentro de la
+ * viajes a la base para la misma fila. `cache` de React deduplica dentro de la
  * petición, que es exactamente el alcance que hace falta.
  *
- * El `try` devuelve `null` en vez de propagar: si Neon no contesta —y desde esta
+ * El `try` devuelve `null` en vez de propagar: si la base no contesta —y desde esta
  * red eso pasa por rachas—, es mejor servir la ficha sin metadata que un error
  * en una URL que la gente comparte por WhatsApp.
  */

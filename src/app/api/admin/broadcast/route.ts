@@ -29,9 +29,8 @@ const MAX_MESSAGE = 2000;
  * parámetros y cada aviso usa seis, así que un envío grande en una sola
  * sentencia moriría. Mil filas por tanda deja margen de sobra.
  *
- * No hay transacción que lo envuelva: el driver HTTP de Neon no la admite. Si
- * una tanda falla, las anteriores ya entraron y el envío queda a medias; es el
- * precio de poder pasar de unos pocos miles de usuarios y el error se registra.
+ * Todas las tandas y el registro del envío van en una transacción: si una
+ * falla, no entra ninguna y el envío no queda a medias.
  */
 const TAMANO_LOTE = 1000;
 
@@ -42,7 +41,7 @@ const VENTANA_ENVIOS_MS = 60_000;
 
 /* Destinatarios: todos los perfiles con cuenta de acceso viva detrás — el
    mismo criterio de la lista de Usuarios del panel. Un perfil huérfano (sin
-   fila en `neon_auth.user`) no puede entrar a la app a leerla. Vive aquí
+   fila en el esquema de autenticación) no puede entrar a la app a leerla. Vive aquí
    arriba porque lo usan el envío y el recuento que enseña el panel: si
    divergieran, el aviso diría un número y llegaría a otro. */
 const DESTINATARIOS_VIVOS = sql`${users.authUserId} IN (SELECT id::text FROM neon_auth.user)`;
@@ -160,27 +159,29 @@ export async function POST(request: NextRequest) {
 
   const broadcastId = generateId();
 
-  for (let i = 0; i < recipients.length; i += TAMANO_LOTE) {
-    await db.insert(notifications).values(
-      recipients.slice(i, i + TAMANO_LOTE).map((recipient) => ({
-        id: generateId(),
-        userId: recipient.id,
-        type: "broadcast",
-        title,
-        message,
-        senderName: BROADCAST_SENDER,
-      })),
-    );
-  }
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < recipients.length; i += TAMANO_LOTE) {
+      await tx.insert(notifications).values(
+        recipients.slice(i, i + TAMANO_LOTE).map((recipient) => ({
+          id: generateId(),
+          userId: recipient.id,
+          type: "broadcast",
+          title,
+          message,
+          senderName: BROADCAST_SENDER,
+        })),
+      );
+    }
 
-  await db.insert(adminBroadcasts).values({
-    id: broadcastId,
-    senderId: sender?.id ?? null,
-    senderName: sender?.name ?? "Administración",
-    title,
-    message,
-    recipientCount: recipients.length,
-    meta: { destino: targetIds ? "seleccionados" : "todos" },
+    await tx.insert(adminBroadcasts).values({
+      id: broadcastId,
+      senderId: sender?.id ?? null,
+      senderName: sender?.name ?? "Administración",
+      title,
+      message,
+      recipientCount: recipients.length,
+      meta: { destino: targetIds ? "seleccionados" : "todos" },
+    });
   });
 
   /* El push va **después** de responder. `after` del servidor de Next 16 deja

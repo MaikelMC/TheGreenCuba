@@ -6,7 +6,7 @@ import type { UserPlace } from "@/lib/places-store";
  * Existe solo en desarrollo (`NODE_ENV !== "production"`), y no llega a Postgres
  * nunca: se inyecta al leer, en `listPlaces` y `getPlaceById`. Se probó al
  * revés —una fila más en `places`, sembrada por un script— y es peor por dos
- * motivos: la rama de Neon es la misma que usa el resto del equipo, así que el
+ * motivos: la base de desarrollo es la misma que usa el resto del equipo, así que el
  * negocio fantasma acabaría saliendo en el mapa de producción, y borrarlo es
  * otro viaje a la base para deshacer algo que no hacía falta escribir.
  *
@@ -100,14 +100,14 @@ export function ownsDevPlace(email: string | null | undefined): boolean {
  * Lo mismo, con la sesión delante: es lo que llaman las páginas.
  *
  * El `id` va de parámetro para poder salir antes de preguntar por el usuario.
- * Leer la sesión cuesta un viaje a Neon, y esto se llama en la ficha pública:
+ * Leer la sesión cuesta un viaje a la base, y esto se llama en la ficha pública:
  * sin esta salida, cada visita anónima a cualquier negocio lo pagaría.
  */
 export async function mayViewDevPlace(id: string): Promise<boolean> {
   if (id !== DEV_PLACE_ID) return false;
   if (devPlaceEnabled()) return true;
   /* La sesión se importa **aquí** y no arriba: `auth/user` arrastra la base y la
-     configuración de Neon, que exigen variables de entorno al cargar. Con el
+     configuración de autenticación, que exigen variables de entorno al cargar. Con el
      import estático, este archivo no se podía importar sin montar todo eso, y
      sus funciones puras (`ownsDevPlace`, `devPlaceEnabled`, `devPlace`) no se
      podían probar —que es justo lo que hace `dev-place.test.ts`—. El coste es

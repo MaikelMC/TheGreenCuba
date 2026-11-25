@@ -21,7 +21,7 @@ function optionalText(value: unknown): string | null | undefined {
   return typeof value === "string" ? value.trim() || null : undefined;
 }
 
-async function removeNeonAuthUser(authUserId: string | null) {
+async function borrarCuentaDeAcceso(authUserId: string | null) {
   if (!authUserId) return;
 
   await db.execute(sql`
@@ -44,20 +44,20 @@ function serializeUser(user: typeof users.$inferSelect) {
   };
 }
 
-async function syncNeonProfiles() {
+async function sincronizarPerfiles() {
   const result = await db.execute<{ id: string; email: string; name: string | null }>(sql`
     SELECT id::text, email, name
     FROM neon_auth.user
   `);
 
-  for (const neonUser of result.rows ?? []) {
+  for (const cuenta of result.rows ?? []) {
     await db
       .insert(users)
       .values({
         id: generateId(),
-        authUserId: neonUser.id,
-        email: neonUser.email,
-        name: neonUser.name,
+        authUserId: cuenta.id,
+        email: cuenta.email,
+        name: cuenta.name,
       })
       .onConflictDoNothing({ target: users.authUserId });
   }
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  await syncNeonProfiles();
+  await sincronizarPerfiles();
   const rows = await db
     .select()
     .from(users)
@@ -254,12 +254,12 @@ export async function DELETE(request: NextRequest) {
   if (!target) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
   try {
-    await removeNeonAuthUser(target.authUserId);
+    await borrarCuentaDeAcceso(target.authUserId);
   } catch (error) {
-    // Si el perfil de la app sigue vivo pero la cuenta de Neon ya se borró a mano,
+    // Si el perfil de la app sigue vivo pero la cuenta de acceso ya se borró a mano,
     // no bloqueamos la eliminación del perfil local: el usuario ya no existe en auth.
-    const message = error instanceof Error ? error.message : "No se pudo eliminar la cuenta de acceso de Neon Auth.";
-    console.error("Fallo al eliminar Neon Auth durante DELETE de usuario:", message);
+    const message = error instanceof Error ? error.message : "No se pudo eliminar la cuenta de acceso.";
+    console.error("Fallo al eliminar la cuenta de acceso durante DELETE de usuario:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 

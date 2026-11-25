@@ -2,7 +2,7 @@
  * Aplica la migración 0010 (place_metrics, support_tickets, admin_broadcasts
  * y sender_name en notifications) de forma idempotente.
  *
- * `drizzle-kit push` se queda colgado desde esta red hacia Neon; el script
+ * `drizzle-kit push` se quedaba colgado desde esta red; el script
  * conecta con el mismo driver que usa la app y ejecuta el DDL con guardas
  * `IF NOT EXISTS` / DO-blocks, así que se puede correr dos veces sin daño.
  *

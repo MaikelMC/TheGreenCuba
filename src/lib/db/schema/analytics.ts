@@ -11,7 +11,7 @@ import {
 /**
  * Analítica interna de La Verde.
  *
- * Vive en la misma base Neon que el producto a propósito (`§4` del plan):
+ * Vive en la misma base que el producto a propósito (`§4` del plan):
  * nada de Supabase, warehouses ni Redis. Dos tablas y nada más:
  *
  * - `analytics_events`: el evento crudo, pequeño y de vida corta (retención

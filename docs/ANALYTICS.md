@@ -1,6 +1,6 @@
 # Analítica interna de La Verde
 
-Sistema de analítica de producto que vive **en la misma base Neon** que La Verde.
+Sistema de analítica de producto que vive **en la misma base Postgres** que La Verde.
 Sin Supabase, sin warehouse, sin Redis, sin otro Postgres (`§3`). La prioridad no
 es tener muchas métricas, sino tener **datos reales, baratos de leer y seguros**.
 
@@ -17,7 +17,7 @@ es tener muchas métricas, sino tener **datos reales, baratos de leer y seguros*
              │                   │
              └─────────┬─────────┘
                        │
-                      NEON
+                    POSTGRES
 ```
 
 - **Producto**: las tablas de siempre (`places`, `users`, `business_owners`…).
@@ -240,7 +240,7 @@ META_ACCESS_TOKEN=            # opcional
 
 ## 11. Escalabilidad
 
-**Hoy**: Neon + `analytics_events` + `analytics_daily`, con retención de 90 días
+**Hoy**: Postgres + `analytics_events` + `analytics_daily`, con retención de 90 días
 y agregados sin caducidad.
 
 **Cuando el volumen lo exija** (no antes):
@@ -261,7 +261,7 @@ y agregados sin caducidad.
   `node_modules` entero. Queda como pendiente explícito.
 - **Historial de exportaciones** (`§38`): es opcional y «si es sencillo»; no se
   guarda constancia de cada CSV generado.
-- **Consumo real de Neon/Vercel** (`§41`, `§53`): no hay API accesible para
+- **Consumo real del servidor** (`§41`, `§53`): no hay API accesible para
   medirlo desde la app, así que la salud enseña conteos internos y una
   **estimación** de tamaño, rotulada como tal.
 

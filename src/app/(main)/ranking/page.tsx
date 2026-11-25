@@ -20,7 +20,7 @@ import {
  * luego cambia sería peor que no enseñar ninguno.
  *
  * `force-dynamic` para que la consulta no ocurra en el build: desde esta red,
- * tocar Neon al compilar es lo que tumba un despliegue. La página es de bajo
+ * tocar la base al compilar es lo que tumba un despliegue. La página es de bajo
  * tráfico —un podio mensual— así que una lectura por visita es asumible;
  * `ponytail:` si algún día pesa, envolver `leerRanking` en `unstable_cache` con
  * `CATALOG_TAG`, que el job ya revalida.

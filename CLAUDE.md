@@ -1,6 +1,6 @@
 # La Verde
 
-Proyecto: La Verde (Next.js 16 App Router, React 19, TS, Neon Postgres + drizzle-orm, Neon Auth). Usuarios cubanos con datos móviles limitados y negocios sin WiFi propio: todo debe ser ligero.
+Proyecto: La Verde (Next.js 16 App Router, React 19, TS, Postgres propio + drizzle-orm, Better Auth autoalojado). Usuarios cubanos con datos móviles limitados y negocios sin WiFi propio: todo debe ser ligero.
 Reglas: respeta CLAUDE.md. Lee solo lo necesario (schema, rutas del negocio y del menú) antes de escribir. Reusa lo existente. Cambios mínimos, sin dependencias nuevas salvo que el prompt las pida. Migraciones con drizzle. Validación server-side siempre; nunca confíes en el cliente para permisos de plan. UI en español.
 Al terminar: lista de archivos tocados + 3 a 5 pasos para probar. Sin explicaciones largas.
 
@@ -74,9 +74,9 @@ como no negociable, no como un recordatorio opcional al final de la lista.
 
 Vale para cualquier API de terceros. En este proyecto, **dos errores propios
 salieron de dar por buena la documentación**: un método que la doc no
-mencionaba (el handler de Neon exporta cinco verbos, no dos) y una variable de
+mencionaba (el handler de auth exporta cinco verbos, no dos) y una variable de
 entorno que la doc de Vite describe y que aquí no existe ni hace falta (el
-cliente de auth acaba con `baseURL: undefined`).
+cliente de auth va sin `baseURL`).
 
 Antes de tocar una API: lee el `.d.ts` o el fuente dentro de `node_modules`.
 La documentación va por detrás de la versión instalada.
@@ -116,7 +116,9 @@ y `sileo` junto a `sonner` para notificaciones.
 
 ### Base de datos
 
-Neon Postgres con `@neondatabase/serverless` y `drizzle-orm`.
+Postgres propio en el VPS, con `pg` (`node-postgres`) y `drizzle-orm`. Un
+`Pool` por proceso en `src/lib/db/index.ts`. Hay transacciones
+(`db.transaction`): úsalas cuando dos escrituras tengan que ir juntas.
 
 El esquema vive en `src/lib/db/schema/` (un archivo por tabla) y las
 migraciones en `src/lib/db/migrations/`.
@@ -134,8 +136,8 @@ Tres trampas de Drizzle ya sufridas aquí:
 - `db.execute<T>` exige un **alias de tipo**, no le vale una `interface`.
 - Dos `.where()` encadenados **se reemplazan, no se combinan**. Para un AND de
   verdad, mete las dos condiciones en un solo `.where()`.
-- El `sql.query()` de Neon devuelve un **array plano de filas**, no un objeto
-  con `.rows`.
+- `db.execute()` devuelve un `QueryResult`: las filas van en **`.rows`**, no
+  es un array plano.
 
 Y una de `drizzle-kit`: `generate` **se vuelve interactivo** cuando detecta una
 columna que desaparece y otra que aparece a la vez, porque pregunta si es un
@@ -144,43 +146,43 @@ resuelve en dos pasos.
 
 ### Autenticación
 
-Neon Managed Better Auth, con `@neondatabase/auth` en versión `0.5.0-beta`.
-Ese paquete **exige Next >= 16** — es lo que forzó la subida de framework.
+Better Auth autoalojado (`better-auth`), con el adaptador de Drizzle sobre la
+misma base. Las cuentas, contraseñas y sesiones viven en el esquema
+`neon_auth` (nombre heredado); el perfil y el rol, en `public.users`.
 
 Cómo está montado:
 
-- `src/lib/auth/server.ts` — la instancia de servidor (`createNeonAuth`).
-- `src/lib/auth/client.ts` — la instancia de navegador. **`createAuthClient()`
-  va sin argumentos**: en Next el cliente resuelve su propia URL. Pasarle una
-  es la firma del cliente SPA de React y aquí estaría mal.
-- `src/lib/auth/user.ts` — el puente entre Neon y nuestra tabla `users`.
-  `getAppUser()` busca la fila por `authUserId` y **la crea si no existe**.
-- `src/app/api/auth/[...path]/route.ts` — el catch-all que proxea a Neon.
+- `src/lib/auth/server.ts` — la instancia de servidor (`betterAuth`), con
+  correo y contraseña, Google opcional y códigos OTP por SMTP.
+- `src/lib/auth/schema.ts` — las tablas de auth. **No se exporta** desde
+  `src/lib/db/schema/index.ts`: si entrara, `drizzle-kit generate` intentaría
+  crearlas.
+- `src/lib/auth/client.ts` — la instancia de navegador. `createAuthClient()`
+  va **sin `baseURL`**: usa el origen actual.
+- `src/lib/auth/user.ts` — el puente entre la cuenta de acceso y nuestra
+  tabla `users`. `getAppUser()` busca la fila por `authUserId` y **la crea si
+  no existe**.
+- `src/app/api/auth/[...path]/route.ts` — el catch-all de Better Auth.
   Exporta **cinco** verbos: `GET, POST, PUT, PATCH, DELETE`.
 - `src/proxy.ts` — comprueba **solo que hay sesión**, nunca el rol. El rol se
   comprueba en el layout de cada zona (`/admin`, `/business`).
 
-**El navegador nunca habla con Neon.** `createAuthClient()` se construye sin
-URL, el adaptador acaba pasando `baseURL: undefined`, y Better Auth sin
-`baseURL` usa el origen actual. Todas sus llamadas van a `/api/auth/*` en este
-mismo dominio, y quien habla con Neon es el catch-all, en el servidor.
-
-Esto explica por qué el CSP tiene `connect-src 'self'` y **no** un origen de
-Neon: si algún día alguien añade algo que sí llame a Neon desde el navegador
-(los componentes de `@neondatabase/auth-ui`, que aquí no se usan), el CSP es
-lo primero que hay que tocar, o el navegador lo bloqueará en producción con un
-error que no menciona el CSP por ninguna parte.
+**El navegador no habla con ningún servicio externo de auth.** Todas las
+llamadas van a `/api/auth/*` en este mismo dominio. Por eso el CSP tiene
+`connect-src 'self'`: si algún día algo llama a un servicio de auth externo
+desde el navegador, el CSP es lo primero que hay que tocar, o el navegador lo
+bloqueará en producción con un error que no menciona el CSP.
 
 Variables, y son **dos más una**:
 
 ```
-NEON_AUTH_BASE_URL        # URL de auth de vuestra rama; termina en /auth
-NEON_AUTH_COOKIE_SECRET   # firma la cookie, mínimo 32 caracteres
+BETTER_AUTH_SECRET        # firma la cookie, mínimo 32 caracteres
+BETTER_AUTH_URL           # origen público de la app
 AUTH_BOOTSTRAP_ROLES      # correo=rol, separado por comas
 ```
 
-Sin las dos primeras **el build falla en seco**, porque Next evalúa los
-módulos al recoger la información de rutas. No es un aviso.
+Sin las dos primeras **el build falla en seco**: `server.ts` lanza al
+cargarse, y Next evalúa los módulos al recoger la información de rutas.
 
 `AUTH_BOOTSTRAP_ROLES` **se aplica solo la primera vez**, al crear la fila en
 `users`. Después el rol se cambia con un `UPDATE` en la tabla, no ahí. Es el
@@ -227,13 +229,14 @@ vuelvas a meter.
 Esta máquina tiene una red poco fiable. Casi todas las rarezas de este
 proyecto salen de ahí.
 
-### El puerto 5432 está bloqueado
+### La base se alcanza por túnel
 
-Es el puerto de Postgres. Por eso **`drizzle-kit push`, `migrate` y `studio`
-no funcionan** desde aquí: los tres necesitan conexión directa a la base.
+En local, `DATABASE_URL` apunta a `127.0.0.1:15432`: un túnel al Postgres del
+VPS. Si el túnel no está levantado, todo lo que toca la base falla con
+`ECONNREFUSED`, no con un error de credenciales.
 
-`drizzle-kit generate` **sí funciona**, porque es offline — compara el esquema
-con las instantáneas de `migrations/meta/` y no sale a la red.
+`drizzle-kit generate` funciona siempre, porque es offline — compara el
+esquema con las instantáneas de `migrations/meta/` y no sale a la red.
 
 ### `registry.npmjs.org` falla a ratos
 

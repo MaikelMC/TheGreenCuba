@@ -14,7 +14,7 @@ import type { NewUserPlace, UserPlace, UserPlacePatch } from "@/lib/places-store
 import type { BusinessCategory } from "@/lib/places";
 
 /**
- * El catálogo, servido desde Neon.
+ * El catálogo, servido desde la base.
  *
  * Antes esto leía `localStorage` y sembraba con una lista del código. Ahora la
  * base es la única fuente: se carga por `/api/places` y `/api/categories` al

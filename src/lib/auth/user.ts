@@ -23,10 +23,10 @@ import { AUTH_USER_HEADER, type Role } from "@/lib/session";
  * rutas de API, componentes de servidor— pregunta aquí y recibe un `AppUser`
  * con el vocabulario de la app.
  *
- * La identidad llega del proxy, no de preguntarle a Neon desde aquí. El motivo
+ * La identidad llega del proxy, no de preguntar la sesión desde aquí. El motivo
  * está entero en `AUTH_USER_HEADER` (`src/lib/session.ts`): dentro del render
- * `auth.getSession()` revienta en cuanto el paquete tiene que devolverle una
- * cookie a Neon, y eso pasa cada vez que falla su caché de sesión. El proxy sí
+ * `auth.getSession()` revienta en cuanto tiene que escribir una cookie (al
+ * renovar la sesión), y Next no deja escribirlas en el render. El proxy sí
  * puede escribir cookies, así que resuelve la sesión allí y aquí se lee.
  *
  * En el navegador el estado de sesión se lee con `authClient.useSession()`, que
@@ -71,8 +71,8 @@ function isRole(value: unknown): value is Role {
  *
  *   AUTH_BOOTSTRAP_ROLES="admin@laverde.cu=admin,negocio@laverde.cu=owner"
  *
- * Hace falta un punto de entrada. Neon no deja declarar campos propios en su
- * configuración, así que sin esto no habría forma de que existiera un
+ * Hace falta un punto de entrada. El rol no vive en la configuración de
+ * autenticación sino en `users`, así que sin esto no habría forma de que existiera un
  * administrador y `/admin` y `/business` quedarían cerrados para siempre.
  *
  * Se aplica **solo al crear la fila**, la primera vez que esa persona entra.
@@ -126,7 +126,7 @@ async function readAuthIdentity(): Promise<AuthIdentity | null> {
 
   /* Sin cabecera: o la petición no pasó por el proxy —las rutas de API están
      fuera de su matcher— o es una que no pregunta por el usuario. Antes de
-     preguntarle a Neon, la puerta de atrás del desarrollo: si no, entrar con
+     preguntar la sesión, la puerta de atrás del desarrollo: si no, entrar con
      `/dev-login` valdría para ver las páginas pero no para las rutas de API,
      que seguirían viendo a nadie y es justo lo que hace que la mitad de la
      interfaz parezca rota. Ver `src/lib/dev-access.ts`. */
@@ -150,7 +150,7 @@ async function readAuthIdentity(): Promise<AuthIdentity | null> {
  * La cookie la puso el proxy al abrir el enlace y sigue viva treinta días, así
  * que aquí puede estar perfectamente aunque hayan pasado la verificación, el
  * salto a Google y una recarga entera. Sin cookie no hay consulta: la mayoría de
- * las filas se crean sin padrino, y preguntar por el vacío sería un viaje a Neon
+ * las filas se crean sin padrino, y preguntar por el vacío sería un viaje a la base
  * por cada alta normal.
  */
 async function referrerFromCookie(): Promise<string | null> {
@@ -225,10 +225,10 @@ export async function getAppUser(): Promise<AppUser | null> {
     return toAppUser(existing);
   }
 
-  /* Si la cuenta de acceso ya no existe, esta sesión viene de una cookie vieja.
-     El proxy la da por buena hasta siete días sin preguntar a Neon —ver
-     `sessionDataTtl` en `src/lib/auth/server.ts`—, así que en otro dispositivo
-     puede seguir viva después de borrar la cuenta.
+  /* Si la cuenta de acceso ya no existe, esta sesión no debería existir: borrar
+     la cuenta borra sus sesiones en cascada. La guarda se queda por si una
+     sesión sobrevive al borrado (una carrera entre el borrado y una petición
+     en vuelo desde otro dispositivo).
 
      Sin esta comprobación esa sesión resucitaba el perfil: se creaba una fila
      nueva para alguien que acababa de pedir que lo borraran, con su correo, y

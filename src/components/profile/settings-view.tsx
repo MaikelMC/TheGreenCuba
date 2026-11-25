@@ -104,7 +104,7 @@ export function SettingsView() {
    * limpia el navegador.
    *
    * El `DELETE /api/me` borra la fila y con ella, en cascada, todo lo que cuelga
-   * del usuario; después se lleva la cuenta de Neon. El servidor avisa si esa
+   * del usuario; después se lleva la cuenta de acceso. El servidor avisa si esa
    * segunda parte no salió.
    */
   async function handleDelete() {

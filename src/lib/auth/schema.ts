@@ -6,31 +6,31 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
- * Las tablas de autenticación, tal como ya existen en `neon_auth`.
+ * Las tablas de autenticación, en el esquema `neon_auth`.
  *
- * No son nuestras: las creó Neon Managed Auth y **no se renombran**. Better
- * Auth las usa tal cual a través del adaptador de Drizzle, con las mismas
- * columnas y los mismos ids de usuario, para que las cuentas y las contraseñas
- * que ya hay sigan valiendo después de la migración.
+ * El nombre del esquema es heredado y **no se renombra**: cambiarlo exige una
+ * migración en producción sincronizada con el despliegue, y no aporta nada.
+ * Better Auth usa estas tablas a través del adaptador de Drizzle, con sus
+ * columnas y sus ids de usuario.
  *
  * Este archivo **no se exporta desde `src/lib/db/schema/index.ts`** a propósito.
  * Si entrara ahí, `drizzle-kit generate` lo tomaría por esquema propio e
  * intentaría crear tablas que ya existen en otro esquema. El adaptador las
  * recibe directamente en `src/lib/auth/server.ts`.
  *
- * Las columnas van en camelCase porque así están en la base: son las que
- * escribió Better Auth 1.6.23 cuando el esquema lo gestionaba Neon.
+ * Las columnas van en camelCase porque así están en la base: es la convención
+ * de Better Auth.
  */
-const neonAuth = pgSchema("neon_auth");
+const authSchema = pgSchema("neon_auth");
 
 /** `neon_auth.user`: la cuenta de acceso. `public.users` es el perfil. */
-export const authUser = neonAuth.table("user", {
+export const authUser = authSchema.table("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull(),
   emailVerified: boolean("emailVerified").notNull().default(false),
   image: text("image"),
-  /* Columna propia de Neon. Better Auth la declara como campo adicional para
+  /* Columna heredada, no estándar de Better Auth. Se declara como campo adicional para
      no ignorarla al leer, pero quien manda sobre el rol es `public.users`. */
   role: text("role"),
   createdAt: timestamp("createdAt", { withTimezone: true }).notNull().defaultNow(),
@@ -38,7 +38,7 @@ export const authUser = neonAuth.table("user", {
 });
 
 /** `neon_auth.session`: una fila por sesión abierta. */
-export const authSession = neonAuth.table("session", {
+export const authSession = authSchema.table("session", {
   id: text("id").primaryKey(),
   expiresAt: timestamp("expiresAt", { withTimezone: true }).notNull(),
   token: text("token").notNull(),
@@ -50,7 +50,7 @@ export const authSession = neonAuth.table("session", {
 });
 
 /** `neon_auth.account`: la contraseña (scrypt) o el vínculo con Google. */
-export const authAccount = neonAuth.table("account", {
+export const authAccount = authSchema.table("account", {
   id: text("id").primaryKey(),
   accountId: text("accountId").notNull(),
   providerId: text("providerId").notNull(),
@@ -67,7 +67,7 @@ export const authAccount = neonAuth.table("account", {
 });
 
 /** `neon_auth.verification`: códigos de un solo uso y tokens de recuperación. */
-export const authVerification = neonAuth.table("verification", {
+export const authVerification = authSchema.table("verification", {
   id: text("id").primaryKey(),
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),

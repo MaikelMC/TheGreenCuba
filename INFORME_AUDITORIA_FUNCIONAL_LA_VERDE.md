@@ -1,3 +1,5 @@
+> **Documento histórico.** Describe el proyecto antes de la migración del 2026-11-22 (Neon → Postgres propio en VPS y Better Auth autoalojado). Las rutas, líneas y dependencias de Neon que cita ya no existen.
+
 # Auditoría funcional de La Verde
 
 **Fecha:** 30 de octubre de 2026

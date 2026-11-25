@@ -62,7 +62,7 @@ export async function isMarketingOptedIn(userId: string): Promise<boolean> {
 /**
  * Si la cuenta tiene el proveedor de Google detrás.
  *
- * Se pregunta a `neon_auth.account` —el esquema de Neon, solo lectura— porque es
+ * Se pregunta a `neon_auth.account` —el esquema de autenticación, solo lectura— porque es
  * el único sitio donde consta. Es lo que distingue a quien se registró con
  * Google: esa cuenta no tiene contraseña, y por eso el formulario de
  * correo+contraseña le falla sin explicar nada. La consulta no es de la app, así

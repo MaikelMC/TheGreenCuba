@@ -4,7 +4,7 @@
 
 Proyecto **La Verde** (`C:\Users\maike\OneDrive\Desktop\MVP\Project`).
 Next.js 16 (App Router), React 19, TypeScript 5.7, Tailwind 3.4, `motion/react`,
-`sonner`, `lucide-react`. Base Neon con Drizzle.
+`sonner`, `lucide-react`. Postgres propio con Drizzle.
 
 **Lee `CLAUDE.md` en la raíz del repo antes de empezar.** Ahí están las reglas
 de trabajo, las trampas del stack y la definición de terminado. Resumen de lo

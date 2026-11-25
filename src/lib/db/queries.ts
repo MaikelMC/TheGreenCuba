@@ -82,7 +82,7 @@ export function invalidarCatalogo(): void {
 const CACHE_TTL_S = 300;
 
 /**
- * Envuelve una lectura del catálogo para que no se repita contra Neon.
+ * Envuelve una lectura del catálogo para que no se repita contra la base.
  *
  * El catálogo son 31 filas que cambian cuando un administrador entra al panel, y
  * se leen en **cada** carga de página: la lista del home, el mapa, cada ficha,
@@ -91,7 +91,7 @@ const CACHE_TTL_S = 300;
  * mucho tráfico que haya.
  *
  * **En desarrollo no se cachea**, a propósito. Aquí el catálogo se toca a mano
- * —`npm run db:seed`, un `UPDATE` desde el editor de Neon— y con la caché puesta
+ * —`npm run db:seed`, un `UPDATE` a mano en la base— y con la caché puesta
  * esos cambios tardarían hasta cinco minutos en verse, sin ningún síntoma que lo
  * explique: se busca el fallo en el `insert`, no en una caché que nadie
  * recuerda. La caché es para producción, que es donde está el tráfico.
@@ -115,7 +115,7 @@ function cached<A extends unknown[], R>(
  *
  * El vector son 1024 números por negocio y **no lo lee nadie de aquí**:
  * `toUserPlace` lo tiraba en cuanto llegaba. Traerlo costaba en torno a medio
- * mega por carga del catálogo —treinta negocios— viajando de Neon al servidor en
+ * mega por carga del catálogo —treinta negocios— viajando de la base al servidor en
  * cada visita, y en esta red un cuerpo así se corta a mitad: es el `ECONNRESET`
  * que dejaba el mapa sin pines. La búsqueda por IA no pasa por aquí; consulta el
  * vector en su propia ruta.
@@ -731,7 +731,7 @@ export interface PlaceStats {
  * se puede comprobar no es una métrica.
  *
  * Todos los recuentos van en **una sola consulta** con subconsultas y no en
- * varios viajes: es un panel que se abre a menudo y cada ida y vuelta a Neon se
+ * varios viajes: es un panel que se abre a menudo y cada ida y vuelta a la base se
  * paga. El `::int` es necesario —`count(*)` devuelve `bigint`, que el driver
  * entrega como cadena— y sin él los números llegarían como `"7"` y el panel los
  * pintaría entre comillas.

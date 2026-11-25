@@ -10,7 +10,7 @@ import { canViewDevPlace, ownsDevPlace } from "@/lib/dev-place";
  * panel y quién puede escribirlo.
  *
  * Se puede importar `dev-place` a secas porque la sesión se importa dentro de
- * `mayViewDevPlace`: este módulo no arrastra la base ni Neon al cargarse.
+ * `mayViewDevPlace`: este módulo no arrastra la base al cargarse.
  */
 
 test("el dueño del negocio de prueba es la cuenta autorizada", () => {

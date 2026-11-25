@@ -42,13 +42,13 @@ export function isValidAdminKey(key: string): boolean {
  * dos:
  *
  * 1. **La sesión.** Es el camino normal desde que `/admin` entra por `/login`:
- *    el navegador manda la cookie, Neon la valida y aquí se mira el rol, que
+ *    el navegador manda la cookie, Better Auth la valida y aquí se mira el rol, que
  *    vive en la tabla `users`.
  * 2. **La cabecera `x-admin-key`.** Se conserva para `curl`, los scripts y los
  *    servicios que ya la usaban. Retirarla rompería a quien no pasa por el
  *    navegador, y no aporta ninguna seguridad a cambio.
  *
- * Sigue siendo `async`, pero ya no por la firma —de eso se encarga Neon— sino
+ * Sigue siendo `async`, pero ya no por la firma —de eso se encarga Better Auth— sino
  * porque comprobar el rol es una consulta a la base.
  *
  * Ojo con el orden: la cabecera se comprueba primero y sin tocar la base. Es el

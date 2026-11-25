@@ -6,7 +6,7 @@ import { slugify, generateId } from "@/lib/utils";
 import { SEED_PLACES } from "./seed-data";
 
 /**
- * Puebla Neon con el catálogo inicial.
+ * Puebla la base con el catálogo inicial.
  *
  * Es idempotente y **no destructivo fuera del catálogo**: antes de insertar
  * borra las categorías y los lugares cuyos `slug` salen de este mismo archivo.

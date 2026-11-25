@@ -1,3 +1,5 @@
+> **Documento histórico.** Describe el proyecto antes de la migración del 2026-11-22 (Neon → Postgres propio en VPS y Better Auth autoalojado). Las rutas, líneas y dependencias de Neon que cita ya no existen.
+
 # Auditoría de consumo — La Verde
 
 Fecha: 2026-10-11. Alcance: Next.js 16.3.5, build de producción local

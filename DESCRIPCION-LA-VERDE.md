@@ -127,7 +127,7 @@ sección.
 - El dueño puede apagar pedidos o reservas sin bajar de plan.
 
 ### Cuenta y personalización
-- Registro y acceso con Neon Managed Auth (correo y contraseña).
+- Registro y acceso con Better Auth autoalojado (correo y contraseña, y Google).
 - Onboarding por provincia/ciudad, intereses, monedas y preferencias.
 - Perfil con teléfono, ciudad y preferencias.
 - Lugares guardados.
@@ -311,10 +311,10 @@ hay un cron de agregación.
 
 - **Framework:** Next.js 16, App Router, React 19, TypeScript 5.7.
 - **Bundler:** Turbopack (build y dev).
-- **Base de datos:** Neon Postgres serverless con `@neondatabase/serverless`
+- **Base de datos:** Postgres propio en el VPS, con `pg` (`node-postgres`)
   y `drizzle-orm`.
-- **Auth:** Neon Managed Better Auth (`@neondatabase/auth` 0.5.0-beta), que
-  exige Next >= 16.
+- **Auth:** Better Auth autoalojado, con el adaptador de Drizzle sobre la
+  misma base.
 - **Estilos:** Tailwind CSS 3.4 + Radix UI.
 - **Iconos:** `lucide-react`.
 - **Animación:** `motion`.
@@ -325,7 +325,7 @@ hay un cron de agregación.
   proveedores administrables.
 - **Email:** Resend.
 - **Push:** `web-push`.
-- **Almacenamiento:** S3 / Neon Storage.
+- **Almacenamiento:** almacén de objetos compatible con S3 (hoy, Neon Object Storage).
 - **Analítica de producto:** PostHog.
 - **Pagos:** QvaPay.
 - **PWA:** manifest, service worker y snapshots offline.
@@ -345,13 +345,13 @@ hay un cron de agregación.
 
 ### Autenticación y permisos
 
-- Neon guarda la cuenta; la tabla `users` guarda el perfil y el rol.
+- Better Auth guarda la cuenta (esquema `neon_auth`); la tabla `users` guarda el perfil y el rol.
 - `src/lib/auth/user.ts` busca o crea la fila del usuario a partir de
   `authUserId`.
 - `src/proxy.ts` comprueba solo que hay sesión.
 - El rol se comprueba en el layout de `/admin` y `/business`.
-- El navegador nunca habla directamente con Neon: todas las llamadas van a
-  `/api/auth/*` y el catch-all del servidor proxea a Neon.
+- El navegador nunca habla con un servicio externo de auth: todas las
+  llamadas van a `/api/auth/*` y las atiende Better Auth en el servidor.
 - El primer administrador se crea con `AUTH_BOOTSTRAP_ROLES`.
 - Las rutas de API validan permisos de plan siempre en el servidor; nunca se
   confía en el cliente.

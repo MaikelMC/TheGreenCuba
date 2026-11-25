@@ -19,7 +19,7 @@ const INVALID_LINK =
  *
  * - La página llega sin `token` ni `error`, que es lo que pasa al abrir la ruta a
  *   mano.
- * - Neon redirige con `?error=INVALID_TOKEN` cuando el enlace ya no sirve
+ * - Better Auth redirige con `?error=INVALID_TOKEN` cuando el enlace ya no sirve
  *   —caducado, ya usado o inventado—. Ese `error` lo lee la página de servidor y
  *   entra por la prop `linkError`.
  *
@@ -49,7 +49,7 @@ export function ResetPasswordForm({
       e.preventDefault();
       if (loading) return;
 
-      /* La longitud la valida Neon igual —y su mensaje no trae la cifra—, así que
+      /* La longitud la valida Better Auth igual —y su mensaje no trae la cifra—, así que
          se comprueba antes para poder decirla. La confirmación es lo que evita
          dejar a alguien fuera por una errata en el campo único. */
       if (password.length < 8) {

@@ -20,7 +20,7 @@ import { packsMedida } from "./packs_medida";
  * solo dice qué quiere contratar.
  *
  * El estado `pendiente` es el que autoriza a aplicar el plan. El webhook cambia
- * a `pagado` y aplica el derecho en la misma transacción de Neon (`db.batch`),
+ * a `pagado` y aplica el derecho en la misma transacción,
  * así que un reintento no extiende el plan dos veces y un cobro sin derecho no
  * queda a medias.
  */

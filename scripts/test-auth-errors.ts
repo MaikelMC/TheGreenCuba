@@ -1,6 +1,6 @@
 /**
  * Pruebas de la traducción de errores de autenticación contra los payloads
- * REALES que responde la API de Neon Auth (capturados sondeando su API
+ * REALES que responde Better Auth (capturados sondeando su API
  * directamente). Falla con exit 1 si algún caso no se cumple.
  */
 import { messageFor } from "@/lib/auth/error-messages";

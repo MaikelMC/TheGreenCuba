@@ -92,7 +92,7 @@ export async function aggregateDay(day: string): Promise<number> {
     SELECT COUNT(*)::int AS count FROM daily
   `);
 
-  /* El driver entrega las filas como array plano (`sql.query` de Neon). */
+  /* `rows()` ya devuelve el array de filas. */
   return Number(result[0]?.count ?? 0);
 }
 

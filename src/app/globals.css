@@ -2090,28 +2090,6 @@ html[data-theme="dark"]
   }
 }
 
-/* Avisos flotantes: solo los nuestros.
-   `NeonAuthUIProvider` —de `@neondatabase/auth-ui`— monta **su propio**
-   `<Toaster />` de sonner además del de `layout.tsx`, y envolvía toda la app.
-   Los dos leen el mismo almacén de sonner, así que cada `toast()` se pintaba
-   dos veces: una pastilla por cada toaster.
-
-   El proveedor ya no está en el árbol (sacar sus ~50 KB del bundle público era
-   parte del trabajo de rendimiento), pero la regla se queda: si vuelve a
-   montarse en una ruta de acceso, no puede resucitar el aviso duplicado.
-
-   El que se queda es el de `layout.tsx`, el único con el diseño del sistema y
-   con el `mobileOffset` que lo sube por encima de la barra inferior. Al del
-   paquete se le esconde, y `.lv-toaster` es la marca que los distingue —el
-   `className` del `<Toaster>` acaba justo en este `<ol>`—.
-
-   Y no hay más salida: el toaster de dentro del proveedor está escrito a fuego
-   en su código (`children: [children, jsx(Toaster, {})]`) y no acepta nada por
-   props que lo apague. */
-[data-sonner-toaster]:not(.lv-toaster) {
-  display: none;
-}
-
 /* El aviso en oscuro. En claro es la pastilla de tinta (`#08130D`) de
    `layout.tsx`; en oscuro esa tinta es el mismo color que el fondo de la página
    y la pastilla desaparecía. Sube a la superficie de tarjeta oscura, con un

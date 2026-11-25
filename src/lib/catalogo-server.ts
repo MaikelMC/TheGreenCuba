@@ -29,7 +29,7 @@ import { tasaMercadoActual } from "@/lib/tasa-cambio";
  *
  * La separación no es decorativa: `normalizarCatalogo` es lo que garantiza que
  * un jsonb a medias —guardado por una versión anterior del panel, o escrito a
- * mano desde el editor de Neon— no pueda reventar la resolución de permisos de
+ * mano en la base— no pueda reventar la resolución de permisos de
  * todo el sitio. Un `usd: "gratis"` o una clave de módulo inventada se guardan,
  * sí, pero se leen como el valor por defecto.
  */
@@ -246,7 +246,7 @@ async function conTasaDeMercado(cat: Catalogo): Promise<Catalogo> {
 /**
  * El catálogo vigente. Es lo que llama la capa servidor.
  *
- * Si la tabla está vacía o la lectura falla —Neon caído, red de esta máquina—
+ * Si la tabla está vacía o la lectura falla —base caída, red de esta máquina—
  * devuelve el de fábrica: un catálogo de planes que no se puede leer no puede
  * dejar el sitio sin permisos resueltos, que es peor que unos precios viejos.
  */

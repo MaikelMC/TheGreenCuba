@@ -8,15 +8,15 @@ La Verde ayuda a residentes y viajeros a encontrar los mejores lugares en Cuba u
 
 | Capa | Tecnología |
 |------|-----------|
-| **Framework** | Next.js 15 (App Router) |
+| **Framework** | Next.js 16 (App Router) |
 | **Lenguaje** | TypeScript (strict) |
 | **Estilos** | Tailwind CSS 3.4 + shadcn/ui |
-| **Base de datos** | PostgreSQL (Neon) + Drizzle ORM |
-| **Autenticación** | Clerk |
+| **Base de datos** | PostgreSQL propio (VPS) + Drizzle ORM (`node-postgres`) |
+| **Autenticación** | Better Auth autoalojado |
 | **Mapas** | Leaflet + React-Leaflet (OpenStreetMap) |
 | **IA** | OpenAI gpt-4o-mini + pgvector |
-| **Storage** | Cloudflare R2 |
-| **Deploy** | Vercel + Neon |
+| **Storage** | Almacén de objetos compatible con S3 (hoy, Neon Object Storage) |
+| **Deploy** | Docker en VPS |
 
 ## Estructura del proyecto
 
@@ -76,9 +76,9 @@ Edita `.env.local` con tus credenciales:
 
 | Variable | Descripción |
 |----------|-------------|
-| `DATABASE_URL` | Connection string de Neon PostgreSQL |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key |
-| `CLERK_SECRET_KEY` | Clerk secret key |
+| `DATABASE_URL` | Cadena de conexión del Postgres del VPS |
+| `BETTER_AUTH_SECRET` | Firma las cookies de sesión. Mínimo 32 caracteres |
+| `BETTER_AUTH_URL` | Origen público de la app |
 | `OPENAI_API_KEY` | OpenAI API key |
 | `AWS_ENDPOINT_URL_S3` | Endpoint de la rama, en Branch → Storage de la consola de Neon |
 | `AWS_ACCESS_KEY_ID` | `token_id` de una credencial de Neon con `storage:read` y `storage:write` |
@@ -96,7 +96,7 @@ privado, las fotos se suben pero la ficha pública no las puede leer.
 # Generar migraciones desde el schema
 npm run db:generate
 
-# Aplicar migraciones a Neon
+# Aplicar migraciones a la base
 npm run db:migrate
 
 # (Opcional) Hacer push directo del schema

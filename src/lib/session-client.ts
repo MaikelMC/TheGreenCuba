@@ -1,7 +1,7 @@
 /**
  * La sesión de la app, pedida una sola vez por pestaña.
  *
- * `/api/me` resuelve la sesión contra Neon y hace hasta cuatro consultas —el
+ * `/api/me` resuelve la sesión contra la base y hace hasta cuatro consultas —el
  * usuario, su negocio, sus proyectos y el consentimiento—, y lo llamaban doce
  * sitios distintos. En `/home` coinciden tres —el header, el menú de usuario y
  * la propia página—, así que una carga eran tres invocaciones de función con el
@@ -113,7 +113,7 @@ async function pedir(): Promise<unknown> {
  * `force` vuelve a preguntar aunque haya respuesta cacheada. Lo usan los dos
  * reintentos del header y del menú, que existen porque `/api/me` contesta
  * `authenticated: false` tanto si no hay sesión como si se cayó el viaje a
- * Neon. Sin `force` el reintento leería la misma respuesta cacheada y no
+ * la base. Sin `force` el reintento leería la misma respuesta cacheada y no
  * reintentaría nada.
  */
 export function fetchMe<T>(options: { force?: boolean } = {}): Promise<T> {

@@ -1,8 +1,8 @@
 /**
- * Sistema de embeddings para La Verde (Neon PostgreSQL + pgvector + Cloudflare Workers AI)
+ * Sistema de embeddings para La Verde (PostgreSQL + pgvector + Cloudflare Workers AI)
  *
  * Flujo:
- *   lugar → texto optimizado → embedding (@cf/baai/bge-m3, 1024 dims) → Neon
+ *   lugar → texto optimizado → embedding (@cf/baai/bge-m3, 1024 dims) → Postgres
  *
  * El texto que se embebe se construye con una plantilla fija para que el
  * vector capture los atributos que el usuario menciona en lenguaje natural:

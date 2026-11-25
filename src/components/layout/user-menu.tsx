@@ -25,8 +25,8 @@ const ITEM =
   "w-full flex items-center gap-gap-sm px-gap-md py-[10px] text-small text-ink border-b border-ink/5 last:border-none hover:bg-verde-50 transition-colors duration-500 text-left";
 
 /**
- * Lo que devuelve `/api/me`: el usuario **de la app**, no el de Neon. El rol no
- * viaja en la sesión de Neon —vive en la tabla `users`— y es lo que decide qué
+ * Lo que devuelve `/api/me`: el usuario **de la app**, no el de Better Auth. El rol no
+ * viaja en la sesión de Better Auth —vive en la tabla `users`— y es lo que decide qué
  * enlaces se enseñan.
  *
  * Aquí hubo un `business: string | null` que se va con la autenticación propia.
@@ -226,7 +226,7 @@ export function UserMenu({
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
-    /* `/api/me` y no `authClient.useSession()`: el cliente de Neon sabe el
+    /* `/api/me` y no `authClient.useSession()`: el cliente de Better Auth sabe el
        correo, pero no el rol, que es la mitad de lo que este menú necesita. */
     async function load(attempt: number): Promise<void> {
       const data = await fetchMe<{
@@ -245,7 +245,7 @@ export function UserMenu({
 
       /* La ruta contestó «no hay sesión»: el botón de entrar sale ya, sin
          esperar al reintento. No se pierde nada por enseñarlo antes de tiempo,
-         porque si el reintento dice que sí —el viaje a Neon se cayó una vez— el
+         porque si el reintento dice que sí —el viaje a la base se cayó una vez— el
          botón se cambia por el avatar.
 
          Se limpia también el usuario: la sesión puede haber caducado entre dos
@@ -257,7 +257,7 @@ export function UserMenu({
         setStatus("out");
       }
 
-      /* Un segundo intento, y solo uno. La ruta resuelve la sesión contra Neon
+      /* Un segundo intento, y solo uno. La ruta resuelve la sesión contra la base
          y, cuando esa ida falla, contesta `authenticated: false` —igual que si
          de verdad no hubiera sesión—, así que sin esto el menú se quedaba en su
          forma de «sin sesión» hasta recargar a mano. La espera es corta porque

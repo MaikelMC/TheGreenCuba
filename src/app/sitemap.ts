@@ -165,7 +165,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       });
     }
   } catch {
-    /* Si Neon no contesta se sirve lo estático. Un sitemap incompleto se
+    /* Si la base no contesta se sirve lo estático. Un sitemap incompleto se
        corrige en la siguiente revalidación; un 500, no. */
   }
 

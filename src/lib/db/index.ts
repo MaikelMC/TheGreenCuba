@@ -6,10 +6,10 @@ import * as schema from "./schema";
  * La conexión a Postgres: un único `Pool` por proceso, compartido por la app,
  * los crons y los scripts que importan `@/lib/db`.
  *
- * Sirve igual para el Postgres propio del VPS que para Neon con su URL
- * **directa** (no la del pooler HTTP): los dos hablan el protocolo estándar.
+ * Sirve para el Postgres propio del VPS y para cualquier Postgres gestionado
+ * con URL estándar: todos hablan el mismo protocolo.
  *
- * - SSL solo si la URL lo pide con `sslmode=require` (Neon). El Postgres del
+ * - SSL solo si la URL lo pide con `sslmode=require`. El Postgres del
  *   VPS va por la red interna de Docker, sin TLS.
  * - `max: 10`: el techo de conexiones de este proceso.
  * - `allowExitOnIdle`: un script que termina sin cerrar el pool no se queda
@@ -33,7 +33,7 @@ function sslDe(cadena: string | undefined) {
   }
 }
 
-/* `pg` lee `sslmode` de la URL y lo trata como `verify-full`, que contra Neon
+/* `pg` lee `sslmode` de la URL y lo trata como `verify-full`, que contra un host gestionado
    falla sin el certificado raíz a mano. Se quita de la cadena y se decide aquí. */
 function sinSslmode(cadena: string | undefined): string | undefined {
   if (!cadena) return cadena;
@@ -122,7 +122,7 @@ export const db = drizzle(pool, { schema });
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
- * Sustituto de `db.batch` (solo existía con el driver HTTP de Neon): corre las
+ * Lote transaccional (el antiguo `db.batch`): corre las
  * consultas en orden dentro de una transacción, todas o ninguna.
  *
  * `construir` recibe el cliente de la transacción y devuelve las consultas sin

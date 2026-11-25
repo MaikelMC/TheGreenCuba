@@ -187,7 +187,7 @@ async function registrarComandos(): Promise<void> {
 
 /* ── el negocio del chat ──────────────────────────────────────────────────
    Una sola consulta resuelve el vínculo, el nombre, la carta, el estado y el
-   horario. Antes eran dos viajes a Neon por mensaje; el join no cuesta y el
+   horario. Antes eran dos viajes a la base por mensaje; el join no cuesta y el
    precio de cada ida y vuelta sí. */
 
 type Menu = typeof places.$inferSelect.menu;

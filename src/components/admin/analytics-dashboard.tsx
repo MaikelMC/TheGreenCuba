@@ -1105,7 +1105,7 @@ function HealthView({ data }: { data: Health }) {
         </ul>
         <p className="text-meta text-ink-soft/75 mt-gap-sm">
           El tamaño es una <strong>estimación</strong> (~250 bytes por evento
-          con índices). No se consulta a Neon por métricas de consumo real.
+          con índices). No se consultan métricas de consumo del servidor.
         </p>
       </Card>
     </div>
@@ -1227,7 +1227,7 @@ export function AnalyticsDashboard() {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   /* `filters` es lo que se escribe; `applied` es lo que viaja a la API. Sin
      esta separación cada tecla lanzaba su consulta: escribir «La Habana» eran
-     nueve viajes a Neon seguidos, cada uno con su animación de entrada. */
+     nueve viajes a la base seguidos, cada uno con su animación de entrada. */
   const [applied, setApplied] = useState<Filters>(EMPTY_FILTERS);
   /* Sección y datos en **un solo** estado: si viajaran sueltos, cambiar de
      pestaña pintaba la vista nueva con el payload viejo y tiraba la pantalla. */
@@ -1379,7 +1379,7 @@ export function AnalyticsDashboard() {
           Analytics
         </h1>
         <p className="text-small text-ink-soft">
-          Todo sale de los eventos de producto, en la misma base Neon que el
+          Todo sale de los eventos de producto, en la misma base de datos que el
           resto de La Verde.
         </p>
       </div>

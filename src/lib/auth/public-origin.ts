@@ -79,9 +79,9 @@ export function publicOrigin(request: NextRequest): string {
 /**
  * Corrige el `Location` de una redirección que apunta a un host interno.
  *
- * El middleware de Neon devuelve la misma URL de la petición sin el verificador
- * (`new URL(request.url)`), y además resuelve la vuelta al login contra ella.
- * Con un `request.url` interno, el navegador acaba en `0.0.0.0:3000`. Se reescribe
+ * El proxy construye sus redirecciones —la vuelta al login, entre otras— contra
+ * `request.url`. Con un `request.url` interno, el navegador acaba en
+ * `0.0.0.0:3000`. Se reescribe
  * solo cuando hace falta: si el destino ya es público, la respuesta se devuelve
  * intacta.
  */

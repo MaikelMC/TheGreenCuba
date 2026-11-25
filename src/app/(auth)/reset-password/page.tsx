@@ -7,7 +7,7 @@ import { ResetPasswordForm } from "@/components/auth/reset-password-form";
  * lee sin `useSearchParams`, que en Next 16 obliga a envolver la página en un
  * `Suspense` para poder prerenderizarla. Aquí solo se pasa hacia abajo.
  *
- * Neon redirige a esta ruta de dos maneras: con `?token=…` si el enlace sirve, o
+ * Better Auth redirige a esta ruta de dos maneras: con `?token=…` si el enlace sirve, o
  * con `?error=INVALID_TOKEN` si ya no —caducado o usado—. Las dos llegan al
  * mismo formulario; la segunda entra por `linkError`.
  */

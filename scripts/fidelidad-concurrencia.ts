@@ -2,7 +2,7 @@
  * Prueba de concurrencia del sello de un pedido.
  *
  * **No es un test del CI**: escribe en la base. Se corre a mano, contra una
- * **rama de desarrollo** de Neon, nunca contra producción:
+ * **base de desarrollo**, nunca contra producción:
  *
  *   CONFIRMO_DEV=1 npx tsx --env-file-if-exists=.env scripts/fidelidad-concurrencia.ts
  *
@@ -73,7 +73,7 @@ async function main() {
         "",
         `  Base: ${hostDe(url)}`,
         "",
-        "  Si es una rama de desarrollo de Neon —nunca producción—, repite con:",
+        "  Si es una base de desarrollo —nunca producción—, repite con:",
         "",
         "    CONFIRMO_DEV=1 npx tsx --env-file-if-exists=.env scripts/fidelidad-concurrencia.ts",
         "",

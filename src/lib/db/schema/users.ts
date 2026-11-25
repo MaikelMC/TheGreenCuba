@@ -15,8 +15,8 @@ export const users = pgTable(
   "users",
   {
     id: text("id").primaryKey(),
-    /* El enlace con Neon Managed Auth. Aquella guarda la cuenta —correo y
-       contraseña— en su esquema `neon_auth`; esta fila guarda el perfil: dónde
+    /* El enlace con la cuenta de acceso (Better Auth), que guarda correo y
+       contraseña en el esquema `neon_auth`; esta fila guarda el perfil: dónde
        está el usuario, qué prefiere y qué rol tiene. Aquí no se copia ninguna
        credencial.
 
@@ -27,11 +27,9 @@ export const users = pgTable(
     authUserId: text("auth_user_id").unique(),
     email: text("email").notNull(),
     name: text("name"),
-    /* El rol vive aquí, y no en la cookie de sesión como antes. Neon no deja
-       declararle campos propios al usuario (`createNeonAuth` solo acepta
-       `baseUrl`, `cookies`, `logLevel` y `logger`), y el rol decide qué puertas
-       se abren, así que tiene que estar donde se pueda consultar y cambiar sin
-       tocar la configuración de Neon. Los tres valores son los de siempre. */
+    /* El rol vive aquí, y no en la cookie de sesión. Así se consulta y se
+       cambia con un `UPDATE`, sin tocar la configuración de autenticación.
+       Los tres valores son los de siempre. */
     role: text("role").notNull().default("user"),
     imageUrl: text("image_url"),
     /* Teléfono de contacto, opcional. Es el campo que el perfil ya enseñaba y

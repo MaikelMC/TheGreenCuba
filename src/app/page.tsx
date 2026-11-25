@@ -61,7 +61,7 @@ const WEBSITE_JSON_LD = {
 
 /* La tira de lugares se resuelve en el servidor: su HTML viaja con la página,
    lo que da a los buscadores enlaces rastreables del home a las fichas y
-   da al ancla «#lugares» del menú un destino real. Si Neon no contesta, la
+   da al ancla «#lugares» del menú un destino real. Si la base no contesta, la
    sección se omite y la landing no se entera.
 
    Eran 8 fichas, y con el catálogo por encima de 8 eso dejaba negocios de

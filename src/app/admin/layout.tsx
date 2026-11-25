@@ -13,7 +13,7 @@ import { CatalogoProvider } from "@/providers/catalogo-provider";
    Sin esta línea `next build` intenta prerenderizar cada ruta de `/admin`, el
    layout lee las cookies de la sesión y Next lanza su señal de «esto es
    dinámico» —`DYNAMIC_SERVER_USAGE`— para salirse del paso estático. El SDK de
-   Neon la captura por el camino y la registra como «cookie validation error»,
+   autenticación la captura por el camino y la registra como «cookie validation error»,
    que no es lo que pasó: el error salta *obteniendo* las cookies, no
    validándolas. Queda un bloque de alarma por ruta y por build, todos falsos, y
    un fallo de sesión de verdad se pierde entre ellos. */
@@ -27,11 +27,11 @@ export const metadata: Metadata = {
 /**
  * Puerta del panel de administración.
  *
- * Esta comprobación **es la única** desde que la autenticación pasó a Neon. El
+ * Esta comprobación **es la única** desde que la autenticación pasó a Better Auth. El
  * `proxy.ts` ya solo pregunta si hay sesión —cosa que resuelve con una cookie
  * firmada, sin salir a la red— y el rol se pregunta aquí, donde ya se está
  * consultando la base de todos modos. Hacerlo en el proxy costaba una consulta
- * a Neon en cada petición, incluidas las de estáticos, y el enlace a Neon de
+ * a la base en cada petición, incluidas las de estáticos, y el enlace a la base desde
  * esta máquina es intermitente.
  *
  * El `motivo=rol` no es decorativo: `/login` lo lee para distinguir «no has
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
  * normal vería el formulario otra vez y escribiría su contraseña para nada.
  *
  * **El catálogo se lee aquí, en el servidor.** Este layout ya es un componente
- * de servidor y ya está consultando Neon para el rol, así que leer el catálogo
+ * de servidor y ya está consultando la base para el rol, así que leer el catálogo
  * en la misma petición no cuesta un viaje extra; en cambio ahorra los dos que
  * hacía el provider desde el navegador (`/api/places` y `/api/categories`)
  * antes de pintar nada. El panel aparece con los datos puestos en vez de con
@@ -56,7 +56,7 @@ export default async function AdminLayout({
     redirect("/login?next=/admin&motivo=rol");
   }
 
-  /* `.catch(() => null)` y no dejar que suba: si Neon no contesta, esto se
+  /* `.catch(() => null)` y no dejar que suba: si la base no contesta, esto se
      comporta como antes —el provider pide los datos desde el cliente y enseña
      su error— en lugar de tumbar el panel entero. */
   const [places, categories, catalogo] = await Promise.all([
@@ -82,7 +82,7 @@ export default async function AdminLayout({
         includeUnpublished
       >
         {/* El catálogo de planes, por el mismo motivo que las fichas: el panel ya
-          está consultando Neon, así que leerlo aquí no cuesta un viaje extra y
+          está consultando la base, así que leerlo aquí no cuesta un viaje extra y
           el editor de planes y el de suscripciones arrancan con los valores de
           hoy en vez de con los del despliegue. */}
         <CatalogoProvider catalogo={catalogo ?? undefined}>

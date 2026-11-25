@@ -176,7 +176,7 @@ export function Header({
 
     /* Dos intentos, como en el menú de usuario: la ruta contesta
        `authenticated: false` tanto si no hay sesión como si se le cayó el viaje
-       a Neon, y de este id salen las búsquedas recientes de quien entra —sin
+       a la base, y de este id salen las búsquedas recientes de quien entra —sin
        él se leen del cajón de invitado, que para alguien con sesión está
        vacío—. */
     async function load(attempt: number): Promise<void> {

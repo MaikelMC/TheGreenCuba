@@ -91,7 +91,7 @@ export function parsearEvento(valor: unknown): EventoCliente | null {
 
 /* ── Lo que lee el panel ──────────────────────────────────────────────────────
    El tipo vive aquí, con el catálogo, y no en el módulo que consulta la base:
-   así el componente de cliente lo importa sin arrastrar el driver de Neon. La
+   así el componente de cliente lo importa sin arrastrar el driver de la base. La
    parte opcional es tal porque el servidor solo la rellena si el plan la
    incluye —el candado se decide antes de salir de la base, no en el navegador—. */
 

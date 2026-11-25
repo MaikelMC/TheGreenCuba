@@ -1,3 +1,5 @@
+> **Documento histórico.** Describe el proyecto antes de la migración del 2026-11-22 (Neon → Postgres propio en VPS y Better Auth autoalojado). Las rutas, líneas y dependencias de Neon que cita ya no existen.
+
 # Plan de implementación — Fichas de negocio por tipo (La Verde)
 
 Este documento es la **Fase 2** de `prompt-fichas-la-verde.md`: el plan completo, contrastado con el código real del repositorio. No se ha escrito código de producto todavía. Al final están las preguntas abiertas, cada una con el valor por defecto que propongo para no bloquear la implementación.

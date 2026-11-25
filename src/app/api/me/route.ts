@@ -184,12 +184,12 @@ async function marketingState(user: {
  * Quién ha iniciado sesión, para el menú de usuario.
  *
  * Sustituye a `/api/auth/session`, que leía la cookie firmada. El sitio bajo
- * `/api/auth/` es ahora de Neon —el catch-all `[...path]` monta su manejador
+ * `/api/auth/` es ahora de Better Auth —el catch-all `[...path]` monta su manejador
  * entero— y colgarle una ruta propia de la app sería una trampa para quien lo
- * lea después: parece de Neon y no lo es. De ahí el nombre nuevo.
+ * lea después: parece de Better Auth y no lo es. De ahí el nombre nuevo.
  *
- * Lo que devuelve es el usuario **de la app**, no el de Neon: el rol vive en la
- * tabla `users`, y el cliente de Neon no lo conoce. Es justo lo que el menú
+ * Lo que devuelve es el usuario **de la app**, no el de Better Auth: el rol vive en la
+ * tabla `users`, y el cliente de Better Auth no lo conoce. Es justo lo que el menú
  * necesita para decidir qué enlaces enseñar.
  *
  * Nunca devuelve el token ni la contraseña. Solo lo que la interfaz necesita.
@@ -414,26 +414,26 @@ export async function POST(request: NextRequest) {
  * Borrar la cuenta, de verdad.
  *
  * Hasta ahora el botón del perfil solo vaciaba el `localStorage` y cerraba
- * sesión: la fila de `users` y la cuenta de Neon seguían ahí, y el diálogo que
+ * sesión: la fila de `users` y la cuenta de acceso seguían ahí, y el diálogo que
  * pedía confirmación decía que no había servidor donde borrar nada. Con correo,
  * teléfono, ciudad, preferencias, búsquedas y reseñas guardados en la base, eso
  * dejó de ser cierto, y unos términos que prometen supresión no pueden convivir
  * con un botón que no borra.
  *
- * **El orden importa, y es este.** Primero la fila, después la cuenta de Neon:
+ * **El orden importa, y es este.** Primero la fila, después la cuenta de acceso:
  *
  * - Al borrar la fila caen en cascada `saved_places`, `reviews`,
  *   `user_search_history` y `business_owners` —las cuatro declaradas con
  *   `onDelete: cascade` sobre `users.id`— y `places.created_by` queda a `null`,
  *   porque el negocio no es de quien lo dio de alta.
- * - Si el segundo paso falla, lo que sobrevive es una cuenta de Neon sin perfil;
+ * - Si el segundo paso falla, lo que sobrevive es una cuenta de acceso sin perfil;
  *   los datos personales ya no están en la app y la respuesta lo dice
  *   (`accountDeleted: false`) para que se le pueda pedir a soporte que la quite a
  *   mano. Al revés —cuenta primero— un fallo al borrar la fila dejaría los datos
  *   en pie justo después de haber dicho que se borraron, que es el peor final
  *   posible.
  *
- * La segunda mitad pasa por `borrarCuentaDeNeon()`, que borra la fila como ya
+ * La segunda mitad pasa por `borrarCuentaDeAcceso()`, que borra la fila como ya
  * hace el panel de administración. La respuesta lleva `accountDeleted`
  * **comprobado** contra `neon_auth.user`, y
  * no lo que diga el SDK, porque de eso dependen las dos cosas que se prometen
@@ -491,8 +491,8 @@ export async function DELETE() {
   }
 
   /* La cuenta de acceso va después de la fila, y comprobada: es la mitad que
-     decide si se puede volver a entrar. Ver `borrarCuentaDeNeon`. */
-  const accountDeleted = await borrarCuentaDeNeon(sessionUser.authUserId);
+     decide si se puede volver a entrar. Ver `borrarCuentaDeAcceso`. */
+  const accountDeleted = await borrarCuentaDeAcceso(sessionUser.authUserId);
 
   return NextResponse.json({ ok: true, id: deleted.id, accountDeleted });
 }
@@ -502,7 +502,7 @@ export async function DELETE() {
 const UUID_RE = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 
 /** Si la cuenta de acceso sigue en `neon_auth.user`. */
-async function cuentaDeNeonExiste(authUserId: string): Promise<boolean> {
+async function cuentaDeAccesoExiste(authUserId: string): Promise<boolean> {
   const result = await db.execute<{ ok: number }>(sql`
     SELECT 1 AS ok
     FROM neon_auth.user
@@ -526,8 +526,8 @@ async function cuentaDeNeonExiste(authUserId: string): Promise<boolean> {
  * a mitad se leería como «no se borró» aunque la fila ya no estuviera, y el
  * aviso que vería la persona diría algo falso.
  */
-async function borrarCuentaDeNeon(authUserId: string | null): Promise<boolean> {
-  /* `auth_user_id` es opcional: una fila sin él no tiene cuenta de Neon, y no
+async function borrarCuentaDeAcceso(authUserId: string | null): Promise<boolean> {
+  /* `auth_user_id` es opcional: una fila sin él no tiene cuenta de acceso, y no
      hay correo ocupado del que hablar. Un id que no es uuid tampoco puede ser
      una fila de `neon_auth.user`, cuyo id es uuid. */
   if (!authUserId || !UUID_RE.test(authUserId)) return true;
@@ -538,8 +538,8 @@ async function borrarCuentaDeNeon(authUserId: string | null): Promise<boolean> {
       WHERE id = ${authUserId}::uuid
     `);
   } catch (error) {
-    console.error("No se pudo borrar la cuenta de Neon:", error);
+    console.error("No se pudo borrar la cuenta de acceso:", error);
   }
 
-  return !(await cuentaDeNeonExiste(authUserId));
+  return !(await cuentaDeAccesoExiste(authUserId));
 }

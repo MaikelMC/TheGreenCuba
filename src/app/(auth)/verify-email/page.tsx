@@ -14,7 +14,7 @@ import { safeNext } from "@/lib/session";
  * que pedirle sesión para verla sería un bucle.
  *
  * Quien llega trae el correo en la consulta y el formulario pide el código solo,
- * al montarse: el envío que Neon hace al crear la cuenta no llega, así que
+ * al montarse: el alta no envía el código (`sendVerificationOnSignUp` apagado), así que
  * esperar a que alguien pulse «reenviar» era pedir un clic por un correo que
  * nunca salió. Está contado en el formulario.
  */

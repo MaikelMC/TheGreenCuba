@@ -29,7 +29,7 @@ import { AUTH_USER_HEADER, isProtected, needsAppUser } from "@/lib/session";
  * (`src/lib/session.ts`).
  *
  * **El rol no se mira aquí, y es a propósito:** vive en la tabla `users`, así
- * que comprobarlo costaría una consulta a Neon en cada petición, incluidas las
+ * que comprobarlo costaría una consulta a la base en cada petición, incluidas las
  * de estáticos. Lo comprueban los layouts de `/admin` y `/business`, que ya
  * están consultando la base de todos modos.
  *
@@ -63,7 +63,7 @@ export async function proxy(request: NextRequest) {
  * mientras la cookie de desarrollo esté puesta el proxy contesta con la
  * identidad local pase lo que pase: se escribía la contraseña de la cuenta de
  * administración y se seguía dentro como `dev@local`, porque la cookie gana a la
- * sesión de Neon y nada la borraba en treinta días. Ahora se borra al salir de
+ * sesión real y nada la borraba en treinta días. Ahora se borra al salir de
  * esas dos rutas y, para que el propio formulario no se pinte como «ya has
  * entrado», en `handle` se salta el atajo cuando la ruta es `/login`.
  *
@@ -124,17 +124,17 @@ async function handle(request: NextRequest) {
 
   if (!wantsUser) return NextResponse.next({ request: { headers } });
 
-  /* Puerta de atrás del desarrollo (`/dev-login`): se salta la consulta a Neon
+  /* Puerta de atrás del desarrollo (`/dev-login`): se salta la consulta de sesión
      y se da por buena la identidad local. Va **antes** del `getSession` a
      propósito —de nada sirve ahorrarse el login si se sigue pagando el viaje a
-     Neon en cada recarga—. En producción `devAccessEnabled()` es falso y esto
+     la base en cada recarga—. En producción `devAccessEnabled()` es falso y esto
      no se ejecuta nunca; el porqué del doble cierre está en
      `src/lib/dev-access.ts`.
 
      En `/login` no se aplica: ese formulario existe justo para entrar con otra
      cuenta, y con el atajo puesto la pantalla contestaba con la identidad local
      —hasta en el aviso de rol, «has entrado como usuario con dev@local»—. Ahí se
-     sigue de largo hacia la sesión de Neon, y la cookie se borra al salir (ver
+     sigue de largo hacia la sesión real, y la cookie se borra al salir (ver
      `dropDevAccess`). */
   if (
     devAccessEnabled() &&

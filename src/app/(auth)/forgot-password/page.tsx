@@ -9,7 +9,7 @@ import { siteConfig } from "@/config/site";
 /**
  * Dónde aterriza el enlace del correo.
  *
- * El origen configurado, ni más ni menos. Neon lo valida contra su lista de
+ * El origen configurado, ni más ni menos. Better Auth lo valida contra su lista de
  * dominios de confianza (`isTrustedOrigin`, en `originCheck`) y **rechaza con
  * 403 todo lo que no esté ahí**, así que esta URL tiene que ser una de las de
  * esa lista o el envío no sale.
@@ -17,7 +17,7 @@ import { siteConfig } from "@/config/site";
  * No vale inventarse el origen del navegador ni caer al dominio de producción
  * en desarrollo: en desarrollo el despliegue aún no tiene `/reset-password`, así
  * que el correo llevaría a un 404. En el despliegue `NEXT_PUBLIC_APP_URL` ya
- * vale el dominio de producción, y ese origen está dado de alta en Neon.
+ * vale el dominio de producción, y ese origen está en `trustedOrigins` (`src/lib/auth/server.ts`).
  *
  * La barra final se quita por si alguien la dejó puesta.
  */
@@ -33,12 +33,12 @@ const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
  * Pedir el enlace de recuperación.
  *
  * `requestPasswordReset` es el nombre real del método en el cliente instalado
- *  —`@neondatabase/auth@0.5.0-beta` monta Better Auth 1.6.23—, no el
+ *  —Better Auth 1.6—, no el
  * `forgetPassword` de versiones viejas: se comprobó contra la definición de la
  * ruta `/request-password-reset` dentro de `node_modules`.
  *
  * El `redirectTo` es donde aterriza quien pulsa el enlace del correo, con el
- * token en la consulta —ver `RESET_REDIRECT`—. Neon decide el buzón y el envío;
+ * token en la consulta —ver `RESET_REDIRECT`—. el servidor manda el correo por SMTP;
  * aquí solo se pide.
  *
  * La respuesta es la misma exista o no la cuenta —decir «ese correo no está»

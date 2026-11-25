@@ -16,8 +16,8 @@
  * completar, el índice ya no estorba y suma otra vez.
  *
  * Todo va en **una sola sentencia** por operación (CTE con `INSERT … RETURNING`
- * y un `UPDATE` que lo referencia), no en leer-calcular-escribir: con Neon HTTP
- * no hay transacciones interactivas, y esto da atomicidad sin ellas.
+ * y un `UPDATE` que lo referencia), no en leer-calcular-escribir: una sentencia
+ * es atómica por sí sola y evita la carrera entre lectura y escritura.
  */
 
 import { randomBytes } from "node:crypto";

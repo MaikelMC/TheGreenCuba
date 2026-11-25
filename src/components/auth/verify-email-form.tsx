@@ -37,10 +37,10 @@ function messageForCode(error: unknown): string {
 /**
  * El código de verificación del correo.
  *
- * El código se pide nada más abrir, siempre. Hacía falta: el envío que Neon hace
- * al crear la cuenta **no llega** —probado con un alta real, el primer código
- * había que pedirlo a mano—, así que esperar a que alguien pulse «reenviar» para
- * recibir el primero era pedir un clic por un correo que nunca salió. De paso
+ * El código se pide nada más abrir, siempre. Hace falta: el alta no envía
+ * ninguno (`sendVerificationOnSignUp` apagado), así que esperar a que alguien
+ * pulse «reenviar» para recibir el primero sería pedir un clic por un correo
+ * que nunca salió. De paso
  * cubre el otro camino, el del acceso, donde el código anterior pudo caducar.
  *
  * El reenvío manual lleva cuenta atrás porque el servidor corta a los tres

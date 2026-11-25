@@ -1,3 +1,5 @@
+> **Documento histórico.** Describe el proyecto antes de la migración del 2026-11-22 (Neon → Postgres propio en VPS y Better Auth autoalojado). Las rutas, líneas y dependencias de Neon que cita ya no existen.
+
 # Diagnóstico del peso de las funciones serverless
 
 Fecha: 2026-10-26 · Next.js 16.3.5 · Turbopack · `next build` local (Windows 11) · Sin deploy.

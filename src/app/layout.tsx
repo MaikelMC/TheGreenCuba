@@ -13,10 +13,6 @@ import { NavOffline } from "@/components/layout/nav-offline";
 import { CargandoNavegacion } from "@/components/layout/cargando-navegacion";
 import { Suspense } from "react";
 import { Toaster } from "sonner";
-/* Sin el CSS de `@neondatabase/auth-ui`: no hay ningún componente de ese
-   paquete montado. Las pantallas de acceso usan las clases propias de
-   `auth-card.tsx`, y cargar la hoja del paquete solo engordaba el primer
-   pintado. */
 import "./globals.css";
 
 /* Las tres de la app, desde el repo, no desde Google. El motivo entero está en
@@ -327,10 +323,7 @@ export default function RootLayout({
               en móvil el panel de negocio y el de admin la tienen fija, y el
               aviso se posaba justo encima de las pestañas. */}
           <Toaster
-            /* La clase lo distingue del toaster interno de
-               `NeonAuthUIProvider` si ese proveedor vuelve a montarse. Hoy no
-               está en el árbol (no hay pantalla que use sus componentes), así
-               que este es el único. */
+            /* Engancha el estilo de modo oscuro de `globals.css`. */
             className="lv-toaster"
             position="bottom-center"
             toastOptions={{

@@ -47,7 +47,7 @@ import type { NegocioPanel } from "@/components/business/business-switcher";
  * visitas del restaurante de otro.
  *
  * Se resuelve aquí y no en el cliente por lo mismo que la ficha de lugar: el
- * layout ya es un componente de servidor que consulta a Neon para el rol, así
+ * layout ya es un componente de servidor que consulta la base para el rol, así
  * que leer el negocio en la misma petición no cuesta un viaje extra y ahorra la
  * pantalla de carga. El panel aparece con los datos puestos.
  *

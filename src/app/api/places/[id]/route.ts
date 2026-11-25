@@ -768,9 +768,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
      Los `id` son del cliente y estables, pero el `createdAt` se reescribe en
      cada guardado; no se enseña por ningún lado.
 
-     ponytail: dos sentencias y no una transacción —que el driver HTTP de Neon
-     no ofrece—. Si el proceso muere entre las dos, el negocio se queda sin
-     ofertas y el panel lo dice al no recibir respuesta. */
+     Borrado e inserción van en una transacción: si la segunda falla, el
+     negocio conserva las ofertas que tenía. */
   if (Array.isArray(body.ofertas)) {
     const limpias: UserPlaceOferta[] = [];
     for (const entrada of body.ofertas) {
@@ -874,22 +873,24 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       }
     }
 
-    await db.delete(ofertas).where(eq(ofertas.negocioId, id));
-    if (limpias.length > 0) {
-      await db.insert(ofertas).values(
-        limpias.map((o) => ({
-          ...o,
-          negocioId: id,
-          descripcion: o.descripcion ?? null,
-          precioOferta: o.precioOferta ?? null,
-          descuentoPct: o.descuentoPct ?? null,
-          /* Epoch en ms en el cliente, `Date` en la columna: el mapeo lo hace
-             aquí porque esta es la única puerta de escritura. */
-          inicia: new Date(o.inicia),
-          termina: new Date(o.termina),
-        })),
-      );
-    }
+    await db.transaction(async (tx) => {
+      await tx.delete(ofertas).where(eq(ofertas.negocioId, id));
+      if (limpias.length > 0) {
+        await tx.insert(ofertas).values(
+          limpias.map((o) => ({
+            ...o,
+            negocioId: id,
+            descripcion: o.descripcion ?? null,
+            precioOferta: o.precioOferta ?? null,
+            descuentoPct: o.descuentoPct ?? null,
+            /* Epoch en ms en el cliente, `Date` en la columna: el mapeo lo hace
+               aquí porque esta es la única puerta de escritura. */
+            inicia: new Date(o.inicia),
+            termina: new Date(o.termina),
+          })),
+        );
+      }
+    });
   }
 
   /* Solo se resuelve la categoría si el cuerpo la trae. Si no viene, `values`

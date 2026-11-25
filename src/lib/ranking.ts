@@ -4,7 +4,7 @@
  *
  * Módulo sin base de datos a propósito —lo mismo que `ofertas.ts` y
  * `publicaciones.ts`—, para poder probar las tres reglas que deciden quién gana
- * sin levantar Neon. Quien escribe y lee las filas es `ranking-server.ts`.
+ * sin levantar la base. Quien escribe y lee las filas es `ranking-server.ts`.
  *
  * La métrica es **visitas únicas** (`eventos_diarios.unicos` de `TIPOS_VISTA`:
  * abrir la ficha o la carta): no clics, no páginas vistas —cuánta gente distinta

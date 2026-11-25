@@ -2,7 +2,7 @@
  * Datos del catalogo inicial de La Verde.
  *
  * Unica fuente de verdad de la semilla: la usa scripts/seed.ts para poblar
- * Neon. El cliente ya no siembra nada; lee de la API, que lee de la base.
+ * la base. El cliente ya no siembra nada; lee de la API, que lee de la base.
  *
  * Fusionado a partir del catalogo del cliente (valoracion, etiqueta de precio,
  * horario) y del que se uso para la primera siembra (ambiente y monedas), que

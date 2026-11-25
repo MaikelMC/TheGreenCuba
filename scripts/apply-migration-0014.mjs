@@ -1,6 +1,6 @@
 import pg from "pg";
 
-/* Postgres estándar (VPS) o Neon con URL directa. Sin interpolaciones: estas
+/* Postgres estándar (VPS). Sin interpolaciones: estas
    migraciones son SQL fijo, así que la etiqueta solo une el texto. */
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL no está definida.");
 const url = new URL(process.env.DATABASE_URL);

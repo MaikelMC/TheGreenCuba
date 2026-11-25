@@ -5,9 +5,7 @@ const isProd = process.env.NODE_ENV === "production";
 /* `connect-src 'self'` se queda como estaba, y conviene dejar dicho por qué,
    porque es contraintuitivo.
 
-      Aquí hubo un añadido que abría el connect-src al origen de Neon Auth. Estaba
-   mal y se quitó, y sigue estando mal con Better Auth autoalojado: el cliente
-   del navegador (`src/lib/auth/client.ts`) no habla con ningún servicio
+   El cliente de auth del navegador (`src/lib/auth/client.ts`) no habla con ningún servicio
    externo. `createAuthClient()` se construye sin URL, así que Better Auth usa
    el **origen actual** y todas sus llamadas van a `/api/auth/*` en este mismo
    dominio; el catch-all `[...path]` las atiende en el servidor contra el

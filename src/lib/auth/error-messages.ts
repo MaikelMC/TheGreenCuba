@@ -2,7 +2,7 @@
  * Traducción de los errores de autenticación a mensajes que el usuario entiende.
  *
  * Módulo aparte del componente a propósito: las funciones son puras y así las
- * prueban los scripts contra los payloads REALES que responde la API de Neon
+ * prueban los scripts contra los payloads REALES que responde la API de Better
  * Auth (capturados con sondeos a `/sign-up/email` y `/sign-in/email`), sin
  * arrastrar el SDK al entorno de prueba.
  */
@@ -46,7 +46,7 @@ export function authErrorCode(error: unknown): string {
  * `PASSWORD_TOO_SHORT` y `VALIDATION_ERROR` con HTTP 400 al crear la cuenta,
  * `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL` con HTTP 422 si el correo ya está, e
  * `INVALID_EMAIL_OR_PASSWORD` con HTTP 401 al entrar. La longitud mínima la
- * pone Neon (8) y su mensaje no trae la cifra; por eso el formulario la valida
+ * pone Better Auth (8) y su mensaje no trae la cifra; por eso el formulario la valida
  * antes de enviar y aquí solo es la red de seguridad.
  */
 export function messageFor(error: unknown, mode: AuthErrorMode): string {

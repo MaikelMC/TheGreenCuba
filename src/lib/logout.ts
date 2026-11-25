@@ -7,7 +7,7 @@
  * de tiempo.
  *
  * Antes esto era un `fetch` a `/api/auth/logout`, una ruta propia que borraba
- * nuestra cookie. Ya no hay ruta propia: la sesión la emite y la revoca Neon, y
+ * nuestra cookie. Ya no hay ruta propia: la sesión la emite y la revoca Better Auth, y
  * quien la revoca desde el navegador es este cliente.
  *
  * `window.location.assign` y no `router.push`, y sigue valiendo igual: el
@@ -48,7 +48,7 @@ const EXACTAS = [
 /**
  * Si el error dice que ya no había sesión que cerrar.
  *
- * Neon responde 401 cuando la sesión no existe. Eso es un cierre igual de
+ * Better Auth responde 401 cuando la sesión no existe. Eso es un cierre igual de
  * bueno que el otro: pasa, por ejemplo, justo después de borrar la cuenta, que
  * se lleva por delante las filas de `neon_auth.session`.
  */
@@ -61,15 +61,15 @@ function sesionYaNoValia(error: unknown): boolean {
 }
 
 /**
- * Cierra la sesión contra Neon, con un reintento.
+ * Cierra la sesión en el servidor, con un reintento.
  *
  * `signOut` no lanza cuando el servidor responde con error: devuelve
  * `{ error }`. Cualquier fallo que no sea «ya no había sesión» se reintenta una
  * vez, que es lo que cubre un corte de un segundo en datos móviles.
  */
 async function cerrarEnServidor(): Promise<boolean> {
-  /* El cliente de Neon entra con `import()` y no con un `import` de arriba, y
-     no es un detalle de estilo: `@neondatabase/auth` es **el trozo más grande
+  /* El cliente de auth entra con `import()` y no con un `import` de arriba, y
+     no es un detalle de estilo: el cliente de Better Auth es **el trozo más grande
      de la aplicación** —unos 105 KB comprimidos, Better Auth entero— y este
      módulo lo importaba de forma estática. Como medio sitio importa `logout`
      para un botón, esos 105 KB viajaban en el paquete inicial de todas las

@@ -26,7 +26,7 @@ import {
  * 3. Que el importe coincida **en centavos** con el que se calculó al abrir la
  *    factura. Si el cuerpo no lo trae, se pregunta a QvaPay.
  *
- * La activación va en un `db.batch`: una sola transacción de Neon con el aviso
+ * La activación va en una sola transacción (`aplicarDerecho`) con el aviso
  * de pago y el derecho contratado. El `where` del upsert exige que el pago siga
  * sin estar pagado, así que el reintento de QvaPay —que puede llegar dos veces—
  * no suma dos meses.

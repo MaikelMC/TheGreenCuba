@@ -20,15 +20,10 @@ import {
 /**
  * Better Auth autoalojado, sobre el Postgres del VPS.
  *
- * Antes esto era `createNeonAuth`, que hablaba con el servicio de Neon por
- * HTTPS. Ya no hay servicio: las tablas son las mismas de `neon_auth` —no se
- * renombran— y el adaptador de Drizzle las usa tal cual, con sus ids y sus
- * contraseñas. Las cuentas existentes siguen entrando con la misma contraseña:
- * Neon Auth monta Better Auth 1.6.23 por dentro y guarda los hashes con el
- * mismo scrypt (`salt:hash`) que usa esta versión.
+ * El adaptador de Drizzle usa las tablas del esquema `neon_auth` tal cual, con
+ * sus ids y sus contraseñas (scrypt, `salt:hash`).
  *
- * Lo que cambia es quién manda el correo. Neon lo enviaba por su cuenta; ahora
- * los códigos y los enlaces salen por el mismo SMTP que el resto de la app
+ * Los códigos y los enlaces salen por el mismo SMTP que el resto de la app
  * (`src/lib/email.ts`), así que una configuración SMTP incompleta deja la
  * verificación y la recuperación sin correo, igual que los avisos de negocio.
  *
@@ -102,7 +97,7 @@ const trustedOrigins =
 
 /* Google es opcional: sin las dos variables el resto del acceso funciona y el
    botón de Google devuelve el error del proveedor. Las credenciales se crean
-   en la consola de Google Cloud; antes las guardaba Neon y ahora son nuestras. */
+   en la consola de Google Cloud. */
 const googleId = process.env.GOOGLE_CLIENT_ID?.trim();
 const googleSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
 
@@ -122,7 +117,7 @@ export const auth = betterAuth({
     },
   }),
   user: {
-    /* `neon_auth.user.role` existe desde Neon y el panel de administración
+    /* `neon_auth.user.role` existe en la tabla y el panel de administración
        todavía la escribe. Better Auth no la usa para nada —el rol real vive en
        `public.users`—, pero declararla evita que el adaptador la ignore al
        leer y que un insert la deje a `null` si la columna no admite nulos. */
@@ -136,7 +131,7 @@ export const auth = betterAuth({
     },
   },
   session: {
-    /* La misma vida que tenían las sesiones de Neon: siete días. */
+    /* Siete días; se renueva una vez al día mientras se use. */
     expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,
   },
@@ -152,7 +147,7 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 8,
     /* La verificación no se exige aquí, sino en el proxy: así el alta emite
-       sesión igual que hacía Neon y `/api/me` puede guardar el teléfono y la
+       sesión al momento y `/api/me` puede guardar el teléfono y la
        aceptación de los términos antes del código. El proxy manda a
        `/verify-email` a toda sesión con el correo sin verificar. */
     requireEmailVerification: false,

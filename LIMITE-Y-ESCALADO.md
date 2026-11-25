@@ -94,7 +94,7 @@ verdad; el de IP se queda como red de seguridad para los anónimos, que son
 justo los que no se pueden identificar.
 
 **Peldaño 3 — cuota diaria persistente.** Para un techo de gasto real hace
-falta un contador que no viva en memoria: una tabla en Neon con `(usuario,
+falta un contador que no viva en memoria: una tabla en la base con `(usuario,
 día, contador)`. Es el único almacén persistente que hay montado; no hay Redis
 ni KV en el proyecto.
 

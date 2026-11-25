@@ -4,7 +4,7 @@
  *
  * Ojo con el nombre del archivo: aquí ya **no hay ninguna sesión**. Este módulo
  * firmaba y verificaba una cookie con HMAC-SHA256 y llevaba el rol dentro. Desde
- * que la autenticación es Neon Managed Auth, las sesiones viven allí y el rol
+ * que la autenticación es Better Auth, las sesiones viven en su tabla y el rol
  * vive en la tabla `users`. Lo que queda es lo único que no depende de quién
  * emita la sesión.
  *
@@ -22,7 +22,7 @@ export type Role = "user" | "owner" | "admin";
  * aquí solo se dice **qué está cerrado**. El rol se comprueba en el layout de
  * cada sección (`admin/layout.tsx`, `(main)/business/layout.tsx`), que es donde
  * ya se consulta la base de datos de todos modos; hacerlo aquí costaría una
- * consulta a Neon en cada petición, incluidas las de estáticos.
+ * consulta a la base en cada petición, incluidas las de estáticos.
  *
  * `/admin` y `/business` aparecen igualmente porque el proxy corta antes de
  * renderizar nada: si el layout tuviera que hacerlo solo, la página empezaría a
@@ -57,7 +57,7 @@ export function isProtected(pathname: string): boolean {
  * Cabecera por la que el proxy le pasa la identidad al render.
  *
  * Hace falta porque la sesión no se puede preguntar dentro del render. El
- * paquete de Neon, cuando falla su caché de sesión, aplica el `Set-Cookie` que
+ * paquete de autenticación, cuando renueva la sesión, aplica el `Set-Cookie` que
  * devuelve el servidor con `cookies().set()`, y Next solo deja escribir cookies
  * en una Server Action, una ruta de API o el proxy: en el render eso lanza
  * `ReadonlyRequestCookiesError` (E1180) y se cae la página entera. Al proxy sí

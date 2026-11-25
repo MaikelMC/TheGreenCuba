@@ -181,7 +181,7 @@ export default function AdminUsersPage() {
           </p>
           <h1 className="font-lv-display text-h2 font-bold text-ink">Usuarios</h1>
           <p className="mt-1 text-small text-ink-soft/75">
-            Cuentas de Neon y sus perfiles en la aplicacion.
+            Cuentas de acceso y sus perfiles en la aplicación.
           </p>
         </div>
         <span className="rounded-full border border-verde-200 bg-verde-50 px-3 py-1 font-lv-display text-meta font-semibold text-verde-700">
@@ -303,7 +303,7 @@ export default function AdminUsersPage() {
       </section>
 
       <p className="text-meta text-ink-soft/60">
-        Eliminar aquí borra el perfil y sus datos de La Verde. Para eliminar también la cuenta de acceso y su contraseña, usa Neon Auth.
+        Eliminar aquí borra el perfil, sus datos de La Verde y la cuenta de acceso con su contraseña.
       </p>
     </div>
   );

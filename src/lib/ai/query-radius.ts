@@ -2,7 +2,7 @@
  * Radio escrito por el usuario dentro de la consulta («…a menos de 1 km»).
  *
  * Vive en su propio módulo y no dentro de `place-search.ts` porque es texto
- * puro: allí arrastraría el cliente de Neon, que se construye al importar y
+ * puro: allí arrastraría el cliente de la base, que se construye al importar y
  * revienta sin `DATABASE_URL`. Así esta función se puede comprobar sin base de
  * datos ni red.
  */

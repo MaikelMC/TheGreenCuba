@@ -1078,7 +1078,7 @@ export interface Health {
 /**
  * Salud de analítica (`§41`). Todo lo que se pueda medir con datos internos se
  * mide; **el tamaño es una estimación** (~250 bytes por fila, contando índices)
- * y así se rotula en la UI. No se llama a Neon por métricas de consumo.
+ * y así se rotula en la UI. No se piden métricas de consumo al servidor.
  */
 export async function getHealth(): Promise<Health> {
   const [row] = await fetchRows<{
