@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
-import { notifications, projectRequests } from "@/lib/db/schema";
+import { businessOwners, notifications, places, projectRequests, users } from "@/lib/db/schema";
 import { generateId } from "@/lib/utils";
 
 function text(value: unknown, max = 2000): string {
@@ -19,11 +19,20 @@ function validPoint(lat: unknown, lng: unknown): lat is number {
   return typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng) && lat >= 18 && lat <= 24 && lng >= -85 && lng <= -74;
 }
 
-function serialize(row: typeof projectRequests.$inferSelect) {
+interface ExtrasProyecto {
+  owner: { id: string; email: string; name: string | null } | null;
+  negocios: { id: string; name: string }[];
+}
+
+function serialize(
+  row: typeof projectRequests.$inferSelect,
+  extras: ExtrasProyecto = { owner: null, negocios: [] },
+) {
   return {
     ...row,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    ...extras,
   };
 }
 
@@ -106,5 +115,45 @@ export async function GET(req: NextRequest) {
     : status === "pending" || status === "approved" || status === "rejected"
       ? await query.where(eq(projectRequests.status, status)).orderBy(desc(projectRequests.createdAt))
       : await query.orderBy(desc(projectRequests.createdAt));
-  return NextResponse.json(rows.map(serialize));
+
+  /* La tabla del proyecto no guarda un `place_id`: el negocio se crea aparte.
+     Para administración se resuelve por el dueño, que es el dato que sí existe.
+     Si ya tiene ficha, se enlaza; si no, la cuenta queda como punto de partida. */
+  if (!ownProjects && rows.length > 0) {
+    const ownerIds = [...new Set(rows.map((row) => row.userId))];
+    const [owners, negocios] = await Promise.all([
+      db
+        .select({ id: users.id, email: users.email, name: users.name })
+        .from(users)
+        .where(inArray(users.id, ownerIds)),
+      db
+        .select({
+          userId: businessOwners.userId,
+          id: places.id,
+          name: places.name,
+        })
+        .from(businessOwners)
+        .innerJoin(places, eq(places.id, businessOwners.placeId))
+        .where(inArray(businessOwners.userId, ownerIds))
+        .orderBy(places.name),
+    ]);
+    const ownerPorId = new Map(owners.map((owner) => [owner.id, owner]));
+    const negociosPorDueno = new Map<string, { id: string; name: string }[]>();
+    for (const negocio of negocios) {
+      const lista = negociosPorDueno.get(negocio.userId) ?? [];
+      lista.push({ id: negocio.id, name: negocio.name });
+      negociosPorDueno.set(negocio.userId, lista);
+    }
+
+    return NextResponse.json(
+      rows.map((row) =>
+        serialize(row, {
+          owner: ownerPorId.get(row.userId) ?? null,
+          negocios: negociosPorDueno.get(row.userId) ?? [],
+        }),
+      ),
+    );
+  }
+
+  return NextResponse.json(rows.map((row) => serialize(row)));
 }

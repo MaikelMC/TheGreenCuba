@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Check, Loader2, MapPin, Megaphone, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
+import Link from "next/link";
+import { ArrowDown, ArrowUp, Building2, Check, CheckCircle2, Loader2, MapPin, Megaphone, Pencil, Plus, RotateCcw, Search, Trash2, UserRound, X, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -28,8 +29,11 @@ interface Project {
   endsAt: string;
   offers: string | null;
   offerPackages: ProjectOfferPackage[];
-  status: "approved";
+  status: "pending" | "approved" | "rejected";
+  adminNote: string | null;
   createdAt: string;
+  owner: { id: string; email: string; name: string | null } | null;
+  negocios: { id: string; name: string }[];
 }
 
 interface ProjectDraft {
@@ -81,7 +85,7 @@ export function ProjectList() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/project-requests?status=approved");
+      const response = await fetch("/api/project-requests");
       if (!response.ok) throw new Error("No se pudieron cargar los proyectos.");
       setProjects((await response.json()) as Project[]);
       setError(null);
@@ -96,15 +100,29 @@ export function ProjectList() {
     void load();
   }, [load]);
 
-  const filtered = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return projects;
-    return projects.filter((project) =>
-      `${project.name} ${project.venueName} ${project.provinces.join(" ")}`
+  const coincide = useCallback(
+    (project: Project, normalized: string) =>
+      !normalized ||
+      `${project.name} ${project.venueName} ${project.provinces.join(" ")} ${project.owner?.email ?? ""} ${project.owner?.name ?? ""}`
         .toLowerCase()
         .includes(normalized),
-    );
-  }, [projects, query]);
+    [],
+  );
+  const normalized = query.trim().toLowerCase();
+  const pendientes = useMemo(
+    () =>
+      projects.filter(
+        (project) => project.status === "pending" && coincide(project, normalized),
+      ),
+    [coincide, normalized, projects],
+  );
+  const filtered = useMemo(
+    () =>
+      projects.filter(
+        (project) => project.status === "approved" && coincide(project, normalized),
+      ),
+    [coincide, normalized, projects],
+  );
 
   function openEditor(project: Project) {
     setEditing(project);
@@ -214,6 +232,52 @@ export function ProjectList() {
     }
   }
 
+  async function moderar(project: Project, status: "approved" | "rejected") {
+    let adminNote: string | undefined;
+    if (status === "rejected") {
+      const motivo = window.prompt(
+        `Motivo del rechazo de «${project.name}» (opcional):`,
+        project.adminNote ?? "",
+      );
+      if (motivo === null) return;
+      adminNote = motivo.trim() || undefined;
+    }
+    setWorkingId(project.id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/project-requests/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, ...(adminNote ? { adminNote } : {}) }),
+      });
+      const data = (await response.json().catch(() => null)) as
+        | (Partial<Project> & { error?: string })
+        | null;
+      if (!response.ok) {
+        throw new Error(data?.error ?? "No se pudo revisar el proyecto.");
+      }
+      setProjects((current) =>
+        current.map((item) =>
+          item.id === project.id ? { ...item, ...data, status } : item,
+        ),
+      );
+      toast.success(
+        status === "approved"
+          ? `«${project.name}» quedó aprobado.`
+          : `«${project.name}» fue rechazado y su dueño recibirá el aviso.`,
+      );
+    } catch (actionError) {
+      const message =
+        actionError instanceof Error
+          ? actionError.message
+          : "No se pudo revisar el proyecto.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setWorkingId(null);
+    }
+  }
+
   async function returnToRequests(project: Project) {
     setWorkingId(project.id);
     try {
@@ -239,11 +303,15 @@ export function ProjectList() {
       <header>
         <p className="font-lv-display text-meta font-semibold uppercase tracking-[0.12em] text-verde-600">Catálogo</p>
         <h1 className="mt-gap-xs font-lv-display text-[clamp(28px,5vw,44px)] font-bold text-ink">Proyectos</h1>
-        <p className="mt-gap-sm text-body text-ink-soft/75">Edita los proyectos aprobados, devuélvelos a revisión o elimínalos.</p>
+        <p className="mt-gap-sm text-body text-ink-soft/75">Revisa los pendientes, aprueba o rechaza con motivo y mantén al día los proyectos publicados.</p>
       </header>
 
       <div className="flex flex-col gap-gap-sm sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-small text-ink-soft/75">{projects.length} proyectos aprobados</p>
+        <p className="text-small text-ink-soft/75">
+          {projects.filter((project) => project.status === "pending").length}{" "}
+          pendientes · {projects.filter((project) => project.status === "approved").length}{" "}
+          aprobados
+        </p>
         <div className="relative w-full sm:max-w-sm">
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft/70" />
           <input
@@ -257,11 +325,116 @@ export function ProjectList() {
       </div>
 
       {error && <p role="alert" className="rounded-xl bg-red-50 px-gap-md py-3 text-small font-medium text-red-700">{error}</p>}
+
+      {!loading && pendientes.length > 0 && (
+        <section className="flex flex-col gap-gap-sm">
+          <div>
+            <h2 className="font-lv-display text-h3 font-bold text-ink">
+              Pendientes de revisión
+            </h2>
+            <p className="text-small text-ink-soft/75">
+              Aprobar publica el proyecto y avisa al dueño; rechazar guarda el motivo y también se lo dice.
+            </p>
+          </div>
+          <div className="grid gap-gap-md">
+            {pendientes.map((project) => (
+              <article
+                key={project.id}
+                className="rounded-2xl border border-amber-200 bg-amber-50/40 p-gap-lg"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-gap-md">
+                  <div className="min-w-0">
+                    <h3 className="font-lv-display text-[21px] font-bold text-ink">
+                      {project.name}
+                    </h3>
+                    <p className="text-meta text-ink-soft/70">
+                      {project.venueName} · {project.provinces.join(", ")} ·{" "}
+                      {project.startsAt} a {project.endsAt}
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-amber-300 bg-amber-100 px-3 py-1 font-lv-display text-meta font-semibold text-amber-800">
+                    Pendiente
+                  </span>
+                </div>
+
+                <p className="mt-gap-sm text-small leading-relaxed text-ink-soft/85">
+                  {project.description}
+                </p>
+
+                <div className="mt-gap-sm grid gap-gap-sm text-small text-ink-soft/80 sm:grid-cols-2">
+                  <p className="flex items-start gap-gap-xs">
+                    <UserRound size={16} className="mt-0.5 shrink-0 text-verde-600" />
+                    <span>
+                      <strong className="text-ink">Cuenta:</strong>{" "}
+                      {project.owner?.name || project.owner?.email || "Sin cuenta vinculada"}
+                      <br />
+                      {project.contact} · {project.phones.join(", ")}
+                    </span>
+                  </p>
+                  <div className="flex flex-col gap-gap-xs">
+                    <p className="flex items-start gap-gap-xs">
+                      <Building2 size={16} className="mt-0.5 shrink-0 text-verde-600" />
+                      <span>
+                        <strong className="text-ink">Negocio:</strong>{" "}
+                        {project.negocios.length === 0
+                          ? "Todavía no tiene ficha creada"
+                          : null}
+                      </span>
+                    </p>
+                    {project.negocios.map((negocio) => (
+                      <Link
+                        key={negocio.id}
+                        href={`/admin/negocios/${negocio.id}/editar`}
+                        className="ml-6 inline-flex w-fit items-center gap-1 font-semibold text-verde-700 hover:underline"
+                      >
+                        {negocio.name}
+                      </Link>
+                    ))}
+                    {project.negocios.length === 0 && project.owner && (
+                      <Link
+                        href={`/admin/negocios?q=${encodeURIComponent(project.owner.email)}`}
+                        className="ml-6 inline-flex w-fit items-center gap-1 font-semibold text-verde-700 hover:underline"
+                      >
+                        Buscar sus negocios
+                      </Link>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-gap-md flex flex-wrap gap-gap-xs border-t border-amber-200 pt-gap-sm">
+                  <button
+                    type="button"
+                    disabled={workingId === project.id}
+                    onClick={() => void moderar(project, "approved")}
+                    className="inline-flex h-10 items-center gap-gap-xs rounded-full bg-verde-500 px-gap-md font-lv-display text-small font-semibold text-white hover:bg-verde-600 disabled:opacity-50"
+                  >
+                    {workingId === project.id ? (
+                      <Loader2 size={15} className="animate-spin" />
+                    ) : (
+                      <CheckCircle2 size={15} />
+                    )}
+                    Aprobar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={workingId === project.id}
+                    onClick={() => void moderar(project, "rejected")}
+                    className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-destructive/20 px-gap-md font-lv-display text-small font-semibold text-destructive hover:bg-destructive/5 disabled:opacity-50"
+                  >
+                    <XCircle size={15} /> Rechazar
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
       {loading ? (
         <div className="flex items-center gap-gap-xs text-small text-ink-soft/75"><Loader2 size={18} className="animate-spin" /> Cargando proyectos…</div>
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-ink/10 bg-white p-gap-lg text-small text-ink-soft/75">
-          {query ? "No hay proyectos que coincidan con la búsqueda." : "Todavía no hay proyectos aprobados."}
+          {query ? "No hay proyectos aprobados que coincidan con la búsqueda." : "Todavía no hay proyectos aprobados."}
         </div>
       ) : (
         <div className="grid gap-gap-md">
