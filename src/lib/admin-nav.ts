@@ -103,7 +103,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         label: "Notificaciones",
         icon: BellRing,
       },
-      { href: "/admin/prueba-onboarding", label: "Onboarding", icon: Sparkles },
+      { href: "/admin/onboarding", label: "Onboarding", icon: Sparkles },
     ],
   },
   {
@@ -123,6 +123,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         icon: Activity,
         contador: "diagnostico",
       },
+      { href: "/admin/prueba-onboarding", label: "Probar onboarding", icon: Sparkles },
       { href: "/admin/actividad", label: "Actividad", icon: History },
     ],
   },

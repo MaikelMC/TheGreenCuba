@@ -319,7 +319,11 @@ export function ProviderManager() {
             </h1>
             <p className="mt-gap-2xs text-small text-ink-soft/70">
               Claves de modelos para la búsqueda inteligente y el asistente. Se
-              guardan solo en el servidor.
+              guardan solo en el servidor. La latencia, el coste por millón de
+              tokens y las veces que un proveedor entra como respaldo todavía no
+              se registran, así que no se pintan. Para tenerlos, el proxy de IA
+              debe guardar una fila por llamada con proveedor, latencia, tokens y
+              si fue el primero o un respaldo.
             </p>
           </div>
           {!loading && providers.length > 0 && (
@@ -398,7 +402,12 @@ export function ProviderManager() {
                         )}
                       </div>
                       <p className="mt-0.5 font-lv-display text-[11px] text-ink-soft/70 truncate">
-                        {p.model} · {p.apiKey}
+                        {p.model} · {p.apiKey} · prioridad {p.priority}
+                      </p>
+                      <p className="font-lv-display text-[10px] text-ink-soft/50 truncate">
+                        {p.vendor === "gemini"
+                          ? "Rol: búsqueda"
+                          : "Rol: búsqueda y asistente"}
                       </p>
                       {p.baseURL && (
                         <p className="font-lv-display text-[10px] text-ink-soft/50 truncate">

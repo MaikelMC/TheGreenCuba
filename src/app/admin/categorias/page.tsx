@@ -266,10 +266,14 @@ export default function CategoriasPage() {
             Nueva categoría
           </button>
         </div>
-        <div className="flex flex-col">
+        <div className="grid grid-cols-1 gap-gap-sm sm:grid-cols-2 xl:grid-cols-3">
           <AnimatePresence initial={false}>
             {formOpen && !editing && (
-              <motion.div key="new" {...PANEL_MOTION} className="overflow-hidden">
+              <motion.div
+                key="new"
+                {...PANEL_MOTION}
+                className="overflow-hidden sm:col-span-2 xl:col-span-3"
+              >
                 <div className="mb-gap-sm">{formPanel}</div>
               </motion.div>
             )}
@@ -279,8 +283,11 @@ export default function CategoriasPage() {
             const used = places.filter((p) => p.category === c.label).length;
             const open = editingValue === c.value;
             return (
-              <div key={c.value} className="border-b border-ink/5 last:border-b-0">
-                <div className="flex items-center gap-gap-sm py-gap-sm">
+              <div
+                key={c.value}
+                className="rounded-xl border border-ink/5 bg-sand-warm/40 p-gap-sm"
+              >
+                <div className="flex items-center gap-gap-sm">
                   <div className="size-9 rounded-2xl bg-sand grid place-items-center text-verde-600 shrink-0">
                     <CategoryIcon icon={c.icon} size={18} strokeWidth={1.8} />
                   </div>

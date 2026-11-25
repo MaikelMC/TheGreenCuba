@@ -1,4 +1,4 @@
-import { desc, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { adminActividad } from "@/lib/db/schema";
@@ -119,6 +119,12 @@ export async function registrarActividad(
 
 export type RangoActividad = "24h" | "7d" | "todo";
 
+export interface FiltrosActividad {
+  rango?: RangoActividad;
+  adminId?: string | null;
+  accion?: string | null;
+}
+
 const HORAS_24 = 24 * 60 * 60 * 1000;
 const DIAS_7 = 7 * HORAS_24;
 
@@ -127,39 +133,48 @@ const DIAS_7 = 7 * HORAS_24;
  * y no el día natural: el panel se usa desde dos husos y «hoy» en La Habana no
  * es «hoy» en el servidor, así que la ventana se cuenta hacia atrás desde ahora.
  */
-export async function listarActividad({
-  rango = "24h",
-  limite = 100,
-}: {
-  rango?: RangoActividad;
-  limite?: number;
-} = {}) {
+function filtroActividad({ rango = "24h", adminId, accion }: FiltrosActividad) {
   const desde =
     rango === "todo"
       ? null
       : new Date(Date.now() - (rango === "24h" ? HORAS_24 : DIAS_7));
+  return and(
+    ...(desde ? [gte(adminActividad.creadoEn, desde)] : []),
+    ...(adminId ? [eq(adminActividad.adminId, adminId)] : []),
+    ...(accion ? [eq(adminActividad.accion, accion)] : []),
+  );
+}
 
-  const where = desde ? gte(adminActividad.creadoEn, desde) : undefined;
-
+export async function listarActividad({
+  rango = "24h",
+  limite = 100,
+  adminId,
+  accion,
+}: FiltrosActividad & { limite?: number } = {}) {
   return db
     .select()
     .from(adminActividad)
-    .where(where)
+    .where(filtroActividad({ rango, adminId, accion }))
     .orderBy(desc(adminActividad.creadoEn))
     .limit(Math.min(Math.max(limite, 1), 500));
 }
 
 /** Cuántas entradas hay en un rango, para el resumen de la sección. */
 export async function contarActividad(
-  rango: RangoActividad = "24h",
+  filtros: FiltrosActividad = {},
 ): Promise<number> {
-  const desde =
-    rango === "todo"
-      ? null
-      : new Date(Date.now() - (rango === "24h" ? HORAS_24 : DIAS_7));
   const [row] = await db
     .select({ total: sql<number>`count(*)::int` })
     .from(adminActividad)
-    .where(desde ? gte(adminActividad.creadoEn, desde) : undefined);
+    .where(filtroActividad(filtros));
   return row?.total ?? 0;
+}
+
+/** Administradores que han dejado alguna entrada, para el filtro. */
+export async function listarAdminsActividad() {
+  return db
+    .selectDistinct({ id: adminActividad.adminId, nombre: adminActividad.adminNombre })
+    .from(adminActividad)
+    .where(sql`${adminActividad.adminId} IS NOT NULL`)
+    .orderBy(adminActividad.adminNombre);
 }
