@@ -460,7 +460,32 @@ function DataTable({
 }) {
   if (rows.length === 0) return <Empty />;
   return (
-    <div className="overflow-x-auto -mx-gap-md px-gap-md">
+    <>
+      {/* A 360 px una tabla de seis columnas no se lee: las mismas celdas se
+          apilan como tarjetas, con su encabezado al lado. */}
+      <div className="flex flex-col gap-2 md:hidden">
+        {rows.map((row, i) => (
+          <div
+            key={i}
+            className="rounded-xl border border-ink/5 bg-sand-warm/40 p-gap-sm"
+          >
+            {row.map((cellValue, j) => (
+              <div
+                key={j}
+                className="flex items-start justify-between gap-3 border-b border-ink/5 py-1.5 last:border-b-0"
+              >
+                <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-soft/60">
+                  {headers[j]}
+                </span>
+                <span className="min-w-0 text-right text-small text-ink">
+                  {cellValue}
+                </span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto -mx-gap-md px-gap-md md:block">
       <table className="w-full text-small">
         <thead>
           <tr className="text-left border-b border-ink/5">
@@ -486,7 +511,8 @@ function DataTable({
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }
 

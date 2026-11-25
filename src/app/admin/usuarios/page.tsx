@@ -347,25 +347,25 @@ export default function AdminUsersPage() {
                         value={draftName}
                         onChange={(event) => setDraftName(event.target.value)}
                         placeholder="Nombre"
-                        className="h-9 rounded-lg border border-ink/10 px-2 text-small"
+                        className="h-11 rounded-lg border border-ink/10 px-2 text-small sm:h-9"
                       />
                       <input
                         value={draftCity}
                         onChange={(event) => setDraftCity(event.target.value)}
                         placeholder="Ciudad"
-                        className="h-9 rounded-lg border border-ink/10 px-2 text-small"
+                        className="h-11 rounded-lg border border-ink/10 px-2 text-small sm:h-9"
                       />
                       <button
                         type="button"
                         onClick={() => void saveProfile(user)}
-                        className="h-9 rounded-lg bg-verde-600 px-3 text-meta font-semibold text-white"
+                        className="h-11 rounded-lg bg-verde-600 px-3 text-meta font-semibold text-white sm:h-9"
                       >
                         Guardar
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingId(null)}
-                        className="h-9 rounded-lg border border-ink/10 px-3 text-meta"
+                        className="h-11 rounded-lg border border-ink/10 px-3 text-meta sm:h-9"
                       >
                         Cancelar
                       </button>
@@ -413,7 +413,7 @@ export default function AdminUsersPage() {
                     onChange={(event) =>
                       void changeRole(user, event.target.value as Role)
                     }
-                    className="h-9 rounded-full border border-ink/10 bg-sand px-3 text-meta font-semibold text-ink outline-none focus-visible:border-verde-400 focus-visible:ring-2 focus-visible:ring-verde-400/20"
+                    className="h-11 rounded-full border border-ink/10 bg-sand px-3 text-meta font-semibold text-ink outline-none focus-visible:border-verde-400 focus-visible:ring-2 focus-visible:ring-verde-400/20 sm:h-9"
                     aria-label={`Rol de ${user.email}`}
                   >
                     {(Object.keys(ROLE_LABELS) as Role[]).map((role) => (
@@ -428,7 +428,7 @@ export default function AdminUsersPage() {
                     type="button"
                     onClick={() => void toggleAffiliate(user)}
                     aria-pressed={Boolean(user.referralCode)}
-                    className={`grid size-9 place-items-center rounded-full border transition-colors ${user.referralCode ? "border-verde-200 bg-verde-50 text-verde-700 hover:bg-verde-100" : "border-ink/10 text-ink-soft hover:bg-sand"}`}
+                    className={`grid size-11 place-items-center rounded-full border transition-colors sm:size-9 ${user.referralCode ? "border-verde-200 bg-verde-50 text-verde-700 hover:bg-verde-100" : "border-ink/10 text-ink-soft hover:bg-sand"}`}
                     aria-label={`${user.referralCode ? "Desactivar" : "Activar"} el programa de afiliados de ${user.email}`}
                     title={
                       user.referralCode
@@ -441,7 +441,7 @@ export default function AdminUsersPage() {
                   <button
                     type="button"
                     onClick={() => startEditing(user)}
-                    className="grid size-9 place-items-center rounded-full border border-ink/10 text-ink-soft transition-colors hover:bg-sand"
+                    className="grid size-11 place-items-center rounded-full border border-ink/10 text-ink-soft transition-colors hover:bg-sand sm:size-9"
                     aria-label={`Editar perfil de ${user.email}`}
                     title="Editar perfil"
                   >
@@ -455,7 +455,7 @@ export default function AdminUsersPage() {
                       setDraftPasswordConfirmation("");
                       setError(null);
                     }}
-                    className="grid size-9 place-items-center rounded-full border border-ink/10 text-ink-soft transition-colors hover:bg-sand"
+                    className="grid size-11 place-items-center rounded-full border border-ink/10 text-ink-soft transition-colors hover:bg-sand sm:size-9"
                     aria-label={`Cambiar contraseña de ${user.email}`}
                     title="Cambiar contraseña"
                   >
@@ -464,7 +464,7 @@ export default function AdminUsersPage() {
                   <button
                     type="button"
                     onClick={() => void removeUser(user)}
-                    className="grid size-9 place-items-center rounded-full border border-destructive/20 text-destructive transition-colors hover:bg-destructive/5"
+                    className="grid size-11 place-items-center rounded-full border border-destructive/20 text-destructive transition-colors hover:bg-destructive/5 sm:size-9"
                     aria-label={`Eliminar perfil de ${user.email}`}
                     title="Eliminar perfil"
                   >
@@ -483,7 +483,7 @@ export default function AdminUsersPage() {
                         }
                         minLength={8}
                         autoComplete="new-password"
-                        className="h-9 rounded-lg border border-ink/10 px-2 text-small text-ink"
+                        className="h-11 rounded-lg border border-ink/10 px-2 text-small text-ink sm:h-9"
                       />
                     </label>
                     <label className="flex flex-col gap-1 text-meta text-ink-soft">
@@ -496,20 +496,20 @@ export default function AdminUsersPage() {
                         }
                         minLength={8}
                         autoComplete="new-password"
-                        className="h-9 rounded-lg border border-ink/10 px-2 text-small text-ink"
+                        className="h-11 rounded-lg border border-ink/10 px-2 text-small text-ink sm:h-9"
                       />
                     </label>
                     <button
                       type="button"
                       onClick={() => void resetPassword(user)}
-                      className="h-9 rounded-lg bg-verde-600 px-3 text-meta font-semibold text-white"
+                      className="h-11 rounded-lg bg-verde-600 px-3 text-meta font-semibold text-white sm:h-9"
                     >
                       Aplicar
                     </button>
                     <button
                       type="button"
                       onClick={() => setResettingId(null)}
-                      className="h-9 rounded-lg border border-ink/10 px-3 text-meta"
+                      className="h-11 rounded-lg border border-ink/10 px-3 text-meta sm:h-9"
                     >
                       Cancelar
                     </button>
