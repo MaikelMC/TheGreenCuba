@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { and, count, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { hashPassword } from "better-auth/crypto";
 import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
-import { notifications, users } from "@/lib/db/schema";
+import { businessOwners, notifications, places, users } from "@/lib/db/schema";
 import type { Role } from "@/lib/session";
 import { generateId } from "@/lib/utils";
 
@@ -70,12 +70,64 @@ export async function GET(request: NextRequest) {
   }
 
   await sincronizarPerfiles();
-  const rows = await db
-    .select()
-    .from(users)
-    .where(sql`${users.authUserId} IN (SELECT id::text FROM neon_auth.user)`)
-    .orderBy(users.createdAt);
-  return NextResponse.json({ users: rows.map(serializeUser) });
+  const params = request.nextUrl.searchParams;
+  const page = Math.max(1, Number(params.get("page")) || 1);
+  const perPage = Math.min(100, Math.max(10, Number(params.get("perPage")) || 25));
+  const q = (params.get("q") ?? "").trim();
+  const vivo = sql`${users.authUserId} IN (SELECT id::text FROM neon_auth.user)`;
+  const filtro = q
+    ? and(
+        vivo,
+        or(
+          ilike(users.name, `%${q}%`),
+          ilike(users.email, `%${q}%`),
+          ilike(users.locationCity, `%${q}%`),
+        ),
+      )
+    : vivo;
+
+  const [rows, totalRows, adminRows] = await Promise.all([
+    db
+      .select()
+      .from(users)
+      .where(filtro)
+      .orderBy(users.createdAt)
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db.select({ total: count() }).from(users).where(filtro),
+    db
+      .select({ id: users.id, email: users.email, name: users.name })
+      .from(users)
+      .where(and(vivo, eq(users.role, "admin")))
+      .orderBy(users.createdAt),
+  ]);
+
+  const ids = rows.map((row) => row.id);
+  const vinculos = ids.length
+    ? await db
+        .select({ userId: businessOwners.userId, id: places.id, nombre: places.name })
+        .from(businessOwners)
+        .innerJoin(places, eq(places.id, businessOwners.placeId))
+        .where(inArray(businessOwners.userId, ids))
+        .orderBy(places.name)
+    : [];
+  const negocioPorUsuario = new Map<string, { id: string; nombre: string }>();
+  for (const vinculo of vinculos) {
+    if (!negocioPorUsuario.has(vinculo.userId)) {
+      negocioPorUsuario.set(vinculo.userId, { id: vinculo.id, nombre: vinculo.nombre });
+    }
+  }
+
+  return NextResponse.json({
+    users: rows.map((row) => ({
+      ...serializeUser(row),
+      negocio: negocioPorUsuario.get(row.id) ?? null,
+    })),
+    total: totalRows[0]?.total ?? 0,
+    page,
+    perPage,
+    admins: adminRows,
+  });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -116,6 +168,20 @@ export async function PATCH(request: NextRequest) {
 
   const [target] = await db.select().from(users).where(eq(users.id, id)).limit(1);
   if (!target) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+
+  const quitaAdmin = isRole(body.role) && body.role !== "admin" && target.role === "admin";
+  if (quitaAdmin) {
+    const [admins] = await db
+      .select({ total: count() })
+      .from(users)
+      .where(eq(users.role, "admin"));
+    if ((admins?.total ?? 0) <= 1) {
+      return NextResponse.json(
+        { error: "No puedes dejar el sistema sin administradores." },
+        { status: 409 },
+      );
+    }
+  }
 
   if (hasProfileChanges && target.authUserId && name !== undefined) {
     await db.execute(sql`

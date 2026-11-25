@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   KeyRound,
   Link2,
@@ -24,6 +25,13 @@ interface AdminUser {
   authUserId: string | null;
   /** Null mientras no sea afiliado: tener código **es** estar activado. */
   referralCode: string | null;
+  negocio: { id: string; nombre: string } | null;
+}
+
+interface AdminResumen {
+  id: string;
+  email: string;
+  name: string | null;
 }
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -34,6 +42,9 @@ const ROLE_LABELS: Record<Role, string> = {
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [admins, setAdmins] = useState<AdminResumen[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,18 +56,27 @@ export default function AdminUsersPage() {
   const [draftPasswordConfirmation, setDraftPasswordConfirmation] =
     useState("");
 
-  async function loadUsers() {
+  async function loadUsers(pagina = page, busqueda = query) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/admin/users");
+      const params = new URLSearchParams({
+        page: String(pagina),
+        perPage: "25",
+        ...(busqueda.trim() ? { q: busqueda.trim() } : {}),
+      });
+      const response = await fetch(`/api/admin/users?${params.toString()}`);
       const data = (await response.json()) as {
         users?: AdminUser[];
+        total?: number;
+        admins?: AdminResumen[];
         error?: string;
       };
       if (!response.ok)
         throw new Error(data.error ?? "No se pudieron cargar los usuarios.");
       setUsers(data.users ?? []);
+      setTotal(data.total ?? 0);
+      setAdmins(data.admins ?? []);
     } catch (err) {
       setError(
         err instanceof Error
@@ -68,10 +88,6 @@ export default function AdminUsersPage() {
     }
   }
 
-  useEffect(() => {
-    void loadUsers();
-  }, []);
-
   /* El buscador global enlaza aquí con ?q= cuando la persona no tiene negocio:
      la lista se abre ya filtrada por su correo. */
   useEffect(() => {
@@ -79,15 +95,33 @@ export default function AdminUsersPage() {
     if (inicial?.trim()) setQuery(inicial.trim());
   }, []);
 
-  const filteredUsers = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return users;
-    return users.filter((user) =>
-      [user.name, user.email, user.locationCity, ROLE_LABELS[user.role]]
-        .filter(Boolean)
-        .some((value) => value!.toLowerCase().includes(normalized)),
-    );
-  }, [query, users]);
+  /* La búsqueda y la página viajan al servidor: no se descarga la lista entera
+     para filtrarla en el navegador. */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1);
+      void loadUsers(1, query);
+    }, 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
+  const filteredUsers = users;
+
+  async function removeAdmin(admin: AdminResumen) {
+    const response = await fetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: admin.id, role: "user" }),
+    });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) {
+      toast.error(data.error ?? "No se pudo quitar el rol de administrador.");
+      return;
+    }
+    toast.success(`Se quitó el rol de administrador a ${admin.email}.`);
+    void loadUsers();
+  }
 
   async function changeRole(user: AdminUser, role: Role) {
     if (role === user.role) return;
@@ -232,9 +266,40 @@ export default function AdminUsersPage() {
           </p>
         </div>
         <span className="rounded-full border border-verde-200 bg-verde-50 px-3 py-1 font-lv-display text-meta font-semibold text-verde-700">
-          {users.length} usuarios
+          {total} usuarios
         </span>
       </header>
+
+      {admins.length > 1 ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-gap-sm text-amber-800">
+          <p className="font-lv-display text-small font-semibold">
+            Hay {admins.length} cuentas con rol de administrador
+          </p>
+          <p className="mt-1 text-meta">
+            Revisa que todas deban tenerlo. No se puede quitar el rol a la última
+            cuenta ni a la tuya propia.
+          </p>
+          <ul className="mt-2 flex flex-col gap-1">
+            {admins.map((admin) => (
+              <li
+                key={admin.id}
+                className="flex min-h-11 flex-wrap items-center justify-between gap-2 rounded-xl bg-white/60 px-3"
+              >
+                <span className="text-meta">
+                  {admin.name || "Sin nombre"} · {admin.email}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void removeAdmin(admin)}
+                  className="min-h-9 rounded-full border border-amber-300 px-3 text-meta font-semibold hover:bg-amber-100"
+                >
+                  Quitar admin
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <div className="flex items-center gap-gap-sm rounded-2xl border border-ink/10 bg-white px-gap-sm py-2 transition-colors duration-500 ease-outquint focus-within:border-verde-400 focus-within:ring-2 focus-within:ring-verde-400/20">
         <Search size={17} className="shrink-0 text-ink-soft/75" />
@@ -318,6 +383,17 @@ export default function AdminUsersPage() {
                         {user.onboardingCompleted
                           ? "Onboarding completo"
                           : "Onboarding pendiente"}
+                        {user.negocio ? (
+                          <>
+                            {" · "}
+                            <Link
+                              href={`/admin/negocios/${user.negocio.id}/editar`}
+                              className="font-semibold text-verde-700 underline-offset-2 hover:underline"
+                            >
+                              {user.negocio.nombre}
+                            </Link>
+                          </>
+                        ) : null}
                         {user.referralCode && (
                           <>
                             {" · "}
@@ -444,6 +520,36 @@ export default function AdminUsersPage() {
           </div>
         )}
       </section>
+
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          disabled={page <= 1 || loading}
+          onClick={() => {
+            const siguiente = page - 1;
+            setPage(siguiente);
+            void loadUsers(siguiente, query);
+          }}
+          className="inline-flex h-11 items-center rounded-full border border-ink/10 px-4 text-small font-semibold disabled:opacity-40"
+        >
+          Anterior
+        </button>
+        <span className="text-meta text-ink-soft/75">
+          Página {page} de {Math.max(1, Math.ceil(total / 25))}
+        </span>
+        <button
+          type="button"
+          disabled={page >= Math.ceil(total / 25) || loading}
+          onClick={() => {
+            const siguiente = page + 1;
+            setPage(siguiente);
+            void loadUsers(siguiente, query);
+          }}
+          className="inline-flex h-11 items-center rounded-full border border-ink/10 px-4 text-small font-semibold disabled:opacity-40"
+        >
+          Siguiente
+        </button>
+      </div>
 
       <p className="text-meta text-ink-soft/60">
         Eliminar aquí borra el perfil, sus datos de La Verde y la cuenta de
