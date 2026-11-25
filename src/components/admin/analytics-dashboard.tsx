@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 import {
   AlertTriangle,
@@ -9,8 +10,10 @@ import {
   Flame,
   Loader2,
   RefreshCw,
+  Target,
   X,
 } from "lucide-react";
+import { toast } from "sonner";
 import { MiniChart } from "@/components/business/mini-chart";
 import { usePlaces } from "@/providers/places-provider";
 import { presetRange, type PeriodPreset } from "@/lib/analytics/period";
@@ -260,6 +263,18 @@ interface DemandRow {
   ratio: number;
   score: number;
   level: "alta" | "media" | "baja";
+}
+
+interface DatosCaptacion {
+  nombre: string;
+  provincia: string;
+  detalle: string;
+  notas?: string;
+}
+
+/** Clave estable para saber qué botón está captando. */
+function claveCaptar(nombre: string, provincia: string): string {
+  return `${nombre}|${provincia}`;
 }
 
 interface Businesses {
@@ -758,7 +773,15 @@ function SearchesView({ data }: { data: Searches }) {
   );
 }
 
-function NoResultsView({ data }: { data: NoResultRow[] }) {
+function NoResultsView({
+  data,
+  onCaptar,
+  captando,
+}: {
+  data: NoResultRow[];
+  onCaptar: (datos: DatosCaptacion) => void;
+  captando: string | null;
+}) {
   return (
     <Card>
       <CardTitle>Demandas sin oferta</CardTitle>
@@ -773,14 +796,44 @@ function NoResultsView({ data }: { data: NoResultRow[] }) {
           "Usuarios",
           "Provincia",
           "Categoría",
+          "Captar",
         ]}
-        rows={data.map((r) => [
-          r.query,
-          r.frequency,
-          r.users,
-          r.province,
-          r.category,
-        ])}
+        rows={data.map((r) => {
+          const provincia = r.province || "Sin provincia";
+          const clave = claveCaptar(r.query, provincia);
+          return [
+            r.query,
+            r.frequency,
+            r.users,
+            r.province,
+            r.category,
+            <button
+              key={clave}
+              type="button"
+              disabled={captando !== null}
+              onClick={() =>
+                onCaptar({
+                  nombre: r.query,
+                  provincia,
+                  detalle: r.category
+                    ? `${r.query} · ${r.category}`
+                    : r.query,
+                  notas: `Búsqueda sin resultado: ${r.frequency} ${
+                    r.frequency === 1 ? "vez" : "veces"
+                  }, ${r.users} ${r.users === 1 ? "usuario" : "usuarios"}.`,
+                })
+              }
+              className="inline-flex h-8 items-center gap-1 rounded-full border border-verde-200 px-2.5 font-lv-display text-meta font-semibold text-verde-700 transition-colors hover:bg-verde-50 disabled:opacity-50"
+            >
+              {captando === clave ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Target size={12} />
+              )}
+              Captar
+            </button>,
+          ];
+        })}
       />
     </Card>
   );
@@ -808,9 +861,13 @@ function LevelBadge({ level }: { level: DemandRow["level"] }) {
 function DemandTable({
   rows,
   dimension,
+  onCaptar,
+  captando,
 }: {
   rows: DemandRow[];
   dimension: string;
+  onCaptar: (datos: DatosCaptacion) => void;
+  captando: string | null;
 }) {
   if (rows.length === 0) return <Empty />;
   return (
@@ -822,33 +879,76 @@ function DemandTable({
         "Ratio",
         "Índice",
         "Oportunidad",
+        "Captar",
       ]}
-      rows={rows.map((r) => [
-        r.label,
-        r.demand,
-        r.offer,
-        r.ratio,
-        r.score,
-        <LevelBadge key={r.label} level={r.level} />,
-      ])}
+      rows={rows.map((r) => {
+        const provincia = dimension === "Provincia" ? r.label : "Sin provincia";
+        const clave = claveCaptar(r.label, provincia);
+        return [
+          r.label,
+          r.demand,
+          r.offer,
+          r.ratio,
+          r.score,
+          <LevelBadge key={r.label} level={r.level} />,
+          <button
+            key={`captar-${r.label}`}
+            type="button"
+            disabled={captando !== null}
+            onClick={() =>
+              onCaptar({
+                nombre: r.label,
+                provincia,
+                detalle:
+                  dimension === "Provincia"
+                    ? `Demanda en ${r.label}`
+                    : `Demanda de ${r.label}`,
+                notas: `Demanda ${r.demand} · oferta ${r.offer} · oportunidad ${r.level}.`,
+              })
+            }
+            className="inline-flex h-8 items-center gap-1 rounded-full border border-verde-200 px-2.5 font-lv-display text-meta font-semibold text-verde-700 transition-colors hover:bg-verde-50 disabled:opacity-50"
+          >
+            {captando === clave ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <Target size={12} />
+            )}
+            Captar
+          </button>,
+        ];
+      })}
     />
   );
 }
 
 function DemandView({
   data,
+  onCaptar,
+  captando,
 }: {
   data: { byCategory: DemandRow[]; byProvince: DemandRow[] };
+  onCaptar: (datos: DatosCaptacion) => void;
+  captando: string | null;
 }) {
   return (
     <div className="space-y-gap-md">
       <Card>
         <CardTitle>Demanda vs Oferta por categoría</CardTitle>
-        <DemandTable rows={data.byCategory} dimension="Categoría" />
+        <DemandTable
+          rows={data.byCategory}
+          dimension="Categoría"
+          onCaptar={onCaptar}
+          captando={captando}
+        />
       </Card>
       <Card>
         <CardTitle>Demanda vs Oferta por provincia</CardTitle>
-        <DemandTable rows={data.byProvince} dimension="Provincia" />
+        <DemandTable
+          rows={data.byProvince}
+          dimension="Provincia"
+          onCaptar={onCaptar}
+          captando={captando}
+        />
       </Card>
       <Card className="bg-sand border-verde-200/60">
         <p className="text-small text-ink-soft/75 leading-relaxed">
@@ -1221,6 +1321,8 @@ const TEXT_FILTERS: { key: keyof Filters; label: string; width: string }[] = [
 
 export function AnalyticsDashboard() {
   const { places, categories } = usePlaces();
+  const router = useRouter();
+  const [captando, setCaptando] = useState<string | null>(null);
   const [section, setSection] = useState<SectionId>("summary");
   const [preset, setPreset] = useState<Preset>("30d");
   const [range, setRange] = useState(() => presetRange("30d"));
@@ -1240,6 +1342,42 @@ export function AnalyticsDashboard() {
   /* Hasta que no se lee la URL no se escribe en ella: ver el efecto de abajo. */
   const [urlReady, setUrlReady] = useState(false);
   const still = useReducedMotion();
+
+  const captar = useCallback(
+    async (datos: DatosCaptacion) => {
+      if (captando) return;
+      setCaptando(claveCaptar(datos.nombre, datos.provincia));
+      try {
+        const res = await fetch("/api/admin/prospectos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nombre: datos.nombre,
+            provincia: datos.provincia,
+            origen: "analytics",
+            origenDetalle: datos.detalle,
+            etapa: "contactado",
+            notas: datos.notas ?? "",
+          }),
+        });
+        const body = (await res.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        if (!res.ok) {
+          throw new Error(body?.error ?? "No se pudo crear el prospecto.");
+        }
+        toast.success(`«${datos.nombre}» entró en Prospectos.`);
+        router.push("/admin/prospectos");
+      } catch (fallo) {
+        toast.error(
+          fallo instanceof Error ? fallo.message : "No se pudo crear el prospecto.",
+        );
+      } finally {
+        setCaptando(null);
+      }
+    },
+    [captando, router],
+  );
 
   useEffect(() => {
     const timer = setTimeout(() => setApplied(filters), 350);
@@ -1613,13 +1751,19 @@ export function AnalyticsDashboard() {
             )}
             {section === "searches" && <SearchesView data={data as Searches} />}
             {section === "no-results" && (
-              <NoResultsView data={data as NoResultRow[]} />
+              <NoResultsView
+                data={data as NoResultRow[]}
+                onCaptar={(datos) => void captar(datos)}
+                captando={captando}
+              />
             )}
             {section === "demand" && (
               <DemandView
                 data={
                   data as { byCategory: DemandRow[]; byProvince: DemandRow[] }
                 }
+                onCaptar={(datos) => void captar(datos)}
+                captando={captando}
               />
             )}
             {section === "businesses" && (
