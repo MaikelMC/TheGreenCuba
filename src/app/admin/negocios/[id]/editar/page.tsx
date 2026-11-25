@@ -85,13 +85,23 @@ export default function EditarNegocioPage() {
       />
       {/* El plan va aparte del formulario de la ficha y no dentro: se guarda
           contra otra tabla y con otra ruta, así que meterlo en el `save` de la
-          ficha habría atado dos escrituras que no tienen nada que ver. */}
-      <div className="mt-gap-lg">
+          ficha habría atado dos escrituras que no tienen nada que ver.
+
+          Plan y pack comparten bloque porque son dos fuentes del mismo acceso:
+          se suman, no se pisan. Cada uno conserva su formulario y su ruta. */}
+      <section className="mt-gap-xl flex flex-col gap-gap-lg">
+        <div className="flex flex-col gap-gap-2xs">
+          <h2 className="font-lv-display text-h3 font-bold tracking-[-0.01em] text-ink">
+            Acceso y facturación
+          </h2>
+          <p className="max-w-[65ch] text-small text-ink-soft/75">
+            El plan estándar, la prueba y el pack a medida se suman. El pack no
+            cambia el plan: añade sus funciones y tiene su propia vigencia.
+          </p>
+        </div>
         <SuscripcionEditor placeId={place.id} />
-      </div>
-      <div className="mt-gap-lg">
         <PackMedidaEditor placeId={place.id} />
-      </div>
+      </section>
       {/* El dueño va aparte por el mismo motivo que el plan: escribe otra tabla
           —`business_owners`— y por otra ruta. */}
       <div className="mt-gap-lg">

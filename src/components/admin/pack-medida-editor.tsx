@@ -6,6 +6,7 @@ import { Loader2, Package, Save, Send, Undo2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FormSection } from "@/components/business/form-section";
 import { MODULOS, PACKS, PACKS_ORDER, type ClaveModulo, type Pack } from "@/lib/plans";
+import { nombreServicio } from "@/lib/pack-medida";
 import { useCatalogo } from "@/providers/catalogo-provider";
 
 interface PackAdmin {
@@ -45,12 +46,14 @@ const BOTON_PELIGRO =
 /**
  * El editor de pack a medida para la página de administración de un negocio.
  *
- * Carga el pack en tramitación (si lo hay) y permite:
+ * Carga el pack en tramitación (si lo hay) o el pagado que sigue vigente y
+ * permite:
  * - Elegir servicios (módulos y packs estándar)
  * - Fijar precio final, oferta 2×1 y notas
  * - Guardar como borrador o enviarlo al dueño
  *
- * No se puede editar un pack pagado o vencido desde aquí.
+ * El pack pagado se muestra en solo lectura: su vigencia la fija el pago y no
+ * se edita desde aquí. Sin uno vigente ni uno en tramitación se puede crear.
  */
 export function PackMedidaEditor({ placeId }: { placeId: string }) {
   const cat = useCatalogo();
@@ -67,11 +70,19 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
     fetch(`/api/admin/packs-medida?placeId=${encodeURIComponent(placeId)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error())))
       .then((d: { packs?: PackAdmin[] }) => {
-        /* Mostrar el primero en tramitación. */
+        /* Primero lo que hay que atender; si no, el pack pagado que sigue
+           vigente, para que no desaparezca de la ficha al cobrarse. */
         const activo =
           d.packs?.find((p) =>
             ["solicitado", "borrador", "enviado"].includes(p.estado),
-          ) ?? null;
+          ) ??
+          d.packs?.find(
+            (p) =>
+              p.estado === "pagado" &&
+              p.venceEn !== null &&
+              new Date(p.venceEn).getTime() > Date.now(),
+          ) ??
+          null;
         setFallo(false);
         setPack(activo);
         /* Con o sin pack: tras cancelar o rechazar, el formulario vuelve vacío
@@ -183,7 +194,12 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
     );
   }
 
-  const soloLectura = pack?.estado === "enviado";
+  const vigente = Boolean(
+    pack?.estado === "pagado" &&
+      pack.venceEn !== null &&
+      new Date(pack.venceEn).getTime() > Date.now(),
+  );
+  const soloLectura = pack?.estado === "enviado" || vigente;
 
   /* Hay cambios sin guardar si el formulario difiere del pack cargado (o, sin
      pack, si ya se escribió algo). Lo lee la página para avisar antes de salir. */
@@ -208,6 +224,18 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
           {pack.estado === "enviado" && (
             <> · Enviado al dueño: puede pagarlo desde su panel.</>
           )}
+          {vigente && pack.venceEn && (
+            <>
+              {" "}
+              · Activo hasta el{" "}
+              {new Date(pack.venceEn).toLocaleDateString("es-CU", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+              {pack.precioUsd !== null && ` · ${pack.precioUsd} USD/mes`}
+            </>
+          )}
         </p>
       )}
 
@@ -222,7 +250,9 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
         <div className="rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-4 py-3">
           <p className="text-meta font-semibold text-ink">El dueño pidió:</p>
           <p className="mt-[2px] text-small text-ink">
-            {pack.serviciosSolicitados.join(" · ")}
+            {pack.serviciosSolicitados
+              .map((clave) => nombreServicio(clave, cat))
+              .join(" · ")}
           </p>
         </div>
       )}
@@ -315,8 +345,9 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
           rows={2}
           value={notaInterna}
           onChange={(e) => setNotaInterna(e.target.value)}
+          readOnly={vigente}
           placeholder="Solo para administración. El dueño no la ve."
-          className={AREA}
+          className={cn(AREA, vigente && "opacity-60")}
         />
       </div>
 
@@ -384,7 +415,7 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
       {/* Enviado: el dueño puede estar pagándolo, así que los datos no se
           tocan. Lo que sí se puede: devolverlo a borrador para corregirlo,
           cancelarlo, o apuntar la nota interna (que el dueño no ve). */}
-      {soloLectura && pack && (
+      {soloLectura && pack && pack.estado === "enviado" && (
         <div className="flex flex-wrap gap-gap-sm">
           <button
             type="button"
@@ -448,6 +479,14 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
             Cancelar pack
           </button>
         </div>
+      )}
+
+      {vigente && (
+        <p className="rounded-xl border border-verde-200 bg-verde-50/60 px-4 py-3 text-meta text-ink-soft/80">
+          Este pack ya está pagado y vigente. No se edita desde aquí: su precio,
+          servicios y fecha de fin quedaron fijados al cobrarse. Cuando venza
+          podrás preparar uno nuevo.
+        </p>
       )}
     </FormSection>
   );

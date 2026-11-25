@@ -190,7 +190,11 @@ export async function avisosHoy({
       .sort((a, b) => a - b)[0];
     if (dias !== undefined) avisos.push({ tipo: "plan", dias });
   }
-  if (esDueno && packMedida?.estado === "enviado") {
+  if (
+    esDueno &&
+    packMedida?.estado === "enviado" &&
+    packMedida.precioUsd !== null
+  ) {
     avisos.push({ tipo: "pack", precioUsd: packMedida.precioUsd });
   }
 

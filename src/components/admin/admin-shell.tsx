@@ -9,7 +9,6 @@ import {
   ChevronRight,
   LayoutDashboard,
   LifeBuoy,
-  Menu,
   MoreHorizontal,
   Send,
   Store,
@@ -149,15 +148,6 @@ export function AdminShell({
         </div>
         <BuscadorGlobal />
         <UserMenu />
-        <button
-          type="button"
-          onClick={() => setMenuAbierto(true)}
-          className="grid size-11 shrink-0 place-items-center rounded-full text-ink-soft/75 transition-colors duration-500 ease-outquint hover:bg-verde-50 hover:text-verde-600 lg:hidden"
-          aria-label="Abrir secciones"
-          aria-expanded={menuAbierto}
-        >
-          <Menu size={20} strokeWidth={1.8} />
-        </button>
       </header>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">

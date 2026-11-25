@@ -83,6 +83,19 @@ function numero(valor: number): string {
   }).format(valor);
 }
 
+function fechaISO(iso: string | null): string {
+  if (!iso) return "—";
+  const valor = new Date(iso);
+  return Number.isNaN(valor.getTime())
+    ? "—"
+    : valor.toLocaleDateString("es-CU", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone: "America/Havana",
+      });
+}
+
 function iniciales(nombre: string): string {
   return (
     nombre
@@ -377,6 +390,11 @@ function FichaContenido({
                 ? `Prueba · ${ficha.plan.nombre}`
                 : ficha.plan.nombre}
             </ChapitaEstado>
+            {ficha.packMedida && (
+              <ChapitaEstado tono="ok" punto={false}>
+                Pack a medida
+              </ChapitaEstado>
+            )}
             <ChapitaEstado
               tono={TONO_PUBLICACION[ficha.estadoPublicacion]}
               punto={false}
@@ -488,18 +506,36 @@ function FichaContenido({
         <p className="text-small text-ink-soft/80">{ficha.pago.detalle}</p>
         <div className="grid grid-cols-2 gap-gap-xs">
           <div className="rounded-xl bg-sand px-gap-sm py-gap-xs">
-            <p className="text-meta text-ink-soft/60">USD / mes</p>
+            <p className="text-meta text-ink-soft/60">Plan estándar USD / mes</p>
             <p className="font-lv-display text-body font-bold text-ink">
               {numero(ficha.plan.precioUsd)} USD
             </p>
           </div>
           <div className="rounded-xl bg-sand px-gap-sm py-gap-xs">
-            <p className="text-meta text-ink-soft/60">CUP / mes</p>
+            <p className="text-meta text-ink-soft/60">Plan estándar CUP / mes</p>
             <p className="font-lv-display text-body font-bold text-ink">
               {numero(ficha.plan.precioCup)} CUP
             </p>
           </div>
         </div>
+        {ficha.packMedida && (
+          <div className="rounded-xl border border-verde-200 bg-verde-50/60 px-gap-sm py-gap-xs">
+            <div className="flex items-center justify-between gap-gap-sm">
+              <p className="text-meta font-semibold text-verde-700">
+                Pack a medida
+              </p>
+              {ficha.packMedida.precioUsd !== null && (
+                <p className="font-lv-display text-meta font-bold text-ink">
+                  {numero(ficha.packMedida.precioUsd)} USD/mes
+                </p>
+              )}
+            </div>
+            <p className="mt-[2px] text-meta text-ink-soft/80">
+              Activo hasta el {fechaISO(ficha.packMedida.venceEn)}. Se suma al
+              plan; no lo sustituye.
+            </p>
+          </div>
+        )}
         <label className="flex flex-col gap-[4px] text-meta font-semibold text-ink-soft/70">
           Plan contratado
           <select
@@ -522,6 +558,12 @@ function FichaContenido({
               ? ` por la prueba que termina el ${ficha.plan.trialHasta}`
               : ""}
             .
+          </p>
+        )}
+        {ficha.packMedida && ficha.plan.efectivo === "gratis" && (
+          <p className="text-meta text-ink-soft/60">
+            El plan contratado sigue siendo Gratis; el pack a medida añade sus
+            funciones y su propia vigencia.
           </p>
         )}
         {ficha.plan.venceEn && (

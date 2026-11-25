@@ -154,7 +154,17 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
     if (estado !== inicial.estado) cambios.estado = estado;
     /* Cadena vacía = «quítala». El servidor la lee como nulo, que es distinto
        de no mandar el campo (eso sería «no lo toques»). */
-    if (trial !== inicial.trial) cambios.trialHasta = trial;
+    const pruebaSigue =
+      trial !== "" &&
+      new Date(`${trial}T23:59:59`).getTime() > Date.now();
+    /* Asignar un plan de pago desde administración tiene que entrar en vigor:
+       si la prueba siguiera viva, el plan guardado no se aplicaría hasta que
+       venciera. Se cierra la prueba en ese mismo guardado. */
+    if (plan !== inicial.plan && plan !== "gratis" && pruebaSigue) {
+      cambios.trialHasta = "";
+    } else if (trial !== inicial.trial) {
+      cambios.trialHasta = trial;
+    }
     if (vence !== inicial.vence) cambios.venceEn = vence;
     if (descuento !== inicial.descuento) {
       cambios.descuentoPct = descuento === "" ? null : Number(descuento);
@@ -221,12 +231,17 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
       new Date(data.trialHasta).getTime() > Date.now(),
   );
 
+  /* Prueba viva en el formulario, no en la fila guardada: sirve para avisar
+     antes de guardar que el plan nuevo cerrará la prueba. */
+  const pruebaSigue =
+    trial !== "" && new Date(`${trial}T23:59:59`).getTime() > Date.now();
+
   /* Hasta tener la fila no se pinta el formulario: con sus valores por defecto
      —Gratis, sin fechas— parecía el estado real del negocio. Esqueleto con la
      misma forma (cuatro campos), sin salto al llegar los datos. */
   if (!data) {
     return (
-      <FormSection title="Plan y vigencia" icon={<BadgeCheck size={18} strokeWidth={1.8} />}>
+      <FormSection title="Plan estándar y vigencia" icon={<BadgeCheck size={18} strokeWidth={1.8} />}>
         {fallo ? (
           <p role="alert" className="text-meta font-semibold text-destructive-ink">
             No se pudo cargar el plan actual. Recarga la página antes de guardar.
@@ -247,25 +262,31 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
   }
 
   return (
-    <FormSection title="Plan y vigencia" icon={<BadgeCheck size={18} strokeWidth={1.8} />}>
+    <FormSection title="Plan estándar y vigencia" icon={<BadgeCheck size={18} strokeWidth={1.8} />}>
       {sinGuardar && <span data-sin-guardar="plan" hidden />}
       <p className="text-meta text-ink-soft/75">
-        Mientras dure la prueba de Pro, manda sobre el plan contratado.
+        El plan estándar y el pack a medida se suman: no se sustituyen. Mientras
+        dure la prueba de Pro, manda sobre el plan contratado.
       </p>
 
       {data && (
-        <p className="flex items-center gap-gap-xs text-meta text-ink-soft/75">
-          Ahora mismo cuenta como
+        <p className="flex flex-wrap items-center gap-gap-xs text-meta text-ink-soft/75">
+          Plan estándar efectivo
           <span className="inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-verde-700">
             {enPrueba ? "Prueba gratis" : nombreDe(data.planEfectivo, cat)}
           </span>
+          {data.planEfectivo === "gratis" && (
+            <span className="text-ink-soft/60">
+              El pack a medida de abajo suma aparte.
+            </span>
+          )}
         </p>
       )}
 
       <div className="grid grid-cols-1 gap-gap-md lg:grid-cols-2">
         <div className="flex flex-col gap-gap-xs">
           <label htmlFor="scPlan" className={LABEL}>
-            Plan
+            Plan estándar
           </label>
           <select
             id="scPlan"
@@ -299,6 +320,14 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
           </p>
         </div>
 
+        {plan !== "gratis" && pruebaSigue && (
+          <p className="rounded-xl border border-lv-amber/40 bg-lv-amber/10 px-gap-sm py-2 text-meta text-ink sm:col-span-2">
+            La prueba sigue viva hasta el {trial}. Al cambiar el plan a uno de
+            pago se cierra la prueba para que el plan nuevo entre en vigor ahora
+            mismo.
+          </p>
+        )}
+
         <div className="flex flex-col gap-gap-xs">
           <label htmlFor="scTrial" className={LABEL}>
             Prueba de Pro hasta
@@ -314,7 +343,7 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
 
         <div className="flex flex-col gap-gap-xs">
           <label htmlFor="scVence" className={LABEL}>
-            Pagado hasta
+            Pagado hasta (plan estándar)
           </label>
           <input
             id="scVence"
@@ -343,6 +372,9 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
             className={cn(INPUT, "cursor-text")}
           />
           <DescuentoPreview plan={plan} descuento={descuento} />
+          <p className="text-meta text-ink-soft/60">
+            No se aplica al pack a medida: su precio ya es el negociado.
+          </p>
         </div>
       </div>
 

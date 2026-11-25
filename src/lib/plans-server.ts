@@ -1,4 +1,4 @@
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
 import { packsMedida, suscripciones } from "@/lib/db/schema";
@@ -173,12 +173,81 @@ export async function modulosDe(negocioId: string): Promise<ClaveModulo[]> {
     .map((m) => m.clave);
 }
 
+type FilaPackResumen = {
+  id: string;
+  estado: PackMedidaResumen["estado"];
+  servicios: string[];
+  funciones: string[];
+  precioUsd: number | null;
+  oferta2x1: boolean;
+  notaCliente: string | null;
+  venceEn: Date | null;
+  enviadoEn: Date | null;
+  pagadoEn: Date | null;
+};
+
+/** La fila de `packs_medida` con la forma que consume la interfaz. */
+function aPackResumen(fila: FilaPackResumen): PackMedidaResumen {
+  return {
+    id: fila.id,
+    estado: fila.estado,
+    servicios: fila.servicios,
+    funciones: fila.funciones,
+    precioUsd: fila.precioUsd,
+    oferta2x1: fila.oferta2x1,
+    notaCliente: fila.notaCliente,
+    venceEn: fila.venceEn?.toISOString() ?? null,
+    enviadoEn: fila.enviadoEn?.toISOString() ?? null,
+    pagadoEn: fila.pagadoEn?.toISOString() ?? null,
+  };
+}
+
+/**
+ * El pack a medida **pagado y vigente**, o `null`.
+ *
+ * Es la fuente de acceso que no vive en `suscripciones`: el plan estándar y el
+ * pack se suman. La ficha de administración y la lista lo usan para no enseñar
+ * «Gratis» a un negocio cuyas funciones extra están pagadas.
+ */
+export async function packMedidaVigenteDe(
+  negocioId: string,
+): Promise<PackMedidaResumen | null> {
+  const [fila] = await db
+    .select({
+      id: packsMedida.id,
+      estado: packsMedida.estado,
+      servicios: packsMedida.servicios,
+      funciones: packsMedida.funciones,
+      precioUsd: packsMedida.precioUsd,
+      oferta2x1: packsMedida.oferta2x1,
+      notaCliente: packsMedida.notaCliente,
+      venceEn: packsMedida.venceEn,
+      enviadoEn: packsMedida.enviadoEn,
+      pagadoEn: packsMedida.pagadoEn,
+    })
+    .from(packsMedida)
+    .where(
+      and(
+        eq(packsMedida.negocioId, negocioId),
+        eq(packsMedida.estado, "pagado"),
+        gt(packsMedida.venceEn, sql`now()`),
+      ),
+    )
+    .orderBy(desc(packsMedida.venceEn))
+    .limit(1);
+
+  return fila ? aPackResumen(fila) : null;
+}
+
 /**
  * El pack a medida que debe mostrar el panel del negocio, o `null` si no hay.
  *
- * Se devuelve el primero en tramitación (`solicitado | borrador | enviado`) o
- * el vigente (`pagado` sin vencer), en ese orden de prioridad. El historial
- * (vencidos, cancelados, rechazados) no viaja al panel del dueño.
+ * Se devuelve el primero en tramitación (`solicitado | enviado`) o el vigente
+ * (`pagado` sin vencer), en ese orden de prioridad. El historial (borradores,
+ * vencidos, cancelados, rechazados) no viaja al panel del dueño.
+ *
+ * Un pack `solicitado` o `borrador` todavía no tiene precio. Se devuelve igual:
+ * el dueño tiene que ver que su solicitud está en revisión, no volver a pedirla.
  */
 export async function packMedidaDe(
   negocioId: string,
@@ -224,20 +293,9 @@ export async function packMedidaDe(
     ) ??
     null;
 
-  if (!fila || fila.precioUsd === null) return null;
+  if (!fila) return null;
 
-  return {
-    id: fila.id,
-    estado: fila.estado,
-    servicios: fila.servicios,
-    funciones: fila.funciones,
-    precioUsd: fila.precioUsd,
-    oferta2x1: fila.oferta2x1,
-    notaCliente: fila.notaCliente,
-    venceEn: fila.venceEn?.toISOString() ?? null,
-    enviadoEn: fila.enviadoEn?.toISOString() ?? null,
-    pagadoEn: fila.pagadoEn?.toISOString() ?? null,
-  };
+  return aPackResumen(fila);
 }
 
 /**

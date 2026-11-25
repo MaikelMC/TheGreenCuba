@@ -68,6 +68,22 @@ export function precioSugeridoPack(
   return { precioUsd: Math.round(precioUsd * 100) / 100, notas };
 }
 
+/**
+ * El nombre visible de un servicio del pack.
+ *
+ * Los packs guardan claves (`menu_pro`, `esencial`) y la interfaz no debe
+ * enseñar la clave: si el catálogo cambió y ya no existe, se cae a la clave
+ * para no romper una fila histórica.
+ */
+export function nombreServicio(
+  clave: string,
+  cat: Catalogo = CATALOGO,
+): string {
+  if (clave in cat.modulos) return cat.modulos[clave as ClaveModulo].nombre;
+  if (clave in cat.packs) return cat.packs[clave as Pack].nombre;
+  return clave;
+}
+
 /* ── Funciones resultantes ──────────────────────────────────────────────── */
 
 /**
@@ -146,7 +162,8 @@ export interface PackMedidaResumen {
   servicios: string[];
   /** Funciones que otorga el pack (foto del momento). */
   funciones: string[];
-  precioUsd: number;
+  /** `null` mientras el pack está solicitado o en borrador y aún no tiene precio. */
+  precioUsd: number | null;
   oferta2x1: boolean;
   notaCliente: string | null;
   venceEn: string | null;

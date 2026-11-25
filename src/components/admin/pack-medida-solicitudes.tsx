@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Clock, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LoadingState } from "@/components/ui/loading";
+import { nombreServicio } from "@/lib/pack-medida";
+import { useCatalogo } from "@/providers/catalogo-provider";
 
 interface PackSolicitud {
   id: string;
@@ -46,6 +48,7 @@ function fecha(iso: string) {
  * y muestra un enlace a la página de edición de cada negocio.
  */
 export function PackMedidaSolicitudes() {
+  const cat = useCatalogo();
   const [packs, setPacks] = useState<PackSolicitud[] | null>(null);
   const [error, setError] = useState("");
 
@@ -98,7 +101,10 @@ export function PackMedidaSolicitudes() {
               </div>
               {pack.serviciosSolicitados.length > 0 && (
                 <p className="text-meta text-ink-soft/60">
-                  Pide: {pack.serviciosSolicitados.join(", ")}
+                  Pide:{" "}
+                  {pack.serviciosSolicitados
+                    .map((clave) => nombreServicio(clave, cat))
+                    .join(", ")}
                 </p>
               )}
             </div>

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { textoCup } from "@/lib/plans";
 import { useCatalogo } from "@/providers/catalogo-provider";
-import type { PackMedidaResumen } from "@/lib/pack-medida";
+import { nombreServicio, type PackMedidaResumen } from "@/lib/pack-medida";
 
 const PILDORA = "inline-flex items-center rounded-full border px-[10px] py-[3px] font-lv-display text-[10px] font-extrabold uppercase tracking-[0.09em]";
 
@@ -135,7 +135,7 @@ export function PackMedidaCard({
 
           {pack.servicios.length > 0 && (
             <p className="mt-gap-xs text-meta text-ink-soft/75">
-              Incluye: {pack.servicios.join(" · ")}
+              Incluye: {pack.servicios.map((clave) => nombreServicio(clave, cat)).join(" · ")}
             </p>
           )}
 
@@ -163,15 +163,27 @@ export function PackMedidaCard({
       )}
 
       {pack.estado === "pagado" && pack.venceEn && (
-        <p className="mt-gap-sm flex items-center gap-gap-xs text-small text-ink-soft/75">
-          <Clock size={14} className="shrink-0" strokeWidth={1.8} />
-          Activo hasta el{" "}
-          {new Date(pack.venceEn).toLocaleDateString("es-CU", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
-        </p>
+        <>
+          {usd !== null && (
+            <p className="mt-gap-sm text-small text-ink-soft/75">
+              {usd} USD al mes · {textoCup(usd, cat)}
+            </p>
+          )}
+          {pack.servicios.length > 0 && (
+            <p className="mt-gap-xs text-meta text-ink-soft/75">
+              Incluye: {pack.servicios.map((clave) => nombreServicio(clave, cat)).join(" · ")}
+            </p>
+          )}
+          <p className="mt-gap-xs flex items-center gap-gap-xs text-small text-ink-soft/75">
+            <Clock size={14} className="shrink-0" strokeWidth={1.8} />
+            Activo hasta el{" "}
+            {new Date(pack.venceEn).toLocaleDateString("es-CU", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+          </p>
+        </>
       )}
 
       {/* Solo el dueño puede cancelar; trabajadores solo ven. */}

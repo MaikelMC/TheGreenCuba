@@ -945,7 +945,7 @@ function FilaNegocio({
         </p>
       </td>
       <td className="px-3 py-3">
-        <PlanCelda plan={fila.plan} />
+        <PlanCelda plan={fila.plan} pack={fila.pack} />
       </td>
       <td className="px-3 py-3">
         <PagoCelda pago={fila.pago} />
@@ -1036,7 +1036,7 @@ function TarjetaNegocio({
           <p className="text-[10px] uppercase tracking-[0.08em] text-ink-soft/50">
             Plan
           </p>
-          <PlanCelda plan={fila.plan} />
+          <PlanCelda plan={fila.plan} pack={fila.pack} />
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-[0.08em] text-ink-soft/50">
@@ -1080,16 +1080,34 @@ function TarjetaNegocio({
   );
 }
 
-function PlanCelda({ plan }: { plan: NegocioAdminFila["plan"] }) {
+function PlanCelda({
+  plan,
+  pack,
+}: {
+  plan: NegocioAdminFila["plan"];
+  pack: NegocioAdminFila["pack"];
+}) {
+  /* El pack no cambia la columna `plan`: se pinta aparte para que un negocio
+     con plan Gratis y pack pagado no parezca que no tiene nada contratado. */
+  const packVigente = pack?.vigente === true;
+  const mostrarPlan = !packVigente || plan.efectivo !== "gratis";
+
   return (
     <div className="flex flex-wrap items-center gap-gap-xs">
-      <ChapitaEstado
-        tono={plan.efectivo === "gratis" ? "neutra" : "ok"}
-        punto={false}
-      >
-        {plan.nombre}
-      </ChapitaEstado>
-      {plan.efectivo !== plan.contratado ? (
+      {mostrarPlan && (
+        <ChapitaEstado
+          tono={plan.efectivo === "gratis" ? "neutra" : "ok"}
+          punto={false}
+        >
+          {plan.nombre}
+        </ChapitaEstado>
+      )}
+      {packVigente && (
+        <ChapitaEstado tono="ok" punto={false}>
+          Pack a medida
+        </ChapitaEstado>
+      )}
+      {plan.efectivo !== plan.contratado && plan.efectivo !== "gratis" ? (
         <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-soft/50">
           Prueba
         </span>

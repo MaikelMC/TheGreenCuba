@@ -15,6 +15,7 @@ import {
   suscripciones,
   users,
 } from "@/lib/db/schema";
+import type { PackMedidaResumen } from "@/lib/pack-medida";
 import { puntosFicha } from "@/lib/ficha/completitud";
 import { TIPO_NEGOCIO_LABEL } from "@/lib/ficha/tipos";
 import {
@@ -26,8 +27,10 @@ import {
   nombreDe,
   planEfectivo,
   usdDe,
+  type Funcion,
   type Plan,
 } from "@/lib/plans";
+import { packMedidaVigenteDe } from "@/lib/plans-server";
 import { semanaDe } from "@/lib/publicaciones";
 import { normalizarTelefono } from "@/lib/telefono";
 
@@ -88,6 +91,8 @@ export interface Ficha360Admin {
     detalle: string;
     montoCentavos?: number;
   };
+  /** El pack a medida pagado y vigente, si lo hay. Se suma al plan estándar. */
+  packMedida: PackMedidaResumen | null;
   completitud: { pct: number; faltan: string[] };
   metricas: {
     visitas30: number;
@@ -147,6 +152,7 @@ export async function cargarFicha360(
     pedidos30,
     publicacionesSemana,
     cat,
+    packMedida,
   ] = await Promise.all([
     db
       .select({
@@ -245,6 +251,7 @@ export async function cargarFicha360(
         ),
       ),
     cargarCatalogo(),
+    packMedidaVigenteDe(negocioId),
   ]);
 
   const place = filas[0];
@@ -255,6 +262,13 @@ export async function cargarFicha360(
   const precioUsd = usdDe(plan, cat);
   const precioCup = cupDe(precioUsd, cat);
   const duenoRow = duenos[0] ?? null;
+
+  /* Las funciones del pack se suman a las del plan: son dos fuentes de acceso,
+     no un reemplazo. Sin esto, la ficha enseñaba topes menores que los reales. */
+  const funciones = funcionesDe(suscripcion, ahora, cat);
+  for (const funcion of packMedida?.funciones ?? []) {
+    funciones.add(funcion as Funcion);
+  }
 
   const puntos = puntosFicha({
     logoUrl: place.logoUrl,
@@ -326,6 +340,7 @@ export async function cargarFicha360(
     trialHasta > ahora;
   const vencida =
     suscripcion?.estado === "activa" && venceEn !== null && venceEn < ahora;
+  const packVence = packMedida?.venceEn ? new Date(packMedida.venceEn) : null;
 
   const planDelPago = pagoPendiente
     ? PLAN_ORDER.find((clave) => clave === pagoPendiente.clave)
@@ -346,18 +361,36 @@ export async function cargarFicha360(
       })} USD · ${conceptosPago[pagoPendiente.tipo]}`,
       montoCentavos: pagoPendiente.montoCentavos,
     };
-  } else if (suscripcion?.estado === "cancelada") {
-    pago = {
-      estado: "cancelada",
-      etiqueta: "Cancelado",
-      detalle: "La suscripción está cancelada desde administración.",
-    };
   } else if (trialViva && trialHasta) {
     const dias = diasHasta(ahora, trialHasta);
     pago = {
       estado: "prueba",
       etiqueta: "En prueba",
       detalle: `${dias === 1 ? "Queda 1 día" : `Quedan ${dias} días`} de prueba · termina el ${fecha(trialHasta)}`,
+    };
+  } else if (
+    packMedida &&
+    packVence &&
+    (plan === "gratis" || suscripcion?.estado === "cancelada" || vencida)
+  ) {
+    const precioPack =
+      packMedida.precioUsd === null
+        ? ""
+        : `${packMedida.precioUsd.toLocaleString("es-CU", { maximumFractionDigits: 2 })} USD/mes · `;
+    pago = {
+      estado: "al_dia",
+      etiqueta: "Pack activo",
+      detalle: `${precioPack}Activo hasta el ${fecha(packVence)}${
+        suscripcion?.estado === "cancelada"
+          ? " · Suscripción estándar cancelada"
+          : ""
+      }.`,
+    };
+  } else if (suscripcion?.estado === "cancelada") {
+    pago = {
+      estado: "cancelada",
+      etiqueta: "Cancelado",
+      detalle: "La suscripción está cancelada desde administración.",
     };
   } else if (vencida && venceEn) {
     const dias = diasDesde(venceEn, ahora);
@@ -437,17 +470,14 @@ export async function cargarFicha360(
       precioUsd,
       precioCup,
     },
+    packMedida,
     pago,
     completitud: { pct, faltan },
     metricas: {
       visitas30: visitas[0]?.total ?? 0,
       pedidos30: pedidos30[0]?.total ?? 0,
       publicacionesUsadas: publicacionesSemana[0]?.total ?? 0,
-      publicacionesTope: limiteDe(
-        funcionesDe(suscripcion, ahora, cat),
-        "publicaciones_semana",
-        cat,
-      ),
+      publicacionesTope: limiteDe(funciones, "publicaciones_semana", cat),
     },
     dueno: duenoRow
       ? {

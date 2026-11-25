@@ -88,6 +88,9 @@ async function aplicarEnBase(pago: FilaPago): Promise<void> {
           negocioId: pago.negocioId,
           plan: pago.clave as Pack,
           estado: "activa",
+          /* Pagar un plan cierra la prueba: si siguiera viva, el plan cobrado
+             no entraría en vigor hasta que la prueba terminar. */
+          trialHasta: null,
           venceEn: sql`now() + make_interval(days => ${DIAS_PRIMER_PAGO})`,
         })
         .onConflictDoUpdate({
@@ -95,6 +98,7 @@ async function aplicarEnBase(pago: FilaPago): Promise<void> {
           set: {
             plan: pago.clave as Pack,
             estado: "activa",
+            trialHasta: null,
             venceEn: sql`case
               when ${suscripciones.plan} = ${pago.clave}
                 and ${suscripciones.venceEn} is not null

@@ -75,6 +75,12 @@ export type NegocioAdminFila = {
     venceEn: string | null;
   };
   pago: PagoNegocio;
+  /** Pack a medida pagado y vigente. Se suma al plan estándar. */
+  pack: {
+    vigente: boolean;
+    precioUsd: number | null;
+    venceEn: string | null;
+  } | null;
   ficha: { pct: number; faltan: string[] };
   ultimaActividad: string | null;
   diasSinActividad: number;
@@ -144,6 +150,9 @@ type FilaSql = {
   vence_en: Date | null;
   plan_efectivo: string;
   pago_pendiente: boolean;
+  pack_vigente: boolean;
+  pack_precio_usd: number | null;
+  pack_vence_en: Date | null;
   visitas30: number;
 };
 
@@ -235,6 +244,9 @@ function calcularPago({
   planContratado,
   trialHasta,
   venceEn,
+  packVigente,
+  packPrecioUsd,
+  packVenceEn,
   ahora,
 }: {
   pendiente: boolean;
@@ -242,6 +254,9 @@ function calcularPago({
   planContratado: Plan;
   trialHasta: Date | null;
   venceEn: Date | null;
+  packVigente: boolean;
+  packPrecioUsd: number | null;
+  packVenceEn: Date | null;
   ahora: number;
 }): PagoNegocio {
   if (pendiente) {
@@ -252,20 +267,34 @@ function calcularPago({
     };
   }
 
-  if (suscripcion === "cancelada") {
-    return {
-      estado: "cancelada",
-      etiqueta: "Cancelada",
-      detalle: "La suscripción está cancelada.",
-    };
-  }
-
-  if (trialHasta && trialHasta.getTime() > ahora) {
+  if (suscripcion === "activa" && trialHasta && trialHasta.getTime() > ahora) {
     const quedan = diasHasta(trialHasta, ahora);
     return {
       estado: "prueba",
       etiqueta: "En prueba",
       detalle: `Quedan ${quedan} ${quedan === 1 ? "día" : "días"} de prueba · termina el ${formatearFecha(trialHasta)}.`,
+    };
+  }
+
+  if (
+    packVigente &&
+    packVenceEn &&
+    (planContratado === "gratis" ||
+      suscripcion === "cancelada" ||
+      (venceEn !== null && venceEn.getTime() < ahora))
+  ) {
+    return {
+      estado: "al_dia",
+      etiqueta: "Pack activo",
+      detalle: `${packPrecioUsd !== null ? `${packPrecioUsd} USD/mes · ` : ""}Activo hasta el ${formatearFecha(packVenceEn)}${suscripcion === "cancelada" ? " · Suscripción estándar cancelada" : ""}.`,
+    };
+  }
+
+  if (suscripcion === "cancelada") {
+    return {
+      estado: "cancelada",
+      etiqueta: "Cancelada",
+      detalle: "La suscripción está cancelada.",
     };
   }
 
@@ -555,6 +584,31 @@ export async function cargarNegociosAdmin(
         SELECT 1 FROM pagos pa
         WHERE pa.negocio_id = p.id AND pa.estado = 'pendiente'
       ) AS pago_pendiente,
+      EXISTS (
+        SELECT 1 FROM packs_medida pm
+        WHERE pm.negocio_id = p.id
+          AND pm.estado = 'pagado'
+          AND pm.vence_en IS NOT NULL
+          AND pm.vence_en > now()
+      ) AS pack_vigente,
+      (
+        SELECT pm.precio_usd FROM packs_medida pm
+        WHERE pm.negocio_id = p.id
+          AND pm.estado = 'pagado'
+          AND pm.vence_en IS NOT NULL
+          AND pm.vence_en > now()
+        ORDER BY pm.vence_en DESC
+        LIMIT 1
+      ) AS pack_precio_usd,
+      (
+        SELECT pm.vence_en FROM packs_medida pm
+        WHERE pm.negocio_id = p.id
+          AND pm.estado = 'pagado'
+          AND pm.vence_en IS NOT NULL
+          AND pm.vence_en > now()
+        ORDER BY pm.vence_en DESC
+        LIMIT 1
+      ) AS pack_vence_en,
       ${VISITAS_30} AS visitas30
     FROM places p
     LEFT JOIN categories c ON c.id = p.category_id
@@ -577,6 +631,14 @@ export async function cargarNegociosAdmin(
       : "gratis";
     const suscripcion =
       fila.suscripcion_estado === "cancelada" ? "cancelada" : "activa";
+    const packVenceEn = fecha(fila.pack_vence_en);
+    const pack = fila.pack_vigente
+      ? {
+          vigente: true,
+          precioUsd: fila.pack_precio_usd ?? null,
+          venceEn: formatearFecha(packVenceEn),
+        }
+      : null;
     const tipoNegocio =
       fila.tipo_negocio &&
       (TIPOS_NEGOCIO as readonly string[]).includes(fila.tipo_negocio)
@@ -624,8 +686,12 @@ export async function cargarNegociosAdmin(
         planContratado,
         trialHasta,
         venceEn,
+        packVigente: fila.pack_vigente,
+        packPrecioUsd: fila.pack_precio_usd ?? null,
+        packVenceEn,
         ahora,
       }),
+      pack,
       ficha: {
         pct,
         faltan: puntos.filter((punto) => !punto.ok).map((punto) => punto.falta),
