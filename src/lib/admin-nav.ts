@@ -14,6 +14,7 @@ import {
   Sparkles,
   Store,
   Tags,
+  Trophy,
   Target,
   Users,
   Wallet,
@@ -88,6 +89,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     titulo: "Negocio",
     items: [
       { href: "/admin/negocios", label: "Negocios", icon: Store },
+      { href: "/admin/ranking", label: "Ranking", icon: Trophy },
       { href: "/admin/ingresos", label: "Ingresos y pagos", icon: Wallet },
       { href: "/admin/afiliados", label: "Afiliados", icon: HandCoins },
       { href: "/admin/proyectos", label: "Proyectos", icon: Megaphone },
