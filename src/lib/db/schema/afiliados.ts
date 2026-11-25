@@ -67,6 +67,42 @@ export const afiliadoPremios = pgTable(
   }),
 );
 
+/**
+ * Liquidaciones mensuales de comisiones.
+ *
+ * La comisión se sigue calculando desde `pagos`; esta tabla guarda lo que no se
+ * puede deducir: que administración ya pagó la comisión de un afiliado por un
+ * mes concreto. Una fila por afiliado y mes; si el mes vuelve a generar pagos
+ * después de liquidarlo, esos pagos quedan para la siguiente liquidación y no
+ * se pisan los importes ya comunicados.
+ */
+export const afiliadoLiquidaciones = pgTable(
+  "afiliado_liquidaciones",
+  {
+    id: text("id").primaryKey(),
+    afiliadoId: text("afiliado_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** `AAAA-MM` del mes liquidado. */
+    mes: text("mes").notNull(),
+    montoUsdCentavos: integer("monto_usd_centavos").notNull(),
+    tasaUsdCup: integer("tasa_usd_cup").notNull(),
+    montoCupCentavos: integer("monto_cup_centavos").notNull(),
+    pagadoPor: text("pagado_por").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    pagadoEn: timestamp("pagado_en").defaultNow().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    unico: unique("afiliado_liquidaciones_unico").on(
+      table.afiliadoId,
+      table.mes,
+    ),
+    mesIdx: index("afiliado_liquidaciones_mes_idx").on(table.mes),
+  }),
+);
+
 /** Notas internas sobre un afiliado. Solo las ven los administradores. */
 export const afiliadoNotas = pgTable(
   "afiliado_notas",

@@ -4,8 +4,14 @@ import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
-import { afiliadoCobros, afiliadoNotas, afiliadoPremios, users } from "@/lib/db/schema";
-import { mesActual } from "@/lib/afiliados";
+import {
+  afiliadoCobros,
+  afiliadoLiquidaciones,
+  afiliadoNotas,
+  afiliadoPremios,
+  users,
+} from "@/lib/db/schema";
+import { aCup, mesActual, resumenAfiliado, tasaUsdCup } from "@/lib/afiliados";
 import { generateId } from "@/lib/utils";
 
 /**
@@ -60,6 +66,61 @@ export async function POST(request: NextRequest) {
       resumen: `Registró el premio ${tipo} de un afiliado`,
       adminId: admin?.id ?? null,
       adminNombre: admin?.name ?? "Administración",
+    });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (accion === "liquidar") {
+    const afiliadoId = texto(body?.afiliadoId, 40);
+    const mes = texto(body?.mes, 7);
+    if (!afiliadoId || !/^\d{4}-\d{2}$/.test(mes)) {
+      return NextResponse.json({ error: "Faltan datos de la liquidación." }, { status: 400 });
+    }
+    if (mes > mesActual()) {
+      return NextResponse.json({ error: "No se puede liquidar un mes futuro." }, { status: 400 });
+    }
+
+    /* El importe no llega del cliente: se recalcula con la misma regla que
+       enseña la página. Así un navegador desactualizado no puede pagar de más. */
+    const resumen = await resumenAfiliado(afiliadoId);
+    const comision = resumen.historialMeses.find((fila) => fila.mes === mes)?.comisionUsdCentavos ?? 0;
+    if (comision <= 0) {
+      return NextResponse.json(
+        { error: "Ese afiliado no tiene comisión pendiente en ese mes." },
+        { status: 409 },
+      );
+    }
+
+    const tasa = tasaUsdCup();
+    const [liquidacion] = await db
+      .insert(afiliadoLiquidaciones)
+      .values({
+        id: generateId(),
+        afiliadoId,
+        mes,
+        montoUsdCentavos: comision,
+        tasaUsdCup: tasa,
+        montoCupCentavos: aCup(comision, tasa) * 100,
+        pagadoPor: admin?.id ?? null,
+      })
+      .onConflictDoNothing({ target: [afiliadoLiquidaciones.afiliadoId, afiliadoLiquidaciones.mes] })
+      .returning({ id: afiliadoLiquidaciones.id });
+
+    if (!liquidacion) {
+      return NextResponse.json(
+        { error: "La comisión de ese mes ya estaba marcada como pagada." },
+        { status: 409 },
+      );
+    }
+
+    await registrarActividad({
+      accion: ACCION.liquidarAfiliado,
+      objetoTipo: "liquidacion_afiliado",
+      objetoId: liquidacion.id,
+      resumen: `Liquidó la comisión de ${mes} de un afiliado`,
+      adminId: admin?.id ?? null,
+      adminNombre: admin?.name ?? "Administración",
+      datos: { afiliadoId, mes, comisionUsdCentavos: comision, tasa },
     });
     return NextResponse.json({ ok: true });
   }

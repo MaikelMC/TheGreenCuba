@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { and, desc, eq, gte } from "drizzle-orm";
-import { Users, TrendingUp, Wallet, Store } from "lucide-react";
+import { alias } from "drizzle-orm/pg-core";
+import { CalendarCheck2, Users, Wallet, Store } from "lucide-react";
 import { db } from "@/lib/db";
-import { pagos, places } from "@/lib/db/schema";
+import { afiliadoLiquidaciones, pagos, places, users } from "@/lib/db/schema";
 import {
   aCup,
   formatoCup,
@@ -11,7 +12,11 @@ import {
   REGLAS_AFILIADOS as R,
   tasaUsdCup,
 } from "@/lib/afiliados";
-import { EntregarPremio, ResolverCobro } from "@/components/afiliados/acciones-admin";
+import {
+  EntregarPremio,
+  LiquidarComision,
+  ResolverCobro,
+} from "@/components/afiliados/acciones-admin";
 import { fecha, rotulo, tarjeta } from "@/components/afiliados/piezas";
 import { TablaAfiliados, type AfiliadoResumido } from "@/components/afiliados/tabla-afiliados";
 
@@ -19,8 +24,15 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminAfiliadosPage() {
   const tasa = tasaUsdCup();
-  const inicioMes = new Date(`${new Date().toISOString().slice(0, 7)}-01T00:00:00Z`);
-  const [afiliados, pagosMes] = await Promise.all([
+  const mes = new Date().toISOString().slice(0, 7);
+  const inicioMes = new Date(`${mes}-01T00:00:00Z`);
+  const mesBonito = new Intl.DateTimeFormat("es-CU", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(inicioMes);
+  const adminLiquidacion = alias(users, "admin_liquidacion");
+  const [afiliados, pagosMes, liquidacionesMes] = await Promise.all([
     listarAfiliados(),
     db
       .select({
@@ -38,6 +50,17 @@ export default async function AdminAfiliadosPage() {
       )
       .orderBy(desc(pagos.pagadoEn))
       .limit(50),
+    db
+      .select({
+        afiliadoId: afiliadoLiquidaciones.afiliadoId,
+        montoUsdCentavos: afiliadoLiquidaciones.montoUsdCentavos,
+        pagadoEn: afiliadoLiquidaciones.pagadoEn,
+        adminNombre: adminLiquidacion.name,
+        adminEmail: adminLiquidacion.email,
+      })
+      .from(afiliadoLiquidaciones)
+      .leftJoin(adminLiquidacion, eq(adminLiquidacion.id, afiliadoLiquidaciones.pagadoPor))
+      .where(eq(afiliadoLiquidaciones.mes, mes)),
   ]);
 
   const cobrosPedidos = afiliados.flatMap((a) =>
@@ -57,10 +80,38 @@ export default async function AdminAfiliadosPage() {
   const suma = (f: (a: (typeof afiliados)[number]) => number) =>
     afiliados.reduce((s, a) => s + f(a), 0);
 
-  /* ---- KPIs (los no-monetarios; los de comisiones van en TablaAfiliados) ---- */
+  /* ---- KPIs ---- */
   const totalGeneradoCentavos = suma((a) => a.resumen.dinero.generado);
   const totalPorPagarCentavos = suma(
     (a) => a.resumen.dinero.disponible + a.resumen.dinero.pedido,
+  );
+  const pagosReferidosMes = suma((a) => a.resumen.pagosMesUsdCentavos);
+
+  const liquidacionesPorAfiliado = new Map(
+    liquidacionesMes.map((fila) => [fila.afiliadoId, fila]),
+  );
+  const filasLiquidacion = afiliados
+    .map((afiliado) => {
+      const comisionUsdCentavos =
+        afiliado.resumen.historialMeses.find((fila) => fila.mes === mes)
+          ?.comisionUsdCentavos ?? 0;
+      return {
+        afiliado,
+        comisionUsdCentavos,
+        liquidacion: liquidacionesPorAfiliado.get(afiliado.id) ?? null,
+      };
+    })
+    .filter((fila) => fila.comisionUsdCentavos > 0 || fila.liquidacion);
+  const totalMesCentavos = filasLiquidacion.reduce(
+    (s, fila) => s + fila.comisionUsdCentavos,
+    0,
+  );
+  const totalLiquidarCentavos = filasLiquidacion
+    .filter((fila) => !fila.liquidacion)
+    .reduce((s, fila) => s + fila.comisionUsdCentavos, 0);
+  const totalLiquidadoCentavos = filasLiquidacion.reduce(
+    (s, fila) => s + (fila.liquidacion?.montoUsdCentavos ?? 0),
+    0,
   );
 
   const kpis = [
@@ -72,6 +123,13 @@ export default async function AdminAfiliadosPage() {
       alerta: inactivos.length > 0,
     },
     {
+      icono: CalendarCheck2,
+      etiqueta: `Pagos referidos · ${mesBonito}`,
+      valor: formatoCup(aCup(pagosReferidosMes, tasa)),
+      sub: `${afiliados.length} con enlace de referido`,
+      alerta: false,
+    },
+    {
       icono: Store,
       etiqueta: "Negocios pagando",
       valor: String(suma((a) => a.resumen.pagando)),
@@ -79,11 +137,11 @@ export default async function AdminAfiliadosPage() {
       alerta: false,
     },
     {
-      icono: TrendingUp,
-      etiqueta: "Comisiones generadas",
-      valor: formatoCup(aCup(totalGeneradoCentavos, tasa)),
-      sub: `${formatoCup(aCup(totalPorPagarCentavos, tasa))} por pagar`,
-      alerta: false,
+      icono: CalendarCheck2,
+      etiqueta: `Por liquidar · ${mesBonito}`,
+      valor: formatoCup(aCup(totalLiquidarCentavos, tasa)),
+      sub: `${formatoCup(aCup(totalLiquidadoCentavos, tasa))} ya pagado · ${formatoCup(aCup(totalMesCentavos, tasa))} generado`,
+      alerta: totalLiquidarCentavos > 0,
     },
     {
       icono: Wallet,
@@ -130,7 +188,7 @@ export default async function AdminAfiliadosPage() {
       </header>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-gap-sm xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-gap-sm xl:grid-cols-5">
         {kpis.map(({ icono: Icono, etiqueta, valor, sub, alerta }) => (
           <div
             key={etiqueta}
@@ -154,6 +212,84 @@ export default async function AdminAfiliadosPage() {
           </div>
         ))}
       </div>
+
+      {/* Liquidación del mes: la comisión se recalcula siempre en el servidor. */}
+      <section className={`${tarjeta} flex flex-col gap-gap-sm`}>
+        <div className="flex flex-wrap items-end justify-between gap-gap-sm">
+          <div>
+            <h2 className="font-lv-display text-body font-bold text-ink">
+              Liquidación de {mesBonito}
+            </h2>
+            <p className="text-meta text-ink-soft/70">
+              Comisión del mes por pagos QvaPay confirmados: 30 % del primero y{" "}
+              {Math.round(R.recurrente * 100)} % recurrente ({" "}
+              {Math.round(R.recurrenteAlto * 100)} % desde {R.negociosParaSubir} negocios pagando).
+            </p>
+          </div>
+          <p className="text-meta font-semibold text-ink-soft/70">
+            {filasLiquidacion.length} afiliado{filasLiquidacion.length === 1 ? "" : "s"} con comisión
+          </p>
+        </div>
+
+        {filasLiquidacion.length === 0 ? (
+          <p className="text-small text-ink-soft/75">
+            Este mes todavía no hay comisiones que liquidar.
+          </p>
+        ) : (
+          <div className="divide-y divide-ink/5">
+            {filasLiquidacion.map(({ afiliado, comisionUsdCentavos, liquidacion }) => {
+              const montoCup = formatoCup(aCup(comisionUsdCentavos, tasa));
+              return (
+                <div
+                  key={afiliado.id}
+                  className="flex flex-wrap items-center justify-between gap-gap-sm py-gap-sm first:pt-0 last:pb-0"
+                >
+                  <div className="min-w-0">
+                    <Link
+                      href={`/admin/afiliados/${afiliado.id}`}
+                      className="font-semibold text-verde-700 hover:underline"
+                    >
+                      {afiliado.nombre ?? afiliado.email}
+                    </Link>
+                    <p className="text-meta text-ink-soft/70">
+                      {formatoCup(aCup(afiliado.resumen.pagosMesUsdCentavos, tasa))} en pagos referidos ·{" "}
+                      {afiliado.resumen.pagando} negocios pagando
+                    </p>
+                    {liquidacion ? (
+                      <p className="text-meta text-verde-700">
+                        Pagado el {fecha(liquidacion.pagadoEn)} por{" "}
+                        {liquidacion.adminNombre ?? liquidacion.adminEmail ?? "Administración"}
+                      </p>
+                    ) : (
+                      <p className="text-meta font-semibold text-amber-700">Pendiente de pago</p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-gap-sm">
+                    <b className="font-lv-display text-body tabular-nums text-ink">{montoCup}</b>
+                    {liquidacion ? (
+                      <span className="inline-flex items-center rounded-full border border-verde-200 bg-verde-50 px-3 py-1 font-lv-display text-meta font-semibold text-verde-700">
+                        Liquidado
+                      </span>
+                    ) : (
+                      <LiquidarComision
+                        afiliadoId={afiliado.id}
+                        mes={mes}
+                        nombre={afiliado.nombre ?? afiliado.email}
+                        montoCup={montoCup}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <p className="text-meta text-ink-soft/60">
+          Total generado histórico: {formatoCup(aCup(totalGeneradoCentavos, tasa))} ·{" "}
+          {formatoCup(aCup(totalPorPagarCentavos, tasa))} pendiente en retiros.
+        </p>
+      </section>
 
       {/* Tabla interactiva de afiliados (cliente: toggle CUP/USD + tasa configurable) */}
       <section className={tarjeta}>

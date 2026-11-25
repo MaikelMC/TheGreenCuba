@@ -76,6 +76,8 @@ export interface ResumenAfiliado {
   porcentajeRecurrente: number;
   nuevosEsteMes: number;
   totalPagados: number;
+  /** Pagos QvaPay de negocios referidos en el mes en curso, en centavos de USD. */
+  pagosMesUsdCentavos: number;
   ultimoNegocio: Date | null;
   /** Todo en centavos de USD; la página lo enseña en CUP con `aCup`. */
   dinero: { generado: number; pendiente: number; disponible: number; pedido: number; cobrado: number };
@@ -158,6 +160,7 @@ export async function resumenAfiliado(afiliadoId: string): Promise<ResumenAfilia
 
   let generado = 0;
   let pendiente = 0;
+  let pagosMes = 0;
   const mes = mesActual();
   let nuevosEsteMes = 0;
   let ultimo: Date | null = null;
@@ -172,10 +175,12 @@ export async function resumenAfiliado(afiliadoId: string): Promise<ResumenAfilia
       comision += c;
       if (ahora - p.fecha.getTime() < R.diasRetencion * DIA) pendiente += c;
       if (!ultimo || p.fecha > ultimo) ultimo = p.fecha;
-      const mr = mesesMap.get(p.fecha.toISOString().slice(0, 7)) ?? { comision: 0, nuevos: 0 };
+      const mesPago = p.fecha.toISOString().slice(0, 7);
+      if (mesPago === mes) pagosMes += p.monto;
+      const mr = mesesMap.get(mesPago) ?? { comision: 0, nuevos: 0 };
       mr.comision += c;
       if (i === 0) mr.nuevos += 1;
-      mesesMap.set(p.fecha.toISOString().slice(0, 7), mr);
+      mesesMap.set(mesPago, mr);
     });
     generado += comision;
     if (primero && mesActual(primero) === mes) nuevosEsteMes++;
@@ -218,6 +223,7 @@ export async function resumenAfiliado(afiliadoId: string): Promise<ResumenAfilia
     porcentajeRecurrente: pct,
     nuevosEsteMes,
     totalPagados: negocios.filter((n) => n.pagos > 0).length,
+    pagosMesUsdCentavos: pagosMes,
     ultimoNegocio: ultimo,
     dinero: { generado, pendiente, disponible, pedido, cobrado },
     cobros,

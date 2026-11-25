@@ -56,6 +56,7 @@ export const ACCION = {
   activarAfiliado: "activar_afiliado",
   marcarCobroAfiliado: "marcar_cobro_afiliado",
   premioAfiliado: "premio_afiliado",
+  liquidarAfiliado: "liquidar_afiliado",
   notaAfiliado: "nota_afiliado",
   quitarAfiliacion: "quitar_afiliacion",
   notaNegocio: "nota_negocio",

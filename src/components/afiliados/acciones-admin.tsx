@@ -77,6 +77,49 @@ export function EntregarPremio({ afiliadoId, tipo }: { afiliadoId: string; tipo:
   );
 }
 
+/** Marca pagada la comisión mensual. El importe lo recalcula la API. */
+export function LiquidarComision({
+  afiliadoId,
+  mes,
+  nombre,
+  montoCup,
+}: {
+  afiliadoId: string;
+  mes: string;
+  nombre: string;
+  montoCup: string;
+}) {
+  const router = useRouter();
+  const [ocupado, setOcupado] = useState(false);
+
+  async function liquidar() {
+    if (
+      !window.confirm(
+        `¿Marcar como pagada la comisión de ${nombre} de ${mes} por ${montoCup}?`,
+      )
+    ) {
+      return;
+    }
+    setOcupado(true);
+    if (await accion({ accion: "liquidar", afiliadoId, mes })) {
+      toast.success("Comisión marcada como pagada.");
+      router.refresh();
+    }
+    setOcupado(false);
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={ocupado}
+      onClick={() => void liquidar()}
+      className={`${boton} bg-verde-600 text-white hover:bg-verde-700`}
+    >
+      {ocupado ? "Guardando…" : "Marcar pagada"}
+    </button>
+  );
+}
+
 /** Quita el código de referido del afiliado (ya no puede traer nuevos negocios). */
 export function QuitarAfiliacion({ afiliadoId, nombre }: { afiliadoId: string; nombre: string }) {
   const router = useRouter();
