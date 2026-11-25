@@ -16,6 +16,7 @@ export const DB_NAME = "la-verde-offline";
 export const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
+let cierrePendiente: ReturnType<typeof setTimeout> | null = null;
 
 /** Errores que se arreglan cerrando y reabriendo una vez. */
 export function esErrorReintentable(error: unknown): boolean {
@@ -108,10 +109,23 @@ export function abrirDb(): Promise<IDBDatabase> {
       if (esperaBloqueo) clearTimeout(esperaBloqueo);
       const db = peticion.result;
 
-      /* Otra pestaña quiere actualizar: se cierra para no bloquearla. */
+      /* Otra pestaña quiere actualizar: hay que soltar la conexión, pero no en
+         seco. `close()` mientras una transacción acaba de arrancar produce
+         `InvalidStateError: connection is closing`; se deja una ventana corta
+         para que las operaciones en vuelo terminen y luego se cierra. La
+         promesa se anula ya, así que la siguiente operación abre una conexión
+         nueva. */
       db.onversionchange = () => {
-        db.close();
         dbPromise = null;
+        if (cierrePendiente) clearTimeout(cierrePendiente);
+        cierrePendiente = setTimeout(() => {
+          cierrePendiente = null;
+          try {
+            db.close();
+          } catch {
+            // La conexión ya se había cerrado por otro camino.
+          }
+        }, 750);
       };
 
       resolve(db);
@@ -176,6 +190,9 @@ export async function conReintentoDb<T>(
 
 /** Cierra y limpia el singleton (necesario antes de `deleteDatabase`). */
 export function cerrarDb(): void {
+  /* No se cancela `cierrePendiente`: si existe, pertenece a una conexión que
+     ya no es la del singleton (la dejó `onversionchange`) y tiene que cerrarse
+     igual para no bloquear la actualización de la otra pestaña. */
   if (dbPromise) {
     dbPromise.then((db) => db.close()).catch(() => {});
     dbPromise = null;

@@ -47,6 +47,14 @@ test("IndexedDB se agrupa como error alto", () => {
   assert.equal(normalizado.severidad, "alta");
 });
 
+test("un chunk que no carga se agrupa aparte y no como error desconocido", () => {
+  const normalizado = normalizarError(
+    "UnhandledRejection: Failed to load chunk /_next/static/chunks/31gj2wce1h1_v.js from module 964893",
+  );
+  assert.equal(normalizado.clave, "chunk-carga");
+  assert.equal(normalizado.severidad, "media");
+});
+
 test("agruparErrores cuenta casos, sesiones y ejemplos", () => {
   const grupos = agruparErrores([
     {

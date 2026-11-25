@@ -71,9 +71,9 @@ const diagScript = `(function(){
   }
 })();`;
 
-const devChunkScript = `(function(){window.webpackChunkLoadTimeout=300000;if(window.__laVerdeChunkReloaded)return;window.addEventListener("error",function(e){if(window.__laVerdeChunkReloaded)return;var m=(e&&e.message)||"";if(m.indexOf("ChunkLoadError")!==-1||m.indexOf("Loading chunk")!==-1||m.indexOf("webpack")!==-1){window.__laVerdeChunkReloaded=true;window.location.reload();}},true);})();`;
+const devChunkScript = `(function(){window.webpackChunkLoadTimeout=300000;if(window.__laVerdeChunkReloaded)return;function r(m){if(window.__laVerdeChunkReloaded)return;m=String(m||"");if(m.indexOf("ChunkLoadError")!==-1||m.indexOf("Loading chunk")!==-1||m.indexOf("Failed to load chunk")!==-1||m.indexOf("webpack")!==-1){window.__laVerdeChunkReloaded=true;window.location.reload();}}window.addEventListener("error",function(e){r(e&&e.message);},true);window.addEventListener("unhandledrejection",function(e){var x=e&&e.reason;r(x&&x.message?x.message:x);});})();`;
 
-const prodChunkScript = `(function(){if(window.__laVerdeChunkReloaded)return;window.addEventListener("error",function(e){if(window.__laVerdeChunkReloaded)return;var m=(e&&e.message)||"";if(m.indexOf("ChunkLoadError")!==-1||m.indexOf("Loading chunk")!==-1){window.__laVerdeChunkReloaded=true;window.location.reload();}},true);})();`;
+const prodChunkScript = `(function(){if(window.__laVerdeChunkReloaded)return;function r(m){if(window.__laVerdeChunkReloaded)return;m=String(m||"");if(m.indexOf("ChunkLoadError")!==-1||m.indexOf("Loading chunk")!==-1||m.indexOf("Failed to load chunk")!==-1){window.__laVerdeChunkReloaded=true;window.location.reload();}}window.addEventListener("error",function(e){r(e&&e.message);},true);window.addEventListener("unhandledrejection",function(e){var x=e&&e.reason;r(x&&x.message?x.message:x);});})();`;
 
 /**
  * `viewportFit: "cover"` es lo que hace que `env(safe-area-inset-*)` devuelva

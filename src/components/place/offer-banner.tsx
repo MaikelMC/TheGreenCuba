@@ -107,7 +107,13 @@ export function OfferBanner({
 
         <p className="mt-gap-sm flex items-center gap-[6px] text-meta font-medium text-orange-900/75">
           <Clock size={13} strokeWidth={2} className="shrink-0" aria-hidden />
-          <span className="min-w-0">{expiry}</span>
+          {/* El texto se formatea también en el cliente al hidratar. Node y el
+              navegador pueden traer versiones distintas de la base horaria de
+              Cuba y mover la hora una hora; la fecha ya viene resuelta del
+              servidor y este texto es el único que puede diferir. */}
+          <span className="min-w-0" suppressHydrationWarning>
+            {expiry}
+          </span>
         </p>
       </div>
     </div>

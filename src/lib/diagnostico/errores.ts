@@ -159,6 +159,16 @@ export function normalizarError(mensaje: unknown): ErrorNormalizado {
     };
   }
 
+  if (/failed to load chunk|chunkloaderror|loading chunk/.test(texto)) {
+    return {
+      clave: "chunk-carga",
+      titulo: "Chunk de la app no cargó",
+      severidad: "media",
+      causa:
+        "Una pestaña abierta durante un despliegue o una red que cortó el archivo. La app recarga una vez para pedir el chunk de la versión nueva.",
+    };
+  }
+
   if (/extension|chrome-extension|moz-extension/.test(texto)) {
     return {
       clave: "extension-navegador",
