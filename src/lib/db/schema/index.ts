@@ -14,6 +14,7 @@ export * from "./business_invitations";
 export * from "./user_search_history";
 export * from "./notifications";
 export * from "./project_requests";
+export * from "./prospectos";
 export * from "./place_metrics";
 export * from "./support_tickets";
 export * from "./support_saved_replies";
