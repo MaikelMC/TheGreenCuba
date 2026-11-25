@@ -27,13 +27,26 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { PLAN_LABEL, type UserPlace } from "@/lib/places-store";
+import type { RevisionSolicitud } from "@/lib/revision-solicitud";
+import {
+  TIPOS_NEGOCIO,
+  TIPO_NEGOCIO_LABEL,
+  type TipoNegocio,
+} from "@/lib/ficha/tipos";
+import { ChapitaEstado } from "./ui/chapita";
 
 /**
  * Etiqueta de sección, igual que las del panel: mayúsculas espaciadas de
  * 10 px. Un componente local porque el detalle repite la estructura ocho
  * veces y cada copia a mano era una oportunidad más de desalinearse.
  */
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+function Section({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-gap-xs">
       <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
@@ -73,7 +86,9 @@ function InfoRow({
     );
   }
   return (
-    <div className="flex items-start gap-gap-xs text-small text-ink">{content}</div>
+    <div className="flex items-start gap-gap-xs text-small text-ink">
+      {content}
+    </div>
   );
 }
 
@@ -88,15 +103,36 @@ function Chip({ children }: { children: React.ReactNode }) {
 function formatDate(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value || "—";
-  return date.toLocaleDateString("es-CU", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return date.toLocaleDateString("es-CU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 interface RequestDetailSheetProps {
   /** La solicitud a mostrar. `null` = sheet cerrado. */
   place: UserPlace | null;
+  /** Revisión calculada en el servidor; `null` mientras no llega. */
+  revision?: RevisionSolicitud | null;
+  telefonoDuplicadoCon?: string[];
+  mismoDuenoCon?: string[];
+  puedeAprobar?: boolean;
+  asignandoTipo?: boolean;
+  pidiendoCambios?: boolean;
+  onAssignType?: (id: string, tipo: TipoNegocio) => void;
+  onRequestChanges?: (id: string, name: string) => void;
   onClose: () => void;
   onApprove: (id: string, name: string) => void;
   onReject: (id: string, name: string) => void;
+}
+
+function RevisionChip({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <ChapitaEstado tono={ok ? "ok" : "aviso"} punto={false}>
+      {label}
+    </ChapitaEstado>
+  );
 }
 
 /**
@@ -109,6 +145,14 @@ interface RequestDetailSheetProps {
  */
 export function RequestDetailSheet({
   place,
+  revision = null,
+  telefonoDuplicadoCon = [],
+  mismoDuenoCon = [],
+  puedeAprobar = true,
+  asignandoTipo = false,
+  pidiendoCambios = false,
+  onAssignType,
+  onRequestChanges,
   onClose,
   onApprove,
   onReject,
@@ -128,7 +172,9 @@ export function RequestDetailSheet({
   /* El barrio se calla cuando la dirección ya lo dice. El dueño escribe la
      dirección entera —«…, Flores, Santiago de Cuba»— y el rótulo de la cabecera
      lo repetía justo encima de la sección de ubicación. */
-  const barrio = alreadySaid(shown?.address, shown?.barrio) ? "" : (shown?.barrio ?? "");
+  const barrio = alreadySaid(shown?.address, shown?.barrio)
+    ? ""
+    : (shown?.barrio ?? "");
   /* Los enlaces ya normalizados, con los mismos que luego pinta la ficha
      pública: un admin que apruebe viendo un «wa.me» distinto del que verá el
      usuario estaría decidiendo sobre otra cosa. */
@@ -222,6 +268,92 @@ export function RequestDetailSheet({
             </div>
 
             <div className="flex flex-col gap-gap-md">
+              <Section label="Revisión automática">
+                {revision ? (
+                  <div className="flex flex-wrap items-center gap-[6px]">
+                    <RevisionChip
+                      ok={revision.fotos}
+                      label={revision.fotos ? "Fotos" : "Sin fotos"}
+                    />
+                    <RevisionChip
+                      ok={revision.horario}
+                      label={revision.horario ? "Horario" : "Sin horario"}
+                    />
+                    <RevisionChip
+                      ok={revision.ubicacion}
+                      label={
+                        revision.ubicacion ? "Ubicación" : "Ubicación inválida"
+                      }
+                    />
+                    <RevisionChip
+                      ok={revision.tipo}
+                      label={revision.tipo ? "Tipo asignado" : "Sin tipo"}
+                    />
+                    {revision.telefonoDuplicado ? (
+                      <ChapitaEstado tono="error" punto={false}>
+                        Teléfono repetido
+                      </ChapitaEstado>
+                    ) : (
+                      <RevisionChip ok label="Teléfono único" />
+                    )}
+                    {revision.mismoDueno && (
+                      <span title={mismoDuenoCon.join(" · ")}>
+                        <ChapitaEstado tono="info" punto={false}>
+                          Mismo dueño
+                        </ChapitaEstado>
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-meta text-ink-soft/60">
+                    Calculando la revisión…
+                  </p>
+                )}
+
+                {telefonoDuplicadoCon.length > 0 && (
+                  <p className="text-meta text-destructive-ink">
+                    Teléfono repetido con: {telefonoDuplicadoCon.join(", ")}.
+                  </p>
+                )}
+                {mismoDuenoCon.length > 0 && (
+                  <p className="text-meta text-ink-soft/75">
+                    El mismo dueño tiene: {mismoDuenoCon.join(", ")}.
+                  </p>
+                )}
+
+                {!shown.tipoNegocio && onAssignType && (
+                  <label
+                    htmlFor={`sheet-tipo-${shown.id}`}
+                    className="mt-gap-xs flex flex-col gap-[4px] text-meta font-semibold text-ink-soft/70"
+                  >
+                    Asignar tipo de negocio
+                    <select
+                      id={`sheet-tipo-${shown.id}`}
+                      value={shown.tipoNegocio ?? ""}
+                      onChange={(event) => {
+                        if (event.target.value) {
+                          onAssignType(
+                            shown.id,
+                            event.target.value as TipoNegocio,
+                          );
+                        }
+                      }}
+                      disabled={asignandoTipo}
+                      className="h-10 rounded-xl border border-lv-amber/60 bg-white px-gap-sm font-lv-display text-small text-ink outline-none focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20 disabled:opacity-60"
+                    >
+                      <option value="" disabled>
+                        Asignar tipo…
+                      </option>
+                      {TIPOS_NEGOCIO.map((tipo) => (
+                        <option key={tipo} value={tipo}>
+                          {TIPO_NEGOCIO_LABEL[tipo]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </Section>
+
               <Section label="Descripción">
                 <p className="text-small leading-relaxed text-ink text-pretty">
                   {shown.description || "El negocio no añadió descripción."}
@@ -230,7 +362,10 @@ export function RequestDetailSheet({
 
               <Section label="Ubicación y contacto">
                 <div className="flex flex-col gap-[6px]">
-                  <InfoRow icon={MapPin} href={`https://www.google.com/maps/search/?api=1&query=${shown.lat},${shown.lng}`}>
+                  <InfoRow
+                    icon={MapPin}
+                    href={`https://www.google.com/maps/search/?api=1&query=${shown.lat},${shown.lng}`}
+                  >
                     {locationLine([
                       shown.address,
                       shown.barrio,
@@ -238,13 +373,21 @@ export function RequestDetailSheet({
                       shown.province,
                     ]) || "Dirección no indicada"}
                   </InfoRow>
-                  {shown.phone && <InfoRow icon={Phone} href={`tel:${shown.phone}`}>{shown.phone}</InfoRow>}
+                  {shown.phone && (
+                    <InfoRow icon={Phone} href={`tel:${shown.phone}`}>
+                      {shown.phone}
+                    </InfoRow>
+                  )}
                   {links.whatsapp && (
                     <InfoRow icon={MessageCircle} href={links.whatsapp}>
                       WhatsApp · {shown.whatsapp}
                     </InfoRow>
                   )}
-                  {links.website && <InfoRow icon={Globe} href={links.website}>{shown.website}</InfoRow>}
+                  {links.website && (
+                    <InfoRow icon={Globe} href={links.website}>
+                      {shown.website}
+                    </InfoRow>
+                  )}
                   {links.instagram && (
                     <InfoRow icon={Instagram} href={links.instagram}>
                       Instagram · {shown.instagram}
@@ -265,7 +408,11 @@ export function RequestDetailSheet({
 
               <Section label="Horario">
                 <div className="flex items-start gap-gap-xs text-small text-ink">
-                  <Clock3 size={15} strokeWidth={1.8} className="text-verde-600 shrink-0" />
+                  <Clock3
+                    size={15}
+                    strokeWidth={1.8}
+                    className="text-verde-600 shrink-0"
+                  />
                   <span>{shown.schedule || "Sin horario indicado."}</span>
                 </div>
               </Section>
@@ -304,7 +451,9 @@ export function RequestDetailSheet({
                             )}
                           </div>
                           {item.description && (
-                            <p className="text-meta text-ink-soft/75 mt-[2px]">{item.description}</p>
+                            <p className="text-meta text-ink-soft/75 mt-[2px]">
+                              {item.description}
+                            </p>
                           )}
                         </div>
                         <span className="shrink-0 font-lv-display text-small font-semibold text-ink">
@@ -320,9 +469,15 @@ export function RequestDetailSheet({
               {shown.offer?.text && (
                 <Section label="Oferta">
                   <div className="flex items-start gap-gap-xs rounded-xl border border-verde-200 bg-verde-50 px-gap-sm py-gap-xs">
-                    <UtensilsCrossed size={15} strokeWidth={1.8} className="text-verde-600 shrink-0" />
+                    <UtensilsCrossed
+                      size={15}
+                      strokeWidth={1.8}
+                      className="text-verde-600 shrink-0"
+                    />
                     <div>
-                      <p className="text-small font-medium text-ink">{shown.offer.text}</p>
+                      <p className="text-small font-medium text-ink">
+                        {shown.offer.text}
+                      </p>
                       {shown.offer.expiry && (
                         <p className="text-meta text-ink-soft/75 mt-[2px]">
                           Vigente hasta {formatDate(shown.offer.expiry)}
@@ -358,26 +513,44 @@ export function RequestDetailSheet({
 
           {/* Acciones: las mismas de la lista, para decidir sin cerrar el
               detalle. Firmes en el pie, no flotan con el scroll. */}
-          <div className="flex items-center gap-gap-sm border-t border-ink/5 px-gap-md py-gap-sm shrink-0">
-            <button
-              type="button"
-              onClick={() => onReject(shown.id, shown.name)}
-              className="flex-1 inline-flex items-center justify-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md py-[10px] font-lv-display text-small font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:border-destructive hover:text-destructive"
-            >
-              Rechazar
-            </button>
-            <button
-              type="button"
-              onClick={() => onApprove(shown.id, shown.name)}
-              className={cn(
-                "flex-1 inline-flex items-center justify-center gap-gap-xs rounded-full bg-verde-500 px-gap-md py-[10px]",
-                "font-lv-display text-small font-semibold text-white",
-                "shadow-[0_16px_30px_-12px_rgba(53,175,109,0.75)] transition-colors duration-500 ease-outquint hover:bg-verde-600",
+          <div className="flex shrink-0 flex-col gap-gap-xs border-t border-ink/5 px-gap-md py-gap-sm">
+            {!puedeAprobar && (
+              <p className="text-meta text-destructive-ink">
+                Asigna el tipo de negocio para poder aprobar y publicar.
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-gap-sm">
+              <button
+                type="button"
+                onClick={() => onReject(shown.id, shown.name)}
+                className="inline-flex min-h-10 flex-1 items-center justify-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md py-[10px] font-lv-display text-small font-semibold text-ink-soft/75 transition-colors duration-500 ease-outquint hover:border-destructive hover:text-destructive"
+              >
+                Rechazar
+              </button>
+              {onRequestChanges && (
+                <button
+                  type="button"
+                  onClick={() => onRequestChanges(shown.id, shown.name)}
+                  disabled={pidiendoCambios}
+                  className="inline-flex min-h-10 flex-1 items-center justify-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-md py-[10px] font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {pidiendoCambios ? "Enviando…" : "Pedir cambios"}
+                </button>
               )}
-            >
-              <CheckCircle2 size={16} strokeWidth={1.8} />
-              Aprobar
-            </button>
+              <button
+                type="button"
+                onClick={() => onApprove(shown.id, shown.name)}
+                disabled={!puedeAprobar}
+                className={cn(
+                  "inline-flex min-h-10 flex-1 items-center justify-center gap-gap-xs rounded-full bg-verde-500 px-gap-md py-[10px]",
+                  "font-lv-display text-small font-semibold text-white",
+                  "shadow-[0_16px_30px_-12px_rgba(53,175,109,0.75)] transition-colors duration-500 ease-outquint hover:bg-verde-600 disabled:pointer-events-none disabled:opacity-45",
+                )}
+              >
+                <CheckCircle2 size={16} strokeWidth={1.8} />
+                Aprobar y publicar
+              </button>
+            </div>
           </div>
         </SheetContent>
       )}

@@ -20,6 +20,8 @@ export interface DatosRevisionSolicitud {
   tipo: string | null;
   /** Otro negocio ya usa este mismo teléfono. */
   telefonoDuplicado: boolean;
+  /** El dueño tiene otro negocio. Es informativo, no bloquea la aprobación. */
+  mismoDueno?: boolean;
 }
 
 export interface RevisionSolicitud {
@@ -28,6 +30,8 @@ export interface RevisionSolicitud {
   ubicacion: boolean;
   tipo: boolean;
   telefonoDuplicado: boolean;
+  /** El dueño tiene otro negocio. Informativo. */
+  mismoDueno: boolean;
   /** Todo lo que hace falta para aprobar sin abrir la ficha. */
   completa: boolean;
   /** Frases cortas de lo que falta, en el orden en que se arregla. */
@@ -42,6 +46,7 @@ export function revisarSolicitud(
   const ubicacion = datos.ubicacionValida;
   const tipo = Boolean(datos.tipo?.trim());
   const telefonoDuplicado = datos.telefonoDuplicado;
+  const mismoDueno = datos.mismoDueno ?? false;
 
   const faltan: string[] = [];
   if (!tipo) faltan.push("Sin tipo de negocio");
@@ -56,6 +61,7 @@ export function revisarSolicitud(
     ubicacion,
     tipo,
     telefonoDuplicado,
+    mismoDueno,
     completa: fotos && horario && ubicacion && tipo && !telefonoDuplicado,
     faltan,
   };

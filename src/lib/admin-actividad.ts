@@ -24,6 +24,7 @@ export const ACCION = {
   borrarNegocio: "borrar_negocio",
   aprobarSolicitud: "aprobar_solicitud",
   rechazarSolicitud: "rechazar_solicitud",
+  pedirCambiosSolicitud: "pedir_cambios_solicitud",
   editarNegocio: "editar_negocio",
   destacarNegocio: "destacar_negocio",
   quitarDestacado: "quitar_destacado",

@@ -978,6 +978,28 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     );
   }
 
+  /* Aprobar publica: sin tipo de negocio la ficha no tiene forma de ficha y
+     Aprobar queda desactivado en el panel. La comprobación se repite aquí
+     porque el botón no es la frontera de seguridad; también cubre el atajo de
+     `admin-pendientes` y cualquier llamada directa al `PATCH`. */
+  if (body.reviewStatus === "approved" && body.isActive === true) {
+    const [actual] = await db
+      .select({ tipoNegocio: places.tipoNegocio })
+      .from(places)
+      .where(eq(places.id, id))
+      .limit(1);
+    const tipo = body.tipoNegocio ?? actual?.tipoNegocio;
+    if (!tipo) {
+      return NextResponse.json(
+        {
+          error:
+            "Asigna un tipo de negocio antes de aprobar y publicar la solicitud.",
+        },
+        { status: 400 },
+      );
+    }
+  }
+
   /* Sin columnas que escribir no se lanza un `update` con `set({})` —Drizzle lo
      rechaza—: se relee la fila para tener el `row` que usan los avisos. */
   const [row] =
