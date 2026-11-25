@@ -1,0 +1,1866 @@
+<!doctype html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La Verde · Panel de administración (cascarón visual)</title>
+<!--
+  Cascarón visual del panel de administración de La Verde.
+  HTML + CSS estático, sin dependencias ni datos reales: todo lo que se ve son
+  datos de ejemplo para revisar jerarquía, densidad, estados y responsive.
+  Tokens tomados de DESIGN.md / tailwind.config.ts (verde, ink, sand y la
+  paleta oscura documentada). La navegación entre secciones y el cambio de
+  tema funcionan, pero no hay backend detrás.
+-->
+<style>
+/* ── Tokens ─────────────────────────────────────────────────────────────── */
+:root{
+  --page:#F6F3EC; --header:#FBF9F4; --surface:#FFFFFF; --surface-2:#EAE4D6;
+  --ink:#08130D; --ink-75:rgba(27,42,33,.75); --ink-60:rgba(27,42,33,.6); --ink-45:rgba(27,42,33,.45);
+  --line:rgba(8,19,13,.06); --line-2:rgba(8,19,13,.10); --line-3:rgba(8,19,13,.16);
+  --v50:#EAF7EF; --v100:#CEEEDB; --v200:#9FDDB9; --v300:#67C792;
+  --primary:#35AF6D; --primary-hover:#67C792; --primary-ink:#052017;
+  --accent-text:#0F7A41; --accent-strong:#0C6136;
+  --danger:#B3261E; --danger-bg:rgba(179,38,30,.08);
+  --warn-bg:#FBF1DB; --warn-text:#7A5200; --warn-line:#E8D2A2;
+  --shadow-card:0 1px 2px rgba(8,19,13,.03), 0 5px 18px rgba(14,42,30,.045);
+  --shadow-halo:0 18px 40px -12px rgba(53,175,109,.6);
+  --r-xl:24px; --r-lg:20px; --r-md:16px; --r-sm:12px;
+  --font:"DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme:light;
+}
+html[data-theme="dark"]{
+  --page:#08130D; --header:#0E1720; --surface:#0E1720; --surface-2:#16212B;
+  --ink:#EDF7F0; --ink-75:rgba(237,247,240,.75); --ink-60:rgba(237,247,240,.6); --ink-45:rgba(237,247,240,.45);
+  --line:rgba(237,247,240,.08); --line-2:rgba(237,247,240,.12); --line-3:rgba(237,247,240,.2);
+  --v50:#173522; --v100:#21442E; --v200:#28533A; --v300:#67C792;
+  --primary:#35AF6D; --primary-hover:#4FC181; --primary-ink:#052017;
+  --accent-text:#9BE3B4; --accent-strong:#C7F5D7;
+  --danger:#FFB4AE; --danger-bg:rgba(255,180,174,.10);
+  --warn-bg:rgba(234,190,96,.14); --warn-text:#F0D49A; --warn-line:rgba(234,190,96,.35);
+  --shadow-card:0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.22);
+  --shadow-halo:0 18px 40px -12px rgba(53,175,109,.45);
+  color-scheme:dark;
+}
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--page);color:var(--ink);font-family:var(--font);
+  font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,h4{margin:0;font-weight:700;letter-spacing:-.02em}
+p{margin:0}
+.icon{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.icon.sm{width:15px;height:15px}
+.icon.lg{width:22px;height:22px}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.muted{color:var(--ink-75)}
+.meta{font-size:12px;color:var(--ink-75)}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;color:var(--accent-text);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.eyebrow:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 4px rgba(53,175,109,.12)}
+
+/* ── Topbar ─────────────────────────────────────────────────────────────── */
+.topbar{
+  position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:12px;
+  height:60px;padding:0 16px;background:var(--header);
+  border-bottom:1px solid var(--line);backdrop-filter:blur(14px);
+}
+.brand{font-size:18px;font-weight:800;letter-spacing:-.03em;white-space:nowrap}
+.brand span{color:var(--accent-text);font-weight:500}
+.badge-admin{
+  display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;
+  background:var(--v50);border:1px solid var(--v200);color:var(--accent-text);
+  font-size:12px;font-weight:650;white-space:nowrap;
+}
+.spacer{flex:1}
+.icon-btn{
+  width:44px;height:44px;border:0;border-radius:999px;background:transparent;
+  display:grid;place-items:center;color:var(--ink-75);
+  transition:background .2s,color .2s;
+}
+.icon-btn:hover{background:var(--v50);color:var(--accent-strong)}
+.account{
+  display:inline-flex;align-items:center;gap:10px;height:44px;padding:4px 14px 4px 5px;
+  border-radius:999px;background:var(--ink);color:var(--page);font-size:13px;font-weight:650;
+}
+.account .avatar{
+  width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+  background:#1E6946;color:#fff;font-size:13px;font-weight:700;border:1px solid rgba(255,255,255,.14);
+}
+html[data-theme="dark"] .account{background:var(--surface-2);color:var(--ink)}
+html[data-theme="dark"] .account .avatar{background:#1E6946}
+.only-mobile{display:none}
+
+/* ── Shell ──────────────────────────────────────────────────────────────── */
+.shell{display:flex;min-height:calc(100dvh - 60px)}
+.sidebar{
+  width:260px;flex:0 0 260px;background:var(--surface);border-right:1px solid var(--line);
+  padding:16px 12px;display:flex;flex-direction:column;gap:2px;
+  position:sticky;top:60px;height:calc(100dvh - 60px);overflow-y:auto;
+  scrollbar-width:thin;
+}
+.nav-item{
+  display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:999px;
+  color:var(--ink-75);font-weight:500;font-size:14px;white-space:nowrap;
+  transition:background .18s,color .18s;
+}
+.nav-item:hover{background:var(--page)}
+.nav-item.active{background:var(--v50);color:var(--accent-strong);font-weight:650}
+.nav-item .icon{width:20px;height:20px}
+.sidebar-foot{
+  margin-top:auto;padding:14px 8px 4px;border-top:1px solid var(--line);
+  font-size:11px;line-height:1.6;color:var(--ink-45);
+}
+.sidebar-foot strong{display:block;color:var(--ink-60);font-weight:650;font-size:12px}
+
+.main{flex:1;min-width:0;padding:28px 32px 56px;overflow-x:hidden}
+.view{display:none;max-width:1240px}
+.view.active{display:block;animation:enter .35s cubic-bezier(.16,1,.3,1)}
+@keyframes enter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ── Cabecera de página ─────────────────────────────────────────────────── */
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.page-title{font-size:clamp(24px,3vw,32px);letter-spacing:-.045em;line-height:1.12;margin-top:4px}
+.page-sub{color:var(--ink-75);font-size:14px;margin-top:6px}
+.page-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ── Botones ────────────────────────────────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 20px;
+  border-radius:999px;border:1px solid transparent;font-size:14px;font-weight:650;white-space:nowrap;
+  transition:background .2s,border-color .2s,color .2s,transform .15s;
+}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--primary);color:var(--primary-ink);box-shadow:var(--shadow-halo)}
+.btn-primary:hover{background:var(--primary-hover)}
+.btn-ghost{background:var(--surface);border-color:var(--line-2);color:var(--ink)}
+.btn-ghost:hover{border-color:var(--v200);color:var(--accent-strong)}
+.btn-soft{background:var(--v50);border-color:var(--v200);color:var(--accent-strong)}
+.btn-soft:hover{background:var(--v100)}
+.btn-danger{background:var(--surface);border-color:var(--line-2);color:var(--ink)}
+.btn-danger:hover{border-color:var(--danger);color:var(--danger);background:var(--danger-bg)}
+.btn-sm{height:36px;padding:0 14px;font-size:13px}
+.btn-xs{height:30px;padding:0 12px;font-size:12px}
+.link{color:var(--accent-text);font-weight:650;font-size:13px;display:inline-flex;align-items:center;gap:4px}
+.link:hover{color:var(--accent-strong);text-decoration:underline;text-underline-offset:3px}
+
+/* ── Tarjetas, grids y utilidades ───────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:16px;box-shadow:var(--shadow-card)}
+.card-pad-lg{padding:20px}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.card-title{font-size:16px;font-weight:650;letter-spacing:-.02em;display:flex;align-items:center;gap:6px}
+.card-sub{font-size:12px;color:var(--ink-75);margin-top:2px}
+.stack{display:flex;flex-direction:column;gap:16px}
+.grid-2{display:grid;grid-template-columns:1.55fr 1fr;gap:16px}
+.grid-2-even{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.mt-16{margin-top:16px}
+.mt-24{margin-top:24px}
+.mb-12{margin-bottom:12px}
+.mb-16{margin-bottom:16px}
+.row{display:flex;align-items:center;gap:12px}
+.row-between{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.wrap{flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.divide{border-top:1px solid var(--line);margin:12px 0}
+
+/* ── Stats ──────────────────────────────────────────────────────────────── */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.stat{
+  position:relative;overflow:hidden;min-height:138px;padding:16px;border-radius:19px;
+  border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow-card);
+}
+.stat:after{content:"";position:absolute;width:70px;height:70px;right:-36px;top:-40px;border-radius:50%;background:var(--v50)}
+.stat-label{display:block;max-width:85%;font-size:11px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-60)}
+.stat-value{display:block;margin-top:14px;font-size:30px;line-height:1;font-weight:750;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.stat-change{
+  display:inline-flex;align-items:center;gap:4px;margin-top:10px;padding:3px 8px;border-radius:999px;
+  font-size:12px;font-weight:600;background:var(--v50);color:var(--accent-text);
+}
+.stat-change.down,.stat-change.neutral{background:var(--surface-2);color:var(--ink-75)}
+.stat-hint{display:block;margin-top:8px;font-size:12px;color:var(--ink-75)}
+
+/* ── Chips, pills y estado ──────────────────────────────────────────────── */
+.chip{
+  display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;
+  font-size:11px;font-weight:650;background:var(--v50);color:var(--accent-text);
+  border:1px solid var(--v200);white-space:nowrap;
+}
+.chip.neutral{background:var(--page);border-color:transparent;color:var(--ink-75)}
+.chip.warn{background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn-text)}
+.chip.danger{background:var(--danger-bg);border-color:transparent;color:var(--danger)}
+.chip .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.pill{
+  display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 10px;border-radius:999px;
+  background:var(--surface-2);color:var(--ink-75);font-size:11px;font-weight:650;white-space:nowrap;
+}
+.pill-green{background:var(--v50);color:var(--accent-text);border:1px solid var(--v200)}
+.pill-count{
+  display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;
+  background:var(--v50);color:var(--accent-text);border:1px solid var(--v200);
+  font-size:12px;font-weight:650;
+}
+
+/* ── Formularios ────────────────────────────────────────────────────────── */
+.filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.field{position:relative;flex:1;min-width:220px}
+.field .icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-45);pointer-events:none}
+.input{
+  height:42px;width:100%;border-radius:12px;border:1px solid var(--line-2);background:var(--surface);
+  padding:0 14px;font-size:14px;color:var(--ink);outline:none;transition:border-color .2s,box-shadow .2s;
+}
+.input::placeholder{color:var(--ink-45)}
+.input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(53,175,109,.18)}
+.field .input{padding-left:38px}
+.select-wrap{position:relative;min-width:170px}
+select.input{appearance:none;padding-right:36px;cursor:pointer}
+.select-wrap>.icon{position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--ink-45)}
+textarea.input{height:auto;min-height:120px;padding:12px 14px;resize:vertical;line-height:1.5}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:var(--surface);border:1px solid var(--line-2)}
+.seg button{border:0;background:transparent;border-radius:999px;height:32px;padding:0 14px;font-size:12px;font-weight:650;color:var(--ink-75)}
+.seg button:hover{color:var(--accent-strong)}
+.seg button.active{background:var(--v50);color:var(--accent-strong)}
+.switch{
+  position:relative;width:42px;height:24px;border-radius:999px;border:1px solid var(--line-2);
+  background:var(--surface-2);display:inline-block;
+}
+.switch:after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:var(--surface);top:2px;left:2px;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:left .2s}
+.switch.on{background:var(--primary);border-color:var(--primary)}
+.switch.on:after{left:20px;background:var(--primary-ink)}
+label.switch{cursor:pointer}
+
+/* ── Filas de negocio / solicitud ───────────────────────────────────────── */
+.list{display:flex;flex-direction:column;gap:10px}
+.row-card{
+  display:flex;align-items:center;gap:12px;padding:16px;border-radius:var(--r-md);
+  border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow-card);
+}
+.row-card:hover{border-color:var(--v200)}
+.icobox{width:44px;height:44px;flex:0 0 44px;border-radius:16px;background:var(--v50);color:var(--accent-text);display:grid;place-items:center}
+.row-title{font-size:14px;font-weight:650;letter-spacing:-.01em}
+.row-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px;font-size:12px;color:var(--ink-75)}
+.row-main{flex:1;min-width:0}
+.row-actions{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.act{
+  width:36px;height:36px;flex:0 0 auto;border-radius:999px;border:1px solid var(--line-2);
+  background:var(--surface);color:var(--ink-75);display:grid;place-items:center;transition:all .18s;
+}
+.act:hover{border-color:var(--v200);background:var(--v50);color:var(--accent-strong)}
+.act.on{border-color:var(--primary);background:var(--v50);color:var(--accent-strong)}
+.act.danger:hover{border-color:var(--danger);background:var(--danger-bg);color:var(--danger)}
+.status{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:650;white-space:nowrap}
+.status .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.status.ok{background:var(--v50);color:var(--accent-text)}
+.status.off{background:var(--surface-2);color:var(--ink-75)}
+.status.no{background:var(--danger-bg);color:var(--danger)}
+
+/* ── Gráficos ───────────────────────────────────────────────────────────── */
+.bars{display:flex;align-items:stretch;gap:12px;height:190px;padding-top:10px}
+.bar{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%}
+.bar .plot{flex:1;min-height:0;width:100%;display:flex;align-items:flex-end}
+.bar .fill{width:100%;border-radius:8px 8px 2px 2px;background:var(--primary);transition:background .2s;min-height:6px}
+.bar:hover .fill{background:var(--v300)}
+.bar .lab{font-size:11px;color:var(--ink-75);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.bar .val{font-size:11px;font-weight:650;color:var(--ink-60);line-height:1}
+.legend{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--ink-75)}
+.legend i{width:8px;height:8px;border-radius:3px;background:var(--primary);display:inline-block;margin-right:5px}
+
+.progress{height:7px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.progress>span{display:block;height:100%;border-radius:999px;background:var(--primary)}
+.dist-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.dist-row:last-child{border-bottom:0}
+.dist-left{display:flex;align-items:center;gap:8px;font-size:13px;min-width:0}
+.dist-left .icon{color:var(--accent-text)}
+
+/* ── Tablas ─────────────────────────────────────────────────────────────── */
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface);box-shadow:var(--shadow-card)}
+table{width:100%;border-collapse:collapse;min-width:780px}
+th{
+  padding:12px 16px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;
+  font-size:11px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-60);
+}
+td{padding:13px 16px;border-bottom:1px solid var(--line);vertical-align:middle;font-size:13px}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--page)}
+.cell-user{display:flex;align-items:center;gap:10px;min-width:0}
+.avatar-sm{width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:var(--v50);color:var(--accent-text);display:grid;place-items:center;font-size:12px;font-weight:700}
+.cell-main{font-weight:600;white-space:nowrap}
+.cell-sub{font-size:11px;color:var(--ink-75);white-space:nowrap}
+
+/* ── Inbox de soporte ───────────────────────────────────────────────────── */
+.inbox{display:grid;grid-template-columns:330px 1fr;min-height:560px;border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;background:var(--surface);box-shadow:var(--shadow-card)}
+.inbox-list{border-right:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
+.inbox-list header{padding:16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+.conv{display:flex;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer}
+.conv:hover{background:var(--page)}
+.conv.active{background:var(--v50)}
+.conv-body{min-width:0;flex:1}
+.conv-top{display:flex;justify-content:space-between;gap:8px;font-size:12px}
+.conv-name{font-weight:650;font-size:13px}
+.conv-sub{font-size:11px;color:var(--ink-75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.inbox-thread{display:flex;flex-direction:column;min-width:0}
+.thread-head{padding:16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.thread-body{padding:20px;display:flex;flex-direction:column;gap:14px;flex:1;overflow-y:auto;background:var(--page)}
+.msg{max-width:78%;padding:12px 14px;border-radius:16px;font-size:13px;line-height:1.5;box-shadow:var(--shadow-card)}
+.msg.in{background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:4px;align-self:flex-start}
+.msg.out{background:var(--v50);border:1px solid var(--v200);border-bottom-right-radius:4px;align-self:flex-end}
+.msg time{display:block;margin-top:6px;font-size:10px;color:var(--ink-45)}
+.thread-reply{padding:14px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+
+/* ── Planes, categorías, proveedores ────────────────────────────────────── */
+.plan{position:relative;display:flex;flex-direction:column;gap:14px;padding:20px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--shadow-card)}
+.plan.featured{border-color:var(--v300);box-shadow:0 0 0 1px var(--v200), var(--shadow-card)}
+.plan-name{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;font-weight:650;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-60)}
+.plan-price{font-size:32px;font-weight:750;letter-spacing:-.04em;line-height:1}
+.plan-price small{font-size:12px;font-weight:500;color:var(--ink-75);letter-spacing:0}
+.plan-feats{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.plan-feats li{display:flex;gap:8px;align-items:flex-start;color:var(--ink-75)}
+.plan-feats .icon{color:var(--accent-text);margin-top:2px}
+.cat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.cat{display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow-card)}
+.cat:hover{border-color:var(--v200)}
+.cat.add{justify-content:center;align-items:center;border-style:dashed;background:transparent;box-shadow:none;color:var(--ink-75);min-height:150px}
+.provider{display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow-card)}
+.provider.primary{border-color:var(--v300);box-shadow:0 0 0 1px var(--v200), var(--shadow-card)}
+.provider-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--ink-75)}
+.kv b{color:var(--ink);font-weight:650}
+
+/* ── Publicaciones ──────────────────────────────────────────────────────── */
+.post{display:flex;gap:12px;padding:12px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--page)}
+.post-thumb{width:64px;height:64px;flex:0 0 64px;border-radius:12px;background:linear-gradient(135deg,var(--v100),var(--v300));display:grid;place-items:center;color:var(--accent-strong)}
+.post-body{flex:1;min-width:0}
+.post-text{font-size:12px;color:var(--ink-75);line-height:1.45;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.post-foot{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+
+/* ── Diagnóstico ────────────────────────────────────────────────────────── */
+.status-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.status-row:last-child{border-bottom:0}
+.status-dot{width:9px;height:9px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 4px rgba(53,175,109,.14);flex:0 0 auto}
+.status-dot.warn{background:#D9A21B;box-shadow:0 0 0 4px rgba(217,162,27,.16)}
+.status-dot.err{background:var(--danger);box-shadow:0 0 0 4px rgba(179,38,30,.12)}
+.code{
+  margin:0;padding:14px;border-radius:var(--r-sm);border:1px solid var(--line);
+  background:var(--page);font-family:var(--mono);font-size:11px;line-height:1.7;
+  color:var(--ink-75);overflow-x:auto;white-space:pre;
+}
+.code b{color:var(--accent-text);font-weight:600}
+
+/* ── Onboarding ─────────────────────────────────────────────────────────── */
+.phone{
+  width:240px;margin:auto;border:6px solid var(--ink);border-radius:34px;background:var(--surface);
+  overflow:hidden;box-shadow:var(--shadow-card);
+}
+html[data-theme="dark"] .phone{border-color:#25333b}
+.phone-notch{height:22px;display:grid;place-items:center}
+.phone-notch:after{content:"";width:70px;height:5px;border-radius:999px;background:var(--surface-2)}
+.phone-body{padding:18px 14px 24px;display:flex;flex-direction:column;gap:10px;min-height:330px}
+.step{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:0}
+.step-num{width:26px;height:26px;flex:0 0 26px;border-radius:50%;display:grid;place-items:center;background:var(--v50);color:var(--accent-text);font-size:11px;font-weight:700}
+.step-num.done{background:var(--primary);color:var(--primary-ink)}
+
+/* ── Vacíos / nota ──────────────────────────────────────────────────────── */
+.note{display:flex;align-items:flex-start;gap:10px;padding:14px;border-radius:var(--r-sm);background:var(--page);border:1px solid var(--line);font-size:12px;color:var(--ink-75)}
+.note .icon{color:var(--accent-text);margin-top:1px}
+
+/* ── Pie / toast ────────────────────────────────────────────────────────── */
+.page-foot{margin-top:32px;padding-top:16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--ink-45)}
+.toast{
+  position:fixed;left:50%;bottom:20px;transform:translate(-50%,20px);z-index:80;
+  padding:12px 20px;border-radius:999px;background:#08130D;color:#fff;font-size:13px;font-weight:600;
+  box-shadow:0 16px 40px -16px rgba(8,19,13,.4);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
+  max-width:calc(100% - 32px);text-align:center;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.scrim{position:fixed;inset:60px 0 0;background:rgba(8,19,13,.42);z-index:35;display:none}
+.scrim.show{display:block}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width:1100px){
+  .grid-2,.grid-2-even{grid-template-columns:1fr}
+  .cat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:960px){
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid-3{grid-template-columns:1fr}
+  .inbox{grid-template-columns:1fr}
+  .inbox-list{border-right:0;border-bottom:1px solid var(--line)}
+  .inbox-thread{min-height:420px}
+  .badge-admin{display:none}
+}
+@media (max-width:1024px){
+  .only-mobile{display:grid}
+  .sidebar{
+    position:fixed;left:0;top:60px;bottom:0;z-index:40;height:auto;
+    transform:translateX(-100%);transition:transform .25s cubic-bezier(.16,1,.3,1);
+    box-shadow:0 24px 60px rgba(8,19,13,.18);
+  }
+  .sidebar.open{transform:none}
+  .main{padding:20px 16px 64px}
+}
+@media (max-width:640px){
+  .topbar{padding:0 10px;gap:8px}
+  .brand{font-size:16px}
+  .account{padding-right:8px}
+  .account .name{display:none}
+  .stats{grid-template-columns:1fr 1fr}
+  .cat-grid{grid-template-columns:1fr 1fr}
+  .row-card{align-items:flex-start;flex-wrap:wrap}
+  .row-actions{margin-left:56px}
+  .page-head{align-items:flex-start}
+  .filters{gap:8px}
+  .field{min-width:100%}
+  .select-wrap{flex:1;min-width:calc(50% - 8px)}
+  .seg{overflow-x:auto;max-width:100%}
+  .thread-body{padding:14px}
+  .msg{max-width:90%}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<!-- Sprite de iconos (Lucide, trazo 1.8) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24"><path d="M3 9l2-5h14l2 5v2H3z"/><path d="M5 11v9h14v-9"/><path d="M9 20v-5h6v5"/></symbol>
+  <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6"/><path d="M9 16h4"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></symbol>
+  <symbol id="i-megaphone" viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></symbol>
+  <symbol id="i-lifebuoy" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m9.17 14.83-4.24 4.24"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-coins" viewBox="0 0 24 24"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></symbol>
+  <symbol id="i-tags" viewBox="0 0 24 24"><path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r="1"/></symbol>
+  <symbol id="i-bot" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><path d="M8 16h.01"/><path d="M16 16h.01"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></symbol>
+  <symbol id="i-money" viewBox="0 0 24 24"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M9.9 9.9a3 3 0 1 0 4.2 4.2"/><path d="M10.7 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a13.2 13.2 0 0 1-1.7 2.7"/><path d="M6.6 6.6A13.5 13.5 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="m2 2 20 20"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></symbol>
+  <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4v2a3 3 0 0 0 3 3"/><path d="M17 6h3v2a3 3 0 0 1-3 3"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></symbol>
+  <symbol id="i-wa" viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.6A8.4 8.4 0 1 1 21 11.5z"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 7-7h2a7 7 0 0 1 7 7v1"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18"/><path d="M12 3a15 15 0 0 0 0 18"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="m23 6-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></symbol>
+  <symbol id="i-eye-line" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+</svg>
+
+<!-- ── Topbar ──────────────────────────────────────────────────────────── -->
+<header class="topbar">
+  <a class="icon-btn" href="#dashboard" aria-label="Volver al inicio" title="Volver al inicio">
+    <svg class="icon"><use href="#i-arrow-left"/></svg>
+  </a>
+  <a href="#dashboard" class="brand" translate="no">La Verde <span>Admin</span></a>
+  <span class="badge-admin">Panel de administración</span>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="theme-btn" aria-label="Activar modo oscuro" aria-pressed="false">
+    <svg class="icon" id="theme-icon"><use href="#i-sun"/></svg>
+  </button>
+  <div class="account" role="button" tabindex="0" aria-label="Cuenta de Maikel, administrador">
+    <span class="avatar">MA</span>
+    <span class="name">Maikel</span>
+    <svg class="icon sm"><use href="#i-chevron-down"/></svg>
+  </div>
+  <button class="icon-btn only-mobile" id="menu-btn" aria-label="Abrir menú" aria-expanded="false">
+    <svg class="icon"><use href="#i-menu"/></svg>
+  </button>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="shell">
+  <!-- ── Sidebar ───────────────────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar" aria-label="Secciones del panel">
+    <a class="nav-item active" href="#dashboard" data-view="dashboard"><svg class="icon"><use href="#i-dashboard"/></svg>Dashboard</a>
+    <a class="nav-item" href="#analytics" data-view="analytics"><svg class="icon"><use href="#i-chart"/></svg>Analytics</a>
+    <a class="nav-item" href="#negocios" data-view="negocios"><svg class="icon"><use href="#i-store"/></svg>Negocios</a>
+    <a class="nav-item" href="#solicitudes" data-view="solicitudes"><svg class="icon"><use href="#i-clipboard"/></svg>Solicitudes<span class="pill pill-green" style="margin-left:auto">4</span></a>
+    <a class="nav-item" href="#publicaciones" data-view="publicaciones"><svg class="icon"><use href="#i-send"/></svg>Publicaciones<span class="pill" style="margin-left:auto">7</span></a>
+    <a class="nav-item" href="#proyectos" data-view="proyectos"><svg class="icon"><use href="#i-megaphone"/></svg>Proyectos</a>
+    <a class="nav-item" href="#soporte" data-view="soporte"><svg class="icon"><use href="#i-lifebuoy"/></svg>Soporte</a>
+    <a class="nav-item" href="#notificaciones" data-view="notificaciones"><svg class="icon"><use href="#i-bell"/></svg>Notificaciones</a>
+    <a class="nav-item" href="#usuarios" data-view="usuarios"><svg class="icon"><use href="#i-users"/></svg>Usuarios</a>
+    <a class="nav-item" href="#afiliados" data-view="afiliados"><svg class="icon"><use href="#i-coins"/></svg>Afiliados</a>
+    <a class="nav-item" href="#categorias" data-view="categorias"><svg class="icon"><use href="#i-tags"/></svg>Categorías</a>
+    <a class="nav-item" href="#proveedores-ia" data-view="proveedores-ia"><svg class="icon"><use href="#i-bot"/></svg>Proveedores IA</a>
+    <a class="nav-item" href="#onboarding" data-view="onboarding"><svg class="icon"><use href="#i-sparkles"/></svg>Onboarding</a>
+    <a class="nav-item" href="#planes" data-view="planes"><svg class="icon"><use href="#i-money"/></svg>Planes</a>
+    <a class="nav-item" href="#diagnostico" data-view="diagnostico"><svg class="icon"><use href="#i-activity"/></svg>Diagnóstico</a>
+    <div class="sidebar-foot">
+      <strong>La Verde · Administración</strong>
+      Cascarón visual con datos de ejemplo.<br>
+      Los controles no escriben en la base.
+    </div>
+  </aside>
+
+  <!-- ── Contenido ────────────────────────────────────────────────────── -->
+  <main class="main" id="main">
+
+    <!-- ============ DASHBOARD ============ -->
+    <section class="view active" id="dashboard" aria-labelledby="t-dashboard">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Plataforma</span>
+          <h1 class="page-title" id="t-dashboard">Dashboard</h1>
+          <p class="page-sub">Resumen de toda la plataforma La Verde</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-ghost" data-demo="Se abriría la vista previa del onboarding">
+            <svg class="icon"><use href="#i-sparkles"/></svg><span>Ver onboarding</span>
+          </button>
+          <button class="btn btn-primary" data-demo="Se abriría el alta de un negocio">
+            <svg class="icon"><use href="#i-plus"/></svg><span>Nuevo negocio</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-label">Negocios totales</span>
+          <span class="stat-value">128</span>
+          <span class="stat-change"><svg class="icon sm"><use href="#i-trend"/></svg>12 este mes</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Activos</span>
+          <span class="stat-value">96</span>
+          <span class="stat-change">75% del total</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Publicaciones pendientes</span>
+          <span class="stat-value">7</span>
+          <span class="stat-change down">Por publicar</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Solicitudes pendientes</span>
+          <span class="stat-value">4</span>
+          <span class="stat-change down">Requieren revisión</span>
+        </div>
+      </div>
+
+      <div class="grid-2 mt-16">
+        <div class="card">
+          <div class="card-head">
+            <h2 class="card-title"><svg class="icon" style="color:var(--accent-text)"><use href="#i-trophy"/></svg>Negocios top</h2>
+            <button class="icon-btn" style="width:32px;height:32px" data-demo="Ranking actualizado" aria-label="Actualizar ranking">
+              <svg class="icon sm"><use href="#i-refresh"/></svg>
+            </button>
+          </div>
+          <div class="filters" style="margin-bottom:12px">
+            <div class="select-wrap"><select class="input" aria-label="Filtrar ranking por provincia"><option>Todas las provincias</option><option>La Habana</option><option>Villa Clara</option><option>Matanzas</option></select><svg class="icon sm"><use href="#i-chevron-down"/></svg></div>
+            <div class="select-wrap"><select class="input" aria-label="Filtrar ranking por categoría"><option>Todas las categorías</option><option>Restaurantes</option><option>Cafeterías</option><option>Bares</option></select><svg class="icon sm"><use href="#i-chevron-down"/></svg></div>
+          </div>
+          <div class="list">
+            <div class="row" style="padding:10px 0;border-bottom:1px solid var(--line)">
+              <span class="step-num">1</span>
+              <div class="icobox" style="width:36px;height:36px;flex:0 0 36px;border-radius:12px"><svg class="icon"><use href="#i-store"/></svg></div>
+              <div class="grow"><div class="row-title truncate">Paladar Doña Juana</div><div class="meta truncate">Restaurantes · La Habana</div></div>
+              <span class="pill-count">1 284</span>
+            </div>
+            <div class="row" style="padding:10px 0;border-bottom:1px solid var(--line)">
+              <span class="step-num">2</span>
+              <div class="icobox" style="width:36px;height:36px;flex:0 0 36px;border-radius:12px"><svg class="icon"><use href="#i-store"/></svg></div>
+              <div class="grow"><div class="row-title truncate">Cafetería El Vedado</div><div class="meta truncate">Cafeterías · La Habana</div></div>
+              <span class="pill-count">987</span>
+            </div>
+            <div class="row" style="padding:10px 0">
+              <span class="step-num">3</span>
+              <div class="icobox" style="width:36px;height:36px;flex:0 0 36px;border-radius:12px"><svg class="icon"><use href="#i-store"/></svg></div>
+              <div class="grow"><div class="row-title truncate">Hostal Casa Verde</div><div class="meta truncate">Hospedaje · Trinidad</div></div>
+              <span class="pill-count">842</span>
+            </div>
+          </div>
+          <button class="btn btn-soft btn-sm" style="margin:14px auto 0" data-demo="Se vería el ranking completo">
+            Ver más (7)
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2 class="card-title">Negocios que requieren atención</h2>
+            <span class="pill">3</span>
+          </div>
+          <div class="list">
+            <div class="row" style="padding:10px 0;border-bottom:1px solid var(--line)">
+              <svg class="icon" style="color:var(--accent-text)"><use href="#i-alert"/></svg>
+              <div class="grow"><div class="row-title truncate">Panadería La Espiga</div><div class="meta">Sin descripción</div></div>
+              <a class="link" href="#negocios">Editar</a>
+            </div>
+            <div class="row" style="padding:10px 0;border-bottom:1px solid var(--line)">
+              <svg class="icon" style="color:var(--accent-text)"><use href="#i-alert"/></svg>
+              <div class="grow"><div class="row-title truncate">Bar El Malecón</div><div class="meta">Cerrado</div></div>
+              <a class="link" href="#negocios">Editar</a>
+            </div>
+            <div class="row" style="padding:10px 0">
+              <svg class="icon" style="color:var(--accent-text)"><use href="#i-alert"/></svg>
+              <div class="grow"><div class="row-title truncate">Pizzería Napoli</div><div class="meta">Temporalmente cerrado</div></div>
+              <a class="link" href="#negocios">Editar</a>
+            </div>
+          </div>
+          <div class="note mt-16">
+            <svg class="icon"><use href="#i-store"/></svg>
+            <span>Gestiona los negocios de La Verde en <a class="link" href="#negocios">Negocios</a>. Puedes agregar, editar, eliminar, destacar y cambiar el estado de cada uno.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2 mt-16">
+        <div class="card">
+          <div class="card-head">
+            <h2 class="card-title">Negocios por categoría</h2>
+            <span class="pill">Todas las categorías</span>
+          </div>
+          <div class="bars" role="img" aria-label="Negocios por categoría: Restaurantes 42, Cafeterías 28, Bares 19, Playas 14, Hospedaje 12">
+            <div class="bar" title="42 negocios"><span class="val">42</span><span class="plot"><span class="fill" style="height:100%"></span></span><span class="lab">Restaurantes</span></div>
+            <div class="bar" title="28 negocios"><span class="val">28</span><span class="plot"><span class="fill" style="height:67%"></span></span><span class="lab">Cafeterías</span></div>
+            <div class="bar" title="19 negocios"><span class="val">19</span><span class="plot"><span class="fill" style="height:45%"></span></span><span class="lab">Bares</span></div>
+            <div class="bar" title="14 negocios"><span class="val">14</span><span class="plot"><span class="fill" style="height:33%"></span></span><span class="lab">Playas</span></div>
+            <div class="bar" title="12 negocios"><span class="val">12</span><span class="plot"><span class="fill" style="height:29%"></span></span><span class="lab">Hospedaje</span></div>
+          </div>
+          <div class="legend"><span><i></i>Negocios aprobados por categoría</span><span style="margin-left:auto">Actualizado hace 4 min</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2 class="card-title">Distribución por categoría</h2></div>
+          <div>
+            <div class="dist-row"><span class="dist-left"><svg class="icon"><use href="#i-store"/></svg>Restaurantes</span><span class="pill-count">42</span></div>
+            <div class="dist-row"><span class="dist-left"><svg class="icon"><use href="#i-store"/></svg>Cafeterías</span><span class="pill-count">28</span></div>
+            <div class="dist-row"><span class="dist-left"><svg class="icon"><use href="#i-store"/></svg>Bares</span><span class="pill-count">19</span></div>
+            <div class="dist-row"><span class="dist-left"><svg class="icon"><use href="#i-globe"/></svg>Playas</span><span class="pill-count">14</span></div>
+            <div class="dist-row"><span class="dist-left"><svg class="icon"><use href="#i-store"/></svg>Hospedaje</span><span class="pill-count">12</span></div>
+            <div class="dist-row"><span class="dist-left"><svg class="icon"><use href="#i-store"/></svg>Tiendas</span><span class="pill-count">9</span></div>
+          </div>
+          <div class="note mt-16"><svg class="icon"><use href="#i-tags"/></svg><span>Las categorías se editan en <a class="link" href="#categorias">Categorías</a> y arrastran el icono de la ficha y del mapa.</span></div>
+        </div>
+      </div>
+
+      <div class="card mt-16">
+        <div class="card-head">
+          <div>
+            <h2 class="card-title">Tasa del dólar hoy</h2>
+            <p class="card-sub">Referencia del catálogo · CambioCUP</p>
+          </div>
+          <a class="btn btn-ghost btn-sm" href="#diagnostico"><svg class="icon sm"><use href="#i-external"/></svg>Ver histórico</a>
+        </div>
+        <div class="grid-3">
+          <div class="note" style="background:var(--v50);border-color:var(--v200);align-items:center"><span style="font-size:28px;font-weight:750;letter-spacing:-.04em;color:var(--ink)">395</span><span class="meta">CUP por 1 USD</span></div>
+          <div class="note" style="align-items:center"><span style="font-size:28px;font-weight:750;letter-spacing:-.04em">430</span><span class="meta">CUP por 1 EUR</span></div>
+          <div class="note" style="align-items:center"><span style="font-size:28px;font-weight:750;letter-spacing:-.04em">392</span><span class="meta">CUP por 1 MLC</span></div>
+        </div>
+      </div>
+
+      <div class="page-foot"><span>La Verde · Panel de administración</span><span>Datos de ejemplo · 24 nov 2026, 09:41</span></div>
+    </section>
+
+    <!-- ============ ANALYTICS ============ -->
+    <section class="view" id="analytics" aria-labelledby="t-analytics">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Inteligencia</span>
+          <h1 class="page-title" id="t-analytics">Analytics</h1>
+          <p class="page-sub">Qué busca la gente, qué encuentra y dónde se cae el embudo</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-ghost" data-demo="Se exportaría el CSV del periodo"><svg class="icon"><use href="#i-download"/></svg>Exportar CSV</button>
+        </div>
+      </div>
+
+      <div class="row wrap mb-16" style="gap:10px">
+        <div class="seg" data-toggle-group>
+          <button class="active">Hoy</button>
+          <button>7 días</button>
+          <button>30 días</button>
+          <button>90 días</button>
+          <button>Este año</button>
+        </div>
+        <div class="select-wrap"><select class="input" aria-label="Comparar con"><option>Comparar con el periodo anterior</option><option>Sin comparación</option></select><svg class="icon sm"><use href="#i-chevron-down"/></svg></div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><span class="stat-label">Usuarios activos</span><span class="stat-value">1 248</span><span class="stat-change"><svg class="icon sm"><use href="#i-trend"/></svg>18,4%</span></div>
+        <div class="stat"><span class="stat-label">Sesiones</span><span class="stat-value">3 902</span><span class="stat-change"><svg class="icon sm"><use href="#i-trend"/></svg>9,1%</span></div>
+        <div class="stat"><span class="stat-label">Búsquedas</span><span class="stat-value">2 741</span><span class="stat-change"><svg class="icon sm"><use href="#i-trend"/></svg>22,7%</span></div>
+        <div class="stat"><span class="stat-label">Sin resultado</span><span class="stat-value">8,4%</span><span class="stat-change down"><svg class="icon sm"><use href="#i-trend"/></svg>1,2 pts</span></div>
+      </div>
+
+      <div class="grid-2 mt-16">
+        <div class="card">
+          <div class="card-head"><h2 class="card-title">Búsquedas por día</h2><span class="pill">Últimos 14 días</span></div>
+          <div class="bars" role="img" aria-label="Búsquedas por día, de 122 a 268">
+            <div class="bar" title="122"><span class="plot"><span class="fill" style="height:46%"></span></span></div>
+            <div class="bar" title="141"><span class="plot"><span class="fill" style="height:53%"></span></span></div>
+            <div class="bar" title="138"><span class="plot"><span class="fill" style="height:52%"></span></span></div>
+            <div class="bar" title="170"><span class="plot"><span class="fill" style="height:64%"></span></span></div>
+            <div class="bar" title="188"><span class="plot"><span class="fill" style="height:70%"></span></span></div>
+            <div class="bar" title="164"><span class="plot"><span class="fill" style="height:61%"></span></span></div>
+            <div class="bar" title="201"><span class="plot"><span class="fill" style="height:75%"></span></span></div>
+            <div class="bar" title="232"><span class="plot"><span class="fill" style="height:87%"></span></span></div>
+            <div class="bar" title="214"><span class="plot"><span class="fill" style="height:80%"></span></span></div>
+            <div class="bar" title="198"><span class="plot"><span class="fill" style="height:74%"></span></span></div>
+            <div class="bar" title="247"><span class="plot"><span class="fill" style="height:92%"></span></span></div>
+            <div class="bar" title="256"><span class="plot"><span class="fill" style="height:96%"></span></span></div>
+            <div class="bar" title="238"><span class="plot"><span class="fill" style="height:89%"></span></span></div>
+            <div class="bar" title="268"><span class="plot"><span class="fill" style="height:100%"></span></span></div>
+          </div>
+          <div class="legend"><span><i></i>Búsquedas registradas</span><span style="margin-left:auto">Máximo: 268 el 23 nov</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2 class="card-title">Búsquedas top</h2><a class="link" href="#negocios">Ver todas</a></div>
+          <div>
+            <div class="dist-row"><span class="dist-left">restaurante cerca de mí</span><span class="pill-count">184</span></div>
+            <div class="dist-row"><span class="dist-left">café con wifi</span><span class="pill-count">156</span></div>
+            <div class="dist-row"><span class="dist-left">playa tranquila</span><span class="pill-count">132</span></div>
+            <div class="dist-row"><span class="dist-left">pizza a domicilio</span><span class="pill-count">121</span></div>
+            <div class="dist-row"><span class="dist-left">hostal barato</span><span class="pill-count">98</span></div>
+            <div class="dist-row"><span class="dist-left">bar con música</span><span class="pill-count">87</span></div>
+          </div>
+          <div class="note mt-16"><svg class="icon"><use href="#i-search"/></svg><span>41 búsquedas no devolvieron ningún resultado. <a class="link" href="#negocios">Crear negocio</a> o revisar categorías.</span></div>
+        </div>
+      </div>
+
+      <div class="grid-2 mt-16">
+        <div class="card">
+          <div class="card-head"><h2 class="card-title">Demanda vs oferta</h2><span class="pill">30 días</span></div>
+          <div class="table-wrap" style="border:0;box-shadow:none">
+            <table style="min-width:520px">
+              <thead><tr><th>Término</th><th>Búsquedas</th><th>Negocios</th><th>Brecha</th></tr></thead>
+              <tbody>
+                <tr><td>playa tranquila</td><td>132</td><td>14</td><td><span class="chip warn">Alta</span></td></tr>
+                <tr><td>hostal barato</td><td>98</td><td>12</td><td><span class="chip warn">Alta</span></td></tr>
+                <tr><td>café con wifi</td><td>156</td><td>28</td><td><span class="chip neutral">Media</span></td></tr>
+                <tr><td>pizza a domicilio</td><td>121</td><td>19</td><td><span class="chip neutral">Media</span></td></tr>
+                <tr><td>restaurante cerca</td><td>184</td><td>42</td><td><span class="chip">Baja</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2 class="card-title">Geografía</h2><span class="pill">Usuarios activos</span></div>
+          <div class="stack" style="gap:14px">
+            <div><div class="row-between" style="font-size:12px"><span>La Habana</span><b>62%</b></div><div class="progress" style="margin-top:6px"><span style="width:62%"></span></div></div>
+            <div><div class="row-between" style="font-size:12px"><span>Villa Clara</span><b>14%</b></div><div class="progress" style="margin-top:6px"><span style="width:14%"></span></div></div>
+            <div><div class="row-between" style="font-size:12px"><span>Matanzas</span><b>9%</b></div><div class="progress" style="margin-top:6px"><span style="width:9%"></span></div></div>
+            <div><div class="row-between" style="font-size:12px"><span>Santiago de Cuba</span><b>8%</b></div><div class="progress" style="margin-top:6px"><span style="width:8%"></span></div></div>
+            <div><div class="row-between" style="font-size:12px"><span>Otras provincias</span><b>7%</b></div><div class="progress" style="margin-top:6px"><span style="width:7%"></span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-3 mt-16">
+        <div class="card">
+          <div class="card-head"><h2 class="card-title">Funnel</h2></div>
+          <div class="stack" style="gap:12px">
+            <div><div class="row-between" style="font-size:12px"><span>Visitas</span><b>3 902</b></div><div class="progress" style="margin-top:5px"><span style="width:100%"></span></div></div>
+            <div><div class="row-between" style="font-size:12px"><span>Fichas vistas</span><b>1 874</b></div><div class="progress" style="margin-top:5px"><span style="width:48%"></span></div></div>
+            <div><div class="row-between" style="font-size:12px"><span>Contacto</span><b>612</b></div><div class="progress" style="margin-top:5px"><span style="width:16%"></span></div></div>
+            <div><div class="row-between" style="font-size:12px"><span>Pedido</span><b>288</b></div><div class="progress" style="margin-top:5px"><span style="width:7%"></span></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2 class="card-title">Salud de Analytics</h2></div>
+          <div class="status-row"><span class="status-dot"></span><div class="grow"><div class="row-title">PostHog</div><div class="meta">Conectado · últimos eventos hace 2 min</div></div><span class="chip">OK</span></div>
+          <div class="status-row"><span class="status-dot warn"></span><div class="grow"><div class="row-title">GA4</div><div class="meta">Sin verificar desde el 12 nov</div></div><span class="chip warn">Revisar</span></div>
+          <div class="status-row"><span class="status-dot"></span><div class="grow"><div class="row-title">Search Console</div><div class="meta">Conectado</div></div><span class="chip">OK</span></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2 class="card-title">Exportaciones</h2></div>
+          <p class="meta">Descarga los datos del periodo elegido para analizarlos fuera del panel.</p>
+          <div class="stack" style="gap:8px;margin-top:14px">
+            <button class="btn btn-ghost btn-sm" data-demo="Se descargaría el CSV"><svg class="icon sm"><use href="#i-download"/></svg>Eventos (CSV)</button>
+            <button class="btn btn-ghost btn-sm" data-demo="Se descargaría el JSON"><svg class="icon sm"><use href="#i-download"/></svg>Búsquedas (JSON)</button>
+            <button class="btn btn-ghost btn-sm" data-demo="Se descargaría el resumen"><svg class="icon sm"><use href="#i-download"/></svg>Resumen (PDF)</button>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot"><span>Analytics · datos anónimos agregados</span><span>Última sincronización 09:38</span></div>
+    </section>
+
+    <!-- ============ NEGOCIOS ============ -->
+    <section class="view" id="negocios" aria-labelledby="t-negocios">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Catálogo</span>
+          <h1 class="page-title" id="t-negocios">Negocios</h1>
+          <p class="page-sub">128 negocios en La Verde · 96 publicados</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-primary" data-demo="Se abriría el alta de un negocio"><svg class="icon"><use href="#i-plus"/></svg>Nuevo negocio</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <div class="field"><svg class="icon"><use href="#i-search"/></svg><input class="input" placeholder="Buscar por nombre, barrio o categoría…" aria-label="Buscar negocios"></div>
+        <div class="select-wrap"><select class="input" aria-label="Filtrar por categoría"><option>Todas las categorías</option><option>Restaurantes</option><option>Cafeterías</option><option>Bares</option><option>Playas</option><option>Hospedaje</option></select><svg class="icon sm"><use href="#i-chevron-down"/></svg></div>
+        <div class="select-wrap"><select class="input" aria-label="Filtrar por estado"><option>Todos los estados</option><option>Activos</option><option>Cerrados / Temporales</option><option>Destacados</option></select><svg class="icon sm"><use href="#i-chevron-down"/></svg></div>
+        <div class="select-wrap"><select class="input" aria-label="Filtrar por tipo de negocio"><option>Todos los tipos</option><option>Restaurante</option><option>Cafetería</option><option>Bar</option><option>Tienda</option><option>Sin tipo asignado</option></select><svg class="icon sm"><use href="#i-chevron-down"/></svg></div>
+      </div>
+
+      <div class="list">
+        <div class="row-card">
+          <div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div>
+          <div class="row-main">
+            <div class="row" style="gap:8px;flex-wrap:wrap">
+              <span class="row-title">Paladar Doña Juana</span>
+              <span class="chip neutral">Restaurante</span>
+              <span class="chip">Business</span>
+              <span class="chip"><svg class="icon sm"><use href="#i-zap"/></svg>Destacado</span>
+            </div>
+            <div class="row-meta"><span>Restaurantes · Vedado, La Habana</span><span class="pill"><svg class="icon sm"><use href="#i-clock"/></svg>Hace 8 días</span></div>
+          </div>
+          <div class="row-actions">
+            <span class="status ok"><span class="dot"></span>Activo</span>
+            <button class="act on" aria-label="Visible en el mapa" title="Visible en el mapa"><svg class="icon sm"><use href="#i-eye"/></svg></button>
+            <button class="act on" aria-label="Quitar destacado" title="Destacado"><svg class="icon sm"><use href="#i-zap"/></svg></button>
+            <button class="act" aria-label="Editar negocio" data-demo="Se abriría el editor de la ficha"><svg class="icon sm"><use href="#i-pencil"/></svg></button>
+            <button class="act danger" aria-label="Eliminar negocio" data-demo="Pediría confirmación antes de eliminar"><svg class="icon sm"><use href="#i-trash"/></svg></button>
+          </div>
+        </div>
+
+        <div class="row-card">
+          <div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div>
+          <div class="row-main">
+            <div class="row" style="gap:8px;flex-wrap:wrap"><span class="row-title">Cafetería El Vedado</span><span class="chip neutral">Cafetería</span><span class="chip">Pro</span></div>
+            <div class="row-meta"><span>Cafeterías · Vedado, La Habana</span><span class="pill"><svg class="icon sm"><use href="#i-clock"/></svg>Hace 21 días</span></div>
+          </div>
+          <div class="row-actions">
+            <span class="status ok"><span class="dot"></span>Activo</span>
+            <button class="act on" aria-label="Visible en el mapa"><svg class="icon sm"><use href="#i-eye"/></svg></button>
+            <button class="act" aria-label="Destacar"><svg class="icon sm"><use href="#i-zap"/></svg></button>
+            <button class="act" aria-label="Editar negocio"><svg class="icon sm"><use href="#i-pencil"/></svg></button>
+            <button class="act danger" aria-label="Eliminar negocio"><svg class="icon sm"><use href="#i-trash"/></svg></button>
+          </div>
+        </div>
+
+        <div class="row-card">
+          <div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div>
+          <div class="row-main">
+            <div class="row" style="gap:8px;flex-wrap:wrap"><span class="row-title">Hostal Casa Verde</span><span class="chip neutral">Hospedaje</span><span class="chip">Pro</span></div>
+            <div class="row-meta"><span>Hospedaje · Trinidad, Sancti Spíritus</span><span class="pill"><svg class="icon sm"><use href="#i-clock"/></svg>Hace 2 meses</span></div>
+          </div>
+          <div class="row-actions">
+            <span class="status ok"><span class="dot"></span>Activo</span>
+            <button class="act on" aria-label="Visible en el mapa"><svg class="icon sm"><use href="#i-eye"/></svg></button>
+            <button class="act" aria-label="Destacar"><svg class="icon sm"><use href="#i-zap"/></svg></button>
+            <button class="act" aria-label="Editar negocio"><svg class="icon sm"><use href="#i-pencil"/></svg></button>
+            <button class="act danger" aria-label="Eliminar negocio"><svg class="icon sm"><use href="#i-trash"/></svg></button>
+          </div>
+        </div>
+
+        <div class="row-card">
+          <div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div>
+          <div class="row-main">
+            <div class="row" style="gap:8px;flex-wrap:wrap"><span class="row-title">Bar El Malecón</span><span class="chip neutral">Bar</span><span class="chip neutral">Gratis</span></div>
+            <div class="row-meta"><span>Bares · Centro Habana, La Habana</span><span class="pill"><svg class="icon sm"><use href="#i-clock"/></svg>Hace 4 meses</span></div>
+          </div>
+          <div class="row-actions">
+            <span class="status no"><span class="dot"></span>Cerrado</span>
+            <button class="act" aria-label="Oculto del mapa"><svg class="icon sm"><use href="#i-eye-off"/></svg></button>
+            <button class="act" aria-label="Destacar"><svg class="icon sm"><use href="#i-zap"/></svg></button>
+            <button class="act" aria-label="Editar negocio"><svg class="icon sm"><use href="#i-pencil"/></svg></button>
+            <button class="act danger" aria-label="Eliminar negocio"><svg class="icon sm"><use href="#i-trash"/></svg></button>
+          </div>
+        </div>
+
+        <div class="row-card">
+          <div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div>
+          <div class="row-main">
+            <div class="row" style="gap:8px;flex-wrap:wrap"><span class="row-title">Pizzería Napoli</span><span class="chip warn">Sin tipo</span><span class="chip">Trial</span></div>
+            <div class="row-meta"><span>Restaurantes · Miramar, La Habana</span><span class="pill"><svg class="icon sm"><use href="#i-clock"/></svg>Hace 1 día</span></div>
+          </div>
+          <div class="row-actions">
+            <span class="status off"><span class="dot"></span>Temporal</span>
+            <button class="act on" aria-label="Visible en el mapa"><svg class="icon sm"><use href="#i-eye"/></svg></button>
+            <button class="act" aria-label="Destacar"><svg class="icon sm"><use href="#i-zap"/></svg></button>
+            <button class="act" aria-label="Editar negocio"><svg class="icon sm"><use href="#i-pencil"/></svg></button>
+            <button class="act danger" aria-label="Eliminar negocio"><svg class="icon sm"><use href="#i-trash"/></svg></button>
+          </div>
+        </div>
+
+        <div class="row-card">
+          <div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div>
+          <div class="row-main">
+            <div class="row" style="gap:8px;flex-wrap:wrap"><span class="row-title">Panadería La Espiga</span><span class="chip neutral">Panadería</span><span class="chip neutral">Gratis</span></div>
+            <div class="row-meta"><span>Panaderías · Cerro, La Habana</span><span class="pill"><svg class="icon sm"><use href="#i-clock"/></svg>Hace 3 días</span></div>
+          </div>
+          <div class="row-actions">
+            <span class="status off"><span class="dot"></span>Pendiente</span>
+            <button class="act" aria-label="Mostrar en el mapa"><svg class="icon sm"><use href="#i-eye-off"/></svg></button>
+            <button class="act" aria-label="Destacar"><svg class="icon sm"><use href="#i-zap"/></svg></button>
+            <button class="act" aria-label="Editar negocio"><svg class="icon sm"><use href="#i-pencil"/></svg></button>
+            <button class="act danger" aria-label="Eliminar negocio"><svg class="icon sm"><use href="#i-trash"/></svg></button>
+          </div>
+        </div>
+
+        <div class="row-card">
+          <div class="icobox"><svg class="icon lg"><use href="#i-globe"/></svg></div>
+          <div class="row-main">
+            <div class="row" style="gap:8px;flex-wrap:wrap"><span class="row-title">Playa Girón Dive</span><span class="chip neutral">Servicio</span><span class="chip">Business</span></div>
+            <div class="row-meta"><span>Playas · Playa Girón, Matanzas</span><span class="pill"><svg class="icon sm"><use href="#i-clock"/></svg>Hace 5 meses</span></div>
+          </div>
+          <div class="row-actions">
+            <span class="status ok"><span class="dot"></span>Activo</span>
+            <button class="act on" aria-label="Visible en el mapa"><svg class="icon sm"><use href="#i-eye"/></svg></button>
+            <button class="act" aria-label="Destacar"><svg class="icon sm"><use href="#i-zap"/></svg></button>
+            <button class="act" aria-label="Editar negocio"><svg class="icon sm"><use href="#i-pencil"/></svg></button>
+            <button class="act danger" aria-label="Eliminar negocio"><svg class="icon sm"><use href="#i-trash"/></svg></button>
+          </div>
+        </div>
+
+        <div class="row-card">
+          <div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div>
+          <div class="row-main">
+            <div class="row" style="gap:8px;flex-wrap:wrap"><span class="row-title">Tienda Luna</span><span class="chip neutral">Tienda</span><span class="chip">Pro</span></div>
+            <div class="row-meta"><span>Tiendas · Holguín</span><span class="pill"><svg class="icon sm"><use href="#i-clock"/></svg>Hace 6 días</span></div>
+          </div>
+          <div class="row-actions">
+            <span class="status ok"><span class="dot"></span>Activo</span>
+            <button class="act on" aria-label="Visible en el mapa"><svg class="icon sm"><use href="#i-eye"/></svg></button>
+            <button class="act" aria-label="Destacar"><svg class="icon sm"><use href="#i-zap"/></svg></button>
+            <button class="act" aria-label="Editar negocio"><svg class="icon sm"><use href="#i-pencil"/></svg></button>
+            <button class="act danger" aria-label="Eliminar negocio"><svg class="icon sm"><use href="#i-trash"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row-between mt-16">
+        <span class="meta">Mostrando 1–8 de 128</span>
+        <div class="row" style="gap:6px">
+          <button class="btn btn-ghost btn-sm" disabled style="opacity:.45">Anterior</button>
+          <button class="btn btn-soft btn-sm">Siguiente</button>
+        </div>
+      </div>
+      <div class="page-foot"><span>Negocios · incluye fichas sin publicar</span><span>Ordenados por alta reciente</span></div>
+    </section>
+
+    <!-- ============ SOLICITUDES ============ -->
+    <section class="view" id="solicitudes" aria-labelledby="t-solicitudes">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Revisión</span>
+          <h1 class="page-title" id="t-solicitudes">Solicitudes</h1>
+          <p class="page-sub">4 negocios pendientes de aprobación</p>
+        </div>
+        <div class="seg" data-toggle-group>
+          <button class="active">Negocios (4)</button>
+          <button>Proyectos (2)</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <div class="field"><svg class="icon"><use href="#i-search"/></svg><input class="input" placeholder="Buscar solicitud por nombre, barrio o categoría…" aria-label="Buscar solicitudes"></div>
+        <div class="select-wrap"><select class="input" aria-label="Filtrar por provincia"><option>Todas las provincias</option><option>La Habana</option><option>Matanzas</option><option>Holguín</option></select><svg class="icon sm"><use href="#i-chevron-down"/></svg></div>
+      </div>
+
+      <div class="list">
+        <div class="card">
+          <div class="row-between wrap" style="align-items:flex-start">
+            <div class="row" style="align-items:flex-start">
+              <div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div>
+              <div>
+                <div class="row" style="gap:8px;flex-wrap:wrap"><span class="row-title" style="font-size:15px">Panadería La Espiga</span><span class="chip neutral">Panaderías</span><span class="chip">Gratis</span></div>
+                <div class="row-meta"><span>Cerro, La Habana</span><span>·</span><span>Solicitada hace 2 días por Ana Pérez</span></div>
+              </div>
+            </div>
+            <div class="row" style="gap:6px">
+              <button class="btn btn-danger btn-sm" data-demo="Se pediría el motivo del rechazo"><svg class="icon sm"><use href="#i-x"/></svg>Rechazar</button>
+              <button class="btn btn-primary btn-sm" data-demo="«Panadería La Espiga» publicada en La Verde"><svg class="icon sm"><use href="#i-check"/></svg>Aprobar</button>
+            </div>
+          </div>
+          <div class="divide"></div>
+          <div class="grid-3" style="gap:12px">
+            <div><div class="meta">Dirección</div><div style="font-size:13px;font-weight:600">Calle 23 #456, entre 8 y 10</div></div>
+            <div><div class="meta">Teléfono</div><div style="font-size:13px;font-weight:600">+53 5 234 5678</div></div>
+            <div><div class="meta">Descripción</div><div style="font-size:13px;font-weight:600">Pan artesanal y dulces por encargo.</div></div>
+          </div>
+          <div class="row-between mt-16">
+            <span class="meta">Ficha completa enviada por el dueño</span>
+            <a class="link" href="#negocios">Ver detalles completos<svg class="icon sm"><use href="#i-chevron-right"/></svg></a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row-between wrap" style="align-items:flex-start">
+            <div class="row" style="align-items:flex-start">
+              <div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div>
+              <div>
+                <div class="row" style="gap:8px;flex-wrap:wrap"><span class="row-title" style="font-size:15px">Pizzería Napoli</span><span class="chip neutral">Restaurantes</span><span class="chip">Pro</span><span class="chip warn">Sin tipo</span></div>
+                <div class="row-meta"><span>Miramar, La Habana</span><span>·</span><span>Solicitada hace 1 día por Luis Gómez</span></div>
+              </div>
+            </div>
+            <div class="row" style="gap:6px">
+              <button class="btn btn-danger btn-sm" data-demo="Se pediría el motivo del rechazo"><svg class="icon sm"><use href="#i-x"/></svg>Rechazar</button>
+              <button class="btn btn-primary btn-sm" data-demo="«Pizzería Napoli» publicada en La Verde"><svg class="icon sm"><use href="#i-check"/></svg>Aprobar</button>
+            </div>
+          </div>
+          <div class="divide"></div>
+          <div class="grid-3" style="gap:12px">
+            <div><div class="meta">Dirección</div><div style="font-size:13px;font-weight:600">5ta Avenida #1208</div></div>
+            <div><div class="meta">Teléfono</div><div style="font-size:13px;font-weight:600">+53 5 876 5432</div></div>
+            <div><div class="meta">Descripción</div><div style="font-size:13px;font-weight:600">Pizza napolitana a la piedra.</div></div>
+          </div>
+          <div class="row-between mt-16">
+            <span class="meta">Falta asignar el tipo de negocio</span>
+            <a class="link" href="#negocios">Ver detalles completos<svg class="icon sm"><use href="#i-chevron-right"/></svg></a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row-between wrap" style="align-items:flex-start">
+            <div class="row" style="align-items:flex-start">
+              <div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div>
+              <div>
+                <div class="row" style="gap:8px;flex-wrap:wrap"><span class="row-title" style="font-size:15px">Casa del Café Camagüey</span><span class="chip neutral">Cafeterías</span><span class="chip">Trial</span></div>
+                <div class="row-meta"><span>Camagüey</span><span>·</span><span>Solicitada hace 4 días por Dayana Ruiz</span></div>
+              </div>
+            </div>
+            <div class="row" style="gap:6px">
+              <button class="btn btn-danger btn-sm" data-demo="Se pediría el motivo del rechazo"><svg class="icon sm"><use href="#i-x"/></svg>Rechazar</button>
+              <button class="btn btn-primary btn-sm" data-demo="«Casa del Café Camagüey» publicada en La Verde"><svg class="icon sm"><use href="#i-check"/></svg>Aprobar</button>
+            </div>
+          </div>
+          <div class="divide"></div>
+          <div class="grid-3" style="gap:12px">
+            <div><div class="meta">Dirección</div><div style="font-size:13px;font-weight:600">Calle Maceo #78</div></div>
+            <div><div class="meta">Teléfono</div><div style="font-size:13px;font-weight:600">+53 5 112 2334</div></div>
+            <div><div class="meta">Descripción</div><div style="font-size:13px;font-weight:600">Café de especialidad y repostería.</div></div>
+          </div>
+          <div class="row-between mt-16">
+            <span class="meta">Ficha completa enviada por el dueño</span>
+            <a class="link" href="#negocios">Ver detalles completos<svg class="icon sm"><use href="#i-chevron-right"/></svg></a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row-between wrap" style="align-items:flex-start">
+            <div class="row" style="align-items:flex-start">
+              <div class="icobox"><svg class="icon lg"><use href="#i-globe"/></svg></div>
+              <div>
+                <div class="row" style="gap:8px;flex-wrap:wrap"><span class="row-title" style="font-size:15px">Snorkel Bahía de Naranjo</span><span class="chip neutral">Playas</span><span class="chip">Business</span></div>
+                <div class="row-meta"><span>Holguín</span><span>·</span><span>Solicitada hace 6 horas por Ernesto Vidal</span></div>
+              </div>
+            </div>
+            <div class="row" style="gap:6px">
+              <button class="btn btn-danger btn-sm" data-demo="Se pediría el motivo del rechazo"><svg class="icon sm"><use href="#i-x"/></svg>Rechazar</button>
+              <button class="btn btn-primary btn-sm" data-demo="«Snorkel Bahía de Naranjo» publicada en La Verde"><svg class="icon sm"><use href="#i-check"/></svg>Aprobar</button>
+            </div>
+          </div>
+          <div class="divide"></div>
+          <div class="grid-3" style="gap:12px">
+            <div><div class="meta">Dirección</div><div style="font-size:13px;font-weight:600">Carretera a Naranjo, km 4</div></div>
+            <div><div class="meta">Teléfono</div><div style="font-size:13px;font-weight:600">+53 5 445 6677</div></div>
+            <div><div class="meta">Descripción</div><div style="font-size:13px;font-weight:600">Salidas de snorkel y buceo guiadas.</div></div>
+          </div>
+          <div class="row-between mt-16">
+            <span class="meta">Ficha completa enviada por el dueño</span>
+            <a class="link" href="#negocios">Ver detalles completos<svg class="icon sm"><use href="#i-chevron-right"/></svg></a>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot"><span>Solicitudes · aprobar publica la ficha al instante</span><span>Rechazar envía un mensaje automático</span></div>
+    </section>
+
+    <!-- ============ PUBLICACIONES ============ -->
+    <section class="view" id="publicaciones" aria-labelledby="t-publicaciones">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Marketing</span>
+          <h1 class="page-title" id="t-publicaciones">Publicaciones</h1>
+          <p class="page-sub">Cola de la semana · 7 pendientes de publicar</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-ghost" data-demo="Se abriría la programación de la semana"><svg class="icon"><use href="#i-calendar"/></svg>Programar semana</button>
+          <button class="btn btn-primary" data-demo="Se generaría un borrador nuevo"><svg class="icon"><use href="#i-sparkles"/></svg>Generar publicación</button>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="card">
+          <div class="card-head">
+            <div class="row"><div class="icobox" style="width:36px;height:36px;flex:0 0 36px;border-radius:12px"><svg class="icon"><use href="#i-store"/></svg></div><div><div class="row-title">Paladar Doña Juana</div><div class="meta">Business · 3 de 4 publicaciones usadas</div></div></div>
+            <span class="pill">La Habana</span>
+          </div>
+          <div class="grid-2-even">
+            <div class="post">
+              <div class="post-thumb"><svg class="icon"><use href="#i-image"/></svg></div>
+              <div class="post-body">
+                <div class="row-between"><span class="chip neutral">Borrador</span><span class="meta">Lun 09:00</span></div>
+                <p class="post-text">Hoy el arroz con pollo sale con el sofrito de la casa y un toque de orégano fresco. Disponible desde las 12 del mediodía.</p>
+                <div class="post-foot"><button class="btn btn-soft btn-xs" data-demo="Borrador programado para el lunes">Programar</button><button class="btn btn-ghost btn-xs" data-demo="Se abriría el editor del borrador">Editar</button></div>
+              </div>
+            </div>
+            <div class="post">
+              <div class="post-thumb"><svg class="icon"><use href="#i-image"/></svg></div>
+              <div class="post-body">
+                <div class="row-between"><span class="chip">Programada</span><span class="meta">Mié 18:30</span></div>
+                <p class="post-text">Este miércoles, postre de la casa de regalo en pedidos de más de 1 500 CUP. Solo por WhatsApp.</p>
+                <div class="post-foot"><button class="btn btn-ghost btn-xs" data-demo="Se abriría el editor del borrador">Editar</button><button class="btn btn-ghost btn-xs" data-demo="Programación cancelada">Cancelar</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="row"><div class="icobox" style="width:36px;height:36px;flex:0 0 36px;border-radius:12px"><svg class="icon"><use href="#i-store"/></svg></div><div><div class="row-title">Cafetería El Vedado</div><div class="meta">Pro · 2 de 4 publicaciones usadas</div></div></div>
+            <span class="pill">La Habana</span>
+          </div>
+          <div class="grid-2-even">
+            <div class="post">
+              <div class="post-thumb"><svg class="icon"><use href="#i-image"/></svg></div>
+              <div class="post-body">
+                <div class="row-between"><span class="chip">Publicada</span><span class="meta">Hoy 08:15</span></div>
+                <p class="post-text">Nuevo desayuno: tostada de pan de masa madre, huevo y café de filtro por 950 CUP.</p>
+                <div class="post-foot"><span class="meta">Alcance estimado: 1 240</span></div>
+              </div>
+            </div>
+            <div class="post">
+              <div class="post-thumb"><svg class="icon"><use href="#i-image"/></svg></div>
+              <div class="post-body">
+                <div class="row-between"><span class="chip neutral">Borrador</span><span class="meta">Sin fecha</span></div>
+                <p class="post-text">Los viernes de especialidad: prueba el cold brew preparado en casa y cuéntanos qué te pareció.</p>
+                <div class="post-foot"><button class="btn btn-soft btn-xs" data-demo="Borrador programado">Programar</button><button class="btn btn-ghost btn-xs" data-demo="Se abriría el editor">Editar</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="row"><div class="icobox" style="width:36px;height:36px;flex:0 0 36px;border-radius:12px"><svg class="icon"><use href="#i-store"/></svg></div><div><div class="row-title">Hostal Casa Verde</div><div class="meta">Pro · 4 de 4 publicaciones usadas</div></div></div>
+            <span class="pill">Trinidad</span>
+          </div>
+          <div class="note"><svg class="icon"><use href="#i-lock"/></svg><span>Esta semana ya usó sus 4 publicaciones. La siguiente se habilita el lunes.</span></div>
+        </div>
+      </div>
+      <div class="page-foot"><span>Publicaciones · generadas con IA y revisadas por administración</span><span>4 por semana y negocio en Pro</span></div>
+    </section>
+
+    <!-- ============ PROYECTOS ============ -->
+    <section class="view" id="proyectos" aria-labelledby="t-proyectos">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Campañas</span>
+          <h1 class="page-title" id="t-proyectos">Proyectos</h1>
+          <p class="page-sub">Solicitudes de campañas y colaboraciones</p>
+        </div>
+        <div class="page-actions"><button class="btn btn-ghost" data-demo="Se exportaría la lista"><svg class="icon"><use href="#i-download"/></svg>Exportar</button></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Proyecto</th><th>Tipo</th><th>Presupuesto</th><th>Solicitado</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            <tr>
+              <td><div class="cell-main">Campaña de verano</div><div class="cell-sub">Paladar Doña Juana</div></td>
+              <td>Redes sociales</td><td>18 000 CUP</td><td>Hace 2 días</td>
+              <td><span class="chip warn">Pendiente</span></td>
+              <td><button class="act" aria-label="Revisar proyecto"><svg class="icon sm"><use href="#i-chevron-right"/></svg></button></td>
+            </tr>
+            <tr>
+              <td><div class="cell-main">Sesión de fotos del menú</div><div class="cell-sub">Cafetería El Vedado</div></td>
+              <td>Fotografía</td><td>9 500 CUP</td><td>Hace 4 días</td>
+              <td><span class="chip warn">Pendiente</span></td>
+              <td><button class="act" aria-label="Revisar proyecto"><svg class="icon sm"><use href="#i-chevron-right"/></svg></button></td>
+            </tr>
+            <tr>
+              <td><div class="cell-main">Reels de temporada</div><div class="cell-sub">Hostal Casa Verde</div></td>
+              <td>Video</td><td>24 000 CUP</td><td>Hace 1 semana</td>
+              <td><span class="chip">Aprobado</span></td>
+              <td><button class="act" aria-label="Revisar proyecto"><svg class="icon sm"><use href="#i-chevron-right"/></svg></button></td>
+            </tr>
+            <tr>
+              <td><div class="cell-main">Menú QR impreso</div><div class="cell-sub">Bar El Malecón</div></td>
+              <td>Diseño</td><td>6 000 CUP</td><td>Hace 2 semanas</td>
+              <td><span class="chip neutral">Entregado</span></td>
+              <td><button class="act" aria-label="Revisar proyecto"><svg class="icon sm"><use href="#i-chevron-right"/></svg></button></td>
+            </tr>
+            <tr>
+              <td><div class="cell-main">Colaboración con creadores</div><div class="cell-sub">Pizzería Napoli</div></td>
+              <td>Influencers</td><td>30 000 CUP</td><td>Hace 3 semanas</td>
+              <td><span class="chip danger">Rechazado</span></td>
+              <td><button class="act" aria-label="Revisar proyecto"><svg class="icon sm"><use href="#i-chevron-right"/></svg></button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="page-foot"><span>Proyectos · solicitudes de los negocios</span><span>2 pendientes de revisión</span></div>
+    </section>
+
+    <!-- ============ SOPORTE ============ -->
+    <section class="view" id="soporte" aria-labelledby="t-soporte">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Atención</span>
+          <h1 class="page-title" id="t-soporte">Soporte</h1>
+          <p class="page-sub">3 conversaciones abiertas · 1 esperando respuesta</p>
+        </div>
+        <div class="seg" data-toggle-group>
+          <button class="active">Abiertos</button>
+          <button>Todos</button>
+          <button>Cerrados</button>
+        </div>
+      </div>
+
+      <div class="inbox">
+        <div class="inbox-list">
+          <header>
+            <span class="row-title">Conversaciones</span>
+            <span class="pill">3</span>
+          </header>
+          <div class="conv active">
+            <span class="avatar-sm">AP</span>
+            <div class="conv-body">
+              <div class="conv-top"><span class="conv-name">Ana Pérez</span><span class="meta">09:32</span></div>
+              <div class="conv-sub">No puedo publicar mi negocio…</div>
+            </div>
+          </div>
+          <div class="conv">
+            <span class="avatar-sm">LG</span>
+            <div class="conv-body">
+              <div class="conv-top"><span class="conv-name">Luis Gómez</span><span class="meta">Ayer</span></div>
+              <div class="conv-sub">¿Cómo cambio el plan de mi cuenta?</div>
+            </div>
+          </div>
+          <div class="conv">
+            <span class="avatar-sm">DR</span>
+            <div class="conv-body">
+              <div class="conv-top"><span class="conv-name">Dayana Ruiz</span><span class="meta">Lun</span></div>
+              <div class="conv-sub">El pedido llegó incompleto</div>
+            </div>
+          </div>
+          <div class="conv">
+            <span class="avatar-sm">EV</span>
+            <div class="conv-body">
+              <div class="conv-top"><span class="conv-name">Ernesto Vidal</span><span class="meta">Dom</span></div>
+              <div class="conv-sub">Consulta sobre facturación</div>
+            </div>
+          </div>
+          <div class="conv">
+            <span class="avatar-sm">MC</span>
+            <div class="conv-body">
+              <div class="conv-top"><span class="conv-name">María Castro</span><span class="meta">Vie</span></div>
+              <div class="conv-sub">Sugerencia para la app</div>
+            </div>
+          </div>
+        </div>
+        <div class="inbox-thread">
+          <div class="thread-head">
+            <div class="row">
+              <span class="avatar-sm" style="width:40px;height:40px">AP</span>
+              <div><div class="row-title">Ana Pérez</div><div class="meta">Panadería La Espiga · ana@correo.cu</div></div>
+            </div>
+            <span class="chip warn">Sin asignar</span>
+          </div>
+          <div class="thread-body">
+            <div class="msg in">Hola, envié mi negocio hace dos días y todavía no aparece publicado. ¿Falta algo?<time>09:28</time></div>
+            <div class="msg out">Hola Ana, lo revisamos ahora mismo. La ficha está en cola de aprobación, te confirmamos en unos minutos.<time>09:32 · Soporte</time></div>
+            <div class="msg in">Gracias. También quería cambiar el horario de la panadería.<time>09:34</time></div>
+          </div>
+          <div class="thread-reply">
+            <textarea class="input" aria-label="Respuesta" placeholder="Escribe una respuesta…"></textarea>
+            <div class="row-between">
+              <span class="meta">Adjuntos y plantillas disponibles</span>
+              <div class="row" style="gap:6px">
+                <button class="btn btn-ghost btn-sm" data-demo="Conversación marcada como resuelta">Cerrar</button>
+                <button class="btn btn-primary btn-sm" data-demo="Respuesta enviada"><svg class="icon sm"><use href="#i-send"/></svg>Enviar respuesta</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot"><span>Soporte · correo y centro de mensajes</span><span>Tiempo medio de respuesta: 38 min</span></div>
+    </section>
+
+    <!-- ============ NOTIFICACIONES ============ -->
+    <section class="view" id="notificaciones" aria-labelledby="t-notificaciones">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Comunicación</span>
+          <h1 class="page-title" id="t-notificaciones">Notificaciones</h1>
+          <p class="page-sub">Avisos masivos por correo y push</p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card card-pad-lg">
+          <div class="card-head"><h2 class="card-title">Nuevo aviso</h2><span class="pill">Borrador</span></div>
+          <div class="stack" style="gap:14px">
+            <div>
+              <label class="meta" for="audiencia">Audiencia</label>
+              <div class="select-wrap" style="margin-top:6px"><select class="input" id="audiencia"><option>Todos los usuarios (1 248)</option><option>Dueños de negocio (128)</option><option>Afiliados activos (24)</option><option>Solo La Habana (774)</option></select><svg class="icon sm"><use href="#i-chevron-down"/></svg></div>
+            </div>
+            <div>
+              <label class="meta" for="asunto">Asunto</label>
+              <input class="input" id="asunto" style="margin-top:6px" placeholder="Ej. Nuevas funciones en tu panel" value="Tu negocio ya puede pedir más reseñas">
+            </div>
+            <div>
+              <label class="meta" for="mensaje">Mensaje</label>
+              <textarea class="input" id="mensaje" style="margin-top:6px">Hola {{nombre}},
+
+Desde hoy puedes compartir tu ficha y pedir reseñas a tus clientes desde el panel. Entra en La Verde y mira las novedades.</textarea>
+            </div>
+            <div class="row wrap" style="gap:6px">
+              <span class="meta">Variables:</span>
+              <button class="chip" type="button">{{nombre}}</button>
+              <button class="chip" type="button">{{negocio}}</button>
+              <button class="chip" type="button">{{ciudad}}</button>
+            </div>
+            <div class="row-between">
+              <span class="meta">Se enviará a 1 248 usuarios · 2 canales</span>
+              <button class="btn btn-primary" data-demo="Aviso enviado a la cola de salida"><svg class="icon"><use href="#i-send"/></svg>Enviar aviso</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="card-head"><h2 class="card-title">Vista previa</h2></div>
+            <div class="note" style="flex-direction:column;align-items:flex-start;gap:8px">
+              <span class="pill">Correo</span>
+              <strong style="font-size:14px;color:var(--ink)">Tu negocio ya puede pedir más reseñas</strong>
+              <span style="font-size:12px;line-height:1.6">Hola Maikel,<br>Desde hoy puedes compartir tu ficha y pedir reseñas a tus clientes desde el panel. Entra en La Verde y mira las novedades.</span>
+              <span class="link" style="font-size:12px">Abrir mi panel →</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2 class="card-title">Enviados</h2><a class="link" href="#notificaciones">Ver todos</a></div>
+            <div>
+              <div class="dist-row"><div><div class="row-title" style="font-size:13px">Nuevo plan Business</div><div class="meta">Todos los dueños · 12 nov</div></div><span class="pill-count">128</span></div>
+              <div class="dist-row"><div><div class="row-title" style="font-size:13px">Mantenimiento programado</div><div class="meta">Todos los usuarios · 8 nov</div></div><span class="pill-count">1 240</span></div>
+              <div class="dist-row"><div><div class="row-title" style="font-size:13px">Resumen de octubre</div><div class="meta">Afiliados · 1 nov</div></div><span class="pill-count">24</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot"><span>Notificaciones · correo SMTP y push</span><span>Respeta las bajas de cada usuario</span></div>
+    </section>
+
+    <!-- ============ USUARIOS ============ -->
+    <section class="view" id="usuarios" aria-labelledby="t-usuarios">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Cuentas</span>
+          <h1 class="page-title" id="t-usuarios">Usuarios</h1>
+          <p class="page-sub">1 248 cuentas registradas · 12 administradores</p>
+        </div>
+        <div class="page-actions"><button class="btn btn-ghost" data-demo="Se descargaría la lista de usuarios"><svg class="icon"><use href="#i-download"/></svg>Exportar</button></div>
+      </div>
+
+      <div class="filters">
+        <div class="field"><svg class="icon"><use href="#i-search"/></svg><input class="input" placeholder="Buscar por nombre, correo o rol" aria-label="Buscar usuarios"></div>
+        <div class="select-wrap"><select class="input" aria-label="Filtrar por rol"><option>Todos los roles</option><option>Usuario</option><option>Dueño</option><option>Administrador</option></select><svg class="icon sm"><use href="#i-chevron-down"/></svg></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Usuario</th><th>Ciudad</th><th>Rol</th><th>Afiliado</th><th>Alta</th><th></th></tr></thead>
+          <tbody>
+            <tr>
+              <td><div class="cell-user"><span class="avatar-sm">AP</span><div><div class="cell-main">Ana Pérez</div><div class="cell-sub">ana@correo.cu</div></div></div></td>
+              <td>La Habana</td>
+              <td><span class="chip">Dueño</span></td>
+              <td><label class="switch on" aria-label="Afiliado activo"></label></td>
+              <td>12 sep 2026</td>
+              <td><div class="row" style="gap:4px"><button class="act" aria-label="Editar perfil"><svg class="icon sm"><use href="#i-pencil"/></svg></button><button class="act" aria-label="Cambiar contraseña"><svg class="icon sm"><use href="#i-lock"/></svg></button><button class="act danger" aria-label="Eliminar perfil"><svg class="icon sm"><use href="#i-trash"/></svg></button></div></td>
+            </tr>
+            <tr>
+              <td><div class="cell-user"><span class="avatar-sm">LG</span><div><div class="cell-main">Luis Gómez</div><div class="cell-sub">luis@correo.cu</div></div></div></td>
+              <td>Matanzas</td>
+              <td><span class="chip">Dueño</span></td>
+              <td><label class="switch" aria-label="Afiliado inactivo"></label></td>
+              <td>3 oct 2026</td>
+              <td><div class="row" style="gap:4px"><button class="act" aria-label="Editar perfil"><svg class="icon sm"><use href="#i-pencil"/></svg></button><button class="act" aria-label="Cambiar contraseña"><svg class="icon sm"><use href="#i-lock"/></svg></button><button class="act danger" aria-label="Eliminar perfil"><svg class="icon sm"><use href="#i-trash"/></svg></button></div></td>
+            </tr>
+            <tr>
+              <td><div class="cell-user"><span class="avatar-sm">DR</span><div><div class="cell-main">Dayana Ruiz</div><div class="cell-sub">dayana@correo.cu</div></div></div></td>
+              <td>Camagüey</td>
+              <td><span class="chip neutral">Usuario</span></td>
+              <td><label class="switch" aria-label="Afiliado inactivo"></label></td>
+              <td>18 oct 2026</td>
+              <td><div class="row" style="gap:4px"><button class="act" aria-label="Editar perfil"><svg class="icon sm"><use href="#i-pencil"/></svg></button><button class="act" aria-label="Cambiar contraseña"><svg class="icon sm"><use href="#i-lock"/></svg></button><button class="act danger" aria-label="Eliminar perfil"><svg class="icon sm"><use href="#i-trash"/></svg></button></div></td>
+            </tr>
+            <tr>
+              <td><div class="cell-user"><span class="avatar-sm">EV</span><div><div class="cell-main">Ernesto Vidal</div><div class="cell-sub">ernesto@correo.cu</div></div></div></td>
+              <td>Holguín</td>
+              <td><span class="chip">Dueño</span></td>
+              <td><label class="switch on" aria-label="Afiliado activo"></label></td>
+              <td>2 nov 2026</td>
+              <td><div class="row" style="gap:4px"><button class="act" aria-label="Editar perfil"><svg class="icon sm"><use href="#i-pencil"/></svg></button><button class="act" aria-label="Cambiar contraseña"><svg class="icon sm"><use href="#i-lock"/></svg></button><button class="act danger" aria-label="Eliminar perfil"><svg class="icon sm"><use href="#i-trash"/></svg></button></div></td>
+            </tr>
+            <tr>
+              <td><div class="cell-user"><span class="avatar-sm">MC</span><div><div class="cell-main">María Castro</div><div class="cell-sub">maria@correo.cu</div></div></div></td>
+              <td>La Habana</td>
+              <td><span class="chip neutral">Usuario</span></td>
+              <td><label class="switch" aria-label="Afiliado inactivo"></label></td>
+              <td>20 nov 2026</td>
+              <td><div class="row" style="gap:4px"><button class="act" aria-label="Editar perfil"><svg class="icon sm"><use href="#i-pencil"/></svg></button><button class="act" aria-label="Cambiar contraseña"><svg class="icon sm"><use href="#i-lock"/></svg></button><button class="act danger" aria-label="Eliminar perfil"><svg class="icon sm"><use href="#i-trash"/></svg></button></div></td>
+            </tr>
+            <tr>
+              <td><div class="cell-user"><span class="avatar-sm">MA</span><div><div class="cell-main">Maikel de Arma</div><div class="cell-sub">maikel@laverde.cu</div></div></div></td>
+              <td>La Habana</td>
+              <td><span class="chip">Administrador</span></td>
+              <td><label class="switch" aria-label="Afiliado inactivo"></label></td>
+              <td>1 ene 2025</td>
+              <td><div class="row" style="gap:4px"><button class="act" aria-label="Editar perfil"><svg class="icon sm"><use href="#i-pencil"/></svg></button><button class="act" aria-label="Cambiar contraseña"><svg class="icon sm"><use href="#i-lock"/></svg></button><button class="act danger" aria-label="Eliminar perfil" disabled style="opacity:.35"><svg class="icon sm"><use href="#i-trash"/></svg></button></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="page-foot"><span>Usuarios · roles: usuario, dueño y administrador</span><span>El último administrador no se puede eliminar</span></div>
+    </section>
+
+    <!-- ============ AFILIADOS ============ -->
+    <section class="view" id="afiliados" aria-labelledby="t-afiliados">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Crecimiento</span>
+          <h1 class="page-title" id="t-afiliados">Afiliados</h1>
+          <p class="page-sub">Programa de referidos · comisión recurrente por negocio que paga</p>
+        </div>
+        <div class="page-actions"><button class="btn btn-ghost" data-demo="Se abrirían las reglas del programa"><svg class="icon"><use href="#i-coins"/></svg>Reglas del programa</button></div>
+      </div>
+
+      <div class="grid-3">
+        <div class="stat"><span class="stat-label">Afiliados activos</span><span class="stat-value">24</span><span class="stat-change">3 este mes</span></div>
+        <div class="stat"><span class="stat-label">Pagos del mes</span><span class="stat-value">18</span><span class="stat-change">1 200 CUP de media</span></div>
+        <div class="stat"><span class="stat-label">Comisión generada</span><span class="stat-value" style="font-size:26px">342 000 CUP</span><span class="stat-change">15% recurrente</span></div>
+      </div>
+
+      <div class="table-wrap mt-16">
+        <table>
+          <thead><tr><th>Afiliado</th><th>Código</th><th>Referidos</th><th>Pagos</th><th>Comisión</th><th>Estado</th></tr></thead>
+          <tbody>
+            <tr><td><div class="cell-user"><span class="avatar-sm">AP</span><div><div class="cell-main">Ana Pérez</div><div class="cell-sub">ana@correo.cu</div></div></div></td><td><code>ANA2026</code></td><td>12</td><td>8</td><td>96 000 CUP</td><td><span class="status ok"><span class="dot"></span>Activo</span></td></tr>
+            <tr><td><div class="cell-user"><span class="avatar-sm">LG</span><div><div class="cell-main">Luis Gómez</div><div class="cell-sub">luis@correo.cu</div></div></div></td><td><code>LUISMAT</code></td><td>7</td><td>4</td><td>48 000 CUP</td><td><span class="status ok"><span class="dot"></span>Activo</span></td></tr>
+            <tr><td><div class="cell-user"><span class="avatar-sm">EV</span><div><div class="cell-main">Ernesto Vidal</div><div class="cell-sub">ernesto@correo.cu</div></div></div></td><td><code>ERNEHOL</code></td><td>9</td><td>3</td><td>36 000 CUP</td><td><span class="status ok"><span class="dot"></span>Activo</span></td></tr>
+            <tr><td><div class="cell-user"><span class="avatar-sm">DR</span><div><div class="cell-main">Dayana Ruiz</div><div class="cell-sub">dayana@correo.cu</div></div></div></td><td><code>DAYACAM</code></td><td>4</td><td>2</td><td>24 000 CUP</td><td><span class="status off"><span class="dot"></span>En pausa</span></td></tr>
+            <tr><td><div class="cell-user"><span class="avatar-sm">MC</span><div><div class="cell-main">María Castro</div><div class="cell-sub">maria@correo.cu</div></div></div></td><td><code>MARI2026</code></td><td>2</td><td>1</td><td>12 000 CUP</td><td><span class="status off"><span class="dot"></span>En pausa</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note mt-16"><svg class="icon"><use href="#i-coins"/></svg><span>La comisión sube al 20% con 10 negocios pagando a la vez. <a class="link" href="#planes">Ver planes</a> para el detalle de precios.</span></div>
+      <div class="page-foot"><span>Afiliados · pagos verificados por QVAPay</span><span>Se acredita al confirmar el pago del mes</span></div>
+    </section>
+
+    <!-- ============ CATEGORÍAS ============ -->
+    <section class="view" id="categorias" aria-labelledby="t-categorias">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Catálogo</span>
+          <h1 class="page-title" id="t-categorias">Categorías</h1>
+          <p class="page-sub">12 categorías · definen el icono de la ficha y del mapa</p>
+        </div>
+        <div class="page-actions"><button class="btn btn-primary" data-demo="Se abriría el alta de categoría"><svg class="icon"><use href="#i-plus"/></svg>Nueva categoría</button></div>
+      </div>
+
+      <div class="cat-grid">
+        <div class="cat">
+          <div class="row"><div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div><div class="grow"><div class="row-title">Restaurantes</div><div class="meta">42 negocios</div></div></div>
+          <div class="row-between"><span class="chip neutral">restaurantes</span><div class="row" style="gap:4px"><button class="act" aria-label="Editar categoría"><svg class="icon sm"><use href="#i-pencil"/></svg></button><button class="act danger" aria-label="Eliminar categoría"><svg class="icon sm"><use href="#i-trash"/></svg></button></div></div>
+        </div>
+        <div class="cat">
+          <div class="row"><div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div><div class="grow"><div class="row-title">Cafeterías</div><div class="meta">28 negocios</div></div></div>
+          <div class="row-between"><span class="chip neutral">cafeterias</span><div class="row" style="gap:4px"><button class="act" aria-label="Editar categoría"><svg class="icon sm"><use href="#i-pencil"/></svg></button><button class="act danger" aria-label="Eliminar categoría"><svg class="icon sm"><use href="#i-trash"/></svg></button></div></div>
+        </div>
+        <div class="cat">
+          <div class="row"><div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div><div class="grow"><div class="row-title">Bares</div><div class="meta">19 negocios</div></div></div>
+          <div class="row-between"><span class="chip neutral">bares</span><div class="row" style="gap:4px"><button class="act" aria-label="Editar categoría"><svg class="icon sm"><use href="#i-pencil"/></svg></button><button class="act danger" aria-label="Eliminar categoría"><svg class="icon sm"><use href="#i-trash"/></svg></button></div></div>
+        </div>
+        <div class="cat">
+          <div class="row"><div class="icobox"><svg class="icon lg"><use href="#i-globe"/></svg></div><div class="grow"><div class="row-title">Playas</div><div class="meta">14 negocios</div></div></div>
+          <div class="row-between"><span class="chip neutral">playas</span><div class="row" style="gap:4px"><button class="act" aria-label="Editar categoría"><svg class="icon sm"><use href="#i-pencil"/></svg></button><button class="act danger" aria-label="Eliminar categoría"><svg class="icon sm"><use href="#i-trash"/></svg></button></div></div>
+        </div>
+        <div class="cat">
+          <div class="row"><div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div><div class="grow"><div class="row-title">Hospedaje</div><div class="meta">12 negocios</div></div></div>
+          <div class="row-between"><span class="chip neutral">hospedaje</span><div class="row" style="gap:4px"><button class="act" aria-label="Editar categoría"><svg class="icon sm"><use href="#i-pencil"/></svg></button><button class="act danger" aria-label="Eliminar categoría"><svg class="icon sm"><use href="#i-trash"/></svg></button></div></div>
+        </div>
+        <div class="cat">
+          <div class="row"><div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div><div class="grow"><div class="row-title">Tiendas</div><div class="meta">9 negocios</div></div></div>
+          <div class="row-between"><span class="chip neutral">tiendas</span><div class="row" style="gap:4px"><button class="act" aria-label="Editar categoría"><svg class="icon sm"><use href="#i-pencil"/></svg></button><button class="act danger" aria-label="Eliminar categoría"><svg class="icon sm"><use href="#i-trash"/></svg></button></div></div>
+        </div>
+        <div class="cat">
+          <div class="row"><div class="icobox"><svg class="icon lg"><use href="#i-store"/></svg></div><div class="grow"><div class="row-title">Panaderías</div><div class="meta">6 negocios</div></div></div>
+          <div class="row-between"><span class="chip neutral">panaderias</span><div class="row" style="gap:4px"><button class="act" aria-label="Editar categoría"><svg class="icon sm"><use href="#i-pencil"/></svg></button><button class="act danger" aria-label="Eliminar categoría"><svg class="icon sm"><use href="#i-trash"/></svg></button></div></div>
+        </div>
+        <div class="cat">
+          <div class="row"><div class="icobox"><svg class="icon lg"><use href="#i-globe"/></svg></div><div class="grow"><div class="row-title">Naturaleza</div><div class="meta">4 negocios</div></div></div>
+          <div class="row-between"><span class="chip neutral">naturaleza</span><div class="row" style="gap:4px"><button class="act" aria-label="Editar categoría"><svg class="icon sm"><use href="#i-pencil"/></svg></button><button class="act danger" aria-label="Eliminar categoría"><svg class="icon sm"><use href="#i-trash"/></svg></button></div></div>
+        </div>
+        <button class="cat add" data-demo="Se abriría el alta de categoría">
+          <svg class="icon lg"><use href="#i-plus"/></svg>
+          <span class="row-title">Nueva categoría</span>
+          <span class="meta">Nombre, slug e icono</span>
+        </button>
+      </div>
+      <div class="note mt-16"><svg class="icon"><use href="#i-tags"/></svg><span>Una categoría con negocios dentro no se puede borrar: mueve o elimina esos negocios primero.</span></div>
+      <div class="page-foot"><span>Categorías · el icono viene del set de Lucide</span><span>12 categorías activas</span></div>
+    </section>
+
+    <!-- ============ PROVEEDORES IA ============ -->
+    <section class="view" id="proveedores-ia" aria-labelledby="t-proveedores">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Inteligencia artificial</span>
+          <h1 class="page-title" id="t-proveedores">Proveedores IA</h1>
+          <p class="page-sub">Modelos del buscador, del asistente y de las publicaciones</p>
+        </div>
+        <div class="page-actions"><button class="btn btn-primary" data-demo="Se abriría el alta de proveedor"><svg class="icon"><use href="#i-plus"/></svg>Añadir proveedor</button></div>
+      </div>
+
+      <div class="grid-2-even">
+        <div class="provider primary">
+          <div class="provider-top">
+            <div class="row"><div class="icobox"><svg class="icon lg"><use href="#i-bot"/></svg></div><div><div class="row-title">OpenRouter</div><div class="meta">Proveedor principal</div></div></div>
+            <span class="chip">Activo</span>
+          </div>
+          <div class="kv"><span>Modelo</span><b>deepseek-v4.1-flash</b></div>
+          <div class="kv"><span>Latencia media</span><b>640 ms</b></div>
+          <div class="kv"><span>Coste / 1M tokens</span><b>0,42 USD</b></div>
+          <div class="row-between"><span class="meta">Última prueba: correcta, hace 9 min</span><div class="row" style="gap:6px"><button class="btn btn-ghost btn-xs" data-demo="Latencia comprobada: 640 ms">Probar</button><label class="switch on" aria-label="Proveedor activo"></label></div></div>
+        </div>
+
+        <div class="provider">
+          <div class="provider-top">
+            <div class="row"><div class="icobox"><svg class="icon lg"><use href="#i-bot"/></svg></div><div><div class="row-title">Google Gemini</div><div class="meta">Respaldo de búsqueda</div></div></div>
+            <span class="chip">Activo</span>
+          </div>
+          <div class="kv"><span>Modelo</span><b>gemini-3.1-flash</b></div>
+          <div class="kv"><span>Latencia media</span><b>820 ms</b></div>
+          <div class="kv"><span>Coste / 1M tokens</span><b>0,30 USD</b></div>
+          <div class="row-between"><span class="meta">Última prueba: correcta, hace 1 h</span><div class="row" style="gap:6px"><button class="btn btn-ghost btn-xs" data-demo="Latencia comprobada: 820 ms">Probar</button><label class="switch on" aria-label="Proveedor activo"></label></div></div>
+        </div>
+
+        <div class="provider">
+          <div class="provider-top">
+            <div class="row"><div class="icobox"><svg class="icon lg"><use href="#i-bot"/></svg></div><div><div class="row-title">Groq</div><div class="meta">Asistente del panel</div></div></div>
+            <span class="chip warn">Sin verificar</span>
+          </div>
+          <div class="kv"><span>Modelo</span><b>llama-4-scout</b></div>
+          <div class="kv"><span>Latencia media</span><b>—</b></div>
+          <div class="kv"><span>Coste / 1M tokens</span><b>0,11 USD</b></div>
+          <div class="row-between"><span class="meta">Clave guardada · sin pruebas hoy</span><div class="row" style="gap:6px"><button class="btn btn-ghost btn-xs" data-demo="Prueba enviada a Groq">Probar</button><label class="switch" aria-label="Proveedor inactivo"></label></div></div>
+        </div>
+
+        <div class="provider">
+          <div class="provider-top">
+            <div class="row"><div class="icobox"><svg class="icon lg"><use href="#i-bot"/></svg></div><div><div class="row-title">Cerebras</div><div class="meta">Publicaciones masivas</div></div></div>
+            <span class="chip neutral">Inactivo</span>
+          </div>
+          <div class="kv"><span>Modelo</span><b>llama-3.3-70b</b></div>
+          <div class="kv"><span>Latencia media</span><b>410 ms</b></div>
+          <div class="kv"><span>Coste / 1M tokens</span><b>0,09 USD</b></div>
+          <div class="row-between"><span class="meta">Se usa solo en la cola de publicaciones</span><div class="row" style="gap:6px"><button class="btn btn-ghost btn-xs" data-demo="Prueba enviada a Cerebras">Probar</button><label class="switch" aria-label="Proveedor inactivo"></label></div></div>
+        </div>
+      </div>
+
+      <div class="note mt-16"><svg class="icon"><use href="#i-shield"/></svg><span>Las claves se guardan cifradas y nunca viajan al navegador. El orden define el respaldo: si el principal falla, entra el siguiente activo.</span></div>
+      <div class="page-foot"><span>Proveedores IA · búsqueda, asistente y publicaciones</span><span>4 proveedores configurados</span></div>
+    </section>
+
+    <!-- ============ ONBOARDING ============ -->
+    <section class="view" id="onboarding" aria-labelledby="t-onboarding">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Experiencia</span>
+          <h1 class="page-title" id="t-onboarding">Onboarding</h1>
+          <p class="page-sub">Vista previa del alta de usuarios · 68% lo completa</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-ghost" data-demo="Se abriría el onboarding en una cuenta de prueba"><svg class="icon"><use href="#i-external"/></svg>Probar como usuario</button>
+          <button class="btn btn-primary" data-demo="Se abriría el editor de textos"><svg class="icon"><use href="#i-pencil"/></svg>Editar textos</button>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card card-pad-lg">
+          <div class="card-head"><h2 class="card-title">Pasos del alta</h2><span class="pill">4 pasos</span></div>
+          <div class="step"><span class="step-num done"><svg class="icon sm"><use href="#i-check"/></svg></span><div><div class="row-title">Bienvenida</div><div class="meta">Qué es La Verde y qué puede hacer. 100% de los usuarios lo ve.</div></div></div>
+          <div class="step"><span class="step-num done"><svg class="icon sm"><use href="#i-check"/></svg></span><div><div class="row-title">Tus gustos</div><div class="meta">Categorías favoritas para personalizar las recomendaciones. 82% lo completa.</div></div></div>
+          <div class="step"><span class="step-num">3</span><div><div class="row-title">Tu zona</div><div class="meta">Provincia y ciudad para el mapa. 74% lo completa.</div></div></div>
+          <div class="step"><span class="step-num">4</span><div><div class="row-title">Listo</div><div class="meta">Primera búsqueda de ejemplo. 68% termina el alta.</div></div></div>
+          <div class="grid-3 mt-16" style="gap:10px">
+            <div class="note"><span><b style="display:block;font-size:20px;color:var(--ink)">68%</b><span class="meta">completan</span></span></div>
+            <div class="note"><span><b style="display:block;font-size:20px;color:var(--ink)">12%</b><span class="meta">abandonan en zona</span></span></div>
+            <div class="note"><span><b style="display:block;font-size:20px;color:var(--ink)">2:40</b><span class="meta">min de media</span></span></div>
+          </div>
+        </div>
+
+        <div class="card card-pad-lg" style="display:flex;flex-direction:column;gap:10px">
+          <div class="card-head"><h2 class="card-title">Vista previa móvil</h2><span class="pill">Paso 2 de 4</span></div>
+          <div class="phone">
+            <div class="phone-notch"></div>
+            <div class="phone-body">
+              <span class="eyebrow">La Verde</span>
+              <div style="font-size:22px;font-weight:750;letter-spacing:-.04em;line-height:1.15">¿Qué te gusta<br>encontrar?</div>
+              <p class="meta">Elige lo que quieras ver primero. Puedes cambiarlo después.</p>
+              <div class="row wrap" style="gap:6px;margin-top:4px">
+                <span class="chip">Restaurantes</span><span class="chip">Cafeterías</span><span class="chip neutral">Playas</span><span class="chip neutral">Bares</span><span class="chip">Hospedaje</span><span class="chip neutral">Tiendas</span>
+              </div>
+              <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
+                <button class="btn btn-primary" style="width:100%;height:40px" data-demo="Paso completado">Continuar</button>
+                <button class="btn btn-ghost" style="width:100%;height:36px" data-demo="Paso omitido">Ahora no</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot"><span>Onboarding · alta de usuarios y dueños</span><span>Datos de los últimos 30 días</span></div>
+    </section>
+
+    <!-- ============ PLANES ============ -->
+    <section class="view" id="planes" aria-labelledby="t-planes">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Suscripciones</span>
+          <h1 class="page-title" id="t-planes">Planes</h1>
+          <p class="page-sub">Precios del catálogo · 128 negocios suscritos</p>
+        </div>
+        <div class="page-actions"><button class="btn btn-ghost" data-demo="Se guardarían los cambios del catálogo"><svg class="icon"><use href="#i-check"/></svg>Guardar cambios</button></div>
+      </div>
+
+      <div class="grid-3">
+        <div class="plan">
+          <div class="plan-name">Gratis <span class="pill">42 negocios</span></div>
+          <div class="plan-price">0 <small>CUP / mes</small></div>
+          <ul class="plan-feats">
+            <li><svg class="icon sm"><use href="#i-check"/></svg>Ficha pública en el mapa</li>
+            <li><svg class="icon sm"><use href="#i-check"/></svg>Hasta 10 productos</li>
+            <li><svg class="icon sm"><use href="#i-check"/></svg>Reseñas y guardados</li>
+          </ul>
+          <button class="btn btn-ghost btn-sm" style="margin-top:auto" data-demo="Se abriría el editor del plan Gratis">Editar plan</button>
+        </div>
+        <div class="plan featured">
+          <div class="plan-name">Pro <span class="chip">Más vendido</span></div>
+          <div class="plan-price">1 200 <small>CUP / mes</small></div>
+          <ul class="plan-feats">
+            <li><svg class="icon sm"><use href="#i-check"/></svg>Menú completo y categorías</li>
+            <li><svg class="icon sm"><use href="#i-check"/></svg>Pedidos por WhatsApp y carrito</li>
+            <li><svg class="icon sm"><use href="#i-check"/></svg>4 publicaciones por semana con IA</li>
+            <li><svg class="icon sm"><use href="#i-check"/></svg>Tarjeta de fidelidad</li>
+            <li><svg class="icon sm"><use href="#i-check"/></svg>Tasa de cambio propia</li>
+          </ul>
+          <button class="btn btn-primary btn-sm" style="margin-top:auto" data-demo="Se abriría el editor del plan Pro">Editar plan</button>
+        </div>
+        <div class="plan">
+          <div class="plan-name">Business <span class="pill">18 negocios</span></div>
+          <div class="plan-price">2 800 <small>CUP / mes</small></div>
+          <ul class="plan-feats">
+            <li><svg class="icon sm"><use href="#i-check"/></svg>Todo lo de Pro</li>
+            <li><svg class="icon sm"><use href="#i-check"/></svg>Destacado en el mapa y el ranking</li>
+            <li><svg class="icon sm"><use href="#i-check"/></svg>Estadísticas de visitas y clics</li>
+            <li><svg class="icon sm"><use href="#i-check"/></svg>Pack a medida y soporte prioritario</li>
+          </ul>
+          <button class="btn btn-ghost btn-sm" style="margin-top:auto" data-demo="Se abriría el editor del plan Business">Editar plan</button>
+        </div>
+      </div>
+
+      <div class="card mt-16">
+        <div class="card-head"><h2 class="card-title">Módulos sueltos</h2><span class="pill">Se pueden añadir a cualquier plan</span></div>
+        <div class="table-wrap" style="border:0;box-shadow:none">
+          <table style="min-width:560px">
+            <thead><tr><th>Módulo</th><th>Precio</th><th>Negocios</th><th>Activo</th></tr></thead>
+            <tbody>
+              <tr><td>Menú Pro</td><td>600 CUP / mes</td><td>14</td><td><label class="switch on" aria-label="Módulo activo"></label></td></tr>
+              <tr><td>Pedidos y carrito</td><td>450 CUP / mes</td><td>21</td><td><label class="switch on" aria-label="Módulo activo"></label></td></tr>
+              <tr><td>Publicaciones con IA</td><td>800 CUP / mes</td><td>9</td><td><label class="switch on" aria-label="Módulo activo"></label></td></tr>
+              <tr><td>Fidelidad</td><td>350 CUP / mes</td><td>17</td><td><label class="switch" aria-label="Módulo inactivo"></label></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="page-foot"><span>Planes · precios del catálogo vigente</span><span>Los cambios afectan a las nuevas suscripciones</span></div>
+    </section>
+
+    <!-- ============ DIAGNÓSTICO ============ -->
+    <section class="view" id="diagnostico" aria-labelledby="t-diagnostico">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">Sistema</span>
+          <h1 class="page-title" id="t-diagnostico">Diagnóstico</h1>
+          <p class="page-sub">Estado de los servicios de los que depende el panel</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-ghost" data-demo="Diagnóstico copiado al portapapeles"><svg class="icon"><use href="#i-clipboard"/></svg>Copiar diagnóstico</button>
+          <button class="btn btn-primary" data-demo="Servicios comprobados de nuevo"><svg class="icon"><use href="#i-refresh"/></svg>Re-ejecutar</button>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head"><h2 class="card-title">Servicios</h2><span class="pill">Todo operativo</span></div>
+          <div class="status-row"><span class="status-dot"></span><div class="grow"><div class="row-title">Base de datos · Postgres</div><div class="meta">Pool de 10 conexiones · 42 ms</div></div><span class="chip">OK</span></div>
+          <div class="status-row"><span class="status-dot"></span><div class="grow"><div class="row-title">Autenticación · Neon Auth</div><div class="meta">Sesiones válidas · 68 ms</div></div><span class="chip">OK</span></div>
+          <div class="status-row"><span class="status-dot"></span><div class="grow"><div class="row-title">Uploadthing</div><div class="meta">Bucket de logos y fotos · 104 ms</div></div><span class="chip">OK</span></div>
+          <div class="status-row"><span class="status-dot"></span><div class="grow"><div class="row-title">SMTP</div><div class="meta">Último correo enviado hace 14 min</div></div><span class="chip">OK</span></div>
+          <div class="status-row"><span class="status-dot warn"></span><div class="grow"><div class="row-title">Telegram</div><div class="meta">Webhook con 1 reintento pendiente</div></div><span class="chip warn">Revisar</span></div>
+          <div class="status-row"><span class="status-dot"></span><div class="grow"><div class="row-title">QVAPay</div><div class="meta">Pagos y suscripciones · 210 ms</div></div><span class="chip">OK</span></div>
+          <div class="status-row"><span class="status-dot"></span><div class="grow"><div class="row-title">PWA · service worker</div><div class="meta">Versión lv-2026-11-24-08-10 · 2 cachés</div></div><span class="chip">OK</span></div>
+          <div class="status-row"><span class="status-dot"></span><div class="grow"><div class="row-title">PostHog</div><div class="meta">Eventos de analytics · hace 2 min</div></div><span class="chip">OK</span></div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="card-head"><h2 class="card-title">Entorno</h2><span class="pill">producción</span></div>
+            <div class="kv" style="padding:6px 0"><span>Versión</span><b>v2.4.1</b></div>
+            <div class="kv" style="padding:6px 0"><span>Commit</span><b style="font-family:var(--mono);font-size:11px">65d130c</b></div>
+            <div class="kv" style="padding:6px 0"><span>Node</span><b>24.14</b></div>
+            <div class="kv" style="padding:6px 0"><span>Región</span><b>VPS · Frankfurt</b></div>
+            <div class="kv" style="padding:6px 0"><span>Arrancado</span><b>hace 6 días</b></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2 class="card-title">Últimos avisos</h2></div>
+            <pre class="code"><b>09:38</b>  analytics  sync ok · 1 248 usuarios
+<b>09:31</b>  telegram   webhook 200 · 1 reintento
+<b>09:12</b>  smtp       correo enviado a 128 dueños
+<b>08:55</b>  pwa        nuevo SW_VERSION publicado
+<b>08:40</b>  qvapay     pago confirmado · Pro</pre>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot"><span>Diagnóstico · solo lectura</span><span>Última comprobación automática: 09:40</span></div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  /* Navegación entre secciones (hash compartible, sin recargar). */
+  var views = Array.prototype.slice.call(document.querySelectorAll('.view'));
+  var navs = Array.prototype.slice.call(document.querySelectorAll('.nav-item'));
+  var sidebar = document.getElementById('sidebar');
+  var scrim = document.getElementById('scrim');
+  var menuBtn = document.getElementById('menu-btn');
+
+  function closeMenu() {
+    sidebar.classList.remove('open');
+    scrim.classList.remove('show');
+    menuBtn.setAttribute('aria-expanded', 'false');
+  }
+
+  function show(id) {
+    var view = document.getElementById(id);
+    if (!view) { view = document.getElementById('dashboard'); }
+    views.forEach(function (v) { v.classList.toggle('active', v === view); });
+    navs.forEach(function (n) {
+      var on = n.getAttribute('data-view') === view.id;
+      n.classList.toggle('active', on);
+      if (on) { n.setAttribute('aria-current', 'page'); } else { n.removeAttribute('aria-current'); }
+    });
+    if (location.hash.slice(1) !== view.id) {
+      history.replaceState(null, '', '#' + view.id);
+    }
+    document.getElementById('main').scrollTop = 0;
+    window.scrollTo(0, 0);
+    closeMenu();
+  }
+
+  navs.forEach(function (n) {
+    n.addEventListener('click', function (e) {
+      e.preventDefault();
+      show(n.getAttribute('data-view'));
+    });
+  });
+  window.addEventListener('hashchange', function () { show(location.hash.slice(1)); });
+  show(location.hash.slice(1) || 'dashboard');
+
+  /* Menú móvil. */
+  menuBtn.addEventListener('click', function () {
+    var open = sidebar.classList.toggle('open');
+    scrim.classList.toggle('show', open);
+    menuBtn.setAttribute('aria-expanded', String(open));
+  });
+  scrim.addEventListener('click', closeMenu);
+
+  /* Tema claro / oscuro. El icono muestra el modo al que se cambiaría. */
+  var themeBtn = document.getElementById('theme-btn');
+  var themeUse = document.querySelector('#theme-icon use');
+  themeBtn.addEventListener('click', function () {
+    var proximo = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = proximo;
+    themeBtn.setAttribute('aria-pressed', String(proximo === 'dark'));
+    themeBtn.setAttribute('aria-label', proximo === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro');
+    themeUse.setAttribute('href', proximo === 'dark' ? '#i-sun' : '#i-moon');
+  });
+
+  /* Grupos de botones (periodos, pestañas): uno activo a la vez. */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-toggle-group]'), function (group) {
+    Array.prototype.forEach.call(group.querySelectorAll('button'), function (btn) {
+      btn.addEventListener('click', function () {
+        Array.prototype.forEach.call(group.querySelectorAll('button'), function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+      });
+    });
+  });
+
+  /* Toast de demostración para los controles que no tienen backend. */
+  var toastEl = document.getElementById('toast');
+  var toastTimer;
+  window.demoToast = function (msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2600);
+  };
+  Array.prototype.forEach.call(document.querySelectorAll('[data-demo]'), function (el) {
+    el.addEventListener('click', function () { window.demoToast(el.getAttribute('data-demo')); });
+  });
+
+  /* Las filas de conversación cambian de selección (solo visual). */
+  Array.prototype.forEach.call(document.querySelectorAll('.conv'), function (c) {
+    c.addEventListener('click', function () {
+      Array.prototype.forEach.call(document.querySelectorAll('.conv'), function (x) { x.classList.remove('active'); });
+      c.classList.add('active');
+    });
+  });
+
+  /* Interruptores: solo cambian de estado visual. */
+  Array.prototype.forEach.call(document.querySelectorAll('label.switch'), function (s) {
+    s.addEventListener('click', function () { s.classList.toggle('on'); });
+  });
+})();
+</script>
+</body>
+</html>
