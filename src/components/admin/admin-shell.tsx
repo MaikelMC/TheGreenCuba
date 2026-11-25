@@ -30,6 +30,7 @@ import {
 import { ADMIN_NAV, esItemActivo, tituloDeSeccion } from "@/lib/admin-nav";
 import type { AdminDelPanel } from "@/lib/admin-contadores";
 import { useAdminContadores } from "./admin-contadores";
+import { BuscadorGlobal } from "./busqueda-global";
 
 /**
  * El armazón del panel de administración.
@@ -145,6 +146,7 @@ export function AdminShell({
             {titulo}
           </p>
         </div>
+        <BuscadorGlobal />
         <UserMenu />
         <button
           type="button"
