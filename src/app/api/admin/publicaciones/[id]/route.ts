@@ -63,8 +63,36 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: edicion }, { status: 400 });
   }
 
+  /* La fecha programada va aparte de `planearEdicionPublicacion`: no cambia el
+     contenido ni el estado, solo el día en que se piensa postear. `null` y la
+     cadena vacía la quitan; una fecha mal formada no se corrige en silencio. */
+  const hayFecha = body.programadaPara !== undefined;
+  let programadaPara: Date | null | undefined;
+  if (hayFecha) {
+    if (body.programadaPara === null || body.programadaPara === "") {
+      programadaPara = null;
+    } else if (
+      typeof body.programadaPara === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(body.programadaPara)
+    ) {
+      const fecha = new Date(`${body.programadaPara}T12:00:00.000Z`);
+      if (Number.isNaN(fecha.getTime())) {
+        return NextResponse.json(
+          { error: "La fecha programada no es válida." },
+          { status: 400 },
+        );
+      }
+      programadaPara = fecha;
+    } else {
+      return NextResponse.json(
+        { error: "La fecha programada no es válida." },
+        { status: 400 },
+      );
+    }
+  }
+
   /* Sin ninguna llave no hay cambio que guardar. */
-  if (Object.keys(edicion).length === 0) {
+  if (Object.keys(edicion).length === 0 && !hayFecha) {
     return NextResponse.json(
       { error: "No hay nada que actualizar" },
       { status: 400 },
@@ -76,6 +104,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { publicadaEn, ...campos } = edicion;
   const set: Partial<typeof publicaciones.$inferInsert> = {
     ...campos,
+    ...(hayFecha ? { programadaPara } : {}),
     updatedAt: new Date(),
   };
   if (publicadaEn !== undefined) {

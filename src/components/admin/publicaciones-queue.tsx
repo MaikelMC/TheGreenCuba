@@ -5,7 +5,9 @@ import Image from "next/image";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  CalendarDays,
   Check,
+  CheckCircle2,
   ChevronRight,
   Copy,
   Download,
@@ -33,6 +35,7 @@ import { nombreDe, type Plan } from "@/lib/plans";
 import { useCatalogo } from "@/providers/catalogo-provider";
 import {
   ESTADO_LABEL,
+  diasDeSemanaIso,
   type EstadoPublicacion,
   type VariantePublicacion,
 } from "@/lib/publicaciones";
@@ -59,6 +62,7 @@ interface Publicacion {
   imagenUrl: string | null;
   estado: EstadoPublicacion;
   semana: string;
+  programadaPara: number | null;
   enlace: string | null;
   publicadaEn: number | null;
   createdAt: number;
@@ -87,6 +91,31 @@ const INPUT =
   "h-11 w-full rounded-xl border border-ink/10 bg-white px-4 text-body text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 
 const CARD = "bg-white border border-ink/5 rounded-2xl";
+
+const FECHA_POST = new Intl.DateTimeFormat("es-CU", {
+  day: "2-digit",
+  month: "short",
+  timeZone: "America/Havana",
+});
+
+const CLAVE_DIA = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: "America/Havana",
+});
+
+function fechaPost(ms: number | null): string | null {
+  return ms ? FECHA_POST.format(new Date(ms)) : null;
+}
+
+function claveDia(ms: number): string {
+  return CLAVE_DIA.format(new Date(ms));
+}
+
+function fechaParaInput(ms: number | null): string {
+  return ms ? claveDia(ms) : "";
+}
 
 function estadoBadge(estado: EstadoPublicacion): string {
   switch (estado) {
@@ -125,6 +154,140 @@ function SidebarDot({ n }: { n: NegocioCola }) {
   return null;
 }
 
+/** La semana en calendario: lunes a domingo, con lo publicado y lo programado. */
+function CalendarioSemana({
+  semana,
+  negocios,
+  onAbrir,
+}: {
+  semana: string;
+  negocios: NegocioCola[];
+  onAbrir: (negocioId: string) => void;
+}) {
+  const dias = diasDeSemanaIso(semana);
+  if (dias.length === 0) return null;
+
+  const porDia = new Map<string, { publicacion: Publicacion; negocio: NegocioCola }[]>();
+  const sinFecha: { publicacion: Publicacion; negocio: NegocioCola }[] = [];
+
+  for (const negocio of negocios) {
+    for (const publicacion of negocio.publicaciones) {
+      const cuando =
+        publicacion.estado === "publicada"
+          ? publicacion.publicadaEn
+          : publicacion.programadaPara;
+      if (!cuando) {
+        sinFecha.push({ publicacion, negocio });
+        continue;
+      }
+      const clave = claveDia(cuando);
+      const lista = porDia.get(clave) ?? [];
+      lista.push({ publicacion, negocio });
+      porDia.set(clave, lista);
+    }
+  }
+
+  return (
+    <section className={cn(CARD, "p-gap-md")} aria-labelledby="calendario-semana">
+      <div className="flex flex-wrap items-end justify-between gap-gap-xs">
+        <div>
+          <h2
+            id="calendario-semana"
+            className="flex items-center gap-gap-xs font-lv-display text-body font-semibold text-ink"
+          >
+            <CalendarDays size={17} strokeWidth={1.8} className="text-verde-600" />
+            Semana en calendario
+          </h2>
+          <p className="text-meta text-ink-soft/70">
+            Lo publicado va por su fecha real; lo demás, por el día programado.
+          </p>
+        </div>
+        <span className="font-lv-display text-meta font-semibold text-ink-soft/50">
+          {semana}
+        </span>
+      </div>
+
+      <div className="mt-gap-sm overflow-x-auto pb-1">
+        <div className="grid min-w-[820px] grid-cols-7 gap-1.5">
+          {dias.map((dia) => {
+            const items = porDia.get(dia.clave) ?? [];
+            return (
+              <div
+                key={dia.clave}
+                className="flex min-h-[132px] flex-col gap-1.5 rounded-xl border border-ink/5 bg-sand/35 p-1.5"
+              >
+                <div className="flex items-center justify-between gap-1 px-0.5">
+                  <span className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-soft/60">
+                    {dia.etiqueta}
+                  </span>
+                  <span className="grid size-5 place-items-center rounded-full bg-white font-lv-display text-[10px] font-bold text-ink">
+                    {dia.numero}
+                  </span>
+                </div>
+                {items.length === 0 ? (
+                  <p className="px-1 py-3 text-center text-[10px] text-ink-soft/35">
+                    Libre
+                  </p>
+                ) : (
+                  items.map(({ publicacion, negocio }) => (
+                    <button
+                      key={publicacion.id}
+                      type="button"
+                      onClick={() => onAbrir(negocio.id)}
+                      title={`${negocio.nombre}: ${publicacion.texto}`}
+                      className={cn(
+                        "flex flex-col gap-1 rounded-lg border bg-white p-1.5 text-left transition hover:border-verde-300 hover:bg-verde-50/40",
+                        publicacion.estado === "publicada"
+                          ? "border-verde-200"
+                          : "border-ink/10",
+                      )}
+                    >
+                      <span className="line-clamp-2 text-[10px] font-semibold leading-snug text-ink">
+                        {negocio.nombre}
+                      </span>
+                      <span
+                        className={cn(
+                          "w-fit rounded-full border px-1.5 py-[1px] text-[9px] font-semibold uppercase tracking-[0.04em]",
+                          estadoBadge(publicacion.estado),
+                        )}
+                      >
+                        {ESTADO_LABEL[publicacion.estado]}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {sinFecha.length > 0 && (
+        <div className="mt-gap-sm border-t border-ink/5 pt-gap-sm">
+          <p className="font-lv-display text-meta font-semibold text-ink-soft/60">
+            Sin fecha · {sinFecha.length}
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {sinFecha.map(({ publicacion, negocio }) => (
+              <button
+                key={publicacion.id}
+                type="button"
+                onClick={() => onAbrir(negocio.id)}
+                className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-ink/10 bg-white px-2.5 py-1 text-meta text-ink-soft/75 hover:border-verde-300 hover:text-verde-800"
+              >
+                <span className="truncate">{negocio.nombre}</span>
+                <span className="shrink-0 text-[10px] font-semibold uppercase text-ink-soft/45">
+                  {ESTADO_LABEL[publicacion.estado]}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 async function copiarTexto(texto: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(texto);
@@ -141,23 +304,32 @@ function enlaceDescarga(id: string): string {
 /** Una publicación de la cola: ver, editar, publicar, borrar y copiar. */
 function PublicacionCard({
   publicacion,
+  modoInicial = "ver",
   onSave,
   onPublicar,
   onDelete,
 }: {
   publicacion: Publicacion;
+  modoInicial?: "ver" | "editar";
   onSave: (
     id: string,
-    datos: { texto: string; imagenUrl: string | null },
+    datos: {
+      texto: string;
+      imagenUrl: string | null;
+      programadaPara: string | null;
+    },
   ) => Promise<boolean>;
   onPublicar: (id: string, enlace: string) => Promise<boolean>;
   onDelete: (id: string) => Promise<boolean>;
 }) {
   const [modo, setModo] = useState<
     "ver" | "editar" | "publicar" | "confirmar-borrar"
-  >("ver");
+  >(modoInicial);
   const [texto, setTexto] = useState(publicacion.texto);
   const [imagen, setImagen] = useState(publicacion.imagenUrl ?? "");
+  const [programada, setProgramada] = useState(
+    fechaParaInput(publicacion.programadaPara),
+  );
   const [enlace, setEnlace] = useState(publicacion.enlace ?? "");
   const [busy, setBusy] = useState(false);
 
@@ -166,10 +338,11 @@ function PublicacionCard({
     const ok = await onSave(publicacion.id, {
       texto,
       imagenUrl: imagen.trim() || null,
+      programadaPara: programada || null,
     });
     setBusy(false);
     if (ok) setModo("ver");
-  }, [onSave, publicacion.id, texto, imagen]);
+  }, [onSave, publicacion.id, texto, imagen, programada]);
 
   const publicar = useCallback(async () => {
     setBusy(true);
@@ -196,6 +369,12 @@ function PublicacionCard({
           {ESTADO_LABEL[publicacion.estado]}
         </span>
         <span className="text-meta text-ink-soft/60">{publicacion.semana}</span>
+        {publicacion.programadaPara && publicacion.estado !== "publicada" && (
+          <span className="inline-flex items-center gap-1 text-meta font-semibold text-verde-700">
+            <CalendarDays size={12} strokeWidth={1.8} />
+            {fechaPost(publicacion.programadaPara)}
+          </span>
+        )}
         {publicacion.estado === "publicada" && publicacion.enlace && (
           <a
             href={publicacion.enlace}
@@ -227,6 +406,17 @@ function PublicacionCard({
               className={cn(INPUT, "cursor-text")}
               placeholder="URL del flyer (opcional)"
             />
+            <label className="flex flex-col gap-1">
+              <span className="text-meta text-ink-soft/70">
+                Día programado (opcional)
+              </span>
+              <input
+                type="date"
+                value={programada}
+                onChange={(e) => setProgramada(e.target.value)}
+                className={cn(INPUT, "cursor-pointer")}
+              />
+            </label>
           </div>
         ) : (
           <>
@@ -313,6 +503,7 @@ function PublicacionCard({
               onClick={() => {
                 setTexto(publicacion.texto);
                 setImagen(publicacion.imagenUrl ?? "");
+                setProgramada(fechaParaInput(publicacion.programadaPara));
                 setModo("ver");
               }}
               className="inline-flex h-9 cursor-pointer items-center gap-[5px] rounded-full border border-ink/10 px-gap-sm font-lv-display text-meta font-semibold text-ink-soft/75 hover:bg-sand transition-colors"
@@ -424,6 +615,7 @@ function FormularioCreacion({
   const [generando, setGenerando] = useState(false);
   const [texto, setTexto] = useState("");
   const [imagenUrl, setImagenUrl] = useState("");
+  const [programadaPara, setProgramadaPara] = useState("");
   const [subiendo, setSubiendo] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -438,6 +630,7 @@ function FormularioCreacion({
     setVariantes([]);
     setTexto("");
     setImagenUrl("");
+    setProgramadaPara("");
 
     fetch(`/api/admin/publicaciones/perfil/${negocioId}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
@@ -529,6 +722,7 @@ function FormularioCreacion({
           negocioId,
           texto,
           imagenUrl: imagenUrl.trim() || null,
+          programadaPara: programadaPara || null,
           estado: "lista",
         }),
       });
@@ -540,6 +734,7 @@ function FormularioCreacion({
       toast.success("Publicación en cola");
       setTexto("");
       setImagenUrl("");
+      setProgramadaPara("");
       setVariantes([]);
       setPrompt("");
       setProductoId("");
@@ -550,7 +745,7 @@ function FormularioCreacion({
     } finally {
       setGuardando(false);
     }
-  }, [negocioId, texto, imagenUrl, onCreada]);
+  }, [negocioId, texto, imagenUrl, programadaPara, onCreada]);
 
   if (cargandoPerfil) {
     return (
@@ -895,6 +1090,18 @@ function FormularioCreacion({
         />
       )}
 
+      <label className="flex max-w-[240px] flex-col gap-1">
+        <span className="font-lv-display text-meta font-semibold text-ink-soft/60 uppercase tracking-[0.08em]">
+          Día programado (opcional)
+        </span>
+        <input
+          type="date"
+          value={programadaPara}
+          onChange={(e) => setProgramadaPara(e.target.value)}
+          className={cn(INPUT, "cursor-pointer")}
+        />
+      </label>
+
       {/* Encolar */}
       <button
         type="button"
@@ -921,6 +1128,9 @@ export function PublicacionesQueue() {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileDetalle, setMobileDetalle] = useState(false);
+  const [seleccionRevisar, setSeleccionRevisar] = useState<Set<string>>(new Set());
+  const [aprobando, setAprobando] = useState(false);
+  const [editarPubId, setEditarPubId] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     try {
@@ -960,12 +1170,23 @@ export function PublicacionesQueue() {
   const seleccionar = useCallback((id: string) => {
     setSelectedId(id);
     setMobileDetalle(true);
+    setEditarPubId(null);
+  }, []);
+
+  const abrirEditor = useCallback((publicacionId: string, negocioId: string) => {
+    setSelectedId(negocioId);
+    setEditarPubId(publicacionId);
+    setMobileDetalle(true);
   }, []);
 
   const guardarCambios = useCallback(
     async (
       id: string,
-      datos: { texto: string; imagenUrl: string | null },
+      datos: {
+        texto: string;
+        imagenUrl: string | null;
+        programadaPara: string | null;
+      },
     ): Promise<boolean> => {
       try {
         const res = await fetch(`/api/admin/publicaciones/${id}`, {
@@ -981,6 +1202,7 @@ export function PublicacionesQueue() {
           return false;
         }
         toast.success("Publicación actualizada");
+        setEditarPubId(null);
         await cargar();
         return true;
       } catch {
@@ -1017,6 +1239,54 @@ export function PublicacionesQueue() {
     [cargar],
   );
 
+  const porRevisar = useMemo(
+    () =>
+      negocios.flatMap((negocio) =>
+        negocio.publicaciones
+          .filter((publicacion) => publicacion.estado === "borrador")
+          .map((publicacion) => ({ publicacion, negocio })),
+      ),
+    [negocios],
+  );
+
+  const sinUsar = useMemo(
+    () => negocios.filter((negocio) => negocio.puede && negocio.publicaciones.length === 0),
+    [negocios],
+  );
+
+  async function aprobarPublicaciones(ids: string[]) {
+    if (ids.length === 0 || aprobando) return;
+    setAprobando(true);
+    try {
+      const respuestas = await Promise.all(
+        ids.map((id) =>
+          fetch(`/api/admin/publicaciones/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ estado: "lista" }),
+          }),
+        ),
+      );
+      if (respuestas.some((respuesta) => !respuesta.ok)) {
+        throw new Error("Alguna publicación no se pudo aprobar.");
+      }
+      toast.success(
+        ids.length === 1
+          ? "Publicación aprobada y lista para postear."
+          : `${ids.length} publicaciones aprobadas y listas para postear.`,
+      );
+      setSeleccionRevisar(new Set());
+      await cargar();
+    } catch (fallo) {
+      toast.error(
+        fallo instanceof Error ? fallo.message : "No se pudieron aprobar.",
+      );
+      await cargar();
+    } finally {
+      setAprobando(false);
+    }
+  }
+
   const eliminar = useCallback(
     async (id: string): Promise<boolean> => {
       try {
@@ -1050,6 +1320,139 @@ export function PublicacionesQueue() {
           </span>
         )}
       </div>
+
+      {!loading && negocios.length > 0 && (
+        <>
+          <CalendarioSemana
+            semana={semana}
+            negocios={negocios}
+            onAbrir={seleccionar}
+          />
+
+          {sinUsar.length > 0 && (
+            <section className={cn(CARD, "p-gap-md")}>
+              <div>
+                <h2 className="font-lv-display text-body font-semibold text-ink">
+                  Negocios sin publicar esta semana
+                </h2>
+                <p className="text-meta text-ink-soft/70">
+                  Tienen la función y no han usado ninguna plaza. «Generar» abre
+                  el formulario con ese negocio ya elegido.
+                </p>
+              </div>
+              <div className="mt-gap-sm flex flex-wrap gap-gap-xs">
+                {sinUsar.map((negocio) => (
+                  <button
+                    key={negocio.id}
+                    type="button"
+                    onClick={() => seleccionar(negocio.id)}
+                    className="inline-flex h-9 max-w-full items-center gap-1.5 rounded-full border border-ink/10 bg-white px-3 text-meta font-semibold text-ink transition-colors hover:border-verde-300 hover:bg-verde-50"
+                  >
+                    <span className="truncate">{negocio.nombre}</span>
+                    <Sparkles size={12} className="shrink-0 text-verde-600" />
+                    Generar
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {porRevisar.length > 0 && (
+            <section className={cn(CARD, "p-gap-md")}>
+              <div className="flex flex-wrap items-end justify-between gap-gap-sm">
+                <div>
+                  <h2 className="font-lv-display text-body font-semibold text-ink">
+                    Por revisar
+                  </h2>
+                  <p className="text-meta text-ink-soft/70">
+                    {porRevisar.length} borrador{porRevisar.length === 1 ? "" : "es"} esperando aprobación.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-gap-xs">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSeleccionRevisar(
+                        seleccionRevisar.size === porRevisar.length
+                          ? new Set()
+                          : new Set(porRevisar.map(({ publicacion }) => publicacion.id)),
+                      )
+                    }
+                    className="inline-flex h-9 items-center rounded-full border border-ink/10 px-3 text-meta font-semibold text-ink-soft/75 hover:bg-sand"
+                  >
+                    {seleccionRevisar.size === porRevisar.length
+                      ? "Quitar selección"
+                      : "Seleccionar todos"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={seleccionRevisar.size === 0 || aprobando}
+                    onClick={() => void aprobarPublicaciones([...seleccionRevisar])}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-full bg-verde-400 px-3 font-lv-display text-meta font-semibold text-verde-950 hover:bg-verde-300 disabled:opacity-50"
+                  >
+                    {aprobando ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : (
+                      <CheckCircle2 size={13} />
+                    )}
+                    Aprobar {seleccionRevisar.size > 0 ? seleccionRevisar.size : ""}{" "}
+                    seleccionada{seleccionRevisar.size === 1 ? "" : "s"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-gap-sm divide-y divide-ink/5">
+                {porRevisar.map(({ publicacion, negocio }) => (
+                  <div
+                    key={publicacion.id}
+                    className="flex flex-wrap items-center gap-gap-sm py-gap-sm first:pt-0 last:pb-0"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={seleccionRevisar.has(publicacion.id)}
+                      onChange={() =>
+                        setSeleccionRevisar((actual) => {
+                          const siguiente = new Set(actual);
+                          if (siguiente.has(publicacion.id)) siguiente.delete(publicacion.id);
+                          else siguiente.add(publicacion.id);
+                          return siguiente;
+                        })
+                      }
+                      aria-label={`Seleccionar la publicación de ${negocio.nombre}`}
+                      className="size-4 shrink-0 accent-verde-600"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-lv-display text-small font-semibold text-ink">
+                        {negocio.nombre}
+                      </p>
+                      <p className="line-clamp-2 text-meta text-ink-soft/70">
+                        {publicacion.texto}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-gap-xs">
+                      <button
+                        type="button"
+                        onClick={() => abrirEditor(publicacion.id, negocio.id)}
+                        className="inline-flex h-9 items-center gap-1 rounded-full border border-ink/10 px-3 text-meta font-semibold text-ink-soft/75 hover:bg-sand"
+                      >
+                        <Pencil size={12} /> Editar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={aprobando}
+                        onClick={() => void aprobarPublicaciones([publicacion.id])}
+                        className="inline-flex h-9 items-center gap-1 rounded-full border border-verde-200 px-3 text-meta font-semibold text-verde-700 hover:bg-verde-50 disabled:opacity-50"
+                      >
+                        <CheckCircle2 size={12} /> Aprobar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
 
       {loading ? (
         <div className="grid place-items-center py-24">
@@ -1216,8 +1619,9 @@ export function PublicacionesQueue() {
                     ) : (
                       seleccionado.publicaciones.map((p) => (
                         <PublicacionCard
-                          key={p.id}
+                          key={`${p.id}-${editarPubId === p.id ? "editar" : "ver"}`}
                           publicacion={p}
+                          modoInicial={editarPubId === p.id ? "editar" : "ver"}
                           onSave={guardarCambios}
                           onPublicar={marcarPublicada}
                           onDelete={eliminar}

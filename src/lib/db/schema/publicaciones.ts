@@ -74,6 +74,9 @@ export const publicaciones = pgTable(
      */
     orden: integer("orden").notNull(),
 
+    /** Día en que se piensa postear. `null` = todavía sin fecha. */
+    programadaPara: timestamp("programada_para"),
+
     /** Enlace del post una vez publicado. Obligatorio al marcar `publicada`. */
     enlace: text("enlace"),
     /** Cuándo se marcó como publicada. `null` mientras no lo esté. */

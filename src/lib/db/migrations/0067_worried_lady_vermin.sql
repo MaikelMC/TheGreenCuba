@@ -1,0 +1,1 @@
+ALTER TABLE "publicaciones" ADD COLUMN "programada_para" timestamp;

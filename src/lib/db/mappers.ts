@@ -315,6 +315,8 @@ export interface Publicacion {
   imagenUrl: string | null;
   estado: EstadoPublicacion;
   semana: string;
+  /** Día programado, en epoch ms. `null` = sin fecha. */
+  programadaPara: number | null;
   enlace: string | null;
   publicadaEn: number | null;
   createdAt: number;
@@ -329,6 +331,7 @@ export function toPublicacion(row: PublicacionRow): Publicacion {
     imagenUrl: row.imagenUrl,
     estado: row.estado,
     semana: row.semana,
+    programadaPara: row.programadaPara ? row.programadaPara.getTime() : null,
     enlace: row.enlace,
     publicadaEn: row.publicadaEn ? row.publicadaEn.getTime() : null,
     createdAt: row.createdAt.getTime(),

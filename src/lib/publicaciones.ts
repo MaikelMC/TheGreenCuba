@@ -65,6 +65,44 @@ export function esEstadoPublicacion(
  * siguiente. Es una frontera de pocas horas para un tope comercial, y la
  * alternativa —huso del negocio— pediría una librería que el proyecto no tiene.
  */
+/**
+ * Los siete días de una semana ISO, de lunes a domingo.
+ *
+ * Se calcula desde la clave `YYYY-Wnn` y no desde «hoy»: el calendario tiene que
+ * enseñar la misma semana que la cola, aunque el reloj del navegador esté en
+ * otro huso. Las fechas son `YYYY-MM-DD` en UTC, que es como se guardan las
+ * claves de día del calendario.
+ */
+export function diasDeSemanaIso(
+  semana: string,
+): { clave: string; etiqueta: string; numero: string }[] {
+  const [anio, numeroSemana] = semana.split("-W");
+  const year = Number(anio);
+  const week = Number(numeroSemana);
+  if (!Number.isInteger(year) || !Number.isInteger(week) || week < 1 || week > 53) {
+    return [];
+  }
+
+  /* El 4 de enero siempre cae en la semana 1 por definición del ISO 8601. */
+  const jueves = new Date(Date.UTC(year, 0, 4));
+  const diaIso = jueves.getUTCDay() || 7;
+  const lunes = new Date(jueves);
+  lunes.setUTCDate(jueves.getUTCDate() - diaIso + 1 + (week - 1) * 7);
+
+  return Array.from({ length: 7 }, (_, indice) => {
+    const dia = new Date(lunes);
+    dia.setUTCDate(lunes.getUTCDate() + indice);
+    return {
+      clave: dia.toISOString().slice(0, 10),
+      etiqueta: new Intl.DateTimeFormat("es-CU", {
+        weekday: "short",
+        timeZone: "UTC",
+      }).format(dia),
+      numero: String(dia.getUTCDate()),
+    };
+  });
+}
+
 export function semanaDe(fecha: Date): string {
   /* Copia en UTC a medianoche: sin esto, `setUTCDate` mutaría la fecha que
      entra y quien llame se la encontraría cambiada. */

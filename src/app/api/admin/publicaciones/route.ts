@@ -131,6 +131,19 @@ export async function GET(req: NextRequest) {
 }
 
 /**
+ * Lee `YYYY-MM-DD` al mediodía UTC: el mismo día en La Habana. `null` y la
+ * cadena vacía significan «sin fecha»; `undefined` es una fecha mal formada.
+ */
+function leerFechaProgramada(valor: unknown): Date | null | undefined {
+  if (valor === undefined || valor === null || valor === "") return null;
+  if (typeof valor !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+    return undefined;
+  }
+  const fecha = new Date(`${valor}T12:00:00.000Z`);
+  return Number.isNaN(fecha.getTime()) ? undefined : fecha;
+}
+
+/**
  * Encola una publicación nueva, en nombre de un negocio.
  *
  * Aquí solo queda la puerta —quién puede llamar— y la lectura del cuerpo: el
@@ -166,6 +179,13 @@ export async function POST(req: NextRequest) {
   const estado: EstadoPublicacion = esEstadoPublicacion(body.estado)
     ? body.estado
     : "borrador";
+  const programadaPara = leerFechaProgramada(body.programadaPara);
+  if (programadaPara === undefined) {
+    return NextResponse.json(
+      { error: "La fecha programada no es válida." },
+      { status: 400 },
+    );
+  }
   /* Nacer publicada dejaría una fila sin enlace, que es justo lo que el `check`
      de la tabla impide. Publicar es un paso aparte, con el enlace delante. */
   if (estado === "publicada") {
@@ -175,7 +195,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const resultado = await encolarPublicacion(negocioId, contenido, estado);
+  const resultado = await encolarPublicacion(
+    negocioId,
+    contenido,
+    estado,
+    programadaPara,
+  );
   if (!resultado.ok) {
     return NextResponse.json(
       { error: resultado.error },

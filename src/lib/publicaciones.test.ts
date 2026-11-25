@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
+import { diasDeSemanaIso,
   construirPromptPublicacion,
   contextoHavana,
   esEstadoPublicacion,
@@ -23,6 +23,17 @@ import type { UserPlace } from "./places-store";
 
 const HORA = 3_600_000;
 const AHORA = new Date("2026-10-08T12:00:00Z").getTime();
+
+test("la semana del calendario va de lunes a domingo", () => {
+  const dias = diasDeSemanaIso("2026-W41");
+  assert.equal(dias.length, 7);
+  assert.equal(dias[0]?.clave, "2026-10-05");
+  assert.equal(dias[6]?.clave, "2026-10-11");
+});
+
+test("una clave de semana inválida no inventa días", () => {
+  assert.deepEqual(diasDeSemanaIso("2026-W99"), []);
+});
 
 function place(extra: Partial<UserPlace> = {}): UserPlace {
   return {

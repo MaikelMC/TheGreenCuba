@@ -94,6 +94,7 @@ export async function encolarPublicacion(
   negocioId: string,
   contenido: { texto: string; imagenUrl: string | null },
   estado: EstadoPublicacion = "borrador",
+  programadaPara: Date | null = null,
 ): Promise<ResultadoEncolar> {
   const [place] = await db
     .select({ id: places.id })
@@ -172,6 +173,7 @@ export async function encolarPublicacion(
       estado,
       semana,
       orden,
+      programadaPara,
     })
     .onConflictDoNothing({
       target: [
