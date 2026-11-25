@@ -54,6 +54,7 @@ export const ACCION = {
   premioAfiliado: "premio_afiliado",
   notaAfiliado: "nota_afiliado",
   quitarAfiliacion: "quitar_afiliacion",
+  notaNegocio: "nota_negocio",
 } as const;
 
 export type AccionActividad = (typeof ACCION)[keyof typeof ACCION];

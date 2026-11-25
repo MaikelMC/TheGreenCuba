@@ -31,6 +31,7 @@ import { ADMIN_NAV, esItemActivo, tituloDeSeccion } from "@/lib/admin-nav";
 import type { AdminDelPanel } from "@/lib/admin-contadores";
 import { useAdminContadores } from "./admin-contadores";
 import { BuscadorGlobal } from "./busqueda-global";
+import { Ficha360 } from "./ficha-360";
 
 /**
  * El armazón del panel de administración.
@@ -253,6 +254,8 @@ export function AdminShell({
       </div>
 
       <MobileDock items={dockItems} label="Secciones de administración" />
+
+      <Ficha360 />
 
       {/* «Más» y el botón de menú abren el mismo cajón con todo agrupado. */}
       <Sheet open={menuAbierto} onOpenChange={setMenuAbierto}>

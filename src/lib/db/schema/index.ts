@@ -39,3 +39,4 @@ export * from "./diagnosticos";
 export * from "./afiliados";
 export * from "./productos";
 export * from "./admin_actividad";
+export * from "./notas_negocio";

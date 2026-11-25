@@ -37,6 +37,7 @@ import {
   type VariantePublicacion,
 } from "@/lib/publicaciones";
 import type { UserPlaceMenuItem } from "@/lib/places-store";
+import { EnlaceNegocio } from "./enlace-negocio";
 
 /**
  * La cola de publicaciones de Facebook, para administración.
@@ -108,7 +109,9 @@ function normalizarBusqueda(texto: string): string {
 /** Dot de estado en el sidebar */
 function SidebarDot({ n }: { n: NegocioCola }) {
   if (!n.puede) return null;
-  const pendientes = n.publicaciones.filter((p) => p.estado !== "publicada").length;
+  const pendientes = n.publicaciones.filter(
+    (p) => p.estado !== "publicada",
+  ).length;
   if (pendientes > 0)
     return (
       <span className="ml-auto shrink-0 min-w-5 h-5 px-1.5 rounded-full bg-verde-400 font-lv-display text-[10px] font-bold text-verde-950 grid place-items-center">
@@ -116,7 +119,9 @@ function SidebarDot({ n }: { n: NegocioCola }) {
       </span>
     );
   if (n.publicaciones.length > 0)
-    return <span className="ml-auto shrink-0 size-2 rounded-full bg-ink/15 mt-0.5" />;
+    return (
+      <span className="ml-auto shrink-0 size-2 rounded-full bg-ink/15 mt-0.5" />
+    );
   return null;
 }
 
@@ -141,11 +146,16 @@ function PublicacionCard({
   onDelete,
 }: {
   publicacion: Publicacion;
-  onSave: (id: string, datos: { texto: string; imagenUrl: string | null }) => Promise<boolean>;
+  onSave: (
+    id: string,
+    datos: { texto: string; imagenUrl: string | null },
+  ) => Promise<boolean>;
   onPublicar: (id: string, enlace: string) => Promise<boolean>;
   onDelete: (id: string) => Promise<boolean>;
 }) {
-  const [modo, setModo] = useState<"ver" | "editar" | "publicar" | "confirmar-borrar">("ver");
+  const [modo, setModo] = useState<
+    "ver" | "editar" | "publicar" | "confirmar-borrar"
+  >("ver");
   const [texto, setTexto] = useState(publicacion.texto);
   const [imagen, setImagen] = useState(publicacion.imagenUrl ?? "");
   const [enlace, setEnlace] = useState(publicacion.enlace ?? "");
@@ -153,7 +163,10 @@ function PublicacionCard({
 
   const guardar = useCallback(async () => {
     setBusy(true);
-    const ok = await onSave(publicacion.id, { texto, imagenUrl: imagen.trim() || null });
+    const ok = await onSave(publicacion.id, {
+      texto,
+      imagenUrl: imagen.trim() || null,
+    });
     setBusy(false);
     if (ok) setModo("ver");
   }, [onSave, publicacion.id, texto, imagen]);
@@ -253,14 +266,20 @@ function PublicacionCard({
 
       {modo === "confirmar-borrar" && (
         <div className="mx-gap-md mb-gap-sm flex items-center gap-gap-xs rounded-xl border border-destructive/20 bg-destructive/5 px-gap-sm py-gap-xs">
-          <span className="text-meta text-ink-soft/75 mr-auto">¿Sacar esta publicación?</span>
+          <span className="text-meta text-ink-soft/75 mr-auto">
+            ¿Sacar esta publicación?
+          </span>
           <button
             type="button"
             onClick={() => void borrar()}
             disabled={busy}
             className="inline-flex h-8 cursor-pointer items-center gap-[5px] rounded-full bg-destructive px-gap-sm font-lv-display text-meta font-semibold text-white hover:bg-destructive/90 disabled:opacity-60"
           >
-            {busy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} strokeWidth={1.8} />}
+            {busy ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <Trash2 size={13} strokeWidth={1.8} />
+            )}
             Sí, sacar
           </button>
           <button
@@ -282,12 +301,20 @@ function PublicacionCard({
               disabled={busy}
               className="inline-flex h-9 cursor-pointer items-center gap-[5px] rounded-full bg-verde-400 px-gap-md font-lv-display text-meta font-semibold text-verde-950 hover:bg-verde-300 disabled:pointer-events-none disabled:opacity-60 transition-colors"
             >
-              {busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} strokeWidth={2} />}
+              {busy ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <Check size={13} strokeWidth={2} />
+              )}
               Guardar
             </button>
             <button
               type="button"
-              onClick={() => { setTexto(publicacion.texto); setImagen(publicacion.imagenUrl ?? ""); setModo("ver"); }}
+              onClick={() => {
+                setTexto(publicacion.texto);
+                setImagen(publicacion.imagenUrl ?? "");
+                setModo("ver");
+              }}
               className="inline-flex h-9 cursor-pointer items-center gap-[5px] rounded-full border border-ink/10 px-gap-sm font-lv-display text-meta font-semibold text-ink-soft/75 hover:bg-sand transition-colors"
             >
               <X size={13} strokeWidth={2} />
@@ -302,7 +329,11 @@ function PublicacionCard({
               disabled={busy || !enlace.trim()}
               className="inline-flex h-9 cursor-pointer items-center gap-[5px] rounded-full bg-verde-400 px-gap-md font-lv-display text-meta font-semibold text-verde-950 hover:bg-verde-300 disabled:pointer-events-none disabled:opacity-60 transition-colors"
             >
-              {busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} strokeWidth={2} />}
+              {busy ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <Check size={13} strokeWidth={2} />
+              )}
               Marcar publicada
             </button>
             <button
@@ -422,7 +453,9 @@ function FormularioCreacion({
   const elegido = productos.find((item) => item.id === productoId);
   const termino = normalizarBusqueda(busqueda.trim());
   const coincidencias = termino
-    ? productos.filter((item) => normalizarBusqueda(item.name).includes(termino))
+    ? productos.filter((item) =>
+        normalizarBusqueda(item.name).includes(termino),
+      )
     : productos;
 
   const generar = useCallback(async () => {
@@ -456,29 +489,34 @@ function FormularioCreacion({
     }
   }, [negocioId, productoId, prompt]);
 
-  const subirFoto = useCallback(async (file: File | undefined) => {
-    if (!file) return;
-    setSubiendo(true);
-    try {
-      const prepared = await prepareImage(file);
-      const form = new FormData();
-      form.append("file", prepared.blob, prepared.name);
-      const res = await fetch(
-        `/api/business/publicaciones/imagen?placeId=${encodeURIComponent(negocioId)}`,
-        { method: "POST", body: form },
-      );
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        toast.error(body.error ?? "No se pudo subir la imagen.");
-        return;
+  const subirFoto = useCallback(
+    async (file: File | undefined) => {
+      if (!file) return;
+      setSubiendo(true);
+      try {
+        const prepared = await prepareImage(file);
+        const form = new FormData();
+        form.append("file", prepared.blob, prepared.name);
+        const res = await fetch(
+          `/api/business/publicaciones/imagen?placeId=${encodeURIComponent(negocioId)}`,
+          { method: "POST", body: form },
+        );
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          toast.error(body.error ?? "No se pudo subir la imagen.");
+          return;
+        }
+        setImagenUrl(((await res.json()) as { url: string }).url);
+      } catch {
+        toast.error("No se pudo subir la imagen.");
+      } finally {
+        setSubiendo(false);
       }
-      setImagenUrl(((await res.json()) as { url: string }).url);
-    } catch {
-      toast.error("No se pudo subir la imagen.");
-    } finally {
-      setSubiendo(false);
-    }
-  }, [negocioId]);
+    },
+    [negocioId],
+  );
 
   const encolar = useCallback(async () => {
     if (!texto.trim()) return;
@@ -526,8 +564,8 @@ function FormularioCreacion({
     <div className="flex flex-col gap-gap-sm">
       {llenas && (
         <div className="rounded-xl border border-ink/10 bg-sand px-gap-md py-gap-sm text-meta text-ink-soft/70">
-          Tope de {tope} {tope === 1 ? "publicación" : "publicaciones"} por semana alcanzado.
-          Puedes editar las existentes, no encolar más.
+          Tope de {tope} {tope === 1 ? "publicación" : "publicaciones"} por
+          semana alcanzado. Puedes editar las existentes, no encolar más.
         </div>
       )}
 
@@ -558,13 +596,26 @@ function FormularioCreacion({
                   : "Carta vacía"}
             </span>
           </span>
-          <ChevronRight size={15} strokeWidth={1.8} className="shrink-0 text-ink-soft/40 transition-transform duration-300 group-hover:translate-x-0.5" />
+          <ChevronRight
+            size={15}
+            strokeWidth={1.8}
+            className="shrink-0 text-ink-soft/40 transition-transform duration-300 group-hover:translate-x-0.5"
+          />
         </button>
       </div>
 
       {/* Sheet selector */}
-      <Sheet open={elegirAbierto} onOpenChange={(open) => { setElegirAbierto(open); if (!open) setBusqueda(""); }}>
-        <SheetContent side="bottom" className="mx-auto flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-3xl border-ink/5 p-gap-md">
+      <Sheet
+        open={elegirAbierto}
+        onOpenChange={(open) => {
+          setElegirAbierto(open);
+          if (!open) setBusqueda("");
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          className="mx-auto flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-3xl border-ink/5 p-gap-md"
+        >
           <SheetHeader>
             <SheetTitle className="text-left">Elige un producto</SheetTitle>
             <SheetDescription className="text-left">
@@ -572,7 +623,11 @@ function FormularioCreacion({
             </SheetDescription>
           </SheetHeader>
           <div className="relative mt-gap-sm shrink-0">
-            <Search size={15} strokeWidth={1.8} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft/50" />
+            <Search
+              size={15}
+              strokeWidth={1.8}
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft/50"
+            />
             <input
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
@@ -585,14 +640,19 @@ function FormularioCreacion({
               {termino ? "Resultados" : "Carta"}
             </span>
             <span className="text-meta text-ink-soft/50">
-              {coincidencias.length} {coincidencias.length === 1 ? "producto" : "productos"}
+              {coincidencias.length}{" "}
+              {coincidencias.length === 1 ? "producto" : "productos"}
             </span>
           </div>
           <div className="mt-2 flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pb-gap-sm">
             {!termino && (
               <button
                 type="button"
-                onClick={() => { setProductoId(""); setElegirAbierto(false); setBusqueda(""); }}
+                onClick={() => {
+                  setProductoId("");
+                  setElegirAbierto(false);
+                  setBusqueda("");
+                }}
                 aria-pressed={!productoId}
                 className={cn(
                   "flex w-full touch-manipulation cursor-pointer items-center gap-gap-sm rounded-2xl border p-2.5 text-left transition duration-300",
@@ -605,8 +665,12 @@ function FormularioCreacion({
                   <X size={20} strokeWidth={1.6} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block font-lv-display text-small font-semibold text-ink">Sin producto concreto</span>
-                  <span className="mt-0.5 block truncate text-meta text-ink-soft/70">La IA elige entre la carta</span>
+                  <span className="block font-lv-display text-small font-semibold text-ink">
+                    Sin producto concreto
+                  </span>
+                  <span className="mt-0.5 block truncate text-meta text-ink-soft/70">
+                    La IA elige entre la carta
+                  </span>
                 </span>
                 {!productoId && (
                   <span className="grid size-5 shrink-0 place-items-center rounded-full bg-verde-400 text-verde-950">
@@ -620,15 +684,23 @@ function FormularioCreacion({
                 <span className="grid size-12 place-items-center rounded-full bg-sand text-ink-soft/50">
                   <Search size={20} strokeWidth={1.6} />
                 </span>
-                <p className="text-small font-semibold text-ink">Nada por aquí</p>
-                <p className="text-meta text-ink-soft/70">Prueba con otra palabra.</p>
+                <p className="text-small font-semibold text-ink">
+                  Nada por aquí
+                </p>
+                <p className="text-meta text-ink-soft/70">
+                  Prueba con otra palabra.
+                </p>
               </div>
             ) : (
               coincidencias.map((item) => (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => { setProductoId(item.id); setElegirAbierto(false); setBusqueda(""); }}
+                  onClick={() => {
+                    setProductoId(item.id);
+                    setElegirAbierto(false);
+                    setBusqueda("");
+                  }}
                   aria-pressed={item.id === productoId}
                   className={cn(
                     "flex w-full touch-manipulation cursor-pointer items-center gap-gap-sm rounded-2xl border p-2.5 text-left transition duration-300",
@@ -639,7 +711,13 @@ function FormularioCreacion({
                 >
                   <span className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-ink/5 bg-sand-deep">
                     {item.image ? (
-                      <Image src={item.image} alt="" fill sizes="56px" className="object-cover" />
+                      <Image
+                        src={item.image}
+                        alt=""
+                        fill
+                        sizes="56px"
+                        className="object-cover"
+                      />
                     ) : (
                       <span className="grid size-full place-items-center text-ink-soft/40">
                         <Package size={20} strokeWidth={1.6} />
@@ -648,7 +726,9 @@ function FormularioCreacion({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex min-w-0 items-center gap-2">
-                      <span className="truncate font-lv-display text-small font-semibold text-ink">{item.name}</span>
+                      <span className="truncate font-lv-display text-small font-semibold text-ink">
+                        {item.name}
+                      </span>
                       {item.tag?.trim() && (
                         <span className="shrink-0 rounded-full bg-verde-400/15 px-2 py-[1px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.08em] text-verde-700">
                           {item.tag}
@@ -656,7 +736,9 @@ function FormularioCreacion({
                       )}
                     </span>
                     {item.description?.trim() && (
-                      <span className="mt-0.5 block truncate text-meta text-ink-soft/70">{item.description}</span>
+                      <span className="mt-0.5 block truncate text-meta text-ink-soft/70">
+                        {item.description}
+                      </span>
                     )}
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1">
@@ -700,7 +782,11 @@ function FormularioCreacion({
           disabled={generando || llenas}
           className="inline-flex h-10 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-300 hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
         >
-          {generando ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} strokeWidth={1.8} />}
+          {generando ? (
+            <Loader2 size={15} className="animate-spin" />
+          ) : (
+            <Sparkles size={15} strokeWidth={1.8} />
+          )}
           {generando ? "Generando…" : "Generar con IA"}
         </button>
       </div>
@@ -715,7 +801,10 @@ function FormularioCreacion({
       {variantes.length > 0 && (
         <div className="grid gap-gap-sm md:grid-cols-2">
           {variantes.map((variante, i) => (
-            <div key={i} className="flex flex-col gap-gap-sm rounded-xl border border-verde-200 bg-verde-50/40 p-gap-sm">
+            <div
+              key={i}
+              className="flex flex-col gap-gap-sm rounded-xl border border-verde-200 bg-verde-50/40 p-gap-sm"
+            >
               <span className="inline-flex w-fit items-center rounded-full border border-verde-200 bg-white px-[9px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-verde-700">
                 {ANGULO_LABEL[variante.angulo]}
               </span>
@@ -766,7 +855,11 @@ function FormularioCreacion({
           type="file"
           accept="image/*"
           hidden
-          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void subirFoto(f); }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            void subirFoto(f);
+          }}
         />
         <button
           type="button"
@@ -774,7 +867,11 @@ function FormularioCreacion({
           disabled={subiendo}
           className="inline-flex h-9 cursor-pointer items-center gap-[5px] rounded-full border border-ink/10 px-gap-sm font-lv-display text-meta font-semibold text-ink-soft/75 hover:bg-sand disabled:opacity-60 transition-colors"
         >
-          {subiendo ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} strokeWidth={1.8} />}
+          {subiendo ? (
+            <Loader2 size={13} className="animate-spin" />
+          ) : (
+            <ImagePlus size={13} strokeWidth={1.8} />
+          )}
           {imagenUrl ? "Cambiar imagen" : "Añadir foto o flyer"}
         </button>
         {imagenUrl && (
@@ -805,7 +902,11 @@ function FormularioCreacion({
         disabled={guardando || !texto.trim() || llenas}
         className="inline-flex h-10 cursor-pointer items-center gap-gap-xs self-start rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 transition duration-300 hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
       >
-        {guardando ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} strokeWidth={2} />}
+        {guardando ? (
+          <Loader2 size={15} className="animate-spin" />
+        ) : (
+          <Check size={15} strokeWidth={2} />
+        )}
         Enviar a la cola
       </button>
     </div>
@@ -825,7 +926,10 @@ export function PublicacionesQueue() {
     try {
       const res = await fetch("/api/admin/publicaciones");
       if (!res.ok) throw new Error();
-      const data = (await res.json()) as { semana: string; negocios: NegocioCola[] };
+      const data = (await res.json()) as {
+        semana: string;
+        negocios: NegocioCola[];
+      };
       setNegocios(data.negocios);
       setSemana(data.semana);
       setSelectedId((prev) =>
@@ -840,7 +944,9 @@ export function PublicacionesQueue() {
     }
   }, []);
 
-  useEffect(() => { void cargar(); }, [cargar]);
+  useEffect(() => {
+    void cargar();
+  }, [cargar]);
 
   const filtrados = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -848,7 +954,8 @@ export function PublicacionesQueue() {
     return negocios.filter((n) => n.nombre.toLowerCase().includes(q));
   }, [negocios, query]);
 
-  const seleccionado = negocios.find((n) => n.id === selectedId) ?? negocios[0] ?? null;
+  const seleccionado =
+    negocios.find((n) => n.id === selectedId) ?? negocios[0] ?? null;
 
   const seleccionar = useCallback((id: string) => {
     setSelectedId(id);
@@ -856,7 +963,10 @@ export function PublicacionesQueue() {
   }, []);
 
   const guardarCambios = useCallback(
-    async (id: string, datos: { texto: string; imagenUrl: string | null }): Promise<boolean> => {
+    async (
+      id: string,
+      datos: { texto: string; imagenUrl: string | null },
+    ): Promise<boolean> => {
       try {
         const res = await fetch(`/api/admin/publicaciones/${id}`, {
           method: "PATCH",
@@ -864,7 +974,9 @@ export function PublicacionesQueue() {
           body: JSON.stringify(datos),
         });
         if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
           toast.error(body.error ?? "No se pudo guardar.");
           return false;
         }
@@ -888,7 +1000,9 @@ export function PublicacionesQueue() {
           body: JSON.stringify({ estado: "publicada", enlace }),
         });
         if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
           toast.error(body.error ?? "No se pudo marcar como publicada.");
           return false;
         }
@@ -906,8 +1020,13 @@ export function PublicacionesQueue() {
   const eliminar = useCallback(
     async (id: string): Promise<boolean> => {
       try {
-        const res = await fetch(`/api/admin/publicaciones/${id}`, { method: "DELETE" });
-        if (!res.ok) { toast.error("No se pudo eliminar la publicación."); return false; }
+        const res = await fetch(`/api/admin/publicaciones/${id}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          toast.error("No se pudo eliminar la publicación.");
+          return false;
+        }
         toast.success("Publicación eliminada");
         await cargar();
         return true;
@@ -922,9 +1041,13 @@ export function PublicacionesQueue() {
   return (
     <div className="flex flex-col gap-gap-md">
       <div className="flex items-center gap-gap-sm">
-        <h1 className="font-lv-display text-title font-bold text-ink">Cola de publicaciones</h1>
+        <h1 className="font-lv-display text-title font-bold text-ink">
+          Cola de publicaciones
+        </h1>
         {semana && (
-          <span className="font-lv-display text-meta font-semibold text-ink-soft/50">· {semana}</span>
+          <span className="font-lv-display text-meta font-semibold text-ink-soft/50">
+            · {semana}
+          </span>
         )}
       </div>
 
@@ -935,14 +1058,19 @@ export function PublicacionesQueue() {
       ) : negocios.length === 0 ? (
         <div className={cn(CARD, "p-gap-lg text-center max-w-md")}>
           <p className="text-body text-ink-soft/70">
-            Ningún negocio puede publicar todavía. La función entra con el módulo Facebook o con Publicidad Max.
+            Ningún negocio puede publicar todavía. La función entra con el
+            módulo Facebook o con Publicidad Max.
           </p>
         </div>
       ) : (
         <div className="grid gap-gap-md lg:grid-cols-[300px_1fr]">
-
           {/* Sidebar */}
-          <div className={cn("flex flex-col gap-gap-sm", mobileDetalle && selectedId ? "hidden lg:flex" : "flex")}>
+          <div
+            className={cn(
+              "flex flex-col gap-gap-sm",
+              mobileDetalle && selectedId ? "hidden lg:flex" : "flex",
+            )}
+          >
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -960,7 +1088,9 @@ export function PublicacionesQueue() {
                     onClick={() => seleccionar(n.id)}
                     className={cn(
                       "group flex items-center gap-gap-sm rounded-xl border px-gap-sm py-[10px] text-left transition-colors duration-200",
-                      activo ? "border-verde-300 bg-verde-50" : "border-ink/5 bg-white hover:bg-sand/60",
+                      activo
+                        ? "border-verde-300 bg-verde-50"
+                        : "border-ink/5 bg-white hover:bg-sand/60",
                     )}
                   >
                     <span className="min-w-0 flex-1">
@@ -971,10 +1101,10 @@ export function PublicacionesQueue() {
                         {!n.puede
                           ? "Sin la función"
                           : totalPubs === 0
-                          ? "Sin publicaciones"
-                          : n.tope === null
-                          ? `${totalPubs} en cola`
-                          : `${n.usadas}/${n.tope} · ${totalPubs} en cola`}
+                            ? "Sin publicaciones"
+                            : n.tope === null
+                              ? `${totalPubs} en cola`
+                              : `${n.usadas}/${n.tope} · ${totalPubs} en cola`}
                       </span>
                     </span>
                     <SidebarDot n={n} />
@@ -987,17 +1117,28 @@ export function PublicacionesQueue() {
                 );
               })}
               {filtrados.length === 0 && (
-                <p className="px-2 py-3 text-meta text-ink-soft/60">Ningún negocio coincide.</p>
+                <p className="px-2 py-3 text-meta text-ink-soft/60">
+                  Ningún negocio coincide.
+                </p>
               )}
             </div>
           </div>
 
           {/* Panel de detalle */}
           {seleccionado && (
-            <div className={cn("flex flex-col gap-gap-md min-w-0", !mobileDetalle ? "hidden lg:flex" : "flex")}>
-
+            <div
+              className={cn(
+                "flex flex-col gap-gap-md min-w-0",
+                !mobileDetalle ? "hidden lg:flex" : "flex",
+              )}
+            >
               {/* Header sticky */}
-              <div className={cn(CARD, "flex flex-wrap items-center gap-gap-sm px-gap-md py-gap-sm sticky top-4 z-10")}>
+              <div
+                className={cn(
+                  CARD,
+                  "flex flex-wrap items-center gap-gap-sm px-gap-md py-gap-sm sticky top-4 z-10",
+                )}
+              >
                 <button
                   type="button"
                   onClick={() => setMobileDetalle(false)}
@@ -1008,7 +1149,13 @@ export function PublicacionesQueue() {
                 </button>
                 <div className="min-w-0 flex-1">
                   <h2 className="truncate font-lv-display text-body font-semibold text-ink leading-tight">
-                    {seleccionado.nombre}
+                    <EnlaceNegocio
+                      id={seleccionado.id}
+                      title={`Abrir la ficha de ${seleccionado.nombre}`}
+                      className="block truncate transition-colors hover:text-verde-700"
+                    >
+                      {seleccionado.nombre}
+                    </EnlaceNegocio>
                   </h2>
                   <a
                     href={seleccionado.enlacePerfil}
@@ -1035,8 +1182,9 @@ export function PublicacionesQueue() {
               {!seleccionado.puede ? (
                 <div className={cn(CARD, "p-gap-md")}>
                   <p className="text-small text-ink-soft/70">
-                    Este negocio no tiene la función «Publicaciones de Facebook».
-                    Entra con el módulo Facebook o con Publicidad Max.
+                    Este negocio no tiene la función «Publicaciones de
+                    Facebook». Entra con el módulo Facebook o con Publicidad
+                    Max.
                   </p>
                 </div>
               ) : (

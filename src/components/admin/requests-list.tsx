@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { StateView } from "@/components/ui/state-view";
 import { LoadingState } from "@/components/ui/loading";
 import { RequestDetailSheet } from "@/components/admin/request-detail-sheet";
+import { EnlaceNegocio } from "./enlace-negocio";
 import {
   Dialog,
   DialogClose,
@@ -31,8 +32,13 @@ export function RequestsList() {
   const [query, setQuery] = useState("");
   /* La solicitud abierta en el sheet de detalle. `null` = cerrado. El sheet
      conserva el contenido por su cuenta durante la animación de cierre. */
-  const [detailPlace, setDetailPlace] = useState<null | (typeof places)[number]>(null);
-  const [rejection, setRejection] = useState<null | { id: string; name: string }>(null);
+  const [detailPlace, setDetailPlace] = useState<
+    null | (typeof places)[number]
+  >(null);
+  const [rejection, setRejection] = useState<null | {
+    id: string;
+    name: string;
+  }>(null);
   const [rejectionMessage, setRejectionMessage] = useState("");
   const [rejecting, setRejecting] = useState(false);
   /* Misma política de provincia que la lista de negocios: etiquetas y
@@ -41,20 +47,29 @@ export function RequestsList() {
 
   const requests = useMemo(
     () =>
-      places.filter((place) => place.reviewStatus === "pending").filter((place) => {
-        if (provinceFilter !== "all" && !placeInUserProvince(place, provinceFilter)) return false;
-        if (!query.trim()) return true;
-        const q = query.trim().toLowerCase();
-        return `${place.name} ${place.category} ${place.barrio} ${place.address}`
-          .toLowerCase()
-          .includes(q);
-      }),
+      places
+        .filter((place) => place.reviewStatus === "pending")
+        .filter((place) => {
+          if (
+            provinceFilter !== "all" &&
+            !placeInUserProvince(place, provinceFilter)
+          )
+            return false;
+          if (!query.trim()) return true;
+          const q = query.trim().toLowerCase();
+          return `${place.name} ${place.category} ${place.barrio} ${place.address}`
+            .toLowerCase()
+            .includes(q);
+        }),
     [places, query, provinceFilter],
   );
 
   const approveRequest = useCallback(
     async (id: string, name: string) => {
-      const updated = await updatePlace(id, { isActive: true, reviewStatus: "approved" });
+      const updated = await updatePlace(id, {
+        isActive: true,
+        reviewStatus: "approved",
+      });
       if (!updated) {
         toast.error(`No se pudo aprobar "${name}".`);
         return;
@@ -77,13 +92,15 @@ export function RequestsList() {
     setRejecting(true);
     const deleted = await removePlace(rejection.id, rejectionMessage.trim());
     setRejecting(false);
-      if (!deleted) {
-        toast.error(`No se pudo rechazar "${rejection.name}".`);
-        return;
-      }
-      toast.success(`La solicitud de "${rejection.name}" fue rechazada y notificada.`);
-      setRejection(null);
-      setDetailPlace(null);
+    if (!deleted) {
+      toast.error(`No se pudo rechazar "${rejection.name}".`);
+      return;
+    }
+    toast.success(
+      `La solicitud de "${rejection.name}" fue rechazada y notificada.`,
+    );
+    setRejection(null);
+    setDetailPlace(null);
   }, [removePlace, rejection, rejectionMessage]);
 
   return (
@@ -170,9 +187,13 @@ export function RequestsList() {
                 <div className="flex flex-col gap-gap-sm sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-gap-xs flex-wrap">
-                      <span className="font-lv-display text-small font-semibold text-ink group-hover:text-verde-600 transition-colors duration-500 ease-outquint">
+                      <EnlaceNegocio
+                        id={place.id}
+                        title={`Abrir la ficha de ${place.name}`}
+                        className="font-lv-display text-small font-semibold text-ink group-hover:text-verde-600 transition-colors duration-500 ease-outquint"
+                      >
                         {place.name}
-                      </span>
+                      </EnlaceNegocio>
                       <span className="inline-flex items-center gap-[4px] rounded-full bg-sand px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-soft/75">
                         Pendiente
                       </span>
@@ -231,13 +252,26 @@ export function RequestsList() {
 
                 <div className="mt-gap-sm grid gap-gap-sm text-meta text-ink-soft/75 sm:grid-cols-2">
                   <div className="flex items-center gap-gap-xs">
-                    <MapPin size={14} strokeWidth={1.8} className="text-verde-600" />
+                    <MapPin
+                      size={14}
+                      strokeWidth={1.8}
+                      className="text-verde-600"
+                    />
                     <span>{place.address || "Dirección no indicada"}</span>
                   </div>
                   <div className="flex items-center gap-gap-xs">
-                    <Clock3 size={14} strokeWidth={1.8} className="text-verde-600" />
+                    <Clock3
+                      size={14}
+                      strokeWidth={1.8}
+                      className="text-verde-600"
+                    />
                     <span>
-                      Enviado el {new Date(place.createdAt).toLocaleDateString("es-CU", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                      Enviado el{" "}
+                      {new Date(place.createdAt).toLocaleDateString("es-CU", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })}
                     </span>
                   </div>
                 </div>
@@ -294,7 +328,10 @@ export function RequestsList() {
 
           <DialogFooter className="gap-gap-xs sm:gap-gap-xs">
             <DialogClose asChild>
-              <button type="button" className="rounded-full border border-ink/10 px-gap-md py-[10px] text-small font-semibold text-ink-soft/75">
+              <button
+                type="button"
+                className="rounded-full border border-ink/10 px-gap-md py-[10px] text-small font-semibold text-ink-soft/75"
+              >
                 Cancelar
               </button>
             </DialogClose>

@@ -22,6 +22,7 @@ import { useCatalogo } from "@/providers/catalogo-provider";
 import { nombreDe } from "@/lib/plans";
 import { placeIcon } from "@/lib/places";
 import { CategoryIcon } from "@/components/admin/category-icon";
+import { EnlaceNegocio } from "./enlace-negocio";
 import {
   PLAN_LABEL,
   type PlaceStatus,
@@ -333,9 +334,13 @@ export function BusinessList() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-gap-xs flex-wrap">
-                      <span className="font-lv-display text-small font-semibold text-ink truncate">
+                      <EnlaceNegocio
+                        id={p.id}
+                        title={`Abrir la ficha de ${p.name}`}
+                        className="min-w-0 max-w-full truncate font-lv-display text-small font-semibold text-ink transition-colors duration-500 ease-outquint hover:text-verde-700"
+                      >
                         {p.name}
-                      </span>
+                      </EnlaceNegocio>
                       {/* Selector de tipo — siempre editable. Sin tipo: ámbar
                           de aviso. Con tipo: píldora sobria, pero sigue siendo
                           un selector para corregirlo a mano. */}
