@@ -131,7 +131,7 @@ export async function contarPendientesAdmin(): Promise<ContadoresAdmin> {
       .from(diagnosticos)
       .where(
         and(
-          eq(diagnosticos.tipo, "mapa_error"),
+          inArray(diagnosticos.tipo, ["mapa_error", "error"]),
           gte(diagnosticos.creadoEn, desde),
         ),
       ),

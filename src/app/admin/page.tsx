@@ -158,10 +158,10 @@ export default async function AdminPendientesPage() {
                 />
                 <span className="min-w-0 flex-1">
                   <span className="block font-lv-display text-small font-semibold text-ink">
-                    Errores del mapa
+                    Errores de Diagnóstico
                   </span>
                   <span className="block text-meta text-ink-soft/75">
-                    {erroresMapa} en los últimos 7 días. Míralos en Diagnóstico.
+                    {erroresMapa} en los últimos 7 días, mapa e hidratación. Míralos en Diagnóstico.
                   </span>
                 </span>
                 <ArrowRight

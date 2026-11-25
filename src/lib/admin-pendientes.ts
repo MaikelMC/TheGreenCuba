@@ -157,7 +157,7 @@ export async function cargarBandejaAdmin(): Promise<BandejaAdmin> {
           AND (tipo_negocio IS NULL
             OR coalesce(array_length(image_urls, 1), 0) = 0
             OR updated_at < now() - interval '30 days'))::int AS fichas,
-      (SELECT count(*) FROM diagnosticos WHERE tipo = 'mapa_error' AND creado_en >= now() - interval '7 days')::int AS diagnostico,
+      (SELECT count(*) FROM diagnosticos WHERE tipo IN ('mapa_error','error') AND creado_en >= now() - interval '7 days')::int AS diagnostico,
       (SELECT coalesce(sum(monto_centavos), 0) FROM pagos
         WHERE estado = 'pagado' AND pagado_en >= date_trunc('month', now()))::int AS ingreso_centavos,
       (SELECT count(*) FROM suscripciones
@@ -552,8 +552,8 @@ export async function cargarBandejaAdmin(): Promise<BandejaAdmin> {
       clave: "diagnostico:mapa",
       tipo: "diagnostico",
       etiquetaTipo: ETIQUETA.diagnostico,
-      titulo: "Errores del mapa en teléfonos",
-      detalle: `${erroresMapa} ${erroresMapa === 1 ? "error registrado" : "errores registrados"} en los últimos 7 días`,
+      titulo: "Errores de Diagnóstico",
+      detalle: `${erroresMapa} ${erroresMapa === 1 ? "error registrado" : "errores registrados"} en los últimos 7 días · mapa e hidratación`,
       prioridad: PRIORIDAD.diagnostico,
       fecha: null,
       accion: {
