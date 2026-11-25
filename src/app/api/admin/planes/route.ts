@@ -4,9 +4,16 @@ import { eq, sql } from "drizzle-orm";
 import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
-import { catalogoPlanes, CATALOGO_ID } from "@/lib/db/schema";
+import { catalogoPlanes, CATALOGO_ID, suscripciones } from "@/lib/db/schema";
 import { cargarCatalogo, CATALOGO_TAG, normalizarCatalogo } from "@/lib/catalogo-server";
 import { invalidarCatalogo } from "@/lib/db/queries";
+import {
+  aSuscripcion,
+  planEfectivo,
+  PLAN_ORDER,
+  type ClaveModulo,
+  type Plan,
+} from "@/lib/plans";
 
 /**
  * El catálogo de planes, para administración.
@@ -48,8 +55,63 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  const [catalogo, version] = await Promise.all([cargarCatalogo(), versionGuardada()]);
-  return NextResponse.json({ catalogo, version });
+  const [catalogo, version, filas] = await Promise.all([
+    cargarCatalogo(),
+    versionGuardada(),
+    db
+      .select({
+        plan: suscripciones.plan,
+        estado: suscripciones.estado,
+        trialHasta: suscripciones.trialHasta,
+        venceEn: suscripciones.venceEn,
+        modulos: suscripciones.modulos,
+      })
+      .from(suscripciones),
+  ]);
+
+  /* Lo que hay contratado hoy, para que el editor enseñe a quién afecta antes
+     de guardar. El plan es el **efectivo** —prueba y vencimiento incluidos—,
+     no la columna `plan`: un pack vencido cuenta como gratis. */
+  const ahora = new Date();
+  const negociosPorPlan: Record<Plan, number> = {
+    gratis: 0,
+    esencial: 0,
+    publicidad_max: 0,
+    pro: 0,
+  };
+  const ingresosModulo = Object.fromEntries(
+    (Object.keys(catalogo.modulos) as ClaveModulo[]).map((clave) => [
+      clave,
+      { negocios: 0, usdMes: 0 },
+    ]),
+  ) as Record<ClaveModulo, { negocios: number; usdMes: number }>;
+
+  for (const fila of filas) {
+    const plan = planEfectivo(aSuscripcion(fila), ahora, catalogo);
+    negociosPorPlan[plan] += 1;
+    if (fila.estado !== "activa") continue;
+
+    for (const modulo of fila.modulos) {
+      if (modulo.hasta && new Date(modulo.hasta).getTime() <= ahora.getTime()) continue;
+      if (!(modulo.clave in catalogo.modulos)) continue;
+      const clave = modulo.clave as ClaveModulo;
+      ingresosModulo[clave].negocios += 1;
+      ingresosModulo[clave].usdMes = Math.round(
+        (ingresosModulo[clave].usdMes + catalogo.modulos[clave].usd) * 100,
+      ) / 100;
+    }
+  }
+
+  const totalModulosUsd =
+    Math.round(
+      Object.values(ingresosModulo).reduce((total, fila) => total + fila.usdMes, 0) * 100,
+    ) / 100;
+
+  return NextResponse.json({
+    catalogo,
+    version,
+    resumen: { negociosPorPlan, ingresosModulo, totalModulosUsd },
+  });
 }
 
 export async function PUT(req: NextRequest) {
@@ -126,3 +188,4 @@ export async function PUT(req: NextRequest) {
     version: escritas[0]!.updatedAt.toISOString(),
   });
 }
+

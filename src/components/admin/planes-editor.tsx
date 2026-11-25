@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  AlertTriangle,
   Blocks,
   Coins,
   Gift,
@@ -16,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { FormSection, FormSections } from "@/components/business/form-section";
 import {
   PACKS_ORDER,
+  PLAN_ORDER,
+  nombreDe,
   textoCup,
   type Catalogo,
   type ClaveModulo,
@@ -24,6 +27,7 @@ import {
   type ModuloCatalogo,
   type Pack,
   type PackCatalogo,
+  type Plan,
 } from "@/lib/plans";
 import { useCatalogo } from "@/providers/catalogo-provider";
 
@@ -54,6 +58,12 @@ const INPUT =
 const AREA =
   "w-full rounded-xl border border-ink/10 bg-white px-4 py-3 text-small text-ink placeholder:text-ink-soft/75 outline-none transition-colors duration-500 ease-outquint focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20";
 const LABEL = "font-lv-display text-meta font-semibold text-ink-soft/75";
+
+interface ResumenCatalogo {
+  negociosPorPlan: Record<Plan, number>;
+  ingresosModulo: Record<ClaveModulo, { negocios: number; usdMes: number }>;
+  totalModulosUsd: number;
+}
 
 /** Añade o quita un valor de una lista, sin mutarla. */
 function alternar<T>(lista: readonly T[], valor: T, dentro: boolean): T[] {
@@ -104,6 +114,8 @@ export function PlanesEditor() {
      re-sincronizar con cada `refresh` borraría lo escrito. */
   const [borrador, setBorrador] = useState<Catalogo>(cat);
   const [saving, setSaving] = useState(false);
+  const [resumen, setResumen] = useState<ResumenCatalogo | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
 
   /* La versión del catálogo guardado (`undefined` = aún no se sabe). Se manda
      al guardar: si otro administrador guardó entretanto, el servidor contesta
@@ -115,9 +127,15 @@ export function PlanesEditor() {
     let alive = true;
     fetch("/api/admin/planes")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error())))
-      .then((d: { catalogo: Catalogo; version: string | null }) => {
+      .then(
+        (d: {
+          catalogo: Catalogo;
+          version: string | null;
+          resumen?: ResumenCatalogo;
+        }) => {
         if (!alive) return;
         setVersion(d.version);
+        setResumen(d.resumen ?? null);
         /* Si aún no se tocó nada, el borrador pasa a esta lectura: así versión
            y datos son de la misma foto, aunque el catálogo de la página llegara
            de una caché anterior. */
@@ -179,7 +197,7 @@ export function PlanesEditor() {
       packs: { ...d.packs, [clave]: { ...d.packs[clave], ...parche } },
     }));
 
-  async function guardar() {
+  async function guardar(confirmado = false) {
     if (saving || version === undefined) return;
     const conError = Object.keys(numeros).filter(malo).length;
     if (conError > 0) {
@@ -190,6 +208,13 @@ export function PlanesEditor() {
       );
       return;
     }
+    /* El catálogo es de todos los negocios: antes de escribirlo se enseña a
+       quién alcanza, y no se guarda hasta que se confirme. */
+    if (!confirmado) {
+      setConfirmando(true);
+      return;
+    }
+    setConfirmando(false);
     setSaving(true);
     try {
       const res = await fetch("/api/admin/planes", {
@@ -245,6 +270,79 @@ export function PlanesEditor() {
           se ven en el panel del negocio al guardar, sin desplegar.
         </p>
       </div>
+
+      {resumen && (
+        <section className="mb-gap-md rounded-2xl border border-ink/5 bg-white p-gap-md">
+          <div className="flex flex-wrap items-end justify-between gap-gap-sm">
+            <div>
+              <h2 className="font-lv-display text-body font-bold text-ink">
+                Impacto del catálogo hoy
+              </h2>
+              <p className="text-meta text-ink-soft/75">
+                Negocios y módulos vivos con el catálogo guardado. Los cambios
+                se aplican a las próximas renovaciones, no a los cobros ya hechos.
+              </p>
+            </div>
+            <p className="text-meta font-semibold text-ink-soft/75">
+              {resumen.totalModulosUsd.toLocaleString("es-CU", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{" "}
+              USD/mes en módulos sueltos
+            </p>
+          </div>
+
+          <div className="mt-gap-md grid grid-cols-1 gap-gap-md lg:grid-cols-2">
+            <div>
+              <h3 className="font-lv-display text-small font-semibold text-ink">
+                Negocios por plan efectivo
+              </h3>
+              <ul className="mt-gap-xs divide-y divide-ink/5">
+                {PLAN_ORDER.map((plan) => (
+                  <li
+                    key={plan}
+                    className="flex items-center justify-between gap-gap-sm py-gap-xs text-small text-ink"
+                  >
+                    <span>{nombreDe(plan, borrador)}</span>
+                    <b className="tabular-nums">{resumen.negociosPorPlan[plan]}</b>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-lv-display text-small font-semibold text-ink">
+                Ingreso por módulo
+              </h3>
+              <ul className="mt-gap-xs divide-y divide-ink/5">
+                {(Object.keys(borrador.modulos) as ClaveModulo[]).map((clave) => {
+                  const fila = resumen.ingresosModulo[clave];
+                  return (
+                    <li
+                      key={clave}
+                      className="flex items-center justify-between gap-gap-sm py-gap-xs text-small text-ink"
+                    >
+                      <span>
+                        {borrador.modulos[clave].nombre}{" "}
+                        <span className="text-meta text-ink-soft/60">
+                          · {fila.negocios} negocio{fila.negocios === 1 ? "" : "s"}
+                        </span>
+                      </span>
+                      <b className="tabular-nums">
+                        {fila.usdMes.toLocaleString("es-CU", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{" "}
+                        USD
+                      </b>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        </section>
+      )}
 
       <FormSections>
         <FormSection title="Tasa del CUP" icon={<Coins size={18} strokeWidth={1.8} />}>
@@ -561,6 +659,68 @@ export function PlanesEditor() {
           </label>
         </FormSection>
       </FormSections>
+
+      {confirmando && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-gap-md"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !saving) setConfirmando(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirmar-catalogo"
+            className="w-full max-w-lg rounded-2xl border border-ink/10 bg-white p-gap-lg shadow-xl"
+          >
+            <div className="flex items-start gap-gap-sm">
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-700">
+                <AlertTriangle size={20} strokeWidth={1.8} />
+              </span>
+              <div>
+                <h2
+                  id="confirmar-catalogo"
+                  className="font-lv-display text-body font-bold text-ink"
+                >
+                  ¿Guardar estos precios para todos?
+                </h2>
+                <p className="mt-gap-xs text-small text-ink-soft/75">
+                  El catálogo es único para todo el sitio. Se aplicará a los
+                  negocios nuevos y a las renovaciones; los cobros ya registrados
+                  no se modifican.
+                </p>
+                {resumen && (
+                  <p className="mt-gap-sm rounded-xl bg-sand/60 px-gap-sm py-gap-xs text-meta text-ink-soft/75">
+                    Hoy hay {resumen.negociosPorPlan.pro} en Pro,{" "}
+                    {resumen.negociosPorPlan.publicidad_max} en Publicidad Max y{" "}
+                    {resumen.negociosPorPlan.esencial} en Esencial. Los módulos
+                    sueltos suman {resumen.totalModulosUsd.toFixed(2)} USD/mes.
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="mt-gap-lg flex flex-wrap justify-end gap-gap-sm">
+              <button
+                type="button"
+                onClick={() => setConfirmando(false)}
+                disabled={saving}
+                className="inline-flex h-11 cursor-pointer items-center rounded-full border border-ink/10 px-gap-md font-lv-display text-small font-semibold text-ink-soft/75 hover:bg-sand disabled:opacity-60"
+              >
+                Seguir editando
+              </button>
+              <button
+                type="button"
+                onClick={() => void guardar(true)}
+                disabled={saving}
+                className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 hover:bg-verde-300 disabled:opacity-60"
+              >
+                {saving && <Loader2 size={16} className="animate-spin" />}
+                {saving ? "Guardando…" : "Confirmar y guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-gap-lg flex flex-wrap items-center justify-end gap-gap-sm">
         {falloVersion && (
