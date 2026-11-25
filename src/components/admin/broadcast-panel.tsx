@@ -27,6 +27,12 @@ import { cn } from "@/lib/utils";
  * y a cuántos: la memoria del altavoz.
  */
 
+interface Segmento {
+  id: string;
+  etiqueta: string;
+  count: number;
+}
+
 interface Broadcast {
   id: string;
   senderName: string | null;
@@ -88,9 +94,16 @@ export function BroadcastPanel({
   /* Qué aviso del historial tiene el mensaje desplegado. */
   const [expandedId, setExpandedId] = useState<string | null>(null);
   /* Destino: todo el mundo por defecto, o una selección de personas. */
-  const [destino, setDestino] = useState<"todos" | "personas">(
+  const [destino, setDestino] = useState<"todos" | "personas" | "segmentos">(
     destinatariosIniciales.length > 0 ? "personas" : "todos",
   );
+  const [segmentos, setSegmentos] = useState<Segmento[]>([]);
+  const [segmentosElegidos, setSegmentosElegidos] = useState<Set<string>>(
+    new Set(),
+  );
+  const [recuentoSegmentos, setRecuentoSegmentos] = useState<number | null>(null);
+  const [pruebaEnviada, setPruebaEnviada] = useState(false);
+  const [enviandoPrueba, setEnviandoPrueba] = useState(false);
   const [directorio, setDirectorio] = useState<DirectoryUser[]>([]);
   const [directorioCargando, setDirectorioCargando] = useState(
     destinatariosIniciales.length > 0,
@@ -129,7 +142,7 @@ export function BroadcastPanel({
     void loadDirectorio();
   }, [claveInicial, loadDirectorio]);
 
-  function elegirDestino(valor: "todos" | "personas") {
+  function elegirDestino(valor: "todos" | "personas" | "segmentos") {
     setDestino(valor);
     setConfirming(false);
     if (valor === "personas" && directorio.length === 0 && !directorioError) {
@@ -181,11 +194,13 @@ export function BroadcastPanel({
       const data = (await res.json()) as {
         broadcasts: Broadcast[];
         recipients?: number;
+        segments?: Segmento[];
       };
       setHistory(data.broadcasts);
       setRecipients(
         typeof data.recipients === "number" ? data.recipients : null,
       );
+      setSegmentos(Array.isArray(data.segments) ? data.segments : []);
     } catch {
       setHistoryError(true);
     } finally {
@@ -197,10 +212,63 @@ export function BroadcastPanel({
     void loadHistory();
   }, [loadHistory]);
 
+  /* El recuento de una selección de segmentos se pide al servidor porque los
+     segmentos se solapan: sumar sus números contaría dos veces a la misma
+     persona. */
+  useEffect(() => {
+    if (destino !== "segmentos" || segmentosElegidos.size === 0) {
+      setRecuentoSegmentos(null);
+      return;
+    }
+    const controller = new AbortController();
+    const ids = [...segmentosElegidos].join(",");
+    fetch(`/api/admin/broadcast?segments=${encodeURIComponent(ids)}`, {
+      signal: controller.signal,
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error())))
+      .then((data: { recipients?: number }) =>
+        setRecuentoSegmentos(data.recipients ?? null),
+      )
+      .catch(() => {});
+    return () => controller.abort();
+  }, [destino, segmentosElegidos]);
+
+  function alternarSegmento(id: string) {
+    setSegmentosElegidos((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setPruebaEnviada(false);
+    setConfirming(false);
+  }
+
+  async function enviarPrueba() {
+    if (enviandoPrueba || !title.trim() || !message.trim()) return;
+    setEnviandoPrueba(true);
+    try {
+      const res = await fetch("/api/admin/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, message, test: true }),
+      });
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) throw new Error(data?.error ?? "No se pudo enviar la prueba.");
+      setPruebaEnviada(true);
+      toast.success("Prueba enviada a tu cuenta.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo enviar la prueba.");
+    } finally {
+      setEnviandoPrueba(false);
+    }
+  }
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     if (sending) return;
     if (destino === "personas" && seleccionados.size === 0) return;
+    if (destino === "segmentos" && segmentosElegidos.size === 0) return;
     if (!confirming) {
       setConfirming(true);
       return;
@@ -215,7 +283,9 @@ export function BroadcastPanel({
           message,
           ...(destino === "personas"
             ? { recipientIds: [...seleccionados] }
-            : {}),
+            : destino === "segmentos"
+              ? { segmentIds: [...segmentosElegidos] }
+              : {}),
         }),
       });
       const data = (await res.json().catch(() => null)) as {
@@ -304,6 +374,7 @@ export function BroadcastPanel({
               {(
                 [
                   ["todos", "Todos"],
+                  ["segmentos", "Segmentos"],
                   ["personas", "Personas"],
                 ] as const
               ).map(([valor, etiqueta]) => (
@@ -329,6 +400,41 @@ export function BroadcastPanel({
               ))}
             </div>
           </fieldset>
+
+          {destino === "segmentos" ? (
+            <div className="flex max-h-56 flex-col gap-1 overflow-y-auto rounded-xl border border-ink/10 p-2">
+              {segmentos.length === 0 ? (
+                <p className="p-2 text-meta text-ink-soft/75">
+                  Cargando segmentos…
+                </p>
+              ) : (
+                segmentos.map((segmento) => (
+                  <label
+                    key={segmento.id}
+                    className="flex min-h-11 cursor-pointer items-center gap-gap-sm rounded-lg px-2 text-small text-ink hover:bg-sand"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={segmentosElegidos.has(segmento.id)}
+                      onChange={() => alternarSegmento(segmento.id)}
+                      className="size-4 shrink-0 accent-verde-600"
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {segmento.etiqueta}
+                    </span>
+                    <span className="shrink-0 text-meta font-semibold text-ink-soft/75">
+                      {segmento.count}
+                    </span>
+                  </label>
+                ))
+              )}
+              {recuentoSegmentos !== null ? (
+                <p className="px-2 py-1 text-meta font-semibold text-verde-700">
+                  {usuarios(recuentoSegmentos)} en total, sin contar dos veces
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           {destino === "personas" ? (
             <div className="flex flex-col gap-gap-xs">
@@ -446,7 +552,7 @@ export function BroadcastPanel({
             }}
             maxLength={120}
             required
-            placeholder="Título del aviso. Ej: «Nueva función: rutas a pie»"
+            placeholder="Título del aviso. Variables: {{nombre}}, {{negocio}}, {{ciudad}}"
             aria-label="Título del aviso"
             className={`${INPUT} h-11`}
           />
@@ -459,7 +565,7 @@ export function BroadcastPanel({
             maxLength={2000}
             required
             rows={5}
-            placeholder="Mensaje del aviso. Sé breve: se lee en una notificación."
+            placeholder="Mensaje del aviso. Variables: {{nombre}}, {{negocio}}, {{ciudad}}"
             aria-label="Mensaje del aviso"
             className={`${INPUT} min-h-[120px] resize-y py-3`}
           />
@@ -495,12 +601,17 @@ export function BroadcastPanel({
                 className="mt-0.5 shrink-0"
               />
               <p className="text-meta font-medium text-pretty">
+                {pruebaEnviada ? "La prueba ya se envió. " : "Aún no has enviado la prueba. "}
                 Revisa el texto:{" "}
                 {destino === "personas"
                   ? `se enviará a ${usuarios(seleccionados.size)}`
-                  : recipients !== null
-                    ? `se enviará a ${usuarios(recipients)}`
-                    : "se enviará a todos los usuarios"}{" "}
+                  : destino === "segmentos"
+                    ? recuentoSegmentos !== null
+                      ? `se enviará a ${usuarios(recuentoSegmentos)}`
+                      : "se enviará a los segmentos elegidos"
+                    : recipients !== null
+                      ? `se enviará a ${usuarios(recipients)}`
+                      : "se enviará a todos los usuarios"}{" "}
                 y no se puede retirar.
               </p>
             </div>
@@ -508,12 +619,28 @@ export function BroadcastPanel({
 
           <div className="flex flex-wrap items-center gap-gap-sm self-start">
             <button
+              type="button"
+              onClick={() => void enviarPrueba()}
+              disabled={
+                enviandoPrueba ||
+                title.trim().length === 0 ||
+                message.trim().length === 0
+              }
+              className="inline-flex h-11 cursor-pointer items-center justify-center gap-gap-xs rounded-full border border-ink/10 px-gap-lg font-lv-display text-small font-semibold text-ink transition-colors hover:border-verde-300 hover:bg-verde-50 disabled:pointer-events-none disabled:opacity-50"
+            >
+              {enviandoPrueba ? (
+                <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
+              ) : null}
+              {pruebaEnviada ? "Prueba enviada" : "Enviarme una prueba"}
+            </button>
+            <button
               type="submit"
               disabled={
                 sending ||
                 title.trim().length === 0 ||
                 message.trim().length === 0 ||
-                (destino === "personas" && seleccionados.size === 0)
+                (destino === "personas" && seleccionados.size === 0) ||
+                (destino === "segmentos" && segmentosElegidos.size === 0)
               }
               className="inline-flex h-11 cursor-pointer items-center justify-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 disabled:opacity-50 disabled:pointer-events-none"
             >
@@ -528,7 +655,11 @@ export function BroadcastPanel({
                   ? "Confirmar envío"
                   : destino === "personas"
                     ? `Enviar a ${usuarios(seleccionados.size)}`
-                    : "Enviar a todos"}
+                    : destino === "segmentos"
+                      ? recuentoSegmentos !== null
+                        ? `Enviar a ${usuarios(recuentoSegmentos)}`
+                        : "Enviar al segmento"
+                      : "Enviar a todos"}
             </button>
             {confirming && !sending ? (
               <button

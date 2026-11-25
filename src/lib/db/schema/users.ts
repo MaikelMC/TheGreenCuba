@@ -43,6 +43,10 @@ export const users = pgTable(
     locationLat: doublePrecision("location_lat"),
     locationLng: doublePrecision("location_lng"),
     onboardingCompleted: boolean("onboarding_completed").default(false).notNull(),
+    /* Baja de los avisos de administración. Es una decisión de la persona y
+       se respeta al calcular cualquier segmento: quien la marca no recibe
+       broadcasts ni push de administración. */
+    broadcastOptOut: boolean("broadcast_opt_out").default(false).notNull(),
     /* Qué versión de los términos aceptó al darse de alta, y cuándo. Las dos
        van juntas y las escribe el mismo `POST /api/me` que recoge el teléfono.
 
