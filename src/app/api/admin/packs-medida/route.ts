@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { desc, eq, inArray } from "drizzle-orm";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
@@ -174,6 +175,14 @@ export async function POST(req: NextRequest) {
     .innerJoin(places, eq(packsMedida.negocioId, places.id))
     .where(eq(packsMedida.id, id))
     .limit(1);
+
+  await registrarActividad({
+    accion: ACCION.editarPack,
+    objetoTipo: "negocio",
+    objetoId: negocioId,
+    resumen: "Creó un pack a medida para un negocio",
+    datos: { packId: id, servicios },
+  });
 
   return NextResponse.json({ pack: row ? serializar(row) : { id } }, { status: 201 });
 }

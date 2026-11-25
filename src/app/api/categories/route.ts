@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { categories } from "@/lib/db/schema";
@@ -81,6 +82,13 @@ export async function POST(req: NextRequest) {
     .returning();
 
   invalidarCatalogo();
+
+  await registrarActividad({
+    accion: ACCION.editarCategorias,
+    objetoTipo: "categoria",
+    objetoId: row!.id,
+    resumen: `Creó la categoría «${row!.name}»`,
+  });
 
   return NextResponse.json(toBusinessCategory(row!), { status: 201 });
 }

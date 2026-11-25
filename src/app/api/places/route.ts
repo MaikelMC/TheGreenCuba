@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { eq } from "drizzle-orm";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { avisarNegocioNuevo } from "@/lib/avisos-app-server";
 import { getAppUser } from "@/lib/auth/user";
@@ -83,7 +84,7 @@ export async function GET(req: NextRequest) {
     limit: Number(searchParams.get("limit") ?? 200) || 200,
   });
 
-  let approvedProjects: typeof projectRequests.$inferSelect[] = [];
+  let approvedProjects: (typeof projectRequests.$inferSelect)[] = [];
   try {
     approvedProjects = await db
       .select()
@@ -98,13 +99,32 @@ export async function GET(req: NextRequest) {
   const projects = approvedProjects
     .filter((project) => !searchParams.get("category"))
     .map((project) => {
-      const coverImageUrl = project.coverImageUrl ?? project.imageUrls[0] ?? null;
-      const galleryUrls = [...new Set(project.imageUrls)].filter((url) => url !== coverImageUrl);
+      const coverImageUrl =
+        project.coverImageUrl ?? project.imageUrls[0] ?? null;
+      const galleryUrls = [...new Set(project.imageUrls)].filter(
+        (url) => url !== coverImageUrl,
+      );
       const photos = [
-        ...(coverImageUrl ? [{ url: coverImageUrl, alt: `Foto principal de ${project.name}`, width: null, height: null, isCover: true }] : []),
+        ...(coverImageUrl
+          ? [
+              {
+                url: coverImageUrl,
+                alt: `Foto principal de ${project.name}`,
+                width: null,
+                height: null,
+                isCover: true,
+              },
+            ]
+          : []),
         ...galleryUrls
           .filter((url) => url !== coverImageUrl)
-          .map((url, index) => ({ url, alt: `Foto ${index + 1} de ${project.name}`, width: null, height: null, isCover: false })),
+          .map((url, index) => ({
+            url,
+            alt: `Foto ${index + 1} de ${project.name}`,
+            width: null,
+            height: null,
+            isCover: false,
+          })),
       ];
 
       return {
@@ -122,11 +142,14 @@ export async function GET(req: NextRequest) {
         description: project.description,
         offerPackages: project.offerPackages ?? [],
         photos,
-        mapImageUrl: project.mapImageUrl ?? coverImageUrl ?? galleryUrls[0] ?? null,
+        mapImageUrl:
+          project.mapImageUrl ?? coverImageUrl ?? galleryUrls[0] ?? null,
         schedule: `${project.startsAt} a ${project.endsAt}`,
         payments: [],
         menu: [],
-        offer: project.offers ? { text: project.offers, expiry: project.endsAt } : null,
+        offer: project.offers
+          ? { text: project.offers, expiry: project.endsAt }
+          : null,
         status: "active" as const,
         isActive: true,
         reviewStatus: "approved" as const,
@@ -183,19 +206,26 @@ export async function POST(req: NextRequest) {
   try {
     body = (await req.json()) as Partial<UserPlace>;
   } catch {
-    return NextResponse.json({ error: "Cuerpo JSON inválido" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Cuerpo JSON inválido" },
+      { status: 400 },
+    );
   }
 
   /* Validación en la frontera: esto viene del navegador y termina en un INSERT.
      `Number.isFinite` descarta `undefined`, `null`, `NaN` y las cadenas. */
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (!name) {
-    return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
+    return NextResponse.json(
+      { error: "El nombre es obligatorio" },
+      { status: 400 },
+    );
   }
   /* Sin provincia la tarjeta del landing pinta una línea vacía y la ficha no
      sale en los filtros por provincia. Es un dato de presentación en toda la
      app, así que el alta no lo deja en blanco. */
-  const province = typeof body.province === "string" ? body.province.trim() : "";
+  const province =
+    typeof body.province === "string" ? body.province.trim() : "";
   if (!province) {
     return NextResponse.json(
       { error: "La provincia es obligatoria" },
@@ -204,7 +234,10 @@ export async function POST(req: NextRequest) {
   }
   if (!Number.isFinite(body.lat) || !Number.isFinite(body.lng)) {
     return NextResponse.json(
-      { error: "Hacen falta coordenadas válidas: el negocio no se puede situar en el mapa." },
+      {
+        error:
+          "Hacen falta coordenadas válidas: el negocio no se puede situar en el mapa.",
+      },
       { status: 400 },
     );
   }
@@ -229,6 +262,13 @@ export async function POST(req: NextRequest) {
      Pro de prueba. Sin esto, una ficha creada desde el panel nacería gratis y
      sin prueba, y su dueño vería menos que quien se dio de alta solo. */
   await crearSuscripcion(row!.id);
+
+  await registrarActividad({
+    accion: ACCION.crearNegocio,
+    objetoTipo: "negocio",
+    objetoId: row!.id,
+    resumen: `Creó el negocio «${row!.name}»`,
+  });
 
   /* Un alta desde el panel nace publicada, así que también es «negocio nuevo»
      para quien vive en su provincia. La función comprueba por sí misma que la

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { invalidarCatalogo } from "@/lib/db/queries";
@@ -176,6 +177,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       message,
     });
   }
+  if (isAdmin) {
+    await registrarActividad({
+      accion:
+        updated.status === "approved"
+          ? ACCION.aprobarProyecto
+          : updated.status === "rejected"
+            ? ACCION.rechazarProyecto
+            : ACCION.editarNegocio,
+      objetoTipo: "proyecto",
+      objetoId: updated.id,
+      resumen:
+        updated.status === "approved"
+          ? `Aprobó el proyecto «${updated.name}»`
+          : updated.status === "rejected"
+            ? `Rechazó el proyecto «${updated.name}»`
+            : `Editó el proyecto «${updated.name}»`,
+      datos: {
+        estadoAnterior: project.status,
+        estadoNuevo: updated.status,
+      },
+    });
+  }
+
   invalidarCatalogo();
   return NextResponse.json(updated);
 }
@@ -200,9 +224,16 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const [row] = await db
     .delete(projectRequests)
     .where(eq(projectRequests.id, id))
-    .returning({ id: projectRequests.id });
+    .returning({ id: projectRequests.id, name: projectRequests.name });
 
   if (!row) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+
+  await registrarActividad({
+    accion: ACCION.borrarProyecto,
+    objetoTipo: "proyecto",
+    objetoId: row.id,
+    resumen: `Eliminó el proyecto «${row.name}»`,
+  });
 
   invalidarCatalogo();
   return NextResponse.json({ id: row.id });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { eq, sql } from "drizzle-orm";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { catalogoPlanes, CATALOGO_ID } from "@/lib/db/schema";
@@ -107,6 +108,13 @@ export async function PUT(req: NextRequest) {
      un pack cambia también lo que esa ficha resuelve —y el `plan` que enseña el
      listado de administración—. Invalidar solo la primera dejaba fichas con el
      plan viejo hasta que caducara su caché. */
+  await registrarActividad({
+    accion: ACCION.editarPrecios,
+    objetoTipo: "plan",
+    objetoId: CATALOGO_ID,
+    resumen: "Guardó el catálogo de planes y precios",
+  });
+
   revalidateTag(CATALOGO_TAG, { expire: 0 });
   invalidarCatalogo();
 

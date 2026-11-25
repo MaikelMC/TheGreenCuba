@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq, sql } from "drizzle-orm";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { suscripciones } from "@/lib/db/schema";
@@ -267,6 +268,19 @@ export async function PATCH(req: NextRequest) {
       { status: 409 },
     );
   }
+
+  await registrarActividad({
+    accion: ACCION.cambiarSuscripcion,
+    objetoTipo: "negocio",
+    objetoId: negocioId,
+    resumen: `Cambió el plan de un negocio a ${row.plan}${row.estado === "cancelada" ? " (cancelado)" : ""}`,
+    datos: {
+      plan: row.plan,
+      estado: row.estado,
+      venceEn: row.venceEn?.toISOString() ?? null,
+      modulos: row.modulos.map((modulo) => modulo.clave),
+    },
+  });
 
   /* La ficha cacheada lleva la suscripción dentro (prueba, sello): sin esto el
      mapa y la lista enseñan el plan viejo hasta 5 minutos. */

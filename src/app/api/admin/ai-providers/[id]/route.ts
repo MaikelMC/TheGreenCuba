@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import {
   maskKey,
@@ -48,6 +49,14 @@ export async function PATCH(
     writeProviders(
       providers.map((p) => (p.id === id ? updated : p)),
     );
+    await registrarActividad({
+      accion: ACCION.editarProveedorIa,
+      objetoTipo: "proveedor_ia",
+      objetoId: id,
+      resumen: `Editó el proveedor de IA «${updated.name}»`,
+      datos: { modelo: updated.model, activo: updated.enabled },
+    });
+
     return NextResponse.json({
       ...updated,
       apiKey: maskKey(updated.apiKey),
@@ -70,6 +79,13 @@ export async function DELETE(
   if (next.length === providers.length) {
     return NextResponse.json({ error: "Proveedor no encontrado" }, { status: 404 });
   }
+  const retirado = providers.find((p) => p.id === id);
   writeProviders(next);
+  await registrarActividad({
+    accion: ACCION.editarProveedorIa,
+    objetoTipo: "proveedor_ia",
+    objetoId: id,
+    resumen: `Eliminó el proveedor de IA «${retirado?.name ?? id}»`,
+  });
   return NextResponse.json({ ok: true });
 }

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { hashPassword } from "better-auth/crypto";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
@@ -165,6 +166,35 @@ export async function PATCH(request: NextRequest) {
             : "Tu cuenta fue actualizada a usuario. Puedes seguir usando la app con acceso normal.",
     });
   }
+  if (isRole(body.role)) {
+    await registrarActividad({
+      accion: ACCION.cambiarRol,
+      objetoTipo: "usuario",
+      objetoId: updated.id,
+      resumen: `Cambió el rol de ${updated.email} de ${target.role} a ${body.role}`,
+      datos: { rolAnterior: target.role, rolNuevo: body.role },
+    });
+  }
+  if (affiliate !== null) {
+    await registrarActividad({
+      accion: affiliate ? ACCION.activarAfiliado : ACCION.quitarAfiliacion,
+      objetoTipo: "usuario",
+      objetoId: updated.id,
+      resumen: affiliate
+        ? `Activó el programa de afiliados para ${updated.email}`
+        : `Retiró la afiliación de ${updated.email}`,
+      datos: { afiliado: affiliate },
+    });
+  }
+  if (hasProfileChanges) {
+    await registrarActividad({
+      accion: ACCION.editarUsuario,
+      objetoTipo: "usuario",
+      objetoId: updated.id,
+      resumen: `Editó el perfil de ${updated.email}`,
+    });
+  }
+
   return NextResponse.json({ user: serializeUser(updated) });
 }
 
@@ -228,6 +258,13 @@ export async function POST(request: NextRequest) {
     message: `La contraseña de ${target.name ?? "tu cuenta"} fue restablecida correctamente por administración.`,
   });
 
+  await registrarActividad({
+    accion: ACCION.restablecerContrasena,
+    objetoTipo: "usuario",
+    objetoId: target.id,
+    resumen: `Restableció la contraseña de ${target.name ?? "una cuenta"}`,
+  });
+
   return NextResponse.json({ ok: true });
 }
 
@@ -246,7 +283,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   const [target] = await db
-    .select({ id: users.id, authUserId: users.authUserId })
+    .select({ id: users.id, authUserId: users.authUserId, email: users.email })
     .from(users)
     .where(eq(users.id, id))
     .limit(1);
@@ -265,5 +302,12 @@ export async function DELETE(request: NextRequest) {
 
   const [deleted] = await db.delete(users).where(eq(users.id, id)).returning({ id: users.id });
   if (!deleted) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+  await registrarActividad({
+    accion: ACCION.borrarUsuario,
+    objetoTipo: "usuario",
+    objetoId: deleted.id,
+    resumen: `Eliminó la cuenta de ${target.email}`,
+  });
+
   return NextResponse.json({ id: deleted.id });
 }

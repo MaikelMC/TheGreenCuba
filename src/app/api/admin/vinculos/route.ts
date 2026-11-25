@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, or, sql } from "drizzle-orm";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { businessOwners, places, users } from "@/lib/db/schema";
@@ -172,6 +173,13 @@ export async function POST(req: NextRequest) {
     }
   });
 
+  await registrarActividad({
+    accion: ACCION.editarVinculo,
+    objetoTipo: "vinculo",
+    objetoId: negocioId,
+    resumen: `Vinculó a ${email} como dueño de un negocio`,
+  });
+
   return NextResponse.json({
     /* Con la misma forma que el GET, para que quien llame pueda meter la
        respuesta en el estado sin recomponerla. */
@@ -207,6 +215,13 @@ export async function DELETE(req: NextRequest) {
         eq(businessOwners.role, "owner"),
       ),
     );
+
+  await registrarActividad({
+    accion: ACCION.editarVinculo,
+    objetoTipo: "vinculo",
+    objetoId: negocioId,
+    resumen: "Desvinculó al dueño de un negocio",
+  });
 
   return NextResponse.json({ owner: null });
 }

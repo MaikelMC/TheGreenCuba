@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
@@ -32,6 +33,15 @@ export async function POST(request: NextRequest) {
       .where(and(eq(afiliadoCobros.id, id), eq(afiliadoCobros.estado, "pedido")))
       .returning({ id: afiliadoCobros.id });
     if (!hecho.length) return NextResponse.json({ error: "Ese cobro ya no está pendiente." }, { status: 409 });
+    await registrarActividad({
+      accion: ACCION.marcarCobroAfiliado,
+      objetoTipo: "cobro_afiliado",
+      objetoId: id,
+      resumen: `Marcó un cobro de afiliado como ${estado === "pagado" ? "pagado" : "rechazado"}`,
+      adminId: admin?.id ?? null,
+      adminNombre: admin?.name ?? "Administración",
+      datos: { estado },
+    });
     return NextResponse.json({ ok: true });
   }
 
@@ -43,6 +53,14 @@ export async function POST(request: NextRequest) {
       .insert(afiliadoPremios)
       .values({ id: generateId(), afiliadoId, mes: mesActual(), tipo, entregadoPor: admin?.id ?? null })
       .onConflictDoNothing();
+    await registrarActividad({
+      accion: ACCION.premioAfiliado,
+      objetoTipo: "afiliado",
+      objetoId: afiliadoId,
+      resumen: `Registró el premio ${tipo} de un afiliado`,
+      adminId: admin?.id ?? null,
+      adminNombre: admin?.name ?? "Administración",
+    });
     return NextResponse.json({ ok: true });
   }
 
@@ -51,6 +69,14 @@ export async function POST(request: NextRequest) {
     const nota = texto(body?.texto, 1000);
     if (!afiliadoId || !nota) return NextResponse.json({ error: "Escribe la nota." }, { status: 400 });
     await db.insert(afiliadoNotas).values({ id: generateId(), afiliadoId, autorId: admin?.id ?? null, texto: nota });
+    await registrarActividad({
+      accion: ACCION.notaAfiliado,
+      objetoTipo: "afiliado",
+      objetoId: afiliadoId,
+      resumen: "Añadió una nota interna a un afiliado",
+      adminId: admin?.id ?? null,
+      adminNombre: admin?.name ?? "Administración",
+    });
     return NextResponse.json({ ok: true });
   }
 
@@ -60,6 +86,14 @@ export async function POST(request: NextRequest) {
     /* Solo se borra el código de referido (ya no puede traer nuevos negocios).
        Los negocios que ya trajo conservan su `referred_by`: no se pierde el historial. */
     await db.update(users).set({ referralCode: null }).where(eq(users.id, afiliadoId));
+    await registrarActividad({
+      accion: ACCION.quitarAfiliacion,
+      objetoTipo: "usuario",
+      objetoId: afiliadoId,
+      resumen: "Retiró la afiliación de una cuenta",
+      adminId: admin?.id ?? null,
+      adminNombre: admin?.name ?? "Administración",
+    });
     return NextResponse.json({ ok: true });
   }
 

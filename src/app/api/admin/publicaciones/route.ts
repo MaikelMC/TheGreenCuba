@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { asc, eq } from "drizzle-orm";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
@@ -181,6 +182,14 @@ export async function POST(req: NextRequest) {
       { status: resultado.status },
     );
   }
+
+  await registrarActividad({
+    accion: ACCION.editarPublicacion,
+    objetoTipo: "publicacion",
+    objetoId: resultado.publicacion.id,
+    resumen: "Encoló una publicación para un negocio",
+    datos: { negocioId, estado },
+  });
 
   return NextResponse.json(resultado.publicacion, { status: 201 });
 }

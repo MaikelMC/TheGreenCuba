@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { and, eq, inArray } from "drizzle-orm";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { canManagePlace, isAdminRequest } from "@/lib/admin-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { conIds, diferenciasCatalogo, fusionarMenu } from "@/lib/catalogo";
@@ -8,7 +9,10 @@ import { aplicarCatalogo } from "@/lib/productos-escritura";
 import { normalizarWhatsappCubano } from "@/lib/contact-links";
 import { esEnergia } from "@/lib/energia";
 import { esTipoReserva } from "@/lib/reserva";
-import { avisarNegocioNuevo, avisarNovedadesDeNegocio } from "@/lib/avisos-app-server";
+import {
+  avisarNegocioNuevo,
+  avisarNovedadesDeNegocio,
+} from "@/lib/avisos-app-server";
 import { avisosPorCambios } from "@/lib/seguidores";
 import { avisarCambios } from "@/lib/seguidores-server";
 import { getAppUser } from "@/lib/auth/user";
@@ -210,7 +214,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const tocaCatalogo = Object.keys(body).some((clave) =>
     CLAVES_CATALOGO.has(clave),
   );
-  const tocaFicha = Object.keys(body).some((clave) => !CLAVES_CATALOGO.has(clave));
+  const tocaFicha = Object.keys(body).some(
+    (clave) => !CLAVES_CATALOGO.has(clave),
+  );
 
   if (tocaCatalogo && !(await canManagePlace(req, id, "catalogo"))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -288,8 +294,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (tipoReserva !== undefined && !esTipoReserva(tipoReserva)) {
     return NextResponse.json(
       {
-        error:
-          "El tipo de reserva tiene que ser mesa, apartado o cita.",
+        error: "El tipo de reserva tiene que ser mesa, apartado o cita.",
       },
       { status: 400 },
     );
@@ -299,7 +304,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (
     aforo !== undefined &&
     aforo !== null &&
-    (!Number.isInteger(aforo) || (aforo as number) < 1 || (aforo as number) > 1000)
+    (!Number.isInteger(aforo) ||
+      (aforo as number) < 1 ||
+      (aforo as number) > 1000)
   ) {
     return NextResponse.json(
       { error: "El aforo tiene que ser un número entero de personas." },
@@ -344,8 +351,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (tocaReservas && !(await puede(id, "reservas_whatsapp"))) {
     return NextResponse.json(
       {
-        error:
-          "Las reservas por WhatsApp están disponibles en el plan Pro.",
+        error: "Las reservas por WhatsApp están disponibles en el plan Pro.",
       },
       { status: 403 },
     );
@@ -466,7 +472,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       body.cerradoMensaje.length > 140)
   ) {
     return NextResponse.json(
-      { error: "El mensaje de cierre tiene que ser texto de 140 caracteres como máximo." },
+      {
+        error:
+          "El mensaje de cierre tiene que ser texto de 140 caracteres como máximo.",
+      },
       { status: 400 },
     );
   }
@@ -494,7 +503,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const c = comoComprar as { recoger?: unknown; apartar?: unknown };
     if (typeof c.recoger !== "boolean" || typeof c.apartar !== "boolean") {
       return NextResponse.json(
-        { error: "«Cómo comprar» solo admite recoger y apartar, en verdadero o falso." },
+        {
+          error:
+            "«Cómo comprar» solo admite recoger y apartar, en verdadero o falso.",
+        },
         { status: 400 },
       );
     }
@@ -513,7 +525,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       typeof c.aDomicilio !== "boolean"
     ) {
       return NextResponse.json(
-        { error: "«Cómo atiende» solo admite con cita, sin cita y a domicilio." },
+        {
+          error: "«Cómo atiende» solo admite con cita, sin cita y a domicilio.",
+        },
         { status: 400 },
       );
     }
@@ -540,7 +554,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       !/^\d{4}-\d{2}-\d{2}$/.test(e.hasta)
     ) {
       return NextResponse.json(
-        { error: "El especial del día necesita título, precio, moneda y una fecha de fin." },
+        {
+          error:
+            "El especial del día necesita título, precio, moneda y una fecha de fin.",
+        },
         { status: 400 },
       );
     }
@@ -552,7 +569,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     (typeof body.catalogoTitulo !== "string" || body.catalogoTitulo.length > 40)
   ) {
     return NextResponse.json(
-      { error: "El título del catálogo tiene que ser texto de 40 caracteres como máximo." },
+      {
+        error:
+          "El título del catálogo tiene que ser texto de 40 caracteres como máximo.",
+      },
       { status: 400 },
     );
   }
@@ -570,11 +590,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
           Number.isInteger(c.orden),
       ) ||
       new Set(
-        menuCategorias.map((c: { nombre: string }) => c.nombre.trim().toLowerCase()),
+        menuCategorias.map((c: { nombre: string }) =>
+          c.nombre.trim().toLowerCase(),
+        ),
       ).size !== menuCategorias.length
     ) {
       return NextResponse.json(
-        { error: "Las categorías del catálogo necesitan un nombre único y un orden entero." },
+        {
+          error:
+            "Las categorías del catálogo necesitan un nombre único y un orden entero.",
+        },
         { status: 400 },
       );
     }
@@ -610,15 +635,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
      sincronización y el siguiente sync se lo creería. */
   if (body.catalogoFuente === "erp" && !(await isAdminRequest(req))) {
     return NextResponse.json(
-      { error: "Solo la administración puede marcar el catálogo como sincronizado." },
+      {
+        error:
+          "Solo la administración puede marcar el catálogo como sincronizado.",
+      },
       { status: 403 },
     );
   }
 
-  if (
-    body.resenaDestacadaId !== undefined &&
-    body.resenaDestacadaId !== null
-  ) {
+  if (body.resenaDestacadaId !== undefined && body.resenaDestacadaId !== null) {
     if (typeof body.resenaDestacadaId !== "string") {
       return NextResponse.json(
         { error: "La reseña destacada no es válida." },
@@ -631,10 +656,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       .select({ id: reviews.id })
       .from(reviews)
       .where(
-        and(
-          eq(reviews.id, body.resenaDestacadaId),
-          eq(reviews.placeId, id),
-        ),
+        and(eq(reviews.id, body.resenaDestacadaId), eq(reviews.placeId, id)),
       )
       .limit(1);
     if (!resena) {
@@ -652,7 +674,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       body.plantillaPedido.length > 500)
   ) {
     return NextResponse.json(
-      { error: "La plantilla del pedido tiene que ser texto de 500 caracteres como máximo." },
+      {
+        error:
+          "La plantilla del pedido tiene que ser texto de 500 caracteres como máximo.",
+      },
       { status: 400 },
     );
   }
@@ -832,7 +857,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       const ids = new Set(carta.map((p) => p.id));
       if (limpias.some((o) => !ids.has(o.productoId))) {
         return NextResponse.json(
-          { error: "Una oferta apunta a un producto que ya no está en la carta. Elige otro producto." },
+          {
+            error:
+              "Una oferta apunta a un producto que ya no está en la carta. Elige otro producto.",
+          },
           { status: 400 },
         );
       }
@@ -860,7 +888,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
          comparar, y `precioConOferta` tampoco tacharía nada. */
       for (const o of limpias) {
         if (!o.precioOferta) continue;
-        const original = parsePrecio(carta.find((p) => p.id === o.productoId)?.price ?? "");
+        const original = parsePrecio(
+          carta.find((p) => p.id === o.productoId)?.price ?? "",
+        );
         const rebajado = parsePrecio(o.precioOferta);
         if (original !== null && rebajado !== null && rebajado >= original) {
           return NextResponse.json(
@@ -911,10 +941,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const cartaAntes = previo?.menu ?? (await productosDe(id));
     const resultado = await aplicarCatalogo(
       id,
-      diferenciasCatalogo(cartaAntes, fusionarMenu(menuEnviado, cartaAntes), false),
+      diferenciasCatalogo(
+        cartaAntes,
+        fusionarMenu(menuEnviado, cartaAntes),
+        false,
+      ),
     );
     if (!resultado.ok) {
-      return NextResponse.json({ error: resultado.error }, { status: resultado.status });
+      return NextResponse.json(
+        { error: resultado.error },
+        { status: resultado.status },
+      );
     }
     cartaDespues = resultado.productos;
   }
@@ -943,13 +980,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   /* Sin columnas que escribir no se lanza un `update` con `set({})` —Drizzle lo
      rechaza—: se relee la fila para tener el `row` que usan los avisos. */
-  const [row] = Object.keys(values).length > 0
-    ? await db
-        .update(places)
-        .set(values)
-        .where(eq(places.id, id))
-        .returning()
-    : await db.select().from(places).where(eq(places.id, id)).limit(1);
+  const [row] =
+    Object.keys(values).length > 0
+      ? await db.update(places).set(values).where(eq(places.id, id)).returning()
+      : await db.select().from(places).where(eq(places.id, id)).limit(1);
   if (!row) {
     return NextResponse.json(
       { error: "Negocio no encontrado" },
@@ -1060,7 +1094,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         titulo: o.titulo,
         descripcion: o.descripcion,
       })),
-      productosNuevos: cartaDespues ? nuevosProductos(cartaDespues, previo.menu) : [],
+      productosNuevos: cartaDespues
+        ? nuevosProductos(cartaDespues, previo.menu)
+        : [],
       reabre: body.status === "active" && previo.status !== "active",
     });
     if (avisos.length > 0) {
@@ -1160,7 +1196,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ...filas.map((fila) => fila.titulo),
     ].filter((titulo): titulo is string => Boolean(titulo));
 
-    if ((novedadesGuardadas || ofertasNuevas.length > 0) && titulares.length > 0) {
+    if (
+      (novedadesGuardadas || ofertasNuevas.length > 0) &&
+      titulares.length > 0
+    ) {
       const provincia = row.province?.trim() || row.city?.trim() || null;
       const visible = row.isActive;
       after(async () => {
@@ -1182,6 +1221,47 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   /* La categoría puede haber cambiado: se relee para devolver la etiqueta nueva
      en vez de la que mandó el cliente, que podría ser otra. */
+  /* Solo se registra lo que hace administración. El dueño guarda su ficha a
+     diario y esa actividad no es de la bandeja del panel: el historial de
+     negocio, cuando llegue, tendrá su propio sitio. */
+  const actor = await getAppUser();
+  if (actor?.role === "admin" && row) {
+    /* `previo` solo trae lo que necesitan los avisos —carta, horario, estado—,
+       así que el cambio de revisión y de destacado se lee del cuerpo, que es
+       lo que mandó el formulario de administración. */
+    const revision = body.reviewStatus;
+    const destaque = body.isBoosted === true || body.isBoosted === false;
+
+    await registrarActividad({
+      accion:
+        revision === "approved"
+          ? ACCION.aprobarSolicitud
+          : revision === "rejected"
+            ? ACCION.rechazarSolicitud
+            : destaque
+              ? body.isBoosted
+                ? ACCION.destacarNegocio
+                : ACCION.quitarDestacado
+              : ACCION.editarNegocio,
+      objetoTipo: "negocio",
+      objetoId: id,
+      resumen:
+        revision === "approved"
+          ? `Aprobó el negocio «${row.name}»`
+          : revision === "rejected"
+            ? `Rechazó el negocio «${row.name}»`
+            : destaque
+              ? body.isBoosted
+                ? `Destacó el negocio «${row.name}»`
+                : `Quitó el destacado de «${row.name}»`
+              : `Editó el negocio «${row.name}»`,
+      datos: {
+        estadoRevision: revision ?? row.reviewStatus,
+        destacado: row.isBoosted,
+      },
+    });
+  }
+
   const updated = await getPlaceById(id);
   return NextResponse.json(
     updated ?? toUserPlace({ ...row, categoryName: null }),
@@ -1255,13 +1335,21 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     });
 
     invalidarCatalogo();
+    await registrarActividad({
+      accion: ACCION.rechazarSolicitud,
+      objetoTipo: "negocio",
+      objetoId: id,
+      resumen: `Rechazó la solicitud de «${place.name}»`,
+      datos: { motivo: rejectionMessage || null },
+    });
+
     return NextResponse.json({ id, rejected: true });
   }
 
   const [row] = await db
     .delete(places)
     .where(eq(places.id, id))
-    .returning({ id: places.id });
+    .returning({ id: places.id, name: places.name });
 
   if (!row) {
     return NextResponse.json(
@@ -1271,6 +1359,13 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   }
 
   invalidarCatalogo();
+
+  await registrarActividad({
+    accion: ACCION.borrarNegocio,
+    objetoTipo: "negocio",
+    objetoId: row.id,
+    resumen: `Eliminó el negocio «${row.name}»`,
+  });
 
   return NextResponse.json({ id: row.id });
 }

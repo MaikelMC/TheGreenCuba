@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { publicaciones } from "@/lib/db/schema";
@@ -87,6 +88,21 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .where(eq(publicaciones.id, id))
     .returning();
 
+  const estadoNuevo = (campos.estado as string | undefined) ?? actual.estado;
+  await registrarActividad({
+    accion:
+      estadoNuevo === "publicada"
+        ? ACCION.publicar
+        : ACCION.editarPublicacion,
+    objetoTipo: "publicacion",
+    objetoId: id,
+    resumen:
+      estadoNuevo === "publicada"
+        ? "Marcó una publicación como publicada"
+        : "Editó una publicación de la cola",
+    datos: { estadoAnterior: actual.estado, estadoNuevo },
+  });
+
   return NextResponse.json(toPublicacion(row!));
 }
 
@@ -108,6 +124,13 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       { status: 404 },
     );
   }
+
+  await registrarActividad({
+    accion: ACCION.borrarPublicacion,
+    objetoTipo: "publicacion",
+    objetoId: row.id,
+    resumen: "Quitó una publicación de la cola",
+  });
 
   return NextResponse.json({ id: row.id });
 }

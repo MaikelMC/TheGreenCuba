@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
@@ -81,6 +82,13 @@ export async function PATCH(
     if (body.estado === "borrador") {
       const nuevoId = await devolverABorrador(id, body.notaInterna);
       if (!nuevoId) return packCambio();
+      await registrarActividad({
+        accion: ACCION.editarPack,
+        objetoTipo: "negocio",
+        objetoId: pack.negocioId,
+        resumen: "Devolvió un pack a medida a borrador",
+        datos: { packId: id, packNuevoId: nuevoId },
+      });
       return responder(nuevoId);
     }
   }
@@ -140,6 +148,17 @@ export async function PATCH(
     .returning({ id: packsMedida.id });
 
   if (escritas.length === 0) return packCambio();
+
+  await registrarActividad({
+    accion: ACCION.editarPack,
+    objetoTipo: "negocio",
+    objetoId: pack.negocioId,
+    resumen:
+      cambios.estado === "enviado"
+        ? "Envió un pack a medida a un negocio"
+        : "Editó un pack a medida",
+    datos: { packId: id, estado: cambios.estado ?? pack.estado },
+  });
 
   return responder(id);
 }

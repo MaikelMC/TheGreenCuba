@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
@@ -195,6 +196,17 @@ export async function POST(request: NextRequest) {
       { title, body: message, url: "/notifications", tag: `broadcast-${broadcastId}` },
     ),
   );
+
+  await registrarActividad({
+    accion: ACCION.enviarAviso,
+    objetoTipo: "sistema",
+    objetoId: broadcastId,
+    resumen: `Envió el aviso «${title}» a ${recipients.length} ${recipients.length === 1 ? "persona" : "personas"}`,
+    datos: {
+      destinatarios: recipients.length,
+      destino: targetIds ? "seleccionados" : "todos",
+    },
+  });
 
   return NextResponse.json({ id: broadcastId, recipients: recipients.length }, { status: 201 });
 }

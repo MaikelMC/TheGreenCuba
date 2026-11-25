@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { desc, eq } from "drizzle-orm";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { supportTickets } from "@/lib/db/schema";
@@ -104,6 +105,18 @@ export async function PATCH(request: NextRequest) {
     });
     emailSent = id !== null;
   }
+
+  await registrarActividad({
+    accion:
+      reply !== undefined ? ACCION.responderSoporte : ACCION.cerrarConversacion,
+    objetoTipo: "soporte",
+    objetoId: id,
+    resumen:
+      reply !== undefined
+        ? `Respondió el ticket «${ticket.subject}»`
+        : `Cambió el estado del ticket «${ticket.subject}» a ${nextStatus}`,
+    datos: { estadoAnterior: ticket.status, estadoNuevo: nextStatus ?? ticket.status },
+  });
 
   return NextResponse.json({ ticket: updated, emailSent });
 }

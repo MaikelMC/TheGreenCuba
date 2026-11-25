@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
@@ -50,6 +51,13 @@ export async function POST(request: NextRequest) {
       { status: 404 },
     );
   }
+
+  await registrarActividad({
+    accion: "reiniciar_onboarding",
+    objetoTipo: "usuario",
+    objetoId: updated.id,
+    resumen: "Reinició su propio onboarding para probarlo",
+  });
 
   return NextResponse.json({ ok: true });
 }

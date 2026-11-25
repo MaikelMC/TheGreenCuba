@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { Plus, AlertTriangle, Store, Sparkles } from "lucide-react";
+import { Plus, AlertTriangle, Sparkles } from "lucide-react";
 import { usePlaces } from "@/providers/places-provider";
 import { DashboardStats } from "@/components/business/dashboard-stats";
 import { MiniChart } from "@/components/business/mini-chart";
@@ -298,21 +298,9 @@ export default function AdminDashboardPage() {
             </div>
           )}
           <div className="mt-gap-md p-gap-md bg-sand border border-ink/5 rounded-2xl">
-            <Store
-              size={18}
-              strokeWidth={1.8}
-              className="text-verde-600 mb-gap-xs"
-            />
             <p className="text-small text-ink-soft/75 leading-relaxed">
-              Gestiona los negocios de La Verde en{" "}
-              <Link
-                href="/admin/negocios"
-                className="text-verde-600 font-semibold hover:text-verde-700"
-              >
-                Negocios
-              </Link>
-              . Puedes agregar, editar, eliminar, destacar y cambiar el estado
-              de cada uno.
+              El detalle de cada negocio —plan, pago y ficha— se abre desde su
+              nombre en Negocios.
             </p>
           </div>
         </div>

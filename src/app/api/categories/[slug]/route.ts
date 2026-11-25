@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import { db } from "@/lib/db";
 import { categories } from "@/lib/db/schema";
@@ -73,6 +74,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   invalidarCatalogo();
 
+  await registrarActividad({
+    accion: ACCION.editarCategorias,
+    objetoTipo: "categoria",
+    objetoId: row.id,
+    resumen: `Editó la categoría «${row.name}»`,
+  });
+
   return NextResponse.json(toBusinessCategory(row));
 }
 
@@ -106,6 +114,13 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   await db.delete(categories).where(eq(categories.id, category.id));
 
   invalidarCatalogo();
+
+  await registrarActividad({
+    accion: ACCION.editarCategorias,
+    objetoTipo: "categoria",
+    objetoId: category.id,
+    resumen: `Eliminó la categoría «${category.name}»`,
+  });
 
   return NextResponse.json({ value: slug });
 }

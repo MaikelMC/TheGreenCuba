@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ACCION, registrarActividad } from "@/lib/admin-actividad";
 import { isAdminRequest } from "@/lib/admin-server";
 import {
   maskKey,
@@ -49,6 +50,14 @@ export async function POST(req: NextRequest) {
           : providers.length + 1,
     };
     writeProviders([...providers, provider]);
+    await registrarActividad({
+      accion: ACCION.editarProveedorIa,
+      objetoTipo: "proveedor_ia",
+      objetoId: provider.id,
+      resumen: `Añadió el proveedor de IA «${provider.name}»`,
+      datos: { modelo: provider.model },
+    });
+
     return NextResponse.json(
       { ...provider, apiKey: maskKey(provider.apiKey) },
       { status: 201 },

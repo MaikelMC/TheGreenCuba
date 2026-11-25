@@ -6,6 +6,12 @@ import { getAppUser } from "@/lib/auth/user";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { listCategories, listPlacesSinCache } from "@/lib/db/queries";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { AdminContadoresProvider } from "@/components/admin/admin-contadores";
+import {
+  CONTADORES_VACIOS,
+  contarPendientesAdmin,
+  listarAdmins,
+} from "@/lib/admin-contadores";
 import { PlacesProvider } from "@/providers/places-provider";
 import { CatalogoProvider } from "@/providers/catalogo-provider";
 
@@ -59,12 +65,17 @@ export default async function AdminLayout({
   /* `.catch(() => null)` y no dejar que suba: si la base no contesta, esto se
      comporta como antes —el provider pide los datos desde el cliente y enseña
      su error— en lugar de tumbar el panel entero. */
-  const [places, categories, catalogo] = await Promise.all([
+  const [places, categories, catalogo, contadores, admins] = await Promise.all([
     /* Sin la caché de datos: es la lista con los negocios sin publicar y las
        cartas enteras, y no se guarda en ningún sitio del servidor. */
     listPlacesSinCache().catch(() => null),
     listCategories().catch(() => null),
     cargarCatalogo().catch(() => null),
+    /* Los contadores de la navegación, en la misma tanda: son ocho `count(*)`
+       baratos y el armazón se pinta con los números puestos. Sin base, se pinta
+       a cero y el provider los refresca al enfocar la pestaña. */
+    contarPendientesAdmin().catch(() => CONTADORES_VACIOS),
+    listarAdmins().catch(() => []),
   ]);
 
   return (
@@ -86,7 +97,25 @@ export default async function AdminLayout({
           el editor de planes y el de suscripciones arrancan con los valores de
           hoy en vez de con los del despliegue. */}
         <CatalogoProvider catalogo={catalogo ?? undefined}>
-          <AdminShell>{children}</AdminShell>
+          <AdminContadoresProvider inicial={contadores ?? CONTADORES_VACIOS}>
+            <AdminShell
+              usuarioId={user.id}
+              admins={
+                admins.length > 0
+                  ? admins
+                  : [
+                      {
+                        id: user.id,
+                        name: user.name,
+                        email: user.email,
+                        imageUrl: null,
+                      },
+                    ]
+              }
+            >
+              {children}
+            </AdminShell>
+          </AdminContadoresProvider>
         </CatalogoProvider>
       </PlacesProvider>
     </MotionConfig>
