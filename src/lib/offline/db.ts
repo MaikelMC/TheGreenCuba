@@ -10,21 +10,67 @@
  *  v3 → stores: negocios, cartas, sync  (fase 2 PWA)
  */
 
+import { registrarFalloAlmacen } from "@/lib/diagnostico/telemetria";
+
 export const DB_NAME = "la-verde-offline";
 export const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
+/** Errores que se arreglan cerrando y reabriendo una vez. */
+export function esErrorReintentable(error: unknown): boolean {
+  if (!error) return false;
+  const nombre =
+    typeof error === "object" && error && "name" in error
+      ? String((error as { name?: unknown }).name)
+      : "";
+  const mensaje = error instanceof Error ? error.message : String(error);
+  return (
+    nombre === "InvalidStateError" ||
+    nombre === "VersionError" ||
+    nombre === "AbortError" ||
+    /database connection is closing|transaction.*(closed|finished)|base cerrada|transaction on 'IDBDatabase'/i.test(
+      mensaje,
+    )
+  );
+}
+
+/** ¿Es un fallo de cuota? Se resuelve borrando snapshots antiguos. */
+export function esErrorCuota(error: unknown): boolean {
+  if (!error) return false;
+  const nombre =
+    typeof error === "object" && error && "name" in error
+      ? String((error as { name?: unknown }).name)
+      : "";
+  return nombre === "QuotaExceededError" || /quota/i.test(String(error));
+}
+
 export function abrirDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
 
-  dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
+  const promesa = new Promise<IDBDatabase>((resolve, reject) => {
     if (typeof indexedDB === "undefined") {
       reject(new Error("IndexedDB no disponible"));
       return;
     }
 
-    const peticion = indexedDB.open(DB_NAME, DB_VERSION);
+    let asentado = false;
+    let esperaBloqueo: ReturnType<typeof setTimeout> | null = null;
+
+    const fallar = (error: Error) => {
+      if (asentado) return;
+      asentado = true;
+      if (esperaBloqueo) clearTimeout(esperaBloqueo);
+      reject(error);
+    };
+
+    let peticion: IDBOpenDBRequest;
+    try {
+      peticion = indexedDB.open(DB_NAME, DB_VERSION);
+    } catch (error) {
+      fallar(error instanceof Error ? error : new Error(String(error)));
+      return;
+    }
 
     peticion.onupgradeneeded = (event) => {
       const db = peticion.result;
@@ -45,35 +91,87 @@ export function abrirDb(): Promise<IDBDatabase> {
 
       /* ── v3 ───────────────────────────────────────────────────────── */
       if (oldVersion < 3) {
-        /* negocios: datos ligeros de cada negocio público.
-           Índice por provincia para leer todos los de una provincia de golpe.
-           Índice por slug para resolver /m/[slug] desde lo local. */
         const negociosStore = db.createObjectStore("negocios", { keyPath: "id" });
         negociosStore.createIndex("provincia", "provincia", { unique: false });
         negociosStore.createIndex("slug", "slug", { unique: false });
-
-        /* cartas: menu + carta completa guardada al abrir la ficha. */
         db.createObjectStore("cartas", { keyPath: "id" });
-
-        /* sync: estado de sincronización por provincia. */
         db.createObjectStore("sync", { keyPath: "provincia" });
       }
     };
 
-    peticion.onsuccess = () => resolve(peticion.result);
-    peticion.onerror = () => {
-      dbPromise = null;
-      reject(peticion.error ?? new Error("No se pudo abrir IndexedDB"));
+    peticion.onsuccess = () => {
+      if (asentado) {
+        peticion.result.close();
+        return;
+      }
+      asentado = true;
+      if (esperaBloqueo) clearTimeout(esperaBloqueo);
+      const db = peticion.result;
+
+      /* Otra pestaña quiere actualizar: se cierra para no bloquearla. */
+      db.onversionchange = () => {
+        db.close();
+        dbPromise = null;
+      };
+
+      resolve(db);
     };
-    /* Si otra pestaña tiene la base abierta en v2, el upgrade se bloquea.
-       No esperamos indefinidamente: tras 10 s resolvemos con la conexión
-       existente si ya llegó, o rechazamos. El caller lo captura con try/catch. */
+
+    peticion.onerror = () => {
+      const error = peticion.error ?? new Error("No se pudo abrir IndexedDB");
+      registrarFalloAlmacen(error.name || "Error", "abrir_db");
+      fallar(error);
+    };
+
+    /* No se espera indefinidamente: si otra pestaña retiene la versión, se
+       libera la promesa y la siguiente operación vuelve a intentarlo. */
     peticion.onblocked = () => {
-      /* No hacer nada: `onsuccess` llegará cuando la otra pestaña cierre. */
+      registrarFalloAlmacen("BlockedError", "abrir_db");
+      esperaBloqueo = setTimeout(() => {
+        fallar(new Error("IndexedDB bloqueada por otra pestaña"));
+      }, 2500);
     };
   });
 
-  return dbPromise;
+  dbPromise = promesa;
+  /* Si falla, la siguiente operación puede abrir una conexión nueva. Se compara
+     la identidad para no borrar una promesa más reciente. */
+  promesa.catch(() => {
+    if (dbPromise === promesa) dbPromise = null;
+  });
+  return promesa;
+}
+
+/**
+ * Ejecuta una operación con un reintento si la conexión estaba cerrada.
+ * El fallo final se registra sin mensaje completo y devuelve el respaldo.
+ */
+export async function conReintentoDb<T>(
+  operacion: (db: IDBDatabase) => Promise<T>,
+  respaldo: T,
+  nombreOperacion: string,
+): Promise<T> {
+  for (let intento = 0; intento < 2; intento += 1) {
+    try {
+      const db = await abrirDb();
+      return await operacion(db);
+    } catch (error) {
+      const reintentable = esErrorReintentable(error);
+      if (intento === 0 && reintentable) {
+        cerrarDb();
+        continue;
+      }
+      if (!reintentable) {
+        const nombre =
+          typeof error === "object" && error && "name" in error
+            ? String((error as { name?: unknown }).name)
+            : "Error";
+        registrarFalloAlmacen(nombre, nombreOperacion);
+      }
+      return respaldo;
+    }
+  }
+  return respaldo;
 }
 
 /** Cierra y limpia el singleton (necesario antes de `deleteDatabase`). */

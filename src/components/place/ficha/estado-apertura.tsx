@@ -36,14 +36,17 @@ export function EstadoApertura({
   nowIso?: string;
   className?: string;
 }) {
-  const [now, setNow] = useState(() =>
-    nowIso ? new Date(nowIso) : new Date(),
+  const [now, setNow] = useState<Date | null>(() =>
+    nowIso ? new Date(nowIso) : null,
   );
 
   useEffect(() => {
+    if (!now) setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
-  }, []);
+  }, [now]);
+
+  if (!now) return null;
 
   const estado = calcularEstado({
     horario,
@@ -121,7 +124,6 @@ function EstadoLinea({
 }) {
   return (
     <span
-      suppressHydrationWarning
       className={cn(
         "inline-flex items-center gap-[7px] font-lv-display text-small font-semibold",
         abierto ? "text-verde-700" : "text-destructive",
@@ -137,7 +139,7 @@ function EstadoLinea({
             : "bg-destructive/70",
         )}
       />
-      {texto}
+      <span suppressHydrationWarning>{texto}</span>
     </span>
   );
 }

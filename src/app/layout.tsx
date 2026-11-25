@@ -50,21 +50,23 @@ const diagScript = `(function(){
   var MAX=5;var enviados=0;var url="/api/diagnostico";
   var esPwa=!!(typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches);
   window.__lvDiagActivo=true;
+  var sesion="";try{sesion=sessionStorage.getItem("lv_diag_sesion")||"";if(!sesion){sesion="s_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,8);sessionStorage.setItem("lv_diag_sesion",sesion);}}catch(e){}
   function enviar(tipo,datos){
     if(enviados>=MAX)return;
     enviados++;
+    try{datos.ruta=location.pathname;datos.sesion=sesion;if(String(datos.mensaje||"").indexOf("418")!==-1||String(datos.mensaje||"").toLowerCase().indexOf("hydration")!==-1){datos.componente="hidratacion";}}catch(e){}
     var payload=JSON.stringify({id:"e"+Date.now()+"_"+Math.random().toString(36).slice(2,8),tipo:tipo,datos:datos});
     if(typeof navigator!=="undefined"&&navigator.sendBeacon){navigator.sendBeacon(url,payload);return;}
     try{var x=new XMLHttpRequest();x.open("POST",url,true);x.setRequestHeader("Content-Type","application/json");x.send(payload);}catch(e){}
   }
   window.onerror=function(msg,src,line,col,err){
-    enviar("error",{mensaje:String(msg),archivo:String(src||""),linea:line||0,columna:col||0,ua:navigator.userAgent,pwa:esPwa});
+    enviar("error",{mensaje:String(msg),archivo:String(src||""),linea:line||0,columna:col||0,pwa:esPwa});
     return false;
   };
   if(typeof window.addEventListener==="function"){
     window.addEventListener("unhandledrejection",function(e){
       var msg="";try{msg=e.reason&&e.reason.message?e.reason.message:String(e.reason);}catch(x){msg="unknown";}
-      enviar("error",{mensaje:"UnhandledRejection: "+msg,ua:navigator.userAgent,pwa:esPwa});
+      enviar("error",{mensaje:"UnhandledRejection: "+msg,pwa:esPwa});
     });
   }
 })();`;

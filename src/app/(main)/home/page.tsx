@@ -181,17 +181,22 @@ function userPlaceToHomePlace(
       muestra la distancia real; con `null` cae a la dirección, que es el
       único dato que hay. */
   distanceM: number | null,
+  /** Se fija después de montar: con `new Date()` en render, servidor y cliente
+      pueden pintar «Abierto» y «Cerrado» distintos. */
+  now: Date | null,
 ): HomePlace {
   /* El estado sale del horario, no de si la ficha está publicada. `status` es
      «¿el negocio existe?»: con él solo, cualquier negocio activo salía en verde
      a medianoche. Si el horario no da una hora comprobable, la tarjeta no dice
      nada —`PlaceCard` ya sabe vivir sin chip de estado—. */
-  const estado = estadoAhora({
-    horario: p.horario,
-    schedule: p.schedule,
-    status: p.status,
-    now: new Date(),
-  });
+  const estado = now
+    ? estadoAhora({
+        horario: p.horario,
+        schedule: p.schedule,
+        status: p.status,
+        now,
+      })
+    : "desconocido";
   const tags: HomePlace["tags"] =
     estado === "desconocido"
       ? []
@@ -585,6 +590,14 @@ function HomePageContent() {
     window.history.replaceState(null, "", url.pathname + (url.search || "") + (url.hash || ""));
   }, [desdeOffline]);
   const [sheetState, setSheetState] = useState<SheetState>("default");
+  /* La hora se fija tras montar. El primer render del cliente coincide con el
+     del servidor y el chip «Abierto/Cerrado» aparece en el siguiente tick. */
+  const [ahora, setAhora] = useState<Date | null>(null);
+  useEffect(() => {
+    setAhora(new Date());
+    const id = setInterval(() => setAhora(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
   const [selectedId, setSelectedId] = useState<string>("6");
   /* Contador, no booleano: cada gesto pide otra vez bajar la hoja a su vista
      más baja —la que tiene al abrir el home— para dejar ver el mapa. Un solo
@@ -871,10 +884,11 @@ function HomePageContent() {
       filters: activeFilters,
       origin: userLocation,
       /* Se evalúa al filtrar, no en cada render: «Abiertos ahora» cambia con la
-         hora, pero no hace falta recalcularlo cada segundo. */
-      now: new Date(),
+         hora, pero no hace falta recalcularlo cada segundo. Antes de montar se
+         usa una fecha fija para que el HTML no dependa de la zona del proceso. */
+      now: ahora ?? new Date(0),
     }),
-    [activeCategory, categories, activeFilters, userLocation],
+    [activeCategory, categories, activeFilters, userLocation, ahora],
   );
 
   /* Los pines: el catálogo **entero** con los chips del usuario encima. Lo
@@ -1005,9 +1019,9 @@ function HomePageContent() {
     }
 
     return measured.map(({ place, distanceM }) =>
-      userPlaceToHomePlace(place, categories, distanceM),
+      userPlaceToHomePlace(place, categories, distanceM, ahora),
     );
-  }, [listVisiblePlaces, categories, distanceOrigin, userPreferences]);
+  }, [listVisiblePlaces, categories, distanceOrigin, userPreferences, ahora]);
 
   const handleLike = useCallback(
     (id: string) => {
@@ -1366,9 +1380,9 @@ function HomePageContent() {
     (id: string | null): HomePlace | null => {
       if (!id) return null;
       const found = places.find((p) => p.id === id);
-      return found ? userPlaceToHomePlace(found, categories, null) : null;
+      return found ? userPlaceToHomePlace(found, categories, null, ahora) : null;
     },
-    [places, categories],
+    [places, categories, ahora],
   );
 
   /* Tercera función estable del mapa. Era una flecha en el JSX y bastaba para
@@ -1559,7 +1573,7 @@ function HomePageContent() {
       const distanceM = distanceOrigin
         ? haversineM(distanceOrigin, { lat: p.lat, lng: p.lng })
         : null;
-      byId.set(p.id, userPlaceToHomePlace(p, categories, distanceM));
+      byId.set(p.id, userPlaceToHomePlace(p, categories, distanceM, ahora));
     }
     const picked: HomePlace[] = [];
     const seen = new Set<string>();

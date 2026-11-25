@@ -11,6 +11,7 @@
  * cree el nuevo store sin borrar los existentes.
  */
 
+import { registrarFalloAlmacen } from "@/lib/diagnostico/telemetria";
 import { abrirDb } from "./db";
 import { setSinRed } from "./estado-red";
 
@@ -58,7 +59,11 @@ export async function encolar(
       tx.onerror = () => resolve(false);
       tx.onabort = () => resolve(false);
     });
-  } catch {
+  } catch (error) {
+    registrarFalloAlmacen(
+      error instanceof Error ? error.name : "Error",
+      "encolar_accion",
+    );
     return false;
   }
 }
@@ -88,19 +93,35 @@ export async function pendientes(): Promise<AccionPendiente[]> {
 
 async function escribirAccion(db: IDBDatabase, accion: AccionPendiente): Promise<void> {
   return new Promise((resolve) => {
-    const tx = db.transaction(STORE_COLA, "readwrite");
-    tx.objectStore(STORE_COLA).put(accion);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => resolve();
+    try {
+      const tx = db.transaction(STORE_COLA, "readwrite");
+      tx.objectStore(STORE_COLA).put(accion);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    } catch (error) {
+      registrarFalloAlmacen(
+        error instanceof Error ? error.name : "Error",
+        "escribir_accion",
+      );
+      resolve();
+    }
   });
 }
 
 async function borrarAccion(db: IDBDatabase, id: string): Promise<void> {
   return new Promise((resolve) => {
-    const tx = db.transaction(STORE_COLA, "readwrite");
-    tx.objectStore(STORE_COLA).delete(id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => resolve();
+    try {
+      const tx = db.transaction(STORE_COLA, "readwrite");
+      tx.objectStore(STORE_COLA).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    } catch (error) {
+      registrarFalloAlmacen(
+        error instanceof Error ? error.name : "Error",
+        "borrar_accion",
+      );
+      resolve();
+    }
   });
 }
 
@@ -108,18 +129,26 @@ async function borrarAccion(db: IDBDatabase, id: string): Promise<void> {
  *  por una pestaña que murió en medio de un envío. */
 async function revertirEnviando(db: IDBDatabase): Promise<void> {
   return new Promise((resolve) => {
-    const tx = db.transaction(STORE_COLA, "readwrite");
-    const store = tx.objectStore(STORE_COLA);
-    const req = store.getAll() as IDBRequest<AccionPendiente[]>;
-    req.onsuccess = () => {
-      for (const accion of req.result ?? []) {
-        if (accion.status === "sending") {
-          store.put({ ...accion, status: "pending" });
+    try {
+      const tx = db.transaction(STORE_COLA, "readwrite");
+      const store = tx.objectStore(STORE_COLA);
+      const req = store.getAll() as IDBRequest<AccionPendiente[]>;
+      req.onsuccess = () => {
+        for (const accion of req.result ?? []) {
+          if (accion.status === "sending") {
+            store.put({ ...accion, status: "pending" });
+          }
         }
-      }
-    };
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => resolve();
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    } catch (error) {
+      registrarFalloAlmacen(
+        error instanceof Error ? error.name : "Error",
+        "revertir_cola",
+      );
+      resolve();
+    }
   });
 }
 
@@ -142,7 +171,11 @@ async function _procesarCola(): Promise<ResultadoFlush> {
     return NADA;
   }
 
-  await revertirEnviando(db);
+  try {
+    await revertirEnviando(db);
+  } catch {
+    return NADA;
+  }
 
   const cola = await pendientes();
   if (cola.length === 0) return NADA;
@@ -209,11 +242,15 @@ let _flushEnCurso = false;
 
 export async function procesarCola(): Promise<ResultadoFlush> {
   if (typeof navigator !== "undefined" && "locks" in navigator) {
-    return navigator.locks.request(
-      "lv-flush-cola",
-      { ifAvailable: true },
-      async (lock) => lock ? _procesarCola() : NADA,
-    );
+    try {
+      return await navigator.locks.request(
+        "lv-flush-cola",
+        { ifAvailable: true },
+        async (lock) => (lock ? _procesarCola() : NADA),
+      );
+    } catch {
+      return NADA;
+    }
   }
   if (_flushEnCurso) return NADA;
   _flushEnCurso = true;

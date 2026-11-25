@@ -18,7 +18,14 @@
  * lanza por un fallo del almacén.
  */
 
-import { abrirDb, DB_NAME, cerrarDb } from "./db";
+import {
+  abrirDb,
+  cerrarDb,
+  conReintentoDb,
+  DB_NAME,
+  esErrorCuota,
+  esErrorReintentable,
+} from "./db";
 
 const STORE_SNAPSHOTS = "snapshots";
 const STORE_META = "meta";
@@ -43,19 +50,51 @@ async function conStore<T>(
   modo: IDBTransactionMode,
   accion: (objectStore: IDBObjectStore) => IDBRequest<T>,
 ): Promise<T | null> {
-  try {
-    const db = await abrirDb();
-    return await new Promise<T | null>((resolve) => {
-      const tx = db.transaction(store, modo);
-      const peticion = accion(tx.objectStore(store));
-      peticion.onsuccess = () => resolve(peticion.result ?? null);
-      peticion.onerror = () => resolve(null);
-      tx.onerror = () => resolve(null);
-      tx.onabort = () => resolve(null);
-    });
-  } catch {
-    return null;
-  }
+  return conReintentoDb(
+    (db) =>
+      new Promise<T | null>((resolve, reject) => {
+        try {
+          const tx = db.transaction(store, modo);
+          const peticion = accion(tx.objectStore(store));
+          peticion.onsuccess = () => resolve(peticion.result ?? null);
+          peticion.onerror = () => reject(peticion.error ?? new Error("IndexedDB"));
+          tx.onerror = () => reject(tx.error ?? new Error("IndexedDB"));
+          tx.onabort = () => reject(tx.error ?? new Error("IndexedDB"));
+        } catch (error) {
+          reject(error);
+        }
+      }),
+    null,
+    `acceder_${store}`,
+  );
+}
+
+/** Borra la mitad más antigua de los snapshots para liberar cuota. */
+async function borrarSnapshotsAntiguos(): Promise<void> {
+  await conReintentoDb(
+    (db) =>
+      new Promise<void>((resolve, reject) => {
+        try {
+          const tx = db.transaction(STORE_SNAPSHOTS, "readwrite");
+          const store = tx.objectStore(STORE_SNAPSHOTS);
+          const peticion = store.getAll() as IDBRequest<OfflineSnapshot[]>;
+          peticion.onsuccess = () => {
+            const filas = [...(peticion.result ?? [])].sort(
+              (a, b) => Date.parse(a.savedAt) - Date.parse(b.savedAt),
+            );
+            const cuantas = Math.max(1, Math.ceil(filas.length / 2));
+            for (const fila of filas.slice(0, cuantas)) store.delete(fila.key);
+          };
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error ?? new Error("IndexedDB"));
+          tx.onabort = () => reject(tx.error ?? new Error("IndexedDB"));
+        } catch (error) {
+          reject(error);
+        }
+      }),
+    undefined,
+    "purgar_snapshots",
+  );
 }
 
 /** Clave de un negocio. Lleva el usuario dentro para que dos cuentas no se pisen. */
@@ -76,22 +115,41 @@ export async function guardarSnapshot({
   key: string;
   data: unknown;
 }): Promise<boolean> {
-  try {
+  const escribir = async (): Promise<boolean> => {
     const db = await abrirDb();
-    return await new Promise<boolean>((resolve) => {
-      const tx = db.transaction(STORE_SNAPSHOTS, "readwrite");
-      tx.objectStore(STORE_SNAPSHOTS).put({
-        key,
-        data,
-        savedAt: new Date().toISOString(),
-      } satisfies OfflineSnapshot);
-      tx.oncomplete = () => resolve(true);
-      tx.onerror = () => resolve(false);
-      tx.onabort = () => resolve(false);
+    return new Promise<boolean>((resolve, reject) => {
+      try {
+        const tx = db.transaction(STORE_SNAPSHOTS, "readwrite");
+        tx.objectStore(STORE_SNAPSHOTS).put({
+          key,
+          data,
+          savedAt: new Date().toISOString(),
+        } satisfies OfflineSnapshot);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => reject(tx.error ?? new Error("IndexedDB"));
+        tx.onabort = () => reject(tx.error ?? new Error("IndexedDB"));
+      } catch (error) {
+        reject(error);
+      }
     });
-  } catch {
-    return false;
+  };
+
+  for (let intento = 0; intento < 2; intento += 1) {
+    try {
+      return await escribir();
+    } catch (error) {
+      if (intento === 0 && esErrorCuota(error)) {
+        await borrarSnapshotsAntiguos();
+        continue;
+      }
+      if (intento === 0 && esErrorReintentable(error)) {
+        cerrarDb();
+        continue;
+      }
+      return false;
+    }
   }
+  return false;
 }
 
 /** Lee un snapshot concreto, o `null`. */
