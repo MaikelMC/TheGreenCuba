@@ -39,7 +39,7 @@ interface Broadcast {
 }
 
 /** Lo mínimo que el selector necesita de `/api/admin/users`. */
-interface DirectoryUser {
+export interface DirectoryUser {
   id: string;
   email: string;
   name: string | null;
@@ -67,7 +67,13 @@ function sinEnvio(e: React.KeyboardEvent) {
   if (e.key === "Enter") e.preventDefault();
 }
 
-export function BroadcastPanel() {
+export function BroadcastPanel({
+  destinatariosIniciales = [],
+  negociosPreseleccionados = 0,
+}: {
+  destinatariosIniciales?: DirectoryUser[];
+  negociosPreseleccionados?: number;
+} = {}) {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -82,12 +88,21 @@ export function BroadcastPanel() {
   /* Qué aviso del historial tiene el mensaje desplegado. */
   const [expandedId, setExpandedId] = useState<string | null>(null);
   /* Destino: todo el mundo por defecto, o una selección de personas. */
-  const [destino, setDestino] = useState<"todos" | "personas">("todos");
+  const [destino, setDestino] = useState<"todos" | "personas">(
+    destinatariosIniciales.length > 0 ? "personas" : "todos",
+  );
   const [directorio, setDirectorio] = useState<DirectoryUser[]>([]);
-  const [directorioCargando, setDirectorioCargando] = useState(false);
+  const [directorioCargando, setDirectorioCargando] = useState(
+    destinatariosIniciales.length > 0,
+  );
   const [directorioError, setDirectorioError] = useState(false);
   const [busqueda, setBusqueda] = useState("");
-  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(
+    () => new Set(destinatariosIniciales.map((usuario) => usuario.id)),
+  );
+  const claveInicial = destinatariosIniciales
+    .map((usuario) => usuario.id)
+    .join(",");
 
   const loadDirectorio = useCallback(async () => {
     setDirectorioCargando(true);
@@ -103,6 +118,16 @@ export function BroadcastPanel() {
       setDirectorioCargando(false);
     }
   }, []);
+
+  /* Si se llega desde Negocios con dueños en la URL, se cargan también el
+     resto de usuarios para que la selección se pueda revisar y ampliar. */
+  useEffect(() => {
+    if (!claveInicial) return;
+    setDestino("personas");
+    setSeleccionados(new Set(claveInicial.split(",")));
+    setConfirming(false);
+    void loadDirectorio();
+  }, [claveInicial, loadDirectorio]);
 
   function elegirDestino(valor: "todos" | "personas") {
     setDestino(valor);
@@ -129,16 +154,16 @@ export function BroadcastPanel() {
     const q = busqueda.trim().toLowerCase();
     if (!q) return directorio;
     return directorio.filter((user) =>
-      [user.name, user.email].some((value) =>
-        value?.toLowerCase().includes(q),
-      ),
+      [user.name, user.email].some((value) => value?.toLowerCase().includes(q)),
     );
   }, [busqueda, directorio]);
 
   const visibles = filtrados.slice(0, VISIBLES_MAX);
 
   function marcarVisibles() {
-    setSeleccionados((prev) => new Set([...prev, ...visibles.map((u) => u.id)]));
+    setSeleccionados(
+      (prev) => new Set([...prev, ...visibles.map((u) => u.id)]),
+    );
     setConfirming(false);
   }
 
@@ -258,6 +283,18 @@ export function BroadcastPanel() {
           <p className="text-meta text-ink-soft/75 text-pretty">
             Un aviso enviado no se puede retirar.
           </p>
+
+          {negociosPreseleccionados > 0 ? (
+            <p className="rounded-xl border border-verde-200 bg-verde-50 px-3 py-2.5 text-meta text-verde-800">
+              {destinatariosIniciales.length > 0
+                ? `Destinatarios precargados: los dueños de ${negociosPreseleccionados} ${
+                    negociosPreseleccionados === 1 ? "negocio" : "negocios"
+                  }. Revisa la selección antes de enviar.`
+                : `Los ${negociosPreseleccionados} ${
+                    negociosPreseleccionados === 1 ? "negocio" : "negocios"
+                  } seleccionados no tienen un dueño con cuenta activa.`}
+            </p>
+          ) : null}
 
           <fieldset className="flex flex-col gap-gap-xs" onKeyDown={sinEnvio}>
             <legend className="mb-gap-2xs text-meta font-medium text-ink-soft/75">
@@ -392,8 +429,8 @@ export function BroadcastPanel() {
                   </div>
                   {filtrados.length > visibles.length ? (
                     <p className="text-xs text-ink-soft/75">
-                      Mostrando {visibles.length} de {filtrados.length}. Afina la
-                      búsqueda para llegar al resto.
+                      Mostrando {visibles.length} de {filtrados.length}. Afina
+                      la búsqueda para llegar al resto.
                     </p>
                   ) : null}
                 </>
@@ -591,7 +628,10 @@ export function BroadcastPanel() {
                     <div className="mt-0.5 flex items-start justify-between gap-gap-sm">
                       <p className="text-meta text-ink-soft/75">
                         {b.senderName ?? "Administración"}
-                        {b.meta?.destino === "seleccionados" ? " · selección" : ""} ·{" "}
+                        {b.meta?.destino === "seleccionados"
+                          ? " · selección"
+                          : ""}{" "}
+                        ·{" "}
                         {new Date(b.createdAt).toLocaleString("es-CU", {
                           day: "2-digit",
                           month: "2-digit",
@@ -605,9 +645,7 @@ export function BroadcastPanel() {
                            táctil a 44px sin engordar la fila. */
                         <button
                           type="button"
-                          onClick={() =>
-                            setExpandedId(abierto ? null : b.id)
-                          }
+                          onClick={() => setExpandedId(abierto ? null : b.id)}
                           aria-expanded={abierto}
                           aria-controls={`aviso-${b.id}`}
                           className="relative shrink-0 font-lv-display text-meta font-semibold text-verde-700 after:absolute after:-inset-x-1 after:-inset-y-[14px] after:content-['']"
