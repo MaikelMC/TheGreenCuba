@@ -15,6 +15,7 @@ import {
   Store,
   Tags,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import type { ContadoresAdmin } from "@/lib/admin-contadores";
@@ -27,9 +28,9 @@ import type { ContadoresAdmin } from "@/lib/admin-contadores";
  * resolver, después el negocio, después el crecimiento y al final la
  * configuración.
  *
- * **Solo aparecen las secciones que existen.** Las de las fases siguientes
- * —Pendientes, Ingresos y pagos, Prospectos— se añaden cuando su fase las
- * construye; un enlace a una ruta que aún no existe es un botón muerto.
+ * **Solo aparecen las secciones que existen.** Las que faltan —Prospectos y
+ * el resto— se añaden cuando su fase las construye; un enlace a una ruta que
+ * aún no existe es un botón muerto.
  */
 export interface AdminNavItem {
   href: string;
@@ -86,6 +87,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     titulo: "Negocio",
     items: [
       { href: "/admin/negocios", label: "Negocios", icon: Store },
+      { href: "/admin/ingresos", label: "Ingresos y pagos", icon: Wallet },
       { href: "/admin/afiliados", label: "Afiliados", icon: HandCoins },
       { href: "/admin/proyectos", label: "Proyectos", icon: Megaphone },
     ],
