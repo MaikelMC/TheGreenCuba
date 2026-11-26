@@ -17,7 +17,13 @@ interface PlaceCardProps {
   rating: number;
   distance: string;
   price: string;
-  tags: { label: string; variant?: "mlc" | "open" | "default" }[];
+  tags: {
+    label: string;
+    variant?: "mlc" | "open" | "default";
+    /** El texto puede ser largo («Cerrado · abre hoy a las 8:00»); el estado
+        sigue diciendo si el chip va en verde o en gris. */
+    state?: "abierto" | "cerrado";
+  }[];
   /** Nombre del icono Lucide del negocio. Sin él, el genérico. */
   icon?: string;
   /** Logo del negocio. Si lo hay manda sobre el icono. */
@@ -68,8 +74,14 @@ export function PlaceCard({
   /* `price` llega como «—» cuando no hay dato; tampoco se pinta. */
   const realPrice = price && price !== "—" ? price : null;
 
-  const state = tags.find((t) => t.label === "Abierto" || t.label === "Cerrado");
-  const isOpen = state?.label === "Abierto";
+  /* Las tarjetas nuevas traen `state`; las de la portada y las viejas solo
+     traen la etiqueta. Se aceptan las dos para no romper ninguna llamada. */
+  const state =
+    tags.find((t) => t.state) ??
+    tags.find((t) => t.label === "Abierto" || t.label === "Cerrado");
+  const isOpen = state?.state
+    ? state.state === "abierto"
+    : state?.label === "Abierto";
   const offer = tags.find((t) => t.label === "Oferta");
   /* «Destacado» no va como chip: es la estrella del logo. */
   const rest = tags.filter(

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { unirPartes } from "@/lib/texto-lugar";
 import {
   isSaved as isPlaceSaved,
   recordVisit,
@@ -242,9 +243,7 @@ function LegacyPlaceDetail({
         { icon: Utensils, text: place.category },
         {
           icon: MapPin,
-          text: place.address
-            ? `${place.address}, ${place.barrio}`
-            : place.barrio,
+          text: unirPartes([place.address, place.barrio], ", "),
         },
       ];
 
@@ -687,9 +686,7 @@ function LegacyPlaceDetail({
                         className="mt-[3px] shrink-0 text-verde-600"
                       />
                       <span>
-                        {place.address
-                          ? `${place.address}, ${place.barrio}`
-                          : place.barrio}
+                        {unirPartes([place.address, place.barrio], ", ")}
                       </span>
                     </span>
                     {place.schedule ? (

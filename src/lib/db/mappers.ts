@@ -22,6 +22,7 @@ import { siteConfig } from "@/config/site";
 import { slugify } from "@/lib/utils";
 import { conIds } from "@/lib/catalogo";
 import { whatsappDePedido } from "@/lib/contact-links";
+import { formatearBarrio, formatearDireccion } from "@/lib/texto-lugar";
 
 /**
  * Traducción entre las filas de la base y los tipos que usa la app.
@@ -149,13 +150,16 @@ export function toUserPlace(
     logoUrl: row.logoUrl ?? undefined,
     lat: row.lat,
     lng: row.lng,
-    address: row.address ?? "",
+    /* La base guarda lo que escribió el dueño; la tarjeta y la ficha lo
+       enseñan normalizado. No se reescribe la fila: el dato original sigue
+       intacto y el informe de normalización dice qué cambiaría si se limpiara. */
+    address: formatearDireccion(row.address ?? ""),
     /* El barrio cae a la ciudad cuando el negocio no tiene uno. Media siembra
        viene sin `neighborhood` —La Cabaña, entre otros—, y con el fallback
        anterior esos negocios acababan con la etiqueta «Cuba» en la ficha, que
        no es un barrio ni un dato: es un hueco disfrazado. `city` es `notNull`,
        así que nunca queda vacío. */
-    barrio: row.neighborhood || row.city,
+    barrio: formatearBarrio(row.neighborhood || row.city),
     /* La ciudad va aparte del barrio, y no es lo mismo: el barrio cae a la ciudad
        cuando falta, así que sin este campo el marcado estructurado de una ficha
        sin `neighborhood` habría puesto la ciudad como si fuera el barrio. */
@@ -529,19 +533,31 @@ export function toNewPlaceValues(
   categoryId: string | null,
   id: string,
 ): typeof places.$inferInsert {
+  /* Solo al crear: el barrio y la dirección de una ficha nueva se guardan ya
+     limpios. Las filas existentes no se tocan; su informe va aparte. */
+  const normalizado: Partial<UserPlace> = {
+    ...input,
+    ...(input.address !== undefined
+      ? { address: formatearDireccion(input.address) }
+      : {}),
+    ...(input.barrio !== undefined
+      ? { barrio: formatearBarrio(input.barrio) }
+      : {}),
+  };
+
   return {
     id,
-    name: input.name ?? "",
-    slug: slugify(input.name ?? id),
-    description: input.description ?? null,
+    name: normalizado.name ?? "",
+    slug: slugify(normalizado.name ?? id),
+    description: normalizado.description ?? null,
     categoryId,
-    lat: input.lat ?? 0,
-    lng: input.lng ?? 0,
-    address: input.address ?? null,
-    city: input.city ?? "",
-    province: input.province ?? "",
+    lat: normalizado.lat ?? 0,
+    lng: normalizado.lng ?? 0,
+    address: normalizado.address ?? null,
+    city: normalizado.city ?? "",
+    province: normalizado.province ?? "",
     reviewStatus: "pending",
-    neighborhood: input.barrio ?? null,
-    ...toPlaceValues(input, categoryId),
+    neighborhood: normalizado.barrio ?? null,
+    ...toPlaceValues(normalizado, categoryId),
   } as typeof places.$inferInsert;
 }

@@ -68,7 +68,10 @@ import {
   type BusinessCategory,
 } from "@/lib/places";
 import { matchesPlaceFilters } from "@/lib/place-filters";
-import { estadoAhora } from "@/lib/ficha/horario";
+import { estadoVisible } from "@/lib/ficha/horario";
+import { textoEstado } from "@/config/ficha";
+import { ordenarCercaDeTi } from "@/lib/cerca-de-ti";
+import { formatearBarrio, formatearDireccion, unirPartes } from "@/lib/texto-lugar";
 import { hayOferta } from "@/lib/ofertas";
 import { energiaParaIA } from "@/lib/energia";
 import type { UserPlace } from "@/lib/places-store";
@@ -158,12 +161,25 @@ interface HomePlace {
   barrio: string;
   rating: number;
   distance: string;
+  /** Distancia numérica para ordenar; `null` si no hay origen. */
+  distanceM: number | null;
   price: string;
   /** Nombre del icono Lucide, ya resuelto con la reserva de la categoría. */
   icon: string;
   /** Logo del negocio. Manda sobre el icono en la miniatura de la tarjeta. */
   logoUrl?: string;
-  tags: { label: string; variant?: "mlc" | "open" | "default" }[];
+  tags: {
+    label: string;
+    variant?: "mlc" | "open" | "default";
+    /** `state` permite que el texto completo cambie sin romper el color. */
+    state?: "abierto" | "cerrado";
+  }[];
+  /** `null` = no hay horario que permita afirmar nada. */
+  abierto: boolean | null;
+  /** Texto único de estado: «Abierto · cierra a las 23:00», etc. */
+  estadoTexto: string | null;
+  /** Próxima apertura en epoch ms, para ordenar los cerrados. */
+  proximaApertura: number | null;
   desc: string;
   lat: number;
   lng: number;
@@ -190,20 +206,26 @@ function userPlaceToHomePlace(
      a medianoche. Si el horario no da una hora comprobable, la tarjeta no dice
      nada —`PlaceCard` ya sabe vivir sin chip de estado—. */
   const estado = now
-    ? estadoAhora({
+    ? estadoVisible({
         horario: p.horario,
         schedule: p.schedule,
         status: p.status,
+        mensajeCierre: p.cerradoMensaje,
         now,
       })
-    : "desconocido";
+    : null;
+  /* `sinHorario` no es «cerrado»: es «no se puede afirmar». La tarjeta se calla
+     en vez de pintar un gris que el negocio no dijo. */
+  const abierto = estado && !estado.sinHorario ? estado.abierto : null;
+  const estadoTexto = estado ? textoEstado(estado) : null;
   const tags: HomePlace["tags"] =
-    estado === "desconocido"
+    abierto === null
       ? []
       : [
           {
-            label: estado === "abierto" ? "Abierto" : "Cerrado",
-            variant: estado === "abierto" ? "open" : "default",
+            label: estadoTexto ?? (abierto ? "Abierto" : "Cerrado"),
+            variant: abierto ? "open" : "default",
+            state: abierto ? "abierto" : "cerrado",
           },
         ];
   if (p.selloVerificado) tags.push({ label: "Verificado", variant: "open" });
@@ -214,21 +236,27 @@ function userPlaceToHomePlace(
   if (p.isBoosted) tags.push({ label: "Destacado" });
   if (p.payments.includes("MLC"))
     tags.push({ label: "USD Clásica", variant: "mlc" });
+  const barrio = formatearBarrio(p.barrio) || "Cuba";
+  const direccion = formatearDireccion(p.address);
   return {
     id: p.id,
     name: p.name,
     isProject: p.isProject,
-    category: p.category,
-    barrio: p.barrio || "Cuba",
+    category: p.category?.trim() || "Otro",
+    barrio,
     rating: p.rating ?? 0,
+    distanceM,
     distance:
       distanceM !== null
         ? formatDistanceM(distanceM)
-        : p.distanceLabel || p.address || p.barrio || "Ver en el mapa",
+        : p.distanceLabel || direccion || barrio || "Ver en el mapa",
     price: p.priceLabel || "—",
     icon: placeIcon(p.icon, p.category, categories),
     logoUrl: p.logoUrl,
     tags,
+    abierto,
+    estadoTexto,
+    proximaApertura: estado?.proximaApertura ?? null,
     desc: p.description || "Negocio agregado por su dueño en La Verde.",
     lat: p.lat,
     lng: p.lng,
@@ -394,7 +422,7 @@ function DetailOverlay({
                   {place.name}
                 </h3>
                 <p className="text-small text-ink-soft/75 mb-gap-sm">
-                  {place.category} · {place.barrio}
+                  {unirPartes([place.category, place.barrio])}
                 </p>
               </motion.div>
 
@@ -556,7 +584,7 @@ const PlaceCardRow = memo(function PlaceCardRow({
         index={index}
         href={`/place/${place.id}`}
         name={place.name}
-        category={`${place.category} · ${place.barrio}`}
+        category={unirPartes([place.category, place.barrio])}
         rating={place.rating}
         distance={place.distance}
         price={place.price}
@@ -1003,24 +1031,19 @@ function HomePageContent() {
       ? personalizePlaces(listVisiblePlaces, userPreferences)
       : listVisiblePlaces;
 
-    const measured = ranked.map((place) => ({
-      place,
-      distanceM: origin
-        ? haversineM(origin, { lat: place.lat, lng: place.lng })
-        : null,
-    }));
-
-    if (origin) {
-      measured.sort(
-        (a, b) =>
-          (a.distanceM ?? Number.POSITIVE_INFINITY) -
-          (b.distanceM ?? Number.POSITIVE_INFINITY),
-      );
-    }
-
-    return measured.map(({ place, distanceM }) =>
-      userPlaceToHomePlace(place, categories, distanceM, ahora),
+    /* Primero lo abierto y más cercano; después lo cerrado por lo que abre
+       antes. El orden se hace aquí, en el cliente, porque la lista y la hora
+       viven aquí; el servidor no necesita saber nada de «Cerca de ti». */
+    const mapped = ranked.map((place) =>
+      userPlaceToHomePlace(
+        place,
+        categories,
+        origin ? haversineM(origin, { lat: place.lat, lng: place.lng }) : null,
+        ahora,
+      ),
     );
+
+    return ordenarCercaDeTi(mapped);
   }, [listVisiblePlaces, categories, distanceOrigin, userPreferences, ahora]);
 
   const handleLike = useCallback(

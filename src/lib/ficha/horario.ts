@@ -595,6 +595,96 @@ export function proximaAperturaMs(
   return now.getTime() + Math.max(0, faltan) * 60_000;
 }
 
+/* ── Estado listo para pintar ─────────────────────────────────────────── */
+
+/** El estado de apertura más lo que hace falta para ordenar una lista. */
+export interface EstadoVisible extends EstadoApertura {
+  /**
+   * Próxima apertura, en milisegundos UNIX, cuando está cerrado y se conoce.
+   * `null` si está abierto, si no hay horario o si el cierre es manual.
+   */
+  proximaApertura: number | null;
+}
+
+/**
+ * El estado que comparten el home, la tarjeta del pin y la ficha.
+ *
+ * Envuelve `estadoApertura` y añade dos cosas que antes se resolvían en cada
+ * pantalla por su cuenta:
+ *
+ * - las fichas antiguas sin `horario` estructurado se leen con
+ *   `estadoDesdeTexto`, que es lo único que tienen;
+ * - `proximaApertura` sale en epoch para poder ordenar los cerrados por «lo
+ *   que abre antes» sin volver a interpretar el horario en el componente.
+ *
+ * `status` manda sobre el horario: un cierre manual no abre aunque su horario
+ * diga que sí.
+ */
+export function estadoVisible({
+  horario,
+  schedule,
+  status = "active",
+  mensajeCierre,
+  now = new Date(),
+  tz = "America/Havana",
+}: {
+  horario: Horario | null | undefined;
+  schedule?: string | null;
+  status?: "active" | "closed" | "temporary_closed";
+  mensajeCierre?: string | null;
+  now?: Date;
+  tz?: string;
+}): EstadoVisible {
+  const cierre =
+    status === "temporary_closed"
+      ? mensajeCierre?.trim() || "Cerrado temporalmente"
+      : mensajeCierre;
+
+  const base = estadoApertura({
+    horario,
+    status,
+    mensajeCierre: cierre,
+    now,
+    tz,
+  });
+
+  let estado = base;
+
+  /* Ficha antigua: sin horario estructurado se lee el texto libre. Solo se
+     afirma algo cuando el texto trae una hora comprobable; si no, se queda
+     `sinHorario` y quien pinta no inventa «Cerrado». */
+  if (base.sinHorario && status === "active") {
+    const texto = schedule?.trim();
+    if (texto) {
+      const leido = estadoDesdeTexto(texto, now, tz);
+      if (leido.estado === "abierto") {
+        estado = {
+          ...base,
+          abierto: true,
+          sinHorario: false,
+          cierraA: leido.cierraA,
+          mensaje: null,
+        };
+      } else if (leido.estado === "cerrado") {
+        estado = {
+          ...base,
+          abierto: false,
+          sinHorario: false,
+          cierraA: null,
+          mensaje: null,
+        };
+      }
+    }
+  }
+
+  const proximaApertura =
+    !estado.abierto && status === "active" && horario
+      ? proximaAperturaMs(horario, now, tz)
+      : null;
+
+  return { ...estado, proximaApertura };
+}
+
 /**
  * La apertura manual que toca al pulsar «Abrir» ahora, o `undefined` si no
  * hace falta (el horario ya dice abierto, o no hay horario que ganar).

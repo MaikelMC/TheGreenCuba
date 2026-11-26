@@ -43,10 +43,11 @@ export const COPY = {
 
   abierto: "Abierto",
   cerrado: "Cerrado",
-  cierraA: "Cierra a las",
-  abreA: "Abre a las",
-  abreManana: "Abre mañana a las",
-  abreEl: "Abre el",
+  cierraA: "cierra a las",
+  abreA: "abre a las",
+  abreHoy: "abre hoy a las",
+  abreManana: "abre mañana a las",
+  abreEl: "abre el",
 
   resenas: "reseñas",
   resena: "reseña",
@@ -196,14 +197,11 @@ export function ordenarCategorias(
   return [...(categorias ?? [])].sort((a, b) => a.orden - b.orden);
 }
 
-/** `"18:00"` → `"6:00 p. m."`. Vacío si la hora no es válida. */
-export function hora12(hora: string): string {
+/** `"18:00"` → `"18:00"`, `"08:00"` → `"8:00"`. Vacío si la hora no es válida. */
+export function horaTexto(hora: string): string {
   const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(hora.trim());
   if (!m) return "";
-  const h = Number(m[1]);
-  const sufijo = h < 12 ? "a. m." : "p. m.";
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${h12}:${m[2]} ${sufijo}`;
+  return `${Number(m[1])}:${m[2]}`;
 }
 
 /**
@@ -217,16 +215,16 @@ export function textoEstado(estado: EstadoApertura): string | null {
   if (estado.sinHorario) return null;
 
   if (estado.abierto) {
-    const cierre = estado.cierraA ? hora12(estado.cierraA) : "";
+    const cierre = estado.cierraA ? horaTexto(estado.cierraA) : "";
     return cierre
       ? `${COPY.abierto} · ${COPY.cierraA} ${cierre}`
       : COPY.abierto;
   }
 
   if (estado.abreA) {
-    const hora = hora12(estado.abreA);
+    const hora = horaTexto(estado.abreA);
     if (estado.diasHastaApertura === 0) {
-      return `${COPY.cerrado} · ${COPY.abreA} ${hora}`;
+      return `${COPY.cerrado} · ${COPY.abreHoy} ${hora}`;
     }
     if (estado.diasHastaApertura === 1) {
       return `${COPY.cerrado} · ${COPY.abreManana} ${hora}`;
@@ -235,7 +233,7 @@ export function textoEstado(estado: EstadoApertura): string | null {
       estado.abreDia !== null ? DIAS_SEMANA[estado.abreDia] : undefined;
     const nombre = dia ? DIA_SEMANA_LABEL[dia] : "";
     return nombre
-      ? `${COPY.cerrado} · ${COPY.abreEl} ${nombre} ${COPY.abreA} ${hora}`
+      ? `${COPY.cerrado} · ${COPY.abreEl} ${nombre} a las ${hora}`
       : COPY.cerrado;
   }
 

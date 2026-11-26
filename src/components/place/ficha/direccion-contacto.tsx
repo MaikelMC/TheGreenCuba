@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { PlaceData } from "@/lib/ficha/place-data";
 import { COPY } from "@/config/ficha";
+import { unirPartes } from "@/lib/texto-lugar";
 import { cn } from "@/lib/utils";
 import { ReservaWhatsApp } from "../reserva-whatsapp";
 import { SeguidorBoton } from "../seguidor-boton";
@@ -110,9 +111,7 @@ export function DireccionContacto({
               {COPY.direccion}
             </p>
             <p className="text-small leading-relaxed text-ink">
-              {place.address
-                ? `${place.address}, ${place.barrio}`
-                : place.barrio}
+              {unirPartes([place.address, place.barrio], ", ")}
             </p>
             {onNavigate && (
               <button
