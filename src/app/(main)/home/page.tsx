@@ -9,7 +9,6 @@ import {
   useEffect,
   useRef,
   useMemo,
-  memo,
 } from "react";
 import {
   Search,
@@ -17,36 +16,36 @@ import {
   MapPin,
   X,
   RefreshCw,
-  RotateCw,
   WifiOff,
   Navigation,
+  Layers,
+  Sparkles,
   Heart,
   Share2,
   DollarSign,
-  MessageCircle,
   ExternalLink,
   Lock,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { cn, formatDateRange, formatRelativeTime } from "@/lib/utils";
+import { cn, formatDateRange } from "@/lib/utils";
 import { fadeUp, popIn, staggerContainer } from "@/lib/motion";
 import { CategoryBar } from "@/components/layout/category-bar";
 import { HomeTopBar } from "@/components/home/home-top-bar";
 import { HomeSearchOverlay } from "@/components/home/home-search-overlay";
 import { BottomSheet } from "@/components/layout/bottom-sheet";
-import { PlaceCard } from "@/components/layout/place-card";
+import { LugarCercanoCard } from "@/components/home/lugar-cercano-card";
 import { SearchingAnimation } from "@/components/layout/searching-animation";
 import { MapView } from "@/components/map/MapView";
-import { InstallMapButton } from "@/components/map/install-map-button";
 import { MapNotifications } from "@/components/map/map-notifications";
 import { NovedadesMapa } from "@/components/map/novedades-mapa";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { MapOptionsSheet } from "@/components/home/map-options-sheet";
 import { StateView } from "@/components/ui/state-view";
 import { CategoryIcon } from "@/components/admin/category-icon";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/loading";
 import { useSearchActions } from "@/providers/search-provider";
 import {
+  GEO_ERROR_MESSAGES,
   getCurrentPosition,
   getLastKnownPosition,
 } from "@/lib/map/geolocation";
@@ -71,11 +70,11 @@ import {
 } from "@/lib/places";
 import { matchesPlaceFilters } from "@/lib/place-filters";
 import { estadoVisible } from "@/lib/ficha/horario";
-import { textoEstado } from "@/config/ficha";
+import { horaTexto, textoEstado } from "@/config/ficha";
 import { ordenarCercaDeTi } from "@/lib/cerca-de-ti";
 import { formatearBarrio, formatearDireccion, unirPartes } from "@/lib/texto-lugar";
-import { hayOferta } from "@/lib/ofertas";
-import { energiaParaIA } from "@/lib/energia";
+import { hayOferta, ofertasVigentes } from "@/lib/ofertas";
+import { energiaParaIA, tieneRespaldo } from "@/lib/energia";
 import type { UserPlace } from "@/lib/places-store";
 import {
   readUserPreferences,
@@ -182,6 +181,13 @@ interface HomePlace {
   estadoTexto: string | null;
   /** Próxima apertura en epoch ms, para ordenar los cerrados. */
   proximaApertura: number | null;
+  /** `HH:MM` de la próxima apertura, para el aviso de «todo cerrado». */
+  abreA: string | null;
+  /** Datos reales para los chips y filtros de «Cerca de ti». */
+  domicilio: boolean;
+  planta: boolean;
+  aceptaCup: boolean;
+  ofertaTexto: string | null;
   desc: string;
   lat: number;
   lng: number;
@@ -240,6 +246,7 @@ function userPlaceToHomePlace(
     tags.push({ label: "USD Clásica", variant: "mlc" });
   const barrio = formatearBarrio(p.barrio) || "Cuba";
   const direccion = formatearDireccion(p.address);
+  const oferta = now ? ofertasVigentes(p.ofertas, now.getTime())[0] : undefined;
   return {
     id: p.id,
     name: p.name,
@@ -259,6 +266,11 @@ function userPlaceToHomePlace(
     abierto,
     estadoTexto,
     proximaApertura: estado?.proximaApertura ?? null,
+    abreA: estado?.abreA ?? null,
+    domicilio: p.entrega?.domicilio === true,
+    planta: tieneRespaldo(p.energiaRespaldo),
+    aceptaCup: p.payments.includes("CUP"),
+    ofertaTexto: oferta?.titulo.trim() || null,
     desc: p.description || "Negocio agregado por su dueño en La Verde.",
     lat: p.lat,
     lng: p.lng,
@@ -267,8 +279,16 @@ function userPlaceToHomePlace(
   };
 }
 
+const FILTROS_HOJA = [
+  { key: "abierto", label: "Abierto ahora" },
+  { key: "domicilio", label: "A domicilio" },
+  { key: "cup", label: "Acepta CUP" },
+  { key: "planta", label: "Tiene planta" },
+  { key: "oferta", label: "Con oferta" },
+] as const;
+
 const SHEET_TITLES: Record<SheetState, { title: string; subtitle: string }> = {
-  default: { title: "Recomendaciones", subtitle: "Lugares cerca de ti" },
+  default: { title: "Cerca de ti", subtitle: "Lugares cerca de ti" },
   searching: { title: "Buscando", subtitle: "Analizando tu consulta…" },
   results: {
     title: "Resultados",
@@ -563,47 +583,6 @@ function LoadingSkeleton() {
   );
 }
 
-// Fila memoizada de la lista: cuando cambia solo el lugar seleccionado/favorito,
-// React salta el re-render de las filas restantes (antes toda la lista re-rendereaba).
-const PlaceCardRow = memo(function PlaceCardRow({
-  place,
-  index,
-  selected,
-  liked,
-  onLike,
-  onLocate,
-}: {
-  place: HomePlace;
-  index: number;
-  selected: boolean;
-  liked: boolean;
-  onLike: (id: string) => void;
-  onLocate: (place: HomePlace) => void;
-}) {
-  return (
-    <div className="[content-visibility:auto] [contain-intrinsic-size:auto_98px]">
-      <PlaceCard
-        index={index}
-        href={`/place/${place.id}`}
-        name={place.name}
-        category={unirPartes([place.category, place.barrio])}
-        rating={place.rating}
-        distance={place.distance}
-        price={place.price}
-        icon={place.icon}
-        logoUrl={place.logoUrl}
-        topDelMes={place.topDelMes}
-        boosted={place.boosted}
-        tags={place.tags}
-        selected={selected}
-        liked={liked}
-        onLike={() => onLike(place.id)}
-        onLocate={() => onLocate(place)}
-      />
-    </div>
-  );
-});
-
 function HomePageContent() {
   const searchParams = useSearchParams();
   /* Llegada desde «Ver el mapa» de la portada: la ubicación ya se pidió en ese
@@ -630,6 +609,16 @@ function HomePageContent() {
     busquedaInicialLeida.current = true;
     if (searchParams.get("buscar") === "1") setSearchOpen(true);
   }, [searchParams]);
+  const [mapOptionsOpen, setMapOptionsOpen] = useState(false);
+  const opcionesInicialesLeidas = useRef(false);
+  useEffect(() => {
+    if (opcionesInicialesLeidas.current) return;
+    opcionesInicialesLeidas.current = true;
+    if (searchParams.get("opciones") === "mapa") setMapOptionsOpen(true);
+  }, [searchParams]);
+  const [novedadesKey, setNovedadesKey] = useState(0);
+  const [refrescando, setRefrescando] = useState(false);
+  const [ubicando, setUbicando] = useState(false);
   /* La hora se fija tras montar. El primer render del cliente coincide con el
      del servidor y el chip «Abierto/Cerrado» aparece en el siguiente tick. */
   const [ahora, setAhora] = useState<Date | null>(null);
@@ -673,7 +662,7 @@ function HomePageContent() {
   /* Filtros acumulables del mapa. Viven aquí y no dentro de `PlaceFilters`
      porque es esta pantalla la que filtra: allí se encendían y no salían de
      casa. */
-  const [activeFilters] = useState<Set<string>>(
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(
     () => new Set(searchParams.getAll("filtro")),
   );
   const [detailPlace, setDetailPlace] = useState<HomePlace | null>(null);
@@ -734,9 +723,10 @@ function HomePageContent() {
       );
     },
   );
-  const [disableAutoFit, setDisableAutoFit] = useState(
-    restoredMapView !== null || initialCenter !== null,
-  );
+  /* El home no encuadra «todo Cuba» al abrir: eso era lo que dejaba zona rural
+     sin pines. Arranca en la vista restaurada, en la ciudad del perfil o en La
+     Habana por defecto, y deja que el GPS afine después. */
+  const [disableAutoFit, setDisableAutoFit] = useState(true);
   const [userPreferences, setUserPreferences] =
     useState<UserPreferences | null>(null);
   const [hasSavedProfileLocation, setHasSavedProfileLocation] = useState(false);
@@ -747,8 +737,7 @@ function HomePageContent() {
      leían de `localStorage` aquí aparte, así que la pantalla podía estar
      pintando un catálogo y el panel de admin editando otro: cambiar el icono
      de una categoría no movía ni un pin del mapa. */
-  const { places, categories, hydrated, lastSyncedAt, refreshPlaces } =
-    usePlaces();
+  const { places, categories, hydrated, refreshPlaces } = usePlaces();
 
   /* La provincia del perfil recorta el catálogo, y lo recorta **para dos
      sitios y solo dos**: la lista de recomendaciones y el catálogo que viaja a
@@ -918,6 +907,21 @@ function HomePageContent() {
     [],
   );
 
+  /* Un filtro se enciende o se apaga en un solo sitio para que el mapa, la
+     lista, la hoja y la URL no puedan discrepar. */
+  const toggleFilter = useCallback(
+    (filtro: string) => {
+      setActiveFilters((previos) => {
+        const siguientes = new Set(previos);
+        if (siguientes.has(filtro)) siguientes.delete(filtro);
+        else siguientes.add(filtro);
+        syncFilterUrl(activeCategory, siguientes);
+        return siguientes;
+      });
+    },
+    [activeCategory, syncFilterUrl],
+  );
+
   /* Abrir la búsqueda deja una entrada en el historial para que el gesto de
      atrás la cierre. No se usa el router de Next: la pantalla es una capa, no
      una ruta nueva, y no debe volver a pedir el catálogo. */
@@ -946,9 +950,35 @@ function HomePageContent() {
     window.history.replaceState(window.history.state, "", url);
   }, []);
 
+  const abrirOpcionesMapa = useCallback(() => {
+    setMapOptionsOpen(true);
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("opciones") !== "mapa") {
+      url.searchParams.set("opciones", "mapa");
+      window.history.pushState(
+        { ...(window.history.state ?? {}), lvOpciones: true },
+        "",
+        url,
+      );
+    }
+  }, []);
+
+  const cerrarOpcionesMapa = useCallback(() => {
+    setMapOptionsOpen(false);
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("opciones") !== "mapa") return;
+    if (window.history.state?.lvOpciones) {
+      window.history.back();
+      return;
+    }
+    url.searchParams.delete("opciones");
+    window.history.replaceState(window.history.state, "", url);
+  }, []);
+
   useEffect(() => {
     function alVolver() {
       setSearchOpen(false);
+      setMapOptionsOpen(false);
     }
     window.addEventListener("popstate", alVolver);
     return () => window.removeEventListener("popstate", alVolver);
@@ -1001,13 +1031,25 @@ function HomePageContent() {
 
   const mapPlaces = useMemo<MapPlace[]>(
     () =>
-      mapVisiblePlaces.map((p) => ({
+      mapVisiblePlaces.map((p) => {
+        const estado = ahora
+          ? estadoVisible({
+              horario: p.horario,
+              schedule: p.schedule,
+              status: p.status,
+              mensajeCierre: p.cerradoMensaje,
+              now: ahora,
+            })
+          : null;
+        return {
         id: p.id,
         name: p.name,
         isProject: p.isProject,
         lat: p.lat,
         lng: p.lng,
         category: p.category,
+        abierto:
+          estado && !estado.sinHorario ? estado.abierto : null,
         icon: placeIcon(p.icon, p.category, categories),
         /* El logo primero: es la marca del negocio y se reconoce mejor en un
            disco de 15 px que una foto de fachada. Después la foto del mapa y la
@@ -1061,8 +1103,9 @@ function HomePageContent() {
             ? [{ label: "Oferta", variant: "open" as const }]
             : []),
         ],
-      })),
-    [mapVisiblePlaces, categories],
+        };
+      }),
+    [mapVisiblePlaces, categories, ahora],
   );
 
   /* Origen para medir cercanía: el GPS si lo hay y, si no, el centro de la
@@ -1321,17 +1364,6 @@ function HomePageContent() {
     searchCtx.registerSuggestionsHandler(() => setPeekKey((k) => k + 1));
   }, [searchCtx]);
 
-  /* Vuelve a la lista de recomendaciones y vuelve a pedir el catálogo. Sale al paso
-     del callejón sin salida del error: «Reintentar» repite la búsqueda que ya
-     falló, y si la red sigue igual no hay forma de recuperar la lista sin
-     recargar la página. */
-  const handleReloadRecommendations = useCallback(() => {
-    setAiState(null);
-    setSearchingQuery("");
-    setSheetState("default");
-    void refreshPlaces();
-  }, [refreshPlaces]);
-
   /* «Quitar» de la búsqueda activa: vuelve a «Cerca de ti» sin pedir nada.
      El catálogo ya está en memoria; refrescarlo aquí gastaría datos por un
      gesto que solo quiere ver la lista de siempre. */
@@ -1341,6 +1373,18 @@ function HomePageContent() {
     setSheetState("default");
     setOpenKey((k) => k + 1);
   }, []);
+
+  const handleResetFilters = useCallback(() => {
+    const vacios = new Set<string>();
+    setActiveFilters(vacios);
+    setActiveCategory("all");
+    syncFilterUrl("all", vacios);
+    if (searchingQuery) handleClearSearch();
+  }, [syncFilterUrl, searchingQuery, handleClearSearch]);
+
+  const handleVerDomicilio = useCallback(() => {
+    if (!activeFilters.has("domicilio")) toggleFilter("domicilio");
+  }, [activeFilters, toggleFilter]);
 
   const handleRetry = useCallback(() => {
     if (searchingQuery) {
@@ -1356,13 +1400,26 @@ function HomePageContent() {
     }, 2500);
   }, [searchingQuery, handleSearch, searchCtx]);
 
-  /* Tocar un pin del mapa solo selecciona: la hoja no se toca. El popup sale
-     del propio pin y ya se abre solo. */
-  const handleMarkerClick = useCallback((id: string) => {
-    trackMapMarkerClick(id);
-    trackPlaceMetric(id, "map_click");
-    setSelectedId(id);
-  }, []);
+  /* Tocar un pin lo selecciona, lo sube por encima de la hoja y abre su
+     ventana. El popup sale del propio pin; la cámara se mueve con padding para
+     que no quede debajo de la hoja. */
+  const handleMarkerClick = useCallback(
+    (id: string) => {
+      trackMapMarkerClick(id);
+      trackPlaceMetric(id, "map_click");
+      setSelectedId(id);
+      const place = places.find((p) => p.id === id);
+      if (place) {
+        setFocusTarget((prev) => ({
+          lat: place.lat,
+          lng: place.lng,
+          key: (prev?.key ?? 0) + 1,
+        }));
+      }
+      setPeekKey((k) => k + 1);
+    },
+    [places],
+  );
 
   /* Envuelta estable para el mapa: `MapMarkers` memoriza cada pin y compara
      `onSelect` por identidad. Con la flecha escrita en el JSX, cada cambio de
@@ -1395,6 +1452,37 @@ function HomePageContent() {
     },
     [],
   );
+
+  /* El botón de ubicación vive en la columna flotante del home. La cámara la
+     mueve `MapContent` cuando cambia `userLocation`; aquí solo se pide el GPS
+     y se avisa si no hay permiso. */
+  const handleUbicar = useCallback(async () => {
+    if (ubicando) return;
+    setUbicando(true);
+    try {
+      const pos = await getCurrentPosition({ useCache: false });
+      handleUserLocated(pos.lat, pos.lng, pos.accuracy);
+    } catch (err) {
+      const code = (err as { code?: string }).code as
+        | keyof typeof GEO_ERROR_MESSAGES
+        | undefined;
+      toast.error(
+        GEO_ERROR_MESSAGES[code ?? "unknown"] ?? GEO_ERROR_MESSAGES.unknown,
+      );
+    } finally {
+      setUbicando(false);
+    }
+  }, [handleUserLocated, ubicando]);
+
+  const handleActualizar = useCallback(async () => {
+    if (refrescando) return;
+    setRefrescando(true);
+    try {
+      await refreshPlaces();
+    } finally {
+      setRefrescando(false);
+    }
+  }, [refreshPlaces, refrescando]);
 
   /* También estable: `MapEventsHandler` vuelve a suscribir `moveend` cuando
      cambia la identidad de la función, y esta se recreaba en cada render. */
@@ -1641,28 +1729,28 @@ function HomePageContent() {
   const sheetInfo = SHEET_TITLES[sheetState];
   const showBadge = sheetState === "default" || sheetState === "results";
 
-  const sheetSubtitle =
-    sheetState === "results" && searchingQuery
-      ? `Resultados para "${searchingQuery}"`
-      : sheetState === "default"
-        ? `Lugares cerca de ti${lastSyncedAt ? ` · actualizado ${formatRelativeTime(lastSyncedAt)}` : ""}`
-        : sheetInfo.subtitle;
-
   // En resultados, muestra SOLO los lugares que la IA eligió, respetando su orden.
   // En la vista por defecto (sin búsqueda) muestra todo el catálogo.
   const resultPlaces = useMemo<HomePlace[]>(() => {
     if (!aiState || aiState.matches.length === 0) return filteredPlaces;
     const byId = new Map(filteredPlaces.map((p) => [p.id, p]));
-    /* Respaldo con el catálogo entero: cuando la consulta nombra otra
-       provincia, la búsqueda viaja con todos los lugares y el modelo puede
-       devolver uno que la lista recortada por provincia ya descartó. Sin
-       esto, la respuesta de la IA lo mencionaba y su tarjeta no salía. */
-    for (const p of places) {
-      if (byId.has(p.id)) continue;
-      const distanceM = distanceOrigin
-        ? haversineM(distanceOrigin, { lat: p.lat, lng: p.lng })
-        : null;
-      byId.set(p.id, userPlaceToHomePlace(p, categories, distanceM, ahora));
+    /* Los filtros de la hoja también mandan sobre los resultados de la IA. Si
+       hay alguno activo no se rellena desde el catálogo entero: sería colar
+       fichas que el filtro acaba de quitar. */
+    const conFiltros =
+      activeFilters.size > 0 || activeCategory !== "all";
+    if (!conFiltros) {
+      /* Respaldo con el catálogo entero: cuando la consulta nombra otra
+         provincia, la búsqueda viaja con todos los lugares y el modelo puede
+         devolver uno que la lista recortada por provincia ya descartó. Sin
+         esto, la respuesta de la IA lo mencionaba y su tarjeta no salía. */
+      for (const p of places) {
+        if (byId.has(p.id)) continue;
+        const distanceM = distanceOrigin
+          ? haversineM(distanceOrigin, { lat: p.lat, lng: p.lng })
+          : null;
+        byId.set(p.id, userPlaceToHomePlace(p, categories, distanceM, ahora));
+      }
     }
     const picked: HomePlace[] = [];
     const seen = new Set<string>();
@@ -1674,10 +1762,52 @@ function HomePageContent() {
       }
     }
     return picked;
-  }, [aiState, filteredPlaces, places, categories, distanceOrigin]);
+  }, [
+    aiState,
+    filteredPlaces,
+    places,
+    categories,
+    distanceOrigin,
+    activeFilters,
+    activeCategory,
+    ahora,
+  ]);
   const recommendationCount = filteredPlaces.length;
+  const listaDeLaHoja = sheetState === "results" ? resultPlaces : filteredPlaces;
+  const abiertosAhora = listaDeLaHoja.filter(
+    (place) => place.abierto === true,
+  ).length;
+  const todoCerrado =
+    listaDeLaHoja.length > 0 &&
+    listaDeLaHoja.every((place) => place.abierto === false);
+  const hayFiltrosActivos =
+    activeFilters.size > 0 || activeCategory !== "all" || Boolean(searchingQuery);
   const shownCount =
     sheetState === "results" ? resultPlaces.length : recommendationCount;
+
+  /* El aviso de «todo cerrado» usa la primera apertura conocida y los dos
+     negocios que abren a esa misma hora. Si no hay hora, no inventa el aviso. */
+  const primeraApertura = listaDeLaHoja.find((place) => place.abreA);
+  const horaPrimeraApertura = primeraApertura?.abreA
+    ? horaTexto(primeraApertura.abreA)
+    : null;
+  const abrenALaMismaHora = primeraApertura
+    ? listaDeLaHoja
+        .filter((place) => place.abreA === primeraApertura.abreA)
+        .slice(0, 2)
+        .map((place) => place.name)
+    : [];
+
+  const sheetSubtitle =
+    sheetState === "results" && searchingQuery
+      ? `Resultados para "${searchingQuery}"`
+      : sheetState === "default"
+        ? !hydrated
+          ? "Lugares cerca de ti"
+          : todoCerrado
+            ? "Todo cerrado a esta hora · ordenado por lo que abre antes"
+            : `${abiertosAhora} abiertos ahora · primero lo abierto y más cercano`
+        : sheetInfo.subtitle;
 
   /* `top` y no `pt`: `MapView` es `absolute inset-0` y un hijo absoluto toma
      como origen el borde de padding, así que el `padding-top` no lo movía. El
@@ -1715,7 +1845,9 @@ function HomePageContent() {
         onPlaceRoute={handlePlaceRoute}
         userLocation={userLocation}
         onUserLocated={handleUserLocated}
+        showLocateControl={false}
         focusTarget={focusTarget}
+        focusPadding={140}
         viewTarget={viewTarget}
         route={route}
         routeOrigin={routeOrigin}
@@ -1732,53 +1864,62 @@ function HomePageContent() {
             syncFilterUrl(value, activeFilters);
           }}
         />
-        {/* Botón de recarga: esquina superior izquierda, debajo de los filtros. */}
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          aria-label="Recargar página"
-          title="Recargar"
-          className="absolute left-gutter top-[64px] z-30 grid size-11 place-items-center rounded-full border border-ink/10 bg-white text-ink-soft shadow-soft transition-colors duration-500 ease-outquint hover:border-ink/20 hover:text-ink active:scale-95"
-        >
-          <RotateCw size={18} strokeWidth={1.8} />
-        </button>
-        {/* 3D: inclina la cámara para moverse en perspectiva. Va debajo de
-            recarga, con su mismo tamaño y alineación (64 px de la recarga +
-            44 de alto + 10 de hueco), para que la columna izquierda se lea como
-             una sola pila de controles. Sin brújula aparte: apagarlo devuelve a
-            plano y al norte, que es la forma de reorientarse. */}
-        <button
-          type="button"
-          onClick={() => setVista3d((activa) => !activa)}
-          aria-pressed={vista3d}
-          aria-label={vista3d ? "Volver al mapa plano" : "Ver el mapa en 3D"}
-          title={vista3d ? "Volver a plano" : "Mapa en 3D"}
-          className={cn(
-            "absolute left-gutter top-[118px] z-30 grid size-11 place-items-center rounded-full border font-lv-display text-[13px] font-bold shadow-soft transition-colors duration-500 ease-outquint active:scale-95",
-            vista3d
-              ? "border-verde-400 bg-verde-400 text-verde-950"
-              : "border-ink/10 bg-white text-ink-soft hover:border-ink/20 hover:text-ink",
-          )}
-        >
-          3D
-        </button>
-        {/* Columna flotante de la esquina: la campana arriba y, debajo, el
-            interruptor de claro/oscuro. Van juntos para que se apilen con la
-            misma separación sin repetir la posición en dos sitios. */}
+        {/* La columna flotante queda en tres: notificaciones, ubicación y
+            opciones. Actualizar, 3D y tema se mudaron a «Opciones del mapa» o
+            al perfil; el fuego de Novedades vive dentro de esas opciones. */}
         <div className="absolute right-gutter top-[64px] z-30 flex flex-col items-end gap-[10px]">
-          <NovedadesMapa
-            ubicacion={userLocation}
-            provincia={userProvinceLabel(userPreferences)}
-            userId={userId}
-          />
           <MapNotifications />
-          <ThemeToggle />
-          {/* Al final de la columna: aparece cuando Chromium dispara el evento
-              y así no empuja los controles que ya estaban. Cerca del pulgar y
-              fuera del camino. */}
-          <InstallMapButton />
+          <button
+            type="button"
+            onClick={() => void handleUbicar()}
+            disabled={ubicando}
+            aria-label="Centrar en mi ubicación"
+            aria-busy={ubicando}
+            className={cn(
+              "grid size-11 place-items-center rounded-full border border-ink/10 bg-white text-ink shadow-soft transition-colors duration-300 hover:border-verde-300 hover:text-verde-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400 disabled:cursor-wait disabled:opacity-70",
+              ubicando && "text-verde-600",
+            )}
+          >
+            {ubicando ? (
+              <RefreshCw size={18} strokeWidth={1.8} className="animate-spin" />
+            ) : (
+              <Navigation size={18} strokeWidth={1.8} />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={abrirOpcionesMapa}
+            aria-label="Opciones del mapa"
+            aria-haspopup="dialog"
+            className="grid size-11 place-items-center rounded-full border border-ink/10 bg-white text-ink shadow-soft transition-colors duration-300 hover:border-verde-300 hover:text-verde-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400"
+          >
+            <Layers size={18} strokeWidth={1.8} />
+          </button>
         </div>
       </MapView>
+
+      <NovedadesMapa
+        hideTrigger
+        openSignal={novedadesKey}
+        ubicacion={userLocation}
+        provincia={userProvinceLabel(userPreferences)}
+        userId={userId}
+      />
+
+      <MapOptionsSheet
+        open={mapOptionsOpen}
+        onClose={cerrarOpcionesMapa}
+        soloAbierto={activeFilters.has("abierto")}
+        onToggleSoloAbierto={() => toggleFilter("abierto")}
+        vista3d={vista3d}
+        onToggleVista3d={() => setVista3d((activa) => !activa)}
+        onNovedades={() => {
+          cerrarOpcionesMapa();
+          setNovedadesKey((k) => k + 1);
+        }}
+        onRefrescar={() => void handleActualizar()}
+        refrescando={refrescando}
+      />
 
       {/* Chip de ruta activa (sin ficha abierta) */}
       <AnimatePresence>
@@ -1829,19 +1970,18 @@ function HomePageContent() {
         title={sheetInfo.title}
         subtitle={sheetSubtitle}
         badge={showBadge ? String(shownCount) : undefined}
-        action={
-          sheetState !== "searching" ? (
+        action={(estado, alternar) =>
+          sheetState === "searching" ? undefined : (
             <button
               type="button"
-              onClick={handleReloadRecommendations}
-              aria-label="Actualizar recomendaciones"
-              title="Actualizar recomendaciones"
-              className="-my-2 -mr-[10px] grid size-11 shrink-0 place-items-center rounded-full text-ink-soft/60 transition-colors duration-500 hover:bg-sand hover:text-ink"
+              onClick={alternar}
+              className="-my-2 -mr-[10px] inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-ink/10 bg-white px-3 font-lv-display text-meta font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:bg-verde-50"
             >
-              <RefreshCw size={18} strokeWidth={1.8} aria-hidden="true" />
+              {estado === "full" ? "Ver mapa" : "Ver lista"}
             </button>
-          ) : undefined
+          )
         }
+        defaultState="mid"
         forceOpen={sheetState === "searching"}
         peekSignal={peekKey}
         openSignal={openKey}
@@ -1875,33 +2015,77 @@ function HomePageContent() {
               exit={{ opacity: 0, y: -14 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             >
-              {/* AI Banner */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: 0.08,
-                  duration: 0.4,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-                className="recommendations-ai-banner flex items-start gap-gap-sm p-[14px] bg-verde-50 border border-verde-200 rounded-2xl mb-gap-md"
-              >
-                <div className="size-9 rounded-xl bg-gradient-to-br from-verde-400 to-verde-600 grid place-items-center text-white shrink-0">
-                  <MessageCircle size={18} strokeWidth={1.8} />
-                </div>
-                <p
-                  aria-live="polite"
-                  className="text-small leading-relaxed text-ink"
+              {/* Filtros de un toque. No hay chips muertos: todos se calculan
+                  con datos reales de la ficha. */}
+              <div className="scrollbar-hide -mx-gutter mb-gap-sm flex gap-gap-xs overflow-x-auto px-gutter pb-[2px]">
+                {FILTROS_HOJA.map((filtro) => {
+                  const activo = activeFilters.has(filtro.key);
+                  return (
+                    <button
+                      key={filtro.key}
+                      type="button"
+                      onClick={() => toggleFilter(filtro.key)}
+                      aria-pressed={activo}
+                      className={cn(
+                        "inline-flex min-h-11 shrink-0 items-center rounded-full border px-3 font-lv-display text-meta font-semibold transition-colors duration-300",
+                        activo
+                          ? "border-verde-300 bg-verde-50 text-verde-700"
+                          : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-700",
+                      )}
+                    >
+                      {filtro.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Sugerencia de búsqueda: sustituye la tarjeta de texto de la
+                  IA. Es una frase de ejemplo, no un dato. */}
+              {sheetState === "default" && !searchingQuery && !todoCerrado && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void handleSearch("dónde desayunar ahora que acepte CUP")
+                  }
+                  className="mb-gap-sm flex min-h-11 w-full items-center gap-gap-xs rounded-2xl border border-dashed border-verde-300 bg-verde-50/60 px-3 py-2 text-left font-lv text-small text-verde-800 transition-colors duration-300 hover:border-verde-400 hover:bg-verde-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400"
                 >
-                  {sheetState === "results" && aiState && aiState.summary
-                    ? aiState.summary
-                    : !hydrated
-                      ? "Estoy viendo qué hay cerca de ti…"
-                      : authState === "out"
-                        ? `Explora el mapa y las ${provinceScopedPlaces.length} fichas disponibles. La búsqueda con IA necesita una cuenta.`
-                        : `Según tu ubicación en ${userProvinceLabel(userPreferences) ?? "Cuba"}, encontré ${provinceScopedPlaces.length} lugares que podrían gustarte. Explora el mapa o busca con lenguaje natural.`}
-                </p>
-              </motion.div>
+                  <Sparkles
+                    size={18}
+                    strokeWidth={1.8}
+                    aria-hidden
+                    className="shrink-0 text-verde-700"
+                  />
+                  <span className="min-w-0">
+                    Prueba:{" "}
+                    <span className="font-semibold">
+                      «dónde desayunar ahora que acepte CUP»
+                    </span>
+                  </span>
+                </button>
+              )}
+
+              {sheetState === "default" &&
+                todoCerrado &&
+                !activeFilters.has("abierto") && (
+                  <div className="mb-gap-sm flex flex-col gap-gap-xs rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <p className="font-lv-display text-small font-semibold text-amber-800">
+                      A esta hora no hay nada abierto cerca
+                    </p>
+                    {horaPrimeraApertura && abrenALaMismaHora.length > 0 && (
+                      <p className="text-meta leading-relaxed text-amber-800">
+                        Lo primero abre a las {horaPrimeraApertura}:{" "}
+                        {abrenALaMismaHora.join(" y ")}.
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleVerDomicilio}
+                      className="mt-1 inline-flex min-h-11 self-start items-center justify-center rounded-full border border-amber-200 bg-white px-4 font-lv-display text-small font-semibold text-amber-800 transition-colors duration-300 hover:bg-amber-50"
+                    >
+                      Ver quién lleva a domicilio
+                    </button>
+                  </div>
+                )}
 
               {/* Place list. Mientras el catálogo llega de la base, skeletons
                   con la forma de las tarjetas: sin esto el sheet contaba
@@ -1914,7 +2098,7 @@ function HomePageContent() {
                       key={`sk-${i}`}
                       className="flex gap-[12px] rounded-2xl border border-ink/5 p-3"
                     >
-                      <Skeleton className="size-16 rounded-lv-lg shrink-0" />
+                      <Skeleton className="size-[52px] rounded-lv-lg shrink-0" />
                       <div className="flex-1 flex flex-col gap-2 pt-1">
                         <Skeleton className="h-[14px] w-[65%]" />
                         <Skeleton className="h-[12px] w-[40%]" />
@@ -1922,18 +2106,41 @@ function HomePageContent() {
                       </div>
                     </div>
                   ))}
-                {resultPlaces.map((place, i) => (
-                  <PlaceCardRow
-                    key={place.id}
-                    place={place}
-                    index={i}
-                    selected={selectedId === place.id}
-                    liked={likedIds.has(place.id)}
-                    onLike={handleLike}
-                    onLocate={handleLocate}
-                  />
-                ))}
+                {hydrated &&
+                  listaDeLaHoja.map((place) => (
+                    <div
+                      key={place.id}
+                      className="[content-visibility:auto] [contain-intrinsic-size:auto_88px]"
+                    >
+                      <LugarCercanoCard
+                        place={place}
+                        selected={selectedId === place.id}
+                        liked={likedIds.has(place.id)}
+                        onLike={() => handleLike(place.id)}
+                        onSelect={() => handleLocate(place)}
+                      />
+                    </div>
+                  ))}
               </div>
+
+              {hydrated && listaDeLaHoja.length === 0 && (
+                <div className="flex flex-col items-center gap-gap-xs px-3 py-6 text-center">
+                  <p className="text-small text-ink-soft/75">
+                    {hayFiltrosActivos
+                      ? "Nada cerca con estos filtros."
+                      : "No hay lugares cerca por ahora."}
+                  </p>
+                  {hayFiltrosActivos && (
+                    <button
+                      type="button"
+                      onClick={handleResetFilters}
+                      className="inline-flex min-h-11 items-center justify-center rounded-full bg-verde-400 px-5 font-lv-display text-small font-semibold text-verde-950 transition-colors duration-300 hover:bg-verde-300"
+                    >
+                      Quitar filtros
+                    </button>
+                  )}
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
         )}
@@ -2120,7 +2327,8 @@ function conexionLenta(): boolean {
  * —chips arriba, mapa detrás y la hoja asomando— para que cuando llegue el
  * contenido no se mueva nada de sitio.
  *
- * La hoja imita su vista de reposo (120 px, lo mismo que `BottomSheet`): si el
+ * La hoja imita su vista de reposo media (la misma `min(430px, 55vh)` de
+ * `BottomSheet`): si el
  * esqueleto la pintara abierta, el home daría un salto al montar.
  */
 function HomeShellSkeleton() {
@@ -2160,7 +2368,7 @@ function HomeShellSkeleton() {
       </div>
 
       <div
-        className="absolute inset-x-0 bottom-0 rounded-t-4xl bg-white shadow-[0_-8px_40px_-12px_rgba(8,19,13,0.18)] [transform:translateY(calc(100%-120px))]"
+        className="absolute inset-x-0 bottom-0 rounded-t-4xl bg-white shadow-[0_-8px_40px_-12px_rgba(8,19,13,0.18)] [transform:translateY(calc(100%_-_min(430px,55vh)))]"
       >
         <div className="flex min-h-11 items-center justify-center pb-[6px] pt-[10px]">
           <div className="h-[4px] w-[36px] rounded-full bg-ink/10" />
@@ -2168,7 +2376,7 @@ function HomeShellSkeleton() {
         <div className="flex items-start justify-between gap-gap-sm border-b border-ink/5 px-5 pb-gap-sm">
           <div>
             <h2 className="font-lv-display text-h3 font-semibold text-ink">
-              Recomendaciones
+              Cerca de ti
             </h2>
             <p className="mt-[2px] text-[13px] leading-[18px] text-ink-soft/75">
               Lugares cerca de ti
@@ -2187,7 +2395,7 @@ function HomeShellSkeleton() {
               key={i}
               className="flex gap-[12px] rounded-2xl border border-ink/5 p-3"
             >
-              <div className="skeleton-shimmer size-16 shrink-0 rounded-lv-lg" />
+              <div className="skeleton-shimmer size-[52px] shrink-0 rounded-lv-lg" />
               <div className="flex flex-1 flex-col gap-2 pt-1">
                 <div className="skeleton-shimmer h-[14px] w-[65%] rounded" />
                 <div className="skeleton-shimmer h-[12px] w-[40%] rounded" />

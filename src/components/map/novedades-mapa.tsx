@@ -22,6 +22,10 @@ interface Props {
   ubicacion: { lat: number; lng: number } | null;
   provincia: string | null;
   userId: string | null;
+  /** Sin botón propio: lo abre otra capa, como «Opciones del mapa». */
+  hideTrigger?: boolean;
+  /** Cada valor nuevo abre el panel, igual que otras señales del home. */
+  openSignal?: number;
 }
 
 const ESTILO_TIPO: Record<NovedadHome["tipo"], string> = {
@@ -56,7 +60,13 @@ function tiempoRelativo(ms: number): string {
  * marca vive en `localStorage` por usuario —o por invitado—: no hace falta una
  * columna para lo que solo importa en este dispositivo.
  */
-export function NovedadesMapa({ ubicacion, provincia, userId }: Props) {
+export function NovedadesMapa({
+  ubicacion,
+  provincia,
+  userId,
+  hideTrigger = false,
+  openSignal = 0,
+}: Props) {
   const [items, setItems] = useState<NovedadHome[]>([]);
   const [estado, setEstado] = useState<"cargando" | "listo" | "error">(
     "cargando",
@@ -89,6 +99,10 @@ export function NovedadesMapa({ ubicacion, provincia, userId }: Props) {
   }, [clave]);
 
   useEffect(() => {
+    /* Sin botón propio no hay punto que alimentar: se pide al abrir, no al
+       montar el home. Ahorra una petición a quien nunca mira Novedades. */
+    if (hideTrigger && !open) return;
+
     if (!lat && !provincia) {
       setItems([]);
       setEstado("listo");
@@ -132,7 +146,7 @@ export function NovedadesMapa({ ubicacion, provincia, userId }: Props) {
       controller.abort();
       if (espera) clearTimeout(espera);
     };
-  }, [lat, lng, provincia, refresco]);
+  }, [lat, lng, provincia, refresco, open, hideTrigger]);
 
   useEffect(() => {
     if (!open) return;
@@ -164,30 +178,40 @@ export function NovedadesMapa({ ubicacion, provincia, userId }: Props) {
     setRefresco((n) => n + 1);
   }
 
+  /* Otra capa puede pedir el panel sin pintar el botón de fuego, que ya no
+     vive en la columna flotante. */
+  const ultimaSenal = useRef(0);
+  useEffect(() => {
+    if (!openSignal || openSignal === ultimaSenal.current) return;
+    ultimaSenal.current = openSignal;
+    abrir();
+  }, [openSignal]);
+
   const hayNuevo = items.some((item) => item.createdAt > vistas);
   const hayOfertas = items.some((item) => item.tipo === "oferta");
 
   return (
     <>
-      <motion.button
-        type="button"
-        whileTap={{ scale: 0.9 }}
-        onClick={abrir}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        aria-label={
-          hayOfertas
-            ? "Novedades cerca de ti, hay ofertas"
-            : hayNuevo
-              ? "Novedades cerca de ti, hay novedades"
-              : "Novedades cerca de ti"
-        }
-        className={`relative grid size-11 place-items-center rounded-full border bg-white shadow-soft transition-colors duration-500 ease-outquint ${
-          hayOfertas
-            ? "border-lv-red/20 text-lv-red hover:border-lv-red/40"
-            : "border-ink/10 text-ink hover:border-verde-300 hover:text-verde-600"
-        }`}
-      >
+      {!hideTrigger && (
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.9 }}
+          onClick={abrir}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          aria-label={
+            hayOfertas
+              ? "Novedades cerca de ti, hay ofertas"
+              : hayNuevo
+                ? "Novedades cerca de ti, hay novedades"
+                : "Novedades cerca de ti"
+          }
+          className={`relative grid size-11 place-items-center rounded-full border bg-white shadow-soft transition-colors duration-500 ease-outquint ${
+            hayOfertas
+              ? "border-lv-red/20 text-lv-red hover:border-lv-red/40"
+              : "border-ink/10 text-ink hover:border-verde-300 hover:text-verde-600"
+          }`}
+        >
         <span className="relative grid place-items-center">
           {/* Dos halos desfasados: uno ancho y tenue que alumbra el botón, otro
               más pegado a la llama. Los períodos distintos evitan que el brillo
@@ -269,8 +293,9 @@ export function NovedadesMapa({ ubicacion, provincia, userId }: Props) {
             />
           </motion.span>
         </span>
-        {hayNuevo && <PuntoNuevo className="right-[2px] top-[2px]" />}
-      </motion.button>
+          {hayNuevo && <PuntoNuevo className="right-[2px] top-[2px]" />}
+        </motion.button>
+      )}
 
       {montado &&
         createPortal(

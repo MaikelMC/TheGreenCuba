@@ -24,6 +24,10 @@ export const PLACE_FILTERS = [
   "energia",
   "tranquilo",
   "musica",
+  "domicilio",
+  "cup",
+  "planta",
+  "oferta",
 ] as const;
 
 export type PlaceFilter = (typeof PLACE_FILTERS)[number];
@@ -100,6 +104,22 @@ export function matchesPlaceFilters(place: UserPlace, ctx: FilterContext): boole
   if (ctx.filters.has("tranquilo") && !vibe.includes("Tranquilo")) return false;
   if (ctx.filters.has("musica") && !vibe.includes("Musical")) return false;
   if (ctx.filters.has("abierto") && !estaAbiertoAhora(place, ctx.now)) {
+    return false;
+  }
+
+  /* Filtros de «Cerca de ti». Cada uno se apoya en un dato que la ficha ya
+     tiene; si el negocio no lo declaró, no entra, que es lo honesto. */
+  if (ctx.filters.has("domicilio") && place.entrega?.domicilio !== true) {
+    return false;
+  }
+  if (ctx.filters.has("cup") && !place.payments.includes("CUP")) return false;
+  if (ctx.filters.has("planta") && !tieneRespaldo(place.energiaRespaldo)) {
+    return false;
+  }
+  if (
+    ctx.filters.has("oferta") &&
+    !hayOferta(place.ofertas, ctx.now.getTime())
+  ) {
     return false;
   }
 

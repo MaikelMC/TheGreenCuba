@@ -1717,6 +1717,14 @@ html[data-theme="dark"] .lv-map-blocks {
   bottom: var(--map-ctrl-bottom);
 }
 
+/* En pantalla táctil el zoom nativo estorba: se pellizca. En escritorio con
+   ratón se queda. Es solo la capa visual; el control sigue inicializado. */
+@media (pointer: coarse) {
+  .maplibregl-map .maplibregl-ctrl-group {
+    display: none !important;
+  }
+}
+
 /* Zoom: misma familia visual que el resto del sistema (panel blanco, hairline
    `ink/5`, radio de tarjeta, sombra teñida de tinta) con hover en el verde de
    acción. `!important` porque maplibre-gl.css ya trae reglas y el orden de

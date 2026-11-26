@@ -10,18 +10,19 @@ import {
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type SheetState = "peek" | "full";
+export type SheetState = "peek" | "mid" | "full";
 
 /**
  * Lo que asoma en cada estado reposado.
  *
  * `peek` es la vista más baja que existe —el asa con el titular y el subtítulo—
- * y además la que la hoja tiene al abrir el home. No hay estado por debajo: la
- * recogida hasta dejar solo el asa la pegaba al borde inferior de la pantalla y
- * la sección desaparecía. Ningún gesto baja de aquí.
+ * y además la que la hoja tiene al abrir el home. `mid` es la altura de trabajo
+ * del prototipo (unos 430 px) y `full` la vista casi completa. No hay estado
+ * por debajo de `peek`: la hoja recogida hasta dejar solo el asa desaparecía.
  */
 const RESTING_OFFSET: Record<SheetState, string> = {
   peek: "calc(100% - 120px)",
+  mid: "calc(100% - min(430px, 55vh))",
   full: "0px",
 };
 
@@ -33,8 +34,11 @@ interface BottomSheetProps {
   title: string | ReactNode;
   subtitle?: string;
   badge?: string;
-  /** Acción opcional a la derecha del titular, alineada con él. */
-  action?: ReactNode;
+  /** Acción opcional a la derecha del titular, alineada con él. Puede recibir
+      el estado actual y el ciclo de alturas para pintar «Ver lista/mapa». */
+  action?:
+    | ReactNode
+    | ((state: SheetState, cycle: () => void) => ReactNode);
   className?: string;
   defaultState?: SheetState;
   /** Cuando es true, fuerza el sheet abierto (full) para revelar su contenido. */
@@ -126,10 +130,16 @@ export function BottomSheet({
       ? "100%"
       : RESTING_OFFSET[state];
 
-  // El ciclo reposado es `peek` ↔ `full`: el asa alterna entre la vista de
-  // apertura y la hoja entera. No hay nada por debajo de `peek`.
+  const actionContent =
+    typeof action === "function" ? action(state, cycleState) : action;
+
+  // El ciclo reposado es `peek` → `mid` → `full` → `peek`. `mid` es la altura
+  // de trabajo; el asa sigue alternando y la acción del titular usa el mismo
+  // ciclo para «Ver lista» / «Ver mapa».
   function cycleState() {
-    setState((prev) => (prev === "full" ? "peek" : "full"));
+    setState((prev) =>
+      prev === "peek" ? "mid" : prev === "mid" ? "full" : "peek",
+    );
   }
 
   const handlePointerDown = useCallback(
@@ -192,8 +202,21 @@ export function BottomSheet({
           // `calc(100% - 120px)` del estado peek, porque el porcentaje de
           // `translateY` se resuelve contra la altura del propio elemento.
           const peekY = sheet.offsetHeight - PEEK_INSET;
+          const midY =
+            sheet.offsetHeight - Math.min(430, window.innerHeight * 0.55);
+          const puntos: { estado: SheetState; y: number }[] = [
+            { estado: "full", y: 0 },
+            { estado: "mid", y: midY },
+            { estado: "peek", y: peekY },
+          ];
+          const destino = puntos.reduce((mejor, punto) =>
+            Math.abs(punto.y - dragRef.current) <
+            Math.abs(mejor.y - dragRef.current)
+              ? punto
+              : mejor,
+          );
           setIsDragging(false);
-          setState(dragRef.current < peekY / 2 ? "full" : "peek");
+          setState(destino.estado);
         } else if (tapToToggle) {
           // Toque sin arrastre: `isDragging` nunca se tocó, la transición CSS
           // siguió activa todo el tiempo y el cambio de estado anima igual que
@@ -240,7 +263,7 @@ export function BottomSheet({
         // `will-change-transform` promueve la sheet a su propia capa: el
         // deslizamiento se compone en GPU en vez de repintar en cada frame, que
         // en móvil es justo lo que se nota como tirones.
-        "fixed left-0 right-0 bottom-0 z-300 bg-white rounded-t-4xl shadow-[0_-8px_40px_-12px_rgba(8,19,13,0.18)] will-change-transform transition-[transform] [transition-duration:500ms] [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] max-h-[70vh] supports-[height:100dvh]:max-h-[70dvh] lg:max-h-none flex flex-col pb-safe-bottom",
+        "fixed left-0 right-0 bottom-0 z-300 bg-white rounded-t-4xl shadow-[0_-8px_40px_-12px_rgba(8,19,13,0.18)] will-change-transform transition-[transform] [transition-duration:500ms] [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] max-h-[86vh] supports-[height:100dvh]:max-h-[86dvh] lg:max-h-none flex flex-col pb-safe-bottom",
         // Al cerrar vuelve antes que al abrir: entrar despacio da sensación de
         // continuidad, salir despacio se hace pesado. El `data-state` ya cambió
         // cuando arranca la transición, así que cada dirección usa su duración.
@@ -306,7 +329,7 @@ export function BottomSheet({
             )}
           </h2>
           <div className="-my-2 flex shrink-0 items-center gap-1">
-            {action}
+            {actionContent}
             {/* Salida explícita. El gesto y el asa siguen ahí, pero recoger la
                 hoja no puede depender de descubrirlos. */}
             <button

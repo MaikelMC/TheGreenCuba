@@ -19,7 +19,12 @@ import {
  * `buildPinSvg` justo a tiempo, sin pre-registrar todas las combinaciones.
  */
 
-export type PlacePinVariant = "default" | "boosted" | "selected" | "project";
+export type PlacePinVariant =
+  | "default"
+  | "boosted"
+  | "selected"
+  | "project"
+  | "closed";
 
 interface PinStyle {
   width: number;
@@ -35,8 +40,9 @@ interface PinStyle {
 export const PIN_STYLES: Record<PlacePinVariant, PinStyle> = {
   default:  { width: 24, height: 36, discR: 7.5, icon: 10, top: "#35AF6D", bottom: "#0F7A41" },
   boosted:  { width: 30, height: 45, discR: 9,   icon: 12, top: "#0A4B2C", bottom: "#052017" },
-  selected: { width: 34, height: 51, discR: 10,  icon: 13, ring: true, top: "#35AF6D", bottom: "#0F7A41" },
+  selected: { width: 38, height: 57, discR: 11,  icon: 13, ring: true, ringColor: "rgba(8,19,13,0.38)", top: "#1B2A21", bottom: "#08130D" },
   project:  { width: 38, height: 56, discR: 11,  icon: 12, top: "#EF4444", bottom: "#B91C1C" },
+  closed:   { width: 24, height: 36, discR: 7.5, icon: 10, top: "#9CA3AF", bottom: "#6B7280" },
 };
 
 const TEARDROP_PATH =
@@ -150,7 +156,9 @@ export function parsePinImageId(id: string): {
   conOferta: boolean;
 } | null {
   // formato: pin-{variant}-{iconKey}[-e][-o]
-  const m = id.match(/^pin-(default|boosted|selected|project)-(.+?)(-e)?(-o)?$/);
+  const m = id.match(
+    /^pin-(default|boosted|selected|project|closed)-(.+?)(-e)?(-o)?$/,
+  );
   if (!m) return null;
   return {
     variant: m[1] as PlacePinVariant,

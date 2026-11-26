@@ -71,3 +71,55 @@ test("Populares no incluye una oferta caducada", () => {
   });
   assert.equal(matchesPlaceFilters(caducada, contexto), false);
 });
+
+function conFiltro(filtro: string): FilterContext {
+  return { ...contexto, populares: false, filters: new Set([filtro]) };
+}
+
+test("A domicilio solo deja los negocios con reparto activo", () => {
+  const sinReparto = lugar();
+  const conReparto = lugar({
+    entrega: {
+      costo: { modo: "gratis" },
+      tiempo: { min: 20, max: 40 },
+      domicilio: true,
+    },
+  });
+  assert.equal(matchesPlaceFilters(sinReparto, conFiltro("domicilio")), false);
+  assert.equal(matchesPlaceFilters(conReparto, conFiltro("domicilio")), true);
+});
+
+test("Acepta CUP mira los medios de pago reales", () => {
+  assert.equal(matchesPlaceFilters(lugar(), conFiltro("cup")), false);
+  assert.equal(
+    matchesPlaceFilters(lugar({ payments: ["CUP", "USD"] }), conFiltro("cup")),
+    true,
+  );
+});
+
+test("Tiene planta usa la energía de respaldo", () => {
+  assert.equal(matchesPlaceFilters(lugar(), conFiltro("planta")), false);
+  assert.equal(
+    matchesPlaceFilters(
+      lugar({ energiaRespaldo: "planta" }),
+      conFiltro("planta"),
+    ),
+    true,
+  );
+});
+
+test("Con oferta exige una oferta viva", () => {
+  assert.equal(matchesPlaceFilters(lugar(), conFiltro("oferta")), false);
+  const viva = lugar({
+    ofertas: [
+      {
+        id: "o1",
+        productoId: "p1",
+        titulo: "2x1",
+        inicia: ahora - 1000,
+        termina: ahora + 60_000,
+      },
+    ],
+  });
+  assert.equal(matchesPlaceFilters(viva, conFiltro("oferta")), true);
+});

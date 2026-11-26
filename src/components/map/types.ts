@@ -11,6 +11,8 @@ export interface MapPlace {
   lat: number;
   lng: number;
   category: string;
+  /** `true` abierto, `false` cerrado, `null`/ausente no se puede afirmar. */
+  abierto?: boolean | null;
   /** Nombre del icono Lucide del pin. Sin él, el de la categoría. */
   icon?: string;
   barrio?: string;
@@ -69,8 +71,12 @@ export interface MapViewProps {
   userLocation?: { lat: number; lng: number; accuracy?: number } | null;
   onUserLocated?: (lat: number, lng: number, accuracy?: number) => void;
   onLocateStateChange?: (state: LocateState) => void;
+  /** El home pinta su propio botón en la columna flotante; aquí se apaga. */
+  showLocateControl?: boolean;
   /** Cuando cambia, el mapa vuela hasta esas coordenadas (útil desde las cards). */
   focusTarget?: { lat: number; lng: number; key: number } | null;
+  /** Hueco inferior al centrar un lugar, para que no quede bajo la hoja. */
+  focusPadding?: number;
   /** Vuelo genérico del mapa (ej: elegir dirección en el buscador geocodificador). */
   viewTarget?: { lat: number; lng: number; zoom?: number; key: number } | null;
   /** Ruta activa a dibujar entre la ubicación del usuario y un lugar. */

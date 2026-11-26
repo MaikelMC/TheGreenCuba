@@ -60,6 +60,7 @@ function placesToGeoJSON(places: MapPlace[], selectedId: string | null | undefin
         conOferta: hayOferta(p.ofertas),
         isProject: p.isProject ?? false,
         isBoosted: p.tags?.some((t) => t.label === "Destacado") ?? false,
+        isClosed: p.abierto === false,
         isSelected: p.id === selectedId,
       },
     })),
@@ -132,6 +133,10 @@ const ICON_IMAGE_EXPR: maplibregl.ExpressionSpecification = [
     ["case", ["get", "conOferta"],  "-o", ""]],
   ["get", "isProject"],
   ["concat", "pin-project-",  ["get", "iconKey"], ""],
+  ["get", "isClosed"],
+  ["concat", "pin-closed-",  ["get", "iconKey"],
+    ["case", ["get", "conEnergia"], "-e", ""],
+    ["case", ["get", "conOferta"],  "-o", ""]],
   ["get", "isBoosted"],
   ["concat", "pin-boosted-",  ["get", "iconKey"],
     ["case", ["get", "conEnergia"], "-e", ""],
@@ -161,7 +166,9 @@ export function MapContent({
   userLocation,
   onUserLocated,
   onLocateStateChange,
+  showLocateControl = true,
   focusTarget,
+  focusPadding = 0,
   viewTarget,
   route,
   routeOrigin,
@@ -366,7 +373,14 @@ export function MapContent({
             "icon-anchor": "bottom",
             "icon-allow-overlap": true,
             "icon-ignore-placement": true,
-            "symbol-sort-key": ["case", ["get", "isSelected"], 3, ["get", "isBoosted"], 2, 1],
+            "symbol-sort-key": [
+              "case",
+              ["get", "isSelected"], 5,
+              ["get", "isProject"], 4,
+              ["get", "isClosed"], 1,
+              ["get", "isBoosted"], 3,
+              2,
+            ],
           },
         });
 
@@ -387,7 +401,9 @@ export function MapContent({
           const popup = new maplibregl.Popup({
             closeButton: true,
             maxWidth: "300px",
-            offset: [0, -(PIN_STYLES.default.height)],
+            /* El popup se abre justo después de seleccionar, así que se ancla
+               a la altura del pin seleccionado y no al tamaño normal. */
+            offset: [0, -(PIN_STYLES.selected.height)],
             className: "lv-popup",
           })
             .setLngLat([place.lng, place.lat])
@@ -512,8 +528,15 @@ export function MapContent({
     /* Ids de imagen que necesita este set de places. */
     const neededIds = [...new Set(geojson.features.map((f) => {
       const p = f.properties!;
-      const v: PlacePinVariant =
-        p.isSelected ? "selected" : p.isProject ? "project" : p.isBoosted ? "boosted" : "default";
+      const v: PlacePinVariant = p.isSelected
+        ? "selected"
+        : p.isProject
+          ? "project"
+          : p.isClosed
+            ? "closed"
+            : p.isBoosted
+              ? "boosted"
+              : "default";
       return pinImageId(v, p.iconKey as string, p.conEnergia as boolean, p.conOferta as boolean);
     }))];
 
@@ -593,8 +616,13 @@ export function MapContent({
     if (!mapa || !focusTarget) return;
     if (lastFocusKey.current === focusTarget.key) return;
     lastFocusKey.current = focusTarget.key;
-    mapa.flyTo({ center: [focusTarget.lng, focusTarget.lat], zoom: 16, duration: 800 });
-  }, [mapa, focusTarget]);
+    mapa.easeTo({
+      center: [focusTarget.lng, focusTarget.lat],
+      zoom: Math.max(mapa.getZoom(), 15),
+      padding: { bottom: focusPadding },
+      duration: 700,
+    });
+  }, [mapa, focusTarget, focusPadding]);
 
   /* ── viewTarget (geocodificador) ────────────────────────────────────────── */
   useEffect(() => {
@@ -632,7 +660,7 @@ export function MapContent({
       />
 
       {/* Botón de ubicación: recibe el mapa por estado, no por ref */}
-      {mapa && (
+      {mapa && showLocateControl && (
         <LocateButtonML
           mapa={mapa}
           onUserLocated={onUserLocated}
