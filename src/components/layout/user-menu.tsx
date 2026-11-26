@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { AnimatePresence, motion } from "motion/react";
 import {
   User,
@@ -11,6 +12,13 @@ import {
   Link2,
   Megaphone,
   ChevronDown,
+  Heart,
+  CreditCard,
+  ShoppingBag,
+  MoonStar,
+  SunMedium,
+  LifeBuoy,
+  FolderKanban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/session";
@@ -18,6 +26,7 @@ import { logout } from "@/lib/logout";
 import { fetchMe, refreshSession } from "@/lib/session-client";
 import { LoginButton } from "@/components/landing/login-button";
 import { navegar } from "@/lib/navegar";
+import { readActivity } from "@/lib/activity-store";
 
 /* Hairline entre filas en vez de `<div>` separadores sueltos: es el mismo
    idioma que las filas de la pantalla de preferencias. */
@@ -59,6 +68,21 @@ const ROLE_LABEL: Record<Role, string> = {
   owner: "Negocio",
   admin: "Administrador",
 };
+
+/** Cuántas tarjetas de cliente frecuente guardó este dispositivo. */
+function contarTarjetas(): number {
+  try {
+    return Object.keys(window.localStorage).filter((clave) =>
+      clave.startsWith("la-verde:tarjeta:"),
+    ).length;
+  } catch {
+    return 0;
+  }
+}
+
+function pedidosTexto(cantidad: number): string {
+  return `${cantidad} ${cantidad === 1 ? "pedido" : "pedidos"}`;
+}
 
 /**
  * La última respuesta buena de `/api/me`, guardada en el módulo.
@@ -186,8 +210,16 @@ export function UserMenu({
    */
   compact?: boolean;
 }) {
+  const { resolvedTheme, setTheme } = useTheme();
+  const [temaMontado, setTemaMontado] = useState(false);
+  useEffect(() => setTemaMontado(true), []);
   const [open, setOpen] = useState(false);
-  const [hayPendientes, setHayPendientes] = useState(false);
+  const [pendientesPedidos, setPendientesPedidos] = useState<number | null>(
+    null,
+  );
+  const [pendientesAdmin, setPendientesAdmin] = useState<number | null>(null);
+  const hayPendientes =
+    (pendientesPedidos ?? 0) > 0 || (pendientesAdmin ?? 0) > 0;
   const [user, setUser] = useState<SessionUser | null>(lastKnownUser);
   /* Tres estados, no dos: «todavía no se sabe» no es «no hay sesión». Con dos,
      la esquina no se podía pintar hasta terminar de preguntar sin arriesgarse a
@@ -314,15 +346,18 @@ export function UserMenu({
     };
   }, []);
 
-  /* El punto del avatar compacto. Se pide una sola vez por usuario y no en
-     cada render: son dos endpoints ligeros y solo interesan cuando el home
-     pinta la barra nueva. Si falla, no hay punto; nunca se inventa uno. */
+  /* Los pendientes del menú y del punto del avatar. Se piden una sola vez por
+     usuario: el contador de pedidos solo se pinta si el endpoint responde, que
+     es lo que confirma que el negocio tiene el servicio de pedidos activo. */
   useEffect(() => {
-    if (!compact || !user) {
-      setHayPendientes(false);
+    if (!user) {
+      setPendientesPedidos(null);
+      setPendientesAdmin(null);
       return;
     }
 
+    setPendientesPedidos(null);
+    setPendientesAdmin(null);
     let vivo = true;
     const controller = new AbortController();
 
@@ -332,15 +367,12 @@ export function UserMenu({
           const respuesta = await fetch("/api/admin/contadores", {
             signal: controller.signal,
           });
-          if (!respuesta.ok) return;
-          const datos = (await respuesta.json()) as Record<string, unknown>;
-          if (!vivo) return;
-          setHayPendientes(
-            Object.values(datos).some(
-              (valor) => typeof valor === "number" && valor > 0,
-            ),
-          );
-          return;
+          if (respuesta.ok) {
+            const datos = (await respuesta.json()) as {
+              pendientes?: number;
+            };
+            if (vivo) setPendientesAdmin(datos.pendientes ?? 0);
+          }
         }
 
         if (user!.business?.isActive && user!.business.id) {
@@ -348,13 +380,13 @@ export function UserMenu({
             `/api/pedidos/pendientes?placeId=${encodeURIComponent(user!.business.id)}`,
             { signal: controller.signal },
           );
-          if (!respuesta.ok) return;
-          const datos = (await respuesta.json()) as { pendientes?: number };
-          if (!vivo) return;
-          setHayPendientes((datos.pendientes ?? 0) > 0);
+          if (respuesta.ok) {
+            const datos = (await respuesta.json()) as { pendientes?: number };
+            if (vivo) setPendientesPedidos(datos.pendientes ?? 0);
+          }
         }
       } catch {
-        /* Sin red o sin permiso: el punto no se pinta. */
+        /* Sin red o sin permiso: no se pinta un pendiente inventado. */
       }
     }
 
@@ -363,7 +395,7 @@ export function UserMenu({
       vivo = false;
       controller.abort();
     };
-  }, [compact, user]);
+  }, [user]);
 
   useEffect(() => {
     function handleClick(e: PointerEvent) {
@@ -407,7 +439,11 @@ export function UserMenu({
          trozos de JavaScript. Con una carga completa el servidor manda el panel
          ya pintado y el contenido se ve sin esperar al cliente. El resto de
          secciones, que comparten la app cargada, siguen navegando sin recargar. */
-      if (path === "/business" || path === "/admin") {
+      if (
+        path === "/business" ||
+        path.startsWith("/business?") ||
+        path === "/admin"
+      ) {
         window.location.assign(path);
         return;
       }
@@ -417,8 +453,9 @@ export function UserMenu({
   );
 
   const handleLogout = useCallback(() => {
-    setOpen(false);
     if (antesDeSalir && !antesDeSalir()) return;
+    if (!window.confirm("¿Cerrar sesión en este dispositivo?")) return;
+    setOpen(false);
     /* La copia en memoria no puede sobrevivir al cierre: aunque `logout()`
        recarga la página al final, si la recarga se queda a medias el siguiente
        montaje pintaría el avatar del usuario que acaba de salir. */
@@ -437,7 +474,103 @@ export function UserMenu({
      cargar— y se lo dejaba puesto a quien no tiene sesión, que además se
      comía un enlace que rebota. Ausencia de dato no es «puede todo»: es que
      todavía no se sabe. */
-  const visible = user ? itemsFor(user) : [];
+  const guardados = user ? readActivity(user.id).savedIds.length : 0;
+  const tarjetas = user ? contarTarjetas() : 0;
+  const temaOscuro = temaMontado && resolvedTheme === "dark";
+
+  const loMio = user
+    ? [
+        {
+          key: "perfil",
+          label: "Mi perfil",
+          sub: null,
+          icon: User,
+          path: "/profile",
+        },
+        {
+          key: "favoritos",
+          label: "Mis favoritos",
+          sub: `${guardados} ${guardados === 1 ? "guardado" : "guardados"}`,
+          icon: Heart,
+          path: "/profile?seccion=lugares",
+        },
+        {
+          key: "tarjetas",
+          label: "Mis tarjetas",
+          sub: `${tarjetas} ${tarjetas === 1 ? "tarjeta" : "tarjetas"}`,
+          icon: CreditCard,
+          path: "/tarjetas",
+        },
+        ...(pendientesPedidos !== null
+          ? [
+              {
+                key: "pedidos",
+                label: "Mis pedidos",
+                sub: pedidosTexto(pendientesPedidos),
+                icon: ShoppingBag,
+                path: "/business?seccion=pedidos",
+              },
+            ]
+          : []),
+      ]
+    : [];
+
+  const paneles = user
+    ? [
+        ...(user.business?.isActive
+          ? [
+              {
+                key: "negocio",
+                label: "Panel de negocio",
+                sub: `${user.business.name ?? "Tu negocio"}${
+                  pendientesPedidos !== null
+                    ? ` · ${pedidosTexto(pendientesPedidos)}`
+                    : ""
+                }`,
+                icon: Building2,
+                path: "/business",
+                badge: pendientesPedidos ?? 0,
+              },
+            ]
+          : []),
+        ...(user.hasProjects
+          ? [
+              {
+                key: "proyectos",
+                label: "Administrar proyectos",
+                sub: null,
+                icon: FolderKanban,
+                path: "/projects",
+                badge: 0,
+              },
+            ]
+          : []),
+        ...(user.affiliateEnabled
+          ? [
+              {
+                key: "afiliado",
+                label: "Panel de afiliado",
+                sub: "Código y comisiones",
+                icon: Link2,
+                path: "/enlaces",
+                badge: 0,
+              },
+            ]
+          : []),
+        ...(user.role === "admin"
+          ? [
+              {
+                key: "admin",
+                label: "Panel de administración",
+                sub: `${pendientesAdmin ?? 0} pendientes`,
+                icon: ShieldCheck,
+                path: "/admin",
+                badge: pendientesAdmin ?? 0,
+              },
+            ]
+          : []),
+      ]
+    : [];
 
   /* Sin sesión, un botón para entrar; sin saberlo todavía, nada.
 
@@ -568,16 +701,18 @@ export function UserMenu({
             className="user-menu-popup absolute right-0 top-[calc(100%+6px)] w-[236px] bg-white border border-ink/5 rounded-2xl shadow-card z-50 overflow-hidden"
           >
             {user && (
-              <div className="px-gap-md py-gap-sm border-b border-ink/5 bg-sand">
-                <div className="font-lv-display text-small font-semibold text-ink truncate">
+              <div className="border-b border-ink/5 bg-sand px-gap-md py-gap-sm">
+                <div className="truncate font-lv-display text-small font-semibold text-ink">
                   {user.name}
                 </div>
-                <div className="text-meta text-ink-soft/75 truncate">
+                <div className="truncate text-meta text-ink-soft/75">
                   {user.email}
                 </div>
-                <div className="mt-[6px] inline-flex items-center gap-[6px] px-[8px] py-[2px] rounded-full bg-verde-50 border border-verde-200 font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] text-verde-700">
-                  {ROLE_LABEL[user.role]}
-                </div>
+                {user.role === "admin" && (
+                  <div className="mt-[6px] inline-flex items-center gap-[6px] rounded-full border border-verde-200 bg-verde-50 px-[8px] py-[2px] font-lv-display text-[10px] font-semibold uppercase tracking-[0.14em] text-verde-700">
+                    {ROLE_LABEL[user.role]}
+                  </div>
+                )}
               </div>
             )}
 
@@ -610,24 +745,117 @@ export function UserMenu({
               ),
             )}
 
-            {visible.map(({ path, label, icon: Icon }) => (
-              <motion.button
-                key={path}
-                type="button"
-                initial={{ opacity: 0, x: -6 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3 }}
-                onClick={() => handleSelect(path)}
-                className={`${ITEM} ${path === "/business" || path === "/admin" ? "user-menu-panel-item" : ""}`}
-              >
-                <Icon
+            {loMio.length > 0 && (
+              <>
+                <p className="border-b border-ink/5 px-gap-md pb-[4px] pt-gap-sm font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-soft/60">
+                  Lo mío
+                </p>
+                {loMio.map(({ key, label, sub, icon: Icon, path }) => (
+                  <motion.button
+                    key={key}
+                    type="button"
+                    initial={{ opacity: 0, x: -6 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3 }}
+                    onClick={() => handleSelect(path)}
+                    className={ITEM}
+                  >
+                    <Icon
+                      size={16}
+                      strokeWidth={1.8}
+                      className="user-menu-icon shrink-0 text-verde-600"
+                    />
+                    <span className="flex min-w-0 flex-1 items-center gap-gap-xs">
+                      <span className="min-w-0 flex-1 truncate">{label}</span>
+                      {sub && (
+                        <span className="shrink-0 text-meta text-ink-soft/60">
+                          {sub}
+                        </span>
+                      )}
+                    </span>
+                  </motion.button>
+                ))}
+              </>
+            )}
+
+            {paneles.length > 0 && (
+              <>
+                <p className="border-b border-ink/5 px-gap-md pb-[4px] pt-gap-sm font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-soft/60">
+                  Tus paneles
+                </p>
+                {paneles.map(
+                  ({ key, label, sub, icon: Icon, path, badge }) => (
+                    <motion.button
+                      key={key}
+                      type="button"
+                      initial={{ opacity: 0, x: -6 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3 }}
+                      onClick={() => handleSelect(path)}
+                      className={`${ITEM} user-menu-panel-item`}
+                    >
+                      <Icon
+                        size={16}
+                        strokeWidth={1.8}
+                        className="user-menu-icon user-menu-panel-icon shrink-0"
+                      />
+                      <span className="flex min-w-0 flex-1 flex-col py-[4px]">
+                        <span className="truncate">{label}</span>
+                        {sub && (
+                          <span className="truncate text-meta text-ink-soft/60">
+                            {sub}
+                          </span>
+                        )}
+                      </span>
+                      {badge > 0 && (
+                        <span className="inline-flex min-w-[22px] shrink-0 items-center justify-center rounded-full bg-lv-amber px-[6px] font-lv-display text-[12px] font-bold leading-[22px] text-verde-950">
+                          {badge > 99 ? "99+" : badge}
+                        </span>
+                      )}
+                    </motion.button>
+                  ),
+                )}
+              </>
+            )}
+
+            <p className="border-b border-ink/5 px-gap-md pb-[4px] pt-gap-sm font-lv-display text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-soft/60">
+              Preferencias
+            </p>
+            <button
+              type="button"
+              onClick={() => setTheme(temaOscuro ? "light" : "dark")}
+              className={ITEM}
+            >
+              {temaOscuro ? (
+                <SunMedium
                   size={16}
                   strokeWidth={1.8}
-                  className={`user-menu-icon ${path === "/business" || path === "/admin" ? "user-menu-panel-icon" : "text-verde-600"} shrink-0`}
+                  className="user-menu-icon shrink-0 text-verde-600"
                 />
-                {label}
-              </motion.button>
-            ))}
+              ) : (
+                <MoonStar
+                  size={16}
+                  strokeWidth={1.8}
+                  className="user-menu-icon shrink-0 text-verde-600"
+                />
+              )}
+              <span className="flex-1">Tema</span>
+              <span className="text-meta text-ink-soft/60">
+                {temaOscuro ? "Oscuro" : "Claro"}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelect("/profile?seccion=ajustes")}
+              className={ITEM}
+            >
+              <LifeBuoy
+                size={16}
+                strokeWidth={1.8}
+                className="user-menu-icon shrink-0 text-verde-600"
+              />
+              Ayuda y soporte
+            </button>
 
             <motion.button
               type="button"

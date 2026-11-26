@@ -73,6 +73,8 @@ export interface MapViewProps {
   onLocateStateChange?: (state: LocateState) => void;
   /** El home pinta su propio botón en la columna flotante; aquí se apaga. */
   showLocateControl?: boolean;
+  /** Sin WebGL o con error de carga: el home retira sus capas y deja la lista. */
+  onMapUnavailable?: () => void;
   /** Cuando cambia, el mapa vuela hasta esas coordenadas (útil desde las cards). */
   focusTarget?: { lat: number; lng: number; key: number } | null;
   /** Hueco inferior al centrar un lugar, para que no quede bajo la hoja. */

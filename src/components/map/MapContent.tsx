@@ -2,12 +2,12 @@
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { createPortal } from "react-dom";
+
 import { useTheme } from "next-themes";
 import maplibregl from "maplibre-gl";
-import { PlacePopup } from "./PlacePopup";
+
 import { aplicarColoresLaVerde, aplicarTemaMapa } from "@/lib/map/tema-mapa";
-import { buildPinSvg, parsePinImageId, pinImageId, PIN_STYLES } from "./pin-icon";
+import { buildPinSvg, parsePinImageId, pinImageId } from "./pin-icon";
 import type { PlacePinVariant } from "./pin-icon";
 import { filterValidPlaces } from "@/lib/map/coordinates";
 import {
@@ -167,6 +167,7 @@ export function MapContent({
   onUserLocated,
   onLocateStateChange,
   showLocateControl = true,
+  onMapUnavailable,
   focusTarget,
   focusPadding = 0,
   viewTarget,
@@ -186,11 +187,6 @@ export function MapContent({
   const [soporteWebgl, setSoporteWebgl] = useState<boolean | null>(null);
   const { resolvedTheme } = useTheme();
   const validPlaces = useMemo(() => filterValidPlaces(places), [places]);
-
-  // Estado del popup: qué negocio está abierto y el nodo DOM del popup.
-  const [popupPlace, setPopupPlace] = useState<MapPlace | null>(null);
-  const popupRef = useRef<maplibregl.Popup | null>(null);
-  const popupNodeRef = useRef<HTMLDivElement | null>(null);
 
   /* Ref siempre actualizado con validPlaces (lugares llegan async). */
   const validPlacesRef = useRef<MapPlace[]>([]);
@@ -215,8 +211,9 @@ export function MapContent({
     if (!soporte.webgl1) {
       const vigilante = crearVigilanteMapa(Date.now());
       vigilante.registrarError("sin_webgl");
+      onMapUnavailable?.();
     }
-  }, []);
+  }, [onMapUnavailable]);
 
   /* ── Inicializar mapa ──────────────────────────────────────────────────── */
   useEffect(() => {
@@ -393,32 +390,8 @@ export function MapContent({
           if (!place) return;
 
           onPlaceSelect?.(place);
-
-          // Cerrar popup anterior
-          popupRef.current?.remove();
-
-          const node = document.createElement("div");
-          const popup = new maplibregl.Popup({
-            closeButton: true,
-            maxWidth: "300px",
-            /* El popup se abre justo después de seleccionar, así que se ancla
-               a la altura del pin seleccionado y no al tamaño normal. */
-            offset: [0, -(PIN_STYLES.selected.height)],
-            className: "lv-popup",
-          })
-            .setLngLat([place.lng, place.lat])
-            .setDOMContent(node)
-            .addTo(map);
-
-          popup.on("close", () => {
-            setPopupPlace(null);
-            popupNodeRef.current = null;
-            popupRef.current = null;
-          });
-
-          popupRef.current = popup;
-          popupNodeRef.current = node;
-          setPopupPlace(place);
+          /* La tarjeta del negocio se pinta fuera del mapa, anclada abajo; el
+             popup flotante ya no se abre. */
         });
 
         /* Click en fondo del mapa */
@@ -427,7 +400,6 @@ export function MapContent({
           const features = map.queryRenderedFeatures(e.point, { layers: [LAYER_PINS] });
           if (features.length === 0) {
             onMapClick?.();
-            popupRef.current?.remove();
           }
         });
 
@@ -518,10 +490,6 @@ export function MapContent({
     const src = mapa.getSource(SOURCE_NEGOCIOS) as maplibregl.GeoJSONSource | undefined;
     if (!src) return;
 
-    if (popupPlace && !validPlaces.find((p) => p.id === popupPlace.id)) {
-      popupRef.current?.remove();
-    }
-
     const geojson = placesToGeoJSON(validPlaces, selectedPlaceId);
     geoJSONRef.current = geojson;
 
@@ -554,7 +522,7 @@ export function MapContent({
     } else {
       void Promise.all(faltantes.map(precargarPin)).then(actualizarMapa);
     }
-  }, [mapa, validPlaces, selectedPlaceId, popupPlace]);
+  }, [mapa, validPlaces, selectedPlaceId]);
 
   /* ── Actualizar ruta ──────────────────────────────────────────────────── */
   useEffect(() => {
@@ -668,16 +636,6 @@ export function MapContent({
         />
       )}
 
-      {/* Popup: portal desde este árbol React al nodo DOM del popup de MapLibre */}
-      {popupPlace && popupNodeRef.current && createPortal(
-        <PlacePopup
-          place={popupPlace}
-          onRoute={onPlaceRoute}
-          routeFixed={popupPlace.id === routePlaceId}
-          onRouteClear={onRouteClear}
-        />,
-        popupNodeRef.current,
-      )}
     </>
   );
 }

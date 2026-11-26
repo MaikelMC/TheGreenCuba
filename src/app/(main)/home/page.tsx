@@ -34,6 +34,7 @@ import { HomeTopBar } from "@/components/home/home-top-bar";
 import { HomeSearchOverlay } from "@/components/home/home-search-overlay";
 import { BottomSheet } from "@/components/layout/bottom-sheet";
 import { LugarCercanoCard } from "@/components/home/lugar-cercano-card";
+import { TarjetaNegocio } from "@/components/home/tarjeta-negocio";
 import { SearchingAnimation } from "@/components/layout/searching-animation";
 import { MapView } from "@/components/map/MapView";
 import { MapNotifications } from "@/components/map/map-notifications";
@@ -90,6 +91,11 @@ import {
   queryMentionsOtherProvince,
   userProvinceLabel,
 } from "@/lib/user-province";
+import { whatsappHref } from "@/lib/contact-links";
+import {
+  accionPrincipalNegocio,
+  etiquetaAccionPrincipal,
+} from "@/lib/accion-negocio";
 import { pushRecentSearch } from "@/lib/recent-searches-store";
 import { readActivity, toggleSaved } from "@/lib/activity-store";
 import { saveAiRecommendations } from "@/lib/ai-recommendation-store";
@@ -188,6 +194,13 @@ interface HomePlace {
   planta: boolean;
   aceptaCup: boolean;
   ofertaTexto: string | null;
+  /** Para la tarjeta del negocio y su acción principal. */
+  slug: string;
+  coverImage?: string;
+  pedidosHabilitado: boolean;
+  reservaHabilitada: boolean;
+  tipoReserva: "mesa" | "apartado" | "cita" | null;
+  whatsapp: string | null;
   desc: string;
   lat: number;
   lng: number;
@@ -271,6 +284,15 @@ function userPlaceToHomePlace(
     planta: tieneRespaldo(p.energiaRespaldo),
     aceptaCup: p.payments.includes("CUP"),
     ofertaTexto: oferta?.titulo.trim() || null,
+    slug: p.slug,
+    coverImage:
+      p.photos?.find((photo) => photo.isCover)?.url ??
+      p.photos?.[0]?.url ??
+      p.logoUrl,
+    pedidosHabilitado: p.pedidosHabilitado === true,
+    reservaHabilitada: p.reservaHabilitada === true,
+    tipoReserva: p.tipoReserva ?? null,
+    whatsapp: p.whatsapp ?? p.phone ?? null,
     desc: p.description || "Negocio agregado por su dueño en La Verde.",
     lat: p.lat,
     lng: p.lng,
@@ -619,6 +641,8 @@ function HomePageContent() {
   const [novedadesKey, setNovedadesKey] = useState(0);
   const [refrescando, setRefrescando] = useState(false);
   const [ubicando, setUbicando] = useState(false);
+  const [mapUnavailable, setMapUnavailable] = useState(false);
+  const handleMapUnavailable = useCallback(() => setMapUnavailable(true), []);
   /* La hora se fija tras montar. El primer render del cliente coincide con el
      del servidor y el chip «Abierto/Cerrado» aparece en el siguiente tick. */
   const [ahora, setAhora] = useState<Date | null>(null);
@@ -1798,6 +1822,120 @@ function HomePageContent() {
         .map((place) => place.name)
     : [];
 
+  /* La tarjeta del pin usa la lista actual si el negocio está en ella. Si el
+     pin es de otra provincia o de un negocio fuera de la lista, se cae a los
+     pines visibles, en el mismo orden de cercanía. */
+  const cardPlaces = useMemo<HomePlace[]>(() => {
+    if (selectedId && listaDeLaHoja.some((place) => place.id === selectedId)) {
+      return listaDeLaHoja;
+    }
+    return ordenarCercaDeTi(
+      mapVisiblePlaces.map((place) =>
+        userPlaceToHomePlace(
+          place,
+          categories,
+          distanceOrigin
+            ? haversineM(distanceOrigin, { lat: place.lat, lng: place.lng })
+            : null,
+          ahora,
+        ),
+      ),
+    );
+  }, [
+    selectedId,
+    listaDeLaHoja,
+    mapVisiblePlaces,
+    categories,
+    distanceOrigin,
+    ahora,
+  ]);
+
+  const selectedCard = selectedId
+    ? (cardPlaces.find((place) => place.id === selectedId) ?? null)
+    : null;
+  const cardIndex = selectedCard
+    ? cardPlaces.findIndex((place) => place.id === selectedCard.id)
+    : -1;
+
+  const accionCard = selectedCard
+    ? accionPrincipalNegocio(selectedCard)
+    : null;
+  const primaryLabel = accionCard ? etiquetaAccionPrincipal(accionCard) : "";
+
+  const handleCloseCard = useCallback(() => {
+    setSelectedId("");
+    handleClearRoute();
+  }, [handleClearRoute]);
+
+  const handleCardStep = useCallback(
+    (paso: number) => {
+      if (cardIndex < 0 || cardPlaces.length < 2) return;
+      const siguiente =
+        (cardIndex + paso + cardPlaces.length) % cardPlaces.length;
+      const lugar = cardPlaces[siguiente];
+      if (lugar) handleLocate(lugar);
+    },
+    [cardIndex, cardPlaces, handleLocate],
+  );
+
+  const handleOpenCard = useCallback(() => {
+    if (selectedCard) window.location.assign(`/place/${selectedCard.id}`);
+  }, [selectedCard]);
+
+  const handleCardPrimary = useCallback(() => {
+    if (!selectedCard) return;
+    const accion = accionPrincipalNegocio(selectedCard);
+
+    if (accion === "pedir") {
+      if (selectedCard.pedidosHabilitado) {
+        if (selectedCard.slug) {
+          window.location.assign(`/m/${selectedCard.slug}`);
+        } else if (selectedCard.whatsapp) {
+          window.open(
+            whatsappHref(selectedCard.whatsapp),
+            "_blank",
+            "noopener,noreferrer",
+          );
+        } else {
+          window.location.assign(`/place/${selectedCard.id}`);
+        }
+        return;
+      }
+
+      if (selectedCard.whatsapp) {
+        const texto = encodeURIComponent(
+          `Hola, quiero pedir a domicilio en ${selectedCard.name}.`,
+        );
+        window.open(
+          `${whatsappHref(selectedCard.whatsapp)}?text=${texto}`,
+          "_blank",
+          "noopener,noreferrer",
+        );
+      } else {
+        window.location.assign(`/place/${selectedCard.id}`);
+      }
+      return;
+    }
+
+    if (accion === "pedir-cita") {
+      if (selectedCard.whatsapp) {
+        const texto = encodeURIComponent(
+          `Hola, quiero pedir una cita en ${selectedCard.name}.`,
+        );
+        window.open(
+          `${whatsappHref(selectedCard.whatsapp)}?text=${texto}`,
+          "_blank",
+          "noopener,noreferrer",
+        );
+      } else {
+        window.location.assign(`/place/${selectedCard.id}`);
+      }
+      return;
+    }
+
+    handleRouteFromPopup(selectedCard);
+  }, [selectedCard, handleRouteFromPopup]);
+
   const sheetSubtitle =
     sheetState === "results" && searchingQuery
       ? `Resultados para "${searchingQuery}"`
@@ -1846,15 +1984,17 @@ function HomePageContent() {
         userLocation={userLocation}
         onUserLocated={handleUserLocated}
         showLocateControl={false}
+        onMapUnavailable={handleMapUnavailable}
         focusTarget={focusTarget}
-        focusPadding={140}
+        focusPadding={selectedCard ? 240 : 140}
         viewTarget={viewTarget}
         route={route}
         routeOrigin={routeOrigin}
         routePlaceId={routeDest?.id ?? null}
         onRouteClear={handleClearRoute}
       >
-        <CategoryBar
+        {!mapUnavailable && (
+          <CategoryBar
           categories={categoriesWithPlaces}
           showPopulares={hayPopulares || activeCategory === "populares"}
           active={activeCategory}
@@ -1864,11 +2004,13 @@ function HomePageContent() {
             syncFilterUrl(value, activeFilters);
           }}
         />
+        )}
         {/* La columna flotante queda en tres: notificaciones, ubicación y
             opciones. Actualizar, 3D y tema se mudaron a «Opciones del mapa» o
             al perfil; el fuego de Novedades vive dentro de esas opciones. */}
-        <div className="absolute right-gutter top-[64px] z-30 flex flex-col items-end gap-[10px]">
-          <MapNotifications />
+        {!mapUnavailable && !selectedCard && (
+          <div className="absolute right-gutter top-[64px] z-30 flex flex-col items-end gap-[10px]">
+            <MapNotifications />
           <button
             type="button"
             onClick={() => void handleUbicar()}
@@ -1895,7 +2037,8 @@ function HomePageContent() {
           >
             <Layers size={18} strokeWidth={1.8} />
           </button>
-        </div>
+          </div>
+        )}
       </MapView>
 
       <NovedadesMapa
@@ -1907,7 +2050,7 @@ function HomePageContent() {
       />
 
       <MapOptionsSheet
-        open={mapOptionsOpen}
+        open={mapOptionsOpen && !mapUnavailable}
         onClose={cerrarOpcionesMapa}
         soloAbierto={activeFilters.has("abierto")}
         onToggleSoloAbierto={() => toggleFilter("abierto")}
@@ -1965,13 +2108,14 @@ function HomePageContent() {
           dejar ver el mapa y el negocio, igual que en la vista inicial. Con
           `!== "default"` la guarda de forceOpen seguía viva en `results` y la
           bajada no hacía nada después de una búsqueda. */}
-      <BottomSheet
+      {!selectedCard && (
+        <BottomSheet
         className="home-bottom-sheet"
         title={sheetInfo.title}
         subtitle={sheetSubtitle}
         badge={showBadge ? String(shownCount) : undefined}
         action={(estado, alternar) =>
-          sheetState === "searching" ? undefined : (
+          sheetState === "searching" || mapUnavailable ? undefined : (
             <button
               type="button"
               onClick={alternar}
@@ -1982,10 +2126,20 @@ function HomePageContent() {
           )
         }
         defaultState="mid"
-        forceOpen={sheetState === "searching"}
+        forceOpen={sheetState === "searching" || mapUnavailable}
         peekSignal={peekKey}
         openSignal={openKey}
       >
+        {mapUnavailable && (
+          <div className="mb-gap-sm flex items-start gap-gap-xs rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-meta leading-relaxed text-amber-800">
+            <MapPin size={15} strokeWidth={1.8} className="mt-[1px] shrink-0" aria-hidden />
+            <span>
+              Tu teléfono no puede mostrar el mapa. Aquí tienes los negocios
+              cercanos, ordenados por cercanía.
+            </span>
+          </div>
+        )}
+
         {/* La consulta que se llevó a la IA. Va fuera del bloque de lista para
             que también se lea cuando no hay resultados. */}
         {(sheetState === "results" || sheetState === "no-results") &&
@@ -2269,7 +2423,27 @@ function HomePageContent() {
             </motion.div>
           </AnimatePresence>
         )}
-      </BottomSheet>
+        </BottomSheet>
+      )}
+
+      <AnimatePresence>
+        {!mapUnavailable && selectedCard && (
+          <TarjetaNegocio
+            key={selectedCard.id}
+            place={selectedCard}
+            liked={likedIds.has(selectedCard.id)}
+            posicion={cardIndex + 1}
+            total={cardPlaces.length}
+            primaryLabel={primaryLabel}
+            onLike={() => handleLike(selectedCard.id)}
+            onClose={handleCloseCard}
+            onPrev={() => handleCardStep(-1)}
+            onNext={() => handleCardStep(1)}
+            onPrimary={handleCardPrimary}
+            onOpen={handleOpenCard}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Detail overlay */}
       <DetailOverlay
