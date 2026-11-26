@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -78,7 +78,26 @@ export function BandejaPendientes({
     [pendientes, resueltos],
   );
 
-  const restantes = Math.max(0, total - resueltos.size);
+  /* Solo se descuentan las claves que siguen en la lista del servidor. Tras
+     `router.refresh()`, la clave resuelta ya no llega y restarla otra vez
+     dejaría el contador por debajo de lo que se ve. */
+  const resueltosEnLista = useMemo(
+    () => pendientes.reduce((n, p) => n + (resueltos.has(p.clave) ? 1 : 0), 0),
+    [pendientes, resueltos],
+  );
+  const restantes = Math.max(0, total - resueltosEnLista);
+
+  /* Al llegar la bandeja nueva, las claves resueltas que ya no están se
+     olvidan. Si no, un pago o un cobro nuevo del mismo negocio reutilizaría la
+     clave y quedaría oculto por una resolución de hace un rato. */
+  useEffect(() => {
+    setResueltos((prev) => {
+      if (prev.size === 0) return prev;
+      const enLista = new Set(pendientes.map((p) => p.clave));
+      const siguiente = new Set([...prev].filter((clave) => enLista.has(clave)));
+      return siguiente.size === prev.size ? prev : siguiente;
+    });
+  }, [pendientes]);
 
   function resolverEnPantalla(clave: string) {
     setResueltos((prev) => new Set(prev).add(clave));
@@ -126,6 +145,11 @@ export function BandejaPendientes({
       }
 
       resolverEnPantalla(pendiente.clave);
+      /* La acción puede cambiar más que esta fila: confirmar un pago invalida
+         sus duplicados y aprobar una solicitud la saca de otras colas. Se pide
+         al servidor la bandeja nueva; el estado local solo tapa la fila mientras
+         llega. */
+      router.refresh();
       toast.success(
         accion.tipo === "aprobar_solicitud"
           ? `«${pendiente.titulo}» ya está publicado.`

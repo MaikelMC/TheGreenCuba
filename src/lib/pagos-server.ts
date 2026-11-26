@@ -38,11 +38,31 @@ async function aplicarEnBase(pago: FilaPago): Promise<void> {
      no tiene lotes): las sentencias se aplican todas o ninguna. Por eso se
      construyen con `tx` y no con `db`, que iría por otra conexión. */
   type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-  const marcaPagado = (tx: Tx) =>
-    tx
+  const marcaPagado = async (tx: Tx) => {
+    const [actualizado] = await tx
       .update(pagos)
       .set({ estado: "pagado", pagadoEn: sql`now()` })
-      .where(and(eq(pagos.id, pago.id), sql`${pagos.estado} <> 'pagado'`));
+      .where(and(eq(pagos.id, pago.id), sql`${pagos.estado} <> 'pagado'`))
+      .returning({ id: pagos.id });
+
+    /* Un reintento puede dejar dos facturas pendientes del mismo negocio,
+       tipo y clave. Al confirmar una, la otra ya no se puede cobrar: se marca
+       fallida para que no vuelva a salir en la bandeja ni active el derecho dos
+       veces. Si la fila actual ya estaba pagada, no se toca ninguna. */
+    if (!actualizado) return;
+    await tx
+      .update(pagos)
+      .set({ estado: "fallido" })
+      .where(
+        and(
+          eq(pagos.negocioId, pago.negocioId),
+          eq(pagos.tipo, pago.tipo),
+          eq(pagos.clave, pago.clave),
+          eq(pagos.estado, "pendiente"),
+          sql`${pagos.id} <> ${pago.id}`,
+        ),
+      );
+  };
 
   if (pago.tipo === "pack_medida") {
     const packId = pago.packMedidaId ?? pago.clave;

@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Package, Save, Send, Undo2, XCircle } from "lucide-react";
+import { FileText, Loader2, Package, Save, Send, Undo2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FacturaLinkDialog } from "@/components/admin/factura-link-dialog";
+import type { FacturaResumen } from "@/lib/facturas";
 import { FormSection } from "@/components/business/form-section";
 import { MODULOS, PACKS, PACKS_ORDER, type ClaveModulo, type Pack } from "@/lib/plans";
 import { nombreServicio } from "@/lib/pack-medida";
@@ -65,6 +67,12 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
   const [notaInterna, setNotaInterna] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [fallo, setFallo] = useState(false);
+  const [facturaCargando, setFacturaCargando] = useState(false);
+  const [facturaLink, setFacturaLink] = useState<{
+    factura: FacturaResumen;
+    url: string;
+    telefono: string | null;
+  } | null>(null);
 
   const cargar = useCallback(() => {
     fetch(`/api/admin/packs-medida?placeId=${encodeURIComponent(placeId)}`)
@@ -115,8 +123,8 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
     clave: string,
     body: Record<string, unknown>,
     exito: string,
-  ): Promise<void> {
-    if (saving) return;
+  ): Promise<PackAdmin | null> {
+    if (saving) return null;
     setSaving(clave);
     try {
       const res = pack
@@ -131,26 +139,63 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
             body: JSON.stringify({ negocioId: placeId, ...body }),
           });
 
-      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+        pack?: PackAdmin;
+      } | null;
       if (!res.ok) {
         toast.error(data?.error ?? "No se pudo guardar. No se cambió nada.");
-        return;
+        return null;
       }
       toast.success(exito);
       cargar();
+      return data?.pack ?? null;
     } catch {
       toast.error("No hubo respuesta del servidor. No se cambió nada.");
+      return null;
     } finally {
       setSaving(null);
     }
   }
 
-  function guardar(nuevoEstado: "borrador" | "enviado") {
+  /** Emite (o recupera) la factura del pack y abre la ventana del enlace. */
+  async function abrirFactura(packId: string) {
+    if (facturaCargando) return;
+    setFacturaCargando(true);
+    try {
+      const res = await fetch("/api/admin/facturas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ negocioId: placeId, packId }),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        factura?: FacturaResumen;
+        url?: string;
+        telefono?: string | null;
+        error?: string;
+      } | null;
+      if (!res.ok || !data?.factura || !data.url) {
+        toast.error(data?.error ?? "No se pudo generar la factura.");
+        return;
+      }
+      setFacturaLink({
+        factura: data.factura,
+        url: data.url,
+        telefono: data.telefono ?? null,
+      });
+    } catch {
+      toast.error("No hubo respuesta al generar la factura.");
+    } finally {
+      setFacturaCargando(false);
+    }
+  }
+
+  async function guardar(nuevoEstado: "borrador" | "enviado") {
     if (!precioValido) {
       toast.error("El precio no es válido.");
       return;
     }
-    void enviar(
+    const guardado = await enviar(
       nuevoEstado,
       {
         servicios,
@@ -161,9 +206,12 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
         estado: nuevoEstado,
       },
       nuevoEstado === "enviado"
-        ? "Pack enviado al dueño. Ya puede pagarlo."
+        ? "Pack enviado. Generando el enlace de la factura…"
         : "Borrador guardado.",
     );
+    if (nuevoEstado === "enviado" && guardado) {
+      await abrirFactura(guardado.id);
+    }
   }
 
   /** Cerrar el pack (cancelar o rechazar). Pide confirmación: no se reabre. */
@@ -419,6 +467,20 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
         <div className="flex flex-wrap gap-gap-sm">
           <button
             type="button"
+            onClick={() => void abrirFactura(pack.id)}
+            disabled={facturaCargando}
+            className="inline-flex h-11 items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {facturaCargando ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <FileText size={15} strokeWidth={1.8} />
+            )}
+            Ver factura
+          </button>
+
+          <button
+            type="button"
             onClick={() =>
               void enviar(
                 "nota",
@@ -488,6 +550,16 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
           podrás preparar uno nuevo.
         </p>
       )}
+
+      <FacturaLinkDialog
+        factura={facturaLink?.factura ?? null}
+        url={facturaLink?.url ?? ""}
+        telefono={facturaLink?.telefono ?? null}
+        open={facturaLink !== null}
+        onOpenChange={(abierto) => {
+          if (!abierto) setFacturaLink(null);
+        }}
+      />
     </FormSection>
   );
 }

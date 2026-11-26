@@ -130,7 +130,7 @@ interface FilaPago {
   negocio: string;
   tipo: "plan" | "modulo" | "pack_medida";
   clave: string;
-  metodo: "qvapay" | "cortesia";
+  metodo: "qvapay" | "cortesia" | "manual";
   montoCentavos: number;
   pagadoEn: Date | null;
   createdAt: Date;
@@ -483,7 +483,7 @@ export async function cargarIngresosAdmin(
       grupo: "por_confirmar",
       negocioId: pago.negocioId,
       negocio: pago.negocio,
-      detalle: `${pago.metodo === "qvapay" ? "QvaPay" : "Cortesía"} · ${conceptoDe(pago.tipo, pago.clave, cat)} · ${FECHA_HORA.format(pago.createdAt)}`,
+      detalle: `${pago.metodo === "qvapay" ? "QvaPay" : pago.metodo === "manual" ? "Factura manual" : "Cortesía"} · ${conceptoDe(pago.tipo, pago.clave, cat)} · ${FECHA_HORA.format(pago.createdAt)}`,
       fecha: pago.createdAt.toISOString(),
       montoCentavos: pago.montoCentavos,
       accion: { tipo: "confirmar", pagoId: pago.id },

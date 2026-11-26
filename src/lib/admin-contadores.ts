@@ -90,7 +90,13 @@ export async function contarPendientesAdmin(): Promise<ContadoresAdmin> {
       .select({ total })
       .from(publicaciones)
       .where(ne(publicaciones.estado, "publicada")),
-    db.select({ total }).from(pagos).where(eq(pagos.estado, "pendiente")),
+    db
+      .select({
+        /* Varias facturas del mismo plan son un solo pendiente comercial. */
+        total: sql<number>`count(distinct (${pagos.negocioId}, ${pagos.tipo}, ${pagos.clave}))::int`,
+      })
+      .from(pagos)
+      .where(eq(pagos.estado, "pendiente")),
     db
       .select({ total })
       .from(suscripciones)
@@ -109,6 +115,7 @@ export async function contarPendientesAdmin(): Promise<ContadoresAdmin> {
           eq(suscripciones.estado, "activa"),
           gte(suscripciones.trialHasta, ahora),
           lte(suscripciones.trialHasta, enSieteDias),
+          or(eq(suscripciones.plan, "gratis"), lt(suscripciones.venceEn, ahora)),
         ),
       ),
     db

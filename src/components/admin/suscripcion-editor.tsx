@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { BadgeCheck, Loader2, Save } from "lucide-react";
+import { BadgeCheck, FileText, Loader2, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FacturaLinkDialog } from "@/components/admin/factura-link-dialog";
+import type { FacturaResumen } from "@/lib/facturas";
 import { FormSection } from "@/components/business/form-section";
 import { Skeleton } from "@/components/ui/loading";
 import { PLAN_ORDER, MODULOS, nombreDe, usdDe, type ClaveModulo, type Plan } from "@/lib/plans";
@@ -108,6 +110,12 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
   const [saving, setSaving] = useState(false);
   const [fallo, setFallo] = useState(false);
   const [inicial, setInicial] = useState<Formulario | null>(null);
+  const [facturaCargando, setFacturaCargando] = useState(false);
+  const [facturaLink, setFacturaLink] = useState<{
+    factura: FacturaResumen;
+    url: string;
+    telefono: string | null;
+  } | null>(null);
   const { refreshPlaces } = usePlaces();
 
   /* Pone la fila en el formulario y la toma como punto de partida: lo que se
@@ -209,6 +217,38 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
       setSaving(false);
     }
   }, [placeId, inicial, data, plan, estado, trial, vence, descuento, modulos, aplicar, cat, refreshPlaces]);
+
+  /** Emite la factura del plan elegido y abre el enlace para compartir. */
+  async function enviarFactura() {
+    if (!data || plan === "gratis" || facturaCargando) return;
+    setFacturaCargando(true);
+    try {
+      const res = await fetch("/api/admin/facturas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ negocioId: placeId, plan }),
+      });
+      const body = (await res.json().catch(() => null)) as {
+        factura?: FacturaResumen;
+        url?: string;
+        telefono?: string | null;
+        error?: string;
+      } | null;
+      if (!res.ok || !body?.factura || !body.url) {
+        toast.error(body?.error ?? "No se pudo generar la factura.");
+        return;
+      }
+      setFacturaLink({
+        factura: body.factura,
+        url: body.url,
+        telefono: body.telefono ?? null,
+      });
+    } catch {
+      toast.error("No hubo respuesta al generar la factura.");
+    } finally {
+      setFacturaCargando(false);
+    }
+  }
 
   /* Mientras la prueba sigue viva, es lo que el negocio tiene de verdad: el
      plan contratado no entra hasta que vence. Se calcula con las fechas que ya
@@ -417,19 +457,45 @@ export function SuscripcionEditor({ placeId }: { placeId: string }) {
         </p>
       </fieldset>
 
-      <button
-        type="button"
-        onClick={() => void save()}
-        disabled={saving}
-        className="inline-flex h-11 cursor-pointer items-center gap-gap-xs self-start rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
-      >
-        {saving ? (
-          <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
-        ) : (
-          <Save size={16} strokeWidth={1.8} />
-        )}
-        {saving ? "Guardando…" : "Guardar plan"}
-      </button>
+      <div className="flex flex-wrap gap-gap-sm">
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={saving}
+          className="inline-flex h-11 cursor-pointer items-center gap-gap-xs rounded-full bg-verde-400 px-gap-lg font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition duration-500 ease-outquint hover:bg-verde-300 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+        >
+          {saving ? (
+            <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
+          ) : (
+            <Save size={16} strokeWidth={1.8} />
+          )}
+          {saving ? "Guardando…" : "Guardar plan"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => void enviarFactura()}
+          disabled={facturaCargando || plan === "gratis"}
+          className="inline-flex h-11 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-lg font-lv-display text-small font-semibold text-ink transition duration-500 ease-outquint hover:border-verde-300 hover:text-verde-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {facturaCargando ? (
+            <Loader2 size={16} strokeWidth={1.8} className="animate-spin" />
+          ) : (
+            <FileText size={16} strokeWidth={1.8} />
+          )}
+          Enviar factura del plan
+        </button>
+      </div>
+
+      <FacturaLinkDialog
+        factura={facturaLink?.factura ?? null}
+        url={facturaLink?.url ?? ""}
+        telefono={facturaLink?.telefono ?? null}
+        open={facturaLink !== null}
+        onOpenChange={(abierto) => {
+          if (!abierto) setFacturaLink(null);
+        }}
+      />
     </FormSection>
   );
 }

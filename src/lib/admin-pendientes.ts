@@ -148,9 +148,21 @@ export async function cargarBandejaAdmin(): Promise<BandejaAdmin> {
       (SELECT count(*) FROM support_tickets WHERE status IN ('open','in_progress'))::int AS conversaciones,
       (SELECT count(*) FROM places WHERE review_status = 'pending')::int AS solicitudes_negocios,
       (SELECT count(*) FROM project_requests WHERE status = 'pending')::int AS solicitudes_proyectos,
-      (SELECT count(*) FROM pagos WHERE estado = 'pendiente')::int AS pagos,
+      /* Un negocio puede tener dos facturas pendientes del mismo plan tras
+         reintentar el pago. Para administración es **una** cosa que resolver:
+         el derecho es el mismo. */
+      (SELECT count(*) FROM (
+        SELECT DISTINCT negocio_id, tipo, clave FROM pagos WHERE estado = 'pendiente'
+      ) pendientes_pago)::int AS pagos,
       (SELECT count(*) FROM suscripciones WHERE estado = 'activa' AND plan <> 'gratis' AND vence_en < now())::int AS cobros,
-      (SELECT count(*) FROM suscripciones WHERE estado = 'activa' AND trial_hasta > now() AND trial_hasta <= now() + interval '7 days')::int AS pruebas,
+      /* Solo las pruebas que son el acceso actual o la antesala de gratis. Si
+         ya hay un plan activo sin vencer, que la prueba termine no deja al
+         negocio sin nada: no es un pendiente comercial. */
+      (SELECT count(*) FROM suscripciones
+        WHERE estado = 'activa'
+          AND trial_hasta > now()
+          AND trial_hasta <= now() + interval '7 days'
+          AND (plan = 'gratis' OR vence_en < now()))::int AS pruebas,
       (SELECT count(*) FROM publicaciones WHERE estado <> 'publicada')::int AS publicaciones,
       (SELECT count(*) FROM places
         WHERE review_status = 'approved' AND is_active AND status = 'active'
@@ -227,7 +239,7 @@ export async function cargarBandejaAdmin(): Promise<BandejaAdmin> {
       .innerJoin(places, eq(pagos.negocioId, places.id))
       .where(eq(pagos.estado, "pendiente"))
       .orderBy(asc(pagos.createdAt))
-      .limit(6),
+      .limit(60),
     db
       .select({
         negocioId: suscripciones.negocioId,
@@ -260,6 +272,7 @@ export async function cargarBandejaAdmin(): Promise<BandejaAdmin> {
           eq(suscripciones.estado, "activa"),
           gte(suscripciones.trialHasta, ahora),
           lte(suscripciones.trialHasta, enSieteDias),
+          or(eq(suscripciones.plan, "gratis"), lt(suscripciones.venceEn, ahora)),
         ),
       )
       .orderBy(asc(suscripciones.trialHasta))
@@ -361,6 +374,20 @@ export async function cargarBandejaAdmin(): Promise<BandejaAdmin> {
 
   const pendientes: PendienteAdmin[] = [];
 
+  /* Dos reintentos del mismo pago son dos filas de `pagos`, pero una sola
+     decisión: se conserva el intento más viejo y los demás se cuentan en el
+     detalle. Al confirmarlo, `pagos-server` invalida los duplicados. */
+  const pagosUnicos = new Map<
+    string,
+    { pago: (typeof pagosPendientes)[number]; intentos: number }
+  >();
+  for (const pago of pagosPendientes) {
+    const clave = `${pago.negocioId}:${pago.tipo}:${pago.clave}`;
+    const existente = pagosUnicos.get(clave);
+    if (existente) existente.intentos += 1;
+    else pagosUnicos.set(clave, { pago, intentos: 1 });
+  }
+
   for (const ticket of tickets) {
     const nombre =
       ticket.userSnapshot?.name ?? ticket.userSnapshot?.email ?? ticket.email;
@@ -418,7 +445,7 @@ export async function cargarBandejaAdmin(): Promise<BandejaAdmin> {
     });
   }
 
-  for (const pago of pagosPendientes) {
+  for (const { pago, intentos } of [...pagosUnicos.values()].slice(0, 6)) {
     const usd = pago.montoCentavos / 100;
     const concepto =
       pago.tipo === "plan"
@@ -428,11 +455,11 @@ export async function cargarBandejaAdmin(): Promise<BandejaAdmin> {
           : "Pack a medida";
 
     pendientes.push({
-      clave: `pago:${pago.id}`,
+      clave: `pago:${pago.negocioId}:${pago.tipo}:${pago.clave}`,
       tipo: "pago",
       etiquetaTipo: ETIQUETA.pago,
       titulo: pago.negocio,
-      detalle: `${usd.toLocaleString("es-CU", { maximumFractionDigits: 2 })} USD · ${concepto} · ${pago.metodo === "qvapay" ? "QvaPay" : "Cortesía"} · ${fechaCorta.format(pago.createdAt)}`,
+      detalle: `${usd.toLocaleString("es-CU", { maximumFractionDigits: 2 })} USD · ${concepto} · ${pago.metodo === "qvapay" ? "QvaPay" : pago.metodo === "manual" ? "Factura manual" : "Cortesía"} · ${fechaCorta.format(pago.createdAt)}${intentos > 1 ? ` · ${intentos} intentos` : ""}`,
       prioridad: PRIORIDAD.pago,
       fecha: pago.createdAt.toISOString(),
       accion: { tipo: "confirmar_pago", pagoId: pago.id },

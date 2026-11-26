@@ -1,0 +1,26 @@
+import { notFound } from "next/navigation";
+import { FacturaPublica } from "@/components/facturas/factura-publica";
+import { obtenerFactura } from "@/lib/facturas-server";
+
+export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: "Factura · La Verde",
+  robots: { index: false, follow: false },
+};
+
+export default async function FacturaPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const factura = await obtenerFactura(id);
+  if (!factura) notFound();
+
+  return (
+    <main className="min-h-dvh bg-sand px-gutter py-gap-lg sm:px-gutter-lg">
+      <FacturaPublica factura={factura} />
+    </main>
+  );
+}

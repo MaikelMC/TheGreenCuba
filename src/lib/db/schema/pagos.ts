@@ -33,9 +33,12 @@ export const pagos = pgTable(
       .notNull()
       .references(() => places.id, { onDelete: "cascade" }),
 
-    /* Deja sitio al segundo método sin tocar la tabla: la fila cuenta qué se
-       pagó y con qué, no cómo. `cortesia` = descuento del 100 %, sin QvaPay. */
-    metodo: text("metodo", { enum: ["qvapay", "cortesia"] }).default("qvapay").notNull(),
+    /* La fila cuenta qué se pagó y con qué, no cómo. `cortesia` = descuento del
+       100 %, sin QvaPay; `manual` = cobro confirmado desde una factura del
+       panel, sin pasar por la pasarela. */
+    metodo: text("metodo", { enum: ["qvapay", "cortesia", "manual"] })
+      .default("qvapay")
+      .notNull(),
     tipo: text("tipo", { enum: ["plan", "modulo", "pack_medida"] }).notNull(),
     /**
      * La clave del pack o del módulo en el catálogo, o el id del pack a medida.

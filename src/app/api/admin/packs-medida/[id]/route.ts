@@ -6,6 +6,7 @@ import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
 import { packsMedida, places } from "@/lib/db/schema";
 import { funcionesDeServicios, precioSugeridoPack } from "@/lib/pack-medida";
+import { cancelarFacturasDePack } from "@/lib/facturas-server";
 import { MODULOS, PACKS } from "@/lib/plans";
 import type { PackMedidaEstado } from "@/lib/db/schema/packs_medida";
 import { generateId } from "@/lib/utils";
@@ -82,6 +83,9 @@ export async function PATCH(
     if (body.estado === "borrador") {
       const nuevoId = await devolverABorrador(id, body.notaInterna);
       if (!nuevoId) return packCambio();
+      /* El enlace que ya se compartió deja de servir: apunta al pack que se
+         cerró, no a la copia corregida. */
+      await cancelarFacturasDePack(id);
       await registrarActividad({
         accion: ACCION.editarPack,
         objetoTipo: "negocio",
@@ -148,6 +152,10 @@ export async function PATCH(
     .returning({ id: packsMedida.id });
 
   if (escritas.length === 0) return packCambio();
+
+  if (cambios.estado === "cancelado" || cambios.estado === "rechazado") {
+    await cancelarFacturasDePack(id);
+  }
 
   await registrarActividad({
     accion: ACCION.editarPack,
