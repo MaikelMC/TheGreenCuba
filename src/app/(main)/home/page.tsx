@@ -31,6 +31,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { cn, formatDateRange, formatRelativeTime } from "@/lib/utils";
 import { fadeUp, popIn, staggerContainer } from "@/lib/motion";
 import { CategoryBar } from "@/components/layout/category-bar";
+import { HomeTopBar } from "@/components/home/home-top-bar";
+import { HomeSearchOverlay } from "@/components/home/home-search-overlay";
 import { BottomSheet } from "@/components/layout/bottom-sheet";
 import { PlaceCard } from "@/components/layout/place-card";
 import { SearchingAnimation } from "@/components/layout/searching-animation";
@@ -618,6 +620,16 @@ function HomePageContent() {
     window.history.replaceState(null, "", url.pathname + (url.search || "") + (url.hash || ""));
   }, [desdeOffline]);
   const [sheetState, setSheetState] = useState<SheetState>("default");
+  /* La búsqueda del home es una capa propia, no el desplegable de la cabecera
+     global. El parámetro `buscar=1` permite que el atrás de Android la cierre
+     en vez de salir de la app. */
+  const [searchOpen, setSearchOpen] = useState(false);
+  const busquedaInicialLeida = useRef(false);
+  useEffect(() => {
+    if (busquedaInicialLeida.current) return;
+    busquedaInicialLeida.current = true;
+    if (searchParams.get("buscar") === "1") setSearchOpen(true);
+  }, [searchParams]);
   /* La hora se fija tras montar. El primer render del cliente coincide con el
      del servidor y el chip «Abierto/Cerrado» aparece en el siguiente tick. */
   const [ahora, setAhora] = useState<Date | null>(null);
@@ -778,6 +790,13 @@ function HomePageContent() {
     return categories.filter((c) => present.has(c.label.toLowerCase()));
   }, [places, categories]);
 
+  /* «Populares» no es una categoría de la base: es un atajo a lo que destaca
+     (top del mes u oferta viva). Si no hay nada, el chip no se pinta. */
+  const hayPopulares = useMemo(
+    () => places.some((p) => p.topDelMes || hayOferta(p.ofertas)),
+    [places],
+  );
+
   useEffect(() => {
     let alive = true;
     const resolveInitialCenter = (
@@ -899,6 +918,42 @@ function HomePageContent() {
     [],
   );
 
+  /* Abrir la búsqueda deja una entrada en el historial para que el gesto de
+     atrás la cierre. No se usa el router de Next: la pantalla es una capa, no
+     una ruta nueva, y no debe volver a pedir el catálogo. */
+  const abrirBuscar = useCallback(() => {
+    setSearchOpen(true);
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("buscar") !== "1") {
+      url.searchParams.set("buscar", "1");
+      window.history.pushState(
+        { ...(window.history.state ?? {}), lvBuscar: true },
+        "",
+        url,
+      );
+    }
+  }, []);
+
+  const cerrarBuscar = useCallback(() => {
+    setSearchOpen(false);
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("buscar") !== "1") return;
+    if (window.history.state?.lvBuscar) {
+      window.history.back();
+      return;
+    }
+    url.searchParams.delete("buscar");
+    window.history.replaceState(window.history.state, "", url);
+  }, []);
+
+  useEffect(() => {
+    function alVolver() {
+      setSearchOpen(false);
+    }
+    window.addEventListener("popstate", alVolver);
+    return () => window.removeEventListener("popstate", alVolver);
+  }, []);
+
   /* Un solo filtrado para los dos sitios que pintan el catálogo —los pines del
      mapa y la lista del panel inferior—, para que no puedan discrepar. El chip
      de categoría se encendía y no filtraba nada: `activeCategory` no lo leía
@@ -906,9 +961,10 @@ function HomePageContent() {
   const filterContext = useMemo(
     () => ({
       categoryLabel:
-        activeCategory === "all"
+        activeCategory === "all" || activeCategory === "populares"
           ? null
           : (categories.find((c) => c.value === activeCategory)?.label ?? null),
+      populares: activeCategory === "populares",
       filters: activeFilters,
       origin: userLocation,
       /* Se evalúa al filtrar, no en cada render: «Abiertos ahora» cambia con la
@@ -1276,6 +1332,16 @@ function HomePageContent() {
     void refreshPlaces();
   }, [refreshPlaces]);
 
+  /* «Quitar» de la búsqueda activa: vuelve a «Cerca de ti» sin pedir nada.
+     El catálogo ya está en memoria; refrescarlo aquí gastaría datos por un
+     gesto que solo quiere ver la lista de siempre. */
+  const handleClearSearch = useCallback(() => {
+    setAiState(null);
+    setSearchingQuery("");
+    setSheetState("default");
+    setOpenKey((k) => k + 1);
+  }, []);
+
   const handleRetry = useCallback(() => {
     if (searchingQuery) {
       handleSearch(searchingQuery);
@@ -1619,6 +1685,7 @@ function HomePageContent() {
      del header fijo: invisibles y sin poder tocarse. */
   return (
     <div className="fixed inset-x-0 bottom-0 top-[var(--header-h)] font-lv text-ink">
+      <HomeTopBar onOpenSearch={abrirBuscar} />
       {desdeOffline && (
         <div
           role="status"
@@ -1657,6 +1724,7 @@ function HomePageContent() {
       >
         <CategoryBar
           categories={categoriesWithPlaces}
+          showPopulares={hayPopulares || activeCategory === "populares"}
           active={activeCategory}
           onSelect={(value) => {
             setActiveCategory(value);
@@ -1778,6 +1846,25 @@ function HomePageContent() {
         peekSignal={peekKey}
         openSignal={openKey}
       >
+        {/* La consulta que se llevó a la IA. Va fuera del bloque de lista para
+            que también se lea cuando no hay resultados. */}
+        {(sheetState === "results" || sheetState === "no-results") &&
+          searchingQuery && (
+            <div className="mb-gap-sm flex items-center gap-gap-xs rounded-2xl border border-verde-200 bg-verde-50 px-3 py-2">
+              <p className="min-w-0 flex-1 truncate text-small text-verde-800">
+                La IA buscó:{" "}
+                <span className="font-semibold">«{searchingQuery}»</span>
+              </p>
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-verde-200 bg-white px-3 font-lv-display text-small font-semibold text-verde-700 transition-colors duration-300 hover:bg-verde-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400"
+              >
+                Quitar
+              </button>
+            </div>
+          )}
+
         {/* Default / Results state */}
         {(sheetState === "default" || sheetState === "results") && (
           <AnimatePresence mode="wait">
@@ -1992,6 +2079,12 @@ function HomePageContent() {
         route={route}
         userLocation={userLocation}
       />
+
+      <HomeSearchOverlay
+        open={searchOpen}
+        onClose={cerrarBuscar}
+        onSearch={handleSearch}
+      />
     </div>
   );
 }
@@ -2038,6 +2131,14 @@ function HomeShellSkeleton() {
       aria-label="Cargando el mapa y los lugares"
       className="fixed inset-x-0 bottom-0 top-[var(--header-h)] overflow-hidden bg-sand-deep"
     >
+      {/* La barra del home también tiene esqueleto: el layout global ya no la
+          pinta en `/home`, y sin esto el primer pintado dejaba 60 px vacíos. */}
+      <div className="safe-top fixed inset-x-0 top-0 z-200 flex h-header items-center gap-2 border-b border-ink/5 bg-sand-warm/90 px-3">
+        <div className="skeleton-shimmer size-[26px] rounded-full" />
+        <div className="skeleton-shimmer h-11 flex-1 rounded-full" />
+        <div className="skeleton-shimmer size-11 rounded-full" />
+      </div>
+
       {/* El mapa, insinuado: una retícula tenue en vez de un color plano. */}
       <div
         aria-hidden

@@ -13,6 +13,7 @@ function useShowGlobalHeader() {
     pathname !== "/business" &&
     pathname !== "/projects" &&
     pathname !== "/enlaces" &&
+    pathname !== "/home" &&
     !pathname.startsWith("/profile") &&
     !pathname.startsWith("/place") &&
     !pathname.startsWith("/notifications") &&

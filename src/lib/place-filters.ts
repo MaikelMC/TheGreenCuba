@@ -1,5 +1,6 @@
 import { haversineM } from "@/lib/map/routing";
 import { tieneRespaldo } from "@/lib/energia";
+import { hayOferta } from "@/lib/ofertas";
 import { estadoAhora, estadoDesdeTexto } from "@/lib/ficha/horario";
 import type { UserPlace } from "@/lib/places-store";
 
@@ -68,6 +69,11 @@ function estaAbiertoAhora(place: UserPlace, now: Date): boolean {
 export interface FilterContext {
   /** Etiqueta de la categoría activa («Restaurante»), o `null` para «Todo». */
   categoryLabel: string | null;
+  /**
+   * El chip «Populares»: destacados del mes u ofertas vivas. Es un filtro y
+   * no un panel de novedades; el fuego de antes hacía otra cosa.
+   */
+  populares?: boolean;
   filters: ReadonlySet<string>;
   origin: { lat: number; lng: number } | null;
   now: Date;
@@ -75,6 +81,12 @@ export interface FilterContext {
 
 export function matchesPlaceFilters(place: UserPlace, ctx: FilterContext): boolean {
   if (ctx.categoryLabel && place.category !== ctx.categoryLabel) return false;
+  if (
+    ctx.populares &&
+    !(place.topDelMes || hayOferta(place.ofertas, ctx.now.getTime()))
+  ) {
+    return false;
+  }
 
   /* Un solo chip para las tres formas de respaldo —planta, inversor y ambas—:
      quien pregunta por «corriente» quiere cualquiera de las tres, y separarlas

@@ -39,10 +39,11 @@ interface SessionUser {
   email: string;
   name: string;
   role: Role;
-  /** El negocio que lleva, si lleva alguno. Solo se lee para decidir si el
-      enlace al panel ya tiene destino: mientras esté pendiente de aprobación,
-      `/business` devuelve al perfil y ofrecerlo sería un enlace que rebota. */
-  business?: { isActive: boolean } | null;
+  /** El negocio que lleva, si lleva alguno. `id` y `name` son los que usa el
+      punto de pendientes del avatar; `isActive` decide si el panel tiene
+      destino. Mientras esté pendiente de aprobación, `/business` devuelve al
+      perfil y ofrecerlo sería un enlace que rebota. */
+  business?: { id?: string; name?: string; isActive: boolean } | null;
   /** Si el administrador le activó el programa de afiliados. Con esto en falso
       —o ausente, que es lo mismo cuando la respuesta es de antes— «Enlaces» no
       se ofrece: la página rebotaría, porque no tendría código que enseñar. */
@@ -167,6 +168,7 @@ export function UserMenu({
   initial,
   extras = [],
   antesDeSalir,
+  compact = false,
 }: {
   initial?: string;
   /** Entradas que van antes de las secciones de la cuenta. */
@@ -176,8 +178,16 @@ export function UserMenu({
    * antes de irse a otra sección de la cuenta y antes de cerrar sesión.
    */
   antesDeSalir?: () => boolean;
+  /**
+   * Avatar circular sin flecha para la barra del home. El punto ámbar sale
+   * cuando el panel del usuario tiene algo pendiente: pedidos si es negocio,
+   * la bandeja si es administrador. En el resto de cabeceras se mantiene la
+   * pastilla con flecha.
+   */
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [hayPendientes, setHayPendientes] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(lastKnownUser);
   /* Tres estados, no dos: «todavía no se sabe» no es «no hay sesión». Con dos,
      la esquina no se podía pintar hasta terminar de preguntar sin arriesgarse a
@@ -304,6 +314,57 @@ export function UserMenu({
     };
   }, []);
 
+  /* El punto del avatar compacto. Se pide una sola vez por usuario y no en
+     cada render: son dos endpoints ligeros y solo interesan cuando el home
+     pinta la barra nueva. Si falla, no hay punto; nunca se inventa uno. */
+  useEffect(() => {
+    if (!compact || !user) {
+      setHayPendientes(false);
+      return;
+    }
+
+    let vivo = true;
+    const controller = new AbortController();
+
+    async function cargar() {
+      try {
+        if (user!.role === "admin") {
+          const respuesta = await fetch("/api/admin/contadores", {
+            signal: controller.signal,
+          });
+          if (!respuesta.ok) return;
+          const datos = (await respuesta.json()) as Record<string, unknown>;
+          if (!vivo) return;
+          setHayPendientes(
+            Object.values(datos).some(
+              (valor) => typeof valor === "number" && valor > 0,
+            ),
+          );
+          return;
+        }
+
+        if (user!.business?.isActive && user!.business.id) {
+          const respuesta = await fetch(
+            `/api/pedidos/pendientes?placeId=${encodeURIComponent(user!.business.id)}`,
+            { signal: controller.signal },
+          );
+          if (!respuesta.ok) return;
+          const datos = (await respuesta.json()) as { pendientes?: number };
+          if (!vivo) return;
+          setHayPendientes((datos.pendientes ?? 0) > 0);
+        }
+      } catch {
+        /* Sin red o sin permiso: el punto no se pinta. */
+      }
+    }
+
+    void cargar();
+    return () => {
+      vivo = false;
+      controller.abort();
+    };
+  }, [compact, user]);
+
   useEffect(() => {
     function handleClick(e: PointerEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -389,7 +450,16 @@ export function UserMenu({
      `initial` cuenta como saberlo: solo lo pasa una pantalla cerrada
      (`/profile`), que ya tiene la sesión resuelta por el proxy. */
   if (!user && !initial) {
-    if (status !== "out") return null;
+    if (status !== "out") {
+      /* En la barra del home el hueco del avatar se reserva: si no, el campo
+         de búsqueda se estira y se encoge cuando llega `/api/me`. */
+      return compact ? (
+        <span
+          aria-hidden
+          className="skeleton-shimmer size-11 shrink-0 rounded-full"
+        />
+      ) : null;
+    }
     return (
       <LoginButton className="shrink-0 px-3 py-2 text-[13px] sm:px-[18px] sm:py-2.5 sm:text-sm" />
     );
@@ -418,24 +488,41 @@ export function UserMenu({
           setOpen((v) => !v);
           setHintOpen(false);
         }}
-        aria-label="Abrir menú de cuenta y secciones"
+        aria-label={
+          hayPendientes
+            ? "Abrir menú de cuenta y secciones, hay pendientes"
+            : "Abrir menú de cuenta y secciones"
+        }
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="user-menu"
-        className="group flex shrink-0 cursor-pointer items-center gap-1 rounded-full bg-verde-950 py-1 pl-1 pr-[10px] text-white transition-colors duration-500 hover:bg-verde-800"
+        className={cn(
+          "group relative flex shrink-0 cursor-pointer items-center rounded-full bg-verde-950 text-white transition-colors duration-500 hover:bg-verde-800",
+          compact
+            ? "size-11 justify-center"
+            : "gap-1 py-1 pl-1 pr-[10px]",
+        )}
       >
         <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-verde-800 font-lv-display text-small font-bold">
           {avatar ?? <User size={18} strokeWidth={1.8} />}
         </span>
-        <ChevronDown
-          size={16}
-          strokeWidth={2}
-          aria-hidden
-          className={cn(
-            "shrink-0 transition-transform duration-300",
-            open && "rotate-180",
-          )}
-        />
+        {!compact && (
+          <ChevronDown
+            size={16}
+            strokeWidth={2}
+            aria-hidden
+            className={cn(
+              "shrink-0 transition-transform duration-300",
+              open && "rotate-180",
+            )}
+          />
+        )}
+        {compact && hayPendientes && (
+          <span
+            aria-hidden
+            className="absolute right-0 top-0 size-3 rounded-full border-2 border-sand-warm bg-lv-amber dark:border-ink"
+          />
+        )}
       </motion.button>
 
       {/* Aviso de primera visita: un halo que late sobre el botón y una frase

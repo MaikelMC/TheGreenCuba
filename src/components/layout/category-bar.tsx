@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { motion } from "motion/react";
-import { LayoutGrid } from "lucide-react";
+import { Flame, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CategoryIcon } from "@/components/admin/category-icon";
 import type { BusinessCategory } from "@/lib/places";
@@ -25,13 +25,28 @@ interface CategoryBarProps {
   categories: BusinessCategory[];
   active?: string;
   onSelect?: (value: string) => void;
+  /** «Populares» = destacados del mes u ofertas vivas. Solo se pinta si hay. */
+  showPopulares?: boolean;
 }
 
-export function CategoryBar({ categories, active = "all", onSelect }: CategoryBarProps) {
+export function CategoryBar({
+  categories,
+  active = "all",
+  onSelect,
+  showPopulares = false,
+}: CategoryBarProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const chips = [
-    { value: "all", label: "Todo", icon: null as string | null },
+  const chips: {
+    value: string;
+    label: string;
+    icon: string | null;
+    flame?: boolean;
+  }[] = [
+    { value: "all", label: "Todo", icon: null },
+    ...(showPopulares
+      ? [{ value: "populares", label: "Populares", icon: null, flame: true }]
+      : []),
     ...categories.map((c) => ({ value: c.value, label: c.label, icon: c.icon ?? null })),
   ];
 
@@ -68,7 +83,9 @@ export function CategoryBar({ categories, active = "all", onSelect }: CategoryBa
             aria-pressed={isActive}
             className={chipClass}
           >
-            {cat.icon ? (
+            {cat.flame ? (
+              <Flame size={16} strokeWidth={1.8} className={iconClass} />
+            ) : cat.icon ? (
               <CategoryIcon icon={cat.icon} size={16} strokeWidth={1.8} className={iconClass} />
             ) : (
               <LayoutGrid size={16} strokeWidth={1.8} className={iconClass} />
