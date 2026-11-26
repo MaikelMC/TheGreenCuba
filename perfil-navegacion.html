@@ -1,0 +1,1020 @@
+<!doctype html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La Verde · Navegación del perfil de usuario</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --verde-50: #EAF7EF;
+    --verde-100: #CEEEDB;
+    --verde-200: #9FDDB9;
+    --verde-300: #67C792;
+    --verde-400: #35AF6D;
+    --verde-500: #18954F;
+    --verde-600: #0F7A41;
+    --verde-700: #0C6136;
+    --verde-950: #052017;
+    --ink: #08130D;
+    --ink-soft: #1B2A21;
+    --sand: #F6F3EC;
+    --sand-warm: #FBF9F4;
+    --sand-deep: #EAE4D6;
+    --surface: #FFFFFF;
+    --surface-2: #F2EFE7;
+    --line: rgba(8, 19, 13, .08);
+    --line-soft: rgba(8, 19, 13, .05);
+    --muted: rgba(27, 42, 33, .66);
+    --red: #A8321F;
+    --amber: #E8833A;
+    --shadow: 0 1px 2px rgba(8,19,13,.04), 0 18px 44px -28px rgba(8,19,13,.28);
+    --radius: 16px;
+    --display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+    --body: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  }
+
+  html[data-theme="dark"] {
+    --ink: #EDF7F0;
+    --ink-soft: #C9D8CE;
+    --sand: #08130D;
+    --sand-warm: #0A1410;
+    --sand-deep: #1A2A21;
+    --surface: #0E1720;
+    --surface-2: #16212B;
+    --line: rgba(237, 247, 240, .10);
+    --line-soft: rgba(237, 247, 240, .06);
+    --muted: rgba(201, 216, 206, .62);
+    --verde-50: #173522;
+    --verde-100: #21442E;
+    --verde-200: #2E5A43;
+    --verde-600: #9BE3B4;
+    --verde-700: #B8ECC9;
+    --shadow: 0 1px 2px rgba(0,0,0,.2), 0 24px 60px -28px rgba(0,0,0,.8);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--sand);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  button { font: inherit; }
+  h1, h2, h3, p { margin: 0; }
+  h1, h2, h3 { font-family: var(--display); letter-spacing: -.025em; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .86em;
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    border-radius: 6px;
+    padding: 1px 5px;
+  }
+  .ic { width: 18px; height: 18px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .ic.sm { width: 15px; height: 15px; }
+  .ic.lg { width: 22px; height: 22px; }
+
+  .page {
+    width: min(1240px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 40px 0 80px;
+  }
+  .page-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 28px;
+  }
+  .eyebrow {
+    font-family: var(--display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--verde-600);
+  }
+  .page-head h1 { margin-top: 8px; font-size: clamp(30px, 4vw, 46px); line-height: 1.05; }
+  .page-head p { margin-top: 10px; max-width: 64ch; color: var(--muted); font-size: 15px; }
+  .theme-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    min-height: 44px; padding: 0 16px;
+    border: 1px solid var(--line); border-radius: 999px;
+    background: var(--surface); color: var(--ink);
+    cursor: pointer; box-shadow: var(--shadow); white-space: nowrap;
+  }
+  .theme-btn:hover { border-color: var(--verde-400); }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    margin: 22px 0 34px; color: var(--muted); font-size: 13px;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--verde-400); }
+  .dot.gray { background: #8B948E; }
+  .dot.dark { background: var(--ink); }
+
+  .block { margin-top: 38px; }
+  .block-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+  .block-head h2 { font-size: 22px; }
+  .block-head p { color: var(--muted); font-size: 13px; }
+
+  /* ── Mapa de navegación ─────────────────────────────────────────────── */
+  .flow {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    align-items: stretch;
+  }
+  .flow-card {
+    position: relative;
+    min-height: 112px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .flow-card h3 { font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .flow-card p { margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .flow-card code { display: inline-block; margin-top: 10px; }
+  .flow-card .num {
+    position: absolute; top: 12px; right: 14px;
+    font-family: var(--display); font-size: 11px; color: var(--muted);
+  }
+  .flow-card.accent { border-color: var(--verde-300); background: var(--verde-50); }
+  .flow-card.accent h3 { color: var(--verde-700); }
+  .flow-arrow {
+    display: none;
+  }
+
+  /* ── Pantallas ──────────────────────────────────────────────────────── */
+  .screens {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 26px;
+    align-items: start;
+  }
+  .screen-card { min-width: 0; }
+  .screen-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .screen-meta h3 { font-size: 15px; }
+  .screen-meta code { font-size: 11px; }
+  .screen-card > p { margin-top: 10px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+  .phone {
+    position: relative;
+    width: 100%;
+    max-width: 340px;
+    height: 690px;
+    margin: 0 auto;
+    padding: 10px;
+    border-radius: 40px;
+    background: #101816;
+    box-shadow: 0 2px 0 rgba(255,255,255,.08) inset, 0 30px 70px -30px rgba(0,0,0,.55);
+  }
+  html[data-theme="dark"] .phone { background: #050B08; }
+  .phone::after {
+    content: ""; position: absolute; left: 50%; top: 15px;
+    width: 92px; height: 22px; transform: translateX(-50%);
+    border-radius: 999px; background: #101816;
+    z-index: 4;
+  }
+  html[data-theme="dark"] .phone::after { background: #050B08; }
+  .app {
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 31px;
+    background: var(--sand);
+    display: flex;
+    flex-direction: column;
+  }
+  .statusbar {
+    height: 28px; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 18px; font-family: var(--display); font-size: 10px; font-weight: 600;
+    color: var(--ink);
+  }
+  .statusbar .right { display: flex; gap: 4px; opacity: .6; }
+  .topbar {
+    flex: 0 0 auto;
+    height: 56px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--line-soft);
+    background: color-mix(in srgb, var(--sand-warm) 92%, transparent);
+    backdrop-filter: blur(14px);
+  }
+  .topbar h2 { font-size: 17px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .icon-btn {
+    width: 36px; height: 36px; flex: 0 0 auto;
+    display: grid; place-items: center;
+    border: 0; border-radius: 999px;
+    background: transparent; color: var(--muted); cursor: pointer;
+  }
+  .icon-btn:hover { background: var(--verde-50); color: var(--verde-600); }
+  .avatar {
+    width: 36px; height: 36px; flex: 0 0 auto;
+    display: grid; place-items: center;
+    border-radius: 999px;
+    background: var(--verde-950); color: #fff;
+    font-family: var(--display); font-size: 12px; font-weight: 700;
+    border: 0;
+  }
+  .save-btn {
+    height: 34px; padding: 0 12px; flex: 0 0 auto;
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 0; border-radius: 999px;
+    background: var(--verde-400); color: var(--verde-950);
+    font-family: var(--display); font-size: 12px; font-weight: 700;
+    box-shadow: 0 10px 24px -14px rgba(53,175,109,.9);
+    cursor: pointer;
+  }
+  .content {
+    flex: 1; min-height: 0;
+    overflow: hidden;
+    padding: 16px 14px 90px;
+  }
+  .content.tight { padding-bottom: 16px; }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+  .stack.sm { gap: 10px; }
+
+  .card {
+    border: 1px solid var(--line-soft);
+    border-radius: 16px;
+    background: var(--surface);
+    padding: 14px;
+    box-shadow: 0 1px 2px rgba(8,19,13,.02);
+  }
+  .card h3, .section-label {
+    font-family: var(--display); font-size: 10px; font-weight: 600;
+    letter-spacing: .16em; text-transform: uppercase;
+    color: var(--verde-600);
+  }
+  .card h3 { margin-bottom: 10px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+  .meta { font-size: 11px; line-height: 1.4; color: var(--muted); }
+
+  .field {
+    display: flex; align-items: center; gap: 10px;
+    min-height: 42px; padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--sand);
+    color: var(--ink);
+    font-size: 13px;
+  }
+  .field + .field { margin-top: 8px; }
+  .field .ic { color: var(--verde-600); }
+  .field .value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .field .value.placeholder { color: var(--muted); }
+  .select {
+    display: flex; align-items: center; justify-content: space-between;
+    min-height: 44px; padding: 0 12px;
+    border: 1px solid var(--line); border-radius: 12px;
+    background: var(--sand); font-size: 13px;
+  }
+  .helper { margin-top: 6px; font-size: 11px; line-height: 1.45; color: var(--muted); }
+
+  .entry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .entry {
+    min-height: 100px; padding: 12px;
+    border: 1px solid var(--line-soft); border-radius: 14px;
+    background: var(--sand-warm);
+    display: flex; flex-direction: column; gap: 7px;
+  }
+  .entry .ic { color: var(--verde-600); }
+  .entry b { font-family: var(--display); font-size: 12px; line-height: 1.25; }
+  .entry span { font-size: 10px; line-height: 1.35; color: var(--muted); }
+  .entry .cta { margin-top: auto; font-size: 10px; font-weight: 700; color: var(--verde-600); display: flex; align-items: center; gap: 3px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    min-height: 26px; padding: 0 9px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    font-family: var(--display); font-size: 10px; font-weight: 600;
+    color: var(--ink);
+  }
+  .chip.on { border-color: var(--verde-300); background: var(--verde-50); color: var(--verde-700); }
+
+  .notice {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--verde-200);
+    border-radius: 14px;
+    background: var(--verde-50);
+    color: var(--verde-700);
+    font-size: 11px; line-height: 1.45;
+  }
+  .notice.amber { border-color: #EBC98F; background: #FDF3E2; color: #6B3A00; }
+  html[data-theme="dark"] .notice.amber { border-color: #8A6F2C; background: #35280F; color: #F2C14E; }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { padding: 10px; border: 1px solid var(--line-soft); border-radius: 14px; background: var(--surface); }
+  .stat span { display: flex; align-items: center; gap: 5px; font-family: var(--display); font-size: 8px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--verde-600); }
+  .stat b { display: block; margin-top: 6px; font-family: var(--display); font-size: 22px; line-height: 1; }
+  .chart { display: flex; align-items: flex-end; gap: 4px; height: 54px; margin-top: 10px; }
+  .chart i { flex: 1; border-radius: 3px 3px 0 0; background: var(--verde-200); min-height: 4px; }
+  .chart i:nth-child(3n) { background: var(--verde-400); }
+
+  .rows { display: flex; flex-direction: column; }
+  .row {
+    display: flex; align-items: center; gap: 10px;
+    min-height: 48px; padding: 8px 0;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 13px;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row .ic { color: var(--verde-600); }
+  .row .grow { flex: 1; min-width: 0; }
+  .row .grow b { display: block; font-weight: 600; }
+  .row .grow span { display: block; font-size: 10px; color: var(--muted); }
+  .row .right { margin-left: auto; color: var(--muted); font-size: 11px; }
+  .badge {
+    min-width: 20px; height: 20px; padding: 0 5px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 999px; background: var(--amber); color: #052017;
+    font-family: var(--display); font-size: 10px; font-weight: 700;
+  }
+  .danger { color: var(--red); }
+
+  .dock {
+    position: absolute; left: 12px; right: 12px; bottom: 12px;
+    z-index: 5;
+    display: flex; gap: 4px; padding: 6px;
+    border: 1px solid var(--line-soft);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface) 76%, transparent);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(18px);
+  }
+  .dock button {
+    flex: 1; min-width: 0; min-height: 44px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    border: 0; border-radius: 999px; background: transparent; color: var(--muted);
+    font-family: var(--display); font-size: 9px; font-weight: 600;
+    cursor: pointer;
+  }
+  .dock button.active { background: var(--verde-50); color: var(--verde-700); }
+
+  /* Menú del avatar */
+  .menu-layer { position: absolute; inset: 0; z-index: 8; }
+  .menu-backdrop { position: absolute; inset: 0; background: rgba(8,19,13,.25); border: 0; }
+  .menu {
+    position: absolute; top: 52px; right: 10px; width: 252px;
+    max-height: 610px; overflow-y: auto;
+    border: 1px solid var(--line); border-radius: 18px;
+    background: var(--surface); box-shadow: var(--shadow);
+  }
+  .menu-head { padding: 12px 14px; background: var(--sand); border-bottom: 1px solid var(--line-soft); }
+  .menu-head b { display: block; font-family: var(--display); font-size: 13px; }
+  .menu-head span { display: block; font-size: 10px; color: var(--muted); }
+  .menu-head .role { display: inline-flex; margin-top: 6px; padding: 2px 7px; border: 1px solid var(--verde-200); border-radius: 999px; background: var(--verde-50); font-family: var(--display); font-size: 8px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--verde-700); }
+  .menu-label { padding: 8px 14px 4px; font-family: var(--display); font-size: 8px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line-soft); }
+  .menu-row {
+    width: 100%; min-height: 44px; padding: 7px 14px;
+    display: flex; align-items: center; gap: 9px;
+    border: 0; border-bottom: 1px solid var(--line-soft);
+    background: transparent; color: var(--ink); text-align: left; cursor: pointer;
+    font-size: 12px;
+  }
+  .menu-row:hover { background: var(--verde-50); }
+  .menu-row .ic { color: var(--verde-600); }
+  .menu-row .grow { flex: 1; min-width: 0; }
+  .menu-row .grow b { display: block; font-weight: 600; }
+  .menu-row .grow span { display: block; font-size: 9px; color: var(--muted); }
+  .menu-row .right { margin-left: auto; font-size: 9px; color: var(--muted); }
+  .menu-row.danger { color: var(--red); }
+  .menu-row.danger .ic { color: var(--red); }
+
+  /* Estados vacíos */
+  .empty { padding: 24px 16px; text-align: center; }
+  .empty .orb { width: 46px; height: 46px; margin: 0 auto 10px; display: grid; place-items: center; border-radius: 14px; background: var(--verde-50); color: var(--verde-700); }
+  .empty b { display: block; font-family: var(--display); font-size: 13px; }
+  .empty p { margin: 5px auto 0; max-width: 32ch; font-size: 11px; line-height: 1.45; color: var(--muted); }
+  .empty .btn { margin-top: 12px; }
+
+  .btn {
+    min-height: 40px; padding: 0 15px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    border: 0; border-radius: 999px;
+    background: var(--verde-400); color: var(--verde-950);
+    font-family: var(--display); font-size: 12px; font-weight: 700;
+    cursor: pointer;
+  }
+  .btn.secondary { border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+
+  /* Desktop */
+  .desktop-frame {
+    border: 1px solid var(--line); border-radius: 26px;
+    background: var(--surface); box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .desktop-bar { display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 18px; border-bottom: 1px solid var(--line-soft); background: var(--sand-warm); }
+  .desktop-bar h3 { font-size: 16px; flex: 1; }
+  .desktop-body { display: grid; grid-template-columns: 1fr 320px; gap: 22px; padding: 26px; background: var(--sand); min-height: 320px; }
+  .desktop-copy h4 { font-family: var(--display); font-size: 22px; }
+  .desktop-copy p { margin-top: 8px; max-width: 52ch; font-size: 13px; color: var(--muted); }
+  .desktop-preview { border: 1px solid var(--line-soft); border-radius: 18px; background: var(--surface); padding: 18px; }
+  .desktop-dock {
+    margin-top: 90px; display: flex; justify-content: center; gap: 6px; padding: 8px;
+    border: 1px solid var(--line-soft); border-radius: 24px;
+    background: color-mix(in srgb, var(--surface) 78%, transparent);
+    box-shadow: var(--shadow); backdrop-filter: blur(18px);
+  }
+  .desktop-dock button { width: 52px; height: 52px; display: grid; place-items: center; border: 0; border-radius: 14px; background: transparent; color: var(--muted); cursor: pointer; }
+  .desktop-dock button.active { background: var(--verde-50); color: var(--verde-600); }
+  .desktop-dock button:hover { background: var(--sand); color: var(--ink); }
+
+  /* Tabla de rutas */
+  .route-table { width: 100%; border-collapse: separate; border-spacing: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); }
+  .route-table th, .route-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--line-soft); font-size: 12px; vertical-align: top; }
+  .route-table th { font-family: var(--display); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--verde-600); background: var(--sand); }
+  .route-table tr:last-child td { border-bottom: 0; }
+  .route-table td:first-child { font-weight: 600; }
+  .route-table code { white-space: nowrap; }
+  .route-table .note { color: var(--muted); font-size: 11px; }
+
+  .footer-note {
+    margin-top: 34px; padding: 18px 20px;
+    border: 1px dashed var(--verde-300); border-radius: 16px;
+    background: var(--verde-50); color: var(--verde-700); font-size: 12px; line-height: 1.55;
+  }
+
+  @media (max-width: 900px) {
+    .flow { grid-template-columns: 1fr 1fr; }
+    .flow-arrow { display: none; }
+    .desktop-body { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .page { width: min(100% - 20px, 1240px); padding-top: 24px; }
+    .page-head { flex-direction: column; }
+    .flow { grid-template-columns: 1fr; }
+    .screens { grid-template-columns: 1fr; }
+    .phone { max-width: 330px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06-1.42 1.42-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V20h-2v-.5a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06-1.42-1.42.06-.06A1.7 1.7 0 0 0 8.6 15a1.7 1.7 0 0 0-1.55-1H6.5v-2h.55a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06 1.42-1.42.06.06A1.7 1.7 0 0 0 11.55 8a1.7 1.7 0 0 0 1-1.55V6h2v.45a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06 1.42 1.42-.06.06A1.7 1.7 0 0 0 18.5 11a1.7 1.7 0 0 0 1.55 1h.45v2h-.45a1.7 1.7 0 0 0-1.55 1z"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></symbol>
+  <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 2l-2 5v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7l-2-5z"/><path d="M4 7h16"/><path d="M16 11a4 4 0 0 1-8 0"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/><path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></symbol>
+  <symbol id="i-megaphone" viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M14 8a4 4 0 0 1 0 8"/><path d="M17 5a8 8 0 0 1 0 14"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.6 6.6 0 0 0 21 12.8z"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M11 18h2"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3l1.8 4.6L18 9.5l-4.2 1.9L12 16l-1.8-4.6L6 9.5l4.2-1.9z"/><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4 2c-.9.6-1.5 1.2-1.5 2.5"/><path d="M12 17.5v.01"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></symbol>
+</svg>
+
+<div class="page">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">La Verde · Documento visual</p>
+      <h1>Navegación del perfil de usuario</h1>
+      <p>Todas las pantallas, secciones y salidas de la sección de perfil. Incluye el armazón, el dock de secciones, el menú del avatar, las altas de negocio y proyecto, las tarjetas de cliente frecuente y las notificaciones.</p>
+    </div>
+    <button class="theme-btn" id="themeToggle" type="button" aria-label="Cambiar entre modo claro y oscuro">
+      <svg class="ic sm"><use href="#i-moon"></use></svg>
+      <span>Modo oscuro</span>
+    </button>
+  </header>
+
+  <div class="legend" aria-label="Leyenda">
+    <span><i class="dot"></i> Sección activa</span>
+    <span><i class="dot gray"></i> Enlace secundario</span>
+    <span><i class="dot dark"></i> Menú superpuesto</span>
+    <span><code>/profile</code> ruta real</span>
+  </div>
+
+  <section class="block" aria-labelledby="mapa">
+    <div class="block-head">
+      <h2 id="mapa">Mapa de navegación</h2>
+      <p>El perfil no cambia de ruta al cambiar de sección: usa <code>?seccion=</code> y <code>replaceState</code>.</p>
+    </div>
+    <div class="flow">
+      <div class="flow-card accent">
+        <span class="num">01</span>
+        <h3><svg class="ic sm"><use href="#i-home"></use></svg> Home</h3>
+        <p>Mapa, búsqueda y categorías. El avatar abre el menú de cuenta.</p>
+        <code>/home</code>
+      </div>
+      <div class="flow-arrow" aria-hidden="true">→</div>
+      <div class="flow-card accent">
+        <span class="num">02</span>
+        <h3><svg class="ic sm"><use href="#i-user"></use></svg> Perfil</h3>
+        <p>Info, Sobre mí y Configuración. El dock no navega: cambia la vista.</p>
+        <code>/profile</code>
+      </div>
+      <div class="flow-arrow" aria-hidden="true">→</div>
+      <div class="flow-card">
+        <span class="num">03</span>
+        <h3><svg class="ic sm"><use href="#i-bell"></use></svg> Notificaciones</h3>
+        <p>Avisos de pedidos, tarjetas, ofertas y cambios de cuenta.</p>
+        <code>/notifications</code>
+      </div>
+      <div class="flow-card">
+        <span class="num">04</span>
+        <h3><svg class="ic sm"><use href="#i-card"></use></svg> Mis tarjetas</h3>
+        <p>Tarjetas de cliente frecuente guardadas en este dispositivo.</p>
+        <code>/tarjetas</code>
+      </div>
+      <div class="flow-card">
+        <span class="num">05</span>
+        <h3><svg class="ic sm"><use href="#i-store"></use></svg> Panel de negocio</h3>
+        <p>Ficha, pedidos, carta y clientes. Solo si el negocio está activo.</p>
+        <code>/business</code>
+      </div>
+      <div class="flow-card">
+        <span class="num">06</span>
+        <h3><svg class="ic sm"><use href="#i-folder"></use></svg> Proyectos</h3>
+        <p>Eventos y actividades del usuario. Solo si ya tiene uno.</p>
+        <code>/projects</code>
+      </div>
+      <div class="flow-card">
+        <span class="num">07</span>
+        <h3><svg class="ic sm"><use href="#i-link"></use></svg> Afiliado</h3>
+        <p>Código, enlaces y comisiones. Solo si el admin lo activó.</p>
+        <code>/enlaces</code>
+      </div>
+      <div class="flow-card">
+        <span class="num">08</span>
+        <h3><svg class="ic sm"><use href="#i-shield"></use></svg> Administración</h3>
+        <p>Bandeja, negocios, pagos, soporte y diagnóstico.</p>
+        <code>/admin</code>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="pantallas">
+    <div class="block-head">
+      <h2 id="pantallas">Pantallas del perfil</h2>
+      <p>Vista móvil real: barra superior, contenido y dock inferior.</p>
+    </div>
+
+    <div class="screens">
+      <!-- INFO -->
+      <article class="screen-card">
+        <div class="screen-meta"><h3>Perfil · Info</h3><code>/profile</code></div>
+        <div class="phone">
+          <div class="app">
+            <div class="statusbar"><span>9:41</span><span class="right">▮▮▮ ᯤ ▰</span></div>
+            <div class="topbar">
+              <button class="icon-btn" aria-label="Volver al inicio"><svg class="ic"><use href="#i-arrow-left"></use></svg></button>
+              <h2>Info</h2>
+              <button class="save-btn"><svg class="ic sm"><use href="#i-save"></use></svg> Guardar</button>
+              <span class="avatar">M</span>
+            </div>
+            <div class="content">
+              <div class="stack">
+                <div class="card">
+                  <h3>Datos personales</h3>
+                  <div class="field"><svg class="ic sm"><use href="#i-user"></use></svg><span class="value">Maikel Canario</span></div>
+                  <div class="field"><svg class="ic sm"><use href="#i-mail"></use></svg><span class="value">maikel@correo.cu</span></div>
+                  <div class="field"><svg class="ic sm"><use href="#i-phone"></use></svg><span class="value placeholder">Añadir teléfono</span></div>
+                </div>
+
+                <div class="card">
+                  <h3>Zona donde te mueves</h3>
+                  <div class="select"><span>Santiago de Cuba</span><span>⌄</span></div>
+                  <p class="helper">Si la ubicación automática falla, puedes elegirla manualmente.</p>
+                </div>
+
+                <div class="card">
+                  <h3>Tu negocio</h3>
+                  <div class="entry-grid">
+                    <div class="entry">
+                      <svg class="ic"><use href="#i-store"></use></svg>
+                      <b>Registrar negocio</b>
+                      <span>Local permanente con ficha y horarios.</span>
+                      <span class="cta">Empezar <svg class="ic sm"><use href="#i-chevron-right"></use></svg></span>
+                    </div>
+                    <div class="entry">
+                      <svg class="ic"><use href="#i-megaphone"></use></svg>
+                      <b>Registrar proyecto</b>
+                      <span>Evento o actividad con fecha y reservas.</span>
+                      <span class="cta">Empezar <svg class="ic sm"><use href="#i-chevron-right"></use></svg></span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <h3>Kynari Empleos</h3>
+                  <p class="small muted">Oportunidades de trabajo cerca de ti.</p>
+                </div>
+              </div>
+            </div>
+            <nav class="dock" aria-label="Secciones del perfil">
+              <button class="active"><svg class="ic"><use href="#i-info"></use></svg> Info</button>
+              <button><svg class="ic"><use href="#i-user"></use></svg> Sobre mí</button>
+              <button><svg class="ic"><use href="#i-settings"></use></svg> Configuración</button>
+            </nav>
+          </div>
+        </div>
+        <p>El botón «Guardar» solo aparece en Info y Sobre mí. Los dos accesos de «Tu negocio» abren el alta dentro del mismo armazón, sin entrada propia en el dock.</p>
+      </article>
+
+      <!-- SOBRE MI -->
+      <article class="screen-card">
+        <div class="screen-meta"><h3>Perfil · Sobre mí</h3><code>/profile?seccion=lugares</code></div>
+        <div class="phone">
+          <div class="app">
+            <div class="statusbar"><span>9:41</span><span class="right">▮▮▮ ᯤ ▰</span></div>
+            <div class="topbar">
+              <button class="icon-btn" aria-label="Volver al inicio"><svg class="ic"><use href="#i-arrow-left"></use></svg></button>
+              <h2>Sobre mí</h2>
+              <button class="save-btn"><svg class="ic sm"><use href="#i-save"></use></svg> Guardar</button>
+              <span class="avatar">M</span>
+            </div>
+            <div class="content">
+              <div class="stack">
+                <div class="card">
+                  <h3>Lugares que te gustan</h3>
+                  <div class="chips">
+                    <span class="chip on">Cafeterías</span><span class="chip">Restaurantes</span><span class="chip on">Playas</span><span class="chip">Cultura &amp; Arte</span>
+                  </div>
+                </div>
+                <div class="card">
+                  <h3>Ambientes que buscas</h3>
+                  <div class="chips">
+                    <span class="chip on">Tranquilo</span><span class="chip">Fiesta &amp; Rumba</span><span class="chip on">Familiar</span>
+                  </div>
+                </div>
+                <div class="card">
+                  <h3>Monedas que usas</h3>
+                  <div class="chips">
+                    <span class="chip on">CUP</span><span class="chip on">USD Clásica</span><span class="chip">EUR</span><span class="chip">Transferencia</span>
+                  </div>
+                </div>
+                <div class="notice"><svg class="ic sm"><use href="#i-info"></use></svg><span><b>Aún no hay nada que medir.</b> Explora el mapa, abre fichas y guarda lo que te interese: aquí aparecerá tu actividad, solo con datos reales.</span></div>
+                <div class="stats">
+                  <div class="stat"><span><svg class="ic sm"><use href="#i-eye"></use></svg> Lugares vistos</span><b>0</b></div>
+                  <div class="stat"><span><svg class="ic sm"><use href="#i-bookmark"></use></svg> Guardados</span><b>0</b></div>
+                  <div class="stat"><span><svg class="ic sm"><use href="#i-sparkles"></use></svg> Lo que más ves</span><b>—</b></div>
+                  <div class="stat"><span><svg class="ic sm"><use href="#i-chart"></use></svg> Última visita</span><b>—</b></div>
+                </div>
+                <div class="card">
+                  <h3>Lugares abiertos por día</h3>
+                  <div class="chart" aria-hidden="true"><i style="height:12%"></i><i style="height:22%"></i><i style="height:9%"></i><i style="height:44%"></i><i style="height:28%"></i><i style="height:62%"></i><i style="height:34%"></i><i style="height:18%"></i><i style="height:46%"></i><i style="height:24%"></i><i style="height:55%"></i><i style="height:30%"></i><i style="height:16%"></i><i style="height:8%"></i></div>
+                  <p class="meta" style="margin-top:6px">Últimos 14 días · lugares</p>
+                </div>
+              </div>
+            </div>
+            <nav class="dock" aria-label="Secciones del perfil">
+              <button><svg class="ic"><use href="#i-info"></use></svg> Info</button>
+              <button class="active"><svg class="ic"><use href="#i-user"></use></svg> Sobre mí</button>
+              <button><svg class="ic"><use href="#i-settings"></use></svg> Configuración</button>
+            </nav>
+          </div>
+        </div>
+        <p>Preferencias plegables, cifras de este navegador y secciones «Los que más abres» y «Guardados». Sin datos de ejemplo: los ceros son ceros reales.</p>
+      </article>
+
+      <!-- CONFIGURACION -->
+      <article class="screen-card">
+        <div class="screen-meta"><h3>Perfil · Configuración</h3><code>/profile?seccion=ajustes</code></div>
+        <div class="phone">
+          <div class="app">
+            <div class="statusbar"><span>9:41</span><span class="right">▮▮▮ ᯤ ▰</span></div>
+            <div class="topbar">
+              <button class="icon-btn" aria-label="Volver al inicio"><svg class="ic"><use href="#i-arrow-left"></use></svg></button>
+              <h2>Configuración</h2>
+              <span class="avatar">M</span>
+            </div>
+            <div class="content">
+              <div class="stack sm">
+                <div class="card">
+                  <h3>Cuenta</h3>
+                  <div class="row">
+                    <span class="orb" style="width:36px;height:36px;border-radius:999px;border:2px solid var(--verde-200);display:grid;place-items:center;background:var(--verde-50);color:var(--verde-600)"><svg class="ic sm"><use href="#i-user"></use></svg></span>
+                    <span class="grow"><b>Maikel Canario</b><span>maikel@correo.cu</span></span>
+                    <span class="chip on">Usuario</span>
+                  </div>
+                </div>
+                <div class="card">
+                  <h3>Apariencia</h3>
+                  <div class="row">
+                    <span class="grow"><b>Tema visual</b><span>Cambia el tema de toda la app.</span></span>
+                    <span class="chip on"><svg class="ic sm"><use href="#i-moon"></use></svg> Oscuro</span>
+                  </div>
+                </div>
+                <div class="card">
+                  <h3>Legal y soporte</h3>
+                  <div class="rows">
+                    <div class="row"><svg class="ic"><use href="#i-file"></use></svg><span class="grow"><b>Términos y condiciones</b><span>Versión aceptada: 2026-11</span></span><svg class="ic sm"><use href="#i-chevron-right"></use></svg></div>
+                    <div class="row"><svg class="ic"><use href="#i-shield"></use></svg><span class="grow"><b>Privacidad</b><span>Qué se guarda y dónde se guarda</span></span><svg class="ic sm"><use href="#i-chevron-right"></use></svg></div>
+                    <div class="row"><svg class="ic"><use href="#i-mail"></use></svg><span class="grow"><b>Contacto de soporte</b><span>soporte@laverde.cu</span></span><svg class="ic sm"><use href="#i-chevron-right"></use></svg></div>
+                  </div>
+                </div>
+                <div class="card">
+                  <h3>Ayuda y soporte</h3>
+                  <p class="small muted">Cuéntanos qué pasó. El reporte crea un ticket y llega al panel de administración.</p>
+                  <button class="btn secondary" style="margin-top:10px">Escribir al soporte</button>
+                </div>
+                <div class="card" style="border-color:rgba(168,50,31,.25);background:rgba(168,50,31,.05)">
+                  <h3 style="color:var(--red)">Zona de riesgo</h3>
+                  <p class="meta">Borrar tu cuenta elimina tu ficha, guardados, reseñas, historial y negocios. No se puede deshacer.</p>
+                  <button class="btn secondary danger" style="margin-top:10px;border-color:rgba(168,50,31,.3);color:var(--red)"><svg class="ic sm"><use href="#i-trash"></use></svg> Borrar mi cuenta</button>
+                </div>
+              </div>
+            </div>
+            <nav class="dock" aria-label="Secciones del perfil">
+              <button><svg class="ic"><use href="#i-info"></use></svg> Info</button>
+              <button><svg class="ic"><use href="#i-user"></use></svg> Sobre mí</button>
+              <button class="active"><svg class="ic"><use href="#i-settings"></use></svg> Configuración</button>
+            </nav>
+          </div>
+        </div>
+        <p>La cuenta, el tema, los enlaces legales, el formulario de soporte, la eliminación de cuenta y las redes sociales. El botón «Guardar» no aparece aquí.</p>
+      </article>
+
+      <!-- MENU AVATAR -->
+      <article class="screen-card">
+        <div class="screen-meta"><h3>Menú del avatar</h3><code>overlay · sin ruta</code></div>
+        <div class="phone">
+          <div class="app">
+            <div class="statusbar"><span>9:41</span><span class="right">▮▮▮ ᯤ ▰</span></div>
+            <div class="topbar">
+              <button class="icon-btn" aria-label="Volver al inicio"><svg class="ic"><use href="#i-arrow-left"></use></svg></button>
+              <h2>Info</h2>
+              <span class="avatar">M</span>
+            </div>
+            <div class="content" style="filter:blur(1px);opacity:.5">
+              <div class="card"><h3>Datos personales</h3><div class="field"><span class="value">Maikel Canario</span></div></div>
+            </div>
+            <div class="menu-layer">
+              <button class="menu-backdrop" aria-label="Cerrar menú"></button>
+              <div class="menu" role="menu" aria-label="Tu perfil">
+                <div class="menu-head">
+                  <b>Maikel Canario</b><span>maikel@correo.cu</span>
+                  <span class="role">Administrador</span>
+                </div>
+                <div class="menu-label">Lo mío</div>
+                <button class="menu-row"><svg class="ic"><use href="#i-user"></use></svg><span class="grow"><b>Mi perfil</b></span></button>
+                <button class="menu-row"><svg class="ic"><use href="#i-heart"></use></svg><span class="grow"><b>Mis favoritos</b></span><span class="right">7 guardados</span></button>
+                <button class="menu-row"><svg class="ic"><use href="#i-card"></use></svg><span class="grow"><b>Mis tarjetas</b></span><span class="right">2 tarjetas</span></button>
+                <button class="menu-row"><svg class="ic"><use href="#i-bag"></use></svg><span class="grow"><b>Mis pedidos</b></span><span class="right">2 pedidos</span></button>
+                <div class="menu-label">Tus paneles</div>
+                <button class="menu-row"><svg class="ic"><use href="#i-store"></use></svg><span class="grow"><b>Panel de negocio</b><span>PQTT? Pizzería · 2 pedidos</span></span><span class="badge">2</span></button>
+                <button class="menu-row"><svg class="ic"><use href="#i-folder"></use></svg><span class="grow"><b>Administrar proyectos</b><span>1 proyecto</span></span></button>
+                <button class="menu-row"><svg class="ic"><use href="#i-link"></use></svg><span class="grow"><b>Panel de afiliado</b><span>Código y comisiones</span></span></button>
+                <button class="menu-row"><svg class="ic"><use href="#i-shield"></use></svg><span class="grow"><b>Panel de administración</b><span>5 pendientes</span></span><span class="badge">5</span></button>
+                <div class="menu-label">Preferencias</div>
+                <button class="menu-row"><svg class="ic"><use href="#i-moon"></use></svg><span class="grow"><b>Tema</b></span><span class="right">Oscuro</span></button>
+                <button class="menu-row"><svg class="ic"><use href="#i-help"></use></svg><span class="grow"><b>Ayuda y soporte</b></span></button>
+                <button class="menu-row danger"><svg class="ic"><use href="#i-logout"></use></svg><span class="grow"><b>Cerrar sesión</b></span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p>«Mis pedidos» solo aparece si el negocio tiene el servicio activo. «Tus paneles» solo muestra los que el usuario tiene. La chapita de rol solo la ve un administrador. Cerrar sesión pide confirmación.</p>
+      </article>
+
+      <!-- MIS TARJETAS -->
+      <article class="screen-card">
+        <div class="screen-meta"><h3>Mis tarjetas</h3><code>/tarjetas</code></div>
+        <div class="phone">
+          <div class="app">
+            <div class="statusbar"><span>9:41</span><span class="right">▮▮▮ ᯤ ▰</span></div>
+            <div class="topbar">
+              <button class="icon-btn" aria-label="Volver"><svg class="ic"><use href="#i-arrow-left"></use></svg></button>
+              <h2>Mis tarjetas</h2>
+              <span class="avatar">M</span>
+            </div>
+            <div class="content tight">
+              <p class="meta" style="margin-bottom:12px">Las tarjetas de cliente frecuente que abriste desde el enlace de un negocio en este dispositivo.</p>
+              <div class="card">
+                <div class="row" style="min-height:64px">
+                  <span style="width:44px;height:44px;display:grid;place-items:center;border-radius:12px;background:var(--verde-50);color:var(--verde-700)"><svg class="ic"><use href="#i-card"></use></svg></span>
+                  <span class="grow"><b>Nombre del negocio</b><span>4 de 10 sellos · Café gratis</span></span>
+                  <svg class="ic sm"><use href="#i-chevron-right"></use></svg>
+                </div>
+                <div class="row" style="min-height:64px">
+                  <span style="width:44px;height:44px;display:grid;place-items:center;border-radius:12px;background:var(--verde-50);color:var(--verde-700)"><svg class="ic"><use href="#i-card"></use></svg></span>
+                  <span class="grow"><b>Otro negocio</b><span>8 de 10 sellos</span></span>
+                  <svg class="ic sm"><use href="#i-chevron-right"></use></svg>
+                </div>
+              </div>
+              <div class="empty" style="margin-top:18px">
+                <div class="orb"><svg class="ic"><use href="#i-card"></use></svg></div>
+                <b>Estado vacío</b>
+                <p>Todavía no tienes tarjetas aquí. Abre el enlace de WhatsApp de un negocio que tenga tarjeta y aparecerá en esta lista.</p>
+                <button class="btn">Explorar el mapa</button>
+              </div>
+            </div>
+            <nav class="dock" aria-label="Secciones del perfil">
+              <button><svg class="ic"><use href="#i-home"></use></svg> Inicio</button>
+              <button class="active"><svg class="ic"><use href="#i-card"></use></svg> Tarjetas</button>
+              <button><svg class="ic"><use href="#i-bell"></use></svg> Avisos</button>
+            </nav>
+          </div>
+        </div>
+        <p>Se abre desde el menú del avatar. Lee los tokens de <code>localStorage</code>, pide cada tarjeta real a <code>/api/tarjeta/[token]</code> y enlaza a <code>/m/[slug]/tarjeta/[token]</code>. Si el token ya no vale, lo olvida.</p>
+      </article>
+
+      <!-- NOTIFICACIONES -->
+      <article class="screen-card">
+        <div class="screen-meta"><h3>Notificaciones</h3><code>/notifications</code></div>
+        <div class="phone">
+          <div class="app">
+            <div class="statusbar"><span>9:41</span><span class="right">▮▮▮ ᯤ ▰</span></div>
+            <div class="topbar">
+              <button class="icon-btn" aria-label="Volver atrás"><svg class="ic"><use href="#i-arrow-left"></use></svg></button>
+              <h2>Notificaciones</h2>
+              <span class="avatar">M</span>
+            </div>
+            <div class="content tight">
+              <div class="card">
+                <div class="row" style="align-items:flex-start">
+                  <span style="width:8px;height:8px;margin-top:6px;border-radius:50%;background:var(--verde-400)"></span>
+                  <span class="grow"><b>Tu pedido va en camino</b><span>Pedido de Yoyi Sabor · hace 5 min</span></span>
+                </div>
+                <div class="row" style="align-items:flex-start">
+                  <span style="width:8px;height:8px;margin-top:6px;border-radius:50%;background:transparent"></span>
+                  <span class="grow"><b>Nuevo sello en tu tarjeta</b><span>Café Catedral · ayer</span></span>
+                </div>
+                <div class="row" style="align-items:flex-start">
+                  <span style="width:8px;height:8px;margin-top:6px;border-radius:50%;background:transparent"></span>
+                  <span class="grow"><b>Oferta cerca de ti</b><span>PQTT? Pizzería · 2x1 hoy</span></span>
+                </div>
+              </div>
+              <div class="empty" style="margin-top:18px">
+                <div class="orb"><svg class="ic"><use href="#i-bell"></use></svg></div>
+                <b>Sin notificaciones</b>
+                <p>Cuando haya pedidos, sellos u ofertas que te afecten, aparecerán aquí.</p>
+              </div>
+            </div>
+            <nav class="dock" aria-label="Secciones del perfil">
+              <button><svg class="ic"><use href="#i-home"></use></svg> Inicio</button>
+              <button><svg class="ic"><use href="#i-card"></use></svg> Tarjetas</button>
+              <button class="active"><svg class="ic"><use href="#i-bell"></use></svg> Avisos</button>
+            </nav>
+          </div>
+        </div>
+        <p>La campana del mapa y la página completa comparten la misma lista y el mismo <code>PATCH</code>. El punto se apaga al abrir.</p>
+      </article>
+
+      <!-- ALTA NEGOCIO / PROYECTO -->
+      <article class="screen-card">
+        <div class="screen-meta"><h3>Alta de negocio o proyecto</h3><code>/profile?seccion=negocio</code></div>
+        <div class="phone">
+          <div class="app">
+            <div class="statusbar"><span>9:41</span><span class="right">▮▮▮ ᯤ ▰</span></div>
+            <div class="topbar">
+              <button class="icon-btn" aria-label="Volver a Info"><svg class="ic"><use href="#i-arrow-left"></use></svg></button>
+              <h2>Registrar negocio</h2>
+              <span class="avatar">M</span>
+            </div>
+            <div class="content">
+              <button class="menu-row" style="width:auto;padding:0;border:0;min-height:30px;color:var(--verde-700);font-weight:700"><svg class="ic sm"><use href="#i-arrow-left"></use></svg> Volver a Info</button>
+              <div class="card" style="margin-top:12px">
+                <h3>Datos del negocio</h3>
+                <div class="field"><span class="value">Nombre del negocio</span></div>
+                <div class="field"><span class="value placeholder">Categoría</span></div>
+                <div class="field"><span class="value placeholder">Dirección</span></div>
+                <div class="field"><span class="value placeholder">Barrio</span></div>
+              </div>
+              <div class="card" style="margin-top:10px">
+                <h3>Ficha</h3>
+                <div class="field"><span class="value placeholder">Descripción corta</span></div>
+                <div class="field"><span class="value placeholder">Horario</span></div>
+                <div class="field"><span class="value placeholder">Teléfono / WhatsApp</span></div>
+              </div>
+              <div class="notice" style="margin-top:10px"><svg class="ic sm"><use href="#i-info"></use></svg><span>El alta queda pendiente de revisión. La ficha aparece en el mapa cuando se aprueba.</span></div>
+              <button class="btn" style="margin-top:12px;width:100%"><svg class="ic sm"><use href="#i-save"></use></svg> Enviar solicitud</button>
+              <p class="meta" style="margin-top:10px">El flujo de proyecto comparte armazón: <code>?seccion=negocio&amp;modo=proyecto</code>.</p>
+            </div>
+            <nav class="dock" aria-label="Secciones del perfil">
+              <button class="active"><svg class="ic"><use href="#i-info"></use></svg> Info</button>
+              <button><svg class="ic"><use href="#i-user"></use></svg> Sobre mí</button>
+              <button><svg class="ic"><use href="#i-settings"></use></svg> Configuración</button>
+            </nav>
+          </div>
+        </div>
+        <p>El alta se abre desde las tarjetas de «Info» y no tiene pestaña propia. Al volver, el dock regresa a Info; el formulario conserva lo escrito.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="desktop">
+    <div class="block-head">
+      <h2 id="desktop">Escritorio y móvil</h2>
+      <p>El mismo armazón, dos formas de navegar.</p>
+    </div>
+    <div class="desktop-frame">
+      <div class="desktop-bar">
+        <button class="icon-btn" aria-label="Volver al inicio"><svg class="ic"><use href="#i-arrow-left"></use></svg></button>
+        <h3>Perfil</h3>
+        <button class="save-btn"><svg class="ic sm"><use href="#i-save"></use></svg> Guardar</button>
+        <span class="avatar">M</span>
+      </div>
+      <div class="desktop-body">
+        <div class="desktop-copy">
+          <p class="eyebrow">Dock de escritorio</p>
+          <h4>Un dock que se acerca al ratón</h4>
+          <p>En escritorio el dock flota centrado y los iconos crecen según la distancia al puntero. En móvil se cambia por una pastilla plana con las tres secciones: Info, Sobre mí y Configuración.</p>
+          <p style="margin-top:10px"><span class="chip on">Info</span> <span class="chip">Sobre mí</span> <span class="chip">Configuración</span></p>
+        </div>
+        <div class="desktop-preview">
+          <p class="section-label">Sección activa</p>
+          <p style="margin-top:6px;font-family:var(--display);font-size:18px;font-weight:600">Info</p>
+          <p class="meta" style="margin-top:6px">Datos personales, zona y accesos al alta de negocio o proyecto.</p>
+          <div class="desktop-dock" aria-label="Dock del perfil">
+            <button class="active" aria-label="Info"><svg class="ic lg"><use href="#i-info"></use></svg></button>
+            <button aria-label="Sobre mí"><svg class="ic lg"><use href="#i-user"></use></svg></button>
+            <button aria-label="Configuración"><svg class="ic lg"><use href="#i-settings"></use></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="rutas">
+    <div class="block-head">
+      <h2 id="rutas">Rutas y comportamiento</h2>
+      <p>Lo que cambia de pantalla y lo que es una capa.</p>
+    </div>
+    <table class="route-table">
+      <thead><tr><th>Entrada</th><th>Ruta / estado</th><th>Qué hace</th></tr></thead>
+      <tbody>
+        <tr><td>Info</td><td><code>/profile</code></td><td>Vista por defecto. Cambia con <code>replaceState</code>; no apila historial.</td></tr>
+        <tr><td>Sobre mí</td><td><code>/profile?seccion=lugares</code></td><td>Preferencias y actividad de este navegador.</td></tr>
+        <tr><td>Configuración</td><td><code>/profile?seccion=ajustes</code></td><td>Cuenta, tema, legal, soporte y borrado.</td></tr>
+        <tr><td>Registrar negocio</td><td><code>/profile?seccion=negocio</code></td><td>Alta desde «Info». Vuelve con «Volver a Info».</td></tr>
+        <tr><td>Registrar proyecto</td><td><code>/profile?seccion=negocio&amp;modo=proyecto</code></td><td>Mismo armazón, formulario de proyecto.</td></tr>
+        <tr><td>Notificaciones</td><td><code>/notifications</code></td><td>Página propia con campana y menú del avatar.</td></tr>
+        <tr><td>Mis tarjetas</td><td><code>/tarjetas</code></td><td>Lista de tarjetas guardadas; cada una abre su token.</td></tr>
+        <tr><td>Mis pedidos</td><td><code>/business?seccion=pedidos</code></td><td>Solo si el endpoint de pedidos responde.</td></tr>
+        <tr><td>Panel de negocio</td><td><code>/business</code></td><td>Carga completa del panel.</td></tr>
+        <tr><td>Proyectos</td><td><code>/projects</code></td><td>Solo si el usuario ya tiene alguno.</td></tr>
+        <tr><td>Afiliado</td><td><code>/enlaces</code></td><td>Solo si el administrador lo activó.</td></tr>
+        <tr><td>Administración</td><td><code>/admin</code></td><td>Solo rol admin; con contador de pendientes.</td></tr>
+        <tr><td>Términos y privacidad</td><td><code>/terminos</code> · <code>/terminos#privacidad</code></td><td>Enlaces legales desde Configuración.</td></tr>
+        <tr><td>Tarjeta de cliente</td><td><code>/m/[slug]/tarjeta/[token]</code></td><td>Se abre desde «Mis tarjetas» o desde el enlace del negocio.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <p class="footer-note"><b>Nota de fidelidad:</b> este archivo es una referencia visual de la navegación, no una pantalla de la app. Los nombres, correos, pedidos y sellos son esquemáticos. Las rutas, secciones, condiciones de visibilidad y textos de los botones sí corresponden al código actual. El modo oscuro se puede alternar arriba; en la app sigue el tema guardado por el usuario.</p>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+    var button = document.getElementById('themeToggle');
+    var label = button.querySelector('span');
+    var icon = button.querySelector('use');
+    function aplicar(tema) {
+      root.setAttribute('data-theme', tema);
+      var oscuro = tema === 'dark';
+      label.textContent = oscuro ? 'Modo claro' : 'Modo oscuro';
+      icon.setAttribute('href', oscuro ? '#i-sun' : '#i-moon');
+    }
+    button.addEventListener('click', function () {
+      aplicar(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    });
+  })();
+</script>
+</body>
+</html>
