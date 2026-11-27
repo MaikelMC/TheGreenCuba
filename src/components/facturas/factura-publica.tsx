@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -150,6 +150,7 @@ export function FacturaPublica({
   const [transferenciaAbierta, setTransferenciaAbierta] = useState(false);
   const [avisando, setAvisando] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
+  const [pagoConfirmado, setPagoConfirmado] = useState(false);
   const [abiertos, setAbiertos] = useState<Set<number>>(new Set());
 
   const estado = factura.estado;
@@ -182,6 +183,98 @@ export function FacturaPublica({
     enlace: enlaceFactura,
     fecha: fechaHora(factura.creadoEn),
   });
+
+  /* La confirmación del pago la hace administración desde su panel. Mientras
+     la propuesta está viva, esta pantalla pregunta por el estado cada pocos
+     segundos: al confirmarse, pasa sola a «pagada», con la factura cerrada y
+     el botón del panel ya disponible. */
+  const estadoRef = useRef(estado);
+  useEffect(() => {
+    estadoRef.current = estado;
+  }, [estado]);
+
+  useEffect(() => {
+    if (
+      estado !== "pendiente" &&
+      estado !== "aceptada" &&
+      estado !== "en_revision"
+    ) {
+      return;
+    }
+
+    let cancelado = false;
+    let enVuelo = false;
+
+    async function consultar() {
+      if (enVuelo || document.visibilityState === "hidden") return;
+      enVuelo = true;
+      try {
+        const res = await fetch(
+          `/api/facturas/${encodeURIComponent(factura.id)}`,
+          { cache: "no-store" },
+        );
+        if (!res.ok) return;
+
+        const data = (await res.json().catch(() => null)) as {
+          factura?: FacturaResumen;
+        } | null;
+        if (cancelado || !data?.factura) return;
+
+        const antes = estadoRef.current;
+        const siguiente = data.factura.estado;
+        if (siguiente === antes) return;
+
+        /* Solo se avanza. Un sondeo que salió antes de una acción local no
+           puede devolver la pantalla al estado anterior. */
+        const rango: Record<FacturaResumen["estado"], number> = {
+          pendiente: 0,
+          aceptada: 1,
+          en_revision: 2,
+          pagada: 3,
+          caducada: 3,
+          cancelada: 3,
+        };
+        if (
+          siguiente !== "cancelada" &&
+          siguiente !== "caducada" &&
+          rango[siguiente] < rango[antes]
+        ) {
+          return;
+        }
+
+        setFactura(data.factura);
+
+        if (siguiente === "pagada") {
+          setTransferenciaAbierta(false);
+          setConfirmar(false);
+          setPagoConfirmado(true);
+          toast.success("¡Pago confirmado! Tu pack ya está activo.");
+        } else if (siguiente === "cancelada") {
+          toast.error("Esta propuesta fue cancelada.");
+        } else if (siguiente === "caducada") {
+          toast.error("Esta propuesta caducó.");
+        }
+      } catch {
+        /* Un fallo de red no rompe la pantalla: al siguiente sondeo se
+           reintenta. */
+      } finally {
+        enVuelo = false;
+      }
+    }
+
+    const intervalo = window.setInterval(() => void consultar(), 5_000);
+    const alVolver = () => {
+      if (document.visibilityState === "visible") void consultar();
+    };
+    document.addEventListener("visibilitychange", alVolver);
+    void consultar();
+
+    return () => {
+      cancelado = true;
+      window.clearInterval(intervalo);
+      document.removeEventListener("visibilitychange", alVolver);
+    };
+  }, [estado, factura.id]);
 
   async function empezar(): Promise<boolean> {
     if (aceptando || estado !== "pendiente") return false;
@@ -492,7 +585,8 @@ export function FacturaPublica({
               Recibimos tu aviso de pago
             </p>
             <p className="text-[14px] leading-relaxed text-[#EDF7F0]/80">
-              Lo confirmamos en menos de 24 h. No tienes que hacer nada más.
+              Lo confirmamos en menos de 24 h. No tienes que hacer nada más:
+              esta pantalla se actualiza sola en cuanto se confirme el pago.
             </p>
           </div>
         )}
@@ -1026,6 +1120,45 @@ export function FacturaPublica({
             className={BOTON}
           >
             Ahora no
+          </button>
+        </DialogContent>
+      </Dialog>
+
+      {/* La confirmación llega sola desde el panel de administración; este
+          aviso es el cambio de paso, sin recargar ni perder el contexto. */}
+      <Dialog open={pagoConfirmado} onOpenChange={setPagoConfirmado}>
+        <DialogContent className="bottom-0 left-1/2 top-auto w-full max-w-[430px] translate-x-[-50%] translate-y-0 gap-3 rounded-b-none rounded-t-3xl border-[#EDF7F0]/10 bg-[#0E1720] p-4 pb-[max(24px,env(safe-area-inset-bottom))] text-center text-[#EDF7F0]">
+          <div className="mx-auto h-[5px] w-11 rounded-full bg-[#EDF7F0]/25" />
+          <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-[#35AF6D] text-[#052017]">
+            <Check size={30} strokeWidth={2.5} />
+          </span>
+          <DialogTitle className="text-[22px] font-semibold text-[#EDF7F0]">
+            ¡Pago confirmado!
+          </DialogTitle>
+          <DialogDescription className="text-[15px] leading-relaxed text-[#EDF7F0]/80">
+            Ya activamos{" "}
+            {factura.tipo === "pack_medida" ? "tu pack" : "tu plan"} de{" "}
+            <strong className="font-semibold text-[#EDF7F0]">
+              {factura.negocioNombre}
+            </strong>
+            .{" "}
+            {factura.numeroFactura !== null
+              ? `La factura n.º ${String(factura.numeroFactura).padStart(4, "0")} ya está disponible.`
+              : "Tu factura ya está disponible."}
+          </DialogDescription>
+          <Link
+            href="/business"
+            className={BOTON_PRIMARIO}
+            onClick={() => setPagoConfirmado(false)}
+          >
+            Ir a mi panel <ArrowRight size={16} />
+          </Link>
+          <button
+            type="button"
+            onClick={() => setPagoConfirmado(false)}
+            className={BOTON}
+          >
+            Ver mi factura
           </button>
         </DialogContent>
       </Dialog>
