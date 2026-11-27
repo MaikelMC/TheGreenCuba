@@ -2172,7 +2172,11 @@ function HomePageContent() {
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             >
               {/* Filtros de un toque. No hay chips muertos: todos se calculan
-                  con datos reales de la ficha. */}
+                  con datos reales de la ficha. El encendido va con relleno
+                  sólido —el mismo de las categorías y de los atributos— porque
+                  el tinte `verde-50` era casi blanco en modo claro: solo se
+                  notaba el contorno y el chip encendido se confundía con el
+                  apagado. */}
               <div className="scrollbar-hide -mx-gutter mb-gap-sm flex gap-gap-xs overflow-x-auto px-gutter pb-[2px]">
                 {FILTROS_HOJA.map((filtro) => {
                   const activo = activeFilters.has(filtro.key);
@@ -2185,7 +2189,7 @@ function HomePageContent() {
                       className={cn(
                         "inline-flex min-h-11 shrink-0 items-center rounded-full border px-3 font-lv-display text-meta font-semibold transition-colors duration-300",
                         activo
-                          ? "border-verde-300 bg-verde-50 text-verde-700"
+                          ? "border-verde-400 bg-verde-400 text-verde-950 shadow-soft"
                           : "border-ink/10 bg-white text-ink-soft/75 hover:border-verde-300 hover:bg-verde-50 hover:text-verde-700",
                       )}
                     >
