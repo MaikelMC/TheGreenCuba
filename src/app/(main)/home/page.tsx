@@ -674,6 +674,9 @@ function HomePageContent() {
      mientras llega `fetchMe`. El efecto de abajo lo rellena desde la misma
      lista de guardados que usa el perfil. */
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  /* Si el usuario toca un corazón antes de que llegue la lista del servidor,
+     esa lista no puede pisar el cambio optimista. */
+  const savedTocado = useRef(false);
   const [userId, setUserId] = useState<string | null>(null);
   /* «No se sabe» no es «no hay sesión». Solo se bloquea la búsqueda cuando
      `/api/me` ha dicho que no hay cuenta; mientras no contesta, la petición
@@ -857,7 +860,7 @@ function HomePageContent() {
             data.user.id,
             readActivity(data.user.id).savedIds,
           ).then((ids) => {
-            if (alive) setLikedIds(new Set(ids));
+            if (alive && !savedTocado.current) setLikedIds(new Set(ids));
           });
 
           /* Una sola vez por persona: a quien entró con Google se le pregunta
@@ -1188,6 +1191,7 @@ function HomePageContent() {
 
   const handleLike = useCallback(
     async (id: string) => {
+      savedTocado.current = true;
       const guardado = toggleSaved(id, userId);
       setLikedIds((prev) => {
         const next = new Set(prev);
