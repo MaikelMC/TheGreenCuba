@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { matchesPlaceFilters, type FilterContext } from "@/lib/place-filters";
+import { matchesPlaceFilters, alternarFiltro, type FilterContext } from "@/lib/place-filters";
 import type { UserPlace } from "@/lib/places-store";
 
 const ahora = Date.now();
@@ -36,9 +36,7 @@ const contexto: FilterContext = {
 
 test("Populares deja fuera lo que no es top ni tiene oferta viva", () => {
   assert.equal(matchesPlaceFilters(lugar(), contexto), false);
-});
-
-test("Populares incluye un top del mes", () => {
+});test("Populares incluye un top del mes", () => {
   assert.equal(matchesPlaceFilters(lugar({ topDelMes: true }), contexto), true);
 });
 
@@ -122,4 +120,25 @@ test("Con oferta exige una oferta viva", () => {
     ],
   });
   assert.equal(matchesPlaceFilters(viva, conFiltro("oferta")), true);
+});
+
+test("un filtro se enciende con un toque y se apaga con el segundo", () => {
+  const vacio = new Set<string>();
+  const encendido = alternarFiltro(vacio, "cup");
+
+  assert.deepEqual([...encendido], ["cup"]);
+  /* El conjunto que pinta la hoja no se muta: si se mutara, React no ver�a el
+     cambio y el chip quedar�a apagado aunque el filtro estuviera dentro. */
+  assert.equal(vacio.size, 0);
+
+  const apagado = alternarFiltro(encendido, "cup");
+  assert.deepEqual([...apagado], []);
+});
+
+test("los filtros se acumulan y cada uno se apaga por su cuenta", () => {
+  const dos = alternarFiltro(alternarFiltro(new Set<string>(), "cup"), "oferta");
+
+  assert.deepEqual([...dos].sort(), ["cup", "oferta"]);
+  assert.deepEqual([...alternarFiltro(dos, "cup")], ["oferta"]);
+  assert.deepEqual([...alternarFiltro(dos, "oferta")], ["cup"]);
 });

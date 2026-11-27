@@ -33,6 +33,24 @@ export const PLACE_FILTERS = [
 export type PlaceFilter = (typeof PLACE_FILTERS)[number];
 
 /**
+ * Enciende un filtro si estaba apagado y lo apaga si ya estaba encendido.
+ *
+ * Es la regla que el usuario ve en los chips de «Cerca de ti»: un toque
+ * enciende, el segundo apaga. Vive aquí y no dentro de la pantalla porque es
+ * lógica pura —y se puede probar sin montar React— y porque devuelve un `Set`
+ * nuevo: mutar el que ya está pintado dejaría la hoja y el mapa sin re-render.
+ */
+export function alternarFiltro(
+  filtros: ReadonlySet<string>,
+  filtro: string,
+): Set<string> {
+  const siguientes = new Set(filtros);
+  if (siguientes.has(filtro)) siguientes.delete(filtro);
+  else siguientes.add(filtro);
+  return siguientes;
+}
+
+/**
  * Radio de «Cercanos». La app es de barrio: en Santiago casi todo lo que busca
  * un usuario se resuelve dentro de este radio, y 3 km deja fuera las playas y
  * el Gran Piedra, que es justo lo que se espera al pedir «cercanos».

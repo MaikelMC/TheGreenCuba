@@ -69,7 +69,7 @@ import {
   placeIcon,
   type BusinessCategory,
 } from "@/lib/places";
-import { matchesPlaceFilters } from "@/lib/place-filters";
+import { alternarFiltro, matchesPlaceFilters } from "@/lib/place-filters";
 import { estadoVisible } from "@/lib/ficha/horario";
 import { horaTexto, textoEstado } from "@/config/ficha";
 import { ordenarCercaDeTi } from "@/lib/cerca-de-ti";
@@ -932,18 +932,20 @@ function HomePageContent() {
   );
 
   /* Un filtro se enciende o se apaga en un solo sitio para que el mapa, la
-     lista, la hoja y la URL no puedan discrepar. */
+     lista, la hoja y la URL no puedan discrepar.
+     
+     El cálculo va **fuera** del updater: React exige que la función que recibe
+     `setState` sea pura y puede invocarla dos veces o descartarla, y ahí dentro
+     se llamaba a `history.replaceState` —que a su vez actualiza el router—. El
+     resultado era que el primer toque se perdía y el chip solo cambiaba al
+     segundo: el estado y la URL quedaban desfasados. */
   const toggleFilter = useCallback(
     (filtro: string) => {
-      setActiveFilters((previos) => {
-        const siguientes = new Set(previos);
-        if (siguientes.has(filtro)) siguientes.delete(filtro);
-        else siguientes.add(filtro);
-        syncFilterUrl(activeCategory, siguientes);
-        return siguientes;
-      });
+      const siguientes = alternarFiltro(activeFilters, filtro);
+      setActiveFilters(siguientes);
+      syncFilterUrl(activeCategory, siguientes);
     },
-    [activeCategory, syncFilterUrl],
+    [activeFilters, activeCategory, syncFilterUrl],
   );
 
   /* Abrir la búsqueda deja una entrada en el historial para que el gesto de
