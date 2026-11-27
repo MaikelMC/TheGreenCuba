@@ -15,7 +15,7 @@ import { UserMenu } from "@/components/layout/user-menu";
  */
 export function HomeTopBar({ onOpenSearch }: { onOpenSearch: () => void }) {
   return (
-    <header className="map-navigation safe-top fixed inset-x-0 top-0 z-200 flex h-header items-center gap-2 border-b border-ink/5 bg-sand-warm/90 px-3 font-lv text-ink backdrop-blur-[16px] sm:gap-gap-sm sm:px-gap-md">
+    <header className="map-navigation safe-top fixed inset-x-0 top-0 z-[340] flex h-header items-center gap-2 border-b border-ink/5 bg-sand-warm/90 px-3 font-lv text-ink backdrop-blur-[16px] sm:gap-gap-sm sm:px-gap-md">
       <Link
         href="/home"
         aria-label="La Verde, ir al inicio"

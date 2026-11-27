@@ -427,7 +427,7 @@ export function Header({
               // En móvil el campo se estrecha y el desplegable heredaba ese
               // ancho (~158 px): los rótulos no caben. Ahí se despega del campo
               // y se ancla a la barra, de borde a borde.
-              className="absolute top-[calc(100%+6px)] left-0 right-0 bg-white border border-ink/5 rounded-2xl shadow-card z-250 overflow-hidden max-sm:fixed max-sm:top-[calc(var(--header-h)+6px)] max-sm:left-3 max-sm:right-3"
+              className="search-suggestions absolute top-[calc(100%+6px)] left-0 right-0 bg-white border border-ink/5 rounded-2xl shadow-card z-250 overflow-hidden max-sm:fixed max-sm:top-[calc(var(--header-h)+6px)] max-sm:left-3 max-sm:right-3"
             >
               {addrResults.length > 0 && (
                 <>

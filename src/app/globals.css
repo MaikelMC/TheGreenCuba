@@ -212,8 +212,15 @@
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) !important;
   }
 
+  /* Superficies flotantes de la cabecera. Antes esto apuntaba a cualquier
+     `.absolute` de dentro del header, y se llevaba por delante cosas que solo
+     están posicionadas para colocarse encima de otra: el punto ámbar de
+     pendientes del avatar y el anillo que late sobre él se pintaban con
+     `#0e1720`, así que el punto dejaba de ser naranja en modo oscuro. Ahora se
+     nombran las dos superficies que de verdad son un desplegable. */
   html[data-theme="dark"] header.map-navigation form,
-  html[data-theme="dark"] header.map-navigation .absolute,
+  html[data-theme="dark"] header.map-navigation .search-suggestions,
+  html[data-theme="dark"] header.map-navigation .user-menu-popup,
   html[data-theme="dark"] header.map-navigation [role="menu"] {
     background-color: #0e1720 !important;
   }

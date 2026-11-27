@@ -33,6 +33,13 @@ import { readActivity } from "@/lib/activity-store";
 const ITEM =
   "w-full flex items-center gap-gap-sm px-gap-md py-[10px] text-small text-ink border-b border-ink/5 last:border-none hover:bg-verde-50 transition-colors duration-500 text-left";
 
+/* El menú se abre bajo el avatar y puede ser más alto que el hueco que queda
+   hasta el borde de abajo: sin tope, las últimas entradas —Preferencias, Ayuda,
+   Cerrar sesión— se salían de la pantalla y no había forma de alcanzarlas.
+   Ahora se queda dentro del alto visible y scrollea. */
+const MENU_POPUP =
+  "user-menu-popup absolute right-0 top-[calc(100%+6px)] z-50 max-h-[calc(100dvh-var(--header-h)-16px)] w-[236px] overflow-y-auto overscroll-contain bg-white border border-ink/5 rounded-2xl shadow-card";
+
 /**
  * Lo que devuelve `/api/me`: el usuario **de la app**, no el de Better Auth. El rol no
  * viaja en la sesión de Better Auth —vive en la tabla `users`— y es lo que decide qué
@@ -703,7 +710,7 @@ export function UserMenu({
             exit={{ opacity: 0, y: -8, scale: 0.96 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             id="user-menu"
-            className="user-menu-popup absolute right-0 top-[calc(100%+6px)] w-[236px] bg-white border border-ink/5 rounded-2xl shadow-card z-50 overflow-hidden"
+            className={MENU_POPUP}
           >
             {user && (
               <div className="border-b border-ink/5 bg-sand px-gap-md py-gap-sm">
