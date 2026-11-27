@@ -2116,17 +2116,20 @@ function HomePageContent() {
         title={sheetInfo.title}
         subtitle={sheetSubtitle}
         badge={showBadge ? String(shownCount) : undefined}
-        action={(estado, alternar) =>
-          sheetState === "searching" || mapUnavailable ? undefined : (
+        action={(estado, alternar) => {
+          // h-9 y no `min-h-11`: la píldora se veía más alta que el propio
+          // titular y su borde inferior caía sobre el subtítulo. Los 44 px
+          // siguen vivos en el botón de la flecha de al lado.
+          return sheetState === "searching" || mapUnavailable ? undefined : (
             <button
               type="button"
               onClick={alternar}
-              className="-my-2 -mr-[10px] inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-ink/10 bg-white px-3 font-lv-display text-meta font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:bg-verde-50"
+              className="-mr-[6px] inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-ink/10 bg-white px-3.5 font-lv-display text-meta font-semibold text-ink transition-colors duration-300 hover:border-verde-300 hover:bg-verde-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400/60"
             >
               {estado === "full" ? "Ver mapa" : "Ver lista"}
             </button>
-          )
-        }
+          );
+        }}
         defaultState="mid"
         forceOpen={sheetState === "searching" || mapUnavailable}
         peekSignal={peekKey}

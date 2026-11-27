@@ -328,7 +328,10 @@ export function BottomSheet({
               </span>
             )}
           </h2>
-          <div className="-my-2 flex shrink-0 items-center gap-1">
+          {/* `-my-1` y no `-my-2`: el margen negativo sacaba la píldora de la
+              fila y su borde inferior se montaba sobre el subtítulo. Con 4 px
+              la fila respira y el subtítulo sigue cabiendo en `peek`. */}
+          <div className="-my-1 flex shrink-0 items-center gap-1">
             {actionContent}
             {/* Salida explícita. El gesto y el asa siguen ahí, pero recoger la
                 hoja no puede depender de descubrirlos. */}
@@ -356,7 +359,7 @@ export function BottomSheet({
           </div>
         </div>
         {subtitle && (
-          <p className="mt-[2px] pr-12 text-[13px] leading-[18px] text-[#5b6b7a] dark:text-[#9fb0c0]">
+          <p className="mt-1 pr-12 text-[13px] leading-[18px] text-[#5b6b7a] dark:text-[#9fb0c0]">
             {subtitle}
           </p>
         )}
