@@ -7,6 +7,7 @@ import {
   Check,
   Copy,
   Download,
+  FileText,
   Loader2,
   MessageCircle,
   Minus,
@@ -22,6 +23,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { siteConfig } from "@/config/site";
+import {
+  CONTRATO_INTRO,
+  CONTRATO_SECCIONES,
+  CONTRATO_TITULO,
+  type BloqueContrato,
+} from "@/content/contrato-la-verde";
+import {
+  contratoCompleto,
+  datosContratoIniciales,
+  descargarHtml,
+  htmlContrato,
+  resolverTokens,
+  type DatosContrato,
+} from "@/lib/contrato";
 import { SUPPORT_WHATSAPP } from "@/lib/legal";
 import {
   FACTURA_ESTADO,
@@ -155,6 +170,9 @@ export function FacturaPublica({
   const [avisando, setAvisando] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const [pagoConfirmado, setPagoConfirmado] = useState(false);
+  const [contrato, setContrato] = useState<DatosContrato | null>(null);
+  const [aceptaContrato, setAceptaContrato] = useState(false);
+  const [contratoAbierto, setContratoAbierto] = useState(false);
   const [abiertos, setAbiertos] = useState<Set<number>>(new Set());
 
   const estado = factura.estado;
@@ -282,6 +300,64 @@ export function FacturaPublica({
       document.removeEventListener("visibilitychange", alVolver);
     };
   }, [estado, factura.id]);
+
+  /* El contrato se completa en el navegador: el cliente conserva sus datos si
+     recarga y los lleva consigo en la descarga. No viaja al servidor porque es
+     un documento que firma él mismo. */
+  useEffect(() => {
+    if (!esPagada) return;
+    setContrato((prev) => {
+      if (prev) return prev;
+      const iniciales = datosContratoIniciales(factura, periodo);
+      try {
+        const guardado = window.localStorage.getItem(
+          `lv_contrato_${factura.id}`,
+        );
+        if (guardado) {
+          return {
+            ...iniciales,
+            ...(JSON.parse(guardado) as Partial<DatosContrato>),
+          };
+        }
+      } catch {
+        /* Sin almacenamiento se empieza de cero; el formulario sigue igual. */
+      }
+      return iniciales;
+    });
+  }, [esPagada, factura, periodo]);
+
+  useEffect(() => {
+    if (!contrato) return;
+    try {
+      window.localStorage.setItem(
+        `lv_contrato_${factura.id}`,
+        JSON.stringify(contrato),
+      );
+    } catch {
+      /* Modo privado o cuota llena: se puede completar y descargar igual. */
+    }
+  }, [contrato, factura.id]);
+
+  function actualizarContrato(campo: keyof DatosContrato, valor: string) {
+    setContrato((prev) => (prev ? { ...prev, [campo]: valor } : prev));
+  }
+
+  function descargarContrato() {
+    if (!contrato) return;
+    if (!contratoCompleto(contrato)) {
+      toast.error("Completa el titular, el representante y la firma.");
+      return;
+    }
+    if (!aceptaContrato) {
+      toast.error("Marca que has leído y aceptas el contrato.");
+      return;
+    }
+    descargarHtml(
+      `contrato-${factura.id}.html`,
+      htmlContrato(factura, contrato, cup),
+    );
+    toast.success("Contrato descargado.");
+  }
 
   async function empezar(): Promise<boolean> {
     if (aceptando || estado !== "pendiente") return false;
@@ -878,6 +954,164 @@ export function FacturaPublica({
           </div>
         </section>
 
+        {/* El contrato se entrega con la factura ya pagada: se puede leer
+            aquí, completar lo que falta y descargar una copia firmada. */}
+        {esPagada && contrato && (
+          <section className="flex flex-col gap-3 rounded-2xl border border-[#EDF7F0]/10 bg-[#0E1720] p-4">
+            <div className="flex items-start gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#173522] text-[#9BE3B4]">
+                <FileText size={19} strokeWidth={1.8} />
+              </span>
+              <div className="flex flex-col gap-1">
+                <h2 className="text-[18px] font-semibold">
+                  Contrato y condiciones
+                </h2>
+                <p className="text-[13px] leading-relaxed text-[#EDF7F0]/80">
+                  Este es el documento legal de tu contratación. Léelo, completa
+                  tus datos y descárgalo para conservarlo.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setContratoAbierto(true)}
+              className={cn(BOTON, "min-h-11")}
+            >
+              <FileText size={16} />
+              Leer contrato completo
+            </button>
+
+            <div className="flex flex-col gap-3 border-t border-[#EDF7F0]/10 pt-3">
+              <h3 className="font-lv-display text-[15px] font-semibold">
+                Información particular de tu contratación
+              </h3>
+              <CampoContrato
+                etiqueta="Nombre del negocio"
+                valor={contrato.negocio}
+                onChange={(valor) => actualizarContrato("negocio", valor)}
+              />
+              <CampoContrato
+                etiqueta="Titular o representante"
+                requerido
+                valor={contrato.titular}
+                onChange={(valor) => actualizarContrato("titular", valor)}
+              />
+              <CampoContrato
+                etiqueta="Servicios contratados"
+                multilinea
+                valor={contrato.servicios}
+                onChange={(valor) => actualizarContrato("servicios", valor)}
+              />
+              <CampoContrato
+                etiqueta="Fecha de inicio"
+                valor={contrato.fechaInicio}
+                onChange={(valor) => actualizarContrato("fechaInicio", valor)}
+              />
+              <CampoContrato
+                etiqueta="Precio y moneda"
+                valor={contrato.precio}
+                onChange={(valor) => actualizarContrato("precio", valor)}
+              />
+              <CampoContrato
+                etiqueta="Periodicidad de pago"
+                valor={contrato.periodicidad}
+                onChange={(valor) => actualizarContrato("periodicidad", valor)}
+              />
+              <CampoContrato
+                etiqueta="Promoción aplicada"
+                valor={contrato.promocion}
+                onChange={(valor) => actualizarContrato("promocion", valor)}
+              />
+              <CampoContrato
+                etiqueta="Canal de contacto asignado"
+                valor={contrato.canal}
+                onChange={(valor) => actualizarContrato("canal", valor)}
+              />
+              <CampoContrato
+                etiqueta="Días de atención de La Verde"
+                valor={contrato.diasAtencion}
+                onChange={(valor) => actualizarContrato("diasAtencion", valor)}
+                ayuda="Sustituye el hueco de días de atención en el contrato."
+              />
+              <CampoContrato
+                etiqueta="Horario de atención de La Verde"
+                valor={contrato.horarioAtencion}
+                onChange={(valor) =>
+                  actualizarContrato("horarioAtencion", valor)
+                }
+                ayuda="Incluye la zona horaria."
+              />
+              <CampoContrato
+                etiqueta="Observaciones y condiciones particulares"
+                multilinea
+                valor={contrato.observaciones}
+                onChange={(valor) =>
+                  actualizarContrato("observaciones", valor)
+                }
+              />
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-[#EDF7F0]/10 pt-3">
+              <h3 className="font-lv-display text-[15px] font-semibold">
+                Confirmación de recepción y aceptación
+              </h3>
+              <p className="text-[13px] leading-relaxed text-[#EDF7F0]/80">
+                Con mi firma o aceptación correspondiente, confirmo que he
+                recibido este documento y conozco las condiciones generales de
+                prestación, soporte, seguimiento, cancelación y reembolso de
+                los servicios de La Verde.
+              </p>
+              <CampoContrato
+                etiqueta="Nombre del representante"
+                requerido
+                valor={contrato.representante}
+                onChange={(valor) =>
+                  actualizarContrato("representante", valor)
+                }
+              />
+              <CampoContrato
+                etiqueta="Firma"
+                requerido
+                valor={contrato.firma}
+                onChange={(valor) => actualizarContrato("firma", valor)}
+                ayuda="Escribe tu nombre completo como firma."
+              />
+              <CampoContrato
+                etiqueta="Fecha"
+                valor={contrato.fechaFirma}
+                onChange={(valor) => actualizarContrato("fechaFirma", valor)}
+              />
+
+              <label className="flex items-start gap-2 text-[13px] leading-relaxed text-[#EDF7F0]/80">
+                <input
+                  type="checkbox"
+                  checked={aceptaContrato}
+                  onChange={(evento) => setAceptaContrato(evento.target.checked)}
+                  className="mt-0.5 size-4 shrink-0 accent-[#35AF6D]"
+                />
+                <span>
+                  He leído y acepto el contrato y las condiciones de La Verde.
+                </span>
+              </label>
+
+              <button
+                type="button"
+                onClick={descargarContrato}
+                className={BOTON_PRIMARIO}
+              >
+                <Download size={16} />
+                Descargar contrato completo
+              </button>
+              <p className="text-[11px] leading-relaxed text-[#EDF7F0]/60">
+                Se descarga como un archivo HTML autocontenido; puedes abrirlo,
+                imprimirlo o guardarlo como PDF. Tus datos se guardan solo en
+                este dispositivo.
+              </p>
+            </div>
+          </section>
+        )}
+
         {esPendiente && (
           <section className="flex flex-col gap-2.5 rounded-2xl border border-[#EDF7F0]/10 bg-[#0E1720] p-4">
             <h2 className="text-[18px] font-semibold">Cómo empezar</h2>
@@ -1145,6 +1379,77 @@ export function FacturaPublica({
         </DialogContent>
       </Dialog>
 
+      {/* La lectura completa del contrato, con los datos que el cliente haya
+          completado, para revisarlos antes de descargar. */}
+      {contrato && (
+        <Dialog open={contratoAbierto} onOpenChange={setContratoAbierto}>
+          <DialogContent className="bottom-0 left-1/2 top-auto max-h-[92dvh] w-full max-w-[430px] translate-x-[-50%] translate-y-0 gap-3 overflow-y-auto rounded-b-none rounded-t-3xl border-[#EDF7F0]/10 bg-[#0E1720] p-4 pb-[max(24px,env(safe-area-inset-bottom))] text-[#EDF7F0]">
+            <div className="mx-auto h-[5px] w-11 rounded-full bg-[#EDF7F0]/25" />
+            <DialogTitle className="text-[20px] font-semibold text-[#EDF7F0]">
+              Contrato de servicios
+            </DialogTitle>
+            <DialogDescription className="text-[14px] leading-relaxed text-[#EDF7F0]/75">
+              Condiciones generales de La Verde y los datos particulares de tu
+              contratación.
+            </DialogDescription>
+
+            <article className="flex flex-col gap-4 text-[14px] leading-relaxed text-[#EDF7F0]/85">
+              <h3 className="font-lv-display text-[17px] font-semibold text-[#EDF7F0]">
+                {CONTRATO_TITULO}
+              </h3>
+              {CONTRATO_INTRO.map((parrafo) => (
+                <p key={parrafo}>{parrafo}</p>
+              ))}
+              {CONTRATO_SECCIONES.map((bloque, indice) => (
+                <BloqueContratoVista
+                  key={indice}
+                  bloque={bloque}
+                  datos={contrato}
+                />
+              ))}
+
+              <section className="flex flex-col gap-2 rounded-[14px] bg-[#16212B] p-3">
+                <h3 className="font-lv-display text-[15px] font-semibold text-[#EDF7F0]">
+                  Información particular
+                </h3>
+                <dl className="flex flex-col gap-2 text-[13px]">
+                  {(
+                    [
+                      ["Negocio", contrato.negocio],
+                      ["Titular", contrato.titular],
+                      ["Servicios", contrato.servicios],
+                      ["Inicio", contrato.fechaInicio],
+                      ["Precio", contrato.precio],
+                      ["Periodicidad", contrato.periodicidad],
+                      ["Promoción", contrato.promocion],
+                      ["Canal", contrato.canal],
+                      ["Observaciones", contrato.observaciones],
+                    ] as const
+                  ).map(([etiqueta, texto]) => (
+                    <div key={etiqueta} className="flex flex-col gap-0.5">
+                      <dt className="text-[11px] uppercase tracking-[0.08em] text-[#EDF7F0]/55">
+                        {etiqueta}
+                      </dt>
+                      <dd className="text-[#EDF7F0]">
+                        {texto.trim() || "—"}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            </article>
+
+            <button
+              type="button"
+              onClick={() => setContratoAbierto(false)}
+              className={BOTON}
+            >
+              Cerrar
+            </button>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* La confirmación llega sola desde el panel de administración; este
           aviso es el cambio de paso, sin recargar ni perder el contexto. */}
       <Dialog open={pagoConfirmado} onOpenChange={setPagoConfirmado}>
@@ -1183,6 +1488,93 @@ export function FacturaPublica({
           </button>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/** Un campo del formulario del contrato, con el mismo tono de la factura. */
+function CampoContrato({
+  etiqueta,
+  valor,
+  onChange,
+  requerido = false,
+  multilinea = false,
+  ayuda,
+}: {
+  etiqueta: string;
+  valor: string;
+  onChange: (valor: string) => void;
+  requerido?: boolean;
+  multilinea?: boolean;
+  ayuda?: string;
+}) {
+  const clase =
+    "w-full rounded-xl border border-[#EDF7F0]/15 bg-[#08130D] px-3 py-2.5 text-[14px] text-[#EDF7F0] outline-none transition placeholder:text-[#EDF7F0]/35 focus:border-[#35AF6D] focus:ring-2 focus:ring-[#35AF6D]/20";
+
+  return (
+    <label className="flex flex-col gap-1.5 text-[13px]">
+      <span className="font-lv-display font-semibold text-[#EDF7F0]/85">
+        {etiqueta}
+        {requerido && <span className="text-[#F3C27A]"> *</span>}
+      </span>
+      {multilinea ? (
+        <textarea
+          value={valor}
+          onChange={(evento) => onChange(evento.target.value)}
+          rows={3}
+          className={cn(clase, "resize-y")}
+        />
+      ) : (
+        <input
+          type="text"
+          value={valor}
+          onChange={(evento) => onChange(evento.target.value)}
+          className={clase}
+        />
+      )}
+      {ayuda && (
+        <span className="text-[11px] leading-snug text-[#EDF7F0]/55">
+          {ayuda}
+        </span>
+      )}
+    </label>
+  );
+}
+
+/** Una sección del contrato tal como se lee en pantalla. */
+function BloqueContratoVista({
+  bloque,
+  datos,
+}: {
+  bloque: BloqueContrato;
+  datos: DatosContrato;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      {bloque.titulo && (
+        <h4 className="font-lv-display text-[15px] font-semibold text-[#9BE3B4]">
+          {resolverTokens(bloque.titulo, datos)}
+        </h4>
+      )}
+      {bloque.parrafos?.map((parrafo) => (
+        <p key={parrafo}>{resolverTokens(parrafo, datos)}</p>
+      ))}
+      {bloque.puntos && bloque.puntos.length > 0 && (
+        <ul className="flex flex-col gap-1 pl-5">
+          {bloque.puntos.map((punto) => (
+            <li key={punto} className="list-disc">
+              {resolverTokens(punto, datos)}
+            </li>
+          ))}
+        </ul>
+      )}
+      {bloque.subsecciones?.map((subseccion, indice) => (
+        <BloqueContratoVista
+          key={indice}
+          bloque={subseccion}
+          datos={datos}
+        />
+      ))}
     </div>
   );
 }
