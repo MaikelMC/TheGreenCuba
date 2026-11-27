@@ -226,7 +226,11 @@ export function IngresosPanel({ datos }: { datos: DatosIngresosAdmin }) {
         <TarjetaKpi
           etiqueta="Facturado este mes"
           valor={formatoUsd(datos.facturadoCentavos)}
-          detalle={`${formatoCup(datos.facturadoCup)} · pagos confirmados`}
+          detalle={
+            datos.reembolsosCentavos > 0
+              ? `${formatoCup(datos.facturadoCup)} · bruto ${formatoUsd(datos.facturadoBrutoCentavos)} − reembolsos ${formatoUsd(datos.reembolsosCentavos)}`
+              : `${formatoCup(datos.facturadoCup)} · pagos confirmados`
+          }
           icono={Receipt}
         />
         <TarjetaKpi
@@ -264,11 +268,12 @@ export function IngresosPanel({ datos }: { datos: DatosIngresosAdmin }) {
                 De dónde viene el dinero
               </h2>
               <p className="text-meta text-ink-soft/70">
-                Pagos confirmados de {mesLegible(datos.mes)} por concepto.
+                Pagos confirmados de {mesLegible(datos.mes)} por concepto,
+                antes de reembolsos.
               </p>
             </div>
             <span className="font-lv-display text-small font-semibold text-ink">
-              {formatoUsd(datos.facturadoCentavos)}
+              {formatoUsd(datos.facturadoBrutoCentavos)}
             </span>
           </div>
 
@@ -317,6 +322,31 @@ export function IngresosPanel({ datos }: { datos: DatosIngresosAdmin }) {
                   />
                 </div>
               ))}
+            </div>
+          )}
+
+          {datos.reembolsosCentavos > 0 && (
+            <div className="mt-gap-md flex flex-col gap-gap-xs border-t border-ink/10 pt-gap-sm">
+              <div className="flex items-baseline justify-between gap-gap-sm">
+                <span className="text-small text-ink-soft/75">
+                  Reembolsos del mes
+                </span>
+                <span className="font-lv-display text-small font-semibold tabular-nums text-destructive">
+                  −{formatoUsd(datos.reembolsosCentavos)}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between gap-gap-sm">
+                <span className="text-small font-semibold text-ink">
+                  Facturado neto
+                </span>
+                <span className="font-lv-display text-body font-bold tabular-nums text-ink">
+                  {formatoUsd(datos.facturadoCentavos)}
+                </span>
+              </div>
+              <p className="text-meta text-ink-soft/60">
+                {formatoCup(datos.reembolsosCup)} CUP devueltos · ya descontados
+                del total del mes.
+              </p>
             </div>
           )}
         </TarjetaAdmin>

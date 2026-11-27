@@ -55,6 +55,7 @@ export const ACCION = {
   avisarPagoFactura: "avisar_pago_factura",
   confirmarFactura: "confirmar_factura",
   cancelarFactura: "cancelar_factura",
+  reembolsarFactura: "reembolsar_factura",
   aprobarProyecto: "aprobar_proyecto",
   rechazarProyecto: "rechazar_proyecto",
   borrarProyecto: "borrar_proyecto",

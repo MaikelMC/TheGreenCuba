@@ -64,6 +64,8 @@ const CHIP_TONO: Record<FacturaResumen["estado"], string> = {
     "border-[#E3A23B]/50 bg-[#E3A23B]/15 text-[#F3C27A]",
   pagada:
     "border-[#35AF6D]/60 bg-[#173522] text-[#9BE3B4]",
+  reembolsada:
+    "border-[#E07A7A]/50 bg-[#3A1D1D] text-[#F0B4B4]",
   caducada:
     "border-[#EDF7F0]/20 bg-[#EDF7F0]/10 text-[#EDF7F0]/80",
   cancelada:
@@ -75,6 +77,7 @@ const TITULO_ESTADO: Record<FacturaResumen["estado"], string> = {
   aceptada: "Pack aceptado: solo falta pagar",
   en_revision: "Estamos revisando tu pago",
   pagada: "Factura de servicios",
+  reembolsada: "Factura reembolsada",
   caducada: "Tu pack a medida",
   cancelada: "Tu pack a medida",
 };
@@ -86,6 +89,7 @@ const NIVEL_ESTADO: Record<FacturaResumen["estado"], number> = {
   aceptada: 1,
   en_revision: 1,
   pagada: 3,
+  reembolsada: 3,
 };
 
 const PASOS = ["1 · Aceptas", "2 · Pagas", "3 · Activo"];
@@ -166,6 +170,7 @@ export function FacturaPublica({
   const esRevision = estado === "en_revision";
   const esCaducada = estado === "caducada";
   const esCancelada = estado === "cancelada";
+  const esReembolsada = estado === "reembolsada";
   const titulo = factura.tipo === "pack_medida" ? TITULO_ESTADO[estado] : factura.titulo;
 
   const periodo = esPagada && factura.pagadaEn
@@ -231,12 +236,14 @@ export function FacturaPublica({
           aceptada: 1,
           en_revision: 2,
           pagada: 3,
+          reembolsada: 3,
           caducada: 3,
           cancelada: 3,
         };
         if (
           siguiente !== "cancelada" &&
           siguiente !== "caducada" &&
+          siguiente !== "reembolsada" &&
           rango[siguiente] < rango[antes]
         ) {
           return;
@@ -529,6 +536,7 @@ export function FacturaPublica({
             <span>· Factura n.º {String(factura.numeroFactura).padStart(4, "0")}</span>
           )}
           {esCancelada && <span>· cancelada</span>}
+          {esReembolsada && <span>· reembolsada</span>}
         </div>
       </header>
 
@@ -536,7 +544,8 @@ export function FacturaPublica({
         <ol className="grid grid-cols-3 gap-1.5" aria-label="Estado del pack">
           {PASOS.map((etiqueta, indice) => {
             const hecho = indice < nivel;
-            const ahora = indice === nivel && !esCaducada && !esCancelada;
+            const ahora =
+              indice === nivel && !esCaducada && !esCancelada && !esReembolsada;
             return (
               <li key={etiqueta} className="flex flex-col gap-1.5">
                 <span
@@ -587,6 +596,18 @@ export function FacturaPublica({
             <p className="text-[14px] leading-relaxed text-[#EDF7F0]/80">
               Lo confirmamos en menos de 24 h. No tienes que hacer nada más:
               esta pantalla se actualiza sola en cuanto se confirme el pago.
+            </p>
+          </div>
+        )}
+
+        {esReembolsada && (
+          <div className="flex flex-col gap-1.5 rounded-2xl border border-[#E07A7A]/50 bg-[#0E1720] p-4">
+            <p className="font-lv-display text-[16px] font-semibold text-[#F0B4B4]">
+              Esta factura fue reembolsada
+            </p>
+            <p className="text-[14px] leading-relaxed text-[#EDF7F0]/80">
+              El importe ya se devolvió y el documento queda como constancia.
+              Si tienes dudas, escríbenos.
             </p>
           </div>
         )}

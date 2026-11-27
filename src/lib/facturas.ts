@@ -18,6 +18,14 @@ import type {
 export type { FacturaConcepto, FacturaEstado, FacturaMetodoPago };
 
 /** Lo que viaja al navegador, sin fechas `Date` ni columnas internas. */
+export interface ReembolsoFactura {
+  id: string;
+  montoCentavos: number;
+  motivo: string;
+  reembolsadoEn: string;
+  registradoPorNombre: string;
+}
+
 export interface FacturaResumen {
   id: string;
   negocioId: string;
@@ -42,6 +50,8 @@ export interface FacturaResumen {
   avisoPagoEn: string | null;
   numeroFactura: number | null;
   pagoId: string | null;
+  /** El reembolso, si la factura ya se devolvió. Solo lo carga el panel. */
+  reembolso: ReembolsoFactura | null;
   enviadaEn: string;
   aceptadaEn: string | null;
   pagadaEn: string | null;
@@ -70,6 +80,10 @@ export const FACTURA_ESTADO: Record<
   pagada: {
     etiqueta: "Pagada · activo",
     descripcion: "El pago está confirmado y los servicios están activos.",
+  },
+  reembolsada: {
+    etiqueta: "Reembolsada",
+    descripcion: "Se devolvió el importe y quedó registrado en Ingresos.",
   },
   caducada: {
     etiqueta: "Caducada",

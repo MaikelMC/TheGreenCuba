@@ -4,6 +4,7 @@ import {
   desc,
   eq,
   gt,
+  gte,
   isNotNull,
   lt,
   lte,
@@ -17,6 +18,7 @@ import {
   businessOwners,
   pagos,
   places,
+  reembolsosFacturas,
   suscripciones,
   users,
 } from "@/lib/db/schema";
@@ -102,6 +104,12 @@ export interface PlanPagando {
 export interface DatosIngresosAdmin {
   /** `YYYY-MM` en UTC, el mismo mes que usa Afiliados. */
   mes: string;
+  /** Pagos confirmados del mes antes de descontar reembolsos. */
+  facturadoBrutoCentavos: number;
+  /** Reembolsos registrados en el mes. */
+  reembolsosCentavos: number;
+  reembolsosCup: number;
+  /** Bruto menos reembolsos: lo que de verdad queda facturado. */
   facturadoCentavos: number;
   facturadoCup: number;
   recurrenteCentavos: number;
@@ -234,7 +242,7 @@ export async function cargarIngresosAdmin(
   const { inicio, fin, clave: mes } = mesDe(ahora);
   const enSieteDias = new Date(ahora.getTime() + 7 * DIA);
 
-  const [cat, afiliados, pagosDelMes, pagosPendientes, vencidas, pruebas, activas, referidos] =
+  const [cat, afiliados, pagosDelMes, reembolsosDelMes, pagosPendientes, vencidas, pruebas, activas, referidos] =
     await Promise.all([
       cargarCatalogo(),
       listarAfiliados(),
@@ -260,6 +268,15 @@ export async function cargarIngresosAdmin(
           ),
         )
         .orderBy(desc(pagos.pagadoEn)),
+      db
+        .select({ montoCentavos: reembolsosFacturas.montoCentavos })
+        .from(reembolsosFacturas)
+        .where(
+          and(
+            gte(reembolsosFacturas.creadoEn, inicio),
+            lt(reembolsosFacturas.creadoEn, fin),
+          ),
+        ),
       db
         .select({
           id: pagos.id,
@@ -344,10 +361,15 @@ export async function cargarIngresosAdmin(
         ),
     ]);
 
-  const facturadoCentavos = pagosDelMes.reduce(
+  const facturadoBrutoCentavos = pagosDelMes.reduce(
     (total, pago) => total + pago.montoCentavos,
     0,
   );
+  const reembolsosCentavos = reembolsosDelMes.reduce(
+    (total, reembolso) => total + reembolso.montoCentavos,
+    0,
+  );
+  const facturadoCentavos = facturadoBrutoCentavos - reembolsosCentavos;
 
   const origenesMap = new Map<string, OrigenDinero>();
   for (const pago of pagosDelMes) {
@@ -370,8 +392,8 @@ export async function cargarIngresosAdmin(
     .map((origen) => ({
       ...origen,
       porcentaje:
-        facturadoCentavos > 0
-          ? (origen.montoCentavos / facturadoCentavos) * 100
+        facturadoBrutoCentavos > 0
+          ? (origen.montoCentavos / facturadoBrutoCentavos) * 100
           : 0,
     }))
     .sort((a, b) => b.montoCentavos - a.montoCentavos);
@@ -527,6 +549,9 @@ export async function cargarIngresosAdmin(
 
   return {
     mes,
+    facturadoBrutoCentavos,
+    reembolsosCentavos,
+    reembolsosCup: cupDe(reembolsosCentavos, cat.tasaCup),
     facturadoCentavos,
     facturadoCup: cupDe(facturadoCentavos, cat.tasaCup),
     recurrenteCentavos,

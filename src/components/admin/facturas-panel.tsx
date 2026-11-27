@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  AlertTriangle,
   CheckCircle2,
   Copy,
   ExternalLink,
   Loader2,
   Receipt,
+  RotateCcw,
   Search,
   XCircle,
 } from "lucide-react";
@@ -17,6 +19,13 @@ import {
   TarjetaAdmin,
   TarjetaKpi,
 } from "@/components/admin/ui/tarjeta";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   FACTURA_ESTADO,
   formatoUsd,
@@ -36,6 +45,7 @@ const ESTADO_CLASE: Record<FacturaResumen["estado"], string> = {
   aceptada: "border-blue-200 bg-blue-50 text-blue-800",
   en_revision: "border-amber-200 bg-amber-50 text-amber-800",
   pagada: "border-verde-200 bg-verde-50 text-verde-700",
+  reembolsada: "border-destructive/20 bg-destructive/5 text-destructive",
   caducada: "border-ink/10 bg-sand text-ink-soft/75",
   cancelada: "border-ink/10 bg-sand text-ink-soft/75",
 };
@@ -59,12 +69,68 @@ export function FacturasPanel({
   const router = useRouter();
   const [busqueda, setBusqueda] = useState(q);
   const [procesando, setProcesando] = useState<string | null>(null);
+  const [reembolsando, setReembolsando] = useState<FacturaResumen | null>(null);
+  const [motivoReembolso, setMotivoReembolso] = useState("");
+  const [entiendeReembolso, setEntiendeReembolso] = useState(false);
 
   const pendientes = facturas.filter((f) => f.estado === "pendiente").length;
   const aceptadas = facturas.filter(
     (f) => f.estado === "aceptada" || f.estado === "en_revision",
   ).length;
   const pagadas = facturas.filter((f) => f.estado === "pagada").length;
+
+  function abrirReembolso(factura: FacturaResumen) {
+    setMotivoReembolso("");
+    setEntiendeReembolso(false);
+    setReembolsando(factura);
+  }
+
+  function cerrarReembolso() {
+    if (procesando !== null) return;
+    setReembolsando(null);
+    setMotivoReembolso("");
+    setEntiendeReembolso(false);
+  }
+
+  async function reembolsar() {
+    if (!reembolsando) return;
+    const motivo = motivoReembolso.trim();
+    if (motivo.length < 5) {
+      toast.error("Escribe el motivo del reembolso (mínimo 5 caracteres).");
+      return;
+    }
+    if (!entiendeReembolso) {
+      toast.error("Confirma que entiendes cómo se descuenta del facturado.");
+      return;
+    }
+
+    const id = reembolsando.id;
+    setProcesando(`reembolsar:${id}`);
+    try {
+      const res = await fetch(
+        `/api/admin/facturas/${encodeURIComponent(id)}/reembolsar`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ motivo }),
+        },
+      );
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) {
+        toast.error(data?.error ?? "No se pudo registrar el reembolso.");
+        return;
+      }
+      setReembolsando(null);
+      setMotivoReembolso("");
+      setEntiendeReembolso(false);
+      toast.success("Reembolso registrado y descontado del facturado del mes.");
+      router.refresh();
+    } catch {
+      toast.error("No hubo respuesta del servidor.");
+    } finally {
+      setProcesando(null);
+    }
+  }
 
   function buscar(e: React.FormEvent) {
     e.preventDefault();
@@ -277,13 +343,130 @@ export function FacturasPanel({
                         Cancelar
                       </button>
                     )}
+                    {factura.estado === "pagada" && !factura.reembolso && (
+                      <button
+                        type="button"
+                        onClick={() => abrirReembolso(factura)}
+                        disabled={procesando !== null}
+                        className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition hover:border-destructive/30 hover:text-destructive disabled:opacity-60"
+                        aria-label="Reembolsar esta factura"
+                      >
+                        <RotateCcw size={14} /> Reembolsar
+                      </button>
+                    )}
                   </div>
+
+                  {factura.reembolso && (
+                    <div className="rounded-xl border border-destructive/15 bg-destructive/5 p-gap-sm">
+                      <div className="flex flex-wrap items-baseline justify-between gap-gap-xs">
+                        <p className="font-lv-display text-small font-semibold text-destructive">
+                          Reembolso de{" "}
+                          {formatoUsd(factura.reembolso.montoCentavos / 100)} USD
+                        </p>
+                        <p className="text-meta text-ink-soft/65">
+                          {FECHA.format(new Date(factura.reembolso.reembolsadoEn))}
+                          {" · "}
+                          {factura.reembolso.registradoPorNombre}
+                        </p>
+                      </div>
+                      <p className="mt-1 text-small text-ink-soft/80">
+                        Motivo: {factura.reembolso.motivo}
+                      </p>
+                    </div>
+                  )}
                 </li>
               );
             })}
           </ul>
         )}
       </TarjetaAdmin>
+
+      <Dialog
+        open={reembolsando !== null}
+        onOpenChange={(open) => {
+          if (!open) cerrarReembolso();
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Reembolsar factura</DialogTitle>
+            <DialogDescription>
+              {reembolsando
+                ? `${reembolsando.negocioNombre} · ${formatoUsd(reembolsando.precioUsd)} USD`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-gap-sm">
+            <div className="flex gap-gap-xs rounded-xl border border-amber-200 bg-amber-50 p-gap-sm text-small text-amber-900">
+              <AlertTriangle size={18} className="mt-[1px] shrink-0" />
+              <p>
+                El importe se descontará del facturado del mes en Ingresos. La
+                factura quedará marcada como reembolsada y el motivo se guarda
+                en el registro de control.
+              </p>
+            </div>
+
+            <label className="flex flex-col gap-gap-xs">
+              <span className="font-lv-display text-small font-semibold text-ink">
+                Motivo del reembolso
+              </span>
+              <textarea
+                value={motivoReembolso}
+                onChange={(e) => setMotivoReembolso(e.target.value)}
+                rows={4}
+                maxLength={500}
+                placeholder="Explica por qué se devuelve el dinero…"
+                className="w-full resize-none rounded-xl border border-ink/10 bg-white px-gap-sm py-gap-xs text-small text-ink outline-none focus:border-verde-400 focus:ring-2 focus:ring-verde-400/20"
+              />
+              <span className="text-meta text-ink-soft/60">
+                {motivoReembolso.trim().length}/500 · mínimo 5 caracteres
+              </span>
+            </label>
+
+            <label className="flex items-start gap-gap-xs text-small text-ink-soft/80">
+              <input
+                type="checkbox"
+                checked={entiendeReembolso}
+                onChange={(e) => setEntiendeReembolso(e.target.checked)}
+                className="mt-[3px] h-4 w-4 rounded border-ink/20 accent-verde-500"
+              />
+              <span>
+                Confirmo que quiero reembolsar esta factura y que el importe se
+                descuente del facturado del mes.
+              </span>
+            </label>
+
+            <div className="flex flex-wrap justify-end gap-gap-xs">
+              <button
+                type="button"
+                onClick={cerrarReembolso}
+                disabled={procesando !== null}
+                className="inline-flex h-10 items-center rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition hover:border-ink/20 disabled:opacity-60"
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                onClick={() => void reembolsar()}
+                disabled={
+                  procesando !== null ||
+                  motivoReembolso.trim().length < 5 ||
+                  !entiendeReembolso
+                }
+                className="inline-flex h-10 items-center gap-gap-xs rounded-full bg-destructive px-gap-sm font-lv-display text-meta font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+              >
+                {procesando?.startsWith("reembolsar:") ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <RotateCcw size={14} />
+                )}
+                Confirmar reembolso
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

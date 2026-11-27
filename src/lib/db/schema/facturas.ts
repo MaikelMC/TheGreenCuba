@@ -32,6 +32,7 @@ export const facturasEstado = [
   "aceptada",
   "en_revision",
   "pagada",
+  "reembolsada",
   "caducada",
   "cancelada",
 ] as const;

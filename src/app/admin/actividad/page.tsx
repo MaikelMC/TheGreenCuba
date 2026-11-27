@@ -39,6 +39,7 @@ const ETIQUETA_OBJETO: Record<string, string> = {
   vinculo: "Vínculo",
   sistema: "Sistema",
   pago: "Pago",
+  factura: "Factura",
   prospecto: "Prospecto",
   nota_negocio: "Nota de negocio",
 };
@@ -60,6 +61,8 @@ function enlaceObjeto(tipo: string, id: string | null): string | null {
       return "/admin/prospectos";
     case "afiliado":
       return id ? `/admin/afiliados/${id}` : "/admin/afiliados";
+    case "factura":
+      return "/admin/facturas";
     case "cobro_afiliado":
       return "/admin/afiliados";
     case "plan":

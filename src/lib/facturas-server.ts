@@ -6,6 +6,7 @@ import {
   packsMedida,
   pagos,
   places,
+  reembolsosFacturas,
   suscripciones,
 } from "@/lib/db/schema";
 import { aplicarDerecho } from "@/lib/pagos-server";
@@ -22,6 +23,7 @@ import {
   sumarDias,
   type FacturaMetodoPago,
   type FacturaResumen,
+  type ReembolsoFactura,
 } from "@/lib/facturas";
 import {
   datosPago,
@@ -71,6 +73,7 @@ function expiraEnDesdeAhora(): Date {
 /** La fila de `facturas` con la forma que consume la interfaz. */
 export function aFacturaResumen(
   fila: typeof facturas.$inferSelect,
+  reembolso: ReembolsoFactura | null = null,
 ): FacturaResumen {
   const expiraEn = iso(fila.expiraEn);
   return {
@@ -96,6 +99,7 @@ export function aFacturaResumen(
     avisoPagoEn: iso(fila.avisoPagoEn),
     numeroFactura: fila.numeroFactura,
     pagoId: fila.pagoId,
+    reembolso,
     enviadaEn: fila.enviadaEn.toISOString(),
     aceptadaEn: iso(fila.aceptadaEn),
     pagadaEn: iso(fila.pagadaEn),
@@ -472,8 +476,19 @@ export async function marcarFacturaPagadaPorPago(
 export async function listarFacturas(q: string): Promise<FacturaResumen[]> {
   const texto = q.trim();
   const filas = await db
-    .select()
+    .select({
+      factura: facturas,
+      reembolsoId: reembolsosFacturas.id,
+      reembolsoMontoCentavos: reembolsosFacturas.montoCentavos,
+      reembolsoMotivo: reembolsosFacturas.motivo,
+      reembolsoEn: reembolsosFacturas.creadoEn,
+      reembolsoPor: reembolsosFacturas.registradoPorNombre,
+    })
     .from(facturas)
+    .leftJoin(
+      reembolsosFacturas,
+      eq(reembolsosFacturas.facturaId, facturas.id),
+    )
     .where(
       texto
         ? or(
@@ -486,7 +501,20 @@ export async function listarFacturas(q: string): Promise<FacturaResumen[]> {
     .orderBy(desc(facturas.creadoEn))
     .limit(200);
 
-  return filas.map(aFacturaResumen);
+  return filas.map((fila) =>
+    aFacturaResumen(
+      fila.factura,
+      fila.reembolsoId
+        ? {
+            id: fila.reembolsoId,
+            montoCentavos: fila.reembolsoMontoCentavos ?? 0,
+            motivo: fila.reembolsoMotivo ?? "",
+            reembolsadoEn: (fila.reembolsoEn ?? new Date()).toISOString(),
+            registradoPorNombre: fila.reembolsoPor ?? "Administración",
+          }
+        : null,
+    ),
+  );
 }
 
 /**
@@ -815,6 +843,130 @@ export async function cancelarFactura(id: string): Promise<FacturaResumen> {
   }
 
   return aFacturaResumen(fila);
+}
+
+export interface ActorReembolso {
+  id: string;
+  nombre: string;
+}
+
+/**
+ * Devuelve una factura pagada y deja el registro de control.
+ *
+ * Es una operación de administración y solo se permite una vez por factura:
+ * el índice único de `reembolsos_facturas.factura_id` lo garantiza aunque dos
+ * personas pulsen a la vez. El importe sale del pago confirmado —lo que entró
+ * de verdad— y no de lo que diga el navegador; si una factura antigua no tiene
+ * fila de pago, se usa el precio del documento.
+ *
+ * La factura pasa a `reembolsada` dentro de la misma transacción que crea el
+ * reembolso. El pago original no se toca: el descuento del mes lo hace el
+ * panel de Ingresos a partir de esta fila, así que el historial conserva lo
+ * que se cobró y lo que se devolvió.
+ */
+export async function reembolsarFactura(
+  id: string,
+  motivo: string,
+  actor: ActorReembolso | null,
+): Promise<FacturaResumen> {
+  const limpio = motivo.trim().replace(/\s+/g, " ").slice(0, 500);
+  if (limpio.length < 5) {
+    throw new ErrorFactura(
+      "Escribe el motivo del reembolso (mínimo 5 caracteres).",
+      400,
+    );
+  }
+
+  const [factura] = await db
+    .select()
+    .from(facturas)
+    .where(eq(facturas.id, id))
+    .limit(1);
+
+  if (!factura) throw new ErrorFactura("Factura no encontrada.", 404);
+  if (factura.estado === "reembolsada") {
+    throw new ErrorFactura("Esta factura ya fue reembolsada.", 409);
+  }
+  if (factura.estado !== "pagada") {
+    throw new ErrorFactura("Solo se puede reembolsar una factura pagada.", 409);
+  }
+
+  const [pago] = factura.pagoId
+    ? await db
+        .select({ montoCentavos: pagos.montoCentavos })
+        .from(pagos)
+        .where(eq(pagos.id, factura.pagoId))
+        .limit(1)
+    : [];
+
+  const montoCentavos =
+    pago?.montoCentavos ?? Math.round(factura.precioUsd * 100);
+  if (!Number.isInteger(montoCentavos) || montoCentavos <= 0) {
+    throw new ErrorFactura(
+      "La factura no tiene un importe válido para reembolsar.",
+      409,
+    );
+  }
+
+  const ahora = new Date();
+  const reembolso: ReembolsoFactura = {
+    id: generateId(),
+    montoCentavos,
+    motivo: limpio,
+    reembolsadoEn: ahora.toISOString(),
+    registradoPorNombre: actor?.nombre || "Administración",
+  };
+
+  let actualizada: typeof facturas.$inferSelect | undefined;
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx.insert(reembolsosFacturas).values({
+        id: reembolso.id,
+        facturaId: factura.id,
+        pagoId: factura.pagoId,
+        montoCentavos,
+        moneda: "USD",
+        motivo: limpio,
+        registradoPor: actor?.id ?? null,
+        registradoPorNombre: reembolso.registradoPorNombre,
+        creadoEn: ahora,
+      });
+
+      const [fila] = await tx
+        .update(facturas)
+        .set({ estado: "reembolsada" })
+        .where(
+          and(
+            eq(facturas.id, id),
+            eq(facturas.estado, "pagada"),
+          ),
+        )
+        .returning();
+
+      if (!fila) {
+        throw new ErrorFactura(
+          "La factura cambió de estado y no se pudo reembolsar.",
+          409,
+        );
+      }
+      actualizada = fila;
+    });
+  } catch (error) {
+    if ((error as { code?: string }).code === "23505") {
+      throw new ErrorFactura("Esta factura ya fue reembolsada.", 409);
+    }
+    throw error;
+  }
+
+  if (!actualizada) {
+    throw new ErrorFactura(
+      "La factura cambió de estado y no se pudo reembolsar.",
+      409,
+    );
+  }
+
+  return aFacturaResumen(actualizada, reembolso);
 }
 
 /** Cancela las propuestas activas de un pack que se cerró o volvió a borrador. */

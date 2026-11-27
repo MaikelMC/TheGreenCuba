@@ -498,6 +498,13 @@
       "when": 1795730949712,
       "tag": "0070_gifted_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1795803587669,
+      "tag": "0071_sad_kinsey_walden",
+      "breakpoints": true
     }
   ]
 }
