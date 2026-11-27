@@ -208,8 +208,11 @@ function unwrap(row: {
  * El orden es el que quiere el carrusel: la portada primero. En Postgres, un
  * `ORDER BY` descendente sobre un booleano pone `true` delante de `false`, que
  * es justo lo que hace falta.
+ *
+ * Se exporta para que otras lecturas que enseñan una miniatura del negocio
+ * —las novedades del home— no repitan la consulta ni se salten el orden.
  */
-async function photosByPlace(
+export async function photosByPlace(
   ids: string[],
 ): Promise<Map<string, UserPlacePhoto[]>> {
   const grouped = new Map<string, UserPlacePhoto[]>();

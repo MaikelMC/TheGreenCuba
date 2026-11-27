@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq, gt, gte, inArray, lte } from "drizzle-orm";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
+import { photosByPlace } from "@/lib/db/queries";
 import {
   categories,
   novedades,
@@ -121,8 +122,12 @@ export async function GET(req: NextRequest) {
   const desde = new Date(ahora.getTime() - DIAS_NOVEDAD * 86_400_000);
 
   /* La carta sale de la tabla de productos, y solo la de los negocios que
-     entran en el feed: antes viajaba el jsonb de todos en la primera consulta. */
-  const [ofertasVivas, cambios, cartas] = await Promise.all([
+     entran en el feed: antes viajaba el jsonb de todos en la primera consulta.
+     Las fotos van en el mismo viaje: la galería vive en `place_images` desde
+     que las subidas dejaron de escribir `places.image_urls`, y leer solo esa
+     columna dejaba las tarjetas de novedades con el icono de categoría aunque
+     el negocio tuviera fotos en su ficha. */
+  const [ofertasVivas, cambios, cartas, fotos] = await Promise.all([
     db
       .select()
       .from(ofertas)
@@ -143,7 +148,12 @@ export async function GET(req: NextRequest) {
         ),
       ),
     cartasPorNegocio(ids),
+    photosByPlace(ids),
   ]);
+
+  /* La portada del negocio, igual que en la tarjeta de la ficha: la foto
+     marcada como portada y, si no hay, la primera de la galería. */
+  const portadaDe = (id: string) => fotos.get(id)?.[0]?.url || undefined;
 
   const porNegocio = new Map(incluidos.map((x) => [x.fila.id, x]));
   const items: NovedadHome[] = [];
@@ -183,7 +193,11 @@ export async function GET(req: NextRequest) {
       categoria: fila.categoria ?? undefined,
       /* `||` y no `??`: un campo vacío es «no hay foto», no una URL válida. */
       imagenUrl:
-        producto?.image || fila.imageUrls?.[0] || fila.logoUrl || undefined,
+        producto?.image ||
+        portadaDe(fila.id) ||
+        fila.imageUrls?.[0] ||
+        fila.logoUrl ||
+        undefined,
       productoId: oferta.productoId,
       productoNombre: producto?.name,
       /* Sin precio nuevo no hay nada que comparar: un porcentaje sobre un
@@ -212,7 +226,11 @@ export async function GET(req: NextRequest) {
       logoUrl: fila.logoUrl || undefined,
       categoria: fila.categoria ?? undefined,
       imagenUrl:
-        novedad.imagenUrl || fila.imageUrls?.[0] || fila.logoUrl || undefined,
+        novedad.imagenUrl ||
+        portadaDe(fila.id) ||
+        fila.imageUrls?.[0] ||
+        fila.logoUrl ||
+        undefined,
       productoId: novedad.productoId ?? undefined,
       productoNombre: novedad.productoNombre ?? undefined,
       precioAntes: novedad.precioAntes ?? undefined,
