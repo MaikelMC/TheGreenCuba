@@ -30,6 +30,7 @@ interface EventoPendiente {
 }
 
 let vaciando = false;
+let vaciadoProgramado = false;
 
 function nuevoId(): string {
   return `diag_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -96,14 +97,27 @@ export function registrarFalloAlmacen(
   });
 }
 
-/** Encola y lanza el envío. Nunca lanza. */
+/**
+ * Encola y programa el envío. Nunca lanza.
+ *
+ * El envío va con retraso a propósito: los primeros eventos del mapa coinciden
+ * con la petición del estilo y las teselas, y en una conexión lenta una
+ * telemetría de más competía por el ancho de banda con lo que el usuario está
+ * esperando. `pagehide` y `visibilitychange` vacían la cola con `sendBeacon`,
+ * así que un evento no se pierde por cerrar la app.
+ */
 export function enviarDiagnostico(
   tipo: TipoDiagnostico,
   datos: Record<string, unknown>,
 ): void {
   if (typeof window === "undefined") return;
   encolar({ id: nuevoId(), tipo, datos: datosConContexto(datos) });
-  void vaciarCola();
+  if (vaciadoProgramado) return;
+  vaciadoProgramado = true;
+  window.setTimeout(() => {
+    vaciadoProgramado = false;
+    void vaciarCola();
+  }, 1500);
 }
 
 /** Vuelca la cola con `sendBeacon`, para `pagehide` y `visibilitychange`. */
@@ -156,46 +170,90 @@ export interface SoporteWebgl {
 }
 
 /**
+ * El resultado se calcula una vez y se guarda: lo piden el mapa y la
+ * telemetría, y cada sonda crea contextos WebGL reales. En un teléfono con
+ * pocos recursos, crear seis contextos antes de que MapLibre cree el suyo
+ * ralentizaba el mapa o lo dejaba sin contexto.
+ */
+let soporteWebglCache: SoporteWebgl | null = null;
+
+/** Suelta el contexto de la sonda y deja el canvas listo para recolectarse. */
+function soltarContexto(
+  canvas: HTMLCanvasElement,
+  contexto: RenderingContext | null,
+): void {
+  try {
+    (contexto as WebGLRenderingContext | null)
+      ?.getExtension("WEBGL_lose_context")
+      ?.loseContext();
+  } catch {
+    /* Sin la extensión, el contexto lo libera el recolector al soltar el canvas. */
+  }
+  canvas.width = 0;
+  canvas.height = 0;
+}
+
+/**
  * Comprueba WebGL con canvases distintos. Reutilizar el canvas devolvía el
  * contexto anterior e ignoraba `failIfMajorPerformanceCaveat`, que es lo que
  * hacía que «WebGL por software» fuera siempre cero.
+ *
+ * Cada contexto se suelta en el acto: la sonda no puede robarle el contexto a
+ * MapLibre, que es el que de verdad pinta el mapa.
  */
 export function detectarWebgl(): SoporteWebgl {
   if (typeof document === "undefined") {
     return { webgl1: false, webgl2: false, webglSoftware: false };
   }
+  if (soporteWebglCache) return soporteWebglCache;
 
   let webgl1 = false;
   let webgl2 = false;
   let webglSoftware = false;
 
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  let contexto1: RenderingContext | null = null;
   try {
-    const canvas = document.createElement("canvas");
-    webgl1 = Boolean(canvas.getContext("webgl"));
+    contexto1 = canvas.getContext("webgl");
+    webgl1 = Boolean(contexto1);
   } catch {
     webgl1 = false;
   }
 
   if (webgl1) {
+    const canvasDuro = document.createElement("canvas");
+    canvasDuro.width = 1;
+    canvasDuro.height = 1;
+    let duro: RenderingContext | null = null;
     try {
-      const canvasDuro = document.createElement("canvas");
-      const duro = canvasDuro.getContext("webgl", {
+      duro = canvasDuro.getContext("webgl", {
         failIfMajorPerformanceCaveat: true,
       });
       webglSoftware = !duro;
     } catch {
       webglSoftware = false;
     }
+    soltarContexto(canvasDuro, duro);
   }
 
+  const canvas2 = document.createElement("canvas");
+  canvas2.width = 1;
+  canvas2.height = 1;
+  let contexto2: RenderingContext | null = null;
   try {
-    const canvas2 = document.createElement("canvas");
-    webgl2 = Boolean(canvas2.getContext("webgl2"));
+    contexto2 = canvas2.getContext("webgl2");
+    webgl2 = Boolean(contexto2);
   } catch {
     webgl2 = false;
   }
 
-  return { webgl1, webgl2, webglSoftware };
+  soltarContexto(canvas, contexto1);
+  soltarContexto(canvas2, contexto2);
+
+  soporteWebglCache = { webgl1, webgl2, webglSoftware };
+  return soporteWebglCache;
 }
 
 async function versionPublicada(): Promise<string | null> {

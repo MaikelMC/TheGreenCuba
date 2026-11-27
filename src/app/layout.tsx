@@ -71,9 +71,18 @@ const diagScript = `(function(){
   }
 })();`;
 
-const devChunkScript = `(function(){window.webpackChunkLoadTimeout=300000;if(window.__laVerdeChunkReloaded)return;function r(m){if(window.__laVerdeChunkReloaded)return;m=String(m||"");if(m.indexOf("ChunkLoadError")!==-1||m.indexOf("Loading chunk")!==-1||m.indexOf("Failed to load chunk")!==-1||m.indexOf("webpack")!==-1){window.__laVerdeChunkReloaded=true;window.location.reload();}}window.addEventListener("error",function(e){r(e&&e.message);},true);window.addEventListener("unhandledrejection",function(e){var x=e&&e.reason;r(x&&x.message?x.message:x);});})();`;
+/* La recarga por chunk roto se hace **una vez por sesión y solo con red**:
+   antes, un chunk que fallaba por una conexión lenta recargaba la página, el
+   chunk volvía a fallar y se recargaba otra vez —el bucle dejaba la PWA en
+   blanco y abortaba el precaché del service worker—. `sessionStorage`
+   sobrevive a la recarga; `navigator.onLine` evita intentarlo sin conexión. */
+const guardiaChunks = `var K="lv_chunk_reload";if(window.__laVerdeChunkReloaded)return;try{var t=Number(sessionStorage.getItem(K)||0);if(t>0&&Date.now()-t<600000)return;}catch(e){}function r(m){if(window.__laVerdeChunkReloaded)return;if(navigator.onLine===false)return;m=String(m||"");`;
 
-const prodChunkScript = `(function(){if(window.__laVerdeChunkReloaded)return;function r(m){if(window.__laVerdeChunkReloaded)return;m=String(m||"");if(m.indexOf("ChunkLoadError")!==-1||m.indexOf("Loading chunk")!==-1||m.indexOf("Failed to load chunk")!==-1){window.__laVerdeChunkReloaded=true;window.location.reload();}}window.addEventListener("error",function(e){r(e&&e.message);},true);window.addEventListener("unhandledrejection",function(e){var x=e&&e.reason;r(x&&x.message?x.message:x);});})();`;
+const finGuardiaChunks = `window.__laVerdeChunkReloaded=true;try{sessionStorage.setItem(K,String(Date.now()));}catch(e){}window.location.reload();}}window.addEventListener("error",function(e){r(e&&e.message);},true);window.addEventListener("unhandledrejection",function(e){var x=e&&e.reason;r(x&&x.message?x.message:x);});})();`;
+
+const devChunkScript = `(function(){window.webpackChunkLoadTimeout=300000;${guardiaChunks}if(m.indexOf("ChunkLoadError")!==-1||m.indexOf("Loading chunk")!==-1||m.indexOf("Failed to load chunk")!==-1||m.indexOf("webpack")!==-1){${finGuardiaChunks}`;
+
+const prodChunkScript = `(function(){${guardiaChunks}if(m.indexOf("ChunkLoadError")!==-1||m.indexOf("Loading chunk")!==-1||m.indexOf("Failed to load chunk")!==-1){${finGuardiaChunks}`;
 
 /**
  * `viewportFit: "cover"` es lo que hace que `env(safe-area-inset-*)` devuelva

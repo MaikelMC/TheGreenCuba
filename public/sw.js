@@ -72,8 +72,9 @@ try { importScripts("/sw-version.js"); } catch { /* sin sw-version.js: solo la d
    deploy borraba TODAS las cachés y el usuario necesitaba reconectar online
    para reconstruirlas: si abría la app offline justo después de un deploy,
    el caché estaba vacío y no había nada que servir. La detección de updates
-   sigue funcionando: el navegador rastrea sw-version.js (que sí cambia en
-   cada build) y detecta el cambio sin que CACHE_VERSION tenga que moverse.
+   sigue funcionando: el navegador rastrea sw-version.js (cuyo hash cambia
+   cuando cambia este archivo) y detecta el cambio sin que CACHE_VERSION
+   tenga que moverse.
    Cuando la lógica del SW cambie de forma que requiera invalidar las cachés
    existentes (nueva estructura de datos, cambio de estrategia), se sube a
    mano: lv-v10, lv-v11, etc.
@@ -211,11 +212,23 @@ const DOCUMENTOS_PRIVADOS = ["/admin", "/business", "/profile", "/notifications"
 const DOCUMENTOS_PERFIL_OFFLINE = ["/profile", "/notifications"];
 
 const NAV_TIMEOUT_MS = 4000;
+/* Estilo, TileJSON y sprite del mapa. Si el host del mapa no contesta, la
+   instalación no puede quedarse esperándolo: se reintenta al usarlo. */
+const MAPA_TIMEOUT_MS = 8000;
+/* Cuántos estáticos calienta el SW a la vez. Antes iban hasta 60 en paralelo:
+   en una conexión lenta eso acaparaba la red justo cuando el mapa pedía su
+   estilo y sus teselas, y el mapa tardaba en pintar. */
+const CALENTAR_CONCURRENCIA = 6;
 /* Arranque con copia guardada: se le concede a la red este margen corto antes
    de pintar la copia. Con conexión buena la red gana y la copia se refresca;
    con conexión lenta o sin ella se pinta la app guardada en cuanto expira, y la
    petición de red sigue viva para dejar la caché al día. */
 const NAV_CACHE_GRACE_MS = 1200;
+/* El TileJSON del mapa es la puerta de las teselas: MapLibre no pide ninguna
+   hasta resolverlo. Con copia guardada se le da a la red un margen muy corto
+   (y el refresco sigue por detrás): 1,2 s aquí eran un mapa en blanco de más
+   en una conexión lenta que el navegador aún anuncia como 4g. */
+const TILEJSON_GRACE_MS = 400;
 /* Una tarjeta espera 4 s a la red y, si no llega, enseña la copia guardada. */
 const TARJETA_TIMEOUT_MS = 4000;
 const TARJETAS_MAX_ENTRIES = 5;
@@ -234,25 +247,9 @@ self.addEventListener("install", (event) => {
         PRECACHE_URLS.map((url) => staticCache.add(new Request(url, { cache: "reload" }))),
       );
 
-      /* `/home` y el catálogo de servicios se guardan en red-primero, no en
-         la caché estática: después de un despliegue los assets del static ya
-         no existen, y una navegación hacia chunks viejos rompe la app.
-
-         El catálogo se guarda aquí y no solo al visitarlo porque los aliados
-         lo instalan para consultarlo sin red: si la primera apertura en frío
-         fuese sin conexión, no habría copia que enseñar. */
-      const pagesCache = await caches.open(PAGES_CACHE).catch(() => null);
-      const catalogoCache = await caches.open(CATALOGO_CACHE).catch(() => null);
-      await Promise.allSettled([
-        pagesCache ? precachearPagina(pagesCache, "/home") : Promise.resolve(),
-        catalogoCache
-          ? precachearPagina(catalogoCache, "/servicios", { dinamica: true })
-          : Promise.resolve(),
-      ]);
-
-      /* El catálogo alimenta el mapa, sus filtros y la búsqueda. Se guarda ya
-         en la instalación: si la primera apertura sin conexión (o con red muy
-         lenta) llega antes de que `/home` termine de pedirlo, sin esto no
+      /* El catálogo alimenta el mapa, sus filtros y la búsqueda. Va antes de
+         calentar documentos: si la primera apertura sin conexión (o con red
+         muy lenta) llega antes de que `/home` termine de pedirlo, sin esto no
          habría ni un punto que pintar. */
       try {
         const apiCache = await caches.open(API_CACHE);
@@ -271,10 +268,15 @@ self.addEventListener("install", (event) => {
       /* El mapa no se pinta sin su estilo, y MapLibre lo pide cross-origin.
          Sin esto la app abría sin red con las teselas ya guardadas pero con el
          mapa en blanco: `tesela()` solo alcanza `/planet/` y el estilo vive en
-         `/styles/`. Se guardan también el TileJSON de sus fuentes y el sprite. */
+         `/styles/`. Se guardan también el TileJSON de sus fuentes y el sprite.
+         Va antes de calentar `/home`: en una conexión lenta el estilo no puede
+         esperar detrás de decenas de chunks. */
       try {
         const tilesCache = await caches.open(TILES_CACHE);
-        const estilo = await fetch(ESTILO_MAPA_URL, { cache: "reload" });
+        const estilo = await conTimeout(
+          fetch(ESTILO_MAPA_URL, { cache: "reload" }),
+          MAPA_TIMEOUT_MS,
+        );
         if (estilo.ok) {
           /* Se parsea antes de guardar: si el servidor devolviera HTML con
              un 200, no queremos dejar un «estilo» inválido en la caché. */
@@ -285,6 +287,23 @@ self.addEventListener("install", (event) => {
       } catch {
         /* Sin red al instalar: se cachea en la primera visita controlada. */
       }
+
+      /* `/home` y el catálogo de servicios se guardan en red-primero, no en
+         la caché estática: después de un despliegue los assets del static ya
+         no existen, y una navegación hacia chunks viejos rompe la app.
+
+         El catálogo se guarda aquí y no solo al visitarlo porque los aliados
+         lo instalan para consultarlo sin red: si la primera apertura en frío
+         fuese sin conexión, no habría copia que enseñar. Es lo más pesado de
+         la instalación, así que va al final. */
+      const pagesCache = await caches.open(PAGES_CACHE).catch(() => null);
+      const catalogoCache = await caches.open(CATALOGO_CACHE).catch(() => null);
+      await Promise.allSettled([
+        pagesCache ? precachearPagina(pagesCache, "/home") : Promise.resolve(),
+        catalogoCache
+          ? precachearPagina(catalogoCache, "/servicios", { dinamica: true })
+          : Promise.resolve(),
+      ]);
     })(),
   );
 });
@@ -722,16 +741,26 @@ async function calentarDocumento(response) {
 
   const estaticos = await caches.open(STATIC_CACHE);
   const imagenes = await caches.open(IMAGES_CACHE);
-  await Promise.allSettled(
-    urls.map(async (url) => {
-      const destino = url.startsWith("/_next/image") ? imagenes : estaticos;
-      /* Los `_next/static` llevan hash: si ya están, no hace falta volver a
-         bajarlos. Sin esta comprobación cada ficha calentada repetía por red
-         todos los chunks de la app, justo en la conexión que va lenta. */
-      if (await destino.match(url)) return;
-      await destino.add(new Request(url, { cache: "reload" }));
-    }),
+
+  /* De a `CALENTAR_CONCURRENCIA`, no los sesenta a la vez: la calefacción no
+     puede acaparar la conexión que el mapa necesita para pintarse. */
+  const pendientes = [...urls];
+  const trabajadores = Array.from(
+    { length: Math.min(CALENTAR_CONCURRENCIA, pendientes.length) },
+    async () => {
+      while (pendientes.length > 0) {
+        const url = pendientes.shift();
+        if (!url) continue;
+        const destino = url.startsWith("/_next/image") ? imagenes : estaticos;
+        /* Los `_next/static` llevan hash: si ya están, no hace falta volver a
+           bajarlos. Sin esta comprobación cada ficha calentada repetía por red
+           todos los chunks de la app, justo en la conexión que va lenta. */
+        if (await destino.match(url)) continue;
+        await destino.add(new Request(url, { cache: "reload" })).catch(() => {});
+      }
+    },
   );
+  await Promise.allSettled(trabajadores);
 }
 
 /** Una respuesta puede guardarse si es correcta y no es privada. */
@@ -1618,7 +1647,7 @@ async function tilejson(event, request) {
     }
 
     try {
-      const response = await conTimeout(red, NAV_CACHE_GRACE_MS);
+      const response = await conTimeout(red, TILEJSON_GRACE_MS);
       if (response && response.ok) {
         event.waitUntil(cache.put(request, response.clone()).catch(() => {}));
       }
@@ -1697,7 +1726,15 @@ async function precachearMapa(estilo, cache) {
   }
 
   await Promise.allSettled(
-    urls.map((url) => cache.add(new Request(url, { cache: "reload" }))),
+    urls.map(async (url) => {
+      /* Con tope: si el host del mapa no contesta, la instalación no se queda
+         colgada esperando su estilo o su sprite. */
+      const res = await conTimeout(
+        fetch(url, { cache: "reload" }),
+        MAPA_TIMEOUT_MS,
+      );
+      if (res.ok) await cache.put(url, res).catch(() => {});
+    }),
   );
 }
 

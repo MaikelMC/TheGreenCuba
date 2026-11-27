@@ -8,6 +8,11 @@ import { sincronizarPushDispositivo } from "@/lib/pwa/push-client";
 import { asegurarPersistencia, estadoAlmacenamiento } from "@/lib/offline/storage-status";
 import { procesarCola } from "@/lib/offline/cola";
 
+/** Pausa mínima entre dos comprobaciones de versión. */
+const ESPERA_ENTRE_COMPROBACIONES_MS = 3 * 60_000;
+/** Sondeo con la pestaña visible. La versión cambia poco: no hace falta más. */
+const INTERVALO_SONDEO_MS = 15 * 60_000;
+
 /**
  * Registro del service worker, aviso de versión nueva y banner de sin conexión.
  *
@@ -154,17 +159,23 @@ export function PwaRegister() {
            el usuario toque nada. */
         void sincronizarPushDispositivo();
 
-        /* Detección de despliegue. Antes era `update()` con un tope de 30 min:
-           cada llamada baja los 60 KB de `sw.js`, así que no se podía hacer a
-           menudo y el aviso llegaba tarde. Ahora se pide `/sw-version.js`
-           (40 bytes) y se compara con la versión del SW activo; `update()`
-           solo corre cuando difieren. Un SW de antes de este cambio no sabe
+        /* Detección de despliegue. Se pide `/sw-version.js` (unos 40 bytes) y
+           se compara con la versión del SW activo; `update()` solo corre
+           cuando difieren. Esa versión es un hash del propio `sw.js` y del
+           `offline.html`, así que un despliegue de la app que no toca el
+           service worker ya no se anuncia como versión nueva: la página se
+           actualiza sola al navegar. Un SW de antes de este cambio no sabe
            contestar la versión: se trata como distinta, una sola vez. */
         let versionVista: string | null = null;
+        let ultimaComprobacion = 0;
         let comprobando = false;
         const comprobar = async () => {
           if (comprobando || cancelado || !navigator.onLine) return;
+          /* Volver a la pestaña varias veces seguidas no debe multiplicar las
+             peticiones: basta con una cada pocos minutos. */
+          if (Date.now() - ultimaComprobacion < ESPERA_ENTRE_COMPROBACIONES_MS) return;
           if (registro?.waiting || registro?.installing) return vigilarEsperando();
+          ultimaComprobacion = Date.now();
           comprobando = true;
           try {
             const res = await fetch(`/sw-version.js?t=${Date.now()}`, { cache: "no-store" });
@@ -180,16 +191,17 @@ export function PwaRegister() {
           }
         };
 
-        /* Al abrir, al volver a la app, al recuperar red y cada minuto con la
-           pestaña visible. Un minuto de sondeo son ~0,3 KB: cabe en cualquier
-           plan de datos y deja el aviso, como mucho, un minuto tarde. */
+        /* Al abrir, al volver a la app, al recuperar red y cada cuarto de hora
+           con la pestaña visible. El service worker cambia poco, así que
+           sondear cada minuto solo gastaba datos y hacía que el aviso saltara
+           en cada despliegue. */
         const alVolver = () => {
           if (document.visibilityState === "visible") void comprobar();
         };
         const alRecuperarRed = () => void comprobar();
         document.addEventListener("visibilitychange", alVolver);
         window.addEventListener("online", alRecuperarRed);
-        const sondeo = setInterval(alVolver, 60_000);
+        const sondeo = setInterval(alVolver, INTERVALO_SONDEO_MS);
         void comprobar();
 
         window.addEventListener("beforeunload", () => {

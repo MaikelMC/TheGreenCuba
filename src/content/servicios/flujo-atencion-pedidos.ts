@@ -39,7 +39,7 @@ export const flujoAtencionPedidos: ServicioContent = {
   ],
 
   queNecesitas: [
-    "El Menú Pro activo, o contratarlo junto a este servicio. El flujo de pedidos usa tu carta en línea como base.",
+    "El Menú Pro viene incluido en este servicio: el flujo de pedidos usa tu carta en línea como base, así que no se cobra aparte.",
     "Un número de WhatsApp activo donde lleguen los pedidos. Lo configuras en Ajustes del panel.",
   ],
 
