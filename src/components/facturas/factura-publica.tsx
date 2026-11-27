@@ -8,9 +8,11 @@ import {
   Copy,
   Download,
   Loader2,
+  MessageCircle,
   Minus,
   Plus,
   Receipt,
+  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -19,6 +21,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { siteConfig } from "@/config/site";
 import { SUPPORT_WHATSAPP } from "@/lib/legal";
 import {
   FACTURA_ESTADO,
@@ -27,13 +30,13 @@ import {
   formatoCup,
   formatoUsd,
   lineaTasa,
+  mensajeTransferenciaCup,
   periodoDePago,
   periodoProyectado,
   usdACup,
   type FacturaMetodoPago,
   type FacturaResumen,
 } from "@/lib/facturas";
-import type { DatosPago } from "@/lib/pagos-config";
 import { cn } from "@/lib/utils";
 
 const FECHA_HORA = new Intl.DateTimeFormat("es-CU", {
@@ -120,7 +123,6 @@ function escapar(texto: string): string {
 }
 
 export interface PagoFactura {
-  datos: DatosPago;
   metodos: FacturaMetodoPago[];
 }
 
@@ -144,6 +146,8 @@ export function FacturaPublica({
   const [factura, setFactura] = useState(inicial);
   const [aceptando, setAceptando] = useState(false);
   const [guardandoMetodo, setGuardandoMetodo] = useState(false);
+  const [pagandoQvapay, setPagandoQvapay] = useState(false);
+  const [transferenciaAbierta, setTransferenciaAbierta] = useState(false);
   const [avisando, setAvisando] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const [abiertos, setAbiertos] = useState<Set<number>>(new Set());
@@ -168,6 +172,16 @@ export function FacturaPublica({
     : periodoProyectado(new Date(), factura.oferta2x1);
 
   const totalServicios = factura.conceptos.length;
+
+  const enlaceFactura = `${siteConfig.url.replace(/\/+$/, "")}/factura/${factura.id}`;
+  const mensajeTransferencia = mensajeTransferenciaCup({
+    id: factura.id,
+    negocioNombre: factura.negocioNombre,
+    precioUsd: factura.precioUsd,
+    cup,
+    enlace: enlaceFactura,
+    fecha: fechaHora(factura.creadoEn),
+  });
 
   async function empezar(): Promise<boolean> {
     if (aceptando || estado !== "pendiente") return false;
@@ -196,9 +210,9 @@ export function FacturaPublica({
     }
   }
 
-  async function elegirMetodo(metodo: FacturaMetodoPago) {
-    if (guardandoMetodo || factura.estado !== "aceptada") return;
-    if (factura.metodoPago === metodo) return;
+  async function elegirMetodo(metodo: FacturaMetodoPago): Promise<boolean> {
+    if (guardandoMetodo || factura.estado !== "aceptada") return false;
+    if (factura.metodoPago === metodo) return true;
     setGuardandoMetodo(true);
     try {
       const res = await fetch(
@@ -215,15 +229,58 @@ export function FacturaPublica({
       } | null;
       if (!res.ok || !data?.factura) {
         toast.error(data?.error ?? "No se pudo guardar el método de pago.");
-        return;
+        return false;
       }
       setFactura(data.factura);
-      toast.success("Método de pago guardado.");
+      return true;
     } catch {
       toast.error("No hubo respuesta del servidor.");
+      return false;
     } finally {
       setGuardandoMetodo(false);
     }
+  }
+
+  /**
+   * Abre el checkout real de QvaPay. La factura se activa sola cuando su
+   * webhook confirma el cobro, sin que nadie tenga que revisarlo a mano.
+   */
+  async function pagarConQvapay() {
+    if (pagandoQvapay || factura.estado !== "aceptada") return;
+    setPagandoQvapay(true);
+    try {
+      const res = await fetch(
+        `/api/facturas/${encodeURIComponent(factura.id)}/qvapay`,
+        { method: "POST" },
+      );
+      const data = (await res.json().catch(() => null)) as {
+        url?: string;
+        error?: string;
+      } | null;
+      if (!res.ok || !data?.url) {
+        toast.error(data?.error ?? "No se pudo abrir QvaPay.");
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      toast.error("No hubo respuesta del servidor.");
+    } finally {
+      setPagandoQvapay(false);
+    }
+  }
+
+  /**
+   * La transferencia no tiene pasarela: se acuerda por WhatsApp. Se guarda el
+   * método y se abre la confirmación con el detalle de la factura delante para
+   * que soporte compruebe que es real antes de dictar la tarjeta.
+   */
+  async function abrirTransferencia() {
+    if (guardandoMetodo) return;
+    if (factura.metodoPago !== "transferencia") {
+      const guardado = await elegirMetodo("transferencia");
+      if (!guardado) return;
+    }
+    setTransferenciaAbierta(true);
   }
 
   async function avisarPago() {
@@ -274,15 +331,11 @@ export function FacturaPublica({
   }
 
   function instrucciones(metodo: FacturaMetodoPago): string {
-    if (metodo === "qvapay" && pago.datos.qvapay) {
-      return `Envía ${formatoUsd(factura.precioUsd)} USD a @${pago.datos.qvapay.usuario} en QvaPay y guarda el comprobante. Pon la referencia ${factura.id} para que lo encontremos rápido.`;
+    if (metodo === "qvapay") {
+      return `Paga ${formatoUsd(factura.precioUsd)} USD con QvaPay desde el botón de abajo. La factura se activa sola cuando QvaPay confirma el cobro; guarda el comprobante. Pon la referencia ${factura.id} para que lo encontremos rápido.`;
     }
-    if (metodo === "transferencia" && pago.datos.transferencia) {
-      return `Transfiere ${
-        cup !== null ? `${formatoCup(cup)} CUP` : "el importe en CUP"
-      } a la tarjeta ${pago.datos.transferencia.tarjeta}, a nombre de ${
-        pago.datos.transferencia.titular
-      }. Pon la referencia ${factura.id} para que lo encontremos rápido.`;
+    if (metodo === "transferencia") {
+      return `Confirma por WhatsApp que esta factura es real y te damos los datos de la tarjeta. Al transferir, avísanos con el comprobante y lo confirmamos en menos de 24 h. Ten a mano la referencia ${factura.id}.`;
     }
     if (metodo === "efectivo") {
       return `Te escribimos por WhatsApp para coordinar el pago en efectivo en Santiago de Cuba. Ten a mano la referencia ${factura.id}.`;
@@ -546,12 +599,22 @@ export function FacturaPublica({
                 {pago.metodos.map((metodo) => {
                   const info = METODO_PAGO[metodo];
                   const elegido = factura.metodoPago === metodo;
+                  const ocupado =
+                    metodo === "qvapay" ? pagandoQvapay : guardandoMetodo;
                   return (
                     <button
                       key={metodo}
                       type="button"
-                      onClick={() => void elegirMetodo(metodo)}
-                      disabled={guardandoMetodo}
+                      onClick={() => {
+                        if (metodo === "qvapay") {
+                          void pagarConQvapay();
+                        } else if (metodo === "transferencia") {
+                          void abrirTransferencia();
+                        } else {
+                          void elegirMetodo(metodo);
+                        }
+                      }}
+                      disabled={guardandoMetodo || pagandoQvapay}
                       aria-pressed={elegido}
                       className={cn(
                         "flex min-h-14 items-center gap-3 rounded-[14px] border-[1.5px] px-3.5 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-60",
@@ -560,20 +623,14 @@ export function FacturaPublica({
                           : "border-[#EDF7F0]/15 bg-transparent hover:border-[#EDF7F0]/30",
                       )}
                     >
-                      <span
-                        className={cn(
-                          "flex size-5 shrink-0 items-center justify-center rounded-full border-2",
-                          elegido
-                            ? "border-[#35AF6D]"
-                            : "border-[#EDF7F0]/40",
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#173522] text-[#9BE3B4]">
+                        {metodo === "qvapay" ? (
+                          <Wallet size={18} strokeWidth={1.8} />
+                        ) : metodo === "transferencia" ? (
+                          <MessageCircle size={18} strokeWidth={1.8} />
+                        ) : (
+                          <Receipt size={18} strokeWidth={1.8} />
                         )}
-                      >
-                        <span
-                          className={cn(
-                            "size-2.5 rounded-full",
-                            elegido ? "bg-[#35AF6D]" : "bg-transparent",
-                          )}
-                        />
                       </span>
                       <span className="flex min-w-0 flex-1 flex-col">
                         <strong className="font-lv-display text-[15px] font-semibold">
@@ -583,10 +640,15 @@ export function FacturaPublica({
                           {info.descripcion}
                         </span>
                       </span>
-                      {guardandoMetodo && (
+                      {ocupado ? (
                         <Loader2
                           size={15}
                           className="shrink-0 animate-spin text-[#9BE3B4]"
+                        />
+                      ) : (
+                        <ArrowRight
+                          size={15}
+                          className="shrink-0 text-[#EDF7F0]/50"
                         />
                       )}
                     </button>
@@ -596,11 +658,37 @@ export function FacturaPublica({
             )}
 
             {factura.metodoPago && (
-              <div className="flex flex-col gap-1.5 rounded-[14px] bg-[#16212B] px-3.5 py-3 text-[14px] leading-relaxed">
+              <div className="flex flex-col gap-2 rounded-[14px] bg-[#16212B] px-3.5 py-3 text-[14px] leading-relaxed">
                 <strong className="font-lv-display text-[14px] font-semibold">
                   {METODO_PAGO[factura.metodoPago].etiqueta}
                 </strong>
                 <span>{instrucciones(factura.metodoPago)}</span>
+                {factura.metodoPago === "qvapay" && (
+                  <button
+                    type="button"
+                    onClick={() => void pagarConQvapay()}
+                    disabled={pagandoQvapay}
+                    className={cn(BOTON_PRIMARIO, "mt-1 min-h-11")}
+                  >
+                    {pagandoQvapay ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Wallet size={16} />
+                    )}
+                    {pagandoQvapay ? "Abriendo QvaPay…" : "Pagar con QvaPay"}
+                  </button>
+                )}
+                {factura.metodoPago === "transferencia" && (
+                  <a
+                    href={whatsapp(mensajeTransferencia)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(BOTON_PRIMARIO, "mt-1 min-h-11")}
+                  >
+                    <MessageCircle size={16} />
+                    Confirmar por WhatsApp
+                  </a>
+                )}
               </div>
             )}
           </section>
@@ -768,7 +856,9 @@ export function FacturaPublica({
             {avisando
               ? "Enviando…"
               : factura.metodoPago
-                ? "Ya pagué"
+                ? factura.metodoPago === "transferencia"
+                  ? "Ya transferí"
+                  : "Ya pagué"
                 : "Elige cómo pagar"}
           </button>
         )}
@@ -867,6 +957,72 @@ export function FacturaPublica({
           <button
             type="button"
             onClick={() => setConfirmar(false)}
+            className={BOTON}
+          >
+            Ahora no
+          </button>
+        </DialogContent>
+      </Dialog>
+
+      {/* La transferencia en CUP no tiene pasarela: se cierra en el chat. El
+          detalle va delante para que soporte compruebe que la factura es real
+          antes de dictar la tarjeta. */}
+      <Dialog
+        open={transferenciaAbierta}
+        onOpenChange={setTransferenciaAbierta}
+      >
+        <DialogContent className="bottom-0 left-1/2 top-auto max-h-[calc(100dvh-32px)] w-full max-w-[430px] translate-x-[-50%] translate-y-0 gap-3 overflow-y-auto rounded-b-none rounded-t-3xl border-[#EDF7F0]/10 bg-[#0E1720] p-4 pb-[max(24px,env(safe-area-inset-bottom))] text-[#EDF7F0]">
+          <div className="mx-auto h-[5px] w-11 rounded-full bg-[#EDF7F0]/25" />
+          <DialogTitle className="text-[20px] font-semibold text-[#EDF7F0]">
+            Pagar por transferencia en CUP
+          </DialogTitle>
+          <DialogDescription className="flex flex-col gap-2 text-[15px] leading-relaxed text-[#EDF7F0]/80">
+            <span>
+              Te llevamos al WhatsApp de La Verde con este mensaje ya escrito.
+              Allí confirmamos que la factura es real y te damos los datos de
+              la tarjeta para transferir.
+            </span>
+          </DialogDescription>
+
+          <div className="flex flex-col gap-1 rounded-[14px] border border-[#EDF7F0]/10 bg-[#16212B] px-3.5 py-3 text-[14px]">
+            <div className="flex justify-between gap-3">
+              <span className="text-[#EDF7F0]/70">Referencia</span>
+              <span className="text-right font-semibold">{factura.id}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-[#EDF7F0]/70">Negocio</span>
+              <span className="text-right font-semibold">
+                {factura.negocioNombre}
+              </span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-[#EDF7F0]/70">Importe</span>
+              <span className="text-right font-semibold">
+                {formatoUsd(factura.precioUsd)} USD
+                {cup !== null ? ` · ≈ ${formatoCup(cup)} CUP` : ""}
+              </span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-[#EDF7F0]/70">Enlace</span>
+              <span className="truncate text-right text-[#9BE3B4]">
+                {enlaceFactura}
+              </span>
+            </div>
+          </div>
+
+          <a
+            href={whatsapp(mensajeTransferencia)}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setTransferenciaAbierta(false)}
+            className={BOTON_PRIMARIO}
+          >
+            <MessageCircle size={17} />
+            Abrir WhatsApp
+          </a>
+          <button
+            type="button"
+            onClick={() => setTransferenciaAbierta(false)}
             className={BOTON}
           >
             Ahora no

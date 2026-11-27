@@ -87,11 +87,11 @@ export const METODO_PAGO: Record<
 > = {
   qvapay: {
     etiqueta: "QvaPay",
-    descripcion: "En USD · se confirma más rápido",
+    descripcion: "En USD · se activa al confirmarse",
   },
   transferencia: {
     etiqueta: "Transferencia en CUP",
-    descripcion: "Desde tu banca móvil",
+    descripcion: "Los datos te los damos por WhatsApp",
   },
   efectivo: {
     etiqueta: "Efectivo",
@@ -440,6 +440,41 @@ export function formatoCup(cup: number): string {
 export function usdACup(usd: number, tasa: number): number {
   return Math.round(usd * tasa);
 }
+
+/**
+ * El mensaje que abre WhatsApp cuando el negocio paga por transferencia.
+ *
+ * Lleva el detalle de la factura para que soporte compruebe que es real antes
+ * de dictar la tarjeta: sin la referencia y el enlace, cualquiera podría pedir
+ * los datos de cobro usando el nombre de La Verde. Pide además el importe
+ * exacto en CUP, que depende de la tasa del día en que se transfiere.
+ */
+export function mensajeTransferenciaCup(input: {
+  id: string;
+  negocioNombre: string;
+  precioUsd: number;
+  cup: number | null;
+  enlace: string;
+  /** La fecha del documento, ya escrita para leerse. */
+  fecha?: string;
+}): string {
+  const importe = `${formatoUsd(input.precioUsd)} USD${
+    input.cup !== null ? ` (≈ ${formatoCup(input.cup)} CUP)` : ""
+  }`;
+
+  return [
+    "Hola, quiero pagar un pack de La Verde por transferencia en CUP.",
+    "",
+    `Factura: ${input.id}`,
+    `Negocio: ${input.negocioNombre}`,
+    `Importe: ${importe}`,
+    ...(input.fecha ? [`Fecha: ${input.fecha}`] : []),
+    `Enlace: ${input.enlace}`,
+    "",
+    "¿Me confirman que esta factura es real y me envían los datos para hacer la transferencia (tarjeta, titular e importe exacto en CUP)?",
+  ].join("\n");
+}
+
 
 const DIA_MES = new Intl.DateTimeFormat("es-ES", {
   day: "numeric",

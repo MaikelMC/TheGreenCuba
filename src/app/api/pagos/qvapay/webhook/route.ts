@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { pagos } from "@/lib/db/schema";
+import { marcarFacturaPagadaPorPago } from "@/lib/facturas-server";
 import { aplicarDerecho } from "@/lib/pagos-server";
 import {
   CABECERA_FIRMA,
@@ -185,5 +186,8 @@ export async function POST(req: NextRequest) {
   }
 
   await aplicarDerecho(fila);
+  /* Si el pago vino de una propuesta compartida, el documento se cierra aquí:
+     el derecho ya está aplicado y la factura no puede seguir pidiendo dinero. */
+  await marcarFacturaPagadaPorPago(fila.id);
   return NextResponse.json({ ok: true });
 }

@@ -3,13 +3,16 @@ import type { FacturaMetodoPago } from "@/lib/db/schema/facturas";
 /**
  * Los datos con los que se paga una propuesta.
  *
- * Viven en variables de entorno, no en la página: el usuario de QvaPay, la
- * tarjeta y el titular cambian sin desplegar código, y ningún dato de cobro
- * viaja escrito en el repositorio. Si un dato falta, el método no se ofrece;
- * es mejor no enseñar una opción que no se puede completar.
+ * QvaPay se abre con la pasarela —el cobro lo confirma su webhook— y la
+ * transferencia en CUP se acuerda por WhatsApp con soporte. Ninguno de los dos
+ * necesita datos escritos en el entorno: si faltara la tarjeta, el chat es
+ * justamente donde se pide. El efectivo sigue siendo el único que depende de
+ * configuración y de la provincia del negocio.
  */
 export interface DatosPago {
+  /** Usuario público de QvaPay; ya no se pinta en la factura. */
   qvapay: { usuario: string } | null;
+  /** Tarjeta y titular de respaldo; se dictan en el chat si hacen falta. */
   transferencia: { tarjeta: string; titular: string } | null;
   /** Solo se enseña a los negocios de Santiago de Cuba. */
   efectivo: boolean;
@@ -48,14 +51,19 @@ export function esSantiago(provincia: string | null | undefined): boolean {
   return normalizada === "santiago de cuba" || normalizada === "santiago";
 }
 
-/** Los métodos que se pueden ofrecer a un negocio concreto. */
+/**
+ * Los métodos que se pueden ofrecer a un negocio concreto.
+ *
+ * QvaPay y transferencia en CUP van siempre: la factura es un enlace que se
+ * comparte y el negocio tiene que poder pagar aunque falte un dato de cobro en
+ * el entorno. El efectivo, que sí exige coordinación presencial, solo aparece
+ * en Santiago y cuando está activado.
+ */
 export function metodosDisponibles(
   provincia: string | null | undefined,
   datos: DatosPago = datosPago(),
 ): FacturaMetodoPago[] {
-  const metodos: FacturaMetodoPago[] = [];
-  if (datos.qvapay) metodos.push("qvapay");
-  if (datos.transferencia) metodos.push("transferencia");
+  const metodos: FacturaMetodoPago[] = ["qvapay", "transferencia"];
   if (datos.efectivo && esSantiago(provincia)) metodos.push("efectivo");
   return metodos;
 }

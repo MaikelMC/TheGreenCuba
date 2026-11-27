@@ -29,6 +29,8 @@ import {
   metodosDisponibles,
   type DatosPago,
 } from "@/lib/pagos-config";
+import { crearFactura, qvapayConfigurado } from "@/lib/qvapay";
+import { siteConfig } from "@/config/site";
 import { generateId } from "@/lib/utils";
 
 /** Error con el estado HTTP que le corresponde, para las rutas. */
@@ -313,6 +315,159 @@ export async function contextoPagoFactura(
   return { datos, metodos: metodosDisponibles(fila?.provincia, datos) };
 }
 
+/**
+ * Abre una factura real de QvaPay para una propuesta aceptada.
+ *
+ * El enlace público no tiene sesión, así que la única llave es el id de la
+ * factura. Por eso el precio **nunca** llega del navegador: se lee de la fila y
+ * el `remote_id` de QvaPay es el id de un `pagos` que acaba de crear este
+ * servidor. El webhook confirma el cobro y activa lo contratado, igual que un
+ * plan comprado desde el panel.
+ *
+ * La propuesta se queda en `aceptada` mientras el negocio está en QvaPay: si
+ * cierra la pasarela sin pagar, puede volver y reintentar.
+ */
+export async function crearPagoQvapayFactura(
+  id: string,
+): Promise<{ url: string }> {
+  if (!qvapayConfigurado()) {
+    throw new ErrorFactura("QvaPay no está configurado todavía.", 503);
+  }
+
+  const [factura] = await db
+    .select()
+    .from(facturas)
+    .where(eq(facturas.id, id))
+    .limit(1);
+
+  if (!factura) throw new ErrorFactura("Propuesta no encontrada.", 404);
+  if (factura.estado === "pagada") {
+    throw new ErrorFactura("Esta factura ya está pagada.", 409);
+  }
+  if (factura.estado === "cancelada") {
+    throw new ErrorFactura("Esta propuesta fue cancelada.", 409);
+  }
+  if (factura.estado !== "aceptada") {
+    throw new ErrorFactura("Primero acepta la propuesta.", 409);
+  }
+  if (!(factura.precioUsd > 0)) {
+    throw new ErrorFactura("La propuesta no tiene un importe válido.", 409);
+  }
+
+  const clave =
+    factura.tipo === "pack_medida" ? factura.packId : factura.planClave;
+  if (!clave) {
+    throw new ErrorFactura("La propuesta no tiene un concepto válido.", 409);
+  }
+
+  /* QvaPay cobra al momento y activa al confirmar: no se puede vender un pack
+     que administración ya retiró. */
+  if (factura.tipo === "pack_medida") {
+    const [pack] = await db
+      .select({ estado: packsMedida.estado })
+      .from(packsMedida)
+      .where(eq(packsMedida.id, clave))
+      .limit(1);
+    if (!pack) throw new ErrorFactura("El pack ya no existe.", 409);
+    if (pack.estado !== "enviado") {
+      throw new ErrorFactura(
+        "El pack cambió de estado y no se puede pagar esta propuesta.",
+        409,
+      );
+    }
+  }
+
+  const pagoId = generateId();
+  const montoCentavos = Math.round(factura.precioUsd * 100);
+
+  await db.insert(pagos).values({
+    id: pagoId,
+    negocioId: factura.negocioId,
+    metodo: "qvapay",
+    tipo: factura.tipo,
+    clave,
+    packMedidaId:
+      factura.tipo === "pack_medida" ? factura.packId : null,
+    montoCentavos,
+    montoOriginalCentavos:
+      factura.precioOriginalUsd !== null
+        ? Math.round(factura.precioOriginalUsd * 100)
+        : null,
+    descuentoPct: factura.descuentoPct,
+    moneda: "USD",
+    estado: "pendiente",
+  });
+
+  /* Se enlaza antes de pedir la factura: si el navegador cierra justo después
+     de pagar, el webhook ya sabe qué propuesta marcar como pagada. */
+  await db
+    .update(facturas)
+    .set({ pagoId, metodoPago: "qvapay" })
+    .where(
+      and(eq(facturas.id, id), inArray(facturas.estado, ["aceptada"])),
+    );
+
+  try {
+    const invoice = await crearFactura({
+      monto: factura.precioUsd,
+      descripcion: `Factura ${factura.id} — ${factura.negocioNombre}`.slice(
+        0,
+        300,
+      ),
+      remoteId: pagoId,
+      webhook: `${siteConfig.url.replace(/\/+$/, "")}/api/pagos/qvapay/webhook`,
+    });
+
+    await db
+      .update(pagos)
+      .set({ qvapayId: invoice.transactionUuid })
+      .where(eq(pagos.id, pagoId));
+
+    return { url: invoice.url };
+  } catch (error) {
+    await db
+      .update(pagos)
+      .set({ estado: "fallido" })
+      .where(eq(pagos.id, pagoId));
+    await db
+      .update(facturas)
+      .set({ pagoId: null })
+      .where(and(eq(facturas.id, id), eq(facturas.pagoId, pagoId)));
+    console.error("[facturas/qvapay] no se pudo crear la factura", error);
+    throw new ErrorFactura(
+      "QvaPay no pudo generar la factura. Inténtalo de nuevo.",
+      502,
+    );
+  }
+}
+
+/**
+ * Marca como pagada la propuesta enlazada a un pago confirmado por QvaPay.
+ *
+ * El webhook ya aplicó el derecho con el flujo de siempre; lo único que falta
+ * es cerrar el documento, que sin esto seguiría en «falta el pago» aunque el
+ * servicio estuviera activo. El `where` por estado evita resucitar una
+ * propuesta cancelada.
+ */
+export async function marcarFacturaPagadaPorPago(
+  pagoId: string,
+): Promise<void> {
+  await db
+    .update(facturas)
+    .set({
+      estado: "pagada",
+      pagadaEn: new Date(),
+      metodoPago: "qvapay",
+      numeroFactura: sql`coalesce(${facturas.numeroFactura}, nextval('facturas_numero_seq'))`,
+    })
+    .where(
+      and(
+        eq(facturas.pagoId, pagoId),
+        inArray(facturas.estado, ["aceptada", "en_revision"]),
+      ),
+    );
+}
+
 /** Lista para administración, con búsqueda por id o nombre del negocio. */
 export async function listarFacturas(q: string): Promise<FacturaResumen[]> {
   const texto = q.trim();
@@ -443,7 +598,12 @@ export async function guardarMetodoPago(
 
   const [fila] = await db
     .update(facturas)
-    .set({ metodoPago: metodo })
+    .set({
+      metodoPago: metodo,
+      /* Cambiar a transferencia abandona el intento de QvaPay: la factura
+         manual no debe reutilizar el pago de la pasarela al confirmarse. */
+      ...(metodo === "qvapay" ? {} : { pagoId: null }),
+    })
     .where(and(eq(facturas.id, id), eq(facturas.estado, "aceptada")))
     .returning();
 
