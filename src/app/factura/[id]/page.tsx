@@ -24,7 +24,7 @@ export default async function FacturaPage({
   const pago = await contextoPagoFactura(factura);
 
   return (
-    <main className="min-h-dvh bg-sand px-gutter py-gap-lg sm:px-gutter-lg">
+    <main className="min-h-dvh bg-[#08130D] sm:px-gutter sm:py-gap-lg">
       <FacturaPublica factura={factura} pago={pago} />
     </main>
   );
