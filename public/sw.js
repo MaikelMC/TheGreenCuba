@@ -1746,7 +1746,42 @@ async function recortarSiToca() {
   if (contador.n >= TILES_RECORTE_CADA_N || ahora - contador.t >= RECORTE_CADA_MS) {
     contador.n = 0;
     contador.t = ahora;
-    await trimCache(TILES_CACHE, TILES_MAX_ENTRIES);
+    await trimTeselas();
+  }
+}
+
+/**
+ * Recorta solo teselas, nunca el paquete del mapa.
+ *
+ * `lv-tiles` guarda dos cosas distintas: las teselas (`/planet/{z}/{x}/{y}`) y
+ * lo que MapLibre necesita **antes** de pedir ninguna —el estilo, el TileJSON,
+ * el sprite y las fuentes—. `trimCache` borra por orden de inserción, y el
+ * paquete entra al instalar, así que era lo primero en caer: al pasar de
+ * `TILES_MAX_ENTRIES` el mapa se quedaba sin estilo, y sin estilo no hay mapa
+ * ni pines —las capas se crean en su `load`— hasta que la red lo devolvía. En
+ * conexión lenta eso era el hueco en blanco de varios segundos; sin conexión,
+ * el hueco para siempre.
+ *
+ * Se recorre de lo más antiguo a lo más nuevo y se saltan las entradas que no
+ * son teselas: el paquete se queda, se recorta el resto.
+ */
+async function trimTeselas() {
+  const cache = await caches.open(TILES_CACHE);
+  const keys = await cache.keys();
+  if (keys.length <= TILES_MAX_ENTRIES) return;
+
+  let sobran = keys.length - TILES_MAX_ENTRIES;
+  for (const key of keys) {
+    if (sobran <= 0) return;
+    let esTesela = false;
+    try {
+      esTesela = new URL(key.url).pathname.startsWith("/planet/");
+    } catch {
+      esTesela = false;
+    }
+    if (!esTesela) continue;
+    await cache.delete(key);
+    sobran -= 1;
   }
 }
 
