@@ -5,7 +5,11 @@ import { isAdminRequest } from "@/lib/admin-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
 import { packsMedida, places } from "@/lib/db/schema";
-import { funcionesDeServicios, precioSugeridoPack } from "@/lib/pack-medida";
+import {
+  funcionesDeServicios,
+  precioSugeridoPack,
+  serviciosEfectivos,
+} from "@/lib/pack-medida";
 import { cancelarFacturasDePack } from "@/lib/facturas-server";
 import { MODULOS, PACKS } from "@/lib/plans";
 import type { PackMedidaEstado } from "@/lib/db/schema/packs_medida";
@@ -101,12 +105,14 @@ export async function PATCH(
 
   /* Servicios → recalcular funciones y precio sugerido. */
   if (Array.isArray(body.servicios)) {
-    const servicios = (body.servicios as unknown[])
+    const serviciosBrutos = (body.servicios as unknown[])
       .filter((s): s is string => typeof s === "string" && SERVICIOS_VALIDOS.has(s))
       .slice(0, 50);
+    /* Con «Reservas y pedidos» dentro, Menú Pro no se guarda ni se cobra aparte. */
+    const servicios = serviciosEfectivos(serviciosBrutos);
     const cat = await cargarCatalogo();
     const funciones = funcionesDeServicios(servicios, cat);
-    const { precioUsd: sugerido } = precioSugeridoPack(servicios, cat);
+    const { precioUsd: sugerido } = precioSugeridoPack(serviciosBrutos, cat);
     cambios.servicios = servicios;
     cambios.funciones = funciones;
     cambios.precioSugeridoUsd = sugerido || null;

@@ -36,7 +36,12 @@ function aplicarDescuento(usd: number, pct: number | null | undefined) {
       : 0;
   return { original: usd, final: p === 0 ? usd : Math.round(usd * (1 - p / 100) * 100) / 100 };
 }
-import type { PackMedidaResumen } from "@/lib/pack-medida";
+import {
+  MENU_PRO,
+  PEDIDOS_RESERVAS,
+  precioSugeridoPack,
+  type PackMedidaResumen,
+} from "@/lib/pack-medida";
 import { useCatalogo } from "@/providers/catalogo-provider";
 import { PackMedidaCard } from "@/components/business/pack-medida-card";
 import { TasaCambioNota } from "@/components/pricing/tasa-cambio-nota";
@@ -451,10 +456,20 @@ export function PlansSection({
                     lema={cat.modulos[clave].lema}
                     usd={cat.modulos[clave].usd}
                     marcada={serviciosPack.includes(clave)}
+                    incluido={
+                      clave === MENU_PRO && serviciosPack.includes(PEDIDOS_RESERVAS)
+                    }
                     onCambiar={(marcada) =>
-                      setServiciosPack((prev) =>
-                        marcada ? [...prev, clave] : prev.filter((s) => s !== clave),
-                      )
+                      setServiciosPack((prev) => {
+                        if (!marcada) return prev.filter((s) => s !== clave);
+                        /* Reservas y pedidos ya trae el Menú Pro: se pide solo
+                           uno de los dos para no pagar dos veces lo mismo. */
+                        const base =
+                          clave === PEDIDOS_RESERVAS
+                            ? prev.filter((s) => s !== MENU_PRO)
+                            : prev;
+                        return [...base, clave];
+                      })
                     }
                   />
                 ))}
@@ -469,7 +484,7 @@ export function PlansSection({
             <p aria-live="polite" className="mb-gap-xs text-center text-meta text-ink-soft/75">
               {serviciosPack.length === 0
                 ? "Marca al menos un servicio para pedir el precio."
-                : `${serviciosPack.length} ${serviciosPack.length === 1 ? "elegido" : "elegidos"} · por separado suman ${formatoUsd(sumaUsd(serviciosPack, cat))} USD al mes`}
+                : `${serviciosPack.length} ${serviciosPack.length === 1 ? "elegido" : "elegidos"} · por separado suman ${formatoUsd(precioSugeridoPack(serviciosPack, cat).precioUsd)} USD al mes`}
             </p>
             <button
               type="button"
@@ -737,6 +752,13 @@ function ModuloTile({
 
       <ListaLineas texto={modulo.texto} />
 
+      {clave === MENU_PRO && (
+        <p className="mt-gap-md rounded-xl border border-verde-200 bg-verde-50/60 p-gap-xs text-meta leading-relaxed text-verde-900">
+          Si contratas Reservas y pedidos, este módulo va incluido: no se cobra
+          aparte.
+        </p>
+      )}
+
       {dependencia && (
         <div className="mt-gap-md rounded-xl border border-amber-200 bg-amber-50 p-gap-xs">
           <p className="font-lv-display text-meta font-semibold text-amber-800">
@@ -948,15 +970,6 @@ function Precio({ usd, original }: { usd: number; original?: number }) {
 
 /* ── Diálogo de pack a medida ─────────────────────────────────────────────── */
 
-/** Suma de lo marcado, cada pieza a su precio suelto. */
-function sumaUsd(claves: readonly string[], cat: Catalogo): number {
-  return claves.reduce((total, clave) => {
-    if (clave in cat.modulos) return total + cat.modulos[clave as ClaveModulo].usd;
-    if (clave in cat.packs) return total + cat.packs[clave as Pack].usd;
-    return total;
-  }, 0);
-}
-
 /** «1,5» y «10»: coma decimal y sin ceros sobrantes, como en las tarjetas. */
 function formatoUsd(usd: number): string {
   return Number.isInteger(usd) ? String(usd) : usd.toFixed(1).replace(".", ",");
@@ -987,24 +1000,31 @@ function OpcionPack({
   lema,
   usd,
   marcada,
+  incluido = false,
   onCambiar,
 }: {
   nombre: string;
   lema: string;
   usd: number;
   marcada: boolean;
+  /** Ya viene dentro de otro servicio marcado: no se puede pedir aparte. */
+  incluido?: boolean;
   onCambiar: (marcada: boolean) => void;
 }) {
   return (
     <label
       className={cn(
-        "flex min-h-12 cursor-pointer items-start gap-gap-sm rounded-xl border p-gap-sm transition-colors duration-200 ease-outquint focus-within:ring-2 focus-within:ring-verde-400/40",
-        marcada ? "border-verde-300 bg-verde-50" : "border-ink/10 bg-white hover:border-ink/20",
+        "flex min-h-12 items-start gap-gap-sm rounded-xl border p-gap-sm transition-colors duration-200 ease-outquint focus-within:ring-2 focus-within:ring-verde-400/40",
+        incluido && "cursor-default",
+        marcada || incluido
+          ? "border-verde-300 bg-verde-50"
+          : "border-ink/10 bg-white hover:border-ink/20",
       )}
     >
       <input
         type="checkbox"
-        checked={marcada}
+        checked={incluido || marcada}
+        disabled={incluido}
         onChange={(e) => onCambiar(e.target.checked)}
         className="mt-[2px] size-5 shrink-0 accent-verde-500"
       />
@@ -1012,7 +1032,7 @@ function OpcionPack({
         <span className="flex items-baseline justify-between gap-gap-xs">
           <span className="font-lv-display text-small font-semibold text-ink">{nombre}</span>
           <span className="shrink-0 text-meta tabular-nums text-ink-soft/75">
-            {formatoUsd(usd)} USD
+            {incluido ? "Incluido" : `${formatoUsd(usd)} USD`}
           </span>
         </span>
         <span className="mt-[2px] block text-meta leading-snug text-ink-soft/75">{lema}</span>

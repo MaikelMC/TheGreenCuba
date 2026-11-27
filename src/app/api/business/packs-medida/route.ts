@@ -5,6 +5,7 @@ import { getAppUser } from "@/lib/auth/user";
 import { db } from "@/lib/db";
 import { notifications, packsMedida } from "@/lib/db/schema";
 import { MODULOS, PACKS } from "@/lib/plans";
+import { serviciosEfectivos } from "@/lib/pack-medida";
 import { packMedidaDe } from "@/lib/plans-server";
 import { generateId } from "@/lib/utils";
 
@@ -67,11 +68,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const serviciosSolicitados = Array.isArray(body.serviciosSolicitados)
-    ? (body.serviciosSolicitados as unknown[])
-        .filter((s): s is string => typeof s === "string" && SERVICIOS_VALIDOS.has(s))
-        .slice(0, 50)
-    : [];
+  const serviciosSolicitados = serviciosEfectivos(
+    Array.isArray(body.serviciosSolicitados)
+      ? (body.serviciosSolicitados as unknown[])
+          .filter((s): s is string => typeof s === "string" && SERVICIOS_VALIDOS.has(s))
+          .slice(0, 50)
+      : [],
+  );
 
   if (serviciosSolicitados.length === 0) {
     return NextResponse.json(

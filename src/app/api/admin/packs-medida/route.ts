@@ -5,7 +5,11 @@ import { isAdminRequest } from "@/lib/admin-server";
 import { cargarCatalogo } from "@/lib/catalogo-server";
 import { db } from "@/lib/db";
 import { packsMedida, places } from "@/lib/db/schema";
-import { funcionesDeServicios, precioSugeridoPack } from "@/lib/pack-medida";
+import {
+  funcionesDeServicios,
+  precioSugeridoPack,
+  serviciosEfectivos,
+} from "@/lib/pack-medida";
 import { MODULOS, PACKS } from "@/lib/plans";
 import { generateId } from "@/lib/utils";
 
@@ -118,15 +122,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Falta negocioId" }, { status: 400 });
   }
 
-  const servicios = Array.isArray(body.servicios)
+  const serviciosBrutos = Array.isArray(body.servicios)
     ? (body.servicios as unknown[])
         .filter((s): s is string => typeof s === "string" && SERVICIOS_VALIDOS.has(s))
         .slice(0, 50)
     : [];
+  /* Con «Reservas y pedidos» dentro, Menú Pro no se guarda ni se cobra aparte. */
+  const servicios = serviciosEfectivos(serviciosBrutos);
 
   const cat = await cargarCatalogo();
   const funciones = funcionesDeServicios(servicios, cat);
-  const { precioUsd: sugerido } = precioSugeridoPack(servicios, cat);
+  const { precioUsd: sugerido } = precioSugeridoPack(serviciosBrutos, cat);
 
   const precioUsd =
     typeof body.precioUsd === "number" && body.precioUsd >= 0

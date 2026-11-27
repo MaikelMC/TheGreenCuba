@@ -8,7 +8,12 @@ import { FacturaLinkDialog } from "@/components/admin/factura-link-dialog";
 import type { FacturaResumen } from "@/lib/facturas";
 import { FormSection } from "@/components/business/form-section";
 import { MODULOS, PACKS, PACKS_ORDER, type ClaveModulo, type Pack } from "@/lib/plans";
-import { nombreServicio } from "@/lib/pack-medida";
+import {
+  MENU_PRO,
+  PEDIDOS_RESERVAS,
+  nombreServicio,
+  precioSugeridoPack,
+} from "@/lib/pack-medida";
 import { useCatalogo } from "@/providers/catalogo-provider";
 
 interface PackAdmin {
@@ -111,11 +116,20 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
   const sugerido = pack?.precioSugeridoUsd;
   const precioFinal = Number(precioTexto.replace(",", "."));
   const precioValido = Number.isFinite(precioFinal) && precioFinal >= 0;
+  /* Lo que suman los servicios marcados a precio de lista. El Menú Pro que ya
+     viene en «Reservas y pedidos» no cuenta: se cobraría dos veces. */
+  const precioLista = precioSugeridoPack(servicios, cat).precioUsd;
+  const conPedidos = servicios.includes(PEDIDOS_RESERVAS);
 
   function toggleServicio(clave: string) {
-    setServicios((prev) =>
-      prev.includes(clave) ? prev.filter((s) => s !== clave) : [...prev, clave],
-    );
+    setServicios((prev) => {
+      if (prev.includes(clave)) return prev.filter((s) => s !== clave);
+      /* «Reservas y pedidos» ya trae el Menú Pro entero: marcar los dos sería
+         cobrarlo dos veces. Menú Pro sigue suelto para quien no quiere pedidos. */
+      const base =
+        clave === PEDIDOS_RESERVAS ? prev.filter((s) => s !== MENU_PRO) : prev;
+      return [...base, clave];
+    });
   }
 
   /** Un `PATCH`/`POST` y su aviso. `clave` marca qué botón gira. */
@@ -308,18 +322,35 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
       <div className="flex flex-col gap-gap-xs">
         <span className={LABEL}>Módulos incluidos</span>
         <div className="grid grid-cols-1 gap-gap-xs sm:grid-cols-2">
-          {SERVICIOS_MODULOS.map((clave) => (
-            <label key={clave} className={cn("flex min-h-11 cursor-pointer items-center gap-gap-xs text-small text-ink", soloLectura && "cursor-default opacity-60")}>
-              <input
-                type="checkbox"
-                checked={servicios.includes(clave)}
-                onChange={() => !soloLectura && toggleServicio(clave)}
-                disabled={soloLectura}
-                className="size-4 shrink-0 accent-verde-500"
-              />
-              {cat.modulos[clave].nombre}
-            </label>
-          ))}
+          {SERVICIOS_MODULOS.map((clave) => {
+            /* Con Reservas y pedidos marcado, Menú Pro ya va dentro. */
+            const incluido = clave === MENU_PRO && conPedidos;
+            const bloqueado = soloLectura || incluido;
+            return (
+              <label
+                key={clave}
+                className={cn(
+                  "flex min-h-11 items-center gap-gap-xs text-small text-ink",
+                  incluido ? "cursor-default" : "cursor-pointer",
+                  soloLectura && "cursor-default opacity-60",
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={servicios.includes(clave) || incluido}
+                  onChange={() => !bloqueado && toggleServicio(clave)}
+                  disabled={bloqueado}
+                  className="size-4 shrink-0 accent-verde-500"
+                />
+                <span className="flex flex-1 items-baseline justify-between gap-gap-xs">
+                  <span>{cat.modulos[clave].nombre}</span>
+                  <span className="shrink-0 text-meta tabular-nums text-ink-soft/75">
+                    {incluido ? "Incluido" : `${cat.modulos[clave].usd} USD`}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
         </div>
       </div>
 
@@ -335,11 +366,25 @@ export function PackMedidaEditor({ placeId }: { placeId: string }) {
                 disabled={soloLectura}
                 className="size-4 shrink-0 accent-verde-500"
               />
-              {cat.packs[clave].nombre}
+              <span className="flex flex-1 items-baseline justify-between gap-gap-xs">
+                <span>{cat.packs[clave].nombre}</span>
+                <span className="shrink-0 text-meta tabular-nums text-ink-soft/75">
+                  {cat.packs[clave].usd} USD
+                </span>
+              </span>
             </label>
           ))}
         </div>
       </div>
+
+      <p className="text-meta text-ink-soft/75">
+        Lo marcado suma{" "}
+        <span className="font-semibold text-ink tabular-nums">
+          {precioLista.toLocaleString("es-CU")} USD
+        </span>{" "}
+        al mes a precio de lista
+        {conPedidos && ", con el Menú Pro incluido en Reservas y pedidos"}.
+      </p>
 
       <div className="grid grid-cols-1 gap-gap-md sm:grid-cols-2">
         <div className="flex flex-col gap-gap-xs">

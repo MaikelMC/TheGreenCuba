@@ -329,6 +329,114 @@ export const MODULOS = {
 
 export type ClaveModulo = keyof typeof MODULOS;
 
+/* ── Los módulos en la propuesta ────────────────────────────────────────────
+   Cómo se cuenta cada módulo en la propuesta del pack a medida: una promesa en
+   una línea, en lenguaje de resultado, y debajo los detalles. Solo entra lo que
+   está en producción; lo que aún no existe sale de `funciones` con
+   `disponible: false` (o de `proximamente`) y va a un bloque aparte que no
+   forma parte del precio.
+
+   `requiere` no es una ventaja: es una condición. La propuesta no se emite si
+   el módulo requerido no va en el pack, y cuando va se enseña como nota
+   pequeña, nunca como línea de la lista. */
+
+export interface ModuloPropuesta {
+  beneficio: string;
+  detalles: readonly string[];
+  /** Aclaración pequeña bajo los detalles. */
+  nota?: string;
+  /** Módulo sin el que este no funciona. */
+  requiere?: ClaveModulo;
+  /** Lo que se anuncia pero no es una función del catálogo. */
+  proximamente?: readonly string[];
+}
+
+export const PROPUESTA_MODULOS: Record<ClaveModulo, ModuloPropuesta> = {
+  menu_pro: {
+    beneficio: "Tu carta online con QR y todos los productos que quieras.",
+    detalles: [
+      "QR listo para imprimir como sticker",
+      "Productos ilimitados",
+      "Sección de ofertas y novedades en tu carta",
+    ],
+  },
+  pedidos_reservas: {
+    beneficio:
+      "Te llegan los pedidos ordenados por WhatsApp y controlas las reservas.",
+    detalles: [
+      "Pedidos por WhatsApp desde tu carta",
+      "Reservas según la capacidad de tu local",
+      "Horario de cocina y pausa cuando lo necesites",
+    ],
+    nota: "Incluye todo lo de Menú Pro.",
+  },
+  facebook: {
+    beneficio:
+      "Una publicación lista cada semana, escrita con IA a partir de tus productos.",
+    detalles: [
+      "Texto del post generado con IA",
+      "Usa los productos de tu carta como referencia",
+      "1 publicación por semana",
+    ],
+  },
+  facebook_3: {
+    beneficio:
+      "Tres publicaciones listas cada semana, escritas con IA a partir de tus productos.",
+    detalles: [
+      "Texto del post generado con IA",
+      "Usa los productos de tu carta como referencia",
+      "3 publicaciones por semana",
+    ],
+  },
+  eventos: {
+    beneficio: "Avisa de tus novedades a quien sigue tu negocio.",
+    detalles: [
+      "Avisos a los usuarios conectados con tu negocio sobre tus novedades",
+    ],
+  },
+  pedidos_programados: {
+    beneficio: "Tus clientes piden para la hora que quieran, hoy o mañana.",
+    detalles: [
+      "Pedidos por franja horaria, hoy y días siguientes",
+      "Un código corto en cada pedido para encontrarlo en WhatsApp",
+      "Aviso por Telegram antes de cada pedido",
+    ],
+    requiere: "pedidos_reservas",
+  },
+  cliente_frecuente: {
+    beneficio: "Premia a los que repiten con una tarjeta de sellos en el móvil.",
+    detalles: [
+      "Sellos automáticos al entregar un pedido",
+      "Premios por número de compras, con canje y ajustes",
+      "Pasa a digital las tarjetas de papel que ya usas",
+    ],
+    requiere: "pedidos_reservas",
+  },
+  telegram_botones: {
+    beneficio:
+      "Cambia tu menú y el estado de tu negocio con botones, sin escribir.",
+    detalles: [
+      "Consulta y edita tu menú al instante",
+      /* El bot abre y cierra el negocio (`/abrir`, `/cerrar`) y pausa la
+         cocina (`/cocina`); no hay una «pausa» del negocio entero. */
+      "Abre o cierra tu negocio y pausa la cocina",
+      "Todo con botones dentro del chat",
+    ],
+  },
+  asistente_telegram: {
+    beneficio:
+      "Escríbele a tu negocio como a una persona: «se acabó el pan» y listo.",
+    detalles: [
+      "Todo lo del agente con botones",
+      "Entiende mensajes en lenguaje natural",
+      "Responde con IA tus consultas sobre el negocio",
+    ],
+    /* El bot entiende cada mensaje por separado (ver «Sin historial» en
+       `asistente-server.ts`). */
+    proximamente: ["Memoria de la conversación"],
+  },
+};
+
 /* ── Los packs ──────────────────────────────────────────────────────────────
    Cada pack es una **lista de funciones**, no una composición de módulos. Los
    módulos sueltos se siguen vendiendo por su cuenta, pero un pack nombra lo que

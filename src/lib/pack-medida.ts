@@ -19,6 +19,38 @@ import type { PackMedidaEstado } from "@/lib/db/schema/packs_medida";
 
 export type { PackMedidaEstado };
 
+/* ── Servicios que ya vienen dentro de otro ─────────────────────────────── */
+
+/** El catálogo suelto: se vende aparte para quien no quiere pedidos. */
+export const MENU_PRO = "menu_pro";
+
+/** El módulo que trae «Todo el Menú Pro» dentro. */
+export const PEDIDOS_RESERVAS = "pedidos_reservas";
+
+/**
+ * Si la lista elegida ya trae el Menú Pro dentro.
+ *
+ * «Reservas y pedidos» incluye el Menú Pro entero (catálogo, QR, fotos
+ * ilimitadas, ofertas), así que marcar los dos y cobrarlos por separado es
+ * cobrar dos veces lo mismo. La tarjeta de Menú Pro se mantiene suelta para
+ * quien solo quiere catálogo, sin pedidos.
+ */
+export function menuProIncluido(servicios: readonly string[]): boolean {
+  return servicios.includes(PEDIDOS_RESERVAS);
+}
+
+/**
+ * La lista de servicios sin el Menú Pro cuando ya va incluido, y sin repetidos.
+ *
+ * Es lo que se guarda y lo que se suma: si viene «Reservas y pedidos»,
+ * «Menú Pro» sobra. Sin pedidos, Menú Pro sigue siendo un servicio con su
+ * precio propio.
+ */
+export function serviciosEfectivos(servicios: readonly string[]): string[] {
+  const unicos = [...new Set(servicios)];
+  return menuProIncluido(unicos) ? unicos.filter((s) => s !== MENU_PRO) : unicos;
+}
+
 /* ── Precio sugerido ────────────────────────────────────────────────────── */
 
 export interface PrecioSugerido {
@@ -39,6 +71,8 @@ export interface PrecioSugerido {
  * módulos sueltos se suma directamente su precio. Para los packs estándar
  * se suma el precio del pack y se añade una nota al administrador.
  *
+ * El Menú Pro que ya trae «Reservas y pedidos» no se suma otra vez.
+ *
  * Esta función es la referencia del formulario: el admin ve lo que costaría
  * contratar esos servicios por separado y fija el precio final a mano.
  */
@@ -46,12 +80,21 @@ export function precioSugeridoPack(
   servicios: string[],
   cat: Catalogo = CATALOGO,
 ): PrecioSugerido {
-  const claves = [...new Set(servicios)];
+  const todas = [...new Set(servicios)];
+  const claves = serviciosEfectivos(todas);
   const clavesMod = new Set(Object.keys(cat.modulos));
   const clavesPack = new Set(Object.keys(cat.packs));
 
   let precioUsd = 0;
   const notas: string[] = [];
+
+  /* El dueño puede haber marcado Menú Pro y Reservas y pedidos a la vez: el
+     segundo ya lo trae, así que solo se cobra una vez y se avisa. */
+  if (todas.includes(MENU_PRO) && menuProIncluido(todas)) {
+    notas.push(
+      `«${cat.modulos.menu_pro.nombre}» va incluido en «${cat.modulos.pedidos_reservas.nombre}»: no se suma aparte.`,
+    );
+  }
 
   for (const clave of claves) {
     if (clavesMod.has(clave)) {

@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const emitida = packId
-      ? await crearFacturaPack(packId, user?.id ?? null)
+      ? await crearFacturaPack(packId, user?.id ?? null, user?.name ?? null)
       : plan
         ? await crearFacturaPlan(
             negocioId,

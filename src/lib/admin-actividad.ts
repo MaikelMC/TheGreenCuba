@@ -51,6 +51,8 @@ export const ACCION = {
   editarPack: "editar_pack",
   crearFactura: "crear_factura",
   aceptarFactura: "aceptar_factura",
+  guardarMetodoFactura: "guardar_metodo_factura",
+  avisarPagoFactura: "avisar_pago_factura",
   confirmarFactura: "confirmar_factura",
   cancelarFactura: "cancelar_factura",
   aprobarProyecto: "aprobar_proyecto",
