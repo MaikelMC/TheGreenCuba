@@ -109,55 +109,6 @@ export function FacturasPanel({
     }
   }
 
-  function getBotonesAccion(
-    factura: FacturaResumen,
-    procesando: string | null,
-  ): React.ReactNode[] {
-    const resultado: React.ReactNode[] = [];
-
-    // Botón Confirmar pago solo para aceptadas o en_revision
-    if (["aceptada", "en_revision"].includes(factura.estado)) {
-      resultado.push(
-        <button
-          type="button"
-          onClick={() => void accion(factura.id, "confirmar")}
-          disabled={procesando !== null}
-          className="inline-flex h-10 items-center gap-gap-xs rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 transition hover:bg-verde-300 disabled:opacity-60"
-          aria-label="Confirmar el pago y activar el servicio"
-        >
-          {procesando === `confirmar:${factura.id}` ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : (
-            <CheckCircle2 size={14} />
-          )}
-          Confirmar pago
-        </button>,
-      );
-    }
-
-    // Botón Cancelar para pendiente, aceptada o en_revision
-    if (["pendiente", "aceptada", "en_revision"].includes(factura.estado)) {
-      resultado.push(
-        <button
-          type="button"
-          onClick={() => void accion(factura.id, "cancelar")}
-          disabled={procesando !== null}
-          className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition:hover:border-destructive/30:hover:text-destructive disabled:opacity-60"
-          aria-label="Cancelar esta propuesta"
-        >
-          {procesando === `cancelar:${factura.id}` ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : (
-            <XCircle size={14} />
-          )}
-          Cancelar
-        </button>,
-      );
-    }
-
-    return resultado;
-  }
-
   return (
     <div className="flex flex-col gap-gap-lg">
       <header className="flex flex-wrap items-end justify-between gap-gap-sm">
@@ -279,7 +230,7 @@ export function FacturasPanel({
                       href={enlace}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition:hover:border-verde-300:hover:text-verde-700"
+                      className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition hover:border-verde-300 hover:text-verde-700"
                       aria-label="Abrir factura en nueva pestaña"
                     >
                       <ExternalLink size={14} /> Abrir
@@ -287,7 +238,7 @@ export function FacturasPanel({
                     <button
                       type="button"
                       onClick={() => void copiar(factura.id)}
-                      className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition:hover:border-verde-300:hover:text-verde-700"
+                      className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition hover:border-verde-300 hover:text-verde-700"
                       aria-label="Copiar enlace de la factura"
                     >
                       <Copy size={14} /> Copiar enlace
@@ -297,7 +248,7 @@ export function FacturasPanel({
                         type="button"
                         onClick={() => void accion(factura.id, "confirmar")}
                         disabled={procesando !== null}
-                        className="inline-flex h-10 items-center gap-gap-xs rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 transition:hover:bg-verde-300 disabled:opacity-60"
+                        className="inline-flex h-10 items-center gap-gap-xs rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 transition hover:bg-verde-300 disabled:opacity-60"
                         aria-label="Confirmar el pago y activar el servicio"
                       >
                         {procesando === `confirmar:${factura.id}` ? (
@@ -315,7 +266,7 @@ export function FacturasPanel({
                         type="button"
                         onClick={() => void accion(factura.id, "cancelar")}
                         disabled={procesando !== null}
-                        className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition:hover:border-destructive/30:hover:text-destructive disabled:opacity-60"
+                        className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition hover:border-destructive/30 hover:text-destructive disabled:opacity-60"
                         aria-label="Cancelar esta propuesta"
                       >
                         {procesando === `cancelar:${factura.id}` ? (

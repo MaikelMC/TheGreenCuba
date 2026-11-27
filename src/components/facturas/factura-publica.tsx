@@ -2,13 +2,26 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Download, Loader2, Play, Printer, Receipt } from "lucide-react";
+import {
+  CheckCircle2,
+  Download,
+  Loader2,
+  Play,
+  Printer,
+  Receipt,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   FACTURA_ESTADO,
+  METODO_PAGO,
+  formatoCup,
   formatoUsd,
+  lineaTasa,
+  usdACup,
+  type FacturaMetodoPago,
   type FacturaResumen,
 } from "@/lib/facturas";
+import type { DatosPago } from "@/lib/pagos-config";
 import { cn } from "@/lib/utils";
 
 const FECHA = new Intl.DateTimeFormat("es-CU", {
@@ -29,12 +42,17 @@ const ESTADO_CLASE: Record<FacturaResumen["estado"], string> = {
   cancelada: "border-ink/10 bg-sand text-ink-soft/75",
 };
 
+export interface PagoFactura {
+  datos: DatosPago;
+  metodos: FacturaMetodoPago[];
+}
+
 function escapar(texto: string): string {
   return texto
-    .replaceAll("&", "&")
-    .replaceAll("<", "<")
-    .replaceAll(">", ">")
-    .replaceAll('"', '"');
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 function htmlFactura(factura: FacturaResumen): string {
@@ -127,28 +145,38 @@ function descargar(factura: FacturaResumen) {
  * La cara pública de una factura.
  *
  * Se abre sin sesión desde el enlace que administración comparte. El botón
- * «Empezar» registra la aceptación; el pago y la activación los confirma
- * administración. Después de aceptar, el cliente puede descargar su copia.
+ * «Empezar» registra la aceptación; después el negocio elige un método de pago
+ * entre los que el servidor permite para su provincia y avisa cuando paga.
+ * Administración confirma y solo entonces se activa el servicio.
  */
 export function FacturaPublica({
   factura: inicial,
+  pago,
 }: {
   factura: FacturaResumen;
+  pago: PagoFactura;
 }) {
   const [factura, setFactura] = useState(inicial);
   const [aceptando, setAceptando] = useState(false);
+  const [guardandoMetodo, setGuardandoMetodo] = useState(false);
+  const [avisando, setAvisando] = useState(false);
+  const [cambiandoMetodo, setCambiandoMetodo] = useState(false);
 
   const estado = FACTURA_ESTADO[factura.estado];
-  const puedeDescargar =
-    factura.estado === "aceptada" || factura.estado === "pagada";
+  const tasa = factura.tasaCup;
+  const cup = tasa !== null ? usdACup(factura.precioUsd, tasa) : null;
+  const fechaTasa = new Date(
+    factura.pagadaEn ?? factura.avisoPagoEn ?? factura.creadoEn,
+  );
 
   async function empezar() {
     if (aceptando || factura.estado !== "pendiente") return;
     setAceptando(true);
     try {
-      const res = await fetch(`/api/facturas/${encodeURIComponent(factura.id)}/aceptar`, {
-        method: "POST",
-      });
+      const res = await fetch(
+        `/api/facturas/${encodeURIComponent(factura.id)}/aceptar`,
+        { method: "POST" },
+      );
       const data = (await res.json().catch(() => null)) as {
         factura?: FacturaResumen;
         error?: string;
@@ -166,23 +194,113 @@ export function FacturaPublica({
     }
   }
 
+  async function elegirMetodo(metodo: FacturaMetodoPago) {
+    if (guardandoMetodo) return;
+    setGuardandoMetodo(true);
+    try {
+      const res = await fetch(
+        `/api/facturas/${encodeURIComponent(factura.id)}/metodo`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ metodo }),
+        },
+      );
+      const data = (await res.json().catch(() => null)) as {
+        factura?: FacturaResumen;
+        error?: string;
+      } | null;
+      if (!res.ok || !data?.factura) {
+        toast.error(data?.error ?? "No se pudo guardar el método de pago.");
+        return;
+      }
+      setFactura(data.factura);
+      setCambiandoMetodo(false);
+      toast.success("Método de pago guardado.");
+    } catch {
+      toast.error("No hubo respuesta del servidor.");
+    } finally {
+      setGuardandoMetodo(false);
+    }
+  }
+
+  async function avisarPago() {
+    if (avisando || factura.estado !== "aceptada") return;
+    setAvisando(true);
+    try {
+      const res = await fetch(
+        `/api/facturas/${encodeURIComponent(factura.id)}/pago`,
+        { method: "POST" },
+      );
+      const data = (await res.json().catch(() => null)) as {
+        factura?: FacturaResumen;
+        error?: string;
+      } | null;
+      if (!res.ok || !data?.factura) {
+        toast.error(data?.error ?? "No se pudo registrar el aviso de pago.");
+        return;
+      }
+      setFactura(data.factura);
+      toast.success("Aviso enviado. Administración revisará el pago.");
+    } catch {
+      toast.error("No hubo respuesta del servidor.");
+    } finally {
+      setAvisando(false);
+    }
+  }
+
+  function instrucciones(metodo: FacturaMetodoPago): React.ReactNode {
+    const info = METODO_PAGO[metodo];
+    let detalle: string;
+
+    if (metodo === "qvapay" && pago.datos.qvapay) {
+      detalle = `Envía ${formatoUsd(factura.precioUsd)} USD a @${pago.datos.qvapay.usuario} en QvaPay y guarda el comprobante.`;
+    } else if (metodo === "transferencia" && pago.datos.transferencia) {
+      detalle = `Transfiere ${
+        cup !== null ? `${formatoCup(cup)} CUP` : "el importe en CUP"
+      } a la tarjeta ${pago.datos.transferencia.tarjeta}, a nombre de ${
+        pago.datos.transferencia.titular
+      }. Guarda el comprobante.`;
+    } else if (metodo === "efectivo") {
+      detalle =
+        "Coordina el pago en efectivo con administración en Santiago de Cuba.";
+    } else {
+      detalle =
+        "Los datos de este método no están configurados. Escríbenos para coordinar el pago.";
+    }
+
+    return (
+      <div className="rounded-2xl border border-ink/5 bg-white p-gap-sm">
+        <p className="font-lv-display text-small font-semibold text-ink">
+          {info.etiqueta}
+        </p>
+        <p className="mt-gap-2xs text-small text-ink-soft/80">{detalle}</p>
+        {metodo !== "efectivo" && (
+          <p className="mt-gap-2xs text-meta text-ink-soft/60">
+            Cuando hayas pagado, pulsa «Ya pagué» para avisarnos.
+          </p>
+        )}
+      </div>
+    );
+  }
+
   function getAccionesEstado(): React.ReactNode {
-    // Renderiza la barra inferior con acciones según el estado actual
     switch (factura.estado) {
       case "pendiente": {
         return (
           <>
-            <p className="mt-gap-sm text-meta text-ink-soft/70" aria-live="polite">
-              Al pulsar "Empezar" confirmas la compra de este plan. El acceso
-              se activa cuando administración confirme el pago.
+            <p
+              className="mt-gap-sm text-meta text-ink-soft/70"
+              aria-live="polite"
+            >
+              Al pulsar «Empezar» confirmas la compra de este plan. El acceso se
+              activa cuando administración confirme el pago.
             </p>
             <button
               type="button"
               onClick={() => void empezar()}
               disabled={aceptando}
-              aria-label={
-                aceptando ? "Confirmando..." : "Empezar propuesta"
-              }
+              aria-label={aceptando ? "Confirmando…" : "Empezar propuesta"}
               className="mt-gap-sm flex h-12 w-full items-center justify-center gap-gap-xs rounded-full bg-verde-400 font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition hover:bg-verde-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {aceptando ? (
@@ -196,31 +314,111 @@ export function FacturaPublica({
         );
       }
 
-      case "aceptada":
+      case "aceptada": {
+        const elegido = factura.metodoPago;
+        const mostrarSelector = !elegido || cambiandoMetodo;
+
+        return (
+          <>
+            <p
+              className="mt-gap-sm text-meta text-ink-soft/70"
+              aria-live="polite"
+            >
+              {elegido
+                ? "Paga con el método elegido y avísanos cuando lo hayas hecho."
+                : "Elige cómo vas a pagar. Te enseñamos los datos al momento."}
+            </p>
+
+            {mostrarSelector ? (
+              pago.metodos.length === 0 ? (
+                <p className="mt-gap-sm rounded-2xl border border-ink/5 bg-white p-gap-sm text-small text-ink-soft/80">
+                  No hay métodos de pago configurados ahora mismo. Escríbenos
+                  para coordinar el pago.
+                </p>
+              ) : (
+                <div className="mt-gap-sm flex flex-col gap-gap-xs">
+                  {pago.metodos.map((metodo) => {
+                    const info = METODO_PAGO[metodo];
+                    return (
+                      <button
+                        key={metodo}
+                        type="button"
+                        onClick={() => void elegirMetodo(metodo)}
+                        disabled={guardandoMetodo}
+                        aria-label={`Elegir ${info.etiqueta}`}
+                        className="flex items-center justify-between gap-gap-sm rounded-2xl border border-ink/10 bg-white px-gap-sm py-gap-xs text-left transition hover:border-verde-300 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <span>
+                          <span className="block font-lv-display text-small font-semibold text-ink">
+                            {info.etiqueta}
+                          </span>
+                          <span className="block text-meta text-ink-soft/65">
+                            {info.descripcion}
+                          </span>
+                        </span>
+                        {guardandoMetodo && (
+                          <Loader2
+                            size={15}
+                            className="shrink-0 animate-spin text-verde-600"
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )
+            ) : (
+              elegido && (
+                <div className="mt-gap-sm flex flex-col gap-gap-sm">
+                  {instrucciones(elegido)}
+                  <button
+                    type="button"
+                    onClick={() => void avisarPago()}
+                    disabled={avisando}
+                    aria-label="Avisar de que ya pagué"
+                    className="inline-flex h-11 items-center justify-center gap-gap-xs rounded-full bg-verde-400 px-gap-sm font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition hover:bg-verde-300 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {avisando ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <CheckCircle2 size={16} />
+                    )}
+                    {avisando ? "Enviando…" : "Ya pagué"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCambiandoMetodo(true)}
+                    disabled={avisando}
+                    aria-label="Cambiar el método de pago"
+                    className="inline-flex h-10 items-center justify-center rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition hover:border-verde-300 hover:text-verde-700 disabled:opacity-60"
+                  >
+                    Cambiar método
+                  </button>
+                </div>
+              )
+            )}
+          </>
+        );
+      }
+
       case "en_revision": {
         return (
           <>
-            <p className="mt-gap-sm text-meta text-ink-soft/70" aria-live="polite">
-              La propuesta ha sido aceptada. Elige un método de pago para continuar.
+            <p
+              className="mt-gap-sm text-meta text-ink-soft/70"
+              aria-live="polite"
+            >
+              Avisaste del pago
+              {factura.metodoPago
+                ? ` con ${METODO_PAGO[factura.metodoPago].etiqueta}`
+                : ""}
+              . Administración lo confirma en menos de 24 h.
             </p>
-            <div className="mt-gap-sm flex flex-col gap-gap-sm">
-              <button
-                type="button"
-                onClick={() => window.location.href = `/api/facturas/${factura.id}/metodo`}
-                className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-verde-400 px-gap-sm font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition hover:bg-verde-300"
-                aria-label="Elegir método de pago"
-              >
-                <CheckCircle2 size={16} className="mr-2" /> Elegir método de pago
-              </button>
-              <button
-                type="button"
-                onClick={() => window.location.href = `/api/facturas/${factura.id}/pago`}
-                className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-small font-semibold text-ink transition hover:border-verde-300 hover:text-verde-700"
-                aria-label="Avisar paso a revisión"
-              >
-                <Loader2 size={16} className="mr-2" /> Avisar paso a revisión
-              </button>
-            </div>
+            {factura.metodoPago && (
+              <div className="mt-gap-sm">
+                {instrucciones(factura.metodoPago)}
+              </div>
+            )}
           </>
         );
       }
@@ -229,13 +427,15 @@ export function FacturaPublica({
         return (
           <>
             <p className="mt-gap-xs text-meta text-verde-700" aria-live="polite">
-              Pagada el {factura.pagadaEn && FECHA.format(new Date(factura.pagadaEn))}.
+              {factura.pagadaEn
+                ? `Pagada el ${FECHA.format(new Date(factura.pagadaEn))}.`
+                : "Pago confirmado."}
             </p>
-            <div className="mt-gap-sm flex flex-col gap-gap-sm">
+            <div className="mt-gap-sm flex flex-col gap-gap-sm sm:flex-row">
               <button
                 type="button"
                 onClick={() => descargar(factura)}
-                className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-verde-400 px-gap-sm font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition hover:bg-verde-300"
+                className="inline-flex h-11 flex-1 items-center justify-center gap-gap-xs rounded-full bg-verde-400 px-gap-sm font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition hover:bg-verde-300"
                 aria-label="Descargar copia de la factura"
               >
                 <Download size={16} /> Descargar copia
@@ -243,44 +443,31 @@ export function FacturaPublica({
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-small font-semibold text-ink transition:hover:border-verde-300 hover:text-verde-700"
+                className="inline-flex h-11 flex-1 items-center justify-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-small font-semibold text-ink transition hover:border-verde-300 hover:text-verde-700"
                 aria-label="Imprimir factura"
               >
                 <Printer size={16} /> Imprimir
               </button>
             </div>
-            <p className="mt-gap-xs text-meta text-verde-700">
-              Pagada el {factura.pagadaEn && FECHA.format(new Date(factura.pagadaEn))}.
-            </p>
           </>
         );
       }
 
       case "caducada": {
         return (
-          <>
-            <p className="mt-gap-sm text-meta text-ink-soft/70" aria-live="polite">
-              Esta propuesta ha caducado. Solicita una nueva propuesta.
-            </p>
-            <button
-              type="button"
-              onClick={() => window.location.href = "/admin/facturas"}
-              className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-verde-400 px-gap-sm font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition hover:bg-verde-300"
-              aria-label="Solicitar nueva propuesta"
-            >
-              <Play size={17} /> Solicitar nueva propuesta
-            </button>
-          </>
+          <p className="mt-gap-sm text-meta text-ink-soft/70" aria-live="polite">
+            Esta propuesta caducó. Escribe a administración para que te envíen
+            una nueva.
+          </p>
         );
       }
 
       case "cancelada": {
         return (
-          <>
-            <p className="mt-gap-sm text-meta text-ink-soft/70" aria-live="polite">
-              Esta propuesta ha sido cancelada.
-            </p>
-          </>
+          <p className="mt-gap-sm text-meta text-ink-soft/70" aria-live="polite">
+            Esta propuesta fue cancelada. Escribe a administración si quieres
+            retomarla.
+          </p>
         );
       }
 
@@ -380,10 +567,15 @@ export function FacturaPublica({
             <p className="font-lv-display text-h2 font-bold tabular-nums text-ink">
               {formatoUsd(factura.precioUsd)} USD
             </p>
-            {factura.tasaCup !== null && (
-              <p className="text-meta text-ink-soft/65">
-                ≈ {(factura.precioUsd * factura.tasaCup).toLocaleString("es-CU")} CUP
-              </p>
+            {cup !== null && tasa !== null && (
+              <>
+                <p className="text-meta tabular-nums text-ink-soft/65">
+                  ≈ {formatoCup(cup)} CUP
+                </p>
+                <p className="text-meta text-ink-soft/55">
+                  {lineaTasa(tasa, fechaTasa, factura.estado === "pagada")}
+                </p>
+              </>
             )}
           </div>
         </div>
@@ -398,12 +590,6 @@ export function FacturaPublica({
           </p>
 
           {getAccionesEstado()}
-
-          {factura.estado === "pagada" && factura.pagadaEn && (
-            <p className="mt-gap-xs text-meta text-verde-700">
-              Pagada el {FECHA.format(new Date(factura.pagadaEn))}.
-            </p>
-          )}
         </div>
 
         <p className="mt-gap-md text-center text-meta text-ink-soft/55">

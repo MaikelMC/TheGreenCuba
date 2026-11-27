@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
 import { FacturaPublica } from "@/components/facturas/factura-publica";
-import { obtenerFactura } from "@/lib/facturas-server";
+import {
+  contextoPagoFactura,
+  obtenerFactura,
+} from "@/lib/facturas-server";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +21,11 @@ export default async function FacturaPage({
   const factura = await obtenerFactura(id);
   if (!factura) notFound();
 
+  const pago = await contextoPagoFactura(factura);
+
   return (
     <main className="min-h-dvh bg-sand px-gutter py-gap-lg sm:px-gutter-lg">
-      <FacturaPublica factura={factura} />
+      <FacturaPublica factura={factura} pago={pago} />
     </main>
   );
 }

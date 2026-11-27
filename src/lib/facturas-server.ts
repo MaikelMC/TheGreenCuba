@@ -23,7 +23,12 @@ import {
   type FacturaMetodoPago,
   type FacturaResumen,
 } from "@/lib/facturas";
-import { metodoDisponible } from "@/lib/pagos-config";
+import {
+  datosPago,
+  metodoDisponible,
+  metodosDisponibles,
+  type DatosPago,
+} from "@/lib/pagos-config";
 import { generateId } from "@/lib/utils";
 
 /** Error con el estado HTTP que le corresponde, para las rutas. */
@@ -281,6 +286,31 @@ export async function obtenerFactura(
     .where(eq(facturas.id, id))
     .limit(1);
   return fila ? aFacturaResumen(fila) : null;
+}
+
+/**
+ * Lo que la página pública necesita para cobrar: los métodos que se pueden
+ * ofrecer a este negocio (el efectivo solo en Santiago) y los datos de cobro.
+ *
+ * Los datos salen de la configuración del servidor; el navegador solo elige
+ * entre lo que se le ofrece.
+ */
+export interface ContextoPagoFactura {
+  datos: DatosPago;
+  metodos: FacturaMetodoPago[];
+}
+
+export async function contextoPagoFactura(
+  factura: FacturaResumen,
+): Promise<ContextoPagoFactura> {
+  const [fila] = await db
+    .select({ provincia: places.province })
+    .from(places)
+    .where(eq(places.id, factura.negocioId))
+    .limit(1);
+
+  const datos = datosPago();
+  return { datos, metodos: metodosDisponibles(fila?.provincia, datos) };
 }
 
 /** Lista para administración, con búsqueda por id o nombre del negocio. */
