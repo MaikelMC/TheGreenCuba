@@ -653,7 +653,12 @@ export function UserMenu({
         {compact && hayPendientes && (
           <span
             aria-hidden
-            className="absolute right-0 top-0 size-3 rounded-full border-2 border-sand-warm bg-lv-amber dark:border-ink"
+            /* El relleno va con el naranja de los puntos de estado del resto de
+               la app (`bg-amber-500`), no con `lv-amber`: ese ámbar apagado
+               sobre el verde casi negro del avatar se leía marrón en modo
+               oscuro. El anillo separa el punto del círculo y del fondo de la
+               barra en los dos temas. */
+            className="absolute right-0 top-0 size-3 rounded-full border-2 border-sand-warm bg-amber-500 dark:border-verde-950"
           />
         )}
       </motion.button>
