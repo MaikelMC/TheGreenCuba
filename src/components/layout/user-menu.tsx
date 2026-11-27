@@ -508,17 +508,6 @@ export function UserMenu({
           icon: CreditCard,
           path: "/tarjetas",
         },
-        ...(pendientesPedidos !== null
-          ? [
-              {
-                key: "pedidos",
-                label: "Mis pedidos",
-                sub: pedidosTexto(pendientesPedidos),
-                icon: ShoppingBag,
-                path: "/business?seccion=pedidos",
-              },
-            ]
-          : []),
       ]
     : [];
 
@@ -529,14 +518,25 @@ export function UserMenu({
               {
                 key: "negocio",
                 label: "Panel de negocio",
-                sub: `${user.business.name ?? "Tu negocio"}${
-                  pendientesPedidos !== null
-                    ? ` · ${pedidosTexto(pendientesPedidos)}`
-                    : ""
-                }`,
+                sub: user.business.name ?? "Tu negocio",
                 icon: Building2,
                 path: "/business",
                 badge: pendientesPedidos ?? 0,
+              },
+            ]
+          : []),
+        /* Los pedidos son los que **recibe** el negocio, no un historial de
+           compras del usuario. Van en «Tus paneles» y con ese nombre, para que
+           un dueño no los lea como sus propios pedidos. */
+        ...(pendientesPedidos !== null
+          ? [
+              {
+                key: "pedidos",
+                label: "Pedidos de mi negocio",
+                sub: pedidosTexto(pendientesPedidos),
+                icon: ShoppingBag,
+                path: "/business?seccion=pedidos",
+                badge: pendientesPedidos,
               },
             ]
           : []),

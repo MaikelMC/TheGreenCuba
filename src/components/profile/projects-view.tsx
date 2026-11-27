@@ -26,7 +26,7 @@ export function ProjectsView({
         className="mb-gap-sm inline-flex items-center gap-gap-xs font-lv-display text-small font-semibold text-verde-700"
       >
         <ArrowLeft size={16} />
-        Volver a Info
+        Volver a Mi perfil
       </button>
       {flow === "business" ? (
         <BusinessView />

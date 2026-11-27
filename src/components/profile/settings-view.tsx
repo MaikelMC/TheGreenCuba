@@ -71,24 +71,38 @@ export function SettingsView() {
      ya no está, el servidor responde 401 y el aviso que sale es el de «no
      pudimos confirmar el borrado» — alarmante y falso. */
   const [deleting, setDeleting] = useState(false);
+  const [cargandoCuenta, setCargandoCuenta] = useState(true);
+  const [errorCuenta, setErrorCuenta] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  async function cargarCuenta() {
+    setErrorCuenta(false);
+    setCargandoCuenta(true);
+    try {
+      const data = await fetchMe<{
+        authenticated: boolean;
+        user: SessionUser | null;
+      }>();
+      if (data.authenticated && data.user) {
+        setUser({
+          ...data.user,
+          id: (data.user as unknown as { id?: string }).id ?? "",
+        });
+      }
+    } catch {
+      /* Antes se callaba y la sección decía «Sin sesión», que es un diagnóstico
+         falso para un problema de red. Ahora se puede reintentar. */
+      setErrorCuenta(true);
+    } finally {
+      setCargandoCuenta(false);
+    }
+  }
+
   useEffect(() => {
-    let alive = true;
-    fetchMe<{ authenticated: boolean; user: SessionUser | null }>()
-      .then((data) => {
-        if (alive && data.authenticated && data.user) {
-          const nextUser = { ...data.user, id: (data.user as unknown as { id?: string }).id ?? "" };
-          setUser(nextUser);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
+    void cargarCuenta();
   }, []);
 
   /**
@@ -152,24 +166,42 @@ export function SettingsView() {
         <h2 className="font-lv-display text-[10px] font-semibold uppercase tracking-[0.22em] text-verde-600">
           Cuenta
         </h2>
-        <div className="flex items-center gap-gap-sm">
-          <span className="grid size-11 shrink-0 place-items-center rounded-full border-2 border-verde-200 bg-verde-50 text-verde-600">
-            <UserRound size={20} strokeWidth={1.8} aria-hidden />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-small font-medium text-ink">
-              {user?.name ?? "Sin sesión"}
+        {errorCuenta ? (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center gap-gap-sm rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-2"
+          >
+            <p className="flex-1 text-meta font-medium text-destructive">
+              No pudimos cargar los datos de tu cuenta.
+            </p>
+            <button
+              type="button"
+              onClick={() => void cargarCuenta()}
+              className="rounded-full border border-ink/10 bg-white px-3 py-1.5 font-lv-display text-meta font-semibold text-ink transition hover:border-verde-300"
+            >
+              Reintentar
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-gap-sm">
+            <span className="grid size-11 shrink-0 place-items-center rounded-full border-2 border-verde-200 bg-verde-50 text-verde-600">
+              <UserRound size={20} strokeWidth={1.8} aria-hidden />
             </span>
-            <span className="block truncate text-meta text-ink-soft/75">
-              {user?.email ?? "—"}
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-small font-medium text-ink">
+                {cargandoCuenta ? "Cargando…" : (user?.name ?? "Sin sesión")}
+              </span>
+              <span className="block truncate text-meta text-ink-soft/75">
+                {cargandoCuenta ? "—" : (user?.email ?? "—")}
+              </span>
             </span>
-          </span>
-          {user && (
-            <span className="shrink-0 rounded-full border border-verde-200 bg-verde-50 px-[10px] py-[3px] font-lv-display text-meta font-semibold text-verde-600">
-              {ROLE_NAMES[user.role] ?? user.role}
-            </span>
-          )}
-        </div>
+            {user && (
+              <span className="shrink-0 rounded-full border border-verde-200 bg-verde-50 px-[10px] py-[3px] font-lv-display text-meta font-semibold text-verde-600">
+                {ROLE_NAMES[user.role] ?? user.role}
+              </span>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="flex flex-col gap-gap-md rounded-2xl border border-ink/5 bg-white p-gap-md shadow-soft">

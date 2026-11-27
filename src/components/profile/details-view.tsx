@@ -16,6 +16,7 @@ import {
 import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { CUBA_PROVINCES, type UserPreferences } from "@/lib/user-preferences-store";
+import { SUPPORT_EMAIL } from "@/lib/legal";
 import { focusProfileControl } from "@/components/profile/focus-profile-control";
 import { FormSection, FormSections } from "@/components/business/form-section";
 import { KynariEmpleosCard } from "@/components/business/kynari-card";
@@ -63,7 +64,7 @@ interface DetailsViewProps {
   onRegisterProject: () => void;
 }
 
-/** «Info»: los datos de la cuenta y las puertas al alta de negocio o proyecto. */
+/** «Mi perfil»: los datos de la cuenta y las puertas al alta de negocio o proyecto. */
 export function DetailsView({
   prefs,
   set,
@@ -83,18 +84,47 @@ export function DetailsView({
         className="flex flex-col gap-gap-md"
       >
         <Section title="Datos personales" icon={User}>
-          <Field icon={User} label="Nombre" value={prefs.name} onChange={(v) => set("name", v)} />
+          <Field
+            icon={User}
+            label="Nombre"
+            value={prefs.name}
+            onChange={(v) => set("name", v)}
+            maxLength={80}
+            autoComplete="name"
+          />
+          {/* El correo de acceso vive en `neon_auth`, no en esta fila: editarlo
+              aquí solo cambiaba el dato de contacto y dejaba a la persona
+              creyendo que había cambiado su forma de entrar. Se enseña y se
+              explica dónde se cambia de verdad. */}
           <Field
             icon={Mail}
             label="Correo electrónico"
             value={prefs.email}
-            onChange={(v) => set("email", v)}
+            onChange={() => {}}
+            type="email"
+            readOnly
+            autoComplete="email"
+            hint={
+              <>
+                Es el correo de acceso y no se cambia desde aquí. Escríbenos a{" "}
+                <a
+                  href={`mailto:${SUPPORT_EMAIL}`}
+                  className="font-semibold text-verde-700 underline underline-offset-2"
+                >
+                  {SUPPORT_EMAIL}
+                </a>{" "}
+                si necesitas cambiarlo.
+              </>
+            }
           />
           <Field
             icon={Phone}
             label="Teléfono"
             value={prefs.phone}
             onChange={(v) => set("phone", v)}
+            type="tel"
+            maxLength={30}
+            autoComplete="tel"
           />
         </Section>
 
@@ -317,11 +347,21 @@ function Field({
   label,
   value,
   onChange,
+  type = "text",
+  readOnly = false,
+  maxLength,
+  autoComplete,
+  hint,
 }: {
   icon: typeof User;
   label: string;
   value: string;
   onChange: (v: string) => void;
+  type?: string;
+  readOnly?: boolean;
+  maxLength?: number;
+  autoComplete?: string;
+  hint?: React.ReactNode;
 }) {
   return (
     <motion.label
@@ -337,11 +377,22 @@ function Field({
         {/* `min-w-0`: un `<input>` es elemento de reemplazo y como ítem de flex
             no baja de su ancho intrínseco sin él. */}
         <input
-          className="min-w-0 flex-1 bg-transparent text-small text-ink outline-none placeholder:text-ink-soft/75"
+          className={cn(
+            "min-w-0 flex-1 bg-transparent text-small outline-none placeholder:text-ink-soft/75",
+            readOnly ? "cursor-default text-ink-soft/75" : "text-ink",
+          )}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          type={type}
+          readOnly={readOnly}
+          aria-readonly={readOnly || undefined}
+          maxLength={maxLength}
+          autoComplete={autoComplete}
         />
       </span>
+      {hint && (
+        <span className="text-meta leading-snug text-ink-soft/60">{hint}</span>
+      )}
     </motion.label>
   );
 }

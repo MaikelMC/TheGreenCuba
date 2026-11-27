@@ -23,6 +23,14 @@ interface TarjetaGuardada {
  * deja el enlace de WhatsApp. La página pide cada tarjeta al servidor porque el
  * resumen local no guarda el nombre del negocio; si el token ya no vale, la
  * fila desaparece y se olvida la clave.
+ *
+ * Es pública **a propósito**. No expone datos de otras cuentas: solo lee los
+ * tokens de este navegador y consulta la API que ya es pública por token. Cerrar
+ * sesión no borra esas claves porque el token es la única credencial de la
+ * tarjeta: quien vuelve a entrar en el mismo equipo tiene que seguir viéndola.
+ * Quien comparte un dispositivo puede ver los sellos de la última persona; es
+ * el mismo compromiso que acepta el enlace de WhatsApp, y se resuelve borrando
+ * los datos del navegador, no ocultando la página.
  */
 export default function TarjetasPage() {
   const [tarjetas, setTarjetas] = useState<TarjetaGuardada[]>([]);

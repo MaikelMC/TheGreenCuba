@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "motion/react";
 
 interface PreferencesScreenProps {
@@ -8,7 +9,7 @@ interface PreferencesScreenProps {
   moods: Array<{ value: string; label: string }>;
   currencies: Array<{ value: string; label: string }>;
   onBack: () => void;
-  onDone: () => void;
+  onDone: () => void | Promise<void>;
 }
 
 /**
@@ -27,6 +28,20 @@ export function PreferencesScreen({
   onBack,
   onDone,
 }: PreferencesScreenProps) {
+  /* El guardado remoto puede tardar y el botón no se deshabilita solo: dos
+     toques enviaban dos `POST /api/me`. Uno basta. */
+  const [guardando, setGuardando] = useState(false);
+
+  async function terminar() {
+    if (guardando) return;
+    setGuardando(true);
+    try {
+      await onDone();
+    } finally {
+      setGuardando(false);
+    }
+  }
+
   const rows = [
     { label: "Ciudad", values: [{ value: "city", label: locationName }] },
     { label: "Lugares", values: interests },
@@ -40,9 +55,10 @@ export function PreferencesScreen({
         <motion.button
           type="button"
           onClick={onBack}
+          disabled={guardando}
           whileTap={{ scale: 0.9 }}
           aria-label="Volver a los pasos"
-          className="size-11 rounded-full flex items-center justify-center text-ink hover:bg-verde-50 transition-colors duration-500"
+          className="size-11 rounded-full flex items-center justify-center text-ink hover:bg-verde-50 transition-colors duration-500 disabled:opacity-50"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
             <path d="M19 12H5M12 19l-7-7 7-7" />
@@ -76,14 +92,18 @@ export function PreferencesScreen({
       <div className="px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-4 flex-shrink-0 bg-gradient-to-t from-sand-warm via-sand-warm to-transparent">
         <motion.button
           type="button"
-          onClick={onDone}
+          onClick={() => void terminar()}
+          disabled={guardando}
+          aria-busy={guardando}
           whileTap={{ scale: 0.98 }}
-          className="inline-flex w-full items-center justify-center gap-2 px-6 py-3 rounded-full font-lv-display text-sm font-semibold bg-verde-400 text-verde-950 shadow-primary-halo transition duration-500 ease-outquint min-h-12 hover:bg-verde-300 active:scale-[0.98]"
+          className="inline-flex w-full items-center justify-center gap-2 px-6 py-3 rounded-full font-lv-display text-sm font-semibold bg-verde-400 text-verde-950 shadow-primary-halo transition duration-500 ease-outquint min-h-12 hover:bg-verde-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Empezar a explorar
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]" aria-hidden="true">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
+          {guardando ? "Guardando…" : "Empezar a explorar"}
+          {!guardando && (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-[18px]" aria-hidden="true">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          )}
         </motion.button>
       </div>
     </div>

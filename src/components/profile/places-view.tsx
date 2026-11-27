@@ -8,9 +8,6 @@ import { CategoryIcon } from "@/components/admin/category-icon";
 import { MiniChart } from "@/components/business/mini-chart";
 import { categoryIcon } from "@/lib/places";
 import { EASE } from "@/lib/motion";
-import { fetchMe } from "@/lib/session-client";
-import type { UserPreferences } from "@/lib/user-preferences-store";
-import { PreferenceSections } from "@/components/profile/details-view";
 import {
   dailyHistogram,
   dayLabels,
@@ -46,64 +43,54 @@ const EMPTY_ACTIVITY: ActivityState = { visits: [], savedIds: [], stamps: [] };
  * dice sin adornos.
  */
 export function PlacesView({
-  prefs,
-  toggle,
+  userId,
+  sesionResuelta,
 }: {
-  prefs: UserPreferences;
-  toggle: (listKey: "interests" | "moods" | "currencies", value: string) => void;
+  /** El id que ya resolvió el armazón del perfil; evita otro `/api/me`. */
+  userId: string | null;
+  sesionResuelta: boolean;
 }) {
   const [activity, setActivity] = useState<ActivityState | null>(null);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlaceItem[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!sesionResuelta) return;
     let alive = true;
 
-    fetchMe<{ authenticated?: boolean; user?: { id?: string } | null }>()
-      .then((data) => {
-        if (!alive) return;
-        const nextUserId = data.authenticated && data.user?.id ? data.user.id : null;
-        setUserId(nextUserId);
-        setActivity(readActivity(nextUserId));
-      })
-      .catch(() => {
-        if (!alive) return;
-        setUserId(null);
-        setActivity(readActivity(null));
-      });
+    setActivity(readActivity(userId));
+    if (!userId) {
+      setSavedPlaces([]);
+      return;
+    }
 
     fetch("/api/me/places")
       .then((res) => res.json())
       .then((data: { authenticated?: boolean; saved?: SavedPlaceItem[] }) => {
-        if (data.authenticated && Array.isArray(data.saved)) {
-          setSavedPlaces(data.saved);
-        }
+        if (!alive) return;
+        setSavedPlaces(data.authenticated && Array.isArray(data.saved) ? data.saved : []);
       })
       .catch(() => {
-        setSavedPlaces([]);
+        if (alive) setSavedPlaces([]);
       });
 
     return () => {
       alive = false;
     };
-  }, []);
+  }, [userId, sesionResuelta]);
 
   if (!activity) {
     return (
-      <div className="places-activity flex flex-col gap-gap-xl">
-        <div className="flex flex-col gap-gap-md">
-          <PreferenceSections prefs={prefs} toggle={toggle} />
-        </div>
-        <p className="py-gap-2xl text-center text-small text-ink-soft/75" aria-busy>
-          Cargando tu actividad…
-        </p>
-      </div>
+      <p className="py-gap-2xl text-center text-small text-ink-soft/75" aria-busy>
+        Cargando tu actividad…
+      </p>
     );
   }
 
   const state = activity ?? EMPTY_ACTIVITY;
   const top = topVisits(state, 5);
-  const saved = savedPlaces.length > 0 ? savedPlaces : savedVisits(state);
+  /* Con sesión manda el servidor, aunque esté vacío: si no, una lista local
+     vieja taparía el estado vacío real. Sin sesión, lo que este navegador sepa. */
+  const saved = userId ? savedPlaces : savedVisits(state);
   const category = topCategory(state);
   const lastVisit = topVisits(state, 1)[0];
   const max = Math.max(...top.map((v) => v.count), 1);
@@ -112,10 +99,6 @@ export function PlacesView({
     <div className="places-activity flex flex-col gap-gap-xl">
       {/* Sin cabecera propia: el título de la sección ya lo dice la barra
           superior del perfil, y repetirlo aquí era decir lo mismo dos veces. */}
-      <div className="flex flex-col gap-gap-md">
-        <PreferenceSections prefs={prefs} toggle={toggle} />
-      </div>
-
       {top.length === 0 && saved.length === 0 && (
         <p className="flex items-start gap-gap-xs rounded-2xl border border-verde-200 bg-verde-50 px-gap-sm py-gap-xs text-meta text-verde-700">
           <Info size={15} strokeWidth={1.8} className="mt-[1px] shrink-0" aria-hidden />
@@ -129,7 +112,11 @@ export function PlacesView({
 
       <div className="grid grid-cols-2 gap-gap-sm">
         <Stat label="Lugares vistos" value={String(placeCount(state))} icon={Eye} />
-        <Stat label="Guardados" value={String(savedPlaces.length || activity?.savedIds.length || 0)} icon={Bookmark} />
+        <Stat
+          label="Guardados"
+          value={String(userId ? savedPlaces.length : state.savedIds.length)}
+          icon={Bookmark}
+        />
         <Stat label="Lo que más ves" value={category?.label ?? "—"} icon={Sparkles} />
         <Stat
           label="Última visita"

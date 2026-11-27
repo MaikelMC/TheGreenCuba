@@ -17,6 +17,7 @@ import {
 import { devPlace, ownsDevPlace } from "@/lib/dev-place";
 import { asegurarAvisosDeNegocio } from "@/lib/notificaciones-server";
 import { TERMS_VERSION } from "@/lib/legal";
+import { isKnownLocation } from "@/lib/user-preferences-store";
 import type { PlacePlan } from "@/lib/places-store";
 
 /**
@@ -205,6 +206,11 @@ function asStringArray(value: unknown): string[] {
    sesión» hasta recargar a mano. */
 const SIN_CACHE = { "Cache-Control": "no-store, no-cache, must-revalidate" };
 
+/* Formato mínimo, no una validación de correo completa: aquí se comprueba que
+   el dato no sea basura, no que el buzón exista. El correo de verdad lo
+   verifica Better Auth en el alta. */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export const dynamic = "force-dynamic";
 
 export async function GET() {
@@ -317,11 +323,50 @@ export async function POST(request: NextRequest) {
   const nextMoods = asStringArray(payload.moods);
   const nextCurrencies = asStringArray(payload.currencies);
 
+  /* Validación de lo que se escribe. Solo los campos presentes: el onboarding,
+     la ventana del teléfono, los términos y el consentimiento mandan cuerpos
+     parciales y no pueden fallar por lo que no envían. */
+  if (nextName !== null && (nextName.length < 1 || nextName.length > 80)) {
+    return NextResponse.json(
+      { error: "El nombre debe tener entre 1 y 80 caracteres." },
+      { status: 400 },
+    );
+  }
+  if (nextEmail !== null && nextEmail.length > 0 && !EMAIL_RE.test(nextEmail)) {
+    return NextResponse.json(
+      { error: "El correo electrónico no tiene un formato válido." },
+      { status: 400 },
+    );
+  }
+  if (
+    nextPhone !== null &&
+    nextPhone.length > 0 &&
+    (nextPhone.length < 6 || nextPhone.length > 30)
+  ) {
+    return NextResponse.json(
+      { error: "El teléfono debe tener entre 6 y 30 caracteres." },
+      { status: 400 },
+    );
+  }
+  if (
+    nextLocation !== null &&
+    nextLocation.length > 0 &&
+    !isKnownLocation(nextLocation)
+  ) {
+    return NextResponse.json(
+      { error: "Esa provincia no existe." },
+      { status: 400 },
+    );
+  }
+
   const [row] = await db
     .update(users)
     .set({
       name: nextName ?? sessionUser.name,
-      email: nextEmail ?? sessionUser.email,
+      /* Un correo vacío se trata como ausente: hay flujos que mandan `""`
+         cuando no tienen identidad cargada, y borrar el de la cuenta por eso
+         sería peor que no tocarlo. */
+      email: nextEmail ? nextEmail : sessionUser.email,
       /* `?? sessionUser.phone` y no `?? null`: el onboarding guarda las
          preferencias sin mandar el teléfono, y con un `null` seco cada paso por
          ahí lo habría borrado. Una cadena vacía sí lo borra —es lo que se manda

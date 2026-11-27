@@ -98,6 +98,11 @@ import {
 } from "@/lib/accion-negocio";
 import { pushRecentSearch } from "@/lib/recent-searches-store";
 import { readActivity, toggleSaved } from "@/lib/activity-store";
+import {
+  guardarLugar,
+  quitarLugar,
+  sincronizarGuardados,
+} from "@/lib/saved-places-client";
 import { saveAiRecommendations } from "@/lib/ai-recommendation-store";
 import { buscarLugaresLocales } from "@/lib/busqueda-local";
 import { sharePlace } from "@/lib/share";
@@ -845,6 +850,16 @@ function HomePageContent() {
         setLikedIds(new Set(readActivity(resolvedId).savedIds));
 
         if (data.authenticated && data.user?.id) {
+          /* El servidor manda cuando hay sesión; lo que hubiera solo en este
+             navegador se sube una vez. Si falla, se queda lo local y se
+             reintenta en la siguiente carga. */
+          void sincronizarGuardados(
+            data.user.id,
+            readActivity(data.user.id).savedIds,
+          ).then((ids) => {
+            if (alive) setLikedIds(new Set(ids));
+          });
+
           /* Una sola vez por persona: a quien entró con Google se le pregunta
              aquí, no en el alta, porque nunca vio la casilla. */
           askMarketingConsentOnce(data.user.id, data.marketing);
@@ -1172,14 +1187,31 @@ function HomePageContent() {
   }, [listVisiblePlaces, categories, distanceOrigin, userPreferences, ahora]);
 
   const handleLike = useCallback(
-    (id: string) => {
-      const saved = toggleSaved(id, userId);
+    async (id: string) => {
+      const guardado = toggleSaved(id, userId);
       setLikedIds((prev) => {
         const next = new Set(prev);
-        if (saved) next.add(id);
+        if (guardado) next.add(id);
         else next.delete(id);
         return next;
       });
+
+      if (!userId) return;
+
+      /* El corazón responde al instante y el servidor va detrás. Si la petición
+         falla se deshace el cambio: es preferible decirlo a dejar dos listas
+         distintas sin que nadie lo sepa. */
+      const ok = guardado ? await guardarLugar(id) : await quitarLugar(id);
+      if (ok) return;
+
+      toggleSaved(id, userId);
+      setLikedIds((prev) => {
+        const next = new Set(prev);
+        if (guardado) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+      toast.error("No pudimos guardar el lugar. Inténtalo otra vez.");
     },
     [userId],
   );

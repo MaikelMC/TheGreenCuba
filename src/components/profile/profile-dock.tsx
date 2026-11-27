@@ -2,12 +2,23 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Info, Settings, UserRound, type LucideIcon } from "lucide-react";
+import {
+  Compass,
+  Settings,
+  SlidersHorizontal,
+  UserRound,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { spring } from "@/lib/motion";
 import { MobileDock } from "@/components/layout/mobile-dock";
 
-export type ProfileView = "perfil" | "lugares" | "negocio" | "ajustes";
+export type ProfileView =
+  | "perfil"
+  | "lugares"
+  | "preferencias"
+  | "negocio"
+  | "ajustes";
 
 interface DockItem {
   id: ProfileView;
@@ -19,9 +30,10 @@ interface DockItem {
    de usuario. El alta de negocio y de proyecto vive dentro de «Info», así que no
    ocupa una entrada propia en el dock. */
 export const DOCK_ITEMS: DockItem[] = [
-  { id: "perfil", label: "Info", icon: Info },
-  { id: "lugares", label: "Sobre mí", icon: UserRound },
-  { id: "ajustes", label: "Configuración", icon: Settings },
+  { id: "perfil", label: "Mi perfil", icon: UserRound },
+  { id: "lugares", label: "Actividad", icon: Compass },
+  { id: "preferencias", label: "Preferencias", icon: SlidersHorizontal },
+  { id: "ajustes", label: "Cuenta", icon: Settings },
 ];
 
 const GLASS =

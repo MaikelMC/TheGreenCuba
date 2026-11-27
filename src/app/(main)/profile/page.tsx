@@ -13,6 +13,7 @@ import { mensajeDeRed } from "@/lib/errores-red";
 import { UserMenu } from "@/components/layout/user-menu";
 import { DetailsView } from "@/components/profile/details-view";
 import { PlacesView } from "@/components/profile/places-view";
+import { PreferencesView } from "@/components/profile/preferences-view";
 import { SettingsView } from "@/components/profile/settings-view";
 import { ProjectsView, type ProjectFlow } from "@/components/profile/projects-view";
 import { Skeleton } from "@/components/ui";
@@ -53,6 +54,9 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [hasBusiness, setHasBusiness] = useState(false);
+  /* Si `/api/me` ya contestó. La actividad no puede leer la clave del usuario
+     antes de saber cuál es, o leería la de invitado y enseñaría otra cosa. */
+  const [sesionResuelta, setSesionResuelta] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -64,42 +68,66 @@ export default function ProfilePage() {
      Se lee de `window.location` y no con `useSearchParams`, que obligaría a
      envolver la página en un `Suspense` y a renunciar al HTML estático que hoy
      se sirve. Para leer un parámetro una vez al montar, no compensa. */
+  /* La sección se puede pedir desde la URL y se vuelve a leer al usar atrás o
+     adelante. Es la misma página, así que el formulario que se está escribiendo
+     no se pierde al moverse entre secciones. */
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const section = params.get("seccion");
-    if (section === "proyectos") {
-      window.location.replace("/projects");
-      return;
+    function aplicarSeccionDesdeUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const section = params.get("seccion");
+      if (section === "proyectos") {
+        window.location.replace("/projects");
+        return;
+      }
+      /* «negocio» ya no es una pestaña: los enlaces viejos
+         (`/profile?seccion=negocio`) siguen existiendo fuera de esta página, así
+         que llevan al alta correspondiente en vez de quedarse en «Mi perfil». */
+      if (section === "negocio") {
+        setProjectFlow(
+          params.get("modo") === "proyecto" ? "registration" : "business",
+        );
+        setView("negocio");
+        return;
+      }
+      if (section && DOCK_ITEMS.some((item) => item.id === section)) {
+        setView(section as ProfileView);
+        return;
+      }
+      setView("perfil");
     }
-    /* «negocio» ya no es una pestaña: los enlaces viejos
-       (`/profile?seccion=negocio`) siguen existiendo fuera de esta página, así
-       que llevan al alta correspondiente en vez de quedarse en Info. */
-    if (section === "negocio") {
-      setProjectFlow(params.get("modo") === "proyecto" ? "registration" : "business");
-      setView("negocio");
-      return;
-    }
-    if (section && DOCK_ITEMS.some((item) => item.id === section)) {
-      setView(section as ProfileView);
-    }
+
+    aplicarSeccionDesdeUrl();
+    window.addEventListener("popstate", aplicarSeccionDesdeUrl);
+    return () =>
+      window.removeEventListener("popstate", aplicarSeccionDesdeUrl);
   }, []);
 
-  /* Cambiar de sección no navega, pero sí actualiza la URL: así una sección se
-     puede compartir y el botón «atrás» no devuelve a un sitio distinto del que
-     se está viendo. `replaceState` y no `pushState` a propósito — pasar por tres
-     pestañas no debería dejar tres pasos en el historial. */
-  function changeView(next: ProfileView) {
+  /* Cambiar de sección sí deja un paso en el historial, para que «atrás»
+     devuelva a la sección anterior y no fuera del perfil. La URL se puede
+     compartir y recargar. */
+  function changeView(next: ProfileView, flow?: ProjectFlow) {
     setView(next);
+    if (flow) setProjectFlow(flow);
 
     const url = new URL(window.location.href);
-    if (next === "perfil") url.searchParams.delete("seccion");
-    else url.searchParams.set("seccion", next);
-    window.history.replaceState(null, "", url);
+    if (next === "perfil") {
+      url.searchParams.delete("seccion");
+      url.searchParams.delete("modo");
+    } else {
+      url.searchParams.set("seccion", next);
+      if (next === "negocio" && (flow ?? projectFlow) === "registration") {
+        url.searchParams.set("modo", "proyecto");
+      } else {
+        url.searchParams.delete("modo");
+      }
+    }
+    window.history.pushState({ seccion: next }, "", url);
   }
 
   function openProjectFlow(flow: ProjectFlow) {
-    setProjectFlow(flow);
-    changeView("negocio");
+    /* El `modo` va en la URL: sin él, recargar esta vista abría el alta de
+       negocio aunque se hubiera entrado a la de proyecto. */
+    changeView("negocio", flow);
   }
 
   useEffect(() => {
@@ -120,6 +148,7 @@ export default function ProfilePage() {
       } | null;
     }>()
       .then((data) => {
+        setSesionResuelta(true);
         const user = data.user;
         if (!data.authenticated || !user) return;
 
@@ -171,6 +200,7 @@ export default function ProfilePage() {
       })
       .catch(() => {
         // Si no hay sesión o falla la red, se queda con las preferencias locales.
+        setSesionResuelta(true);
       });
   }, []);
 
@@ -237,13 +267,17 @@ export default function ProfilePage() {
     }, userId);
 
     try {
+      /* El correo no viaja: es el de acceso y esta ruta no puede cambiarlo de
+         verdad. Mandarlo solo servía para que una copia local vieja pisara el
+         de la cuenta. */
+      const { email: _email, ...datos } = prefs;
       const response = await fetch("/api/me", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...prefs,
+          ...datos,
           onboardingCompleted: true,
           location: prefs.location,
           locationName: locationLabel(prefs.location),
@@ -293,7 +327,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-dvh bg-sand font-lv text-ink">
       <TopBar title={title} initial={prefs.name.charAt(0)}>
-        {(view === "perfil" || view === "lugares") && (
+        {(view === "perfil" || view === "preferencias") && (
           <motion.button
             type="button"
             whileTap={{ scale: 0.98 }}
@@ -350,7 +384,15 @@ export default function ProfilePage() {
                 onRegisterProject={() => openProjectFlow("registration")}
               />
             )}
-            {view === "lugares" && <PlacesView prefs={prefs} toggle={toggle} />}
+            {view === "lugares" && (
+              <PlacesView
+                userId={userId}
+                sesionResuelta={sesionResuelta}
+              />
+            )}
+            {view === "preferencias" && (
+              <PreferencesView prefs={prefs} toggle={toggle} />
+            )}
             {view === "negocio" && (
               <ProjectsView flow={projectFlow} onBack={() => changeView("perfil")} />
             )}
