@@ -267,8 +267,8 @@ self.addEventListener("install", (event) => {
 
       /* El mapa no se pinta sin su estilo, y MapLibre lo pide cross-origin.
          Sin esto la app abría sin red con las teselas ya guardadas pero con el
-         mapa en blanco: `tesela()` solo alcanza `/planet/` y el estilo vive en
-         `/styles/`. Se guardan también el TileJSON de sus fuentes y el sprite.
+         mapa en blanco: las teselas cuelgan de su propia raíz y el estilo vive
+         en `/styles/`. Se guardan también el TileJSON de sus fuentes y el sprite.
          Va antes de calentar `/home`: en una conexión lenta el estilo no puede
          esperar detrás de decenas de chunks. */
       try {
@@ -482,12 +482,13 @@ self.addEventListener("fetch", (event) => {
   }
 
   /* Teselas y TileJSON de OpenFreeMap — cross-origin, se gestionan antes del
-     guard de origen. Las teselas son `/planet/{z}/{x}/{y}.*`; el TileJSON es
-     `/planet` a secas (devuelve JSON con las URLs de las teselas). */
+     guard de origen. Las teselas cuelgan de `/planet/…` o de
+     `/backup_planet/…` según a qué fuente apunte el estilo, y el TileJSON es la
+     raíz de esa misma ruta, sin barra final. */
   if (url.hostname === "tiles.openfreemap.org") {
-    if (url.pathname.startsWith("/planet/")) {
+    if (esTeselaMapa(url.pathname)) {
       event.respondWith(tesela(event, request));
-    } else if (url.pathname === "/planet") {
+    } else if (esTilejsonMapa(url.pathname)) {
       event.respondWith(tilejson(event, request));
     } else if (
       url.pathname.startsWith("/styles/") ||
@@ -1595,6 +1596,27 @@ async function trimCache(cacheName, maxEntries) {
 /* ------------------------------------------------------------------------- */
 
 /**
+ * Las dos raíces de teselas de OpenFreeMap.
+ *
+ * El estilo Liberty apunta a `/planet` o a `/backup_planet` según la fuente que
+ * el proveedor tenga activa; el TileJSON es la raíz sin barra y las teselas
+ * cuelgan de ella. Se aceptan las dos porque la elección no es de la app: el día
+ * que OpenFreeMap pasó el estilo a `backup_planet`, el service worker siguió
+ * esperando `/planet` y todo el mapa —TileJSON incluido— dejó de guardarse sin
+ * que nadie tocara este archivo. El síntoma era justo el peor: la app abría sin
+ * conexión y el hueco del mapa se quedaba en blanco.
+ */
+const RAICES_TESELAS = ["/planet", "/backup_planet"];
+
+function esTilejsonMapa(pathname) {
+  return RAICES_TESELAS.includes(pathname);
+}
+
+function esTeselaMapa(pathname) {
+  return RAICES_TESELAS.some((raiz) => pathname.startsWith(`${raiz}/`));
+}
+
+/**
  * Cache-first para teselas individuales. Patrón del anexo:
  *  1. Si está en caché → devuelve sin red.
  *  2. fetch() → si es cors/basic: clone ANTES de devolver, waitUntil(put).
@@ -1753,7 +1775,8 @@ async function recortarSiToca() {
 /**
  * Recorta solo teselas, nunca el paquete del mapa.
  *
- * `lv-tiles` guarda dos cosas distintas: las teselas (`/planet/{z}/{x}/{y}`) y
+ * `lv-tiles` guarda dos cosas distintas: las teselas (bajo la raíz de teselas,
+ * `/planet/…` o `/backup_planet/…`) y
  * lo que MapLibre necesita **antes** de pedir ninguna —el estilo, el TileJSON,
  * el sprite y las fuentes—. `trimCache` borra por orden de inserción, y el
  * paquete entra al instalar, así que era lo primero en caer: al pasar de
@@ -1775,7 +1798,7 @@ async function trimTeselas() {
     if (sobran <= 0) return;
     let esTesela = false;
     try {
-      esTesela = new URL(key.url).pathname.startsWith("/planet/");
+      esTesela = esTeselaMapa(new URL(key.url).pathname);
     } catch {
       esTesela = false;
     }
