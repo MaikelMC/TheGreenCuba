@@ -21,7 +21,6 @@ interface NegocioTarjeta {
   barrio: string;
   icon: string;
   logoUrl?: string;
-  coverImage?: string;
   abierto: boolean | null;
   estadoTexto: string | null;
   distance: string;
@@ -35,7 +34,7 @@ interface NegocioTarjeta {
 /**
  * La tarjeta del negocio, anclada abajo en lugar de la hoja.
  *
- * El contenido (portada, nombre, tipo, estado y chips) es un enlace a la ficha.
+ * El contenido (logo, nombre, tipo, estado y chips) es un enlace a la ficha.
  * El corazón, la X y las acciones quedan fuera del enlace para que ningún toque
  * haga dos cosas a la vez. El gesto horizontal cambia de negocio; el vertical
  * hacia arriba abre la ficha.
@@ -78,7 +77,6 @@ export function TarjetaNegocio({
   if (place.aceptaCup) chips.push({ label: "Acepta CUP", tono: "verde" });
 
   const estado = unirPartes([place.estadoTexto, place.distance]);
-  const portada = place.coverImage ?? place.logoUrl;
 
   return (
     <motion.div
@@ -140,10 +138,13 @@ export function TarjetaNegocio({
           href={`/place/${place.id}`}
           className="flex min-w-0 flex-1 items-start gap-gap-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-verde-400"
         >
+          {/* La marca, no la portada: la tarjeta responde al pin que se acaba
+              de tocar y el logo identifica el negocio de un vistazo. La foto
+              de fachada se sigue viendo al abrir la ficha. */}
           <span className="relative grid size-[92px] shrink-0 place-items-center overflow-hidden rounded-2xl border border-ink/5 bg-verde-50 text-verde-700">
-            {portada ? (
+            {place.logoUrl ? (
               <Image
-                src={portada}
+                src={place.logoUrl}
                 alt=""
                 width={92}
                 height={92}
