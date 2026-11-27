@@ -32,9 +32,11 @@ const FECHA = new Intl.DateTimeFormat("es-CU", {
 });
 
 const ESTADO_CLASE: Record<FacturaResumen["estado"], string> = {
-  enviada: "border-amber-200 bg-amber-50 text-amber-800",
+  pendiente: "border-amber-200 bg-amber-50 text-amber-800",
   aceptada: "border-blue-200 bg-blue-50 text-blue-800",
+  en_revision: "border-amber-200 bg-amber-50 text-amber-800",
   pagada: "border-verde-200 bg-verde-50 text-verde-700",
+  caducada: "border-ink/10 bg-sand text-ink-soft/75",
   cancelada: "border-ink/10 bg-sand text-ink-soft/75",
 };
 
@@ -58,8 +60,10 @@ export function FacturasPanel({
   const [busqueda, setBusqueda] = useState(q);
   const [procesando, setProcesando] = useState<string | null>(null);
 
-  const enviadas = facturas.filter((f) => f.estado === "enviada").length;
-  const aceptadas = facturas.filter((f) => f.estado === "aceptada").length;
+  const pendientes = facturas.filter((f) => f.estado === "pendiente").length;
+  const aceptadas = facturas.filter(
+    (f) => f.estado === "aceptada" || f.estado === "en_revision",
+  ).length;
   const pagadas = facturas.filter((f) => f.estado === "pagada").length;
 
   function buscar(e: React.FormEvent) {
@@ -81,7 +85,7 @@ export function FacturasPanel({
     const pregunta =
       tipo === "confirmar"
         ? "¿Confirmar el pago? Se activará el plan o pack y quedará registrado en Ingresos."
-        : "¿Cancelar esta factura? El enlace dejará de servir.";
+        : "¿Cancelar esta propuesta? El enlace dejará de servir.";
     if (!window.confirm(pregunta)) return;
 
     setProcesando(`${tipo}:${id}`);
@@ -95,7 +99,7 @@ export function FacturasPanel({
         return;
       }
       toast.success(
-        tipo === "confirmar" ? "Pago confirmado y servicio activado." : "Factura cancelada.",
+        tipo === "confirmar" ? "Pago confirmado y servicio activado." : "Propuesta cancelada.",
       );
       router.refresh();
     } catch {
@@ -103,6 +107,55 @@ export function FacturasPanel({
     } finally {
       setProcesando(null);
     }
+  }
+
+  function getBotonesAccion(
+    factura: FacturaResumen,
+    procesando: string | null,
+  ): React.ReactNode[] {
+    const resultado: React.ReactNode[] = [];
+
+    // Botón Confirmar pago solo para aceptadas o en_revision
+    if (["aceptada", "en_revision"].includes(factura.estado)) {
+      resultado.push(
+        <button
+          type="button"
+          onClick={() => void accion(factura.id, "confirmar")}
+          disabled={procesando !== null}
+          className="inline-flex h-10 items-center gap-gap-xs rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 transition hover:bg-verde-300 disabled:opacity-60"
+          aria-label="Confirmar el pago y activar el servicio"
+        >
+          {procesando === `confirmar:${factura.id}` ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <CheckCircle2 size={14} />
+          )}
+          Confirmar pago
+        </button>,
+      );
+    }
+
+    // Botón Cancelar para pendiente, aceptada o en_revision
+    if (["pendiente", "aceptada", "en_revision"].includes(factura.estado)) {
+      resultado.push(
+        <button
+          type="button"
+          onClick={() => void accion(factura.id, "cancelar")}
+          disabled={procesando !== null}
+          className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition:hover:border-destructive/30:hover:text-destructive disabled:opacity-60"
+          aria-label="Cancelar esta propuesta"
+        >
+          {procesando === `cancelar:${factura.id}` ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <XCircle size={14} />
+          )}
+          Cancelar
+        </button>,
+      );
+    }
+
+    return resultado;
   }
 
   return (
@@ -146,13 +199,13 @@ export function FacturasPanel({
 
       <div className="grid grid-cols-1 gap-gap-sm sm:grid-cols-3">
         <TarjetaKpi
-          etiqueta="Pendientes de aceptar"
-          valor={String(enviadas)}
-          detalle="Enlaces enviados"
+          etiqueta="Pendientes"
+          valor={String(pendientes)}
+          detalle="Esperando aceptación"
           icono={Receipt}
         />
         <TarjetaKpi
-          etiqueta="Aceptadas"
+          etiqueta="Aceptadas o en revisión"
           valor={String(aceptadas)}
           detalle="Esperando confirmar pago"
           icono={CheckCircle2}
@@ -182,7 +235,10 @@ export function FacturasPanel({
               const estado = FACTURA_ESTADO[factura.estado];
               const enlace = `${baseUrl}/factura/${factura.id}`;
               return (
-                <li key={factura.id} className="flex flex-col gap-gap-sm py-gap-md first:pt-0 last:pb-0">
+                <li
+                  key={factura.id}
+                  className="flex flex-col gap-gap-sm py-gap-md first:pt-0 last:pb-0"
+                >
                   <div className="flex flex-wrap items-start justify-between gap-gap-sm">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-gap-xs">
@@ -223,25 +279,26 @@ export function FacturasPanel({
                       href={enlace}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition hover:border-verde-300 hover:text-verde-700"
+                      className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition:hover:border-verde-300:hover:text-verde-700"
+                      aria-label="Abrir factura en nueva pestaña"
                     >
-                      <ExternalLink size={14} />
-                      Abrir
+                      <ExternalLink size={14} /> Abrir
                     </a>
                     <button
                       type="button"
                       onClick={() => void copiar(factura.id)}
-                      className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition hover:border-verde-300 hover:text-verde-700"
+                      className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition:hover:border-verde-300:hover:text-verde-700"
+                      aria-label="Copiar enlace de la factura"
                     >
-                      <Copy size={14} />
-                      Copiar enlace
+                      <Copy size={14} /> Copiar enlace
                     </button>
-                    {factura.estado === "aceptada" && (
+                    {["aceptada", "en_revision"].includes(factura.estado) && (
                       <button
                         type="button"
                         onClick={() => void accion(factura.id, "confirmar")}
                         disabled={procesando !== null}
-                        className="inline-flex h-10 items-center gap-gap-xs rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 transition hover:bg-verde-300 disabled:opacity-60"
+                        className="inline-flex h-10 items-center gap-gap-xs rounded-full bg-verde-400 px-gap-sm font-lv-display text-meta font-semibold text-verde-950 transition:hover:bg-verde-300 disabled:opacity-60"
+                        aria-label="Confirmar el pago y activar el servicio"
                       >
                         {procesando === `confirmar:${factura.id}` ? (
                           <Loader2 size={14} className="animate-spin" />
@@ -251,12 +308,15 @@ export function FacturasPanel({
                         Confirmar pago
                       </button>
                     )}
-                    {["enviada", "aceptada"].includes(factura.estado) && (
+                    {["pendiente", "aceptada", "en_revision"].includes(
+                      factura.estado,
+                    ) && (
                       <button
                         type="button"
                         onClick={() => void accion(factura.id, "cancelar")}
                         disabled={procesando !== null}
-                        className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition hover:border-destructive/30 hover:text-destructive disabled:opacity-60"
+                        className="inline-flex h-10 items-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-meta font-semibold text-ink transition:hover:border-destructive/30:hover:text-destructive disabled:opacity-60"
+                        aria-label="Cancelar esta propuesta"
                       >
                         {procesando === `cancelar:${factura.id}` ? (
                           <Loader2 size={14} className="animate-spin" />

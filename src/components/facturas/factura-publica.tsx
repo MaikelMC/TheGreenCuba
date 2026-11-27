@@ -21,18 +21,20 @@ const FECHA = new Intl.DateTimeFormat("es-CU", {
 });
 
 const ESTADO_CLASE: Record<FacturaResumen["estado"], string> = {
-  enviada: "border-amber-200 bg-amber-50 text-amber-800",
+  pendiente: "border-amber-200 bg-amber-50 text-amber-800",
   aceptada: "border-blue-200 bg-blue-50 text-blue-800",
+  en_revision: "border-amber-200 bg-amber-50 text-amber-800",
   pagada: "border-verde-200 bg-verde-50 text-verde-700",
+  caducada: "border-ink/10 bg-sand text-ink-soft/75",
   cancelada: "border-ink/10 bg-sand text-ink-soft/75",
 };
 
 function escapar(texto: string): string {
   return texto
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+    .replaceAll("&", "&")
+    .replaceAll("<", "<")
+    .replaceAll(">", ">")
+    .replaceAll('"', '"');
 }
 
 function htmlFactura(factura: FacturaResumen): string {
@@ -141,7 +143,7 @@ export function FacturaPublica({
     factura.estado === "aceptada" || factura.estado === "pagada";
 
   async function empezar() {
-    if (aceptando || factura.estado !== "enviada") return;
+    if (aceptando || factura.estado !== "pendiente") return;
     setAceptando(true);
     try {
       const res = await fetch(`/api/facturas/${encodeURIComponent(factura.id)}/aceptar`, {
@@ -156,7 +158,7 @@ export function FacturaPublica({
         return;
       }
       setFactura(data.factura);
-      toast.success("Compra confirmada. Ya puedes descargar tu factura.");
+      toast.success("Propuesta aceptada. Ahora elige cómo pagar.");
     } catch {
       toast.error("No hubo respuesta del servidor.");
     } finally {
@@ -164,8 +166,134 @@ export function FacturaPublica({
     }
   }
 
+  function getAccionesEstado(): React.ReactNode {
+    // Renderiza la barra inferior con acciones según el estado actual
+    switch (factura.estado) {
+      case "pendiente": {
+        return (
+          <>
+            <p className="mt-gap-sm text-meta text-ink-soft/70" aria-live="polite">
+              Al pulsar "Empezar" confirmas la compra de este plan. El acceso
+              se activa cuando administración confirme el pago.
+            </p>
+            <button
+              type="button"
+              onClick={() => void empezar()}
+              disabled={aceptando}
+              aria-label={
+                aceptando ? "Confirmando..." : "Empezar propuesta"
+              }
+              className="mt-gap-sm flex h-12 w-full items-center justify-center gap-gap-xs rounded-full bg-verde-400 font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition hover:bg-verde-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {aceptando ? (
+                <Loader2 size={17} className="animate-spin" />
+              ) : (
+                <Play size={17} />
+              )}
+              {aceptando ? "Confirmando…" : "Empezar"}
+            </button>
+          </>
+        );
+      }
+
+      case "aceptada":
+      case "en_revision": {
+        return (
+          <>
+            <p className="mt-gap-sm text-meta text-ink-soft/70" aria-live="polite">
+              La propuesta ha sido aceptada. Elige un método de pago para continuar.
+            </p>
+            <div className="mt-gap-sm flex flex-col gap-gap-sm">
+              <button
+                type="button"
+                onClick={() => window.location.href = `/api/facturas/${factura.id}/metodo`}
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-verde-400 px-gap-sm font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition hover:bg-verde-300"
+                aria-label="Elegir método de pago"
+              >
+                <CheckCircle2 size={16} className="mr-2" /> Elegir método de pago
+              </button>
+              <button
+                type="button"
+                onClick={() => window.location.href = `/api/facturas/${factura.id}/pago`}
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-small font-semibold text-ink transition hover:border-verde-300 hover:text-verde-700"
+                aria-label="Avisar paso a revisión"
+              >
+                <Loader2 size={16} className="mr-2" /> Avisar paso a revisión
+              </button>
+            </div>
+          </>
+        );
+      }
+
+      case "pagada": {
+        return (
+          <>
+            <p className="mt-gap-xs text-meta text-verde-700" aria-live="polite">
+              Pagada el {factura.pagadaEn && FECHA.format(new Date(factura.pagadaEn))}.
+            </p>
+            <div className="mt-gap-sm flex flex-col gap-gap-sm">
+              <button
+                type="button"
+                onClick={() => descargar(factura)}
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-verde-400 px-gap-sm font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition hover:bg-verde-300"
+                aria-label="Descargar copia de la factura"
+              >
+                <Download size={16} /> Descargar copia
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-small font-semibold text-ink transition:hover:border-verde-300 hover:text-verde-700"
+                aria-label="Imprimir factura"
+              >
+                <Printer size={16} /> Imprimir
+              </button>
+            </div>
+            <p className="mt-gap-xs text-meta text-verde-700">
+              Pagada el {factura.pagadaEn && FECHA.format(new Date(factura.pagadaEn))}.
+            </p>
+          </>
+        );
+      }
+
+      case "caducada": {
+        return (
+          <>
+            <p className="mt-gap-sm text-meta text-ink-soft/70" aria-live="polite">
+              Esta propuesta ha caducado. Solicita una nueva propuesta.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.href = "/admin/facturas"}
+              className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-verde-400 px-gap-sm font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition hover:bg-verde-300"
+              aria-label="Solicitar nueva propuesta"
+            >
+              <Play size={17} /> Solicitar nueva propuesta
+            </button>
+          </>
+        );
+      }
+
+      case "cancelada": {
+        return (
+          <>
+            <p className="mt-gap-sm text-meta text-ink-soft/70" aria-live="polite">
+              Esta propuesta ha sido cancelada.
+            </p>
+          </>
+        );
+      }
+
+      default:
+        return null;
+    }
+  }
+
   return (
-    <article className="mx-auto w-full max-w-2xl overflow-hidden rounded-[28px] border border-ink/5 bg-white shadow-card">
+    <article
+      className="mx-auto w-full max-w-2xl overflow-hidden rounded-[28px] border border-ink/5 bg-white shadow-card"
+      aria-label={`Factura de servicios para ${factura.negocioNombre}`}
+    >
       <header className="flex flex-wrap items-start justify-between gap-gap-sm border-b border-ink/5 bg-verde-50/60 p-gap-lg">
         <div>
           <p className="font-lv-display text-meta font-semibold uppercase tracking-[0.14em] text-verde-700">
@@ -269,48 +397,7 @@ export function FacturaPublica({
             {estado.descripcion}
           </p>
 
-          {factura.estado === "enviada" && (
-            <>
-              <p className="mt-gap-sm text-meta text-ink-soft/70">
-                Al pulsar «Empezar» confirmas la compra de este plan. El acceso
-                se activa cuando administración confirme el pago.
-              </p>
-              <button
-                type="button"
-                onClick={() => void empezar()}
-                disabled={aceptando}
-                className="mt-gap-sm flex h-12 w-full items-center justify-center gap-gap-xs rounded-full bg-verde-400 font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition hover:bg-verde-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {aceptando ? (
-                  <Loader2 size={17} className="animate-spin" />
-                ) : (
-                  <Play size={17} />
-                )}
-                {aceptando ? "Confirmando…" : "Empezar"}
-              </button>
-            </>
-          )}
-
-          {puedeDescargar && (
-            <div className="mt-gap-sm flex flex-col gap-gap-xs sm:flex-row">
-              <button
-                type="button"
-                onClick={() => descargar(factura)}
-                className="inline-flex h-11 flex-1 items-center justify-center gap-gap-xs rounded-full bg-verde-400 px-gap-sm font-lv-display text-small font-semibold text-verde-950 shadow-primary-halo transition hover:bg-verde-300"
-              >
-                <Download size={16} />
-                Descargar copia
-              </button>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="inline-flex h-11 flex-1 items-center justify-center gap-gap-xs rounded-full border border-ink/10 bg-white px-gap-sm font-lv-display text-small font-semibold text-ink transition hover:border-verde-300 hover:text-verde-700"
-              >
-                <Printer size={16} />
-                Imprimir
-              </button>
-            </div>
-          )}
+          {getAccionesEstado()}
 
           {factura.estado === "pagada" && factura.pagadaEn && (
             <p className="mt-gap-xs text-meta text-verde-700">
